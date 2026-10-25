@@ -184,7 +184,7 @@ public sealed record GoalsFacts
 
     public ResearchFacts? Research { get; init; }
 
-    public Fact<TechTier> Tier { get; init; }
+    public TechTier Tier { get; init; }
 
     public EquatableArray<Amount> Stock { get; init; }
 
@@ -222,15 +222,15 @@ public sealed record GoalsFacts
     public IReadOnlyDictionary<NeedId, OwnerProgress> Owners { get; init; } = new Dictionary<NeedId, OwnerProgress>();
 
     /// <summary>The facts a review already holds, with the goals and the owners' rows.</summary>
-    public static GoalsFacts From(RoundsFacts f, Fact<TechTier> tier, WorkPawnsRead pawns, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners, IReadOnlyDictionary<string, IReadOnlyList<string>>? stuffResearch = null) => new()
+    public static GoalsFacts From(RoundsFacts f, TechTier tier, WorkPawnsRead pawns, IReadOnlyList<GoalRecord> goals, IReadOnlyList<ThemeRecord> themes, IReadOnlyDictionary<NeedId, OwnerProgress> owners, IReadOnlyDictionary<string, IReadOnlyList<string>>? stuffResearch = null) => new()
     {
         Pawns = pawns,
         Goals = goals,
         Themes = themes,
         Research = f.Research,
         Tier = tier,
-        Stock = f.Resources,
-        Colonists = f.Colonists,
+        Stock = f.ObservedStock(),
+        Colonists = f.Census.ColonistCount,
         Animals = f.AnimalUpkeep.Animals,
         Ideology = f.Ideology,
         Rounds = f,
@@ -488,7 +488,7 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAColonist, default, GoalDeficit.Unmeasured);
         }
-        var skill = pawn.Skills.FirstOrDefault(s => s.Name == goal.Qualifier);
+        var skill = pawn.Skills.FirstOrDefault(s => s.DefName == goal.Qualifier);
         if (skill is null)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_skill", default, GoalDeficit.Unmeasured);
@@ -678,9 +678,9 @@ public static partial class GoalRules
         }
         else if (goal.Kind == GoalKind.ResearchTier)
         {
-            if (Enum.TryParse<TechTier>(goal.Target, true, out var target) && f.Tier.TryGetValue(out var tier))
+            if (Enum.TryParse<TechTier>(goal.Target, true, out var target))
             {
-                for (var t = tier + 1; t <= target; t++)
+                for (var t = f.Tier + 1; t <= target; t++)
                 {
                     projects.Add(TechTierRules.Unlocks[t][0]);
                 }
@@ -812,7 +812,7 @@ public static partial class GoalRules
         if (required.Count > 0)
         {
             GearPawn Add(GearPawn p) => required.TryGetValue(p.Pawn, out var names) && p.Policy is { } state
-                ? p with { Policy = state with { Required = EquatableArray.From(state.Required.Items.Union(names, StringComparer.Ordinal)) } }
+                ? p with { Policy = state with { GoalRequired = EquatableArray.From(state.GoalRequired.Items.Union(names, StringComparer.Ordinal)) } }
                 : p;
             f = f with { Gear = gear with { Pawns = [.. gear.Pawns.Select(Add)] } };
         }
@@ -872,7 +872,7 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, GoalDeficit.Of(1.0));
         }
-        var held = goal.Kind == GoalKind.Precept ? ideo.Facts.Precepts.Any(p => p.Def == goal.Target)
+        var held = goal.Kind == GoalKind.Precept ? ideo.Facts.Precepts.Any(p => p.DefName == goal.Target)
             : goal.Kind == GoalKind.Meme ? ideo.Facts.Memes.Contains(goal.Target)
             : ideo.Facts.VeneratedAnimals.Contains(goal.Target);
         if (held)
@@ -888,7 +888,7 @@ public static partial class GoalRules
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, unmet);
         }
         var development = ideo.Facts.Development;
-        if (!development.Fluid)
+        if (development is not RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid fluid)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "not fluid", default, unmet);
         }
@@ -902,9 +902,9 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "not_calm", owner, unmet);
         }
-        if (!development.CanReform)
+        if (!fluid.CanReform)
         {
-            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, FormattableString.Invariant($"development points {development.DevelopmentPoints}/{development.NextReformPoints}"), owner, unmet);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, FormattableString.Invariant($"development points {fluid.Points}/{fluid.NextReformPoints}"), owner, unmet);
         }
         return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Pursuing, f.ReformGoal.Serves(goal.Id) ? "" : "queued", owner, unmet);
     }
@@ -929,9 +929,9 @@ public static partial class GoalRules
         return new Standing(finished, finished ? 0.0 : 1.0);
     }
 
-    private static Standing? TierMet(string target, Fact<TechTier> tier)
+    private static Standing? TierMet(string target, TechTier tier)
     {
-        var reached = tier.TryGetValue(out var t) ? t : throw new RequiredFactException("tech tier");
+        var reached = tier;
         if (!Enum.TryParse<TechTier>(target, true, out var wanted))
         {
             return null;

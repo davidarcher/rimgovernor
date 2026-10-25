@@ -10,7 +10,7 @@ public sealed partial class Rounder
     /// the facts' key parts and the load beside the survey. Pure and cheap; the chain itself runs once, inside the
     /// replan the inputs' drift starts (<c>StartLayoutReplan</c>), off the review's hold path.
     /// </summary>
-    internal (StationFacts Facts, LayoutInputs Inputs) StationInputsOf(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, RoomGrowth growth, MapSurvey survey, BedMergeFacts bedMerge, IReadOnlyDictionary<string, double>? hostBuild = null)
+    internal (StationFacts Facts, LayoutInputs Inputs) StationInputsOf(GenerationSnapshot snapshot, ColonyReading projection, LayoutPlan plan, RoomGrowth growth, MapSurvey survey, BedMergeFacts bedMerge, IReadOnlyDictionary<string, double>? hostBuild = null)
     {
         var f = StationFactsBuilder.StationFactsOf(projection, plan, survey, StationNeeds(snapshot), WorkLedgerView()) with
         {
@@ -40,13 +40,13 @@ public sealed partial class Rounder
     /// stuff and cost list (LayoutClusterRules.BedMergeFactsOf). A piece the catalog shows no work or cost list for is
     /// unread, which the chain waits on (#3747).
     /// </summary>
-    internal async Task<BedMergeFacts> BedMergeFactsAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    internal async Task<BedMergeFacts> BedMergeFactsAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
-        var sleepers = LayoutClusterRules.SleeperGainsOf(BedroomGainFacts.Of(projection.Facts), projection.Impressiveness);
+        var sleepers = LayoutClusterRules.SleeperGainsOf(BedroomGainFacts.Of(projection.Facts), projection.Facts.Impressiveness);
         var (wall, door) = BedMergeShell(projection);
         var materials = new[] { wall, door }.SelectMany(p => p?.Costs ?? []).Select(a => a.Resource);
-        var values = await MaterialValuesAsync(snapshot, materials, projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
-        return LayoutClusterRules.BedMergeFactsOf(sleepers, projection.Impressiveness, wall, door, values);
+        var values = await MaterialValuesAsync(snapshot, materials, projection.Facts.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
+        return LayoutClusterRules.BedMergeFactsOf(sleepers, projection.Facts.Impressiveness, wall, door, values);
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ public sealed partial class Rounder
     /// else its rock's blocks, #3747), the door in the wall's stuff as the planned sites build it. Either is null where the
     /// catalog shows no work or cost list for it.
     /// </summary>
-    internal static ((double Work, IReadOnlyList<Amount> Costs)? Wall, (double Work, IReadOnlyList<Amount> Costs)? Door) BedMergeShell(ColonyProjection projection)
+    internal static ((double Work, IReadOnlyList<Amount> Costs)? Wall, (double Work, IReadOnlyList<Amount> Costs)? Door) BedMergeShell(ColonyReading projection)
     {
         var (wallDef, doorDef) = (ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition);
         var stuffs = PlannedRingStuffsOf(projection, wallDef, doorDef);
@@ -67,7 +67,7 @@ public sealed partial class Rounder
     /// its WorkToBuild and cost list, a stuffed station's in its cheapest common stuff, priced by LayoutClusterRules.PiecePrice.
     /// A station the catalog shows no work or cost list for is left out, which leaves its recipe's hosts unpriced.
     /// </summary>
-    internal async Task<IReadOnlyDictionary<string, double>> HostBuildAsync(GenerationSnapshot snapshot, ColonyProjection projection, StationFacts facts, CancellationToken ct)
+    internal async Task<IReadOnlyDictionary<string, double>> HostBuildAsync(GenerationSnapshot snapshot, ColonyReading projection, StationFacts facts, CancellationToken ct)
     {
         var output = new Dictionary<string, double>(StringComparer.Ordinal);
         if (facts.Ledger.Status is not (WorkRules.LedgerViewReconciled or WorkRules.LedgerViewInactive) || facts.Ledger.Orders.Count == 0)
@@ -84,7 +84,7 @@ public sealed partial class Rounder
                 pieces[def] = piece;
             }
         }
-        var values = await MaterialValuesAsync(snapshot, pieces.Values.SelectMany(p => p.Costs).Select(a => a.Resource), projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
+        var values = await MaterialValuesAsync(snapshot, pieces.Values.SelectMany(p => p.Costs).Select(a => a.Resource), projection.Facts.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
         foreach (var (def, piece) in pieces)
         {
             output[def] = LayoutClusterRules.PiecePrice(piece, values);
@@ -97,9 +97,9 @@ public sealed partial class Rounder
     /// the primary bed (its work and cost list in its cheapest common stuff, LayoutClusterRules.PiecePrice). Null while the sleeping
     /// census is unread or the catalog shows the bed no work or cost list, which the pawn value requires.
     /// </summary>
-    internal async Task<PawnBedFacts?> PawnBedAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    internal async Task<PawnBedFacts?> PawnBedAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
-        var name = projection.Shapes.Furniture.PrimaryBed();
+        var name = projection.Facts.Shapes.Furniture.PrimaryBed();
         if (projection.Facts.VacantColonistBeds is not { } vacant)
         {
             return null;
@@ -112,14 +112,14 @@ public sealed partial class Rounder
         {
             return null;
         }
-        var values = await MaterialValuesAsync(snapshot, piece.Costs.Select(a => a.Resource), projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
+        var values = await MaterialValuesAsync(snapshot, piece.Costs.Select(a => a.Resource), projection.Facts.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
         return new(false, LayoutClusterRules.PiecePrice(piece, values));
     }
 
     /// <summary>A work station's work to build and cost list: its own for a def made from no stuff, else its cheapest common stuff's (by cost value).</summary>
-    private static (double Work, IReadOnlyList<Amount> Costs)? HostPiece(ColonyProjection colony, string name)
+    private static (double Work, IReadOnlyList<Amount> Costs)? HostPiece(ColonyReading colony, string name)
     {
-        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, name) is not { } def)
         {
             return null;
         }
@@ -132,9 +132,9 @@ public sealed partial class Rounder
     }
 
     /// <summary>A shell piece's work to build and cost list in <paramref name="stuff"/> (its own for a def made from no stuff); null where the catalog shows neither.</summary>
-    private static (double Work, IReadOnlyList<Amount> Costs)? ShellPiece(ColonyProjection colony, string name, string stuff)
+    private static (double Work, IReadOnlyList<Amount> Costs)? ShellPiece(ColonyReading colony, string name, string stuff)
     {
-        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, name) is not { } def)
         {
             return null;
         }
@@ -144,7 +144,7 @@ public sealed partial class Rounder
             var costs = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs;
             return (own, costs);
         }
-        return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is { } option && option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var work)
+        return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is { } option && option.Stats.TryGetValue(Domain.StatDefNames.StatWorkToBuild, out var work)
             ? (work, option.Costs) : null;
     }
 }
@@ -467,14 +467,14 @@ internal static class StationFactsBuilder
     /// flows, stack limits, rot) are added by the caller. A demand a review derived for this world is known even when
     /// empty: it targets no stock.
     /// </summary>
-    public static StationFacts StationFactsOf(ColonyProjection projection, LayoutPlan plan, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
+    public static StationFacts StationFactsOf(ColonyReading projection, LayoutPlan plan, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
     {
         var f = new StationFacts
         {
-            Catalog = projection.Stations,
-            Furniture = projection.Shapes.Furniture,
+            Catalog = projection.Facts.Stations,
+            Furniture = projection.Facts.Shapes.Furniture,
             Items = projection.Facts.Items,
-            Colonists = projection.Facts.Colonists,
+            Colonists = projection.Facts.Census.ColonistCount,
             Patients = projection.Facts.MedicalPawns,
             Surgical = SurgeryRules.SurgeryBedShortPatients(projection.Facts.MedicalPawns),
             GoalBuild = projection.Facts.GoalBuild,
@@ -482,17 +482,17 @@ internal static class StationFactsBuilder
             Herds = projection.Facts.PenHerds(),
             Races = projection.Facts.AnimalUpkeep.AnimalRaces,
             Pasture = projection.Facts.Pasture,
-            WorkPawns = projection.WorkPawns,
-            Rest = projection.Rest,
-            Food = projection.FoodSupply,
+            WorkPawns = projection.Facts.ForecastObserved.WorkPawns,
+            Rest = projection.Facts.Rest,
+            Food = projection.Facts.FoodSupply,
             Ledger = ledger,
             Stock = needs,
-            RoofDistance = projection.RoofSupport,
+            RoofDistance = projection.Facts.RoofSupport,
             Plan = plan,
             Survey = survey,
-            OutdoorCurve = projection.OutdoorCurve,
-            FullRotRateC = projection.FullRotRateC,
-            VentAvailable = projection.DefinitionAvailable(ClimateRules.ClimateDefs().VentDef),
+            OutdoorCurve = ClimateRules.RequireOutdoorCurve(projection.Snapshot.Gear.Climate.Temperatures),
+            FullRotRateC = projection.Facts.FullRotRateC,
+            VentAvailable = ColonyPlanningRules.DefinitionAvailable(projection.Facts, ClimateRules.ClimateDefs().VentDef),
             ExpectedMood = ExpectedMood(projection.Facts.MoodPawns),
         };
         try
@@ -503,7 +503,7 @@ internal static class StationFactsBuilder
         catch (DomainException)
         {
         }
-        var rooms = projection.Rooms;
+        var rooms = projection.Facts.Upkeep.Rooms;
         {
             f = f with { Dining = rooms.Dining };
         }
@@ -518,7 +518,7 @@ internal static class StationFactsBuilder
     /// asks (ThroneArea) and what the colony has not read left unknown, which the plan waits for. The catalog rows
     /// are added by the caller (<see cref="StationFacts"/>).
     /// </summary>
-    public static StationFacts FirstPlanFacts(ColonyProjection projection, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
+    public static StationFacts FirstPlanFacts(ColonyReading projection, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
     {
         var f = StationFactsOf(projection, new LayoutPlan(), survey, needs, ledger) with { Derive = true };
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
@@ -536,10 +536,10 @@ internal static class StationFactsBuilder
 internal static class FieldCrops
 {
     /// <summary>The crops the colony's growing zones are sown with, each once, in plant-definition order: the field nodes of the station graph follow the crops the field planner has chosen, never a choice of the chain's.</summary>
-    public static List<CropChoice> Growing(ColonyProjection projection)
+    public static List<CropChoice> Growing(ColonyReading projection)
     {
         var sown = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var farm in projection.Farms)
+        foreach (var farm in (projection.Tables.Zones ?? throw new RequiredFactException("zone census")).Zones.OfType<O.ZoneState.Growing>())
         {
             if (farm.Crop != "")
             {
@@ -554,7 +554,7 @@ internal static class FieldCrops
     /// table the catalog offers, because a field node exists only for a crop and a colony that sows nothing would
     /// never get a field to sow.
     /// </summary>
-    public static IReadOnlyList<CropChoice> Of(ColonyProjection projection)
+    public static IReadOnlyList<CropChoice> Of(ColonyReading projection)
     {
         var sown = Growing(projection);
         if (sown.Count > 0)

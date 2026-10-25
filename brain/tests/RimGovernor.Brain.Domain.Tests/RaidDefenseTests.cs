@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using static RimGovernor.Brain.Domain.Fact;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -21,22 +20,22 @@ public sealed class RaidDefenseTests
     [Fact]
     public void ATotalDefenseCapacityCanBeZeroOrPositive()
     {
-        Assert.Equal(new RaidDefense(500, 0), RaidDefense.Of(new RoundsFacts { RaidPoints = 500.0, DefenseCapacity = 0 }));
-        Assert.Equal(new RaidDefense(500, 120), RaidDefense.Of(new RoundsFacts { RaidPoints = 500.0, DefenseCapacity = 120.0 }));
+        Assert.Equal(new RaidDefense(500, 0), RaidDefense.Of(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 500.0 } } }, DefenseCapacity = 0 }));
+        Assert.Equal(new RaidDefense(500, 120), RaidDefense.Of(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 500.0 } } }, DefenseCapacity = 120.0 }));
     }
 
     [Fact]
     public void TheArmoryTierIsTheThreatCappedByResearch()
     {
-        var smithing = new ResearchFacts { Finished = [new ResearchProjectId("Smithing")] };
+        var smithing = ResearchTestFacts.Read(finished: ["Smithing"]);
 
         Assert.Equal(ArmoryTier.Smithing, ArmoryRules.AssessArmory(new RaidDefense(500, 200), smithing).Tier);
         Assert.Equal(ArmoryTier.Neolithic, ArmoryRules.AssessArmory(new RaidDefense(200, 500), smithing).Tier);
-        Assert.Equal("research", Assert.Throws<RequiredFactException>(() =>
-            ArmoryRules.AssessArmory(new RoundsFacts { RaidPoints = 500.0, DefenseCapacity = 120.0 })).Fact);
+        Assert.Equal("research census", Assert.Throws<RequiredFactException>(() =>
+            ArmoryRules.AssessArmory(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 500.0 } } }, DefenseCapacity = 120.0 })).Fact);
     }
 
-    private static GearRecipe Recipe() => new() { Available = true, AvailableOn = true, Ingredients = [], RequiredWork = [], WorkAmount = 100 };
+    private static GearRecipe Recipe() => new() { Access = ProductionBenchFixtures.Recipe("defense-recipe"), Ingredients = [], RequiredWork = [], WorkAmount = 100 };
 
     [Fact]
     public void OnlyALadderedRecipeIsAWeaponRecipe()

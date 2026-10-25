@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -22,12 +21,9 @@ public sealed class SleepingPlannerTests
     /// <summary>The planned room standing enclosed in the census, as a native Bedroom (a suite reads as one too).</summary>
     private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, params string[] beds) => (RoomFixtures.State(id, RoomRole.Bedroom, beds: beds), room.Region.Cells());
 
-    private static SleepingBed Bed(string id, string room, params PawnId[] owners) => new()
-    {
-        Id = id, Definition = new("Bed"), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A, B],
-    };
+    private static SleepingBed Bed(string id, string room, params PawnId[] owners) => new SleepingBed { Native = SleepingNativeFixtures.Bed(id: id, room: room, owners: [.. owners], accessibleTo: [A, B]), Building = SleepingNativeFixtures.Building(id: id, definition: new Resource("Bed")), Humanlike = true };
 
-    private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = bed };
+    private static SleepingPerson Person(PawnId id, string bed) => new SleepingPerson { Native = SleepingNativeFixtures.Person(id: id), Pawn = SleepingNativeFixtures.Pawn(id: id, ownedBed: bed) };
 
     private static BedroomStep Step(LayoutPlan plan, (RoomState Room, IEnumerable<Cell> Cells)[] rooms, SleepingObservation sleeping, Dictionary<string, RoomTarget>? targets = null) =>
         SleepingRules.NextBedroomStep(plan, RoomFixtures.Census(rooms), sleeping, targets ?? [], new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
@@ -81,7 +77,7 @@ public sealed class SleepingPlannerTests
     private static readonly PlannedRoom Larger = Planned(3, LayoutTripsRules.PlannedSuite, Rect(20, 7, 8)) with { Replaces = 2 };
 
     private static UpkeepRoom Quality(string id, double impressiveness) =>
-        new() { Id = id, Role = RoomRole.None, Quality = new RoomQuality(impressiveness, 0, 0, 0, impressiveness), Cells = 0, Beds = [] };
+        new UpkeepRoom { StatKeys = SleepingNativeFixtures.StatKeys, Native = SleepingNativeFixtures.Room(id, RoomRole.None, new RoomQuality(impressiveness, 0, 0, 0, impressiveness), 0), Beds = [] };
 
     private static RoomTarget Target(double min, params string[] reasons) => new() { Min = min, Reasons = [.. reasons] };
 
@@ -173,12 +169,7 @@ public sealed class SleepingPlannerTests
         }
     }
 
-    private static CurrentBuilding StandingPiece(WantedPiece p) => new()
-    {
-        Id = "bed",
-        Building = new Building(p.DefName, p.Minimum, Rotation.North, ""),
-        Cells = [.. p.Cells()],
-    };
+    private static CurrentBuilding StandingPiece(WantedPiece p) => ConstructionObservationFixtures.Built(new Building(p.DefName, p.Minimum, Rotation.North, ""), id: "bed", cells: [.. p.Cells()]);
 
     /// <summary>The ring standing but for <paramref name="missing"/>: walls on the rest, the planned door in place.</summary>
     private static GroundCensus RingBut(params Cell[] missing) => new()
@@ -279,15 +270,8 @@ public sealed class SleepingPlannerTests
     [InlineData(false)]
     public void ThePartnerOfADoubleBedOwnerIsAssignedToItOnlyWhenBothAreWillingToShareABed(bool willing)
     {
-        static SleepingPerson Partner(PawnId id, PawnId other, string bed, bool willing) => new()
-        {
-            Id = id, OwnedBed = bed, ComfortableMin = 6.0, ComfortableMax = 30.0, Partners = [other], BedSharingAllowed = willing,
-        };
-        var dbl = new SleepingBed
-        {
-            Id = "double", Definition = new("DoubleBed"), Humanlike = true, Roofed = true, RestEffectiveness = 1, Temperature = 28.0,
-            Owners = [A], AccessibleTo = [A, B], Room = "42",
-        };
+        static SleepingPerson Partner(PawnId id, PawnId other, string bed, bool willing) => new SleepingPerson { Native = SleepingNativeFixtures.Person(id: id, partners: [other], bedSharingAllowed: willing), Pawn = SleepingNativeFixtures.Pawn(id: id, ownedBed: bed, comfortableMin: 6.0, comfortableMax: 30.0) };
+        var dbl = new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "double", temperature: 28.0, owners: [A], accessibleTo: [A, B], room: "42"), Building = SleepingNativeFixtures.Building(id: "double", definition: new Resource("DoubleBed"), roofed: true), Humanlike = true, RestEffectiveness = 1 };
         var sleeping = new SleepingObservation
         {
             Colonists = 2, People = [Partner(A, B, "double", willing), Partner(B, A, "", willing)], Beds = [dbl], BedBuildable = true,

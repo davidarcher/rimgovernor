@@ -51,4 +51,44 @@ public sealed class LightingTests
 
         Assert.Equal(["bench-a"], review.Dark);
     }
+
+    [Fact]
+    public void LampRetainsNativeEvidenceAndDefersToItsObservedFuelState()
+    {
+        var native = new LampState("torch", false);
+        var fuel = new BuildingFuel.Refuelable
+        {
+            Fuel = 0, TargetFuel = 30, OutOfFuel = true, Burn = BuildingServiceWire.IdleBurn,
+        };
+        var building = PowerBuildingFixtures.Trader("torch", "TorchLamp", new(2, 3), 0, 0, false) with
+        {
+            Service = BuildingServiceWire.NoService with { SwitchedOn = true, Fuel = fuel },
+        };
+        var lamp = new Lamp { Observed = native, Building = building, Radius = 5 };
+        var census = NoLighting with
+        {
+            Lamps = [native], WorkCells = [new WorkLightCell("bench", new Cell(3, 3), .1, true, [])],
+        };
+        var observation = new LightingObservation { Census = census, DiesToLight = [], Lamps = [lamp] };
+        var policy = LightingPolicy.Default();
+        var review = LightingRules.ReviewLighting(observation, policy, false);
+
+        Assert.Same(native, lamp.Observed);
+        Assert.Same(building, lamp.Building);
+        Assert.Same(fuel, lamp.Building.Service.Fuel);
+        Assert.Equal(("torch", "TorchLamp", new Cell(2, 3)), (lamp.Id, lamp.Definition, lamp.Cell));
+        Assert.Equal(LightingMethod.FuelNeeded, LightingRules.SelectLightingMethod(review, observation,
+            new RimGovernor.Brain.Policy.LightingFacts { Rooms = RoomTestFacts.NoRooms }, policy).Method);
+
+        var repaired = lamp with { Observed = native with { Lit = true }, Building = building with
+        {
+            Service = building.Service with { Fuel = fuel with { Fuel = 30, OutOfFuel = false } },
+        } };
+        Assert.Equal(LampFuel.Fueled, repaired.Fuel);
+        Assert.True(repaired.Lit);
+        Assert.Equal(LampFuel.Empty, lamp.Fuel);
+        Assert.False(lamp.Lit);
+        Assert.Equal(LightingMethod.Blocked, LightingRules.SelectLightingMethod(review,
+            observation with { Lamps = [repaired] }, new RimGovernor.Brain.Policy.LightingFacts { Rooms = RoomTestFacts.NoRooms }, policy).Method);
+    }
 }

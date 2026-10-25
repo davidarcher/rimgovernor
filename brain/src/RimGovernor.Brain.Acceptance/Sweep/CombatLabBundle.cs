@@ -5,7 +5,6 @@ using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Simulation.CombatMetrics;
-using static RimGovernor.Brain.Domain.Fact;
 using RimGovernor.Brain.Telemetry;
 using FightMetrics = RimGovernor.Brain.Simulation.CombatMetrics.Metrics;
 using Clock = RimGovernor.Contracts.Wire.Clock;
@@ -126,8 +125,8 @@ internal static class CombatLabBundle
             });
         }
 
-        var turrets = s.Guns.Select(g => new DefenseTurretFacts { Id = g.Id, Powered = g.Powered, Dps = g.Dps, OutOfFuel = false }).ToList();
-        return DefenseCapacityPolicy.DefenseCapacity(EquatableArray.From(defenders), EquatableArray.From(turrets));
+        var turrets = s.Guns.Select(gun => (gun.Dps, gun.Powered));
+        return DefenseCapacityPolicy.DefenseCapacity(EquatableArray.From(defenders), turrets);
     }
 
     /// <summary>Adapts one read reply to the scoring rows.</summary>

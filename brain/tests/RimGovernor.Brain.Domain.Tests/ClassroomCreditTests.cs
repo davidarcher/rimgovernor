@@ -1,7 +1,7 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -120,7 +120,7 @@ public sealed class ClassroomCreditTests
         if (learning)
         {
             // Each child holds a Construction stock that does not decay, so a level gained lasts the horizon.
-            anna = anna with { Skills = EquatableArray.From<WorkSkill>([new() { Name = "Construction", Level = 1, Learning = CapabilityMaintenanceTests.Learning() with { TrackerAllowsLearning = false } }]) };
+            anna = anna with { Skills = EquatableArray.From<O.Skill>([new() { Passion = O.Passion.None, DefName = "Construction", Level = 1, Learning = CapabilityMaintenanceTests.Learning() with { TrackerAllowsLearning = false } }]) };
         }
 
         return input with { Pawns = EquatableArray.From(new[] { anna with { Pawn = "child" }, anna with { Pawn = "other" } }) };

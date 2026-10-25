@@ -10,9 +10,11 @@ public sealed class OutdoorsDarkUnknownException()
 
 public sealed record CropClimate
 {
-    public bool Sowing { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Census { get; init; }
 
-    public double DaysRemaining { get; init; }
+    public bool Sowing => Census.FoodClimate.SowingNow;
+
+    public double DaysRemaining => Census.FoodClimate.GrowingDaysRemaining;
 
     /// <summary>
     /// The biome's permanent darkness: the sky never lights the ground, so no crop that needs light grows
@@ -21,7 +23,7 @@ public sealed record CropClimate
     public bool OutdoorsDark { get; init; }
 
     /// <summary>The colony map's biome defName: a species the game only lets a player sow wild (MustBeWildToSow) is planted only where it is native.</summary>
-    public string Biome { get; init; } = "";
+    public string Biome => Census.Biome;
 
     /// <summary>
     /// Whether a crop that needs light can be sown outdoors now: the native season read, false in a
@@ -115,7 +117,13 @@ public sealed record FieldRequest
 {
     public EquatableArray<CropChoice> Choices { get; init; }
 
-    public CropClimate Climate { get; init; } = new();
+    private CropClimate? climate;
+
+    public CropClimate Climate
+    {
+        get => climate ?? throw new RequiredFactException("crop climate was not composed");
+        init => climate = value ?? throw new RequiredFactException("crop climate is required");
+    }
 
     public FoodRunway? Runway { get; init; }
 
@@ -125,7 +133,7 @@ public sealed record FieldRequest
 
     public int Cooks { get; init; }
 
-    public Calendar Calendar { get; init; }
+    public RimGovernor.Contracts.Wire.Observations.FoodClimate Calendar => Climate.Census.FoodClimate;
 
     public EquatableArray<DisasterCondition> Conditions { get; init; }
 
@@ -408,8 +416,15 @@ public static class CropChoiceRules
 
     internal static (double Soil, bool Ok) FreeCropSoil(SiteCell cell, double minimum, IReadOnlySet<Cell>? blocked)
     {
+        var (soil, ok) = FreeCropSoilUnderRoof(cell, minimum, blocked);
+        return (soil, ok && !cell.Roofed);
+    }
+
+    /// <summary>Soil eligibility for a growing-room alternative; its caller screens the native roof and room separately.</summary>
+    internal static (double Soil, bool Ok) FreeCropSoilUnderRoof(SiteCell cell, double minimum, IReadOnlySet<Cell>? blocked)
+    {
         var soil = cell.Fertility;
-        return (soil, (blocked is null || !blocked.Contains(cell.Cell)) && cell.Walkable && !cell.Occupied() && !cell.Zone && !cell.Roofed && FoodForecastRules.FoodNumber(soil) && soil >= minimum);
+        return (soil, (blocked is null || !blocked.Contains(cell.Cell)) && cell.Walkable && !cell.Occupied() && !cell.Zone && FoodForecastRules.FoodNumber(soil) && soil >= minimum);
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
@@ -14,90 +15,47 @@ public abstract record AnomalyState
     public sealed record Inactive : AnomalyState;
 
     /// <summary>The Anomaly expansion is active: GameComponent_Anomaly's monolith state.</summary>
-    public sealed record Active(MonolithFacts Monolith) : AnomalyState;
+    public sealed record Active(O.AnomalyColonyFacts Monolith) : AnomalyState;
 }
 
-/// <summary>
-/// The monolith's observed state: GameComponent_Anomaly's AmbientHorror and level, and the monolith thing's own
-/// read (null unless it is spawned).
-/// </summary>
-public sealed record MonolithFacts
+/// <summary>Policy for the spawned native monolith and its endgame interactions.</summary>
+public static partial class MonolithRules
 {
-    public required bool AmbientHorror { get; init; }
-
-    public required int Level { get; init; }
-
-    public required MonolithThing? Thing { get; init; }
-
-    /// <summary>GameComponent_Anomaly's MonolithSpawned.</summary>
-    public bool Spawned => Thing is not null;
-}
-
-/// <summary>The spawned monolith and the endgame it gates.</summary>
-public sealed record MonolithThing
-{
-    /// <summary>The monolith thing.</summary>
-    public required string Id { get; init; }
-
-    /// <summary>The monolith's own CanActivate verdict.</summary>
-    public required bool CanActivate { get; init; }
-
-    /// <summary>The def activation would reach; null when the level does not advance through activation.</summary>
-    public required string? NextLevel { get; init; }
-
-    /// <summary>The entries still undiscovered for the next level.</summary>
-    public required uint CodexShortfall { get; init; }
-
-    /// <summary>The active conditions the next level is unreachable under.</summary>
-    public required IReadOnlyList<string> Blocking { get; init; }
-
-    /// <summary>Whether the Gleaming monolith interaction is available.</summary>
-    public required bool Gleaming { get; init; }
-
-    /// <summary>The VoidStructures still to activate.</summary>
-    public required IReadOnlyList<string> PendingStructures { get; init; }
-
-    /// <summary>The VoidNode that can be touched (empty when none).</summary>
-    public required string NodeId { get; init; }
-
-    /// <summary>The colonists on the node's map able to touch it.</summary>
-    public required IReadOnlyList<string> NodePawns { get; init; }
-
     /// <summary>
     /// The awakening quest's next interaction, in the order the quest offers them: the void node, the Gleaming
     /// monolith, then a void structure. Nothing is owed (no interaction, no hold) outside the quest. A node nobody
     /// on its map can touch is a hold.
     /// </summary>
-    internal (bool Interact, string Hold) Endgame()
+    internal static (bool Interact, string Hold) Endgame(this O.MonolithState thing)
     {
-        if (NodeId != "")
+        if (thing.VoidNodeId is not null)
         {
-            if (NodePawns.Count == 0)
+            if (thing.VoidNodePawnIds.Count == 0)
             {
                 return (false, "no colonist on the void node's map can touch it");
             }
             return (true, "");
         }
-        if (Gleaming)
+        if (thing.GleamingInteractionAvailable)
         {
-            return (Id != "", "");
+            return (thing.MonolithId != "", "");
         }
-        if (PendingStructures.Count > 0)
+        if (thing.PendingVoidStructureIds.Count > 0)
         {
-            return (PendingStructures[0] != "", "");
+            return (thing.PendingVoidStructureIds[0] != "", "");
         }
         return (false, "");
     }
 
-    internal string CannotActivate()
+    internal static string CannotActivate(this O.MonolithState thing)
     {
-        if (CodexShortfall is var shortfall and > 0)
+        if (thing.CodexShortfall is var shortfall and > 0)
         {
             return $"the codex is short {shortfall} entries for the next level";
         }
-        if (Blocking.Count > 0)
+        if (thing.BlockingConditions.Count > 0)
         {
-            return "the monolith is unreachable during " + string.Join(", ", Blocking);
+            return "the monolith is unreachable during " + string.Join(", ", thing.BlockingConditions);
         }
         return "the game does not allow activation now";
     }
@@ -121,8 +79,8 @@ public sealed record AwakenGate
     /// <summary>The observed defense capacity.</summary>
     public double Capacity { get; init; }
 
-    /// <summary>The points a default threat draws, in raid-point units.</summary>
-    public double RaidPoints { get; init; }
+    /// <summary>The native threat census used to price the awakening waves.</summary>
+    public required RimGovernor.Contracts.Wire.Observations.ThreatFacts Threat { get; init; }
 
     public HostileCensus Hostiles { get; init; } = new HostileCensus.AwaitingEmergency();
     public ContainmentPlanning Containment { get; init; } = new();
@@ -158,10 +116,14 @@ public static partial class MonolithRules
     public const double AwakenStrengthFactor = 1.25;
 
     /// <summary>Decides the monolith's next step.</summary>
-    public static MonolithAdvance MonolithAdvanceOwed(MonolithFacts f, AwakenGate gate)
+    public static MonolithAdvance MonolithAdvanceOwed(O.AnomalyColonyFacts f, AwakenGate gate)
     {
+        if (f.Monolith is { CodexShortfall: < 0 })
+        {
+            throw new DomainException("negative monolith codex shortfall");
+        }
         var none = new MonolithAdvance();
-        if (f.Thing is not { } thing || f.AmbientHorror)
+        if (f.Monolith is not { } thing || f.Incidents.AmbientHorrorMode)
         {
             return none;
         }
@@ -175,11 +137,11 @@ public static partial class MonolithRules
         {
             return outcome with { Hold = thing.CannotActivate() };
         }
-        if (f.Level == 0)
+        if (f.Incidents.Level == 0)
         {
             return outcome with { Order = MonolithOrder.Investigate };
         }
-        if (thing.NextLevel is not { } next)
+        if (thing.NextLevelDef is not { } next)
         {
             return outcome with { Hold = "no level follows the monolith's through activation" };
         }
@@ -211,7 +173,7 @@ public static partial class MonolithRules
         }
 
         var capacity = g.Capacity;
-        var points = g.RaidPoints;
+        var points = g.Threat.RaidPoints;
         if (capacity < AwakenStrengthFactor * points)
         {
             Note(string.Create(CultureInfo.InvariantCulture, $"defense capacity {capacity:F0} is below {AwakenStrengthFactor:F2} times the {points:F0} raid points of the awakening waves"));
@@ -267,14 +229,14 @@ public static partial class MonolithRules
     }
 
     /// <summary>Whether the monolith is spawned and its questline runs (not Ambient Horror mode): the only time the rule reads anything further.</summary>
-    public static bool MonolithInPlay(MonolithFacts f) => f.Spawned && !f.AmbientHorror;
+    public static bool MonolithInPlay(O.AnomalyColonyFacts f) => f.Incidents.MonolithSpawned && !f.Incidents.AmbientHorrorMode;
 
     /// <summary>The advance gate the facts give.</summary>
     public static AwakenGate MonolithGate(RoundsFacts f) =>
         new()
         {
             Capacity = f.DefenseCapacity,
-            RaidPoints = f.RaidPoints,
+            Threat = f.Census.Threat.Observed,
             Hostiles = f.Hostiles,
             Containment = f.Containment,
         };

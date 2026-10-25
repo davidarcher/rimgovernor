@@ -1,9 +1,9 @@
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using PbObservations = RimGovernor.Contracts.Wire.Observations;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,20 +13,16 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class ReviewColonyFactsTests
 {
-    private static RimGovernor.Brain.Observation.Identity At(long tick) => new()
+    private static RimGovernor.Brain.Bridge.Contracts.ObservationIdentity At(long tick) => new()
     {
-        Colony = new ColonyId("colony"),
-        Load = new LoadId("load"),
-        Map = new MapId(1),
-        Tick = new Tick(tick),
-        NativeGeneration = Known(new NativeGeneration(7)),
+        Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 1 }, Tick = tick, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(7) },
     };
 
     private static RoundsCensusStore Retained(PbObservations.ColonyFactsSnapshot colony)
     {
         var census = new RoundsCensusStore();
         census.RememberColony(colony);
-        var reading = new RoundsReading { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = ColonyFactsCoreTests.Projection() with { Identity = At(100) } } };
+        var reading = new RoundsReading { Emergency = new(), Frame = new(), Reading = ColonyFactsCoreTests.Reading(At(100)) };
         census.Retain(reading);
         return census;
     }
@@ -54,6 +50,7 @@ public sealed class ReviewColonyFactsTests
     {
         var census = Retained(ColonyFactsCoreTests.Snapshot());
 
-        Assert.Null(census.ServedColony(At(130) with { NativeGeneration = Known(new NativeGeneration(8)) }));
+        var later = At(130);
+        Assert.Null(census.ServedColony(later with { Context = later.Context with { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase(8) } }));
     }
 }

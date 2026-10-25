@@ -127,8 +127,8 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
         {
             Scope = Scope, Rectangle = new Observations.Rectangle
             {
-                Minimum = new Common.Cell { X = site.X, Z = site.Z },
-                Maximum = new Common.Cell { X = site.X + site.Width - 1, Z = site.Z + site.Height - 1 },
+                Minimum = new RimGovernor.Brain.Domain.Cell { X = site.X, Z = site.Z },
+                Maximum = new RimGovernor.Brain.Domain.Cell { X = site.X + site.Width - 1, Z = site.Z + site.Height - 1 },
             },
         }, ct).ConfigureAwait(false);
         var grid = read.Grid;
@@ -156,7 +156,7 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
         {
             Label = "Rectangle storage",
             Kind = Operations.ZoneType.Stockpile,
-            AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = new Common.Cell { X = x, Z = z }, Width = 7, Height = 5 } },
+            AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = new RimGovernor.Brain.Domain.Cell { X = x, Z = z }, Width = 7, Height = 5 } },
             Stockpile = new Operations.StockpileSettings
             {
                 Priority = new Operations.StockpilePriorityChange.Selected(StockpilePriority.Important),

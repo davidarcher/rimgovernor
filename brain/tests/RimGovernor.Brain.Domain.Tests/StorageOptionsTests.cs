@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -21,21 +20,12 @@ public sealed class StorageOptionsTests
     private static readonly Resource Granite = new("ChunkGranite");
     private static readonly Resource Wood = new("WoodLog");
 
-    private static SiteCell Floor(Cell c, bool zoned, bool sheltered) => SiteCellFixtures.At(c) with
-    {
-        Zone = zoned,
-        Roofed = sheltered,
-        Indoors = sheltered,
-    };
+    private static SiteCell Floor(Cell c, string? zoneId, bool sheltered) => SiteCellFixtures.At(c, zoneId: zoneId, roof: sheltered ? "RoofConstructed" : null, indoors: sheltered);
 
-    private static LootItem Stranded(string thing, Resource def, Cell at) => new()
-    {
-        Supply = new StartingSupply { Thing = thing, Definition = def.Value, Cell = at },
-        Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 },
-        Deterioration = def == Steel ? null : new RimGovernor.Contracts.Wire.Observations.LootDeterioration { BaseRatePerDay = def == Cloth ? 2 : 1, Environmental = true, Outdoors = true },
-        StorageHeadroom = 0L,
-        AcceptedBy = EquatableArray.From(new List<string> { "Zone_w" }),
-    };
+    private static LootItem Stranded(string thing, Resource def, Cell at) =>
+        LootFixtures.Stack(thing, def.Value, at, false,
+            new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 }, 0, 0, ["Zone_w"],
+            def == Steel ? null : new RimGovernor.Contracts.Wire.Observations.LootDeterioration { BaseRatePerDay = def == Cloth ? 2 : 1, Environmental = true, Outdoors = true });
 
     private static ItemFacts Items()
     {
@@ -51,11 +41,11 @@ public sealed class StorageOptionsTests
     {
         var cells = new List<SiteCell>();
         var zone = PlannedRules.RectCells(Warehouse).Where(c => c.X <= 1).ToList();
-        cells.AddRange(PlannedRules.RectCells(Warehouse).Select(c => Floor(c, zone.Contains(c), true)));
-        cells.AddRange(PlannedRules.RectCells(NextStorage).Select(c => Floor(c, false, true)));
-        cells.AddRange(PlannedRules.RectCells(Yard).Select(c => Floor(c, true, false)));
-        cells.AddRange(PlannedRules.RectCells(NextYard).Select(c => Floor(c, false, false)));
-        cells.AddRange(Enumerable.Range(20, 3).Select(x => Floor(new Cell(x, 0), false, false)));
+        cells.AddRange(PlannedRules.RectCells(Warehouse).Select(c => Floor(c, zone.Contains(c) ? "Zone_w" : null, true)));
+        cells.AddRange(PlannedRules.RectCells(NextStorage).Select(c => Floor(c, null, true)));
+        cells.AddRange(PlannedRules.RectCells(Yard).Select(c => Floor(c, "Zone_y", false)));
+        cells.AddRange(PlannedRules.RectCells(NextYard).Select(c => Floor(c, null, false)));
+        cells.AddRange(Enumerable.Range(20, 3).Select(x => Floor(new Cell(x, 0), null, false)));
         return new StockpileRequest
         {
             Bounds = new Bounds(100, 100),
@@ -181,7 +171,7 @@ public sealed class StorageOptionsTests
     public void ActualStackRatePricesStuffWithoutACatalogRate()
     {
         var request = Request();
-        var rows = request.Loot.Select(r => r.Supply.Definition == Cloth.Value ? r with { Deterioration = r.Deterioration! with { BaseRatePerDay = 7 } } : r).ToArray();
+        var rows = request.Loot.Select(r => r.Supply.Definition == Cloth.Value ? r with { Observed = r.Observed with { Deterioration = r.Deterioration! with { BaseRatePerDay = 7 } } } : r).ToArray();
         var warehouse = Store(Report(request with { Loot = EquatableArray.From(rows) }), StockpileRolesConstants.GeneralRole);
         Assert.Equal(7.0, warehouse.Options.First(o => o.Kind == StorageOptionKind.Shelf).DeteriorationAvoided);
     }
@@ -197,7 +187,7 @@ public sealed class StorageOptionsTests
     public void InitialReviewCanReadCapacityWhileWaitingForItsFirstPlan()
     {
         var pending = new StorageLayout.AwaitingFirstPlan();
-        Assert.IsType<StorageLayout.AwaitingFirstPlan>(RimGovernor.Brain.BuildingRuntime.RoundsStockpilePlanner.StorageLayout(ColonyFactsCoreTests.Projection(), new FlooringPolicy()));
+        Assert.IsType<StorageLayout.AwaitingFirstPlan>(RimGovernor.Brain.BuildingRuntime.RoundsStockpilePlanner.StorageLayout(ColonyFactsCoreTests.Reading(), new FlooringPolicy()));
         var request = Request() with { Layout = pending, ShelfAvailable = true };
         var report = StockpileRules.PlanStockpileMaintenance(request);
         Assert.Empty(report.ShelfCandidates);

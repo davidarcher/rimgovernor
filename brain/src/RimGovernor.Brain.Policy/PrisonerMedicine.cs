@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -62,7 +61,7 @@ public static partial class PrisonerMedicineRules
     public static IReadOnlyDictionary<Resource, long> PrisonerHerbalNeeds(IReadOnlyDictionary<Resource, long> needs, RoundsFacts f, bool silverShort)
     {
         var stock = new Dictionary<Resource, long>();
-        foreach (var row in f.Resources)
+        foreach (var row in f.ObservedStock())
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }

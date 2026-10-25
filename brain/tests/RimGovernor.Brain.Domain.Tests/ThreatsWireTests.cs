@@ -15,7 +15,7 @@ public sealed class ThreatsWireTests
     [Fact]
     public void ThreatCensusJsonRoundTripIsExact()
     {
-        var cell = new Common.Cell { X = 5, Z = 6 };
+        var cell = new RimGovernor.Brain.Domain.Cell { X = 5, Z = 6 };
         var threats = new ThreatsSnapshot
         {
             Pawns =

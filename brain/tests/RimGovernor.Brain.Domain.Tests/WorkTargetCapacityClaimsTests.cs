@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -98,7 +97,7 @@ public sealed class WorkTargetCapacityClaimsTests
     {
         var facts = Facts(Stack(7, 10));
         var deliver = Action("haul", new PawnActivityOrder("a", "a/haul", "method", 0, 1, false,
-            [new(PawnActivityKind.Deliver, "stack", "", "", 2, 2000) { Destination = new(2, 2) }]));
+            [new PawnActivityStep(PawnActivityKind.Deliver, "stack", "", "", 2, 2000).At(new(2, 2))]));
         Assert.Equal("target_claimed:stack", WorkRules.WorkResourcesRefusal(Committed(facts, deliver),
             Plan("eat", Action("eat", Order(PawnActivityKind.Eat, "b", "stack", 1)))));
         Assert.Equal("shared_target:stack", WorkRules.WorkResourcesRefusal(Committed(facts),

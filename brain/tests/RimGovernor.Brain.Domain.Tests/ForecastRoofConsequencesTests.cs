@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -34,7 +33,7 @@ public sealed class ForecastRoofConsequencesTests
         var id = op == OpKind.WallIn ? Wall : Door;
         var cell = op == OpKind.WallIn ? WallCell : DoorCell;
         var row = new Row(id, kind == "wall" ? "Wall" : "Door", cell, "pawn", "", "", cell, 0, 0, "Finish",
-            Known(0.0), default, Known(finish)) { SiteApproachTicks = Known(1.0) };
+            0.0, default, finish) { SiteApproachTicks = 1.0 };
         return new PlannedBuildSite(id, 1, op, kind == "wall" ? "Wall" : "Door", "WoodLog", Rotation.North, [cell])
             { Answer = ConstructionFixtures.Answer(id) with { Options = [row] } };
     }
@@ -303,8 +302,8 @@ public sealed class ForecastRoofConsequencesTests
         PlannedRoom room = new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)), Door = DoorCell };
         ConstructionSite[] placed =
         [
-            new() { Id = "Thing_Blueprint_Wall1", Building = new("Wall", WallCell, Rotation.North, "WoodLog") },
-            new() { Id = "Thing_Blueprint_Bed2", Building = new("Bed", Inside, Rotation.North, "WoodLog") },
+            ConstructionObservationFixtures.Site(new("Wall", WallCell, Rotation.North, "WoodLog"), id: "Thing_Blueprint_Wall1"),
+            ConstructionObservationFixtures.Site(new("Bed", Inside, Rotation.North, "WoodLog"), id: "Thing_Blueprint_Bed2"),
         ];
         Assert.Equal(["Thing_Blueprint_Wall1"], PlannedRules.PlacedRing(room, placed).Select(s => s.Id));
         var shape = Assert.Single(PlannedRules.PlannedRoomPredictionRequestOf([room], [], placed));

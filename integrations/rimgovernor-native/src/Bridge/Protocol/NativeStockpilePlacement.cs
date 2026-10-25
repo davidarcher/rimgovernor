@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
         {
             var r = intent.AddCells?.Selection?.Rectangle ?? throw new InvalidOperationException("Stockpile placement has no rectangle.");
             int width = r.Width, height = r.Height;
-            int originX = r.Origin?.X ?? 0, originZ = r.Origin?.Z ?? 0;
+            int originX = r.Origin.X, originZ = r.Origin.Z;
             var remaining = new HashSet<IntVec3>();
             for (int x = 0; x < width; x++) for (int z = 0; z < height; z++)
             {
@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
             foreach (var component in components)
             {
                 var cells = new Operations.CellList();
-                cells = cells with { Cells = [.. cells.Cells, .. component.Select(c => new Common.Cell { X = c.x, Z = c.z })] };
+                cells = cells with { Cells = [.. cells.Cells, .. component.Select(c => new RimGovernor.Brain.Domain.Cell { X = c.x, Z = c.z })] };
                 result = result with { Components = [.. result.Components, cells] };
             }
             return new Operations.ZonePreviewReply { Outcome = result };
@@ -102,7 +102,7 @@ namespace HomeBridge.BridgeTools
                 NativeStockpileSettings.Apply(zone.settings.filter, resolved, StockpileFilter.ParentFilter(zone), StockpileFilter.StorableDefs(zone));
                 zone.slotGroup.RemoveHaulDesignationOnStoredThings();
                 var created = new Receipts.CreatedZone { ZoneId = zone.GetUniqueLoadID() };
-                created = created with { Cells = [.. created.Cells, .. zone.Cells.OrderBy(c => c.x).ThenBy(c => c.z).Select(c => new Common.Cell { X = c.x, Z = c.z })] };
+                created = created with { Cells = [.. created.Cells, .. zone.Cells.OrderBy(c => c.x).ThenBy(c => c.z).Select(c => new RimGovernor.Brain.Domain.Cell { X = c.x, Z = c.z })] };
                 createdZones.Add(created);
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.ZoneEffect.CreatedCase([.. createdZones]) };

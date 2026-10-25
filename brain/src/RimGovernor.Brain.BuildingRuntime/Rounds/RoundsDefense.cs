@@ -537,6 +537,8 @@ partial class RoundsDefensePlanner
     /// <summary>The policy view of the fight: the defenders, the threats, the structures and the combat read's rooms, doors and mortars.</summary>
     internal static CombatView CombatView(BridgeCombat combat, CombatInputs inp, IReadOnlyList<PawnId> orderable, CombatLayout? layout)
     {
+        var context = combat.Context ?? throw new ObservationContractException("combat frame without its observation context");
+        var identity = context.Identity ?? throw new ObservationContractException("combat frame without its map identity");
         var catalog = combat.Catalog ?? throw new ControlException("combatView: no definition catalog");
         var needed = inp.Needed.Select(n => (Domain.PawnId)n).ToHashSet();
         var owned = new HashSet<PawnId>(orderable);
@@ -600,14 +602,14 @@ partial class RoundsDefensePlanner
         var damaged = new List<Cell>();
         foreach (var door in combat.Doors)
         {
-            damaged.Add(new Cell(door.Cell?.X ?? 0, door.Cell?.Z ?? 0));
+            damaged.Add(door.Cell);
         }
         return new CombatView
         {
-            SiteExit = QuestReads.CombatSiteExitOf(combat.World, new MapId(combat.Context?.Identity?.MapId ?? 0)),
+            SiteExit = QuestReads.CombatSiteExitOf(combat.World, new MapId(identity.MapId)),
             Hunt = inp.Prey.Count > 0,
             HuntHunters = [.. inp.Hunters.Select(h => new PawnId(h))],
-            Tick = new Tick(combat.Context?.Tick ?? 0),
+            Tick = new Tick(context.Tick),
             Pawns = [.. PreyStates(CombatPawnStates(combat, inp.Rows, inp.Weapons), inp, catalog)],
             Defenders = [.. defenders],
             Threats = [.. threats],

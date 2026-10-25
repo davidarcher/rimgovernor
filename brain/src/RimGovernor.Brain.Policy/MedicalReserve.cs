@@ -1,23 +1,12 @@
 using ItemRot = RimGovernor.Contracts.Wire.Observations.ItemRot;
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>An observed medicine stack, not a recipe or promised output.</summary>
-public sealed record MedicineStackRow
-{
-    public string Id { get; init; } = "";
-    public Resource Definition { get; init; }
-    public long Count { get; init; }
-    public bool Forbidden { get; init; }
-    public required ItemRot Rot { get; init; }
-}
-
 public sealed record MedicalReserveObservation
 {
-    public long Colonists { get; init; }
-    public EquatableArray<MedicineStackRow> Items { get; init; }
+    private RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot? census;
+    public RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.UpkeepItem> Items { get; init; }
 
-    /// <summary>The complete usable native stock census, excluding inaccessible and forbidden stock. It is capped again against the actual medicine stacks.</summary>
-    public EquatableArray<Amount> Resources { get; init; }
 
     /// <summary>Ranks the medicines: the best one is no reserve.</summary>
     public ItemFacts Catalog { get; init; } = new();
@@ -93,16 +82,16 @@ public static partial class MedicalRules
         {
             throw new DomainException(Invalid);
         }
-        var people = v.Colonists;
+        long people = v.Census.ColonistCount;
         var items = v.Items;
-        if (people < 0 || (people > 0 && p.TargetPerColonist > long.MaxValue / people))
+        if (people > 0 && p.TargetPerColonist > long.MaxValue / people)
         {
             throw new DomainException(Invalid);
         }
         // The best medicine is excluded from reserves; the catalog must identify its medicine tiers.
         var best = v.Catalog.BestMedicine();
         var stockByDefinition = new Dictionary<Resource, long>();
-        foreach (var q in v.Resources)
+        foreach (var q in v.ObservedStock())
         {
             if (!AdmissionRules.ValidResource(q.Resource) || q.Count < 0)
             {
@@ -117,7 +106,8 @@ public static partial class MedicalRules
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in items)
         {
-            if (!FoodForecastRules.FoodId(item.Id) || seen.Contains(item.Id) || !AdmissionRules.ValidResource(item.Definition) || item.Count < 0)
+            var definition = new Resource(item.Definition);
+            if (!FoodForecastRules.FoodId(item.Id) || seen.Contains(item.Id) || !AdmissionRules.ValidResource(definition) || item.Count < 0)
             {
                 throw new DomainException(Invalid);
             }
@@ -127,15 +117,15 @@ public static partial class MedicalRules
             {
                 throw new DomainException(Invalid);
             }
-            if (item.Definition == best || item.Forbidden || item.Rot is ItemRot.Rotting { Ticks: <= 0 })
+            if (definition == best || item.Forbidden || item.Rot is ItemRot.Rotting { Ticks: <= 0 })
             {
                 continue;
             }
-            if (item.Count > long.MaxValue - usable.GetValueOrDefault(item.Definition))
+            if (item.Count > long.MaxValue - usable.GetValueOrDefault(definition))
             {
                 throw new DomainException(Invalid);
             }
-            usable[item.Definition] = usable.GetValueOrDefault(item.Definition) + item.Count;
+            usable[definition] = usable.GetValueOrDefault(definition) + item.Count;
         }
         long stock = 0;
         foreach (var (definition, count) in usable)

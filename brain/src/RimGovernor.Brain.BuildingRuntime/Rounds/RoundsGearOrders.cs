@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsGearPlanner
 {
-    internal static GearPlanningRequest GearRequest(ColonyProjection projection, GearObservation census, IReadOnlyList<GearBench> benches) => new()
+    internal static GearPlanningRequest GearRequest(ColonyReading projection, GearObservation census, IReadOnlyList<GearBench> benches) => new()
     {
         Observation = census,
         Benches = EquatableArray.From(benches),
@@ -25,20 +25,20 @@ partial class RoundsGearPlanner
 /// </summary>
 public static partial class RoundsGearPlanner
 {
-    public static Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public static Declared DeclareOrders(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         DeclareOrdersInner(snapshot, projection, benches, ct).For(MilitaryFamily.Equipment.FilingKey.Value);
 
     /// <summary>Declares gear work from the complete colony census.</summary>
-    internal static Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    internal static Declared DeclareOrdersInner(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         GearOrdersRules.DeclareGearOrders(GearRequest(projection, projection.Facts.Gear, benches));
 }
 
 public sealed partial class RoundsArmoryPlanner
 {
-    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(MilitaryFamily.Equipment.FilingKey.Value);
 
-    internal async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    internal async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var tier = ArmoryRules.AssessArmory(projection.Facts).Tier;
         var census = projection.Facts.Gear;

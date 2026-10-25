@@ -30,21 +30,21 @@ public sealed partial class Rounder
     /// <summary>Adds the worship and containment definitions the child rooms need to the reading's catalog.</summary>
     internal RoundsReading ReviewChildRooms(RoundsReading reading)
     {
-        var worship = RoundsSleepingUpkeepPlanner.WorshipDefinitions(reading.Projection);
+        var worship = RoundsSleepingUpkeepPlanner.WorshipDefinitions(reading.Reading);
         // The worship floor's terrains (a presence demand's terrain tags, #3808) join so the flooring facts can choose among them.
-        var floors = reading.Catalog?.TerrainsWithTags([.. reading.Projection.Facts.Worship.FloorTags]) ?? [];
-        var projection = reading.Projection.AddDefinitions(reading.Frame, reading.Catalog, [.. worship, .. floors, .. RoundsSleepingUpkeepPlanner.ContainmentDefinitions(reading.Projection)]);
+        var floors = reading.Catalog?.TerrainsWithTags([.. reading.Reading.Facts.Worship.FloorTags]) ?? [];
+        var projection = ColonyPlanningReads.AddDefinitions(reading.Reading, reading.Frame, reading.Catalog, [.. worship, .. floors, .. RoundsSleepingUpkeepPlanner.ContainmentDefinitions(reading.Reading)]);
         Census.RememberWorship(worship);
-        return reading.WithProjection(projection);
+        return reading.WithReading(projection);
     }
 }
 
 partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>The worship room's furniture definitions: its required buildings and the things its presence demands count.</summary>
-    internal static IReadOnlyList<string> WorshipDefinitions(ColonyProjection facts) => facts.Facts.Worship.Definitions;
+    internal static IReadOnlyList<string> WorshipDefinitions(ColonyReading facts) => facts.Facts.Worship.Definitions;
 
-    internal static IReadOnlyList<string> ContainmentDefinitions(ColonyProjection facts)
+    internal static IReadOnlyList<string> ContainmentDefinitions(ColonyReading facts)
     {
         if (facts.Facts.Containment.Defs is ContainmentDefsRead.Read { Defs: var defs })
         {
@@ -58,16 +58,16 @@ partial class RoundsSleepingUpkeepPlanner
         return [];
     }
 
-    internal static ChildRoomNeed? ContainmentCellNeed(ColonyProjection facts) =>
+    internal static ChildRoomNeed? ContainmentCellNeed(ColonyReading facts) =>
         ContainmentCellRules.ContainmentCellNeed(facts.Facts.Containment, FurnitureDefinitions(facts), RoundsBuildingPlanner.FlooringFactsOf(facts));
 
-    internal static (ChildRoomNeed Need, bool Owed) IsolationRoomNeed(ColonyProjection facts) =>
-        IsolationRoomRules.IsolationRoomNeed(facts.Isolation, FurnitureDefinitions(facts));
+    internal static (ChildRoomNeed Need, bool Owed) IsolationRoomNeed(ColonyReading facts) =>
+        IsolationRoomRules.IsolationRoomNeed(facts.Facts.Isolation, FurnitureDefinitions(facts));
 
-    internal static List<ChildRoomNeed> ChildRoomNeeds(ColonyProjection facts)
+    internal static List<ChildRoomNeed> ChildRoomNeeds(ColonyReading facts)
     {
         var needs = new List<ChildRoomNeed>();
-        var pawns = facts.WorkPawns.Pawns;
+        var pawns = facts.Facts.ForecastObserved.WorkPawns.Pawns;
         {
             needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns, facts.Facts.ForecastObserved.Needs?.Deathrest));
         }
@@ -90,18 +90,18 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>The deathrest chamber's furniture the deathrest chamber credit reads (#3810), resolved as the staging resolves it.</summary>
-    internal static EquatableArray<DeathrestPiece> DeathrestFurnitureOf(ColonyProjection facts) =>
+    internal static EquatableArray<DeathrestPiece> DeathrestFurnitureOf(ColonyReading facts) =>
         ChildRoomsRules.DeathrestFurniture(ChildRoomNeeds(facts), FurnitureDefinitions(facts));
 
     /// <summary>The planned containment cells the containment cell credit reads (#3811), predicted as the cell need predicts them.</summary>
-    internal static EquatableArray<PlannedContainmentCell> ContainmentCellsOf(ColonyProjection facts) =>
+    internal static EquatableArray<PlannedContainmentCell> ContainmentCellsOf(ColonyReading facts) =>
         ForecastContainment.CellsOf(facts.Facts.Containment, RoundsBuildingPlanner.FlooringFactsOf(facts));
 
-    internal static List<FurnitureDefinition> FurnitureDefinitions(ColonyProjection facts)
+    internal static List<FurnitureDefinition> FurnitureDefinitions(ColonyReading facts)
     {
-        var names = new HashSet<string>(WorshipDefinitions(facts).Concat(ContainmentDefinitions(facts)).Concat(facts.Isolation.Beds), StringComparer.Ordinal);
+        var names = new HashSet<string>(WorshipDefinitions(facts).Concat(ContainmentDefinitions(facts)).Concat(facts.Facts.Isolation.Beds), StringComparer.Ordinal);
         var defs = new List<FurnitureDefinition>();
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             if (d.RoomRoles.Count > 0 || names.Contains(d.Name))
             {
@@ -111,11 +111,11 @@ partial class RoundsSleepingUpkeepPlanner
         return defs;
     }
 
-    internal static ChildRoomStep ChildRoomStep(ColonyProjection facts)
+    internal static ChildRoomStep ChildRoomStep(ColonyReading facts)
     {
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var ground = RoundsBuildingPlanner.ColonyGround(facts);
         if (!pk)

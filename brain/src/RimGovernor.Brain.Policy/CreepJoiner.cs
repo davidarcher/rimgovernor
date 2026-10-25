@@ -1,3 +1,5 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>One colonist ordered to drop the weapon it holds.</summary>
@@ -18,20 +20,22 @@ public sealed record CreepJoinerDownsides
     /// Measures whether a creepjoiner's downside has shown: the game fired it (the tracker's triggered flag),
     /// or the pawn carries a trait or a visible hediff a downside def adds. A pawn that is no creepjoiner has none.
     /// </summary>
-    public bool Revealed(CreepJoinerPawn p) =>
-        p.CreepJoiner is { } joiner && (joiner.DownsideTriggered || p.Traits.Any(Traits.Contains) || p.Hediffs.Any(Hediffs.Contains));
+    public bool Revealed(O.PawnState p) =>
+        p.Anomaly is PawnAnomalyState.Active { Facts.Creepjoiner: { } joiner }
+        && (joiner.DownsideTriggered || p.Biography.Traits.Any(trait => Traits.Contains(trait.DefName))
+            || p.Health.Hediffs.Any(hediff => hediff.Visible && Hediffs.Contains(hediff.DefName)));
 
     /// <summary>
     /// Whether the pawn is a creepjoiner whose downside has not shown. A pawn that is no creepjoiner is not: the
     /// gear census flags only a creepjoiner (GearRoleInput.UnrevealedCreepjoiner).
     /// </summary>
-    public bool Unrevealed(CreepJoinerPawn p) => p.CreepJoiner is not null && !Revealed(p);
+    public bool Unrevealed(O.PawnState p) => p.Anomaly is PawnAnomalyState.Active { Facts.Creepjoiner: not null } && !Revealed(p);
 
     /// <summary>
     /// The plain-English reason a colonist must not hold a weapon yet, empty when nothing holds it back: a
     /// creepjoiner whose downside has not shown. A pawn that is no creepjoiner is never held.
     /// </summary>
-    public string ArmsHold(CreepJoinerPawn p) =>
+    public string ArmsHold(O.PawnState p) =>
         Unrevealed(p) ? "it is a creepjoiner whose downside is not revealed yet, so it is not armed" : "";
 
     /// <summary>
@@ -39,14 +43,14 @@ public sealed record CreepJoinerDownsides
     /// pawn id. A drop is owed exactly when the list is not empty.
     /// </summary>
     public IReadOnlyList<WeaponDrop> WeaponDrops(IReadOnlyList<CreepJoinerHand> hands) =>
-        [.. hands.Where(h => ArmsHold(h.Facts).Length != 0 && h.Weapon is not null && h.Available).Select(h => new WeaponDrop(h.Pawn)).OrderBy(d => d.Pawn)];
+        [.. hands.Where(h => ArmsHold(h.Observed).Length != 0 && h.Weapon is not null && h.Available).Select(h => new WeaponDrop(h.Pawn)).OrderBy(d => d.Pawn)];
 
     /// <summary>
     /// Whether the colony holds the creepjoiner apart: its downside is known not to have shown and the record
     /// holds no finished inspection of it.
     /// </summary>
     internal bool HoldsApart(CreepJoinerHand h, CreepJoinerRecord record) =>
-        record.Inspections.GetValueOrDefault(h.Pawn) != InspectionStage.Done && Unrevealed(h.Facts);
+        record.Inspections.GetValueOrDefault(h.Pawn) != InspectionStage.Done && Unrevealed(h.Observed);
 
     /// <summary>The creepjoiners the colony holds apart, sorted by pawn id.</summary>
     public EquatableArray<PawnId> Isolated(IReadOnlyList<CreepJoinerHand> hands, CreepJoinerRecord record) =>
@@ -67,7 +71,7 @@ public sealed record CreepJoinerDownsides
         var result = new List<IsolationMove>();
         foreach (var h in hands)
         {
-            if (h.Facts.CreepJoiner is null)
+            if (h.Observed.Anomaly is not PawnAnomalyState.Active { Facts.Creepjoiner: not null })
             {
                 continue;
             }
@@ -107,7 +111,7 @@ public sealed record CreepJoinerDownsides
         var waiting = new List<string>();
         foreach (var h in hands)
         {
-            if (h.Facts.CreepJoiner is null)
+            if (h.Observed.Anomaly is not PawnAnomalyState.Active { Facts.Creepjoiner: not null })
             {
                 continue;
             }
@@ -124,7 +128,7 @@ public sealed record CreepJoinerDownsides
             {
                 continue;
             }
-            if (Revealed(h.Facts))
+            if (Revealed(h.Observed))
             {
                 continue;
             }
@@ -146,50 +150,36 @@ public sealed record CreepJoinerDownsides
     }
 }
 
-/// <summary>
-/// One colonist's facts for the downside check: its creepjoiner tracker facts (null for a pawn that is no
-/// creepjoiner) and the def names of its traits and of its visible hediffs.
-/// </summary>
-public sealed record CreepJoinerPawn
-{
-    public required CreepJoinerState? CreepJoiner { get; init; }
-
-    public required EquatableArray<string> Traits { get; init; }
-
-    public required EquatableArray<string> Hediffs { get; init; }
-}
-
-/// <summary>
-/// One colonist's facts for the weapon drop and the inspection: the downside check's facts, whether the
-/// colonist can take an order now, the thing id of the weapon in its hands (null for none), its
-/// available surgical operations and its queued surgery bills.
-/// </summary>
+/// <summary>One colonist's canonical native row for weapon drops, isolation and inspection.</summary>
 public sealed record CreepJoinerHand
 {
-    public required PawnId Pawn { get; init; }
+    public required O.PawnState Observed { get; init; }
 
-    public required CreepJoinerPawn Facts { get; init; }
+    public PawnId Pawn => new(Observed.Pawn.Id);
 
-    public required bool Available { get; init; }
+    public bool Available => !Observed.Dead && !Observed.Downed && !Observed.Drafted && Observed.MentalState is null;
 
-    /// <summary>The thing id of the equipped primary; null when the colonist is unarmed.</summary>
-    public required string? Weapon { get; init; }
+    /// <summary>The equipped primary's thing id; null is the observed unarmed state.</summary>
+    public string? Weapon => Observed.Equipment.Armed
+        ? Observed.Equipment.PrimaryId ?? throw new RequiredFactException($"armed colonist {Pawn} primary id")
+        : null;
 
-    /// <summary>The colonist's native operations; a dead colonist has none.</summary>
-    public required EquatableArray<SurgeryOperation> Operations { get; init; }
+    /// <summary>A dead pawn may have no surgery block; a living pawn must have one.</summary>
+    public O.PawnSurgery? Surgery => Observed.Health.Surgery
+        ?? (Observed.Dead ? null : throw new RequiredFactException($"living colonist {Pawn} surgery facts"));
 
-    public required int QueuedSurgeries { get; init; }
+    public EquatableArray<SurgeryOperation> Operations => Surgery is { } surgery ? surgery.Operations : [];
 
-    public required EquatableArray<string> QueuedRecipes { get; init; }
+    /// <summary>An unset native area means unrestricted.</summary>
+    public string Area => Observed.Settings.AllowedAreaId ?? "";
 
-    /// <summary>The load id of the colonist's allowed area (empty when unrestricted).</summary>
-    public required string Area { get; init; }
-
-    /// <summary>Whether it is below the game's fed band; false for a pawn with no food need.</summary>
-    public required bool Hungry { get; init; }
+    /// <summary>A pawn without a food need is never hungry.</summary>
+    public bool Hungry => Observed.Needs.Food is FoodNeed.Has food
+        && food.Hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed;
 
     /// <summary>Whether the pawn has no inspection bill queued.</summary>
-    internal bool InspectionEnded(IReadOnlySet<string> recipes) => QueuedSurgeries == 0 || !QueuedRecipes.Any(recipes.Contains);
+    internal bool InspectionEnded(IReadOnlySet<string> recipes) =>
+        Surgery is not { } surgery || !surgery.SurgeryBills.Any(bill => recipes.Contains(bill.Recipe));
 
     /// <summary>Picks the inspection operation to queue, or says in plain English why none can be.</summary>
     internal (InspectionOrder? Order, string Why) InspectionOrder(IReadOnlySet<string> recipes)

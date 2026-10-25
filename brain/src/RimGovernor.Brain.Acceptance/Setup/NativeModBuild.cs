@@ -49,7 +49,7 @@ public static class NativeModBuild
     private static readonly string[] BrainAssemblies =
     [
         "Domain", "Policy", "Contracts", "Bridge", "Bridge.Contracts", "HttpChannel", "Telemetry", "Host",
-        "Observation", "Store", "Executor", "BuildingRuntime", "PlayerApi", "Simulation",
+        "Store", "Executor", "BuildingRuntime", "PlayerApi", "Simulation",
     ];
 
     /// <summary>The fixture list a build asked for <paramref name="wanted"/> records: none, or those plus <see cref="AlwaysFixtures"/>, sorted.</summary>

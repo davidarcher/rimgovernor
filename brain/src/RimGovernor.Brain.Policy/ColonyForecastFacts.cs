@@ -17,8 +17,7 @@ public static class ColonyForecastFactsRules
     {
         var input = new ColonyForecastFacts
         {
-            Stock = f.Resources,
-            ResourceThings = f.ResourceThings,
+            Census = f.Census,
             Items = f.Items,
             Medicine = f.MedicalReserve,
         };

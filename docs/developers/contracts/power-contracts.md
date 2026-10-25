@@ -5,6 +5,21 @@ consumer powered by reading the native power census and sizing each network agai
 never by counting generators. Native placement previews and shared admission gate every build; output
 plus `PowerOn` on the consumer, not a receipt, establishes recovery.
 
+Building previews retain the complete native placement evaluation and selected
+orientation. Blockers, watch access, stuff capability and wind obstruction come
+from those same rows; admission safety and the combined occupied/interaction
+footprint remain derived. A planned zone has an explicit intent preview. Refusal
+reporting may filter an already-present wanted blueprint locally, without
+rewriting the native blocker evidence.
+
+The canonical `BuildingState` owns every building's identity, occupied rectangle, service state and settings.
+Its distinct power facts include rated watts (the native `PowerConsumption` property applies finished research
+upgrades), battery capacity, roof coverage, rain sensitivity, accepted fuels and optional turret gun.
+Policy reads these same rows directly; its topology is a reference view with native network and geyser records.
+The refuelable service state also owns its current difficulty-adjusted burn parameters; fuel runway reads
+that same building row. There is no second development-power or fuel-consumer row, or copied planner-side service state. Network reserve runway,
+coverage and energy budgets are policy calculations over those observations.
+
 ## Deficits
 
 A deficit is an enabled consumer (not forbidden, switched on) that is disconnected or unpowered, or a

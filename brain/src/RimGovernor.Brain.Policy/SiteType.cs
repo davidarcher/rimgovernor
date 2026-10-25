@@ -62,7 +62,7 @@ public sealed record SiteTypeRequest
 
     public FieldRequest Field { get; init; } = new();
 
-    public ControlledEnvironment Environment { get; init; }
+    public required ControlledEnvironment Environment { get; init; }
 
     public Infrastructure? Lamp { get; init; }
 
@@ -161,7 +161,8 @@ public static partial class SiteRules
         SiteKind.GreenhouseNew => "greenhouse-new",
         SiteKind.Hydroponics => "hydroponics",
         SiteKind.DarkRoom => "dark-room",
-        _ => "",
+        SiteKind.Paste => "paste",
+        var invalid => throw new DomainException($"Invalid site kind {invalid}."),
     };
 
     /// <summary>Breaks score ties toward the cheaper, less invasive kind.</summary>
@@ -172,7 +173,8 @@ public static partial class SiteRules
         SiteKind.DarkRoom => 2,
         SiteKind.GreenhouseNew => 3,
         SiteKind.Hydroponics => 4,
-        _ => 0,
+        SiteKind.Paste => 5,
+        var invalid => throw new DomainException($"Invalid site kind {invalid}."),
     };
 
     /// <summary>
@@ -570,7 +572,7 @@ public static partial class SiteRules
                 foreach (var s in r.Field.Site.Cells)
                 {
                     var isLit = lit.ContainsKey(s.Cell);
-                    var (soil, sok) = CropChoiceRules.FreeCropSoil(SiteUnroofed(s), minimum, null);
+                    var (soil, sok) = CropChoiceRules.FreeCropSoilUnderRoof(s, minimum, null);
                     if (sok && RoofedIndoorSoil(s) && !isLit && FoodForecastRules.FoodNumber(soil))
                     {
                         eligible.Add(s.Cell);
@@ -762,8 +764,6 @@ public static partial class SiteRules
         return (best, covered);
     }
 
-    internal static SiteCell SiteUnroofed(SiteCell s) => s with { Roofed = false };
-
     /// <summary>
     /// Sites a growing-room kind with the rectangle picker: candidates are the free soil cells keep accepts that
     /// meet the crop's fertility floor. byRoom groups them by native room so each block stays inside one room
@@ -786,7 +786,7 @@ public static partial class SiteRules
             {
                 continue;
             }
-            var (f, ok) = CropChoiceRules.FreeCropSoil(SiteUnroofed(s), minimum, blocked);
+            var (f, ok) = CropChoiceRules.FreeCropSoilUnderRoof(s, minimum, blocked);
             if (!ok)
             {
                 continue;

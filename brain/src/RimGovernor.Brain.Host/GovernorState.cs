@@ -19,12 +19,21 @@ internal sealed class HostLog(TelemetryEmitter emitter, string component)
 }
 
 /// <summary>One loaded world and native generation: the same-world fields plus the generation, never the plan.</summary>
-internal readonly record struct GovernorWorld(ColonyId Colony, MapId Map, LoadId Load, NativeGeneration Generation)
+internal readonly record struct GovernorWorld(ColonyId Colony, MapId Map, LoadId Load, NativeGeneration? Generation)
 {
     public bool SameWorld(GovernorWorld other) => Colony == other.Colony && Map == other.Map && Load == other.Load;
 
-    public static GovernorWorld Of(RimGovernor.Contracts.Wire.Common.ObservationContext context) =>
-        new(new ColonyId((context.Identity?.ColonyId ?? "")), new MapId(context.Identity?.MapId ?? 0), new LoadId((context.Identity?.LoadToken ?? "")), new NativeGeneration(context.NativeGeneration is RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase { Value: var generation } ? generation : 0UL));
+    public static GovernorWorld Of(RimGovernor.Contracts.Wire.Common.ObservationContext context)
+    {
+        var identity = new RimGovernor.Brain.Bridge.Contracts.ObservationIdentity { Context = context };
+        NativeGeneration? generation = identity.NativeGeneration switch
+        {
+            RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase at => new NativeGeneration(at.Value),
+            RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase => null,
+            var invalid => throw new RimGovernor.Brain.Bridge.Contracts.ObservationContractException($"invalid native generation state {invalid}"),
+        };
+        return new(identity.Colony, identity.Map, identity.Load, generation);
+    }
 }
 
 /// <summary>

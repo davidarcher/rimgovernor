@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -15,7 +14,7 @@ public sealed class SupportMethodTests
         var basePawn = ForecastCoupledSelectionTests.Review(level: .1, fall: cooking ? .001 : 0).ForecastObserved.Needs!.Pawns[0];
         facts = facts with
         {
-            Resources = [new(new("Rice"), 4), new(new("Chunk"), 20)],
+            Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 4 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Chunk", Units = 20 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [basePawn, basePawn with { Pawn = "helper", Needs =
@@ -38,7 +37,7 @@ public sealed class SupportMethodTests
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
     private static ForecastCoupledSelection Select(RoundsFacts facts, ForecastSearchBudget? budget = null) => ForecastCoupledSelection.CompareActivityOutcomes(
-        ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts, 
+        ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts,
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!, budget);
     private static SelectedActivityTask[] Tasks(RoundsFacts facts, ForecastCoupledSelection selection) =>
         ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "method", 100)?.Tasks.ToArray() ?? [];

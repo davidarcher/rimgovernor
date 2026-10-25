@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public interface IOrderDeclarer
 {
-    Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct);
+    Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct);
 }
 
 internal readonly record struct PurposeReport
@@ -165,7 +165,7 @@ public sealed partial class Rounder
     // The review's parts are lapped onto fine under derive/ledger/ (#3566): benches (the mirrored bench read), declare
     // (the declarers, which run together: each declares from the same reading and writes only its own memory, so
     // their hops share frames; each one's own wall rides under its name), reconcile (the diff under the ledger lock).
-    internal async Task<LedgerDiff> ReviewLedgerAsync(GenerationSnapshot snapshot, Identity expected, ColonyProjection projection, CancellationToken call, StepStages? fine = null)
+    internal async Task<LedgerDiff> ReviewLedgerAsync(GenerationSnapshot snapshot, Identity expected, ColonyReading projection, CancellationToken call, StepStages? fine = null)
     {
         var inner = new StepStages();
         var l = Ledger;
@@ -260,8 +260,8 @@ public sealed partial class Rounder
             }
             else
             {
-                EquatableArray<WorkPawn> pawns = projection.WorkPawns.Pawns;
-                var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = projection.Resources, Tick = projection.Identity.Tick.Value });
+                EquatableArray<WorkPawn> pawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
+                var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = ResourceStockRules.Count(projection.Snapshot.Resources), Tick = projection.Identity.Tick.Value });
                 var plan = WorkRules.ReconcileLedger(declared, actual, l.Orphans ?? new Dictionary<string, int>(), copies);
                 l.Orphans = plan.Orphans;
                 var (placed, unplaced) = WorkRules.PlaceLedgerOrders(plan.Place, benches);
@@ -284,7 +284,7 @@ public sealed partial class Rounder
         return result;
     }
 
-    private static async Task<(Declared Declared, double Ms)> DeclareTimedAsync(IOrderDeclarer d, GenerationSnapshot snapshot, ColonyProjection projection, List<GearBench> benches, CancellationToken call)
+    private static async Task<(Declared Declared, double Ms)> DeclareTimedAsync(IOrderDeclarer d, GenerationSnapshot snapshot, ColonyReading projection, List<GearBench> benches, CancellationToken call)
     {
         var at = Stopwatch.GetTimestamp();
         var declared = await d.DeclareOrdersAsync(snapshot, projection, benches, call).ConfigureAwait(false);

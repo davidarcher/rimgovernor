@@ -813,9 +813,10 @@ public static class ExportOrdersRules
             }
             foreach (var row in r.Surplus.Apparel)
             {
-                if (price.ContainsKey(row.Definition))
+                var definition = new Resource(row.Observed.DefName);
+                if (price.ContainsKey(definition))
                 {
-                    held[row.Definition] = held.GetValueOrDefault(row.Definition) + row.Count;
+                    held[definition] = held.GetValueOrDefault(definition) + row.Count;
                 }
             }
         }

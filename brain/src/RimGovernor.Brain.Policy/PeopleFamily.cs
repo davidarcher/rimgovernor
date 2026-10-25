@@ -1,12 +1,12 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The force-pausing choice dialog the colony census observed open: its native window id (unknown when the census
-/// did not report one), whether it accepts an answer yet, and its options in native order.
+/// The force-pausing choice dialog the colony census observed open: its native window id,
+/// whether it accepts an answer yet, and its options in native order.
 /// </summary>
 public sealed record OpenDialog
 {
-    public Fact<int> Window { get; init; }
+    public int Window { get; init; }
 
     public bool Interactive { get; init; }
 
@@ -27,11 +27,11 @@ public sealed record PeopleNeeds
 /// </summary>
 public sealed record PeopleFacts
 {
-    /// <summary>Whether the game is force-paused on a choice dialog it opened by itself; unknown without the colony census.</summary>
-    public Fact<bool> DialogOpen { get; init; }
+    /// <summary>Whether the game is force-paused on a choice dialog it opened by itself; read from the colony census.</summary>
+    public bool DialogOpen { get; init; }
 
-    /// <summary>The review's tracked mood states, one per pawn; unknown while the review was not read.</summary>
-    public Fact<EquatableArray<MoodState>> Mood { get; init; }
+    /// <summary>The review's tracked mood states, one per pawn; read from the current review.</summary>
+    public EquatableArray<MoodState> Mood { get; init; }
 
     /// <summary>
     /// The Needs whose latest progress row is unmet with a Method (decision 18): a mood whose pressure such a Need
@@ -86,13 +86,9 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
     /// <summary>Nothing pure: the answer is the runtime step's, which fences the read it answers.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, PeopleFacts facts) => [];
 
-    /// <summary>Unmet while a choice dialog is open, met otherwise; an unread census raises <see cref="RequiredFactException"/>.</summary>
-    public static Need DialogNeed(Fact<bool> open)
+    /// <summary>Unmet while the observed choice dialog is open, met otherwise.</summary>
+    public static Need DialogNeed(bool waiting)
     {
-        if (!open.TryGetValue(out var waiting))
-        {
-            throw new RequiredFactException("choice dialog");
-        }
         return new Need
         {
             Id = Dialog,
@@ -104,15 +100,11 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
 
     /// <summary>
     /// The mood Needs: one per tracked pawn, unmet while the review holds its mood at risk, met once it recovered or
-    /// the pawn is missing or dead (<see cref="MoodState.Need"/>). An unread review, or a present pawn's unread mood,
+    /// the pawn is missing or dead (<see cref="MoodState.Need"/>). A present pawn's unread mood,
     /// threshold or availability, raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static IReadOnlyList<Need> MoodNeeds(Fact<EquatableArray<MoodState>> mood)
+    public static IReadOnlyList<Need> MoodNeeds(EquatableArray<MoodState> states)
     {
-        if (!mood.TryGetValue(out var states))
-        {
-            throw new RequiredFactException("mood review");
-        }
         return [.. states.Select(s => FoodRules.WholeNeed(Mood(s.Pawn.Id), NeedTier.Wellbeing, MoodMet(s)))];
     }
 

@@ -4,7 +4,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -22,7 +21,7 @@ public sealed class NeedFamilyTests
     private static readonly NeedId Rest = NeedId.Of("test-care", "rest");
 
     /// <summary>What the test family reads: pawn a bleeding (Emergency, the narrow read) and whether the colony is rested (Pawns).</summary>
-    private sealed record CareFacts(Fact<bool> Bleeding, Fact<bool> Rested);
+    private sealed record CareFacts(bool Bleeding, bool Rested);
 
     /// <summary>
     /// Two Needs: pawn a's bleeding (SeriousHarm) and the colony's rest (Wellbeing), which waits on the bleeding
@@ -57,8 +56,8 @@ public sealed class NeedFamilyTests
                 : new NeedMethod(n.Id, new("rest"), "the colony is tired", id => Plan(id, Clash ? "a" : "b", "rest"))),
         ];
 
-        private static Satisfaction Of(Fact<bool> fact, bool met) =>
-            !fact.TryGetValue(out var value) ? throw new RequiredFactException("care") : value == met ? Satisfaction.Met : Satisfaction.Unmet;
+        private static Satisfaction Of(bool fact, bool met) =>
+            fact == met ? Satisfaction.Met : Satisfaction.Unmet;
 
         private static PlanSpec Plan(PlanId id, string pawn, string method) =>
             new(id, new(1), [Delivery(id.Value + "-0", pawn, method)]);
@@ -70,8 +69,9 @@ public sealed class NeedFamilyTests
         public required CareFamily Family { get; init; }
         public required FamilyRunner<CareFacts> Runner { get; init; }
         public List<FamilyReadScope> Reads { get; } = [];
-        public CareFacts Facts { get; set; } = new(Known(true), Known(false));
+        public CareFacts Facts { get; set; } = new(true, false);
         public bool ImmediateReadsPawns { get; set; }
+        public bool ReadFails { get; set; }
 
         public void Dispose() => Journal.Dispose();
 
@@ -87,7 +87,7 @@ public sealed class NeedFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-need-family-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0};
+        facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var family = new CareFamily();
         Colony? colony = null;
@@ -99,7 +99,8 @@ public sealed class NeedFamilyTests
             {
                 ReadNoteRules.NoteRead(FactFamily.Pawns, "test.rest");
             }
-            return Task.FromResult(scope.Immediate ? colony.Facts with { Rested = Unknown<bool>() } : colony.Facts);
+            if (colony.ReadFails) throw new RequiredFactException("care");
+            return Task.FromResult(colony.Facts);
         }, new FamilySchedule { Kinds = [ActionKind.PawnActivities] });
         colony = new Colony { Journal = journal, Family = family, Runner = runner };
         return colony;
@@ -107,7 +108,7 @@ public sealed class NeedFamilyTests
 
     private static DomainAction Delivery(string id, string pawn, string method) =>
         DomainAction.NewPawnActivitiesAction(new(id), new(1, [new(pawn, "assignment-" + id, method, 0, 1, false,
-            [new(PawnActivityKind.Deliver, "stack-" + id, "", "", 1, 500) { Destination = new(pawn[0] - 'a', 20) }])]));
+            [new PawnActivityStep(PawnActivityKind.Deliver, "stack-" + id, "", "", 1, 500).At(new(pawn[0] - 'a', 20))])]));
 
     [Fact]
     public void NeedsDeriveAndTheReadyOneIsAdmittedUnderTheNeedOwnerWhileThePreconditionWaits()
@@ -197,10 +198,11 @@ public sealed class NeedFamilyTests
     public void AnUnreadFactRaisesAndAMetPreconditionReleasesTheWaitingNeed()
     {
         using var colony = Open();
-        colony.Facts = new(Unknown<bool>(), Known(false));
+        colony.ReadFails = true;
         Assert.Equal("care", Assert.Throws<RequiredFactException>(() => colony.Run()).Fact);
 
-        colony.Facts = new(Known(false), Known(true));
+        colony.ReadFails = false;
+        colony.Facts = new(false, true);
         var run = colony.Run();
         Assert.Equal(Verdict.BuildingReasonNoDeficit, Colony.Report(run, Bleeding));
         Assert.Equal(Verdict.BuildingReasonNoDeficit, Colony.Report(run, Rest));

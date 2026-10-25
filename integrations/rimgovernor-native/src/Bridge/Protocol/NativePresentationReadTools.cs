@@ -79,7 +79,7 @@ namespace HomeBridge.BridgeTools
         internal static bool ValidateColonists(Presentation.ColonistRosterRequest request, out Common.Failure failure)
         { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact identity is required."); return request?.Identity != null; }
 
-        private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
+        private static RimGovernor.Brain.Domain.Cell Cell(IntVec3 cell) => new RimGovernor.Brain.Domain.Cell { X = cell.x, Z = cell.z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static string Diagnostic(string value) => PlacementPreviewOperation.Diagnostic(value);
         private static Common.Failure Unavailable(string detail) => ProtoBoundary.Fail(Common.FailureCode.Unavailable, detail);

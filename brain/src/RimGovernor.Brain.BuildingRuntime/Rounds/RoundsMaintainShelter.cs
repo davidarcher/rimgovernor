@@ -51,12 +51,12 @@ public sealed partial class SafeAreaMemory
         edits.AddRange(planned);
     }
 
-    public SafeAreaStatus Review(string newWorld, ColonyProjection projection)
+    public SafeAreaStatus Review(string newWorld, ColonyReading projection)
     {
-        var rooms = projection.Rooms;
+        var rooms = projection.Facts.Upkeep.Rooms;
 
         IReadOnlyList<Cell> killbox = [], hospital = [], isolation = [];
-        if (projection.LayoutPlan is { } plan)
+        if (projection.Facts.LayoutPlan is { } plan)
         {
             killbox = plan.KillboxCells();
             hospital = plan.HospitalCells();

@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -180,9 +179,9 @@ public sealed class PawnValueTests
         {
             Beds =
             [
-                new() { Id = "b2", Humanlike = true }, new() { Id = "b1", Humanlike = true },
-                new() { Id = "owned", Humanlike = true, Owners = [new("Anna")] }, new() { Id = "medical", Humanlike = true, Medical = true },
-                new() { Id = "prison", Humanlike = true, Prisoners = true }, new() { Id = "pet", Humanlike = false },
+                new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "b2"), Building = SleepingNativeFixtures.Building(id: "b2"), Humanlike = true }, new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "b1"), Building = SleepingNativeFixtures.Building(id: "b1"), Humanlike = true },
+                new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "owned", owners: [new("Anna")]), Building = SleepingNativeFixtures.Building(id: "owned"), Humanlike = true }, new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "medical", medical: true), Building = SleepingNativeFixtures.Building(id: "medical"), Humanlike = true },
+                new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "prison", prisoners: true), Building = SleepingNativeFixtures.Building(id: "prison"), Humanlike = true }, new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "pet"), Building = SleepingNativeFixtures.Building(id: "pet"), Humanlike = false },
             ],
         };
         Assert.Equal(["b1", "b2"], PawnValueRules.VacantColonistBeds(sleeping));
@@ -224,7 +223,7 @@ public sealed class PawnValueTests
     [Fact]
     public void AFreshColonyWithNoRecreationBuildingValuesItsColonistOverTheHoursAWalkLeaves()
     {
-        var projection = ColonyModelInputTests.NoBedNoRecreation(ColonyModelFixtures.Projection(), ColonyModelInputTests.Walk);
+        var projection = ColonyModelInputTests.NoBedNoRecreation(ColonyModelFixtures.Reading(), ColonyModelInputTests.Walk);
         var input = ColonyModelFixtures.ReadyOf(projection);
         var pawn = input.Pawns[0];
         var free = PawnCycle.FreeHoursByPawn(input, 30)[pawn.Pawn];

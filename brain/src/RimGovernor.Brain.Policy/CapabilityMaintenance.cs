@@ -15,7 +15,7 @@ public static class CapabilityMaintenanceRules
         var result = new List<AssignedCapability>();
         foreach (var role in read.Facts.Roles.Where(r => r.Active).OrderBy(r => r.Id, StringComparer.Ordinal))
         {
-            if (!read.Defs.Roles.TryGetValue(role.Def, out var definition)) continue;
+            if (!read.Defs.Roles.TryGetValue(role.DefName, out var definition)) continue;
             for (var index = 0; index < definition.Requirements.Count; index++)
             {
                 var requirement = definition.Requirements[index];

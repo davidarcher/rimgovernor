@@ -19,7 +19,7 @@ internal static class PlannerSnapshot
     /// "deepdrill") to the serve's snapshot stream for replay when snapshot recording is on. A failed write is
     /// dropped rather than failing the step.
     /// </summary>
-    public static void RecordStepRead(string planner, ConcernId goal, GenerationSnapshot current, ColonyProjection reading)
+    public static void RecordStepRead(string planner, ConcernId goal, GenerationSnapshot current, ColonyReading reading)
     {
         var dir = Environment.GetEnvironmentVariable(SnapshotRecorder.DirEnv);
         if (string.IsNullOrEmpty(dir))

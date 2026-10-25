@@ -1,50 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
 
-/// <summary>
-/// The map tile's native growing calendar, read with the other routine facts. <see cref="GrowingDays"/> is the
-/// tile's growing period per year; <see cref="GrowingDaysRemaining"/> the days until the seasonal temperature
-/// next leaves the crop growth range (YearDays while it never does); <see cref="GrowingDaysUntil"/> the days
-/// until it next re-enters it (0 while crops grow now, YearDays when the tile never grows);
-/// <see cref="NonGrowingDays"/> the length of the current or coming non-growing stretch on the same walk (0
-/// while the tile never leaves the range, equal to GrowingDaysUntil while crops do not grow).
-/// GrowingDays, Season and DayOfYear are informational.
-/// </summary>
-public readonly record struct Calendar
-{
-    public Calendar() { }
-    /// <summary>Native growing eligibility sampled daily from this review origin; preserves every seasonal window.</summary>
-    public EquatableArray<bool> GrowingYear { get; init; }
-
-    public string Season { get; init; } = "";
-
-    public long DayOfYear { get; init; }
-
-    public double GrowingDays { get; init; }
-
-    public double GrowingDaysRemaining { get; init; }
-
-    public double GrowingDaysUntil { get; init; }
-
-    public double NonGrowingDays { get; init; }
-
-    /// <summary>
-    /// Whether every day count is a finite value inside one year and the day of year is inside it.
-    /// </summary>
-    public bool Valid()
-    {
-        foreach (var days in new[] { GrowingDays, GrowingDaysRemaining, GrowingDaysUntil, NonGrowingDays })
-        {
-            if (double.IsNaN(days) || double.IsInfinity(days) || days < 0 || days > CalendarRules.YearDays)
-            {
-                return false;
-            }
-        }
-
-        return DayOfYear >= 0 && DayOfYear < CalendarRules.YearDays;
-    }
-}
-
 /// <summary>What stands in a growing zone: plants with their means, or nothing planted.</summary>
 public abstract record CropStand
 {
@@ -67,8 +23,20 @@ public abstract record CropStand
 /// </summary>
 public sealed record CropGrowth
 {
-    public required CropStand Stand { get; init; }
-    public required double Temperature { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.ZoneState.Growing Observed { get; init; }
+    public double Temperature => Observed.Temperature;
+    public CropStand Stand
+    {
+        get
+        {
+            if (Observed.PlantedCells == 0) return new CropStand.Fallow();
+            var growth = Observed.GrowthTotal / Observed.PlantedCells;
+            var fertility = Observed.FertilityFactorTotal / Observed.PlantedCells;
+            if (!double.IsFinite(growth) || growth < 0 || !double.IsFinite(fertility) || fertility < 0)
+                throw new RequiredFactException("zone plant means");
+            return new CropStand.Sown(Observed.FertilePlantedCells, growth, fertility);
+        }
+    }
     public double MinGrowth { get; init; }
     public double MinOptimal { get; init; }
     public double MaxOptimal { get; init; }
@@ -95,6 +63,14 @@ public abstract record HarvestTiming
 }
 public static class CalendarRules
 {
+    /// <summary>Every native day count lies within one year; no absent climate becomes a default calendar.</summary>
+    public static bool Valid(this RimGovernor.Contracts.Wire.Observations.FoodClimate climate)
+    {
+        if (climate is null) return false;
+        foreach (var days in new[] { climate.GrowingDays, climate.GrowingDaysRemaining, climate.GrowingDaysUntil, climate.NonGrowingDays })
+            if (!double.IsFinite(days) || days < 0 || days > YearDays) return false;
+        return climate.DayOfYear >= 0 && climate.DayOfYear < YearDays;
+    }
     /// <summary>The native 60-day year every calendar fact is bounded by.</summary>
     public const int YearDays = 60;
 
@@ -124,7 +100,7 @@ public static class CalendarRules
     /// waits for the pause to lift; while they do not, the pause plus the first harvest cycle stands in for a
     /// shorter seasonal wait.
     /// </summary>
-    public static double HarvestGapDays(Calendar calendar, EquatableArray<DisasterCondition> conditions)
+    public static double HarvestGapDays(RimGovernor.Contracts.Wire.Observations.FoodClimate calendar, EquatableArray<DisasterCondition> conditions)
     {
         var pause = CropRiskRules.CropPauseDays(conditions);
         var c = calendar;
@@ -153,7 +129,7 @@ public static class CalendarRules
     /// field are unchanged, a calendar with no harvest gap leaves the policy as
     /// configured, and the result still satisfies Validate.
     /// </summary>
-    public static RoundsPolicy Seasonal(this RoundsPolicy p, Calendar calendar, EquatableArray<DisasterCondition> conditions)
+    public static RoundsPolicy Seasonal(this RoundsPolicy p, RimGovernor.Contracts.Wire.Observations.FoodClimate calendar, EquatableArray<DisasterCondition> conditions)
     {
         var gap = HarvestGapDays(calendar, conditions);
         if (gap <= 0 || p.FoodTargetDays <= 0)
@@ -181,7 +157,7 @@ public static class CalendarRules
     /// the non-growing stretch. It is capped at one year. Unsown fields are fallow; a field with no growing window ahead is dormant.
     /// Invalid required growth inputs raise.
     /// </summary>
-    public static HarvestTiming HarvestLeadDays(CropGrowth g, double growDays, Calendar calendar)
+    public static HarvestTiming HarvestLeadDays(CropGrowth g, double growDays, RimGovernor.Contracts.Wire.Observations.FoodClimate calendar)
     {
         if (!calendar.Valid() || !double.IsFinite(growDays) || growDays <= 0) throw new RequiredFactException("crop harvest cycle");
         if (g.Stand is CropStand.Fallow) return new HarvestTiming.Fallow();

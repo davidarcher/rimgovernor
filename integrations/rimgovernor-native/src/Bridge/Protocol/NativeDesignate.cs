@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
     {
         private const string Kind = "Designate";
 
-        internal static bool Generic(Operations.DesignateIntent? intent) => intent != null && (intent.Target != null || intent.Cell != null);
+        internal static bool Generic(Operations.DesignateIntent? intent) => intent != null && (intent.Target != null || intent.Location is Operations.DesignationLocation.At);
 
         private sealed class Plan
         {
@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
 
         private static ThingDef? WallStuff(Thing target) => target is Building && target.def.IsDoor && target.Faction == Faction.OfPlayer && target.def.size == IntVec2.One
             && target.Stuff != null && GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Contains(target.Stuff) ? target.Stuff : null;
-        private static bool ValidCell(Common.Cell? c) => c != null && c.X >= 0 && c.Z >= 0;
+        private static bool ValidCell(RimGovernor.Brain.Domain.Cell c) => c.X >= 0 && c.Z >= 0;
 
         // Resolve is the apply-time precondition list; null admits.
         private static string? Resolve(Operations.DesignateIntent intent, Common.ObservationContext context, out Plan? plan, out Common.FailureCode code)
@@ -116,13 +116,14 @@ namespace HomeBridge.BridgeTools
             // A HAUL takes no guard, or the wastepack guard.
             if (intent.Designation == Operations.ThingDesignation.Haul && named == GuardNames.Wastepack) plan.Guard = named;
             if (named != plan.Guard) return plan.Guard == null ? "this designation takes no guard" : "this designation requires the " + plan.Guard + " guard";
-            if (intent.Cell != null && !ValidCell(intent.Cell)) return "the cell is invalid";
+            if (intent.Location is Operations.DesignationLocation.At at && !ValidCell(at.Cell)) return "the cell is invalid";
+            if (intent.Location is not Operations.DesignationLocation.At and not Operations.DesignationLocation.ByTarget) return "the location must be a named state";
             if (intent.Target != null)
             {
                 if (intent.Target.Id is null || !ProtoBoundary.IsIdentifier(intent.Target.Id)) return "the target reference is invalid";
                 var found = RefIndex.Thing(map, intent.Target.Id);
                 if (found == null || found.Destroyed || !found.Spawned) { code = Common.FailureCode.NotFound; return "the exact target is no longer spawned on this map"; }
-                if (intent.Cell != null && (found.Position.x != intent.Cell.X || found.Position.z != intent.Cell.Z)) return "the target is not at the expected cell";
+                if (intent.Location is Operations.DesignationLocation.At expected && (found.Position.x != expected.Cell.X || found.Position.z != expected.Cell.Z)) return "the target is not at the expected cell";
                 if (found.Position.Fogged(map)) return "the target's cell is fogged";
                 plan.Target = found; plan.Cell = found.Position;
                 if (intent.Designation == Operations.ThingDesignation.Mine && !(found is Mineable)) return "Mine targets rock";
@@ -134,7 +135,8 @@ namespace HomeBridge.BridgeTools
             {
                 if (intent.Designation != Operations.ThingDesignation.Mine && intent.Designation != Operations.ThingDesignation.RemoveFoundation) return "this designation requires a target";
                 if (intent.ExpectedDef is null || !ProtoBoundary.IsIdentifier(intent.ExpectedDef)) return "a cell designation requires the expected definition";
-                plan.Cell = new IntVec3((intent.Cell ?? throw new System.InvalidOperationException("Required native value is unavailable: intent.Cell.")).X, 0, intent.Cell.Z); plan.ExpectedDef = intent.ExpectedDef;
+                if (intent.Location is not Operations.DesignationLocation.At exact) return "a cell designation requires an exact cell";
+                plan.Cell = new IntVec3(exact.Cell.X, 0, exact.Cell.Z); plan.ExpectedDef = intent.ExpectedDef;
                 if (!plan.Cell.InBounds(map)) return "the cell is off the map";
                 if (intent.Designation == Operations.ThingDesignation.Mine)
                 {
@@ -195,13 +197,14 @@ namespace HomeBridge.BridgeTools
             blueprint = null; id = ""; code = Common.FailureCode.InvalidRequest;
             if (intent.Guard != Operations.DesignationGuard.NoGuard) return "this designation takes no guard";
             if (intent.Target?.Id is null || !ProtoBoundary.IsIdentifier(intent.Target.Id)) return "CANCEL requires a blueprint target";
-            if (intent.Cell != null && !ValidCell(intent.Cell)) return "the cell is invalid";
+            if (intent.Location is Operations.DesignationLocation.At at && !ValidCell(at.Cell)) return "the cell is invalid";
+            if (intent.Location is not Operations.DesignationLocation.At and not Operations.DesignationLocation.ByTarget) return "the location must be a named state";
             if (intent.ReplaceWithWall) return "only Deconstruct swaps a door for a wall";
             id = intent.Target.Id;
             var map = ProtoBoundary.LoadedMap(context);
             var found = RefIndex.Thing(map, id);
             if (found == null || found.Destroyed || !found.Spawned) return null;
-            if (intent.Cell != null && (found.Position.x != intent.Cell.X || found.Position.z != intent.Cell.Z)) return "the target is not at the expected cell";
+            if (intent.Location is Operations.DesignationLocation.At expected && (found.Position.x != expected.Cell.X || found.Position.z != expected.Cell.Z)) return "the target is not at the expected cell";
             if (!(found is Blueprint) || found.Faction != Faction.OfPlayer) return "CANCEL targets a player blueprint";
             if (found.Position.Fogged(map)) return "the target's cell is fogged";
             if (intent.ExpectedDef is not null && intent.ExpectedDef != found.def.defName) return "the target is not the expected definition";

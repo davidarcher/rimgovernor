@@ -1,29 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed record CorpseHandling
-{
-    public string Id { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
-    public PawnId Hauler { get; init; }
-
-    public bool FrozenDestination { get; init; }
-}
-
-/// <summary>
-/// CookDemandNutrition is one batch per active cook bill, measured using its native ingredient filters.
-/// Released corpses fund the same window so subsequent reviews do not release the entire larder before butchering.
-/// </summary>
-public sealed record FoodLarder
-{
-    public double RawMeatNutrition { get; init; }
-
-    public double CookDemandNutrition { get; init; }
-
-    public EquatableArray<CorpseHandling> Corpses { get; init; }
-}
-
 /// <summary>The one corpse change a review makes. An empty <see cref="Kind"/> means no change.</summary>
 public sealed record CorpseLarderMethod
 {
@@ -71,7 +47,7 @@ public static class CorpseLarderRules
         foreach (var row in stocks)
         {
             var s = row.Stock;
-            if (!s.Corpse || s.IsHumanlike)
+            if (!s.IsCorpse() || s.IsHumanlike)
             {
                 continue;
             }

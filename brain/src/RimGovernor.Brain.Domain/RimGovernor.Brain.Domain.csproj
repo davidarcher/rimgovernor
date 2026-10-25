@@ -6,7 +6,5 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Known(v) and Unknown<T>() are used unqualified. -->
-    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
   </ItemGroup>
 </Project>

@@ -4,7 +4,6 @@ using RimGovernor.Brain.Policy.Methods.Generation;
 using RimGovernor.Contracts.Wire;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ProductiveDuringWorkTests

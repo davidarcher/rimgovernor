@@ -43,7 +43,7 @@ namespace HomeBridge.BridgeTools
         }
         internal const string Kind = "Zone creation";
         private static string At(IntVec3 c) => "(" + c.x + ", " + c.z + ")";
-        private static IntVec3[] Cells(Operations.ZoneIntent command) => (command.AddCells?.Selection?.ExplicitCells?.Cells ?? default(RimGovernor.Brain.Domain.EquatableArray<Common.Cell>)).Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
+        private static IntVec3[] Cells(Operations.ZoneIntent command) => (command.AddCells?.Selection?.ExplicitCells?.Cells ?? default(RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.Domain.Cell>)).Select(c => new IntVec3(c.X, 0, c.Z)).ToArray();
         // Prepare separates a request that cannot be evaluated (malformed,
         // stale map snapshot, unresolvable configuration) from ground that
         // refuses the zone (ground true): the failure always names the rule,

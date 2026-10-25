@@ -3,14 +3,14 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     /// <summary>Sets the projection's cooking fact from the meal tier the policy picks; returns the projection unchanged when the tier cannot be reviewed.</summary>
-    internal ColonyProjection ReviewMeals(ColonyProjection p)
+    internal ColonyReading ReviewMeals(ColonyReading p)
     {
         var seasonal = Seasonal(p.Facts);
-        var request = p.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays);
+        var request = ColonyPlanningRules.MealRequest(p.Facts, p.Snapshot.ControlledEnvironment, seasonal.FoodMinDays, seasonal.FoodTargetDays);
         MealTierReview review;
         try
         {
-            review = MealRules.ReviewMealTier(request, p.ProductionBenches);
+            review = MealRules.ReviewMealTier(request, p.Facts.EssentialInputs.Benches);
         }
         catch (DomainException)
         {
@@ -20,7 +20,7 @@ public sealed partial class Rounder
         if (review.Tier == MealTier.Paste)
         {
             var pasteReady = false;
-            foreach (var dispenser in p.FoodChannels.PasteDispenser)
+            foreach (var dispenser in p.Facts.FoodChannels.PasteDispenser)
             {
                 pasteReady = pasteReady || (dispenser.Powered && dispenser.HopperNutrition > 0);
             }
@@ -36,7 +36,7 @@ public sealed partial class Rounder
         var ready = false;
         foreach (var choice in review.Recipes)
         {
-            foreach (var bench in p.ProductionBenches)
+            foreach (var bench in p.Facts.EssentialInputs.Benches)
             {
                 if (bench.Id != choice.Bench)
                 {

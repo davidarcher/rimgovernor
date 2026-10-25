@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using LootItem = RimGovernor.Brain.Policy.LootItem;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -22,11 +21,9 @@ public sealed class StorageCreditTests
     private static LootDeterioration OpenAir(double rate, double maxHitPoints = 100) =>
         new() { BaseRatePerDay = rate, MaxHitPoints = maxHitPoints, RatePerDay = rate, Environmental = true, Roofed = false, Outdoors = true };
 
-    private static LootItem Row(string thing, string def, long count, LootDeterioration? deterioration) => new()
-    {
-        Supply = new StartingSupply { Thing = thing, Definition = def, Cell = new(20, 20) },
-        Count = count, Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 }, StorageHeadroom = 0L, Deterioration = deterioration,
-    };
+    private static LootItem Row(string thing, string def, long count, LootDeterioration? deterioration) =>
+        LootFixtures.Stack(thing, def, new Cell(20, 20), false,
+            new HaulSafety.Safe { PathLength = 0 }, count, 0, [], deterioration);
 
     /// <summary>The cloth's credit a served day: its rate (2 a day, StatPart factor 1 now, 0 roofed indoors) over 36 a visit, the visits a tick and the ticks a day, at its value per hit point.</summary>
     private static readonly double ClothPerDay = 2.0 / 36 * (Math.Ceiling(Area * 0.0006) / Area) * GameTime.TicksPerDay * 50 * PerUnit / 100;

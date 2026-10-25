@@ -1,7 +1,7 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Contracts.Wire.Defs;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -11,21 +11,13 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class ApparelDrugPreferencesTests
 {
-    private static ApparelPolicyState State(ApparelPreference preference = ApparelPreference.Dressed, params string[] required) => new()
-    {
-        Token = "t",
-        PawnName = "pawn",
-        PolicyID = "outfit-1",
-        Preference = preference,
-        Required = [.. required],
-        Definitions =
+    private static ApparelPolicyState State(ApparelPreference preference = ApparelPreference.Dressed, params string[] required) => new() { Observed = PoliciesTests.EmptyOutfit with { Token = "t", PawnName = "pawn", PolicyId = "outfit-1", RequiredDefs = [.. required] }, Preference = preference, Definitions =
         [
             new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true },
             new() { Name = "Apparel_Parka", Adult = true, CoversBody = true },
             new() { Name = "Apparel_FlakVest", Adult = true, Armor = true, CoversBody = true },
             new() { Name = "Apparel_Collar", Adult = true },
-        ],
-    };
+        ], Role = GearFixtures.Role };
 
     private static IReadOnlyList<string> Allowed(ApparelPolicyState state, GearRole role = GearRole.Soldier) =>
         ApparelPolicyRules.RoleApparelDefinitions(role, state);
@@ -57,7 +49,7 @@ public sealed class ApparelDrugPreferencesTests
             new() { Definition = new("Apparel_Shirt") },
             new() { Definition = new("Apparel_FlakVest") },
         ],
-        Gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), Policy = State(), LoadoutModel = new GearModel.NoOutfit() }] },
+        Gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("pawn") }, Policy = State(), LoadoutModel = new GearModel.NoOutfit() }] },
     };
 
     [Fact]
@@ -94,7 +86,7 @@ public sealed class ApparelDrugPreferencesTests
     };
 
     private static WorkPawn Pawn(string id, GuestStatus? status = null) =>
-        PawnFixtures.Worker(id) with { PolicyInputs = PawnFixtures.Inputs(guest: status) };
+        PawnFixtures.Worker(id) with { Observed = PawnFixtures.Row(id) with { Settings = PawnFixtures.Row(id).Settings with { PolicyInputs = PawnFixtures.Inputs(guest: status) } } };
 
     private static OwnedDrugPolicy Owned(IEnumerable<DrugPolicyEntry> entries, params string[] pawns) =>
         new(DrugPolicyPlanRules.Label, [.. pawns.Select(p => new PawnId(p))], [.. entries]);

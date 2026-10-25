@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 internal static class RoundsHay
 {
-    internal static (CropChoice Crop, bool Found) HayCrop(ColonyProjection p)
+    internal static (CropChoice Crop, bool Found) HayCrop(ColonyReading p)
     {
         foreach (var crop in RoundsFieldPlanner.CropChoices(p))
         {
@@ -13,7 +13,7 @@ internal static class RoundsHay
         return (default!, false);
     }
 
-    internal static (string Crop, int Needed, bool Found) HayTarget(ColonyProjection p)
+    internal static (string Crop, int Needed, bool Found) HayTarget(ColonyReading p)
     {
         var need = AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions));
         if (need <= 0)
@@ -27,11 +27,11 @@ internal static class RoundsHay
             return ("", 0, false);
         }
 
-        var planned = AnimalFoodRules.PlanHayField(need, crop, p.CropClimate, out var plan);
+        var planned = AnimalFoodRules.PlanHayField(need, crop, p.Facts.CropClimate, out var plan);
         return (crop.Name, plan.Needed, planned && plan.Needed > 0);
     }
 
-    internal static (FieldBlockOption Option, bool Found) HayShortfall(ColonyProjection p)
+    internal static (FieldBlockOption Option, bool Found) HayShortfall(ColonyReading p)
     {
         var need = AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions));
         if (need <= 0)
@@ -47,7 +47,7 @@ internal static class RoundsHay
 
         var yield = crop.HarvestNutrition;
 
-        foreach (var zone in p.Farms)
+        foreach (var zone in (p.Tables.Zones ?? throw new RequiredFactException("zones")).Zones.OfType<PbObservations.ZoneState.Growing>())
         {
             if (zone.Crop == crop.Name)
             {
@@ -60,7 +60,7 @@ internal static class RoundsHay
             return (default!, false);
         }
 
-        var planned = AnimalFoodRules.PlanHayField(need, crop, p.CropClimate, out var plan);
+        var planned = AnimalFoodRules.PlanHayField(need, crop, p.Facts.CropClimate, out var plan);
         if (!planned || plan.Needed <= 0)
         {
             return (default!, false);

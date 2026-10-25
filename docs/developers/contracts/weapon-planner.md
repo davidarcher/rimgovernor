@@ -46,7 +46,7 @@ planning estimates, with conservative class defaults for other defs.
   Shooting colonist own Hunting before the weapon exists. The butcher bill and butcher spot are
   owed on the food runway by their own planners and are not repriced.
 - Native gear items carry a biocoded flag and, when retained, their owner's pawn ID. Supply weapon
-  details use exact item identities.
+  details retain the native stock, item and matching gear rows through scoring. Items without an allow snapshot are ineligible; an absent matching gear row means no biocode relation. Catalog production scoring uses definition facts directly.
 - Combat pawn reads carry the map's mean peak sharp armor among live, standing hostile pawns (natural
   armor or strongest worn layer). No hostiles leaves raid armor unknown; producers may omit these
   optional facts.

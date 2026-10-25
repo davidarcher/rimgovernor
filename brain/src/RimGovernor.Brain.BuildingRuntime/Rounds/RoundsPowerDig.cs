@@ -33,12 +33,12 @@ public sealed partial class RoundsBuildingPlanner
             planned.Add(new RoleCell { Cell = c, Role = RockRole.NeedsFloor });
         }
 
-        if (RockStepRules.RockStep(planned, s.Facts.Cells).Dig.Count == 0)
+        if (RockStepRules.RockStep(planned, s.Facts.PlanningWindow.Cells).Dig.Count == 0)
         {
             return (new RoundsBuildingResult(), false);
         }
 
-        var (access, ok) = RockStepRules.RockAccess(footprint, s.Facts.Cells);
+        var (access, ok) = RockStepRules.RockAccess(footprint, s.Facts.PlanningWindow.Cells);
         if (!ok)
         {
             return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_footprint") }, true);
@@ -56,11 +56,11 @@ public sealed partial class RoundsBuildingPlanner
             return (new RoundsBuildingResult(), false);
         }
 
-        var plan = s.Facts.LayoutPlan;
+        var plan = s.Facts.Facts.LayoutPlan;
 
         var planned = plan is not null;
-        var tk = s.Facts.TechTier.TryGetValue(out var tier);
-        if (!planned || !tk || tier < TechTier.Masonry)
+        var tier = TechTierRules.SelectTechTier(s.Facts.Tables.FinishedResearch.Select(project => new ResearchProjectId(project)).ToArray(), s.Facts.Snapshot.PlayerTechLevel);
+        if (!planned || tier < TechTier.Masonry)
         {
             return (new RoundsBuildingResult(), false);
         }
@@ -88,7 +88,7 @@ public sealed partial class RoundsBuildingPlanner
                 cells.Add(new RoleCell { Cell = lane, Role = RockRole.NeedsSky });
             }
 
-            var step = RockStepRules.RockStepRoofs(cells, s.Facts.Cells, roofs);
+            var step = RockStepRules.RockStepRoofs(cells, s.Facts.PlanningWindow.Cells, roofs);
             if (footprint.Any(taken.Contains))
             {
                 if (step.Unroof.Count > 0)
@@ -122,7 +122,7 @@ public sealed partial class RoundsBuildingPlanner
 
         check();
         var rockCells = pickCells.Select(c => c.Cell).ToList();
-        var (access, ok) = RockStepRules.RockAccess(rockCells, s.Facts.Cells);
+        var (access, ok) = RockStepRules.RockAccess(rockCells, s.Facts.PlanningWindow.Cells);
         if (!ok)
         {
             return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_site") }, true);

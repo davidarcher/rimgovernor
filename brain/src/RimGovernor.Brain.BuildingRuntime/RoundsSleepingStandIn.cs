@@ -9,10 +9,10 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// Null when nothing is owed, no sleeping room is planned, a stand-in Method is still open, the shortfall's Method
     /// already ran, no candidate cell is placeable or the Method is refused: the sleeping ladder then goes on as usual.
     /// </summary>
-    internal async Task<RoundsBuildingResult?> StandInSpotsAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.ColonyProjection facts, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult?> StandInSpotsAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, CancellationToken call, CancellationToken epoch)
     {
         var (count, missing) = ShelterRules.StandInsOwed(facts.Facts);
-        if (missing == 0 || facts.LayoutPlan is not { } plan)
+        if (missing == 0 || facts.Facts.LayoutPlan is not { } plan)
         {
             return null;
         }

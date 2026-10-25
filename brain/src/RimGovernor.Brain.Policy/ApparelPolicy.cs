@@ -21,25 +21,28 @@ public sealed record ApparelDefinition
 /// </summary>
 public sealed record ApparelPolicyState
 {
-    public string Token { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.ApparelPolicyState Observed { get; init; }
+    public string Token => Observed.Token;
 
-    public string PawnName { get; init; } = "";
+    public string PawnName => Observed.PawnName;
 
-    public string PolicyID { get; init; } = "";
+    public string PolicyID => Observed.PolicyId;
 
-    public GearRoleInput Role { get; init; } = new();
+    public required GearRoleInput Role { get; init; }
 
-    public ApparelPolicySpec Current { get; init; } = new(default, "", "", default, 0, 0, 0, 0);
+    public ApparelPolicySpec Current => new(default, "", Observed.Name, Observed.AllowedDefs, Observed.MinHitPoints, Observed.MaxHitPoints, Observed.MinQuality, Observed.MaxQuality);
 
-    public bool ExcludesTainted { get; init; }
+    public bool ExcludesTainted => Observed.ExcludesTainted;
 
     public bool Overrides { get; init; }
 
     public EquatableArray<ApparelDefinition> Definitions { get; init; }
 
-    public EquatableArray<string> Required { get; init; }
+    public EquatableArray<string> GoalRequired { get; init; }
+    public EquatableArray<string> Required => GoalRequired.Count == 0 ? Observed.RequiredDefs :
+        EquatableArray.From(Observed.RequiredDefs.Union(GoalRequired, StringComparer.Ordinal));
 
-    public bool Nude { get; init; }
+    public bool Nude => Observed.Nude;
 
     /// <summary>The player's apparel preference (#3498), stamped from the preferences record onto the census; Dressed without one.</summary>
     public ApparelPreference Preference { get; init; } = ApparelPreference.Dressed;

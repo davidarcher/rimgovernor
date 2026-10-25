@@ -69,7 +69,7 @@ public sealed class ClockReceiptWireTests
     [Fact]
     public void ZoneEvidenceDistinguishesTheCreatedComponentsFromAnEditedOrDeletedZone()
     {
-        RoundTrips<R.ZoneEffect>(new R.ZoneEffect.CreatedCase([new R.CreatedZone { ZoneId = "Zone1", Cells = [new C.Cell { X = 1, Z = 2 }] }]));
+        RoundTrips<R.ZoneEffect>(new R.ZoneEffect.CreatedCase([new R.CreatedZone { ZoneId = "Zone1", Cells = [new RimGovernor.Brain.Domain.Cell { X = 1, Z = 2 }] }]));
         RoundTrips<R.ZoneEffect>(new R.ZoneEffect.ZoneCase("Zone1", true, 3));
         RoundTrips<R.ZoneEffect>(new R.ZoneEffect.ZoneCase("Zone1", false, 0));
     }
@@ -120,7 +120,7 @@ public sealed class ClockReceiptWireTests
     }
 
     [Fact]
-    public void CombatReceiptOrderDefinesTheIndexAndARefusalStaysFalse()
+    public void CombatReceiptRetainsNativeResultsAndOriginalIndices()
     {
         var receipt = new R.Receipt
         {
@@ -132,18 +132,37 @@ public sealed class ClockReceiptWireTests
                     {
                         Results =
                         [
-                            new R.CombatOrderResult { PawnId = "Human1", Applied = true, JobDef = "Goto" },
-                            new R.CombatOrderResult { PawnId = "Human2", Applied = false, Refusal = "not_drafted" },
+                            new CombatResult { Index = 0, PawnId = "Human1", Applied = true, JobDef = "Goto" },
+                            new CombatResult { Index = 1, PawnId = "Human2", Applied = false, Refusal = "not_drafted" },
                         ],
                     },
                 },
             },
         };
         RoundTrips(receipt);
-        var results = RimGovernor.Brain.Bridge.Contracts.CombatCalls.CombatOrderResults(WireJson.Deserialize<R.Receipt>(WireJson.Serialize(receipt)));
+        var decoded = WireJson.Deserialize<R.Receipt>(WireJson.Serialize(receipt));
+        var results = RimGovernor.Brain.Bridge.Contracts.CombatCalls.CombatOrderResults(decoded);
+        var native = decoded.Outcome.Applied!.Observed!.Effect!.CombatOrders!.Results;
+        Assert.Same(native[0], results[0]);
+        Assert.Same(native[1], results[1]);
+        Assert.Equal("Goto", results[0].JobDef);
         Assert.Equal([0, 1], results.Select(r => r.Index));
         Assert.True(results[0].Applied);
         Assert.False(results[1].Applied);
         Assert.Equal("not_drafted", results[1].Refusal);
+
+        var filtered = new R.Receipt
+        {
+            Outcome = new R.Applied
+            {
+                Observed = new R.EffectEvidence
+                {
+                    Effect = new R.CombatOrdersEffect { Results = [native[1]] },
+                },
+            },
+        };
+        var remaining = Assert.Single(RimGovernor.Brain.Bridge.Contracts.CombatCalls.CombatOrderResults(filtered));
+        Assert.Same(native[1], remaining);
+        Assert.Equal(1, remaining.Index);
     }
 }

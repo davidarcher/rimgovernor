@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -10,9 +9,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class RoutesTests
 {
-    private static RoutesObservation Census(params RouteTravel[] travel) => new()
+    private static RimGovernor.Contracts.Wire.Observations.RoutesFacts Census(params RouteTravel[] travel) => new()
     {
-        Pawns = [.. travel.Select(t => t.Pawn)],
+        PawnIds = [.. travel.Select(t => t.Pawn)],
         Facilities =
         [
             new()
@@ -30,7 +29,7 @@ public sealed class RoutesTests
                 ],
             },
         ],
-        Traffic = [],
+        Traffic = [], TrafficSamples = 0,
     };
 
     [Fact]
@@ -68,6 +67,6 @@ public sealed class RoutesTests
     public void AMeasuredPathWithANegativeCostIsAContractError()
     {
         var census = Census(new RouteTravel.Measured { Pawn = "a", Cost = -1, Cells = 3 });
-        Assert.Throws<DomainException>(census.Validate);
+        Assert.Throws<DomainException>(() => RoutesRules.ValidateRoutes(census));
     }
 }

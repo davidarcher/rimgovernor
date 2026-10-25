@@ -1,5 +1,13 @@
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>The work planner lifecycle and the completed review's resulting demand.</summary>
+public enum WorkAssignmentsReview
+{
+    AwaitingPlanner,
+    Settled,
+    Owed,
+}
+
 public static partial class RoundsRules
 {
 
@@ -7,9 +15,9 @@ public static partial class RoundsRules
     /// <summary>
     /// The admin/work-assignments Need's measure (#3304): owed while a coupled activity runs or is selected or deferred,
     /// a hostility, nickname, medicine carry or medical care setting is owed, a work type is uncovered or a cleanup pawn
-    /// is idle; unknown while the coverage is unread.
+    /// is idle; AwaitingPlanner until coverage has been planned and nothing else is owed.
     /// </summary>
-    public static Fact<bool> WorkAssignmentsOwed(RoundsFacts f, ForecastCoupledSelection? coupled)
+    public static WorkAssignmentsReview WorkAssignmentsOwed(RoundsFacts f, ForecastCoupledSelection? coupled)
     {
         var owed = f.CoupledWorkActive
             || coupled is { Selection.Selected.Length: > 0 } or { Deferred.Count: > 0 }
@@ -21,9 +29,9 @@ public static partial class RoundsRules
             || f.WorkCoverage == WorkCoverageState.Unmatched;
         if (owed)
         {
-            return Known(true);
+            return WorkAssignmentsReview.Owed;
         }
-        return f.WorkCoverage == WorkCoverageState.Matched ? Known(false) : default;
+        return f.WorkCoverage == WorkCoverageState.Matched ? WorkAssignmentsReview.Settled : WorkAssignmentsReview.AwaitingPlanner;
     }
 
     /// <summary>
@@ -55,12 +63,12 @@ public static partial class RoundsRules
                             f.Items,
                             ExportOrdersRules.ExportSaleSurplus(
                                 f.Items,
-                                TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), f.Wealth, demand.Retained, TradePolicyRules.RoundsTradeFood(f, p)),
-                                f.Resources,
-                                f.Colonists,
+                                TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.ObservedStock(), demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), f.Census.Threat.Observed, demand.Retained, TradePolicyRules.RoundsTradeFood(f, p)),
+                                f.ObservedStock(),
+                                f.Census.ColonistCount,
                                 f.ExportProducts),
-                            f.Resources,
-                            f.Colonists,
+                            f.ObservedStock(),
+                            f.Census.ColonistCount,
                             f.Recipes),
                         f.MedicalPawns),
                     SurgeryRules.SurgeryPurchaseParts(f.MedicalPawns, f.SurgeryContextOf(), SurgeryRules.SurgeryParts(SurgeryRules.SelectSurgery(f.MedicalPawns, null, new SurgeryContext()).Wants), f.FabricableParts ?? new HashSet<Resource>())),
@@ -68,8 +76,8 @@ public static partial class RoundsRules
                 f.SaleArt),
             f.SaleAnimals(),
             f.Silver(),
-            f.Colonists);
-        tradeNeed = TradePolicyRules.FavorGoldNeed(tradeNeed, f.Traders, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), demand.Retained);
+            f.Census.ColonistCount);
+        tradeNeed = TradePolicyRules.FavorGoldNeed(tradeNeed, f.Traders, f.ObservedStock(), demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), demand.Retained);
         var shortage = SilverGapRules.RoundsSilverShort(f, p, medicine.Active);
         tradeNeed = TradePolicyRules.FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(shortage));
         return TradePolicyRules.TradeRecovered(f.Traders, f.UnpricedTraders, TradePolicyRules.PopulationTradeNeed(tradeNeed, PopulationRules.JoinerCapacity(f.JoinerCapacity())));

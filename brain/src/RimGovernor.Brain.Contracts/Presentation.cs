@@ -354,9 +354,9 @@ public sealed record OverlayShape
 /// </summary>
 public sealed record OverlayLine
 {
-    public required Common.Cell From { get; init; }
+    public required RimGovernor.Brain.Domain.Cell From { get; init; }
 
-    public required Common.Cell To { get; init; }
+    public required RimGovernor.Brain.Domain.Cell To { get; init; }
 
     public required bool Arrow { get; init; }
 }
@@ -368,7 +368,7 @@ public sealed record OverlayLabel
 {
     public required string Text { get; init; }
 
-    public required Common.Cell Cell { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Cell { get; init; }
 }
 
 public sealed record OverlayRequest

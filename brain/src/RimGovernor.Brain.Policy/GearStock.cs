@@ -1,30 +1,24 @@
+using GearStock = RimGovernor.Contracts.Wire.Observations.GearStock;
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A bounded aggregate of usable apparel in native storage.</summary>
-public sealed record GearStock
+/// <summary>Claims against an actual native stock row; allocation never edits its observed count.</summary>
+public sealed record GearStockBalance(GearStock Observed)
 {
-    public Resource Definition { get; init; }
-    public Resource Stuff { get; init; }
-    public int Quality { get; init; }
-    public int HPBand { get; init; }
-    public int Count { get; init; }
-
-    /// <summary>
-    /// Reports stock over the gear floors (<see cref="StockpileRolesConstants.GearHitPointFloor"/>, Normal quality): what
-    /// the gear stores keep; the rest is sale gear or burnable waste.
-    /// </summary>
-    public bool Serviceable() => HPBand >= StockpileRolesConstants.GearHitPointFloor * 10 && Quality >= 2;
+    public int Allocated { get; init; }
+    public int Count => Observed.Count - Allocated;
 }
 
 public static class GearStockRules
 {
+    public static int QualityIndex(this GearStock row) => row.Quality is RimGovernor.Contracts.Wire.Observations.ItemQuality.Graded g ? (int)g.Category : 2;
+    public static bool Serviceable(this GearStock row) => row.HpBand >= StockpileRolesConstants.GearHitPointFloor * 10 && row.QualityIndex() >= 2;
     /// <summary>
     /// Stored options assigned by the ensemble planner already satisfied one gap. Remove those physical units
     /// before netting its remaining bill demand.
     /// </summary>
-    internal static List<GearStock> UnassignedGearStock(IReadOnlyList<GearStock> stock, IReadOnlyList<GearLoadout> loadouts)
+    internal static List<GearStockBalance> UnassignedGearStock(IReadOnlyList<GearStock> stock, IReadOnlyList<GearLoadout> loadouts)
     {
-        var @out = new List<GearStock>(stock);
+        var @out = stock.Select(row => new GearStockBalance(row)).ToList();
         foreach (var l in loadouts)
         {
             foreach (var g in l.Gaps)
@@ -36,10 +30,11 @@ public static class GearStockRules
                 var band = Math.Min(9, (int)Math.Floor(g.Wanted.Condition * 10));
                 for (var i = 0; i < @out.Count; i++)
                 {
-                    var row = @out[i];
-                    if (row.Count > 0 && row.Definition == g.Wanted.Definition && row.Stuff == g.Wanted.Stuff && row.Quality == g.Wanted.Quality && row.HPBand == band)
+                    var balance = @out[i];
+                    var row = balance.Observed;
+                    if (balance.Count > 0 && row.DefName == g.Wanted.Definition.Value && (row.Stuff ?? "") == g.Wanted.Stuff.Value && row.QualityIndex() == g.Wanted.Quality && row.HpBand == band)
                     {
-                        @out[i] = row with { Count = row.Count - 1 };
+                        @out[i] = balance with { Allocated = balance.Allocated + 1 };
                         break;
                     }
                 }

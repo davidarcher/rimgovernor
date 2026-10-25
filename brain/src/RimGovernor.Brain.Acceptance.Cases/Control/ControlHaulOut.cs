@@ -67,7 +67,7 @@ internal static class ControlHaulOut
         var site = staged.Site ?? throw new AcceptanceException("the haul-out stage found no site");
         var destination = new Cell(site.X + store.X, site.Z + store.Z);
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent { Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent { Location = new Operations.DesignationLocation.ByTarget(), Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
 
         var op = await HaulOpAsync(s, stack, cancellationToken).ConfigureAwait(false)
             ?? throw new AcceptanceException($"designated: the read reports no Haul removal of the ordinary stack {stack}");
@@ -130,7 +130,7 @@ internal static class ControlHaulOut
     private static async Task DeliverAsync(TypedSession s, ulong generation, string worker, string stack, Fx.StageCell origin, Cell destination,
         int count, long expected, long revision, CancellationToken cancellationToken)
     {
-        var step = new PawnActivityStep(PawnActivityKind.Deliver, stack, "", "", count, int.MaxValue) { Destination = destination };
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, stack, "", "", count, int.MaxValue).At(destination);
         var batch = new PawnActivities(generation, [new PawnActivityOrder(worker, TaskId, TaskId, expected, revision, false, [step]) { Task = TaskId }])
         {
             Tasks = [new SelectedActivityTask(TaskId, worker, [], step, new Cell(origin.X, origin.Z), 0)],

@@ -103,7 +103,11 @@ public sealed partial record DomainAction
     public CombatBatch? CombatBatch => PayloadOf<CombatBatch>(ActionKind.CombatBatch);
 }
 
-/// <summary>One native result.</summary>
+/// <summary>
+/// One native combat order result, retained unchanged by the receipt and journal.
+/// Index names its original request position, including preceding draft orders.
+/// Empty PawnId names a pawnless order; empty JobDef means no job was taken.
+/// </summary>
 public sealed record CombatResult
 {
     public int Index { get; init; }

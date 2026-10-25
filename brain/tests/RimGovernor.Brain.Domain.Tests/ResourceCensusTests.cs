@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using O = RimGovernor.Contracts.Wire.Observations;
@@ -10,11 +10,19 @@ public sealed class ResourceCensusTests
 {
     private static readonly Resource Fuel = new("TestFuel");
 
-    private static FuelConsumer Consumer(bool useDriven = false, bool rain = false, bool empty = false) => new()
-    {
-        Id = "consumer", Fuel = empty ? 0 : 2, Target = 10, OutOfFuel = empty, Fuels = [Fuel],
-        Burn = new() { PerDay = 2, UnitsPerItem = 2, UseDriven = useDriven, InRain = rain },
-    };
+    private static FuelConsumer Consumer(bool useDriven = false, bool rain = false, bool empty = false) =>
+        PowerBuildingFixtures.Trader("consumer", "FuelConsumer", new(1, 1), 100, 100, true) with
+        {
+            FuelDefinitions = [Fuel.Value],
+            Service = BuildingServiceWire.NoService with
+            {
+                Fuel = new O.BuildingFuel.Refuelable
+                {
+                    Fuel = empty ? 0 : 2, TargetFuel = 10, OutOfFuel = empty,
+                    Burn = new O.FuelBurn { PerDay = 2, UnitsPerItem = 2, UseDriven = useDriven, InRain = rain, WhenPowered = false, Flickable = false },
+                },
+            },
+        };
 
     private static FuelRunway Plan(params FuelConsumer[] consumers) => FuelRunwayRules.PlanFuelRunway(new()
     {
@@ -34,7 +42,8 @@ public sealed class ResourceCensusTests
     [Fact]
     public void ASwitchedOffConsumerHasNoContinuousDemand()
     {
-        var consumer = Consumer() with { Burn = Consumer().Burn with { Flickable = true }, SwitchedOn = false };
+        var consumer = Consumer();
+        consumer = consumer with { Service = consumer.Service with { Fuel = consumer.Refuelable with { Burn = consumer.Burn with { Flickable = true } }, SwitchedOn = false } };
         var runway = Plan(consumer);
         Assert.Empty(runway.Needs);
         Assert.Empty(Assert.IsType<FuelProjection.Projected>(runway.Projection).Gaps);
@@ -63,25 +72,24 @@ public sealed class ResourceCensusTests
     [InlineData(-1)]
     public void BrokenFuelFactsFailInsteadOfDroppingDemand(double fuel)
     {
-        Assert.Throws<DomainException>(() => Plan(Consumer() with { Fuel = fuel }));
-        Assert.Throws<DomainException>(() => Plan(Consumer() with { Fuels = [] }));
-        Assert.Throws<DomainException>(() => Plan(Consumer() with { Burn = Consumer().Burn with { UnitsPerItem = 0 } }));
+        var consumer = Consumer();
+        Assert.Throws<DomainException>(() => Plan(consumer with { Service = consumer.Service with { Fuel = consumer.Refuelable with { Fuel = fuel } } }));
+        Assert.Throws<DomainException>(() => Plan(consumer with { FuelDefinitions = [] }));
+        Assert.Throws<DomainException>(() => Plan(consumer with { Service = consumer.Service with { Fuel = consumer.Refuelable with { Burn = consumer.Burn with { UnitsPerItem = 0 } } } }));
     }
 
     [Fact]
-    public void MissingOrUnresolvedDevelopmentCensusFailsTheCommonDecoder()
+    public void MissingDevelopmentCensusFailsTheCommonDecoder()
     {
         var snapshot = ColonyFactsCoreTests.Snapshot();
-        Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.DecodeColony(snapshot with { Development = null! }, new(), default!, null));
-        var unresolved = snapshot with { Development = snapshot.Development with { Outcome = snapshot.Development.Outcome with { Power = [new O.DevelopmentPower { Building = new() { Id = "missing" }, Turret = new O.PowerTurret.NoGun() }] } } };
-        Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.DecodeColony(unresolved, new(), new(default, default, default, []), null));
+        Assert.Throws<BridgeContractException>(() => ColonyPlanningReads.Compose(snapshot with { Development = null! }, new() { Context = snapshot.Context }, default!, null));
     }
 
     [Fact]
     public void MaterialBudgetCountsStandingSitesAndOtherPawnsReservationsOnce()
     {
         var budget = MaterialBudgetRules.MaterialBudget([new(Fuel, 10)], new Dictionary<Resource, long> { [Fuel] = 3 },
-            [new() { Bill = "own", Pawn = new("worker"), Items = [new(Fuel, 4)] }, new() { Bill = "other", Pawn = new("other"), Items = [new(Fuel, 2)] }], new("worker"));
+            [BillWire.Reservation("own", "worker", new Amount(Fuel, 4)), BillWire.Reservation("other", "other", new Amount(Fuel, 2))], new("worker"));
         Assert.Equal(5, budget[Fuel]);
     }
 

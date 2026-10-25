@@ -56,7 +56,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsWorkshopPlanner: reviewer == nil || native == nil");
         }
-        if (native is not Observation.IRoundsSource)
+        if (native is not IRoundsSource)
         {
             throw new ControlException("NewRoundsWorkshopPlanner: !ok");
         }
@@ -111,7 +111,7 @@ public sealed partial class RoundsBuildingPlanner
         if (GearLadder())
         {
             var tables = await source.FrameTablesAsync(identity, call).ConfigureAwait(false);
-            var projection = ColonyDecodeReads.DecodeColony(observed, DecodeReads.ContextIdentity(observed.Context), tables, defs.Catalog);
+            var projection = ColonyPlanningReads.Compose(observed, new ObservationIdentity { Context = observed.Context }, tables, defs.Catalog);
             var facts = projection.Facts.Gear;
             foreach (var pawn in facts.Pawns)
             {
@@ -226,7 +226,7 @@ public sealed partial class RoundsBuildingPlanner
     /// Resolves the prepared candidates against the planning census the same way SelectComfort resolves a
     /// comfort method: the chosen bench becomes the definition, placed indoors in a Workshop-hosting room.
     /// </summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectWorkshop(ControlState state, Sto.Rounds review, Observation.ColonyProjection facts, CancellationToken call)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectWorkshop(ControlState state, Sto.Rounds review, RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, CancellationToken call)
     {
         if (Workshop is null)
         {
@@ -234,7 +234,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (Workshop.Barrel)
         {
-            var barrelAvailable = facts.DefinitionAvailable("FermentingBarrel");
+            var barrelAvailable = ColonyPlanningRules.DefinitionAvailable(facts.Facts, "FermentingBarrel");
             if (!barrelAvailable)
             {
                 return (null, BuildingReasonWorkshopUnavailable);
@@ -246,9 +246,9 @@ public sealed partial class RoundsBuildingPlanner
             barrel.Facility = barrelFacility;
             return (barrel, new Verdict());
         }
-        var definitions = new List<Pol.BenchDefinition>(facts.Definitions.Count);
+        var definitions = new List<Pol.BenchDefinition>(facts.Facts.Definitions.Count);
         var available = new Dictionary<string, bool>(StringComparer.Ordinal);
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             definitions.Add(new Pol.BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill, Research = d.Research });
             available[d.Name] = d.Available;
@@ -267,7 +267,7 @@ public sealed partial class RoundsBuildingPlanner
                 Hosts = product.Hosts,
                 Definitions = definitions,
                 Power = GeneratorAvailable(available),
-                BuilderSkill = WorkRules.BuilderSkill(facts.WorkPawns),
+                BuilderSkill = WorkRules.BuilderSkill(facts.Facts.ForecastObserved.WorkPawns),
                 Further = Workshop.Further,
             };
             SnapshotPlannerReplay.NoteWorkshop(request);
@@ -309,7 +309,7 @@ case Pol.WorkshopMethod.Existing:
         resolved.Definition = choice.Definition;
         resolved.Environment = Pol.PlacementEnvironment.Indoors;
         resolved.Facility = facility;
-        resolved.Stuff = facts.BuildStuff(resolved.Definition);
+        resolved.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), resolved.Definition);
         return (resolved, new Verdict());
     }
 }

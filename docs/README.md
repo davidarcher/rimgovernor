@@ -43,6 +43,8 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Request bounded hypothetical encounter estimates and interpret qualification | [Encounter prediction](developers/contracts/encounter-prediction.md) |
 | Read the total colonist census and plan medical care and medicine reserves | [Medical care](developers/contracts/medical-care.md), [pawn work profiles](developers/contracts/work-assignment.md), [journal ownership](developers/contracts/persistence-contracts.md) |
 | Read disaster service recovery, shelter lifecycle states and cold dash bounds | [Disaster planning](developers/contracts/disaster-planning.md) |
+| Read combat targeting, raid behavior and weather waits | [Combat in the game](developers/architecture/combat-game-ai.md) |
+| Read canonical planning cells and distinguish growing-room eligibility from native roofs | [Native planning cell ownership](developers/contracts/spatial-contracts.md#native-planning-cell-ownership) |
 | Read the total room census and royalty housing requirements | [Room observations](developers/contracts/spatial-contracts.md#total-room-observations) |
 | Trace a hunt from the native read through the roster comparison, the drafted formation and its release | [Hunt comparison](developers/contracts/forecast-contracts.md#coherent-coupled-observation-frame), [lone hunts and the hunt gate](developers/contracts/controller-contracts.md), [on-demand hunting evidence](developers/testing/acceptance-guide.md#tiers) |
 | Reach the mod over local HTTP (endpoint file, host/origin checks, `/native/<tool>`, player routes) | [HTTP channel](developers/architecture/http-channel.md) |

@@ -1,6 +1,7 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -28,7 +29,7 @@ public sealed class PreferencesFactsTests
         new("RawPotatoes", FoodKind.Vegetable, MealIngredients.None),
     ];
 
-    private static readonly PawnTrait CannibalTrait = new() { Name = "Cannibal", Effects = new TraitEffects { Cannibal = true } };
+    private static readonly PawnTrait CannibalTrait = new() { Observed = new() { DefName = "Cannibal" }, Effects = new TraitEffects { Cannibal = true } };
 
     private static IReadOnlyList<string> Allowed(IReadOnlyList<PawnTrait> traits, PreferencesRecord preferences)
     {
@@ -69,16 +70,11 @@ public sealed class PreferencesFactsTests
         Assert.Equal(["Meat_Muffalo", "RawPotatoes"], Allowed([CannibalTrait], forbidden));
     }
 
-    private static ProductionBench Bench() => new()
+    private static ProductionBench Bench() => ProductionBenchFixtures.Butchering("bench1", "ButcherSpot", "bench1-token", true) with
     {
-        Id = "bench1",
-        Definition = "ButcherSpot",
-        Token = "bench1-token",
-        Usable = true,
-        Butcher = true,
         HumanCorpseNutrition = 60.0,
-        Recipes = [new ProductionRecipe { Name = "ButcherCorpseFlesh", Role = RecipeRole.ButcherFlesh, Available = true, Food = new RecipeFood.NotFood() }],
-        HumanButchers = [new HumanButcherCandidate { ID = new PawnId("worker1"), Traits = EquatableArray.From<PawnTrait>([]), Held = new HeldPrecepts(), CanWork = true }],
+        Recipes = [new ProductionRecipe { Access = ProductionBenchFixtures.Recipe("ButcherCorpseFlesh"), Role = RecipeRole.ButcherFlesh, Food = new RecipeFood.NotFood() }],
+        HumanButchers = [new HumanButcherCandidate { Observed = new() { PawnId = "worker1", CanWork = true, PawnTraits = [] }, Traits = EquatableArray.From<PawnTrait>([]), Ideology = new O.PawnIdeo.None() }],
     };
 
     [Fact]
@@ -147,8 +143,8 @@ public sealed class PreferencesFactsTests
     public void ForbiddenHumanLeatherLeavesTheStuffCatalogAndTheApparelOptions()
     {
         var cloth = new Resource("Cloth");
-        var option = new GearOption { ID = "o1", Definition = new("Apparel_Parka"), Stuff = PreferenceRules.HumanLeather };
-        var plain = new GearOption { ID = "o2", Definition = new("Apparel_Parka"), Stuff = cloth };
+        var option = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("o1", "Apparel_Parka", (PreferenceRules.HumanLeather).Value, GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }) };
+        var plain = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("o2", "Apparel_Parka", (cloth).Value, GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }) };
         var facts = new RoundsFacts
         {
             Items = new ItemFacts
@@ -158,7 +154,7 @@ public sealed class PreferencesFactsTests
             },
             Gear = ColonyModelFixtures.NoGear() with
             {
-                Pawns = [new GearPawn { Pawn = new PawnId("p"), LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Options = EquatableArray.From([option, plain]) }) }],
+                Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new PawnId("p") }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Options = EquatableArray.From([option, plain]), Role = GearFixtures.Role }) }],
             },
         };
 

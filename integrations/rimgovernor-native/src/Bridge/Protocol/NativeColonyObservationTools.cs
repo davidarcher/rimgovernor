@@ -81,7 +81,12 @@ namespace HomeBridge.BridgeTools
                 && !b.IsForbidden(player) && reachable(b)).ToList();
             var indoorBeds = beds.Where(b => b.GetRoom() != null && b.GetRoom().ProperRoom
                 && !b.GetRoom().PsychologicallyOutdoors && b.GetRoom().OpenRoofCount == 0).ToList();
-            var temperatures = indoorBeds.Select(b => Finite(b.GetRoom().Temperature)).ToList();
+            // Temperature recovery observes every eligible sleeping room, even when danger makes its beds unreachable.
+            // Capacity above remains the reachable sleeping capacity; temperature must not hide a cold room.
+            var sleepingRooms = things.OfType<Building_Bed>()
+                .Where(b => b.Faction == player && b.def.building.bed_humanlike && !b.ForPrisoners && !b.Medical)
+                .Select(b => b.GetRoom() ?? throw new InvalidOperationException("Sleeping bed stands in no room."))
+                .Distinct().ToList();
             Span("cf.beds");
             var nutrition = items.Where(t => humanFood(t.def) && t.IngestibleNow && NativeFoodPolicy.Eaters(people, t.def).All(p => p.WillEat(t)))
                 .Sum(t => (double)t.stackCount * NativeFoodPolicy.Eaters(people, t.def).Min(p => FoodUtility.NutritionForEater(p, t)));
@@ -114,8 +119,13 @@ namespace HomeBridge.BridgeTools
             var anomaly = NativeAnomalyColony.Read();
             Span("cf.deep");
             // No eligible indoor sleeping place is a named state, not a missing read.
-            Obs.SleepingTemperature sleeping = temperatures.Count > 0
-                ? new Obs.SleepingTemperature.Indoor(temperatures.Min(), temperatures.Max()) : new Obs.SleepingTemperature.NoIndoorBed();
+            Obs.SleepingTemperature sleeping = new Obs.SleepingTemperature.NoIndoorBed();
+            if (sleepingRooms.Count > 0 && sleepingRooms.All(room => room.ProperRoom && !room.IsDoorway
+                && !room.UsesOutdoorTemperature && !room.PsychologicallyOutdoors && !room.TouchesMapEdge && room.OpenRoofCount == 0))
+            {
+                var temperatures = sleepingRooms.Select(room => Finite(room.Temperature)).ToList();
+                sleeping = new Obs.SleepingTemperature.Indoor(temperatures.Min(), temperatures.Max());
+            }
             var resources = stock.Select(group => new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) }).ToList();
             Span("cf.resources");
             var workResources = RimGovernor.Brain.Domain.EquatableArray.From(map.mapPawns.AllPawnsSpawned
@@ -131,7 +141,7 @@ namespace HomeBridge.BridgeTools
                 }));
             var eventLoot = EventLootFacts.Read(map, things, reachable);
             Span("cf.eventLoot");
-            var (cooking, butchering) = ReadProduction(context, map, people, things, reachable, humanFood);
+            var productionBenches = ReadProduction(context, map, things, reachable, humanFood);
             Span("cf.production");
             var joiners = NativeJoinerLetters.Snapshot();
             var dialog = ChoiceDialogTools.Pending();
@@ -174,7 +184,7 @@ namespace HomeBridge.BridgeTools
                 FoodSupply = foodSupply, Forecast = forecast, Upkeep = upkeep, Threat = threat, Development = development,
                 FoodChannels = foodChannels, DeepResources = deepResources, Policies = policies,
                 Biotech = biotech, Royalty = royalty, Anomaly = anomaly,
-                Resources = [.. resources], EventLoot = eventLoot, Cooking = [.. cooking], Butchering = [.. butchering],
+                Resources = [.. resources], EventLoot = eventLoot, ProductionBenches = [.. productionBenches],
                 JoinerLetters = [.. joiners], Dialog = dialog != null ? ChoiceDialogTools.Snapshot(dialog) : null,
                 Environment = [.. conditions.Select(EnvironmentCondition)],
                 Recovery = recovery, Waste = waste, Blight = NativeBlightCensus.Read(map, things), FoodClimate = foodClimate, ControlledEnvironment = environment,
@@ -251,17 +261,8 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.DevelopmentFacts ReadPower(Map map)
         {
-            // Traders (consumers and generators) and batteries share one census so
-            // The power topology sees every network member that matters for
-            // coverage and reserve: batteries carry stored/capacity energy; the
-            // base wattage is the def's; each member's service state is its building table row.
-            var traders = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerTrader>())
-                .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
-            var batteries = map.listerBuildings.allBuildingsColonist.Select(b => b.TryGetComp<CompPowerBattery>())
-                .Where(p => p != null).OrderBy(p => p.parent.thingIDNumber).ToList();
             var nets = map.powerNetManager.AllNetsListForReading.OrderBy(n => n.GetHashCode()).ToList();
             var geysers = map.listerThings.ThingsOfDef(ThingDefOf.SteamGeyser).OfType<Building_SteamGeyser>().OrderBy(g => g.thingIDNumber).ToList();
-            var power = new List<Obs.DevelopmentPower>(traders.Count + batteries.Count);
             var networks = new List<Obs.PowerNetwork>(nets.Count);
             var geyserRows = new List<Obs.SteamGeyser>(geysers.Count);
             // Archived letters survive dismissal and saves. Use the game's own
@@ -273,79 +274,82 @@ namespace HomeBridge.BridgeTools
                     && l.lookTargets.targets.Any(t => t.Map == map))
                 .Select(l => l.arrivalTick).ToList();
             Obs.ObservedShortCircuit shortCircuit = incidents.Count > 0 ? new Obs.ObservedShortCircuit.Seen { Tick = incidents.Max() } : new Obs.ObservedShortCircuit.NoneSeen();
-            foreach (var trader in traders) {
-                var building = (Building)trader.parent;
-                // A turret's observed damage per second.
-                var dps = NativeDefenseStats.TurretDps(building);
-                power.Add(new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building),
-                    Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)),
-                    Turret = dps.HasValue ? new Obs.PowerTurret.Gun { Dps = Finite(dps.Value) } : new Obs.PowerTurret.NoGun() });
-            }
-            foreach (var battery in batteries) {
-                var building = (Building)battery.parent;
-                power.Add(new Obs.DevelopmentPower { Building = NativeBuildingObservationTools.Ref(building), Roofed = building.OccupiedRect().Cells.All(c => c.Roofed(map)), Turret = new Obs.PowerTurret.NoGun() });
-            }
             foreach (var net in nets) {
                 var generation = net.powerComps.Where(p => p.PowerOn && p.PowerOutput > 0).Sum(p => (double)p.PowerOutput);
                 var consumption = net.powerComps.Where(p => p.PowerOn && p.PowerOutput < 0).Sum(p => (double)-p.PowerOutput);
                 networks.Add(new Obs.PowerNetwork { Id = NetId(net),
                     GenerationW = Finite(generation), ConsumptionW = Finite(consumption),
-                    StoredWattDays = Finite(net.CurrentStoredEnergy()) });
+                    StoredWD = Finite(net.CurrentStoredEnergy()) });
             }
             foreach (var geyser in geysers) {
                 // A geyser is free for a geothermal generator only while no
                 // harvester, blueprint, frame or other building stands on it.
                 var cells = geyser.OccupiedRect().Cells.ToList();
                 var occupied = geyser.harvester != null || cells.Any(c => c.GetThingList(map).Any(t => t != geyser && (t.def.category == ThingCategory.Building || t.def.IsBlueprint || t.def.IsFrame)));
-                geyserRows.Add(new Obs.SteamGeyser { Geyser = NativeRef.Thing(geyser), Occupied = occupied, Cells = [.. cells.Select(c => Cell(c))] });
+                geyserRows.Add(new Obs.SteamGeyser { Id = geyser.GetUniqueLoadID(), Cell = new RimGovernor.Brain.Domain.Cell(geyser.Position.x, geyser.Position.z), Occupied = occupied, Cells = [.. cells.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))] });
             }
-            return new Obs.DevelopmentFacts { ShortCircuit = shortCircuit, Power = [.. power], Networks = [.. networks], Geysers = [.. geyserRows] };
+            return new Obs.DevelopmentFacts { ShortCircuit = shortCircuit, Networks = [.. networks], Geysers = [.. geyserRows] };
         }
 
         private static string NetId(PowerNet net) => NativeBuildingObservationTools.NetId(net);
 
-        private static (List<Obs.CookingFacts> Cooking, List<Obs.ButcheringFacts> Butchering) ReadProduction(Common.ObservationContext context, Map map, List<Pawn> people,
+        private static List<Obs.ProductionBenchFacts> ReadProduction(Common.ObservationContext context, Map map,
             List<Thing> things, Func<Thing, bool> reachable, Func<ThingDef, bool> humanFood)
         {
-            var cooking = new List<Obs.CookingFacts>();
-            var butchering = new List<Obs.ButcheringFacts>();
-            var benches = things.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer && reachable(b)
-                && b.def.AllRecipes.Any(r => r.products.Any(p => humanFood(p.thingDef)))).OrderBy(b => b.thingIDNumber).ToList();
+            var rows = new List<Obs.ProductionBenchFacts>();
             var haulers = NativeResourceSourcesTool.Haulers(map);
-            foreach (var bench in benches) {
-                var row = new Obs.CookingFacts { Bench = NativeBuildingObservationTools.Ref(bench), BenchSnapshot = NativeProductionBills.Snapshot(bench,bench,context),
-                    AutoRefuel = NativeAutoRefuel.Comp(bench) is CompRefuelable refuel ? new Obs.BenchAutoRefuel.Refuelable { Allowed = refuel.allowAutoRefuel } : new Obs.BenchAutoRefuel.NotRefuelable(),
-                    Usable = !bench.IsBurning() && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
-                        && (bench.TryGetComp<CompRefuelable>() == null || bench.TryGetComp<CompRefuelable>().HasFuel) };
-                var recipes = bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList();
-                foreach (var recipe in recipes) {
-                    row = row with { Recipes = [.. row.Recipes, NativeProductionBills.RecipeRow(bench,recipe)] };
-                    var products = new List<Obs.FoodProduct>();
-                    foreach(var product in recipe.products){
-                        var capacity = NativeResourceSourcesTool.Capacity(map,product.thingDef,haulers,out var stored);
-                        products.Add(new Obs.FoodProduct { DefName = product.thingDef.defName, Edible = humanFood(product.thingDef), Storable = capacity + stored });
+            foreach (var bench in things.Where(t => t.Faction == Faction.OfPlayer && t is IBillGiver && reachable(t)).OrderBy(t => t.thingIDNumber))
+            {
+                var cookingRecipes = bench is Building_WorkTable
+                    ? bench.def.AllRecipes.Where(r => r.products.Any(p => humanFood(p.thingDef))).OrderBy(r => r.defName).ToList()
+                    : new List<RecipeDef>();
+                var butcherRecipes = bench.def.AllRecipes.Where(NativeRecipeRoles.ButcherFlesh).OrderBy(r => r.defName).ToList();
+                if (cookingRecipes.Count == 0 && butcherRecipes.Count == 0) continue;
+                var row = new Obs.ProductionBenchFacts
+                {
+                    Bench = NativeBillsObservationTools.Stack(bench, context),
+                    Cooking = new Obs.CookingProduction.NotSupported(),
+                    Butchering = new Obs.ButcheringProduction.NotSupported(),
+                };
+                if (cookingRecipes.Count > 0)
+                {
+                    var cooking = new Obs.CookingProduction.Supported
+                    {
+                        Usable = !bench.IsBurning()
+                            && (bench.TryGetComp<CompPowerTrader>() == null || bench.TryGetComp<CompPowerTrader>().PowerOn)
+                            && (bench.TryGetComp<CompRefuelable>() == null || bench.TryGetComp<CompRefuelable>().HasFuel),
+                        Recipes = [], Production = [],
+                    };
+                    foreach (var recipe in cookingRecipes)
+                    {
+                        cooking = cooking with { Recipes = [.. cooking.Recipes, NativeProductionBills.RecipeRow(bench, recipe)] };
+                        var products = new List<Obs.FoodProduct>();
+                        foreach (var product in recipe.products)
+                        {
+                            var capacity = NativeResourceSourcesTool.Capacity(map, product.thingDef, haulers, out var stored);
+                            products.Add(new Obs.FoodProduct { DefName = product.thingDef.defName, Edible = humanFood(product.thingDef), Storable = capacity + stored });
+                        }
+                        cooking = cooking with { Production = [.. cooking.Production, new Obs.FoodProduction
+                        {
+                            Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench, recipe), Products = [.. products],
+                        }] };
                     }
-                    var production = new Obs.FoodProduction { Recipe = recipe.defName, Available = NativeProductionBills.Recipe(bench,recipe), Products = [.. products] };
-                    row = row with { Production = [.. row.Production, production] };
+                    row = row with { Cooking = cooking };
                 }
-                for(var index=0;index<bench.BillStack.Count;index++)row = row with { Bills = [.. row.Bills, NativeProductionBills.BillRow(bench.BillStack.Bills[index],index)] };
-                var cookingRoom = bench.GetRoom();
-                if (cookingRoom != null) row = row with { Room = NativeRef.Room(cookingRoom) };
-                cooking.Add(row);
+                if (butcherRecipes.Count > 0)
+                {
+                    var butchering = new Obs.ButcheringProduction.Supported
+                    {
+                        Usable = NativeProductionBills.Usable(bench),
+                        Recipes = [.. butcherRecipes.Select(recipe => NativeProductionBills.RecipeRow(bench, recipe))],
+                        HumanButchers = [], HumanCorpseMeat = [],
+                    };
+                    row = row with { Butchering = HumanFoodFacts.Fill(butchering, bench) };
+                }
+                rows.Add(row);
             }
-            foreach(var bench in things.Where(t=>t.Faction==Faction.OfPlayer&&t is IBillGiver&&reachable(t)&&t.def.AllRecipes.Any(NativeRecipeRoles.ButcherFlesh)).OrderBy(t=>t.thingIDNumber)){
-                var giver=(IBillGiver)bench;
-                var row=new Obs.ButcheringFacts{Bench=NativeBuildingObservationTools.Ref(bench),BenchSnapshot=NativeProductionBills.Snapshot(bench,giver,context),Usable=NativeProductionBills.Usable(bench)};
-                row = HumanFoodFacts.Fill(row,bench);
-                foreach(var recipe in bench.def.AllRecipes.Where(NativeRecipeRoles.ButcherFlesh))row = row with { Recipes = [.. row.Recipes, NativeProductionBills.RecipeRow(bench,recipe)] };
-                for(var index=0;index<giver.BillStack.Count;index++)row = row with { Bills = [.. row.Bills, NativeProductionBills.BillRow(giver.BillStack.Bills[index],index)] };
-                var butcherRoom = bench.GetRoom();
-                if (butcherRoom != null) row = row with { Room = NativeRef.Room(butcherRoom) };
-                butchering.Add(row);
-            }
-            return (cooking, butchering);
+            return rows;
         }
-
         // The definitions the catalog carries: player-buildable or sowable
         // ThingDefs and player-buildable TerrainDefs.
         internal static bool Cataloged(ThingDef def) => def.BuildableByPlayer || def.plant?.Sowable == true;
@@ -400,15 +404,15 @@ namespace HomeBridge.BridgeTools
                 if (IsSunLamp(building)) { var lamp = building;
                     var schedule = lamp.TryGetComp<CompSchedule>();
                     lights.Add(new Obs.GrowLight {
-                        Building = NativeBuildingObservationTools.Ref(lamp),
-                        Room = room == null ? null : NativeRef.Room(room),
+                        Id = lamp.GetUniqueLoadID(),
+                        Room = room == null ? null : NativeRef.Room(room).Id,
                         GrowthCells = [.. GenRadial.RadialCellsAround(lamp.Position, lamp.def.specialDisplayRadius, true).Where(c => c.InBounds(map)).Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))],
                         LitNow = (power == null || power.PowerOn) && (schedule == null || schedule.Allowed),
-                        PowerNetId = NetId(power) });
+                        Network = NetId(power) });
                     Note(room);
                 } else if (building is Building_PlantGrower grower) {
-                    growers.Add(new Obs.PlantGrower { Building = NativeBuildingObservationTools.Ref(grower),
-                        CropDefName = grower.GetPlantDefToGrow()?.defName, CanSow = grower.CanAcceptSowNow() });
+                    growers.Add(new Obs.PlantGrower { Id = grower.GetUniqueLoadID(), Fertility = grower.def.fertility >= 0 ? new Obs.GrowerFertility.Fixed(Finite(grower.def.fertility)) : new Obs.GrowerFertility.Ground(), SowTag = string.IsNullOrEmpty(grower.def.building.sowTag) ? null : grower.def.building.sowTag,
+                        Crop = grower.GetPlantDefToGrow()?.defName, CanSow = grower.CanAcceptSowNow() });
                     Note(room);
                 }
             }
@@ -418,7 +422,7 @@ namespace HomeBridge.BridgeTools
                 // A room whose every cell is fogged has no key in the cell grid and is not listed.
                 var held = room.Cells.Where(c => !c.Fogged(map)).ToList();
                 if (held.Count == 0) continue;
-                grown.Add(new Obs.GrowRoom { Room = NativeRef.Room(room), GridRoom = held.Min(c => c.z * map.Size.x + c.x), TemperatureC = Finite(room.Temperature) });
+                grown.Add(new Obs.GrowRoom { Id = NativeRef.Room(room).Id, GridRoom = held.Min(c => c.z * map.Size.x + c.x), TemperatureC = Finite(room.Temperature) });
             }
             var networks = new List<Obs.PowerHeadroom>();
             var nets = map.powerNetManager?.AllNetsListForReading ?? new List<PowerNet>();
@@ -436,12 +440,12 @@ namespace HomeBridge.BridgeTools
                 }
                 double capacity = 0;
                 foreach (var battery in net.batteryComps ?? new List<CompPowerBattery>()) if (battery?.Props != null) capacity += Finite(battery.Props.storedEnergyMax);
-                networks.Add(new Obs.PowerHeadroom { Id = net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture), HasActiveSource = net.HasActivePowerSource,
+                networks.Add(new Obs.PowerHeadroom { Id = net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture), ActiveSource = net.HasActivePowerSource,
                     GenerationW = generation, SolarW = solar, WindW = wind, ConsumptionW = consumption, CapacityWattDays = capacity });
             }
-            return new Obs.ControlledEnvironment { Lights = [.. lights], Growers = [.. growers], Rooms = [.. grown], Networks = [.. networks] };
+            return new Obs.ControlledEnvironment { OutdoorTemperatureC = Finite(map.mapTemperature.OutdoorTemp), Lights = [.. lights], Growers = [.. growers], Rooms = [.. grown], Networks = [.. networks] };
         }
-        private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
+        private static RimGovernor.Brain.Domain.Cell Cell(IntVec3 c) => new RimGovernor.Brain.Domain.Cell { X = c.x, Z = c.z };
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
         private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source, Obs.NeedsForecastRead needs, Obs.CoupledForecastRead coupled)
@@ -453,23 +457,46 @@ namespace HomeBridge.BridgeTools
         }
         private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
         {
-            var corpses = new List<Obs.CorpseHandling>();
-            foreach (var corpse in source.larder.Corpses) {
-                var handling = new Obs.CorpseHandling { StockId = corpse.ID, Cell = Cell(corpse.Cell), FrozenDestination = corpse.FrozenDestination };
-                if (corpse.Hauler != null) handling = handling with { HaulerId = corpse.Hauler };
-                corpses.Add(handling);
-            }
-            var result = new Obs.FoodSupplyFacts { Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition), Corpses = [.. corpses] } };
-            foreach (var consumer in source.consumers)
-                result = result with { Consumers = [.. result.Consumers, new Obs.FoodConsumer { PawnId = consumer.id ?? throw new InvalidOperationException("Missing food consumer identity."), NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable }] };
+            var corpses = source.larder.Corpses.Select(corpse => new Obs.CorpseHandling {
+                Id = corpse.ID, Cell = new RimGovernor.Brain.Domain.Cell(corpse.Cell.x, corpse.Cell.z),
+                Hauler = new RimGovernor.Brain.Domain.PawnId(corpse.Hauler ?? string.Empty), FrozenDestination = corpse.FrozenDestination,
+            }).ToArray();
+            var consumers = source.consumers.Select(consumer => new Obs.FoodConsumer {
+                Id = new RimGovernor.Brain.Domain.PawnId(consumer.id ?? throw new InvalidOperationException("Food consumer has no pawn identity.")),
+                NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable,
+            }).ToArray();
+            var stocks = new List<Obs.FoodStock>();
             foreach (var stock in source.stocks) {
-                // The stock's thing is a things table row.
-                var row = new Obs.FoodStock { Item = NativeRef.Thing(stock.thing ?? throw new InvalidOperationException("Missing food stock thing.")), Nutrition = Finite(stock.nutrition) };
-                row = row with { Eaters = [.. row.Eaters, .. NativeRef.All(stock.eaters ?? throw new InvalidOperationException("Missing food stock eaters."))] };
-                if (stock.holder != null) row = row with { Holder = NativeRef.Of(stock.holder) };
-                result = result with { Stocks = [.. result.Stocks, row] };
+                var thing = stock.thing ?? throw new InvalidOperationException("Food stock has no native thing.");
+                var eaters = stock.eaters ?? throw new InvalidOperationException("Food stock has no eater census.");
+                Obs.FoodForm form = thing is Corpse remains
+                    ? new Obs.FoodForm.Corpse(Finite(Math.Max(0, remains.InnerPawn.GetStatValue(StatDefOf.MeatAmount))), Finite(remains.InnerPawn.BodySize))
+                    : new Obs.FoodForm.Item();
+                Obs.FoodPlace place = new Obs.FoodPlace.Carried();
+                if (thing.Spawned) {
+                    var room = thing.Position.GetRoom(thing.Map);
+                    place = new Obs.FoodPlace.Stands(thing.Position.Roofed(thing.Map), room != null ? NativeRef.Room(room).Id : string.Empty);
+                }
+                var rot = thing.TryGetComp<CompRottable>();
+                stocks.Add(new Obs.FoodStock {
+                    Id = thing.GetUniqueLoadID(), DefName = thing.def.defName,
+                    IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing), RawMeat = thing.def.IsMeat,
+                    IsHumanlike = thing is Corpse corpse && corpse.InnerPawn.RaceProps.Humanlike,
+                    Vegetable = thing.def.ingestible != null && thing.def.ingestible.foodType.HasFlag(FoodTypeFlags.VegetableOrFruit),
+                    RawClass = RimGovernor.Brain.Bridge.DefinitionCatalog.RawFoodClass(thing.def),
+                    Holder = new RimGovernor.Brain.Domain.PawnId(stock.holder ?? string.Empty), Nutrition = Finite(stock.nutrition),
+                    Eaters = eaters.Select(id => new RimGovernor.Brain.Domain.PawnId(id)).ToArray(),
+                    Rot = rot != null && rot.Active ? new Obs.FoodRot.Rots(Math.Max(0, rot.TicksUntilRotAtCurrentTemp)) : new Obs.FoodRot.Keeps(),
+                    Place = place, TemperatureC = Finite(thing.AmbientTemperature), Form = form,
+                    Count = thing.stackCount, UnitMass = Finite(thing.GetStatValue(StatDefOf.Mass)), Forbidden = thing.IsForbidden(Faction.OfPlayer),
+                });
             }
-            return result;
+            return new Obs.FoodSupplyFacts {
+                Consumers = [.. consumers], Stocks = [.. stocks],
+                Larder = new Obs.FoodLarderFacts {
+                    RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition), Corpses = [.. corpses],
+                },
+            };
         }
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
     }

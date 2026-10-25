@@ -99,11 +99,12 @@ public sealed record FoodPlan
 /// <summary>
 /// FoodField supplies the observations a FieldPlan does not own. ID identifies the field across reviews;
 /// remaining growth and work must not be guessed from the crop name. A newly planned field uses the full
-/// GrowDays as its remaining growth. Unknown inputs remain unknown in the resulting row.
+/// GrowDays as its remaining growth. Observed geometry and exposure remain on the native zone.
 /// </summary>
 public sealed record FoodField
 {
-    public string Id { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.ZoneState.Growing Observed { get; init; }
+    public string Id => Observed.Id;
 
     public FieldPlan Plan { get; init; } = new();
 
@@ -112,7 +113,7 @@ public sealed record FoodField
     public double WorkPerDay { get; init; }
 
     /// <summary>What the field's fallout and blight risks derive from.</summary>
-    public FieldExposure Exposure { get; init; } = new();
+    public FieldExposure Exposure => new FieldExposure.FromZone(Observed);
 }
 
 /// <summary>The cooking a harvest can use: the benches and the number of cooks who can work them. Unread benches leave a crop raw.</summary>
@@ -376,7 +377,7 @@ public static class FoodPlanRules
     /// across the calendar, so growth that outlasts the growing days left waits out the non-growing stretch. A
     /// crop is sown only while it grows, so the walk starts at the current temperature factor 1.
     /// </summary>
-    public static double NewFieldLeadDays(double growDays,Calendar calendar)
+    public static double NewFieldLeadDays(double growDays,RimGovernor.Contracts.Wire.Observations.FoodClimate calendar)
     {
         var days = growDays;
         var c = calendar;
@@ -420,7 +421,7 @@ public static class FoodPlanRules
             var open = (long)v.Needed;
             c = c with
             {
-                Risk = EquatableArray.From(CropRiskRules.CropRisks(new CropSeason { Calendar = r.Calendar, Conditions = r.Conditions }, lead, new FieldExposure { ZoneCells = open, UnroofedCells = open })),
+                Risk = EquatableArray.From(CropRiskRules.CropRisks(new CropSeason { Calendar = r.Calendar, Conditions = r.Conditions }, lead, new FieldExposure.PlannedOpen(open))),
                 UpfrontCost = c.UpfrontCost with { LaborTicks = v.Needed * FieldSowTicksPerCell },
                 Terms = EquatableArray.From(c.Terms.Append(new CandidateTerm("new_field_cells", v.Needed))),
             };

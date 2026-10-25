@@ -66,6 +66,7 @@ public sealed class TileDoorsByRoleTests
         var survey = OpenMap();
         return new TileInput
         {
+            OutdoorCurve = EquatableArray.From(Enumerable.Repeat(18.0, 12)),
             Groups = groups,
             Embedding = new Embedding(),
             Blocks = [.. rects.Select((r, i) => new EmbeddedBlock { Group = i, Interior = r })],

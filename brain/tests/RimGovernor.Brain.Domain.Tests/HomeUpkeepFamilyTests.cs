@@ -3,7 +3,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -17,7 +16,10 @@ public sealed class HomeUpkeepFamilyTests
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
     private static RepairStructure Structure(string id, int hp, int max = 100, bool home = true, int priority = 1) =>
-        new(new() { Id = id, Definition = "Wall", Stuff = null, Cell = new(1, 1), Home = home, HitPoints = hp, MaxHitPoints = max }, priority, 0);
+        new(new() { Id = id, Home = home }, PowerBuildingFixtures.Trader(id, "Wall", new(1, 1), 0, 0, false) with
+        {
+            HitPoints = new RimGovernor.Contracts.Wire.Observations.BuildingHitPoints.Tracked { Current = hp, Maximum = max },
+        }, priority, 0);
 
     // Only the Need under test is composed: the family raises on the first composed Need whose fact is unread.
     private static Need Derive(HomeUpkeepFacts facts, NeedId id) =>
@@ -117,7 +119,7 @@ public sealed class HomeUpkeepFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-home-upkeep-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0};
+        facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
         var review = new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts };
         journal.ReviewRounds(review, ct);
         Colony? colony = null;

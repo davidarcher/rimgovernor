@@ -1,8 +1,9 @@
+using RimGovernor.Brain.Facts;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -12,7 +13,7 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void TheReviewFrameYieldsAValidInput()
     {
-        var input = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Projection());
+        var input = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Reading());
 
         Assert.True(input.Valid());
         Assert.Empty(input.Gaps());
@@ -31,15 +32,21 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void AFrameMissingTheRequiredGearCensusRefusesTheModel()
     {
-        var projection = ColonyModelFixtures.Projection();
-        projection = projection with { Facts = projection.Facts with { Gear = null! } };
+        var projection = ColonyModelFixtures.Reading();
+        projection = projection with
+        {
+            Facts = projection.Facts with
+            {
+                Gear = null !
+            }
+        };
         Assert.Equal("gear census", Assert.Throws<RequiredFactException>(() => RoundsColonyModel.InputOf(projection)).Fact);
     }
 
     [Fact]
     public void TheCalendarAndEveryOtherUnreadSectionAreNamedNotDefaulted()
     {
-        var unknowns = ColonyModelFixtures.GapsOf(ColonyFactsCoreTests.Projection());
+        var unknowns = ColonyModelFixtures.GapsOf(ColonyFactsCoreTests.Reading() with { Window = new Held<PlanningCells> { Value = new() { Cells = [] } } });
         Assert.DoesNotContain(unknowns, u => u.StartsWith("recipes:", StringComparison.Ordinal)); // The complete bench census contains no recipes.
 
         foreach (var section in new[] { "crops:", "research:", "pawns:" })
@@ -75,7 +82,7 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void TheCropRowCarriesTheGrowthTemperatureBandAndTheRestingFraction()
     {
-        var crop = Assert.Single(RoundsFieldPlanner.CropChoices(ColonyModelFixtures.Projection()));
+        var crop = Assert.Single(RoundsFieldPlanner.CropChoices(ColonyModelFixtures.Reading()));
 
         Assert.Equal([0.0, 10, 42, 58], new[] { crop.MinGrowthTemperature, crop.MinOptimalGrowthTemperature, crop.MaxOptimalGrowthTemperature, crop.MaxGrowthTemperature });
         Assert.Equal(0.45, crop.RestingDayFraction, 9);
@@ -84,8 +91,21 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void ACropWithAnUnorderedBandLeavesTheInputUnreadyAndIsNamed()
     {
-        var projection = ColonyModelFixtures.Projection();
-        projection = projection with { Definitions = [ColonyModelFixtures.CropRow() with { Plant=(ColonyModelFixtures.CropRow().Plant ?? new PlanningPlant()) with {MinOptimalGrowthTemperature = 60.0}}] };
+        var projection = ColonyModelFixtures.Reading();
+        projection = projection with
+        {
+            Facts = projection.Facts with
+            {
+                Definitions = [ColonyModelFixtures.CropRow() with
+                {
+                    Plant = (ColonyModelFixtures.CropRow().Plant ?? new PlanningPlant()) with
+                    {
+                        MinOptimalGrowthTemperature = 60.0
+                    }
+                }
+                ]
+            }
+        };
 
         var unknowns = ColonyModelFixtures.GapsOf(projection);
 
@@ -95,45 +115,78 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void APlannedFieldTakesTheLayoutPlansFieldCellsOffTheStandingZones()
     {
-        var projection = ColonyModelFixtures.Projection();
+        var projection = ColonyModelFixtures.Reading();
         var plan = new LayoutPlan { Zones = [new LayoutZone { Kind = LayoutPlanRules.ZoneField, Runs = [new RowRun(0, 2, 4)] }] };
         projection = projection with
         {
-            LayoutPlan = plan,
-            Cells = [.. projection.Cells, SiteCellFixtures.Ground with { Cell = new Cell(4, 0), Fertility = 1.1 }, SiteCellFixtures.Ground with { Cell = new Cell(5, 0), Fertility = 0.9 }],
+            Facts = projection.Facts with
+            {
+                LayoutPlan = plan
+            },
+            Window = new Held<PlanningCells>
+            {
+                Value = new PlanningCells
+                {
+                    Cells = [.. projection.PlanningWindow.Cells, SiteCellFixtures.At(new Cell(4, 0), fertility: 1.1), SiteCellFixtures.At(new Cell(5, 0), fertility: 0.9)
+                    ]
+                }
+            }
         };
 
         var planned = Assert.Single(ColonyModelFixtures.ReadyOf(projection).Land, f => f.Planned);
 
         // Cells 2 and 3 already belong to the standing zone.
         Assert.Equal(("plan-0", ""), (planned.Id, planned.Crop));
-        Assert.Equal([1.1, 0.9], planned.Fertility);
+        Assert.Equal([1.1, 0.9], planned.Fertility.Select(f => Math.Round(f, 6)));
     }
 
     [Fact]
     public void ACellWithoutAFertilityReadingLeavesTheInputUnready()
     {
-        var projection = ColonyModelFixtures.Projection();
+        var projection = ColonyModelFixtures.Reading();
         var plan = new LayoutPlan { Zones = [new LayoutZone { Kind = LayoutPlanRules.ZoneField, Runs = [new RowRun(0, 4, 2)] }] };
-        projection = projection with { LayoutPlan = plan, Cells = [.. projection.Cells, SiteCellFixtures.Ground with { Cell = new Cell(4, 0), Fertility = 1.1 }] };
+        projection = projection with
+        {
+            Facts = projection.Facts with
+            {
+                LayoutPlan = plan
+            },
+            Window = new Held<PlanningCells>
+            {
+                Value = new PlanningCells
+                {
+                    Cells = [.. projection.PlanningWindow.Cells, SiteCellFixtures.At(new Cell(4, 0), fertility: 1.1)
+                    ]
+                }
+            }
+        };
 
         var unknowns = ColonyModelFixtures.GapsOf(projection);
 
         Assert.Contains(unknowns, u => u.StartsWith("land:", StringComparison.Ordinal));
     }
 
-    private static ColonyProjection WithWorkRead(ColonyProjection projection, double[] benchFactors, double researchSpeed, double plantWorkSpeed)
+    private static ColonyReading WithWorkRead(ColonyReading projection, double[] benchFactors, double researchSpeed, double plantWorkSpeed)
     {
         var review = projection.Facts.NeedsAlternatives!;
         var pawn = review.Observation.Pawns[0] with { ResearchSpeed = researchSpeed, PlantWorkSpeed = plantWorkSpeed };
         var observation = review.Observation with { Pawns = [pawn], ResearchBenches = EquatableArray.From(benchFactors.Select((factor, i) => new RimGovernor.Contracts.Wire.Observations.ResearchBenchRead("bench" + i, "SimpleResearchBench", new(i, 0), factor))) };
-        return projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = observation } } };
+        return projection with
+        {
+            Facts = projection.Facts with
+            {
+                NeedsAlternatives = review with
+                {
+                    Observation = observation
+                }
+            }
+        };
     }
 
     [Fact]
     public void TheResearchBenchesAreTheBenchesTheNeedsReadCountsWhateverTheCurrentProjectIs()
     {
-        var input = ColonyModelFixtures.ReadyOf(WithWorkRead(ColonyModelFixtures.Projection(), [1.0, 1.5], 0.8, 0.9));
+        var input = ColonyModelFixtures.ReadyOf(WithWorkRead(ColonyModelFixtures.Reading(), [1.0, 1.5], 0.8, 0.9));
 
         Assert.Equal(2, input.Research.Benches);
         var pawn = input.Pawns[0];
@@ -145,7 +198,7 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void ABenchlessColonyHasZeroBenchesAndZeroResearchSpeed()
     {
-        var input = ColonyModelFixtures.ReadyOf(WithWorkRead(ColonyModelFixtures.Projection(), [], 0.8, 1.2));
+        var input = ColonyModelFixtures.ReadyOf(WithWorkRead(ColonyModelFixtures.Reading(), [], 0.8, 1.2));
 
         Assert.Equal(0, input.Research.Benches);
         Assert.Equal(0, input.Pawns[0].ResearchSpeed);
@@ -156,7 +209,7 @@ public sealed class ColonyModelInputTests
     {
         // No bed and no recreation target: the rest need carries the ground recovery the game applies to a pawn lying down
         // without a bed, the joy need the walk a pawn takes without a building (#3825).
-        var input = ColonyModelFixtures.ReadyOf(NoBedNoRecreation(ColonyModelFixtures.Projection(), Walk));
+        var input = ColonyModelFixtures.ReadyOf(NoBedNoRecreation(ColonyModelFixtures.Reading(), Walk));
 
         var needs = input.Pawns[0].Needs;
         Assert.Equal(0.00002, needs.Single(n => n.Kind == "rest").Gain);
@@ -178,11 +231,23 @@ public sealed class ColonyModelInputTests
     public void AJoyReadWithoutItsOutdoorSharesThrows()
     {
         // #3825 D7, P10: when a walk can be taken is a fact the read carries; a joy row without it is a missing read, not all weather.
-        var projection = NoBedNoRecreation(ColonyModelFixtures.Projection(), Walk);
+        var projection = NoBedNoRecreation(ColonyModelFixtures.Reading(), Walk);
         var review = projection.Facts.NeedsAlternatives!;
         var pawn = review.Observation.Pawns[0];
         pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { OutdoorShareByTwelfth = default } : n)) };
-        projection = projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = review.Observation with { Pawns = [pawn] } } } };
+        projection = projection with
+        {
+            Facts = projection.Facts with
+            {
+                NeedsAlternatives = review with
+                {
+                    Observation = review.Observation with
+                    {
+                        Pawns = [pawn]
+                    }
+                }
+            }
+        };
 
         Assert.Throws<RequiredFactException>(() => RoundsColonyModel.InputOf(projection));
     }
@@ -191,7 +256,7 @@ public sealed class ColonyModelInputTests
     internal const double Walk = 0.36 / GameTime.TicksPerHour;
 
     /// <summary>The projection with its colonist's bed and recreation targets gone and the needs' unserved recoveries read.</summary>
-    internal static ColonyProjection NoBedNoRecreation(ColonyProjection projection, double walk)
+    internal static ColonyReading NoBedNoRecreation(ColonyReading projection, double walk)
     {
         var review = projection.Facts.NeedsAlternatives!;
         var pawn = review.Observation.Pawns[0];
@@ -205,6 +270,18 @@ public sealed class ColonyModelInputTests
                 _ => n,
             })),
         };
-        return projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = review.Observation with { Pawns = [pawn] } } } };
+        return projection with
+        {
+            Facts = projection.Facts with
+            {
+                NeedsAlternatives = review with
+                {
+                    Observation = review.Observation with
+                    {
+                        Pawns = [pawn]
+                    }
+                }
+            }
+        };
     }
 }

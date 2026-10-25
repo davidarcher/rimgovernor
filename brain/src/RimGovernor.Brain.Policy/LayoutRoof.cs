@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>What the roofed set reads beside the plan. Curve is the seasonal outdoor temperature curve (twelve means, C); Cold and Hot are the survey's latches.</summary>
 public sealed record RoofInput
 {
-    public Fact<EquatableArray<double>> Curve { get; init; }
+    public EquatableArray<double> Curve { get => ClimateRules.RequireOutdoorCurve(field); init; }
     public bool Cold { get; init; }
     public bool Hot { get; init; }
 }
@@ -53,8 +53,8 @@ public static partial class LayoutRoofRules
     /// <summary>Whether the map's outdoor temperature is not good for pawns: a latch set, or the curve cold or hot.</summary>
     public static bool BadClimate(RoofInput input)
     {
-        var known = input.Curve.TryGetValue(out var curve);
-        return input.Cold || input.Hot || (known && (ColdMapCurve(curve!) || HotMapCurve(curve!)));
+        var curve = input.Curve;
+        return input.Cold || input.Hot || ColdMapCurve(curve) || HotMapCurve(curve);
     }
 }
 

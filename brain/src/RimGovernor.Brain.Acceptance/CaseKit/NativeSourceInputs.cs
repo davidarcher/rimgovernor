@@ -57,7 +57,6 @@ public static partial class NativeSourceInputs
         new("brain/src/RimGovernor.Brain.Telemetry", "brain/src/RimGovernor.Brain.Telemetry", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.Host", "brain/src/RimGovernor.Brain.Host", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.Executor", "brain/src/RimGovernor.Brain.Executor", NotBuildOutput),
-        new("brain/src/RimGovernor.Brain.Observation", "brain/src/RimGovernor.Brain.Observation", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.Store", "brain/src/RimGovernor.Brain.Store", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.BuildingRuntime", "brain/src/RimGovernor.Brain.BuildingRuntime", NotBuildOutput),
         new("brain/src/RimGovernor.Brain.PlayerApi", "brain/src/RimGovernor.Brain.PlayerApi", NotBuildOutput),

@@ -82,7 +82,7 @@ public sealed class ShelterRounds
             throw new ControlException("shelter read: the scope is another world or older than the review");
         }
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
-        var projection = reading.Projection;
+        var projection = reading.Reading;
         var f = projection.Facts;
         // The bed-use review the store retains, with a due bedroom step holding sleeping unmet (as the review does).
         var recovered = SleepingRules.ReviewSleeping(f.Sleeping, review.Sleeping, expected.Tick).Recovered() && !RoundsSleepingUpkeepPlanner.BedroomsOwedOf(projection);
@@ -90,7 +90,7 @@ public sealed class ShelterRounds
         {
             SleepingRecovered = recovered,
             TemperatureOwed = RoundsBuildingPlanner.TemperatureOwed(projection),
-            Upkeep = f.Upkeep with { Rooms = projection.Rooms },
+            Upkeep = f.Upkeep with { Rooms = projection.Facts.Upkeep.Rooms },
             SafeAreaOwed = _safeArea ? _reviewer.SafeArea.Owed(world) : SafeAreaStatus.AwaitingReview,
         };
         return ShelterFacts.From(f, _reviewer.Policy);
@@ -191,7 +191,7 @@ public sealed class PowerRounds
             throw new ControlException("power read: the scope is another world or older than the review");
         }
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
-        return PowerFacts.From(reading.Projection.Facts);
+        return PowerFacts.From(reading.Reading.Facts);
     }
 
     /// <summary>The power planner for the ready Need, unless a flare holds it (the family's hold says why).</summary>

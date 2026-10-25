@@ -2,7 +2,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
@@ -20,23 +19,23 @@ public sealed class EconomyFamilyTests
 
     private static KeyValuePair<string, ResearchProjectFacts> Project(string name, string[]? prerequisites = null, string[]? locks = null, string category = "", double cost = 1) => new(name, new()
     {
-        KnowledgeCategory = category,
-        Prerequisites = EquatableArray.From((prerequisites ?? []).Select(p => new ResearchProjectId(p))),
-        LockReasons = EquatableArray.From(locks ?? []),
-        Census = true,
-        Cost = cost,
+        Definition = new() { KnowledgeCategory = category, Prerequisites = EquatableArray.From((prerequisites ?? []).Select(p => new ResearchProjectId(p))), Cost = cost },
+        Observation = new ResearchProjectObservation.Listed(new Obs.ResearchProject
+        {
+            Project = new() { DefName = name }, Current = false, Finished = false, ProgressFraction = 0, LockReasons = [.. locks ?? []],
+        }),
     });
 
     private static EconomyFacts Facts(string[] needs, string current = "", string[]? finished = null, KnowledgeSlot[]? slots = null, params KeyValuePair<string, ResearchProjectFacts>[] projects) => new()
     {
         ResearchNeeds = EquatableArray.From(needs),
-        Research = new ResearchCensus
+        Research = EconomyRules.ResearchCensusOf(new Obs.ResearchSnapshot
         {
-            Current = current,
-            Projects = projects.ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal),
-            Finished = EquatableArray.From(finished ?? []),
-            Knowledge = EquatableArray.From(slots ?? []),
-        },
+            Context = NoResearch.Context,
+            Projects = [.. projects.Select(p => ((ResearchProjectObservation.Listed)p.Value.Observation).Project with { Current = p.Key == current })],
+            Finished = [.. finished ?? []],
+            Slots = [.. (slots ?? []).Select(s => s.Observed)],
+        }, projects.ToDictionary(p => p.Key, p => p.Value.Definition, StringComparer.Ordinal), (slots ?? []).ToDictionary(s => s.Category, s => s.Overflow)),
     };
 
     [Fact]
@@ -62,14 +61,15 @@ public sealed class EconomyFamilyTests
     [Fact]
     public void AnEmptyKnowledgeSlotWithAProjectToFundIsUnmet()
     {
-        var facts = Facts(["Smithing"], finished: ["Smithing"], slots: [new KnowledgeSlot { Category = "Basic" }],
+        var facts = Facts(["Smithing"], finished: ["Smithing"], slots: [new KnowledgeSlot { Observed = new() { Category = "Basic", CurrentProject = "" } }],
             projects: [Project("Smithing"), Project("Study", category: "Basic")]);
         var need = EconomyFamily.ResearchNeed(facts);
         Assert.Equal((Satisfaction.Unmet, 1.0), (need.Satisfaction, need.Deficit));
         Assert.Equal(new ResearchStep("Study", null, false, false), EconomyRules.ResearchStepOf(facts));
 
         // A slot already funding is no spending need.
-        var funding = facts with { Research = facts.Research with { Knowledge = [new KnowledgeSlot { Category = "Basic", Current = new("Other") }] } };
+        var funding = Facts(["Smithing"], finished: ["Smithing"], slots: [new KnowledgeSlot { Observed = new() { Category = "Basic", CurrentProject = "Other" } }],
+            projects: [Project("Smithing"), Project("Study", category: "Basic")]);
         Assert.Equal(Satisfaction.Met, EconomyFamily.ResearchNeed(funding).Satisfaction);
     }
 
@@ -146,7 +146,7 @@ public sealed class EconomyFamilyTests
     private static ResourceFacts Stock(long steel, params ResourceRunway[] runways) => new()
     {
         Targets = new Dictionary<Resource, long> { [Steel] = 100 },
-        Stock = [new(Steel, steel)],
+        Census = ColonyFactsCoreTests.Snapshot() with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Steel.Value, Units = steel }] },
         Runways = EquatableArray.From(runways),
     };
 
@@ -177,7 +177,7 @@ public sealed class EconomyFamilyTests
     public void TheResourceNeedIsHeldOnTheResearchGateUntilTheWorksDemandStock()
     {
         var family = new EconomyFamily(false, true);
-        var facts = new EconomyFacts { Research = new ResearchCensus(), Resource = Stock(25) with { ResearchGate = "Smithing" } };
+        var facts = new EconomyFacts { Research = ResearchTestFacts.Read().Census, Resource = Stock(25) with { ResearchGate = "Smithing" } };
         var ready = family.Derive(facts);
         Assert.Equal([EconomyFamily.Resource], ready.Select(n => n.Id));
         var held = Assert.Single(family.Propose(ready, facts));
@@ -307,19 +307,27 @@ public sealed class EconomyFamilyTests
             Finished = ["Stonecutting"],
         };
         Assert.Equal(read, RimGovernor.Contracts.Wire.WireJson.Deserialize<Obs.ResearchSnapshot>(RimGovernor.Contracts.Wire.WireJson.Serialize(read)));
-        var catalog = new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal)
+        var catalog = new Dictionary<string, ResearchProjectDefinition>(StringComparer.Ordinal)
         {
             ["Smithing"] = new() { Cost = 700 }, ["Stonecutting"] = new() { Cost = 300 }, ["Brewing"] = new() { Cost = 500 },
         };
         var overflow = new Dictionary<string, string>(StringComparer.Ordinal) { ["Basic"] = "" };
         var census = EconomyRules.ResearchCensusOf(read, catalog, overflow);
+        Assert.Same(read, census.Observed);
+        Assert.Same(catalog["Smithing"], census.Projects["Smithing"].Definition);
+        Assert.Same(read.Projects[0], Assert.IsType<ResearchProjectObservation.Listed>(census.Projects["Smithing"].Observation).Project);
+        Assert.Same(read, Assert.IsType<ResearchProjectObservation.NotListed>(census.Projects["Stonecutting"].Observation).Snapshot);
+        Assert.Same(read.Slots[1], Assert.Single(census.Knowledge).Observed);
+        var summary = EconomyRules.ResearchSummary(census);
+        Assert.Same(census, summary.Census);
+        Assert.Same(census.Projects, summary.Details);
         Assert.Equal("Smithing", census.Current);
         Assert.Equal((.25, true, true), (census.Projects["Smithing"].Progress, census.Projects["Smithing"].Census, census.Projects["Smithing"].Hidden));
         // A project the read does not list is finished or unstarted.
         Assert.Equal((1.0, false), (census.Projects["Stonecutting"].Progress, census.Projects["Stonecutting"].Census));
         Assert.Equal(0.0, census.Projects["Brewing"].Progress);
         Assert.Equal(("Basic", ""), (Assert.Single(census.Knowledge).Category, census.Knowledge[0].Overflow));
-        Assert.Throws<DomainException>(() => EconomyRules.ResearchCensusOf(read, new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal), overflow));
+        Assert.Throws<DomainException>(() => EconomyRules.ResearchCensusOf(read, new Dictionary<string, ResearchProjectDefinition>(StringComparer.Ordinal), overflow));
         // A knowledge slot of a category the catalog does not hold is a contract violation too.
         Assert.Throws<DomainException>(() => EconomyRules.ResearchCensusOf(read, catalog, new Dictionary<string, string>(StringComparer.Ordinal)));
         Assert.Empty(EconomyRules.ResearchCensusOf(NoResearch, catalog, overflow).Current);

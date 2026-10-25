@@ -8,7 +8,7 @@ public sealed class TradeReviewLifecycleTests
     [Fact]
     public void NoSurgeryCandidateDoesNotReadTradeOrGearInputs()
     {
-        var facts = new RoundsFacts { Population = PopulationFixtures.Census() };
+        var facts = new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot(), Population = PopulationFixtures.Census() };
         Assert.True(MedicalRules.SurgeryNeedRecovered(facts, RoundsRules.DefaultRoundsPolicy(), false));
     }
 

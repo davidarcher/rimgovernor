@@ -14,7 +14,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsRoutesPlanner: the reviewer, its native source or the layout/routes Need is missing");
         }
-        if (native is not Observation.IRoundsSource)
+        if (native is not IRoundsSource)
         {
             throw new ControlException("NewRoundsRoutesPlanner: !ok");
         }
@@ -25,7 +25,7 @@ public sealed partial class RoundsBuildingPlanner
     internal IReadOnlyList<string> RoutesDefinitions() => [Reviewer.Policy.Routes.Door];
 
     /// <summary>Reviews the fresh census and maps the policy outcome onto the planner.</summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectRoutes(Observation.ColonyProjection facts)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectRoutes(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var p = Reviewer.Policy.Routes;
         var review = RoutesRules.ReviewRoutes(facts.Facts.Upkeep.Routes, p);
@@ -34,7 +34,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonNoDeficit);
         }
         var routes = new Pol.RoutesFacts();
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             if (d.Name == p.Door)
             {
@@ -68,7 +68,7 @@ public sealed partial class RoundsBuildingPlanner
     /// one-cell footprint on the wall cell; one door is enough to open the room, so the batch is a single
     /// action. A door rotates with its wall, so both orientations are tried.
     /// </summary>
-    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewRoutesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewRoutesAsync(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Routes is not { Method: Pol.RoutesMethod.Build } routes)
@@ -118,6 +118,6 @@ partial class RoundsBuildingPlanner
             return false;
         }
         var b = p.Blockers[0];
-        return b.Category == "Building" && b.Wiped && !b.Blueprint && !b.Frame && !b.Cancelled;
+        return b.Category == "Building" && b.WouldBeWiped && !b.IsBlueprint && !b.IsFrame && !b.FrameWouldBeCancelled;
     }
 }

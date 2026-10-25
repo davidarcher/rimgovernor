@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -25,11 +24,11 @@ public sealed class SleepingStandInTests
     [Fact]
     public void TheShortfallIsOwedUntilBothFootholdPlacesStand()
     {
-        var bare = new RoundsFacts { Colonists = 3L, BedCapacity = 1L, IndoorCapacity = 0L };
+        var bare = new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, BedCapacity = 1, IndoorSleepingCapacity = 0 }, };
         Assert.Equal((3L, 2), ShelterRules.StandInsOwed(bare));
         // Every colonist has a spot but no roof yet: nothing more is owed.
-        Assert.Equal(0, ShelterRules.StandInsOwed(bare with { BedCapacity = 3L }).Missing);
-        Assert.Equal(0, ShelterRules.StandInsOwed(bare with { BedCapacity = 3L, IndoorCapacity = 3L }).Missing);
+        Assert.Equal(0, ShelterRules.StandInsOwed(bare with { Census = bare.Census with { BedCapacity = 3 } }).Missing);
+        Assert.Equal(0, ShelterRules.StandInsOwed(bare with { Census = bare.Census with { BedCapacity = 3, IndoorSleepingCapacity = 3 } }).Missing);
         Assert.Equal("stand-in-sleeping-3-2", ShelterRules.StandInMethod(3, 2));
         // The stand-ins are the floor, Survive tier; bed ownership and bedrooms stay Sustain.
         Assert.Equal(ConstructionTier.Survive, ConstructionTierRules.PlannerTier(ShelterFamily.Sleeping.FilingKey, Phase.HousingShelter));
@@ -88,10 +87,7 @@ public sealed class SleepingStandInTests
 
     private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, params string[] beds) => (RoomFixtures.State(id, RoomRole.Bedroom, beds: beds), room.Region.Cells());
 
-    private static SleepingBed Bed(string id, string def, string room, params PawnId[] owners) => new()
-    {
-        Id = id, Definition = new(def), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A],
-    };
+    private static SleepingBed Bed(string id, string def, string room, params PawnId[] owners) => new SleepingBed { Native = SleepingNativeFixtures.Bed(id: id, room: room, owners: [.. owners], accessibleTo: [A]), Building = SleepingNativeFixtures.Building(id: id, definition: new Resource(def)), Humanlike = true };
 
     private static BedroomStep Step(LayoutPlan plan, (RoomState Room, IEnumerable<Cell> Cells)[] rooms, SleepingObservation sleeping) =>
         SleepingRules.NextBedroomStep(plan, RoomFixtures.Census(rooms), sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
@@ -104,7 +100,7 @@ public sealed class SleepingStandInTests
         var sleeping = new SleepingObservation
         {
             Colonists = 1,
-            People = [new SleepingPerson { Id = A, OwnedBed = "x" }],
+            People = [new SleepingPerson { Native = SleepingNativeFixtures.Person(id: A), Pawn = SleepingNativeFixtures.Pawn(id: A, ownedBed: "x") }],
             Beds = [Bed("x", SleepingRules.SleepingSpotDefinition, "bedroom", A)],
         };
 
@@ -120,7 +116,7 @@ public sealed class SleepingStandInTests
         var sleeping = new SleepingObservation
         {
             Colonists = 1,
-            People = [new SleepingPerson { Id = A, OwnedBed = "w1" }],
+            People = [new SleepingPerson { Native = SleepingNativeFixtures.Person(id: A), Pawn = SleepingNativeFixtures.Pawn(id: A, ownedBed: "w1") }],
             Beds = [outdoors, Bed("w1", "Bed", "bedroom", A)],
         };
 
@@ -128,7 +124,7 @@ public sealed class SleepingStandInTests
         Assert.Equal((BedroomStepKind.Clear, "x"), (clear.Kind, clear.Bed));
 
         // With no enclosed bed yet the stand-in is the colonist's place to sleep, and stays.
-        var early = sleeping with { People = [new SleepingPerson { Id = A, OwnedBed = "" }], Beds = [outdoors] };
+        var early = sleeping with { People = [new SleepingPerson { Native = SleepingNativeFixtures.Person(id: A), Pawn = SleepingNativeFixtures.Pawn(id: A, ownedBed: "") }], Beds = [outdoors] };
         Assert.NotEqual(BedroomStepKind.Clear, Step(OneBedroom, [], early).Kind);
     }
 }

@@ -3,7 +3,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Store.Codec;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;

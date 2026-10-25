@@ -12,7 +12,7 @@ public sealed class LootReleaseTests
         var empty = LootReleaseRules.FilterLootRelease([], default);
         Assert.Empty(empty.Rows);
         Assert.Empty(empty.Holds);
-        var allowed = new LootItem { Haul = new O.HaulSafety.Safe { PathLength = 1 } };
+        var allowed = LootFixtures.Stack("Thing_Steel1", "Steel", new(1, 1), false, new O.HaulSafety.Safe { PathLength = 1 }, 1, 0, [], null);
         Assert.Equal(allowed, Assert.Single(LootReleaseRules.FilterLootRelease([allowed], default).Rows));
     }
 
@@ -34,7 +34,7 @@ public sealed class LootReleaseTests
     [Fact]
     public void AnObservedEmptyDangerCensusAllowsASafeForbiddenStack()
     {
-        var forbidden = new LootItem { Forbidden = true, Haul = new O.HaulSafety.Safe { PathLength = 1 } };
+        var forbidden = LootFixtures.Stack("Thing_Steel1", "Steel", new(1, 1), true, new O.HaulSafety.Safe { PathLength = 1 }, 1, 0, [], null);
         Assert.Equal(forbidden, Assert.Single(LootReleaseRules.FilterLootRelease([forbidden], []).Rows));
     }
 }

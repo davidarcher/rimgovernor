@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
@@ -73,7 +73,7 @@ public sealed partial class FacadeNativeClient
         }
         if (v.WorldProgression is not null)
         {
-            output = output with { Quests = WorldProgressionRead.DecodeWorldProgressionSnapshot(v.WorldProgression) };
+            output = output with { Quests = v.WorldProgression };
         }
         return output with { Ideology = IdeologyDecoder.Mode(v.Ideology, catalog), Zones = v.Zones };
     }
@@ -281,7 +281,7 @@ public sealed partial class FacadeNativeClient
         };
         if (v.WorldProgression is not null)
         {
-            output = output with { World = WorldProgressionRead.DecodeWorldProgressionSnapshot(v.WorldProgression) };
+            output = output with { World = v.WorldProgression };
         }
         if (view.Prepared.Emergency is { } emergency)
         {

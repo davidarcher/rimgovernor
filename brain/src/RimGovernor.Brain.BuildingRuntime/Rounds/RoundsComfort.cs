@@ -55,14 +55,14 @@ public sealed partial class RoundsBuildingPlanner
     /// The planner resolved to the first owed work chair (WorkChairRules.OwedSeats): its chair definition in the
     /// colony's build stuff, placed only on the bench's interaction cell. No seat owed is no deficit.
     /// </summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectWorkChair(ColonyProjection facts)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectWorkChair(ColonyReading facts)
     {
-        if (facts.LayoutPlan is not { } plan)
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return (null, FieldUnavailable("layout_plan"));
         }
         var census = facts.Facts.CurrentConstruction;
-        var seats = WorkChairRules.OwedSeats(plan, census, facts.Shapes);
+        var seats = WorkChairRules.OwedSeats(plan, census, facts.Facts.Shapes);
         if (seats.Count == 0)
         {
             return (null, BuildingReasonNoDeficit);
@@ -73,7 +73,7 @@ public sealed partial class RoundsBuildingPlanner
         resolved.Cells = [seat.Cell];
         resolved.Adjacent = [seat.Cell];
         resolved.Environment = Pol.PlacementEnvironment.Anywhere;
-        resolved.Stuff = facts.BuildStuff(seat.Chair);
+        resolved.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), seat.Chair);
         return (resolved, default);
     }
 
@@ -93,7 +93,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>The planner resolved to the comfort furniture the ranked review selects, or the verdict that explains why none is wanted.</summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectComfort(ColonyProjection facts, ComfortHistory history)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectComfort(ColonyReading facts, ComfortHistory history)
     {
         var v = facts.Facts.RequireComfort();
         var review = ComfortRules.ReviewComfort(v, history, facts.Identity.Tick);
@@ -128,12 +128,12 @@ public sealed partial class RoundsBuildingPlanner
             }
             resolved.Adjacent = adjacent;
         }
-        resolved.Stuff = facts.BuildStuff(resolved.Definition);
+        resolved.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), resolved.Definition);
         return (resolved, default);
     }
 
     /// <summary>The planner resolved to the basic comfort building the review selects (a chair, table or joy building).</summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectBasicComfort(ColonyProjection facts)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectBasicComfort(ColonyReading facts)
     {
         var v = facts.Facts.RequireBasicComfort();
         var review = BasicComfortRules.ReviewBasicComfort(v);
@@ -146,7 +146,7 @@ public sealed partial class RoundsBuildingPlanner
                 if (m.PowerW > 0)
                 {
                     var canSite = false;
-                    foreach (var c in facts.Cells)
+                    foreach (var c in facts.PlanningWindow.Cells)
                     {
                         canSite = canSite || (c.Roofed && c.Indoors && !c.Occupied() && PoweredRecreationCell(facts, c.Cell, m.PowerW));
                     }
@@ -189,18 +189,18 @@ public sealed partial class RoundsBuildingPlanner
             }
             resolved.Adjacent = adjacent;
         }
-        resolved.Stuff = facts.BuildStuff(resolved.Definition);
+        resolved.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), resolved.Definition);
         return (resolved, default);
     }
 }
 
 partial class RoundsBuildingPlanner
 {
-    internal static DiningFurniture ComfortFurniture(ColonyProjection facts) => facts.Facts.RequireBasicComfort().Furniture;
+    internal static DiningFurniture ComfortFurniture(ColonyReading facts) => facts.Facts.RequireBasicComfort().Furniture;
 
-    internal static bool ComfortBuilderAvailable(ColonyProjection facts, string definition) => ComfortBuilderGate(facts, definition).IsZero;
+    internal static bool ComfortBuilderAvailable(ColonyReading facts, string definition) => ComfortBuilderGate(facts, definition).IsZero;
 
-    internal static Verdict ComfortBuilderGate(ColonyProjection facts, string definition)
+    internal static Verdict ComfortBuilderGate(ColonyReading facts, string definition)
     {
         var (def, found) = DefinitionRow(facts, definition);
         if (!found)
@@ -217,7 +217,7 @@ partial class RoundsBuildingPlanner
         {
             return FieldUnavailable(definition + "_construction_skill");
         }
-        var pawns = facts.WorkPawns.Pawns;
+        var pawns = facts.Facts.ForecastObserved.WorkPawns.Pawns;
         if (BuilderAvailable(pawns, (int)minimum))
         {
             return default;
@@ -246,7 +246,7 @@ partial class RoundsBuildingPlanner
                 var qualified = false;
                 foreach (var skill in pawn.Skills)
                 {
-                    if (skill.Name == "Construction" && !skill.Disabled && skill.Level >= minimum)
+                    if (skill.DefName == "Construction" && !skill.Disabled && skill.Level >= minimum)
                     {
                         qualified = true;
                     }
@@ -268,9 +268,9 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Whether a powered network within six cells of the cell has the spare generation for a recreation building of these watts.</summary>
-    internal static bool PoweredRecreationCell(ColonyProjection facts, Cell cell, double watts)
+    internal static bool PoweredRecreationCell(ColonyReading facts, Cell cell, double watts)
     {
-        var topology = facts.PowerPlanning;
+        var topology = facts.Facts.EssentialInputs.Power;
         if (topology.Blackout)
         {
             return false;

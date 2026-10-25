@@ -1,6 +1,6 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -17,10 +17,7 @@ public sealed class GarmentNodeTests
 
     private static readonly Resource Leather = new("Leather_Plain");
 
-    private static GearOption Bill(string def, Resource stuff, double sharp, GearSlot slot = GearSlot.Outer) => ForecastValueTests.Duster(sharp) with
-    {
-        ID = $"bill:{def}/{stuff}", Definition = new Resource(def), Stuff = stuff, Source = GearSource.Bill, Slot = slot,
-    };
+    private static GearOption Bill(string def, Resource stuff, double sharp, GearSlot slot = GearSlot.Outer) => ForecastValueTests.Duster(sharp) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(ForecastValueTests.Duster(sharp)).Origin).Value) with { Id = $"bill:{def}/{stuff}", DefName = def, Stuff = (stuff).Value, Source = GearSource.Bill }), Slot = slot };
 
     private static ProductionRecipeInput Recipe(string def, Resource stuff, long units, double work = 10_000) =>
         new($"Make_{def}_{stuff}", EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(stuff, units) }) }), false)
@@ -90,11 +87,15 @@ public sealed class GarmentNodeTests
     public void AHerdGivesLeatherGearAValueFromTheHuntArrival()
     {
         var option = Bill("Apparel_Jacket", Leather, 0.6);
-        var deer = new AcquisitionSource { Id = "deer0", Definition = "Deer", Hunt = true, Food = true, NutritionYield = 4.1, Products = [new SourceProduct(Leather, 39.6)] };
+        var deer = new AcquisitionSource { Observed = new() { Source = new() { Id = "deer0" }, Token = "deer0", Resource = "Meat_Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = "deer0", DefName = "Deer", Label = "Deer", Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) }, NutritionYield = 4.1, Products = [new SourceProduct(Leather, 39.6)] };
         var input = Colony(8, 0, Recipe("Apparel_Jacket", Leather, 70, 5_000)) with
         {
             Land = default,
-            Wildlife = HuntSquadRules.Herds([deer, deer with { Id = "deer1" }]),
+            Wildlife = HuntSquadRules.Herds([deer, deer with {
+                Observed = deer.Observed with { Source = new() { Id = "deer1" }, Token = "deer1" },
+                Entity = deer.Entity with { Id = "deer1" },
+            }]),
         };
         input = input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Hunts = true })) };
         var graph = ProjectGraph.Standing(input, [option], ColonyModelFixtures.NoThreat);

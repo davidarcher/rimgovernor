@@ -57,7 +57,7 @@ internal static class ClearancePackReinstall
     {
         var site = s.Staged!.Site ?? throw new AcceptanceException("stage: no site");
         var bed = s.Staged.Buildings["bed"].Ids.Single();
-        var to = new Common.Cell { X = site.X + To.X, Z = site.Z + To.Z };
+        var to = new RimGovernor.Brain.Domain.Cell { X = site.X + To.X, Z = site.Z + To.Z };
 
         async Task<Observations.BuildingState?> ReadAsync(string label)
         {
@@ -89,7 +89,7 @@ internal static class ClearancePackReinstall
             return (Wait.Signature(row is null), row is null);
         }, cancellationToken).ConfigureAwait(false);
 
-        _ = await TypedApply.AppliedAsync(s, "install", new Operations.RelocateIntent { ThingId = bed, Destination = to, Mode = new Operations.RelocationMode.Move(Placement.Rotation.North) }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "install", new Operations.RelocateIntent { ThingId = bed, Mode = new Operations.RelocationMode.Move(Placement.Rotation.North, to) }, cancellationToken).ConfigureAwait(false);
         Observations.BuildingState? end = null;
         _ = await s.RunUntilAsync("installed", s.TicksLeft, async ct =>
         {

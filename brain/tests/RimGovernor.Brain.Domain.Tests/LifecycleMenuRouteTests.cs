@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using Xunit;
 using PbCommon = RimGovernor.Contracts.Wire.Common;
@@ -28,7 +28,7 @@ public sealed class LifecycleMenuRouteTests
             {
                 Connected = true,
                 Mode = "manual",
-                World = new ControllerWorld.Observed(new RimGovernor.Brain.Observation.Identity { Colony = new ColonyId(Colony), Load = new LoadId(Load), Map = new MapId(Map), Tick = new Tick(10) }, false, default),
+                World = new ControllerWorld.Observed(new RimGovernor.Brain.Bridge.Contracts.ObservationIdentity { Context = new() { Identity = new() { ColonyId = Colony, LoadToken = Load, MapId = Map }, Tick = 10, NativeGeneration = new PbCommon.ObservedGeneration.UnclaimedCase() } }, false, default),
                 Control = new ControllerControl.Matching(new GenerationSnapshot()),
             }
             : new ControllerSnapshot { Connected = false, Stale = true, Mode = "manual", World = new ControllerWorld.Unobserved(), Control = new ControllerControl.Unmatched() });

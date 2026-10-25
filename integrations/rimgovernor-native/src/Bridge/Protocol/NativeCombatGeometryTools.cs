@@ -63,9 +63,9 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static bool ValidCell(Common.Cell c) => c != null && c.X >= 0 && c.Z >= 0;
+        private static bool ValidCell(RimGovernor.Brain.Domain.Cell c) => c.X >= 0 && c.Z >= 0;
 
-        private static bool ValidCells(RimGovernor.Brain.Domain.EquatableArray<Common.Cell> cells, int max) =>
+        private static bool ValidCells(RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.Domain.Cell> cells, int max) =>
             cells.Count >= 1 && cells.Count <= max && cells.All(ValidCell) && cells.Select(c => (c.X, c.Z)).Distinct().Count() == cells.Count;
 
         /// A propose block: named cells may be 0..MaxCells-1, since
@@ -115,7 +115,7 @@ namespace HomeBridge.BridgeTools
             return new Mirror.CombatGeometry { Context = context, Cells = [.. cells], Proposed = [.. proposed], MainThreadMs = clock.Elapsed.TotalMilliseconds };
         }
 
-        private static IntVec3 InBounds(Map map, Common.Cell wire)
+        private static IntVec3 InBounds(Map map, RimGovernor.Brain.Domain.Cell wire)
         {
             var cell = new IntVec3(wire.X, 0, wire.Z);
             if (!cell.InBounds(map)) throw new GeometryRefused("Cell " + wire.X + "," + wire.Z + " is out of bounds.");
@@ -203,7 +203,7 @@ namespace HomeBridge.BridgeTools
             }).ToList();
             return new Mirror.CombatGeometryCell
             {
-                Cell = new Common.Cell { X = cell.x, Z = cell.z },
+                Cell = new RimGovernor.Brain.Domain.Cell { X = cell.x, Z = cell.z },
                 Lines = [.. lines],
                 Standable = cell.Standable(map),
                 HostileLineOfFire = lines.Any(l => l.LineOfFire),

@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -7,19 +8,23 @@ public sealed record CarePawn
     /// <summary>Quest-protected guests may be tended, but never operated on during their visit.</summary>
     public bool QuestProtected { get; init; }
 
-    public required PawnId Id { get; init; }
+    public required O.PawnState Observed { get; init; }
+
+    public PawnId Id => new(Observed.Pawn.Id);
 
     /// <summary>The colonist's standing medical care.</summary>
-    public required MedicalCare Care { get; init; }
+    public MedicalCare Care => Observed.Settings.Care is O.PawnCare.Configured care
+        ? WorkRules.MedicalCareOf(care.MedicalCare)
+        : throw new RequiredFactException("patient medical care settings");
 
-    public required bool LifeThreatening { get; init; }
+    public bool LifeThreatening => Observed.Health.LifeThreatening;
 
     /// <summary>Every hediff on the pawn, none filtered.</summary>
-    public required EquatableArray<Hediff> Conditions { get; init; }
+    public EquatableArray<Hediff> Conditions => Observed.Health.Hediffs;
 
-    public required bool Dead { get; init; }
+    public bool Dead => Observed.Dead;
 
-    public required bool NeedsRest { get; init; }
+    public bool NeedsRest => Observed.Health.ShouldSeekMedicalRest;
 
     /// <summary>Some hediff is one the catalog classifies as bad.</summary>
     public required bool BadConditions { get; init; }
@@ -27,7 +32,8 @@ public sealed record CarePawn
     public required EquatableArray<CareOperation> Operations { get; init; }
 
     /// <summary>The medical bills queued on the patient: the surgery planner's in-flight evidence.</summary>
-    public required int QueuedSurgeries { get; init; }
+    public int QueuedSurgeries => Observed.Health.Surgery is { } surgery ? surgery.SurgeryBills.Count
+        : Dead ? 0 : throw new RequiredFactException("living patient surgery facts");
 
     /// <summary>The part items those bills install, by the catalog's recipe rows.</summary>
     public IReadOnlyList<Resource> QueuedItems { get; init; } = [];

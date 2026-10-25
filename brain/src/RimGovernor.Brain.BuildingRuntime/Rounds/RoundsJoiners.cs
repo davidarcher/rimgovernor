@@ -42,7 +42,7 @@ public sealed partial class JoinersRounds
             return new JoinersFacts();
         }
         var reading = await ObserveAsync(scope, ct).ConfigureAwait(false);
-        return JoinersFacts.From(reading.Reading.Projection.Facts);
+        return JoinersFacts.From(reading.Reading.Reading.Facts);
     }
 
     /// <summary>The work of a ready Need; a Need whose Methods are all proposals has none.</summary>

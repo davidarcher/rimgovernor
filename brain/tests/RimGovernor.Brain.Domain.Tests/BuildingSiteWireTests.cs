@@ -1,6 +1,7 @@
+using RimGovernor.Brain.Policy;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Contracts.Wire;
 using Xunit;
 using C = RimGovernor.Contracts.Wire.Common;

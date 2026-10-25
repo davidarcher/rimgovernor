@@ -139,7 +139,7 @@ public sealed class OperationArgumentTests
         RoundTrip<Op.HitPointRange>(new Op.HitPointRange.Preserve(), new Op.HitPointRange.Selected(0, 1));
         RoundTrip<Op.StockpilePriorityChange>(new Op.StockpilePriorityChange.Preserve(), new Op.StockpilePriorityChange.Selected(RimGovernor.Brain.Domain.StockpilePriority.Important));
         RoundTrip<Op.StockpilePresetChange>(new Op.StockpilePresetChange.Preserve(), new Op.StockpilePresetChange.Selected(RimGovernor.Brain.Domain.FilterBase.Nothing));
-        RoundTrip<Op.RelocationMode>(new Op.RelocationMode.Uninstall(), new Op.RelocationMode.Move(RimGovernor.Contracts.Wire.Placement.Rotation.North));
+        RoundTrip<Op.RelocationMode>(new Op.RelocationMode.Uninstall(), new Op.RelocationMode.Move(RimGovernor.Contracts.Wire.Placement.Rotation.North, new(3, 4)));
         RoundTrip<Op.SurgeryTarget>(new Op.SurgeryTarget.WholeBody(), new Op.SurgeryTarget.Part(0));
         RoundTrip<Op.QuestRewardSelection>(new Op.QuestRewardSelection.NoChoice(), new Op.QuestRewardSelection.Choose(0));
         RoundTrip<Op.FinishingSkillChange>(new Op.FinishingSkillChange.Preserve(), new Op.FinishingSkillChange.Selected(0));
@@ -154,6 +154,19 @@ public sealed class OperationArgumentTests
         Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.StockpilePresetChange>("""{"type":"set"}"""));
     }
 
+    [Fact]
+    public void LocationArgumentsNameTheirPhysicalOrNativeSearchState()
+    {
+        var cell = new RimGovernor.Brain.Domain.Cell(3, 4);
+        RoundTrip<Op.RescueBed>(new Op.RescueBed.Search(), new Op.RescueBed.At(cell));
+        RoundTrip<Op.MortarAim>(new Op.MortarAim.Cleared(), new Op.MortarAim.At(cell));
+        RoundTrip<Op.DesignationLocation>(new Op.DesignationLocation.ByTarget(), new Op.DesignationLocation.At(cell));
+        RoundTrip<Op.RitualLocation>(new Op.RitualLocation.NotStarting(), new Op.RitualLocation.At(cell));
+        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.RescueBed>("""{"type":"at"}"""));
+        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.MortarAim>("""{"type":"at"}"""));
+        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.DesignationLocation>("""{"type":"at"}"""));
+        Assert.Throws<JsonException>(() => WireJson.Deserialize<Op.RitualLocation>("""{"type":"at"}"""));
+    }
     private static void RoundTrip<T>(params T[] states)
     {
         foreach (var state in states)

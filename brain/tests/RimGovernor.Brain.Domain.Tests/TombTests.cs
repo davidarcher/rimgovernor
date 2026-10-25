@@ -1,6 +1,6 @@
+using WasteItem = RimGovernor.Contracts.Wire.Observations.WasteItem;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -30,17 +30,12 @@ public sealed class TombTests
     private static readonly LayoutPlan Plan = new() { Rooms = [TombRoom], NextRoomId = 2 };
 
     private static WasteItem Corpse(CorpseOf of) =>
-        new() { CorpseOf = of };
+        new() { Thing = new() { Id = "corpse" }, CorpseClass = (RimGovernor.Contracts.Wire.Common.CorpseClass)of, Grave = null };
 
     private static WasteItem Buried(CorpseOf of, string grave) =>
-        new() { CorpseOf = of, Grave = grave };
+        new() { Thing = new() { Id = "corpse" }, CorpseClass = (RimGovernor.Contracts.Wire.Common.CorpseClass)of, Grave = new() { Id = grave } };
 
-    private static CurrentBuilding Standing(string id, int x, int z) => new()
-    {
-        Id = id,
-        Building = new Building(Sarcophagus, new Cell(x, z), Rotation.North, "WoodLog"),
-        Cells = [new Cell(x, z), new Cell(x, z + 1)],
-    };
+    private static CurrentBuilding Standing(string id, int x, int z) => ConstructionObservationFixtures.Built(new Building(Sarcophagus, new Cell(x, z), Rotation.North, "WoodLog"), id: id, cells: [new Cell(x, z), new Cell(x, z + 1)]);
 
     private static bool Owed(params WasteItem[] waste) =>
         TombRules.TombOwed(Shapes, true, Plan, [.. waste], CurrentConstruction.Empty);

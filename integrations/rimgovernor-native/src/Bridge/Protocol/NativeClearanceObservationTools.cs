@@ -332,7 +332,7 @@ namespace HomeBridge.BridgeTools
         {
             var cells = new HashSet<IntVec3>();
             foreach (var r in rects) {
-                if (r?.Minimum == null || r.Maximum == null) throw new InvalidOperationException("Planned ground rectangle incomplete.");
+                if (r == null) throw new InvalidOperationException("Planned ground rectangle incomplete.");
                 var rect = Verse.CellRect.FromLimits(r.Minimum.X, r.Minimum.Z, r.Maximum.X, r.Maximum.Z).ClipInsideMap(map);
                 foreach (var c in rect) cells.Add(c);
             }

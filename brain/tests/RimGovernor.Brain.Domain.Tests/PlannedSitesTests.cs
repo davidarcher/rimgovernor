@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -78,7 +77,7 @@ public sealed class PlannedSitesTests
     {
         var sites = Sites([Owed()]);
         var row = new Row("planned/room1/wall/Steel", ContainmentCellRules.ShellWallDefinition, new Cell(-1, 0), "Pawn_1", "Steel", "Thing_Steel1",
-            new Cell(5, 5), 6, 75, "ConstructFinishFrames", Known(10d), Known(20d), Known(300d));
+            new Cell(5, 5), 6, 75, "ConstructFinishFrames", 10d, 20d, 300d);
         var clearing = ConstructionFixtures.Clearing("planned/room1/wall/Steel/clear/cut", O.PlannedClearingKind.Cut);
         var answered = ConstructionFixtures.NoConstruction() with
         {
@@ -233,7 +232,7 @@ public sealed class PlannedSitesTests
             Answer = ConstructionFixtures.Answer(id) with
             {
                 Options = [new Row(id, "Wall", cells[0], "Pawn_1", "WoodLog", count > 0 ? "stack" : "", origin, count, 75, "Finish",
-                    Known(1d), Known(1d), Known(10d))],
+                    1d, 1d, 10d)],
                 Clearing = EquatableArray.From(clearing),
             },
         };
@@ -248,7 +247,7 @@ public sealed class PlannedSitesTests
     {
         var cut = ConstructionFixtures.Clearing("planned/room1/wall/WoodLog/clear/cut", O.PlannedClearingKind.Cut) with
             { Options = [new Row("planned/room1/wall/WoodLog/clear/cut", "", new Cell(0, 3), "Pawn_1", "", "", new Cell(0, 3), 0, 0, "Cut",
-                Known(1d), default, Known(10d))] };
+                1d, default, 10d)] };
         var wall = Answered("planned/room1/wall/WoodLog", OpKind.WallIn, [new(0, 0), new(0, 1)], new Cell(9, 9), 10, cut);
         var door = Answered("planned/room1/door/WoodLog", OpKind.DoorIn, [new(1, 0)], new Cell(1, 0), 0);
         var roof = new PlannedBuildSite("planned/room1/roof", 1, OpKind.RoofIn, "", "", Rotation.North, [new(1, 1)]);

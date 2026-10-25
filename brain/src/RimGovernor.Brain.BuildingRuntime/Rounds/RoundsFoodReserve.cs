@@ -3,12 +3,12 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
 {
-    internal void ReviewReserve(ref ColonyProjection p)
+    internal void ReviewReserve(ref ColonyReading p)
     {
         var staged = Policy;
         FoodReserveState reserve = staged.FoodReserveDays == 0
             ? new FoodReserveState.Disabled()
-            : FoodReserveRules.ReviewFoodReserve(p.FoodSupply, null, staged.FoodReserveDays, Seasonal(p.Facts).FoodMinDays, FoodDeliveryDays(p.Facts.FoodPlan));
+            : FoodReserveRules.ReviewFoodReserve(p.Facts.FoodSupply, null, staged.FoodReserveDays, Seasonal(p.Facts).FoodMinDays, FoodDeliveryDays(p.Facts.FoodPlan));
         p = p with { Facts = p.Facts with { FoodReserve = reserve } };
     }
 }

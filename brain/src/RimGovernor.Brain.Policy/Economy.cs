@@ -6,11 +6,13 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record ResearchCensus
 {
-    public string Current { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.ResearchSnapshot Observed { get; init; }
+
+    public string Current => Observed.Projects.FirstOrDefault(row => row.Current && Projects[row.Project.DefName].KnowledgeCategory.Length == 0)?.Project.DefName ?? "";
 
     public IReadOnlyDictionary<string, ResearchProjectFacts> Projects { get; init; } = new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal);
 
-    public EquatableArray<string> Finished { get; init; }
+    public EquatableArray<string> Finished => Observed.Finished;
 
     /// <summary>Every knowledge category's slot; empty when Anomaly is inactive.</summary>
     public EquatableArray<KnowledgeSlot> Knowledge { get; init; }
@@ -51,10 +53,8 @@ public sealed record ResourceFacts
     /// <summary>Whether the colony's own works (construction, open bills, clothing, fuel, feed) demand some stock: stock a chop or a mine provides.</summary>
     public bool Works { get; init; }
 
-    public EquatableArray<Amount> Stock { get; init; }
-
-    /// <summary>The wood count WoodLog is counted from.</summary>
-    public long Wood { get; init; }
+    private RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot? census;
+    public RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
 
     public EquatableArray<ResourceRunway> Runways { get; init; }
 
@@ -66,8 +66,7 @@ public sealed record ResourceFacts
     {
         Targets = demand.Needs,
         Works = demand.Works.Count > 0,
-        Stock = f.Resources,
-        Wood = f.Wood,
+        Census = f.Census,
         Runways = f.ResourceRunways,
         ResearchGate = ResearchRules.ResearchConcernTarget("", f.ResearchNeeds, f.Research),
     };
@@ -191,7 +190,7 @@ public static class EconomyRules
     /// </summary>
     public static Need ResourceNeedOf(ResourceFacts f)
     {
-        var census = new StockReader(f.Stock, f.Wood).Census();
+        var census = f.ObservedStock();
         var (met, deficit) = ResearchRules.ResourceTargetNeed(f.Targets, census);
         foreach (var runway in f.Runways)
         {
@@ -223,16 +222,14 @@ public static class EconomyRules
     /// overflow category from <paramref name="overflow"/> (the catalog's KnowledgeCategoryDef.overflowCategory by
     /// category). A row or a knowledge slot the catalog does not hold is a contract violation (<see cref="DomainException"/>).
     /// </summary>
-    public static ResearchCensus ResearchCensusOf(RimGovernor.Contracts.Wire.Observations.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectFacts> catalog,
+    public static ResearchCensus ResearchCensusOf(RimGovernor.Contracts.Wire.Observations.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectDefinition> catalog,
         IReadOnlyDictionary<string, string> overflow)
     {
-        var finished = new HashSet<string>(read.Finished, StringComparer.Ordinal);
         var projects = new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal);
         foreach (var (name, facts) in catalog)
         {
-            projects[name] = facts with { Progress = finished.Contains(name) ? 1 : 0 };
+            projects[name] = new() { Definition = facts, Observation = new ResearchProjectObservation.NotListed(read, name) };
         }
-        var current = "";
         foreach (var row in read.Projects)
         {
             var name = row.Project.DefName;
@@ -240,46 +237,22 @@ public static class EconomyRules
             {
                 throw new DomainException($"research project {name} outside the definition catalog");
             }
-            projects[name] = facts with
-            {
-                LockReasons = row.LockReasons,
-                Census = true,
-                Progress = row.ProgressFraction,
-                Hidden = row.LockReasons.Contains(ResearchRules.ResearchLockHidden),
-            };
-            // A knowledge project is current in its category slot: only the ordinary slot's project is the current project.
-            if (row.Current && facts.KnowledgeCategory.Length == 0)
-            {
-                current = name;
-            }
+            projects[name] = facts with { Observation = new ResearchProjectObservation.Listed(row) };
         }
         var knowledge = read.Slots.Where(slot => slot.Category.Length != 0)
             .Select(slot => new KnowledgeSlot
             {
-                Category = slot.Category,
-                Current = new ResearchProjectId(slot.CurrentProject),
+                Observed = slot,
                 Overflow = overflow.TryGetValue(slot.Category, out var into) ? into : throw new DomainException($"knowledge category {slot.Category} outside the definition catalog"),
             })
             .OrderBy(slot => slot.Category, StringComparer.Ordinal);
-        return new ResearchCensus { Current = current, Projects = projects, Finished = read.Finished, Knowledge = [.. knowledge] };
+        return new ResearchCensus { Observed = read, Projects = projects, Knowledge = [.. knowledge] };
     }
 
     /// <summary>The review-shaped summary of a research census: current project and its bench lock, listed and finished projects, the knowledge slots and pick.</summary>
     public static ResearchFacts ResearchSummary(ResearchCensus read)
     {
-        var projects = read.Projects.Keys.Select(name => new ResearchProjectId(name)).ToList();
-        projects.Sort((a, b) => string.CompareOrdinal(a.Value, b.Value));
-        return new ResearchFacts
-        {
-            Current = new ResearchProjectId(read.Current),
-            CurrentBenchMissing = read.Current.Length != 0 && ResearchRules.ResearchBenchNeeded(read.Projects.GetValueOrDefault(read.Current) ?? new ResearchProjectFacts()),
-            Projects = EquatableArray.From(projects),
-            Finished = [.. read.Finished.Select(name => new ResearchProjectId(name))],
-            KnowledgePick = new ResearchProjectId(ResearchRules.KnowledgePick(read.Projects, read.Finished, read.Knowledge)),
-            Knowledge = read.Knowledge,
-            Levels = read.Projects.ToDictionary(p => new ResearchProjectId(p.Key), p => p.Value.TechLevel),
-            Details = read.Projects,
-        };
+        return new ResearchFacts { Census = read };
     }
 
     /// <summary>

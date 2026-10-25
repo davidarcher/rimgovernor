@@ -1,13 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One charger's state as the colony section reads it.</summary>
-public sealed record MechCharger
-{
-    public required bool Powered { get; init; }
-    public required bool FullOfWaste { get; init; }
-    public required bool Charging { get; init; }
-}
-
 /// <summary>
 /// Mechs spend Need_MechEnergy working and refill it on a charger
 /// (Building_MechCharger, one mech at a time). Each control group carries its own recharge band
@@ -37,7 +29,7 @@ public static partial class MechRules
         var recovered = true;
         foreach (var mech in g.Mechs)
         {
-            if (mech.Energy is not MechEnergy.Level { Fraction: var energy } || mech.Group is not { } band)
+            if (mech.Energy is not RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.Level { Fraction: var energy } || mech.Group is not { } band)
             {
                 recovered = false;
                 continue;
@@ -59,7 +51,7 @@ public static partial class MechRules
     }
 
     /// <summary>Whether some charger is powered and not full of waste (Building_MechCharger.IsFullOfWaste stops it charging).</summary>
-    public static bool MechChargerReady(IReadOnlyList<MechCharger> chargers)
+    public static bool MechChargerReady(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.MechChargerState> chargers)
     {
         foreach (var c in chargers)
         {
@@ -79,10 +71,6 @@ public static partial class MechRules
     /// power consumer (PowerCoverage, connectLiveBeforeUpgrade), so wiring it is the power goal's and a second
     /// charger would stand unpowered too. Gestation waits on MechChargerReady meanwhile.
     /// </summary>
-    public static bool MechChargerOwed(int mechanitors, IReadOnlyList<MechCharger> chargers) =>
-        mechanitors > 0 && chargers.All(c => c.Charging && !c.FullOfWaste);
-
-    /// <summary>The Biotech section's chargers as the recharge policy reads them: charging is a mech attached.</summary>
-    public static IReadOnlyList<MechCharger> MechChargersOf(RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech) =>
-        [.. biotech.Chargers.Select(c => new MechCharger { Powered = c.Powered, FullOfWaste = c.FullOfWaste, Charging = c.ChargingMechId is not null })];
+    public static bool MechChargerOwed(int mechanitors, IReadOnlyList<RimGovernor.Contracts.Wire.Observations.MechChargerState> chargers) =>
+        mechanitors > 0 && chargers.All(c => c.ChargingMechId is not null && !c.FullOfWaste);
 }

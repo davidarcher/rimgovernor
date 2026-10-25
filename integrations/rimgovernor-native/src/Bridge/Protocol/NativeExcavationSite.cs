@@ -25,7 +25,7 @@ namespace HomeBridge.BridgeTools
             foreach (var cell in request.Cells) if (!HasCell(cell) || !seen.Add((cell.X, cell.Z))) return false;
             return true;
         }
-        private static bool HasCell(Common.Cell? cell) => cell != null && cell.X >= 0 && cell.Z >= 0;
+        private static bool HasCell(RimGovernor.Brain.Domain.Cell cell) => cell.X >= 0 && cell.Z >= 0;
 
         internal static Obs.ExcavationCell Row(IntVec3 cell, Map map)
         {
@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
         internal static Obs.ExcavationSiteSnapshot Read(Map map, Obs.ExcavationSiteRequest request, Common.ObservationContext context)
         {
             var cells = request.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToList();
-            var access = new IntVec3((request.AccessCell ?? throw new System.InvalidOperationException("Required native value is unavailable: request.AccessCell.")).X, 0, request.AccessCell.Z);
+            var access = new IntVec3(request.AccessCell.X, 0, request.AccessCell.Z);
             var collapsePending = map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0;
             var rows = cells.Select(c => Row(c, map)).ToList();
             var known = cells.Where(c => c.InBounds(map)).ToList();

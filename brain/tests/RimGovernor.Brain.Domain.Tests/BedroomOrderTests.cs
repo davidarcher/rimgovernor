@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -48,12 +47,9 @@ public sealed class BedroomOrderTests
         PlannedStages = new Dictionary<int, RoomStage> { [Bedroom.Id] = new RoomStage.Staged(2) },
     };
 
-    private static SleepingBed SleepingBed(string id, string room, params PawnId[] owners) => new()
-    {
-        Id = id, Definition = new(Bed), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A, B],
-    };
+    private static SleepingBed SleepingBed(string id, string room, params PawnId[] owners) => new SleepingBed { Native = SleepingNativeFixtures.Bed(id: id, room: room, owners: [.. owners], accessibleTo: [A, B]), Building = SleepingNativeFixtures.Building(id: id, definition: new Resource(Bed)), Humanlike = true };
 
-    private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = bed };
+    private static SleepingPerson Person(PawnId id, string bed) => new SleepingPerson { Native = SleepingNativeFixtures.Person(id: id), Pawn = SleepingNativeFixtures.Pawn(id: id, ownedBed: bed) };
 
     private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, RoomRole role, params string[] beds) => (RoomFixtures.State(id, role, beds: beds), room.Region.Cells());
 

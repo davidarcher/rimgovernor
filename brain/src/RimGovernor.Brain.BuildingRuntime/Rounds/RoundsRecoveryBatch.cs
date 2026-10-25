@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class HomeUpkeepReader
 {
-    internal async Task<GroundStep> RecoveryStepAsync(C.Identity identity, RecoveryQueue? queue, IReadOnlyList<ClearanceTarget> rows, ColonyProjection colony, CancellationToken call)
+    internal async Task<GroundStep> RecoveryStepAsync(C.Identity identity, RecoveryQueue? queue, IReadOnlyList<ClearanceTarget> rows, ColonyReading colony, CancellationToken call)
     {
         if (queue is null)
         {
@@ -65,14 +65,14 @@ public sealed partial class HomeUpkeepReader
         return catalog.RoofRules();
     }
 
-    internal static RoofSupportGrid ColonyRoofGrid(ColonyProjection colony)
+    internal static RoofSupportGrid ColonyRoofGrid(ColonyReading colony)
     {
-        var cells = colony.Cells.ToDictionary(c => c.Cell);
+        var cells = colony.PlanningWindow.Cells.ToDictionary(c => c.Cell);
         return new RoofSupportGrid
         {
             Cell = cell => cells.TryGetValue(cell, out var row) ? row : null,
-            Bounds = new Rectangle(0, 0, colony.Bounds.Width, colony.Bounds.Height),
-            Radius = colony.RoofSupport,
+            Bounds = new Rectangle(0, 0, colony.Facts.MapBounds.Width, colony.Facts.MapBounds.Height),
+            Radius = colony.Facts.RoofSupport,
         };
     }
 

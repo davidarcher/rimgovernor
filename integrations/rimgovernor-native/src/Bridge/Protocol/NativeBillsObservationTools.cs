@@ -96,7 +96,7 @@ namespace HomeBridge.BridgeTools
                 .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
         }
 
-        private static Obs.BillStackRow Stack(Thing bench, Common.ObservationContext context)
+        internal static Obs.BillStackRow Stack(Thing bench, Common.ObservationContext context)
         {
             var giver = (IBillGiver)bench;
             var stack = giver.BillStack ?? throw new InvalidOperationException("Bench bill stack unavailable.");
@@ -118,6 +118,10 @@ namespace HomeBridge.BridgeTools
                 Usable = NativeProductionBills.Usable(bench),
                 Bills = [.. bills],
                 WorkSpeed = workSpeed,
+                Room = bench.GetRoom() is Room room ? NativeRef.Room(room) : null,
+                AutoRefuel = NativeAutoRefuel.Comp(bench) is CompRefuelable refuel
+                    ? new Obs.BenchAutoRefuel.Refuelable { Allowed = refuel.allowAutoRefuel }
+                    : new Obs.BenchAutoRefuel.NotRefuelable(),
             };
         }
 

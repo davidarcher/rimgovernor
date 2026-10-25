@@ -19,7 +19,9 @@ missing section is a bridge contract failure. The environment census scans
 colonist buildings, proper rooms and power networks, so it is computed directly
 rather than request-gated. Field production and capacity crops come from the
 required zones snapshot before the projection reaches planners; an unavailable
-zones read fails the observation instead of certifying empty fields.
+zones read fails the observation instead of certifying empty fields. Crop selection
+reads sowing, remaining growing days and biome from the same native colony census;
+its climate view adds only the catalog-derived permanent-darkness decision.
 
 Construction is projected from the same keyed building table on every colony
 read, including standalone reads. The client keeps its existing incremental
@@ -85,6 +87,14 @@ item funds one remaining iteration; its ingredients are never loose stock. Unkno
 binding gives no credit, unbound-item adoption is not predicted, and cancellation
 refunds count only when observed in stock. Remaining counts are mutable progress;
 the native managed-configuration check excludes them while CAS snapshots include them.
+
+Production lifecycle joins retain the actual native `BillState` row and read its
+`BillUnfinishedWork.None` or `Bound` discriminant directly. Embedded quantities
+remain on that native row; there is no copied unfinished-work state or empty-ID
+absence convention. Bill-job reservation joins add the owning bill ID to the actual
+native reservation row. Pawn IDs and policy material amounts are computed from it.
+The journal continues to own its flat `Bill`, `Pawn`, `Items` payload; decoding it
+reconstructs the complete native reservation's pawn ID and quantity rows.
 
 | Projection | Observed inputs | Bound |
 | --- | --- | --- |
@@ -530,7 +540,7 @@ The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm
 ### Stock arrival (#3868)
 
 `StockArrival` (Policy) answers when a stock a rule waits on arrives once it is wanted: a replacement part or organ, or a medicine
-kind. It is built once per review at the read boundary (`StockArrivalReads.Of` into `RoundsFacts.StockArrival`) from plain values
+kind. It is built once per review at the read boundary (`StockArrivalReads.Of` into `RoundsFacts.StockArrival`) from native observations and catalog rates
 and carried on `ForecastCoupledContext.Stock` to the harm term, the hospital credit and the colony model. Each `StockSource` makes
 `Batch` units an iteration at `PerDay` units a day up to `Units`; its not-arrived chance for n units at t days is a step, 1 until
 ceil(n / Batch) × Batch / PerDay (never past `Units`). Independent sources of one need multiply their not-arrived chances; a
@@ -543,6 +553,9 @@ census hosting it and the best eligible crafter (the bench's DoBill work type en
 work hours × 2500 × the crafter's `workSpeedStat` × the bench's `WorkTableWorkSpeedFactor` ÷ `WorkAmountTotal` × batch units a
 day (`Toils_Recipe.DoRecipeWork`), up to the iterations the stock of the scarcest ingredient slot pays for. A recipe whose bench
 stat is another (`workTableSpeedStat`) is named `stock_arrival_bench_speed_unmodelled:<recipe>`.
+Crafting reads the actual `BillStackRow` and `PawnState` records. Work eligibility, skill levels and speed stats
+come from those rows; work hours are calculated from the native timetable. No separate bench, crafter or skill census
+copies are stored. An incomplete timetable retains the existing named stock-arrival schedule refusal.
 
 Trader visits are the second source (#3869, #3909, `TradeArrivalRules.Sources` into `StockArrival.Trade`). The catalog decodes the
 storyteller's trader comps by exact class (`DefinitionCatalog.TradeSchedule`), and the incidents they draw by exact worker class
@@ -633,7 +646,7 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   from the start, then each `OutfitChanges` row for it from its effective tick in tick order (`HarmLedger.OutfitsOf`); each is
   priced for its share of the horizon, the raids of that share meeting it, so a crafted garment's armor counts only from its
   delivery. A change whose tick is unknown leaves the term unknown with `outfit_change_timing_unknown:<pawn>`. The worn primary is a `GearSlot.Primary` option in `GearLoadoutInput.Worn`
-  that `ColonyGearReads.GearLoadoutModelFacts` builds from the gear census's `PawnEquipment` (`PrimaryId` and the equipped item
+  that `ColonyGearReads.GearLoadoutModelFacts` builds from the canonical pawn row's `PawnEquipment` (`PrimaryId` and the equipped item
   resolved in the frame's things table), with `Ranged` from the catalog's weapon rows (#3562). A schedule that expects no raids is a known 0. The distribution of a pawn
   is memoized per context by (pawn, role, outfit, care facts, hits).
 - Unknown, with the specific finding and no `harm_capability_unassessed`, when an input is: `threat_schedule_unknown` (with the
@@ -749,9 +762,13 @@ The harm term's held-entity part: how often an entity held on a holding platform
   `ContainmentUtility.CanParticipateInEscape`); and in the study block `StudyState.Yield` (`StudyYieldState`: `AnomalyKnowledge`, the
   `KnowledgeCategory` defName, `Props.frequencyTicks`). The catalog reads `ContainmentUtility`'s three private curves by name
   (`DefinitionCatalog.ContainmentCurves`: escape interval and study knowledge over the strength margin, escape factor over days held).
-- `RoundsContainmentReads.ContainmentForecastOf` lifts the pawn rows into `ContainmentForecast.Entities` (`ContainedEntity`): each
-  living entity held on a platform, with the building row whose holder holds it (its cell and `ContainmentStrength`), and each one the
-  game lets the colony capture that no platform holds. `Unread` names the pawn when its held block failed or a fact it needs is absent;
+- `RoundsContainmentReads.ContainmentForecastOf` joins each `ContainmentForecast.Entities` entry (`ContainedEntity`) to its required
+  canonical `PawnState` and optional actual `BuildingState` whose holder holds it. Identity, minimum strength, escape and study
+  yield are computed getters into those same native records; the platform's cell and strength come from the joined building.
+  Each entry is a living entity held on a platform or one the game lets the colony capture. A waiting entity has no building join;
+  forecasting its capture applies healed movement, zero days held and no cold bonus in the calculation, without manufacturing
+  native pawn or escape records. Catalog curves and planned cell strengths remain predictions. `Unread` names a held pawn when
+  no on-map holder row joins it;
   either reader then raises `RequiredFactException("containment entities: …")`, as unread curves raise `containment curves`.
 - Escapes a day per held entity: 1 / (base MTB × moving × captivity curve(days) × escape curve(platform strength − need) × cold), 0 for
   one that cannot escape (`ForecastContainment.EscapesPerDay`). Each escape is one fight at the entity's combat power:

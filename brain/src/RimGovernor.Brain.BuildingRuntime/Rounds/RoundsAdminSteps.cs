@@ -134,25 +134,25 @@ public sealed partial class AdminRounds
             throw new ControlException("burial: the scope is another world or older than the review");
         }
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, RoundsBurialFacts.BurialDefinitions, call).ConfigureAwait(false);
-        var step = RoundsBurialFacts.TombStep(reading.Projection);
+        var step = RoundsBurialFacts.TombStep(reading.Reading);
         var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
         switch (step.Kind)
         {
             case TombStepKind.None:
-                var (morgue, owed) = RoundsBurialFacts.PlannedMorgue(reading.Projection);
+                var (morgue, owed) = RoundsBurialFacts.PlannedMorgue(reading.Reading);
                 if (!owed)
                 {
-                    return RoundsBurialFacts.MorgueAwaitingRoom(reading.Projection) ? WaitFor(Cause.MethodUsed, "morgue_room") : BuildingReasonNoDeficit;
+                    return RoundsBurialFacts.MorgueAwaitingRoom(reading.Reading) ? WaitFor(Cause.MethodUsed, "morgue_room") : BuildingReasonNoDeficit;
                 }
                 return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = morgue, Name = RoundsSleepingUpkeepPlanner.RoomReconcileName("morgue", morgue), Reason = "morgue" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
             case TombStepKind.Reconcile:
                 return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = step.Room, Template = step.Template, Name = RoundsSleepingUpkeepPlanner.RoomReconcileName("tomb", step.Room), Reason = "tomb" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
             case TombStepKind.Grave:
-                return await PlaceGraveAsync(work, reading.Projection, step, call).ConfigureAwait(false);
+                return await PlaceGraveAsync(work, reading.Reading, step, call).ConfigureAwait(false);
             case TombStepKind.Full:
                 return WaitFor(Cause.MethodUsed, "tomb_room");
-            default:
-                return default;
+            case var invalid:
+                throw new ControlException($"burial: invalid tomb step {invalid}");
         }
     }
 
@@ -160,7 +160,7 @@ public sealed partial class AdminRounds
     /// Places one plain grave on the nearest GraveSites site the native preview accepts, admitted as one building
     /// method per grave count; a grave blueprint or frame standing is the step in flight.
     /// </summary>
-    private async Task<Verdict> PlaceGraveAsync(NeedWork work, ColonyProjection f, TombStep step, CancellationToken call)
+    private async Task<Verdict> PlaceGraveAsync(NeedWork work, ColonyReading f, TombStep step, CancellationToken call)
     {
         var p = _reviewer.Player;
         var state = work.State;
@@ -169,13 +169,13 @@ public sealed partial class AdminRounds
         {
             return BuildingReasonExistingWork;
         }
-        if (f.LayoutPlan is not { } plan)
+        if (f.Facts.LayoutPlan is not { } plan)
         {
             return BuildingReasonNoLayoutPlan;
         }
         var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"grave-{step.Graves}"));
         IReadOnlyList<Cell> traffic = [.. (f.Facts.Upkeep.Routes).Traffic.Select(t => t.Cell)];
-        var sites = GraveSitingRules.GraveSites(new GraveSiteInput { Bounds = f.Bounds, Cells = f.Cells, Light = f.LightTerrains, Plan = plan!, Traffic = traffic });
+        var sites = GraveSitingRules.GraveSites(new GraveSiteInput { Bounds = f.Facts.MapBounds, Cells = f.PlanningWindow.Cells, Light = f.Facts.LightTerrains, Plan = plan!, Traffic = traffic });
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var size = new Cell(1, 2);
@@ -201,7 +201,7 @@ public sealed partial class AdminRounds
                 Plan = new PlanSpec(planId, new PlanRevision(1), [action]),
                 Current = snapshot,
                 Tick = f.Identity.Tick,
-                Bounds = f.Bounds,
+                Bounds = f.Facts.MapBounds,
                 Stock = got.Stock,
                 Previews = [pv],
                 Purpose = Purpose.Rounds,

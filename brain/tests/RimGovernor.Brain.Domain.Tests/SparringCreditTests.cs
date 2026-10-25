@@ -1,7 +1,7 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -116,23 +116,19 @@ public sealed class SparringCreditTests
         var facts = ForecastCoupledTests.ConstructionReview();
         var pawns = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns;
         WorkPawn Capable(WorkPawn pawn, string id) => pawn with
-        {
-            Id = new(id), Health = 0.5,
-            Skills = [new WorkSkill { Name = "Melee", Level = 0, Learning = Melee() }],
-            SkillStatCurves = [MeleeDps],
-        };
+        { Observed = pawn.Observed with { Pawn = pawn.Observed.Pawn with { Id = id }, Health = pawn.Observed.Health with { SummaryFraction = 0.5 }, Biography = pawn.Observed.Biography with { Skills = [new O.Skill { Passion = O.Passion.None, DefName = "Melee", Level = 0, Learning = Melee() }], SkillStatCurves = [MeleeDps] } } };
         var capable = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([Capable(pawns[0], "a"), Capable(pawns[0], "b")])) } };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(capable)!.Context;
         Assert.Equal(["a", "b"], context.Sparring!.Trainees.Select(t => t.Pawn));
         // Melee power is MeleeDPS x health: 6 x 0.5 at Melee 2.
         Assert.All(context.Sparring.Trainees, t => Assert.Equal((2, 3d), (t.Ceiling, t.Power[2])));
         // A capable pawn without a MeleeDPS curve is a named not-modelled finding, not a trainee.
-        var uncurved = capable with { ForecastObserved = capable.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([Capable(pawns[0], "a") with { SkillStatCurves = [] }])) } };
+        var uncurved = capable with { ForecastObserved = capable.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([Capable(pawns[0], "a") with { Observed = (Capable(pawns[0], "a")).Observed with { Biography = (Capable(pawns[0], "a")).Observed.Biography with { SkillStatCurves = [] } } }])) } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(uncurved)!;
         Assert.Empty(generated.Context.Sparring!.Trainees);
         Assert.Contains("sparring_ring_melee_not_modelled:a", generated.Findings);
         // A fresh colony (its colonist's skills read, none capable of Melee practice) credits its planned ring nothing and throws nothing.
-        var shooter = pawns[0] with { Skills = [new WorkSkill { Name = "Shooting", Level = 3, Learning = Melee() }, new WorkSkill { Name = "Melee", Disabled = true, Learning = Melee() with { Practice = new SkillPractice.Sparring(false, true, 2) } }] };
+        var shooter = pawns[0] with { Observed = (pawns[0]).Observed with { Biography = (pawns[0]).Observed.Biography with { Skills = [new O.Skill { Passion = O.Passion.None, DefName = "Shooting", Level = 3, Learning = Melee() }, new O.Skill { Passion = O.Passion.None, DefName = "Melee", Disabled = true, Learning = Melee() with { Practice = new SkillPractice.Sparring(false, true, 2) } }] } } };
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([shooter])) } })!.Context;
         Assert.Empty(fresh.Sparring!.Trainees);
         Assert.Empty(ForecastSparring.RingCredit(new(1, "", 0), Stub(), [], fresh with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.SparringRing } }, Day));

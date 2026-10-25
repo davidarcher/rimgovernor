@@ -7,7 +7,7 @@ internal static class RoundsMech
 
     internal static IReadOnlyList<PawnSettings> RoundsMechSettings(RoundsReading read)
     {
-        var fleet = read.Projection.Mechs;
+        var fleet = read.Reading.Facts.Mechs;
         if (fleet.Mechanitors.Count == 0)
         {
             return [];
@@ -19,7 +19,7 @@ internal static class RoundsMech
             hostile = hostile || (t.Kind == ThreatKind.Hostile && !t.Dead && !t.Downed);
         }
 
-        var chargerReady = read.Projection.BiotechSection is PbObservations.BiotechSection.Active { Facts: var biotech } && MechRules.MechChargerReady(MechRules.MechChargersOf(biotech));
+        var chargerReady = read.Reading.Snapshot.Biotech is PbObservations.BiotechSection.Active { Facts: var biotech } && MechRules.MechChargerReady(biotech.Chargers);
         return MechRules.PlanMechControl(MechCatalogOf(read.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady);
     }
 

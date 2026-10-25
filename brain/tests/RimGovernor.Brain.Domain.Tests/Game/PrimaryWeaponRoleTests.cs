@@ -1,12 +1,10 @@
 using System.Runtime.CompilerServices;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using C = RimGovernor.Contracts.Wire.Common;
 using D = RimGovernor.Contracts.Wire.Defs;
 using O = RimGovernor.Contracts.Wire.Observations;
@@ -63,16 +61,16 @@ public sealed class PrimaryWeaponRoleTests
         {
             const string id = "Weapon_1";
             equipment = equipment with { Armed = true, PrimaryId = id, Equipped = [GearFixtures.Item(id, new O.ItemQuality.Graded(D.QualityCategory.Good)) with { ConditionFraction = 0.8 }] };
-            things.Add(new O.Thing { Entity = new O.EntityRef { Id = id, DefName = def, Label = def, Place = new O.EntityPlace.Unplaced() }, StackCount = 1, Forbidden = false, Corpse = false, Food = new O.ThingFood.NotFood() });
+            things.Add(new O.Thing { Entity = new O.EntityRef { Id = id, DefName = def, Label = def, Place = new O.EntityPlace.Unplaced() }, Forbidden = false, Corpse = false });
         }
         var tables = new Tables(default, default, Things.Of(things), []);
-        var row = GearFixtures.Loadout("pawn") with { Equipment = equipment, ApparelPolicy = PoliciesTests.EmptyOutfit };
+        var row = GearFixtures.Loadout("pawn") with { ApparelPolicy = PoliciesTests.EmptyOutfit };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = new HashSet<string>() };
-        var model = ColonyGearReads.GearLoadoutModelFacts(defs, tables, 20, row, new RimGovernor.Brain.Policy.ApparelPolicyState(), ColonyModelFixtures.NoThreat, new StuffArrival(new Dictionary<Resource, long>(), []));
+        var model = ColonyGearReads.GearLoadoutModelFacts(defs, tables, 20, row, new RimGovernor.Brain.Policy.ApparelPolicyState() { Observed = PoliciesTests.EmptyOutfit, Role = new GearRoleInput { Observed = GearFixtures.Loadout("") with { ApparelPolicy = PoliciesTests.EmptyOutfit }, Pawn = EmergencyFixtures.Placed("") with { Equipment = equipment } } }, ColonyModelFixtures.NoThreat, new StuffArrival(new Dictionary<Resource, long>(), []));
         return ColonyModelFixtures.NoGear() with
         {
             Stored = [],
-            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "load", Candidates = [], Apparel = [], LoadoutModel = model }],
+            Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "load", Pawn = new("pawn") }, Candidates = [], Apparel = [], LoadoutModel = model }],
         };
     }
 

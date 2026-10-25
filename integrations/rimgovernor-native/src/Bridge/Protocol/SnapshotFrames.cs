@@ -84,7 +84,7 @@ namespace HomeBridge.BridgeTools
             foreach (var door in map.listerBuildings.AllBuildingsColonistOfClass<RimWorld.Building_Door>())
             {
                 if (!door.Spawned || !door.def.useHitPoints || door.HitPoints >= door.MaxHitPoints) continue;
-                doors.Add(new RimGovernor.Contracts.Wire.Mirror.CombatDoorRow { Cell = new Common.Cell { X = door.Position.x, Z = door.Position.z } });
+                doors.Add(new RimGovernor.Contracts.Wire.Mirror.CombatDoorRow { Cell = new RimGovernor.Brain.Domain.Cell { X = door.Position.x, Z = door.Position.z } });
             }
             // The unroofed player mortars, for counter-battery.
             var mortars = new List<RimGovernor.Contracts.Wire.Mirror.CombatMortarRow>(observed.CombatMortars);
@@ -94,7 +94,7 @@ namespace HomeBridge.BridgeTools
                 // The loaded shell, for the shell the fight asks for.
                 var loaded = mortar.gun?.TryGetComp<RimWorld.CompChangeableProjectile>()?.LoadedShell;
                 mortars.Add(new RimGovernor.Contracts.Wire.Mirror.CombatMortarRow { Id = mortar.GetUniqueLoadID(),
-                    Cell = new Common.Cell { X = mortar.Position.x, Z = mortar.Position.z },
+                    Cell = new RimGovernor.Brain.Domain.Cell { X = mortar.Position.x, Z = mortar.Position.z },
                     MinRange = mortar.AttackVerb.verbProps.minRange, MaxRange = mortar.AttackVerb.verbProps.range,
                     LoadedShell = loaded?.defName });
             }
@@ -116,7 +116,7 @@ namespace HomeBridge.BridgeTools
             var approach = new List<IntVec3>();
             foreach (var building in threats.HostileBuildings)
             {
-                if (building.Occupied.Minimum is not { } lo || building.Occupied.Maximum is not { } hi) continue;
+                var lo = building.Occupied.Minimum; var hi = building.Occupied.Maximum;
                 for (var z = lo.Z; z <= hi.Z; z++)
                     for (var x = lo.X; x <= hi.X; x++)
                     {

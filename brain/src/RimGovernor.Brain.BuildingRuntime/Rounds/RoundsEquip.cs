@@ -9,20 +9,20 @@ internal static class EquipCandidates
         var facts = catalog.WeaponOf(w.Definition);
         return new EquipCandidateWeapon
         {
-            Thing = w.Thing,
-            Definition = w.Definition,
-            Cell = w.Cell,
+            Stock = w.Stock,
+            Item = w.Item,
+            Gear = w.Gear,
             Class = EquipRules.ClassifyWeapon(facts.ByTrade, facts.Ranged, facts.Melee),
-            BiocodedTo = w.BiocodedTo,
-            Biocoded = w.Biocoded,
             Facts = facts,
         };
     }
 
     internal static EquipCandidatePawn EquipCandidatePawnFacts(O.PawnState row, DefinitionCatalog catalog, BridgeThings things)
     {
+        var work = RoundsWorkReads.WorkPawnRow(row, catalog, things);
         var facts = new EquipCandidatePawn
         {
+            Profile = PawnRules.BuildProfile(work),
             Pawn = new Domain.PawnId((row.Pawn.Id ?? "")),
             Dead = row.Dead,
             Downed = row.Downed,
@@ -32,8 +32,6 @@ internal static class EquipCandidates
             IncapableOfViolence = row.Biography.DisabledWorkTags.Contains("Violent"),
             Armed = row.Equipment.Armed,
         };
-        var work = RoundsWorkReads.WorkPawnRow(row, catalog, things);
-        facts = facts with { Profile = PawnRules.BuildProfile(work) };
         if (work.Work.Priorities().Any(w => w.Work == WorkType.Hunting && w.Priority > 0 && !w.Disabled))
         {
             facts = facts with { Role = WeaponRole.Hunter };
@@ -46,7 +44,7 @@ internal static class EquipCandidates
                 facts = facts with { ShootingDisabled = true };
             }
         }
-        facts = facts with { NoArms = catalog.CreepJoinerDownsides().ArmsHold(CreepJoinerFacts.CreepJoinerPawn(row)) };
+        facts = facts with { NoArms = catalog.CreepJoinerDownsides().ArmsHold(row) };
         return facts;
     }
 }

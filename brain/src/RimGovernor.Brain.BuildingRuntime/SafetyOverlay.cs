@@ -30,7 +30,7 @@ public sealed partial class Rounder
     /// holding threats' reach, the raid edge and the vetoed loot, sent when they change or an hour passed, and
     /// cleared once when nothing holds. Output only: a failure is dropped, never fatal.
     /// </summary>
-    internal async Task DrawSafetyOverlayAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, Pol.EmergencyFacts emergency, CancellationToken ct)
+    internal async Task DrawSafetyOverlayAsync(GenerationSnapshot snapshot, ColonyReading projection, Pol.EmergencyFacts emergency, CancellationToken ct)
     {
         if (Native is not FacadeNativeClient native)
         {
@@ -39,7 +39,7 @@ public sealed partial class Rounder
         var layer = new Pol.LayoutOverlay();
         if (LayoutOverlay)
         {
-            layer = Pol.SafetyOverlayRules.SafetyOverlay(emergency.Threats, projection.Facts.EventLoot, projection.Bounds);
+            layer = Pol.SafetyOverlayRules.SafetyOverlay(emergency.Threats, projection.Facts.EventLoot, projection.Facts.MapBounds);
         }
         var tick = projection.Identity.Tick;
         if (layer.Layers.Count == 0)

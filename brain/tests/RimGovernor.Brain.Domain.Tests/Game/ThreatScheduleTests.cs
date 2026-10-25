@@ -1,5 +1,4 @@
 using System.Reflection;
-using static RimGovernor.Brain.Domain.Fact;
 using RimGovernor.Brain.Bridge;
 using RimWorld;
 using Verse;

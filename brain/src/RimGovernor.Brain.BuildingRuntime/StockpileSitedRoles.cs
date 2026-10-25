@@ -19,13 +19,13 @@ internal static class StockpileSitedRoles
     /// dining room holding the table, while the colony eats at least <see cref="MealSpotMinPerDay"/> meals a day,
     /// else a retirement of the zone. The cell sits off the chairs, nearest where they are.
     /// </summary>
-    internal static Pol.MealStore? TableMeal(Observation.ColonyProjection? projection)
+    internal static Pol.MealStore? TableMeal(ColonyReading? projection)
     {
         if (projection is null)
         {
             return null;
         }
-        if (projection.LayoutPlan is not { } plan)
+        if (projection.Facts.LayoutPlan is not { } plan)
         {
             return null;
         }
@@ -59,12 +59,12 @@ internal static class StockpileSitedRoles
             return retired;
         }
         // The meal is what the active bills cook; none cooked, no warm spot.
-        var (meal, nutrition, cooked) = Pol.MealRules.ObservedMeal(projection.ProductionBenches);
+        var (meal, nutrition, cooked) = Pol.MealRules.ObservedMeal(projection.Facts.EssentialInputs.Benches);
         if (!cooked)
         {
             return retired;
         }
-        var perDay = MealsPerDay(projection.FoodSupply, nutrition);
+        var perDay = MealsPerDay(projection.Facts.FoodSupply, nutrition);
         if (perDay < MealSpotMinPerDay)
         {
             return retired;
@@ -104,13 +104,13 @@ internal static class StockpileSitedRoles
     /// The colony view the storage planner reads: the cells, the layout plan and room census when known, and
     /// the table meal store's spot.
     /// </summary>
-    internal static Pol.StoreView StoreView(Observation.ColonyProjection projection, IReadOnlyList<Cell> protectedCells)
+    internal static Pol.StoreView StoreView(ColonyReading projection, IReadOnlyList<Cell> protectedCells)
     {
-        var request = new Pol.StoreView { Bounds = projection.Bounds, Cells = projection.Cells, Protected = protectedCells };
+        var request = new Pol.StoreView { Bounds = projection.Facts.MapBounds, Cells = projection.PlanningWindow.Cells, Protected = protectedCells };
         if (RoundsBuildingPlanner.PlannedLayout(projection) is var (plan, rooms, known) && known)
         {
             request = request with { Layout = plan, Rooms = rooms };
         }
-        return request with { Shapes = projection.Shapes, Meals = TableMeal(projection) };
+        return request with { Shapes = projection.Facts.Shapes, Meals = TableMeal(projection) };
     }
 }

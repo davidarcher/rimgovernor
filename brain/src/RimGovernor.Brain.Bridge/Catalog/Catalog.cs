@@ -68,7 +68,7 @@ public sealed partial class DefinitionCatalog
     private readonly Lazy<P.IdeologyDefs?> _ideology;
     private readonly Lazy<P.CreepJoinerDisarm> _disarm;
     private readonly Lazy<IReadOnlySet<string>> _spawnForbidden;
-    private readonly Lazy<IReadOnlyDictionary<string, P.ResearchProjectFacts>> _research;
+    private readonly Lazy<IReadOnlyDictionary<string, P.ResearchProjectDefinition>> _research;
     private readonly Lazy<IReadOnlyDictionary<string, string>> _knowledgeOverflow;
 
     /// <summary>Builds the catalog over <paramref name="defs"/> (every Def of the game); duplicate def names of one class refuse.</summary>
@@ -133,7 +133,7 @@ public sealed partial class DefinitionCatalog
     public IReadOnlyDictionary<string, TerrainDef> TerrainDefs => _terrainDefs;
 
     /// <summary>Every research project's static facts by name.</summary>
-    public IReadOnlyDictionary<string, P.ResearchProjectFacts> Research => _research.Value;
+    public IReadOnlyDictionary<string, P.ResearchProjectDefinition> Research => _research.Value;
 
     /// <summary>Every KnowledgeCategoryDef's overflowCategory by defName, empty for none; no rows without Anomaly.</summary>
     public IReadOnlyDictionary<string, string> KnowledgeOverflow => _knowledgeOverflow.Value;

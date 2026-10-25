@@ -211,7 +211,7 @@ public static class AnimalAcquireRules
         {
             var rk = input.Races.Race(a.Definition, out var race);
             var factor = race.TameChanceFactor;
-            var years = a.Herd.AgeYears;
+            var years = a.State.AgeYears;
             var minimum = a.MinimumHandlingSkill;
             if (
                 !a.Tameable

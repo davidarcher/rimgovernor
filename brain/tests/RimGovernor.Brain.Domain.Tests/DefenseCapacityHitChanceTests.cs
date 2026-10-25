@@ -1,7 +1,6 @@
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -22,7 +21,7 @@ public sealed class DefenseCapacityHitChanceTests
     {
         var emergency = new EmergencyFacts
         {
-            Colonists = [.. rows.Select(r => EmergencyFixtures.Colonist(r.Pawn.Id))],
+            Colonists = [.. rows.Select(r => new EmergencyPawn { Observed = r })],
         };
         var colony = ColonyFactsCoreTests.Snapshot() with { ColonistCount = (uint)rows.Length };
         var pawns = new O.PawnSnapshot { Context = colony.Context, Pawns = EquatableArray.From(rows) };

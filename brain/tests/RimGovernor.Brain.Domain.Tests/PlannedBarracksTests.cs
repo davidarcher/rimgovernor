@@ -3,7 +3,6 @@ using System.Text.Json;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -63,6 +62,7 @@ public sealed class PlannedBarracksTests
         var survey = OpenMap();
         var tiled = LayoutTileRules.TileEmbedding(new TileInput
         {
+            OutdoorCurve = EquatableArray.From(Enumerable.Repeat(18.0, 12)),
             Groups = [group],
             Embedding = new Embedding(),
             Blocks = [new EmbeddedBlock { Group = 0, Interior = new Rectangle(15, 12, 5, 4) }],
@@ -128,12 +128,9 @@ public sealed class PlannedBarracksTests
 
     private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, RoomRole role, params string[] beds) => (RoomFixtures.State(id, role, beds: beds), room.Region.Cells());
 
-    private static SleepingBed SleepingBed(string id, string room, params PawnId[] owners) => new()
-    {
-        Id = id, Definition = new(Bed), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A, B],
-    };
+    private static SleepingBed SleepingBed(string id, string room, params PawnId[] owners) => new SleepingBed { Native = SleepingNativeFixtures.Bed(id: id, room: room, owners: [.. owners], accessibleTo: [A, B]), Building = SleepingNativeFixtures.Building(id: id, definition: new Resource(Bed)), Humanlike = true };
 
-    private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = bed };
+    private static SleepingPerson Person(PawnId id, string bed) => new SleepingPerson { Native = SleepingNativeFixtures.Person(id: id), Pawn = SleepingNativeFixtures.Pawn(id: id, ownedBed: bed) };
 
     private static BedroomStep Step((RoomState Room, IEnumerable<Cell> Cells)[] rooms, SleepingObservation sleeping) =>
         SleepingRules.NextBedroomStep(Plan, RoomFixtures.Census(rooms) with { Shapes = new PieceShapes { Furniture = Furniture } }, sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());

@@ -75,7 +75,7 @@ public sealed partial class RoundsFieldPlanner
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
-        var projection = read.Projection;
+        var projection = read.Reading;
         PlannerSnapshot.RecordStepRead("field", food is null ? EconomyFamily.Resource.FilingKey : FoodRules.FoodSupplyNeed.FilingKey, state.Snapshot, projection);
         var protectedCells = _reviewer.FieldProtected(state, review, projection, claims, call);
         var others = food is null ? await OtherFieldShortfallsAsync(state, review, projection, owner, call).ConfigureAwait(false) : [];
@@ -106,7 +106,7 @@ public sealed partial class RoundsFieldPlanner
         var reserveDays = _reviewer.Seasonal(projection.Facts).FoodTargetDays;
         var (request, choices) = FieldSiteRequest(projection, protectedCells, reserveDays);
         var (selection, known) = SiteRules.PlanSiteType(request);
-        var env = projection.Environment;
+        var env = projection.Snapshot.ControlledEnvironment;
         {
             var recrops = GrowerCropRules.PlanGrowerCrops(new GrowerCropRequest { Choices = choices, Growers = env.Growers, Urgent = selection.Urgent, Field = request.Field });
             foreach (var recropChoice in recrops)
@@ -165,7 +165,7 @@ public sealed partial class RoundsFieldPlanner
     /// the Need's field Methods is still open the next waits for it, as the field's growth is what the next shortfall
     /// reads; the Need's other work (mines, chops, bills) runs beside it.
     /// </summary>
-    internal async Task<List<FieldShortfall>> OtherFieldShortfallsAsync(ControlState state, RoundsReview review, ColonyProjection projection, NeedOwner rgoal, CancellationToken call)
+    internal async Task<List<FieldShortfall>> OtherFieldShortfallsAsync(ControlState state, RoundsReview review, ColonyReading projection, NeedOwner rgoal, CancellationToken call)
     {
         var p = _reviewer.Player;
         var output = new List<FieldShortfall>();
@@ -200,7 +200,7 @@ public sealed partial class RoundsFieldPlanner
         return output;
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> PlaceLedgerAsync(ControlState state, ColonyProjection projection, RoundsReading read, IReadOnlyList<FieldShortfall> ledger, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> PlaceLedgerAsync(ControlState state, ColonyReading projection, RoundsReading read, IReadOnlyList<FieldShortfall> ledger, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
     {
         var result = new RoundsFieldResult { Verdict = BuildingReasonNoDeficit };
         foreach (var s in LayoutFieldPlanning.RankFieldShortfalls(ledger))
@@ -220,7 +220,7 @@ public sealed partial class RoundsFieldPlanner
         return (result, false);
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactAsync(ControlState state, NeedOwner goal, ColonyReading projection, RoundsReading read, SiteTypeCandidate candidate, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var crop = candidate.Crop;
@@ -321,7 +321,7 @@ public sealed partial class RoundsFieldPlanner
 
     internal static Preview ZonePreview(DomainAction action, GenerationSnapshot snapshot, IReadOnlyList<Cell> cells) => PreviewRules.Zone(action, snapshot, EquatableArray.From(cells));
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> AdmitAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, MethodId method, PlanId id, GenerationSnapshot snapshot, StockObservation stock, IReadOnlyList<DomainAction> actions, IReadOnlyList<Preview> previews, string what, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> AdmitAsync(ControlState state, NeedOwner goal, ColonyReading projection, RoundsReading read, MethodId method, PlanId id, GenerationSnapshot snapshot, StockObservation stock, IReadOnlyList<DomainAction> actions, IReadOnlyList<Preview> previews, string what, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var plan = new PlanSpec(id, new PlanRevision(1), actions);
@@ -355,7 +355,7 @@ public sealed partial class RoundsFieldPlanner
             Plan = plan,
             Current = snapshot,
             Tick = projection.Identity.Tick,
-            Bounds = projection.Bounds,
+            Bounds = projection.Facts.MapBounds,
             Stock = stock,
             Previews = previews,
             Purpose = Purpose.Rounds,
@@ -367,7 +367,7 @@ public sealed partial class RoundsFieldPlanner
         return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, NeedOwner goal, ColonyReading projection, RoundsReading read, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         var (planned, reason) = LayoutFieldPlanning.PlanFieldBlock(projection, anchor, options, protectedCells);
@@ -429,7 +429,7 @@ public sealed partial class RoundsFieldPlanner
         return await AdmitAsync(state, goal, projection, read, method, id, snapshot, stock, [action], [preview], "block " + edit.Crop, call, epoch).ConfigureAwait(false);
     }
 
-    internal async Task<(RoundsFieldResult Result, bool Tried)> RecropAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, GrowerCropChoice choice, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsFieldResult Result, bool Tried)> RecropAsync(ControlState state, NeedOwner goal, ColonyReading projection, RoundsReading read, GrowerCropChoice choice, StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
     {
         if (_native is not FacadeNativeClient native)
         {
@@ -523,44 +523,43 @@ public sealed partial class RoundsFieldPlanner
 
 partial class RoundsFieldPlanner
 {
-    internal static List<CropChoice> CropChoices(ColonyProjection projection)
+    internal static List<CropChoice> CropChoices(ColonyReading projection)
     {
-        var choices = projection.Definitions.Where(d => d.Plant is not null && d.Harvest is not null).Select(d => d.CropChoice()).ToList();
+        var choices = projection.Facts.Definitions.Where(d => d.Plant is not null && d.Harvest is not null).Select(d => d.CropChoice()).ToList();
         return choices;
     }
 
-    internal static (FieldRequest Request, List<CropChoice> Choices) FieldRequestOf(ColonyProjection projection, double reserveDays)
+    internal static (FieldRequest Request, List<CropChoice> Choices) FieldRequestOf(ColonyReading projection, double reserveDays)
     {
         var choices = CropChoices(projection);
-        var coverage = FieldCapacityRules.FieldCoverage(projection.Facts.Colonists, projection.FieldCapacityCrops, reserveDays);
-        var (growers, cooks) = CropResilienceRules.CropWorkers(projection.WorkPawns);
+        var coverage = FieldCapacityRules.FieldCoverage(projection.Facts.Census.ColonistCount, projection.Facts.FieldCapacityCrops, reserveDays);
+        var (growers, cooks) = CropResilienceRules.CropWorkers(projection.Facts.ForecastObserved.WorkPawns);
         return (new FieldRequest
         {
             Growers = growers,
             Cooks = cooks,
-            Calendar = projection.Facts.Calendar,
             Conditions = projection.Facts.DisasterConditions,
             Choices = [.. choices],
-            Climate = projection.CropClimate,
+            Climate = projection.Facts.CropClimate,
             Runway = projection.Facts.FoodDays,
-            Colonists = projection.Facts.Colonists,
+            Colonists = projection.Facts.Census.ColonistCount,
             ReserveDays = reserveDays,
             Coverage = coverage,
         }, choices);
     }
 
-    internal static (SiteTypeRequest Request, List<CropChoice> Choices) FieldSiteRequest(ColonyProjection projection, IReadOnlyList<Cell> protectedCells, double reserveDays)
+    internal static (SiteTypeRequest Request, List<CropChoice> Choices) FieldSiteRequest(ColonyReading projection, IReadOnlyList<Cell> protectedCells, double reserveDays)
     {
         var (field, choices) = FieldRequestOf(projection, reserveDays);
         var anchor = LayoutProtected.FieldAnchor(projection) ?? default;
-        var site = new FarmSiteRequest { Anchor = anchor, Cells = projection.Cells, Protected = protectedCells };
+        var site = new FarmSiteRequest { Anchor = anchor, Cells = projection.PlanningWindow.Cells, Protected = protectedCells };
         if (LayoutFieldPlanning.LayoutFieldCells(projection) is { } fields)
         {
             site = site with { Fields = fields };
         }
         field = field with { Site = site };
-        var request = new SiteTypeRequest { Field = field, Environment = projection.Environment, LampGrowthRadius = RoundsFieldPlanner.FieldLampGrowthRadius, Items = projection.Facts.Items, Stock = projection.Resources };
-        foreach (var d in projection.Definitions)
+        var request = new SiteTypeRequest { Field = field, Environment = projection.Snapshot.ControlledEnvironment, LampGrowthRadius = RoundsFieldPlanner.FieldLampGrowthRadius, Items = projection.Facts.Items, Stock = ResourceStockRules.Count(projection.Snapshot.Resources) };
+        foreach (var d in projection.Facts.Definitions)
         {
             if (d.Name is not ("SunLamp" or "HydroponicsBasin" or "Heater") || !d.Available) continue;
             var infrastructure = new Infrastructure { Name = d.Name, Available = d.Available, PowerW = (d.Power ?? throw new RequiredFactException("planning Power")).PowerW, Grower = d.Name == "HydroponicsBasin" ? new InfrastructureGrower((d.Grower ?? throw new RequiredFactException("planning Grower")).GrowerFertility) : null, Costs = d.CheapestCosts() };
@@ -580,7 +579,7 @@ partial class RoundsFieldPlanner
         return (request, choices);
     }
 
-    internal static List<Cell> FirebreakRing(ColonyProjection projection)
+    internal static List<Cell> FirebreakRing(ColonyReading projection)
     {
         // Siting protects the ring where one is derived; while the extent's evidence is unread there is no ring to protect.
         try

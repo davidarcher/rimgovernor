@@ -39,7 +39,7 @@ public static partial class TrainingRules
             var skills = pawn.Skills;
             foreach (var (name, trainees) in new[] { ("Shooting", shooting), ("Melee", melee) })
             {
-                if (skills.FirstOrDefault(s => s.Name == name) is not { Learning.Practice: SkillPractice.Drill { Capable: true, Ceiling: var ceiling } } skill) continue;
+                if (skills.FirstOrDefault(s => s.DefName == name) is not { Learning.Practice: SkillPractice.Drill { Capable: true, Ceiling: var ceiling } } skill) continue;
                 if (skill.Level < ceiling) trainees.Add(pawn.Id.Value);
             }
         }

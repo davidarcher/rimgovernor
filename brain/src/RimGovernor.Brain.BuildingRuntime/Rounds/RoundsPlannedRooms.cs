@@ -26,7 +26,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>Furnishes a planned facility room: reconciles its shell first when owed, then resolves to the interior cells.</summary>
-    internal async Task<(RoundsBuildingPlanner? Planner, RoundsBuildingResult Result, bool Done)> PlannedFacilityFurnishingAsync(ControlState state, Rounds review, NeedOwner goal, ColonyReading reading, ColonyProjection facts, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingPlanner? Planner, RoundsBuildingResult Result, bool Done)> PlannedFacilityFurnishingAsync(ControlState state, Rounds review, NeedOwner goal, ColonyReading reading, ColonyReading facts, CancellationToken call, CancellationToken epoch)
     {
         if (Facility is null || Cells is not null || !FacilityFurnishingRoles.Contains(Facility.Role))
         {
@@ -73,17 +73,17 @@ public sealed partial class RoundsBuildingPlanner
 
 partial class RoundsBuildingPlanner
 {
-    internal static (LayoutPlan Plan, RoomObservation Rooms, bool Known) PlannedLayout(ColonyProjection facts)
+    internal static (LayoutPlan Plan, RoomObservation Rooms, bool Known) PlannedLayout(ColonyReading facts)
     {
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         return (plan!, rooms!, pk);
     }
 
-    internal static (PlannedRoom Room, bool Owed) PlannedRoomOwed(ColonyProjection facts, PlannedRole module)
+    internal static (PlannedRoom Room, bool Owed) PlannedRoomOwed(ColonyReading facts, PlannedRole module)
     {
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var known = plan is not null;
         var ground = ColonyGround(facts);
         if (!known)
@@ -94,10 +94,10 @@ partial class RoundsBuildingPlanner
         return plan!.NextPlannedRoom(module, ground) is { } next ? (next, true) : (default!, false);
     }
 
-    internal static GroundCensus ColonyGround(ColonyProjection facts) =>
+    internal static GroundCensus ColonyGround(ColonyReading facts) =>
         LayoutGroundRules.GroundOf(facts.Facts.CurrentConstruction.Buildings);
 
-    internal static IReadOnlyList<Cell>? PlannedRoomCells(ColonyProjection facts, PlannedRole module)
+    internal static IReadOnlyList<Cell>? PlannedRoomCells(ColonyReading facts, PlannedRole module)
     {
         var (plan, rooms, known) = PlannedLayout(facts);
         if (!known)
@@ -143,15 +143,15 @@ partial class RoundsBuildingPlanner
     internal static MethodId PlannedRoomMethod(PlannedRoom room) =>
         new(RoundsSleepingUpkeepPlanner.RoomReconcileName(Wire.Name(room.Role), room));
 
-    internal static IReadOnlyList<InteriorRoom> PlannedInteriorRooms(ColonyProjection facts, Func<PlannedRoom, bool> keep)
+    internal static IReadOnlyList<InteriorRoom> PlannedInteriorRooms(ColonyReading facts, Func<PlannedRoom, bool> keep)
     {
-        if (facts.LayoutPlan is not { } plan)
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return [];
         }
 
         var edifice = new Dictionary<Cell, string>();
-        foreach (var c in facts.Cells)
+        foreach (var c in facts.PlanningWindow.Cells)
         {
             var d = c.PlayerEdifice();
             if (d != "")
@@ -168,7 +168,7 @@ partial class RoundsBuildingPlanner
                 continue;
             }
 
-            var (room, ok) = InteriorRules.InteriorRoomFromLayout(planned, facts.Shapes);
+            var (room, ok) = InteriorRules.InteriorRoomFromLayout(planned, facts.Facts.Shapes);
             if (!ok || room is null)
             {
                 continue;
@@ -191,9 +191,9 @@ partial class RoundsBuildingPlanner
         return output;
     }
 
-    internal static IReadOnlyList<Cell>? PlannedRoomPlanCells(ColonyProjection facts, PlannedRole module)
+    internal static IReadOnlyList<Cell>? PlannedRoomPlanCells(ColonyReading facts, PlannedRole module)
     {
-        if (facts.LayoutPlan is not { } plan)
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return null;
         }
@@ -209,21 +209,21 @@ partial class RoundsBuildingPlanner
         return null;
     }
 
-    internal static IReadOnlyList<RoleMismatch> RoleMismatches(ColonyProjection facts)
+    internal static IReadOnlyList<RoleMismatch> RoleMismatches(ColonyReading facts)
     {
         var (plan, rooms, known) = PlannedLayout(facts);
         var construction = facts.Facts.CurrentConstruction;
         var sleeping = facts.Facts.Sleeping;
-        if (!known || construction is null || facts.Stations.Stations.Count == 0)
+        if (!known || construction is null || facts.Facts.Stations.Stations.Count == 0)
         {
             return [];
         }
 
-        var contents = RoomRoleRules.ObservedRoomContents(facts.Stations, plan, rooms, construction.Buildings, sleeping!);
-        return RoomRoleRules.GuardNativeRoles(facts.Stations, plan, rooms, contents);
+        var contents = RoomRoleRules.ObservedRoomContents(facts.Facts.Stations, plan, rooms, construction.Buildings, sleeping!);
+        return RoomRoleRules.GuardNativeRoles(facts.Facts.Stations, plan, rooms, contents);
     }
 
-    internal static void RecordRoleMismatches(ColonyProjection facts, CancellationToken ct)
+    internal static void RecordRoleMismatches(ColonyReading facts, CancellationToken ct)
     {
         IReadOnlyList<RoleMismatch> mismatches;
         try

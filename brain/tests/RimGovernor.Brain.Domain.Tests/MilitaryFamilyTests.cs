@@ -1,8 +1,8 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -180,7 +180,8 @@ public sealed class MilitaryFamilyTests
     }
 
     private static AcquisitionSource Pest(string id, int x) =>
-        new() { Id = id, Resource = "Meat_Rat", Definition = "Rat", Cell = new(x, 5), Hunt = true };
+        new() { Observed = new() { Source = new() { Id = id }, Token = id, Resource = "Meat_Rat", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = id, DefName = "Rat", Label = "Rat", Place = new O.EntityPlace.OnMap(1, new Cell(x, 5)) }, Pest = true };
 
     private static PestHunt Hunt(string method, params AcquisitionSource[] rows) => new(new MethodId(method), [.. rows]);
 
@@ -208,7 +209,7 @@ public sealed class MilitaryFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-military-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0};
+        facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Colony? colony = null;
         // The runs read no gear census, so equipment (which would raise on it) is not composed.

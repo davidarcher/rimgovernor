@@ -25,7 +25,7 @@ public sealed class UnknownsAnalyzer : GateAnalyzer
         "Fact", "IsKnown", "TryGetValue", "Value", "ValueOrDefault", "Known", "Unknown",
     };
 
-    private static readonly HashSet<string> RecordProjects = new(StringComparer.Ordinal) { "Policy", "Domain", "Contracts" };
+    private static readonly HashSet<string> RecordProjects = new(StringComparer.Ordinal) { "Policy", "Domain", "Contracts", "GameFacts", "GameOrders" };
 
     public UnknownsAnalyzer()
         : base(9, "There is no unknown", "unknown")

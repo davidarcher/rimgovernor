@@ -1,8 +1,9 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -15,22 +16,12 @@ public sealed class WornCountGoalTests
     private const string Duster = "Apparel_Duster";
     private static readonly Resource Devilstrand = new("DevilstrandCloth");
 
-    private static GearPawn Pawn(string id, GearRoleInput? role = null, bool canWear = true, bool wearing = false, bool blocked = false) => new()
-    {
-        Pawn = new(id),
-        Blocked = blocked,
-        Policy = new ApparelPolicyState
-        {
-            Role = role ?? new(),
-            Definitions = canWear ? [new() { Name = Duster, Adult = true, CoversBody = true }, new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }] : [new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }],
-        },
-        LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Worn = wearing ? [new GearOption { Definition = new(Duster), Stuff = Devilstrand, Condition = 1 }] : [] }),
-    };
+    private static GearPawn Pawn(string id, GearRoleInput? role = null, bool canWear = true, bool wearing = false, bool blocked = false) => new() { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new(id), Blocked = blocked }, Policy = new ApparelPolicyState { Observed = PoliciesTests.EmptyOutfit, Role = role ?? GearFixtures.Role, Definitions = canWear ? [new() { Name = Duster, Adult = true, CoversBody = true }, new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }] : [new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }] }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Worn = wearing ? [new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("", Duster, (Devilstrand).Value, GearSource.Worn) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }) }] : [], Role = GearFixtures.Role }) };
 
     private static RoundsFacts Facts(params GearPawn[] pawns) => new()
     {
         Gear = ColonyModelFixtures.NoGear() with { Pawns = pawns },
-        Resources = [],
+        Census = ColonyFactsCoreTests.Snapshot() with { Resources = [] },
         Items = new ItemFacts { StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Devilstrand] = ["Fabric"] } },
         Garments = [new ClothingGarment { Definition = new(Duster), Groups = ["Torso"], Slots = [[new Amount(Devilstrand, 60)]] }],
     };
@@ -41,7 +32,7 @@ public sealed class WornCountGoalTests
     {
         Goals = [Goal()],
         Rounds = rounds,
-        Research = new ResearchFacts { Finished = [.. finished.Select(f => new ResearchProjectId(f))] },
+        Research = ResearchTestFacts.Read(finished: finished),
         StuffResearch = new Dictionary<string, IReadOnlyList<string>> { [Devilstrand.Value] = ["Devilstrand"] },
     };
 
@@ -54,8 +45,8 @@ public sealed class WornCountGoalTests
         var rounds = Facts(
             Pawn("p4"),
             Pawn("p1"),
-            Pawn("p2", new GearRoleInput { DraftedSquad = true }),
-            Pawn("p3", new GearRoleInput { Child = true }),
+            Pawn("p2", new GearRoleInput { Observed = GearFixtures.Loadout("") with { ApparelPolicy = PoliciesTests.EmptyOutfit }, Pawn = EmergencyFixtures.Placed("") with { Drafted = true } }),
+            Pawn("p3", new GearRoleInput { Observed = GearFixtures.Loadout("") with { ApparelPolicy = PoliciesTests.EmptyOutfit, DevelopmentalStage = (true) ? D.DevelopmentalStage.Child : D.DevelopmentalStage.Adult }, Pawn = PawnFixtures.Row("") }),
             Pawn("p5", canWear: false),
             Pawn("p6"));
         var stamped = GoalRules.Stamp(rounds, GoalRules.DemandOf(GoalFacts(rounds)));

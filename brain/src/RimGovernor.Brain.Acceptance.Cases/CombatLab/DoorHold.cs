@@ -63,7 +63,7 @@ internal static class CombatLabDoorHold
         }
 
         var door = lab.Cell(0, HalfZ);
-        bool Inside(Common.Cell? c) =>
+        bool Inside(RimGovernor.Brain.Domain.Cell? c) =>
             c is { X: { } x, Z: { } z } && x > lab.Cx - HalfX && x < lab.Cx + HalfX && z > lab.Cz - HalfZ && z < lab.Cz + HalfZ;
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);

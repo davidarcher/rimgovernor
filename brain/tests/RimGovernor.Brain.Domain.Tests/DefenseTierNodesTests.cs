@@ -4,7 +4,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Store.Codec;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 

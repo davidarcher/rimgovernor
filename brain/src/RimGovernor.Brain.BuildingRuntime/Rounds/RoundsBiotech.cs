@@ -66,7 +66,7 @@ public sealed partial class BiotechRounds
         }
         var claims = journal.ConstructionClaims(scope.World, expected.Tick, ct);
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
-        var projection = reading.Projection;
+        var projection = reading.Reading;
         if (projection.Facts.Biotech is not PbObservations.BiotechSection.Active { Facts: var colony })
         {
             return new BiotechFacts.Inactive();
@@ -82,8 +82,8 @@ public sealed partial class BiotechRounds
         {
             Colony = colony,
             MechsOwed = mechsOwed,
-            MechChargerOwed = _needs.MechCharger && MechRules.MechChargerOwed(projection.Mechs, colony),
-            PollutedCells = [.. PollutionRules.PollutedWindowCells(projection.Cells)],
+            MechChargerOwed = _needs.MechCharger && MechRules.MechChargerOwed(projection.Facts.Mechs, colony),
+            PollutedCells = [.. PollutionRules.PollutedWindowCells(projection.PlanningWindow.Cells)],
             PollutionRefused = _needs.Pollution ? PollutionRefused(journal, scope.World, ct) : [],
         };
         var elapsed = _reviewer.Clock.Now() - started;
@@ -153,17 +153,17 @@ public sealed partial class BiotechRounds
     {
         var started = _reviewer.Clock.Now();
         var read = await StepReadingAsync(_reviewer, work, call).ConfigureAwait(false);
-        var f = read.Projection;
-        if (f.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var biotech })
+        var f = read.Reading;
+        if (f.Snapshot.Biotech is not PbObservations.BiotechSection.Active { Facts: var biotech })
         {
             return FieldUnavailable("biotech");
         }
-        if (!MechRules.MechChargerOwed(f.Mechs, biotech))
+        if (!MechRules.MechChargerOwed(f.Facts.Mechs, biotech))
         {
             return BuildingReasonNoDeficit;
         }
         var defs = MechChargerDefinitions(ref read);
-        f = read.Projection;
+        f = read.Reading;
         if (defs.Count == 0)
         {
             return FieldUnavailable("mech_charger_definition");
@@ -184,7 +184,7 @@ public sealed partial class BiotechRounds
             return FieldUnavailable("mech_charger_size");
         }
         var fieldZones = new Dictionary<string, bool>();
-        var fields = f.FoodFields;
+        var fields = f.Facts.FoodFields;
         {
             foreach (var field in fields)
             {
@@ -193,10 +193,10 @@ public sealed partial class BiotechRounds
         }
         var siteFacts = new MechChargerSiteFacts
         {
-            Bounds = f.Bounds,
-            Cells = f.Cells,
+            Bounds = f.Facts.MapBounds,
+            Cells = f.PlanningWindow.Cells,
             FieldZones = fieldZones,
-            Rooms = f.Rooms,
+            Rooms = f.Facts.Upkeep.Rooms,
             Disposal = [.. biotech.Atomizers.Select(a => a.Position)],
         };
         var sites = MechRules.MechChargerSites(siteFacts, size.Width, size.Height).Select(s => s.Site);
@@ -212,8 +212,8 @@ public sealed partial class BiotechRounds
     {
         var started = _reviewer.Clock.Now();
         var read = await StepReadingAsync(_reviewer, work, call).ConfigureAwait(false);
-        var f = read.Projection;
-        if (f.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var biotech })
+        var f = read.Reading;
+        if (f.Snapshot.Biotech is not PbObservations.BiotechSection.Active { Facts: var biotech })
         {
             return FieldUnavailable("biotech");
         }
@@ -222,7 +222,7 @@ public sealed partial class BiotechRounds
             return BuildingReasonNoDeficit;
         }
         var (defs, withDefs) = GeneBankDefinitions(read);
-        f = withDefs.Projection;
+        f = withDefs.Reading;
         if (defs.Count == 0)
         {
             return FieldUnavailable("gene_bank_definition");
@@ -247,7 +247,7 @@ public sealed partial class BiotechRounds
         {
             return BuildingReasonNoLayoutPlan;
         }
-        var sites = FreeSitesRules.FreeSites(new FreeSiteRequest { Bounds = f.Bounds, Anchor = anchor, Cells = f.Cells, Light = f.LightTerrains }, size.Width, size.Height);
+        var sites = FreeSitesRules.FreeSites(new FreeSiteRequest { Bounds = f.Facts.MapBounds, Anchor = anchor, Cells = f.PlanningWindow.Cells, Light = f.Facts.LightTerrains }, size.Width, size.Height);
         var verdict = await PlaceAsync(_reviewer, _building!, work, f, definition, method, size, sites, GeneBankSiteTries, started, call).ConfigureAwait(false);
         return verdict ?? NoSpace("gene_bank_cell");
     }
@@ -256,7 +256,7 @@ public sealed partial class BiotechRounds
     /// Previews <paramref name="definition"/> on each of the first <paramref name="tries"/> sites and admits the first
     /// whole, legal, safe and reachable one as the Need's building Method. Null when no site fits.
     /// </summary>
-    internal static async Task<Verdict?> PlaceAsync(Rounder reviewer, RoundsBuildingPlanner planner, NeedWork work, ColonyProjection f, string definition, MethodId method, Bounds size, IEnumerable<Rectangle> sites, int tries,
+    internal static async Task<Verdict?> PlaceAsync(Rounder reviewer, RoundsBuildingPlanner planner, NeedWork work, ColonyReading f, string definition, MethodId method, Bounds size, IEnumerable<Rectangle> sites, int tries,
         DateTimeOffset started, CancellationToken call)
     {
         var p = reviewer.Player;
@@ -286,7 +286,7 @@ public sealed partial class BiotechRounds
                 Plan = new PlanSpec(planId, new PlanRevision(1), [action]),
                 Current = snapshot,
                 Tick = f.Identity.Tick,
-                Bounds = f.Bounds,
+                Bounds = f.Facts.MapBounds,
                 Stock = got.Stock,
                 Previews = [pv],
                 Purpose = Purpose.Rounds,
@@ -316,10 +316,10 @@ public sealed class MechBillDeclarer : IOrderDeclarer
         _family = new BiotechFamily(needs ?? throw new ControlException("MechBillDeclarer: needs are missing"));
     }
 
-    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         (await DeclareAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(BiotechFamily.Mechs.FilingKey.Value);
 
-    private async Task<Declared> DeclareAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    private async Task<Declared> DeclareAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var review = _reviewer.Player.Journal.LoadRounds(ct);
         if (!review.Enabled || review.Snapshot != snapshot)
@@ -343,9 +343,9 @@ public sealed class MechBillDeclarer : IOrderDeclarer
     }
 
     /// <summary>The gestation bill while the mechs Need is ready over <paramref name="gestation"/> and the projection's charger fact, else nothing.</summary>
-    internal static Declared Declare(BiotechFamily family, ColonyProjection projection, MechGestation gestation, IReadOnlyList<GearBench> benches)
+    internal static Declared Declare(BiotechFamily family, ColonyReading projection, MechGestation gestation, IReadOnlyList<GearBench> benches)
     {
-        if (projection.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var colony })
+        if (projection.Snapshot.Biotech is not PbObservations.BiotechSection.Active { Facts: var colony })
         {
             return new Declared();
         }
@@ -353,7 +353,7 @@ public sealed class MechBillDeclarer : IOrderDeclarer
         {
             Colony = colony,
             MechsOwed = MechRules.MechGestationOwed(gestation),
-            MechChargerOwed = family.ComposesMechCharger && MechRules.MechChargerOwed(projection.Mechs, colony),
+            MechChargerOwed = family.ComposesMechCharger && MechRules.MechChargerOwed(projection.Facts.Mechs, colony),
         };
         if (!family.MechsReady(facts))
         {
@@ -376,9 +376,9 @@ partial class BiotechRounds
         }
 
         var names = catalog.MechChargers();
-        read = read with { Reading = read.Reading with { Projection = read.Projection.AddDefinitions(read.Frame, catalog, names) } };
+        read = read.WithReading(ColonyPlanningReads.AddDefinitions(read.Reading, read.Frame, catalog, names));
         var output = new List<PlanningDefinition>();
-        foreach (var d in BiotechColonyReads.MechChargerDefs(read.Projection.Definitions))
+        foreach (var d in BiotechColonyReads.MechChargerDefs(read.Reading.Facts.Definitions))
         {
             var available = d.Available;
             if (available)
@@ -398,9 +398,9 @@ partial class BiotechRounds
         }
 
         var names = read.Catalog.GeneBanks();
-        read = read.WithProjection(read.Projection.AddDefinitions(read.Frame, read.Catalog, names));
+        read = read.WithReading(ColonyPlanningReads.AddDefinitions(read.Reading, read.Frame, read.Catalog, names));
         var output = new List<PlanningDefinition>();
-        foreach (var d in read.Projection.Definitions)
+        foreach (var d in read.Reading.Facts.Definitions)
         {
             var available = d.Available;
             if (available && names.Contains(d.Name))
@@ -412,7 +412,7 @@ partial class BiotechRounds
         return (output, read);
     }
 
-    internal static (Cell Anchor, bool Found) GeneBankAnchor(ColonyProjection facts, PbObservations.BiotechColonyFacts biotech)
+    internal static (Cell Anchor, bool Found) GeneBankAnchor(ColonyReading facts, PbObservations.BiotechColonyFacts biotech)
     {
         if (biotech.GeneAssemblers.Count > 0)
         {
@@ -424,7 +424,7 @@ partial class BiotechRounds
             return (biotech.GeneBanks[0].Position, true);
         }
 
-        if (facts.Center() is not { } center)
+        if (facts.Facts.LayoutPlan?.Center() is not { } center)
         {
             return (default, false);
         }

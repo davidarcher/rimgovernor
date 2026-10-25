@@ -2,15 +2,15 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
 {
-    internal async Task<IReadOnlyList<Pol.TradeAcquisitionOption>> SettlementAcquisitionOptionsAsync(GenerationSnapshot world, string owner, Observation.ColonyProjection p, IReadOnlyList<Pol.SupplyDemandResult> demands, Bridge.DefinitionCatalog catalog, CancellationToken ct)
+    internal async Task<IReadOnlyList<Pol.TradeAcquisitionOption>> SettlementAcquisitionOptionsAsync(GenerationSnapshot world, string owner, ColonyReading p, IReadOnlyList<Pol.SupplyDemandResult> demands, Bridge.DefinitionCatalog catalog, CancellationToken ct)
     {
         lock (Census.Mu)
         {
             if (Census.Latest is { } latest
-                && latest.Reading.Projection.Identity.SameContext(p.Identity)
-                && latest.Reading.Projection.Identity.Tick == p.Identity.Tick)
+                && latest.Reading.Reading.Identity.SameContext(p.Identity)
+                && latest.Reading.Reading.Identity.Tick == p.Identity.Tick)
             {
-                var f = latest.Reading.Projection.Facts;
+                var f = latest.Reading.Reading.Facts;
                 p = p with
                 {
                     Facts = p.Facts with
@@ -39,7 +39,7 @@ public sealed partial class Rounder
             return [];
         }
         var id = Boundary.Identity(world);
-        WorldProgressionRead progress;
+        RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot progress;
         try
         {
             progress = await source.ReadWorldProgressionAsync(id, ct).ConfigureAwait(false);
@@ -72,7 +72,7 @@ public sealed partial class Rounder
             return [];
         }
         var silver = p.Facts.Silver();
-        var budget = Pol.TradePolicyRules.TradeMissionBudget(silver, p.Facts.Colonists);
+        var budget = Pol.TradePolicyRules.TradeMissionBudget(silver, p.Facts.Census.ColonistCount);
         if (budget <= 0)
         {
             return [];

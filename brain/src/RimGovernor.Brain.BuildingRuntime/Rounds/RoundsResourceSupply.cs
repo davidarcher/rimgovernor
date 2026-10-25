@@ -209,7 +209,7 @@ public sealed partial class Rounder
     internal async Task<ResourceSupplyState> BuildResourceSupplyAsync(ControlState state, Rounds review, NeedOwner goal, CancellationToken call)
     {
         var (expected, projection) = await AcquisitionReadingAsync(state, review, call).ConfigureAwait(false);
-        var stock = projection.Facts.Resources;
+        var stock = projection.Facts.ObservedStock();
         var targets = ResourceTargets(state.Snapshot);
         var ranked = ResourceRules.RankResourceTargets(targets, stock).ToList();
         var clothing = Demand.Get(state.Snapshot).Clothing;
@@ -227,16 +227,16 @@ public sealed partial class Rounder
         }
 
         var progress = review.ConcernProgress(EconomyFamily.Resource.FilingKey);
-        var held = RoundsAcquisitionPlanner.CooledSources(projection.Acquisition, ChopMinGrowth(projection), id => RoundsAcquisitionPlanner.AcquisitionCooled(progress, Policy, id, expected.Tick));
-        var busy = RoundsAcquisitionPlanner.HoldWorked(projection.Acquisition, undispatched, held);
+        var held = RoundsAcquisitionPlanner.CooledSources(projection.Facts.Acquisition, ChopMinGrowth(projection), id => RoundsAcquisitionPlanner.AcquisitionCooled(progress, Policy, id, expected.Tick));
+        var busy = RoundsAcquisitionPlanner.HoldWorked(projection.Facts.Acquisition, undispatched, held);
         var (slots, _) = RoundsResourcePlanner.HuntSlots(projection);
         var hunts = slots;
         output.Hunts = hunts;
-        var center = projection.Center();
-        var rows = projection.Acquisition;
+        var center = projection.Facts.LayoutPlan?.Center();
+        var rows = projection.Facts.Acquisition;
         var traders = projection.Facts.Traders;
         var silver = projection.Facts.Silver();
-        var (reserve, reserveKnown) = TradePolicyRules.TradeSilverReserve(projection.Facts.Colonists);
+        var (reserve, reserveKnown) = TradePolicyRules.TradeSilverReserve(projection.Facts.Census.ColonistCount);
         IReadOnlyList<TradeOffers> offers = reserveKnown ? TradeOffers.Fresh(state.Snapshot, expected.Tick, silver, traders) : [];
         var spendable = reserveKnown ? silver : 0;
         if (planner is not null)
@@ -314,10 +314,10 @@ public sealed partial class Rounder
             }
 
             var need = deficit;
-            var priced = new List<AcquisitionSource>();
+            var priced = new List<(AcquisitionSource Source, double Yield)>();
             foreach (var source in rows)
             {
-                var offered = ClothingDemandRules.ResourceSourceFor(source, resource, clothing);
+                var offered = ClothingDemandRules.ResourceYieldFor(source, resource, clothing);
                 if (offered is null)
                 {
                     continue;
@@ -325,12 +325,12 @@ public sealed partial class Rounder
 
                 if (source.Designated)
                 {
-                    need -= (long)Math.Round(offered.Yield, MidpointRounding.AwayFromZero);
+                    need -= (long)Math.Round(offered.Value, MidpointRounding.AwayFromZero);
                 }
                 else if (!(held.TryGetValue(source.Id, out var isHeld) && isHeld) && !(source.Hunt && output.Hunts <= 0))
                 {
                     row.Open.Add(source);
-                    priced.Add(offered);
+                    priced.Add((source, offered.Value));
                 }
             }
 
@@ -380,16 +380,16 @@ public sealed partial class Rounder
 public sealed partial class RoundsResourcePlanner
 {
     /// <summary>The labor the food plan leaves the resource supply; the planner needs it read (RequiredFactException).</summary>
-    internal static double ResourceLabor(ColonyProjection p)
+    internal static double ResourceLabor(ColonyReading p)
     {
-        var workers = ResearchRules.RoundsWorkers(p.WorkPawns.Pawns);
+        var workers = ResearchRules.RoundsWorkers(p.Facts.ForecastObserved.WorkPawns.Pawns);
         return ResourceRules.ResidualSupplyLabor(workers, p.Facts.FoodPlan ?? throw new RequiredFactException("food plan"));
     }
 
-    internal static (int Slots, bool NoHunter) HuntSlots(ColonyProjection projection)
+    internal static (int Slots, bool NoHunter) HuntSlots(ColonyReading projection)
     {
         int slots;
-        var pawns = projection.WorkPawns.Pawns;
+        var pawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
         {
             var profiles = PawnRules.Profiles(pawns);
             if (PawnRules.HunterFor(profiles) is null)
@@ -397,7 +397,7 @@ public sealed partial class RoundsResourcePlanner
                 return (0, true);
             }
 
-            slots = PawnRules.HuntBudget(profiles, projection.PendingHunts);
+            slots = PawnRules.HuntBudget(profiles, checked((int)projection.Snapshot.PendingHunts));
         }
 
         return (slots, false);

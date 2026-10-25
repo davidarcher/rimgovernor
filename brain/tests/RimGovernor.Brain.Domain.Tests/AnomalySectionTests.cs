@@ -46,10 +46,11 @@ public sealed class AnomalySectionTests
         Assert.Equal(NoAnomaly, WireJson.Deserialize<AnomalySection>("""{"type":"inactive"}"""));
 
         // The colony read lifts the active section into the Anomaly state whole; a monolith block that disagrees with MonolithSpawned breaks the contract.
-        var read = Assert.IsType<RimGovernor.Brain.Policy.AnomalyState.Active>(RimGovernor.Brain.Observation.AnomalyColonyReads.AnomalyOf(section));
-        Assert.Equal((1, false, "Thing_VoidMonolith1", "Embraced", 2u), (read.Monolith.Level, read.Monolith.AmbientHorror, read.Monolith.Thing!.Id, read.Monolith.Thing.NextLevel, read.Monolith.Thing.CodexShortfall));
+        var read = Assert.IsType<RimGovernor.Brain.Policy.AnomalyState.Active>(RimGovernor.Brain.Bridge.AnomalyColonyReads.AnomalyOf(section));
+        Assert.Equal((1, false, "Thing_VoidMonolith1", "Embraced", 2), (read.Monolith.Incidents.Level, read.Monolith.Incidents.AmbientHorrorMode, read.Monolith.Monolith!.MonolithId, read.Monolith.Monolith.NextLevelDef, read.Monolith.Monolith.CodexShortfall));
         var active = (AnomalySection.Active)section;
-        Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => RimGovernor.Brain.Observation.AnomalyColonyReads.AnomalyOf(active with { Facts = active.Facts with { Monolith = null } }));
+        Assert.Same(active.Facts, read.Monolith);
+        Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => RimGovernor.Brain.Bridge.AnomalyColonyReads.AnomalyOf(active with { Facts = active.Facts with { Monolith = null } }));
     }
 
     [Fact]
@@ -86,6 +87,17 @@ public sealed class AnomalySectionTests
             """{"entity":true,"mutant":false,"minContainmentStrength":40,"held":{"held":true,"mode":"ENTITY_CONTAINMENT_MODE_KIND_STUDY","escaping":false,"extractBioferrite":true,"canBeCaptured":true,"needsTend":false,"bleeding":false,"harvesterAttached":false,"bioferritePerDay":1.5,"escape":{"baseMtbDays":60,"movingFactor":1,"daysInCaptivity":2,"coldFactor":1,"combatPower":100,"canEscape":true}},"study":{"currentlyStudiable":true,"yield":{"knowledge":2,"category":null,"frequencyTicks":120000}},"hiddenFromPlayer":false,"psychicRitualInvoker":false,"meleeOnly":true,"creepjoiner":{"downsideTriggered":false,"joinedTick":120000,"combatPower":55}}""",
             json);
         Assert.Equal(anomaly, WireJson.Deserialize<PawnAnomaly>(json));
+
+        // The containment join retains the native study state, including a category the game says is absent.
+        var row = PawnFixtures.Row("entity") with
+        {
+            Anomaly = new PawnAnomalyState.Active(anomaly with { Held = anomaly.Held! with { Held = false } }),
+        };
+        var forecast = RimGovernor.Brain.Bridge.RoundsContainmentReads.ContainmentForecastOf([row], [], new());
+        var entity = Assert.Single(forecast.Entities);
+        Assert.Same(row, entity.Observed);
+        Assert.Same(anomaly.Study!.Yield, entity.Study);
+        Assert.Null(entity.Study!.Category);
     }
 
     [Fact]

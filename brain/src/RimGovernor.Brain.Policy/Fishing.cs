@@ -2,40 +2,9 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>
-/// One shared population, regardless of how many zones or shallow cells offer access to it. Catch rates come
-/// from native definitions and the available fishers; they must not be inferred from zone area.
-/// </summary>
-public sealed record FishingRegion
-{
-    public string Id { get; init; } = "";
-
-    public double Population { get; init; }
-
-    public double MaxPopulation { get; init; }
-
-    public double NutritionPerFish { get; init; }
-
-    /// <summary>The fishers' batch and raw nutrition/day capacity at this body.</summary>
-    public FishingCrew Crew { get; init; } = new FishingCrew.NoFisher();
-
-    public bool Reachable { get; init; }
-
-    public bool Frozen { get; init; }
-
-    /// <summary>A zone is set to fish it.</summary>
-    public bool Designated { get; init; }
-
-    /// <summary>Ledger counter group of its deliveries.</summary>
-    public string Source { get; init; } = "";
-
-    /// <summary>Nearest cell to the colony centre.</summary>
-    public double DistanceSquared { get; init; }
-}
-
 public sealed record FishingRequest
 {
-    public IReadOnlyList<FishingRegion> Regions { get; init; } = [];
+    public IReadOnlyList<FishingRegionReview> Regions { get; init; } = [];
 
     public FishingResearch Research { get; init; } = new FishingResearch.Researched();
 }
@@ -57,13 +26,14 @@ public static class FishingRules
         var channels = new List<SupplyCandidate>();
         foreach (var region in r.Regions)
         {
-            if (!FoodForecastRules.FoodId(region.Id) || !seen.Add(region.Id))
+            var id = FishingRegionId(region.Observed.Root);
+            if (!seen.Add(id))
             {
                 throw new FoodPlanFactsException();
             }
-            var population = region.Population;
-            var maximum = region.MaxPopulation;
-            var nutrition = region.NutritionPerFish;
+            var population = region.Observed.Population;
+            var maximum = region.Observed.MaxPopulation;
+            var nutrition = region.Observed.NutritionPerFish;
             if (!FoodForecastRules.FoodNumber(population) || !FoodForecastRules.FoodNumber(maximum) || !FoodForecastRules.FoodNumber(nutrition) || population > maximum || nutrition == 0)
             {
                 throw new FoodPlanFactsException();
@@ -73,11 +43,11 @@ public static class FishingRules
             {
                 throw new FoodPlanFactsException();
             }
-            var designated = region.Designated;
+            var designated = region.Delivering;
             // With no fisher the catch and its work are unpriced until a crew is read.
-            var channel = CandidateRules.FoodCandidate(CandidateKind.Fishing, region.Id, new YieldSupply.Unpriced(), CandidateState.Closed, new CandidateLead.Unscheduled(), new CandidateWork.Unpriced());
+            var channel = CandidateRules.FoodCandidate(CandidateKind.Fishing, id, new YieldSupply.Unpriced(), CandidateState.Closed, new CandidateLead.Unscheduled(), new CandidateWork.Unpriced());
             var terms = new List<CandidateTerm> { new("fish_regeneration_fraction", FishingRegenerationPerDay) };
-            channel = channel with { Source = region.Source, Nearness = new SourceNearness.Measured(region.DistanceSquared) };
+            channel = channel with { Source = $"fish:{region.Observed.Root.X},{region.Observed.Root.Z}", Nearness = new SourceNearness.Measured(region.Observed.NearestDistanceSquared) };
             switch (r.Research)
             {
                 case FishingResearch.Researched:
@@ -93,7 +63,7 @@ public static class FishingRules
                     terms.Add(new CandidateTerm("fishing_research_required", 1));
                     break;
             }
-            if (!region.Reachable || region.Frozen || population == 0 || maximum == 0)
+            if (!region.Reachable || region.Observed.Frozen || population == 0 || maximum == 0)
             {
                 // Preserve an explicit explanation without presenting an unusable region as an observed-open source of food.
                 designated = false;
@@ -102,7 +72,7 @@ public static class FishingRules
                 {
                     terms.Add(new CandidateTerm("fishing_unreachable", 1));
                 }
-                if (region.Frozen)
+                if (region.Observed.Frozen)
                 {
                     terms.Add(new CandidateTerm("fishing_frozen", 1));
                 }

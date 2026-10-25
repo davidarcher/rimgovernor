@@ -5,102 +5,12 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The food forecast inputs are unavailable or invalid.</summary>
 public sealed class FoodFactsException() : DomainException("food forecast inputs unavailable or invalid");
 
-public sealed record FoodConsumer
-{
-    public PawnId Id { get; init; }
-
-    public required double NutritionPerDay { get; init; }
-
-    /// <summary>Includes animals whose native diet accepts it.</summary>
-    public bool HumanMeatAcceptable { get; init; }
-}
-
-/// <summary>What a food stock is: an item stack, or a corpse whose food is its meat yield.</summary>
-public abstract record FoodForm
-{
-    private protected FoodForm() { }
-
-    public sealed record Item : FoodForm;
-
-    /// <summary>A corpse: MeatAmount is its native meat yield before butcher efficiency, BodySize its inner pawn's body size.</summary>
-    public sealed record Corpse(double MeatAmount, double BodySize) : FoodForm;
-}
-
-/// <summary>Where a food stock is: standing on the map (roofed or not, in Room, "" outside any room) or carried, unspawned.</summary>
-public abstract record FoodPlace
-{
-    private protected FoodPlace() { }
-
-    public sealed record Stands(bool Roofed, string Room) : FoodPlace;
-
-    public sealed record Carried : FoodPlace;
-}
-
-/// <summary>How a food stock spoils: a thing rots exactly while it has a rot deadline.</summary>
-public abstract record FoodRot
-{
-    private protected FoodRot() { }
-
-    /// <summary>Never rots: a survival meal, pemmican, or a stock whose def has no rot clock.</summary>
-    public sealed record Keeps : FoodRot;
-
-    /// <summary>Rots in Ticks at its current temperature; zero or less has already rotted.</summary>
-    public sealed record Rots(long Ticks) : FoodRot;
-}
-
-public sealed record FoodStock
-{
-    public string Id { get; init; } = "";
-
-    /// <summary>Includes meals containing humanlike meat, not just raw meat.</summary>
-    public bool IsHumanMeat { get; init; }
-
-    public bool RawMeat { get; init; }
-
-    public bool IsHumanlike { get; init; }
-
-    public bool Vegetable { get; init; }
-
-    public FoodIngredientClass RawClass { get; init; }
-
-    /// <summary>Forbidden pemmican or survival meals; eligibility is after release.</summary>
-    public bool Reserve { get; init; }
-
-    /// <summary>The pawn whose inventory holds the stock; empty for a shared stock.</summary>
-    public PawnId Holder { get; init; }
-
-    /// <summary>The nutrition the stock gives its eaters (a corpse's: its meat yield's).</summary>
-    public required double Nutrition { get; init; }
-
-    public IReadOnlyList<PawnId> Eaters { get; init; } = [];
-
-    /// <summary>Whether the stock keeps or rots, and in how many ticks at its current temperature.</summary>
-    public required FoodRot Rot { get; init; }
-
-    /// <summary>DefName and Count select a specific feed resource (the animal feed runway's item choice); ForecastFood never reads them.</summary>
-    public Resource DefName { get; init; }
-
-    public long Count { get; init; }
-
-    /// <summary>The catalog mass used only for caravan packing.</summary>
-    public double UnitMass { get; init; }
-
-    /// <summary>Where the stock is at observation time; ForecastFood ignores it, storage upkeep and refrigeration policy read it.</summary>
-    public required FoodPlace Place { get; init; }
-
-    /// <summary>The ambient temperature where the stock is.</summary>
-    public double TemperatureC { get; init; }
-
-    /// <summary>An item stack or a corpse. Forbidden corpses remain observable reserves but do not extend the food runway.</summary>
-    public required FoodForm Form { get; init; }
-
-    public bool Corpse => Form is FoodForm.Corpse;
-
-    public bool Forbidden { get; init; }
-}
-
 public sealed record FoodSupply
 {
+    /// <summary>Reserve selections are policy overlay IDs; native stock records are shared unchanged.</summary>
+    public IReadOnlySet<string> Reserved { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+    public bool IsReserved(FoodStock stock) => Reserved.Contains(stock.Id);
+    public bool IsBarred(FoodStock stock) => stock.Forbidden && !stock.IsCorpse() && !IsReserved(stock);
     public IReadOnlyList<FoodConsumer> Consumers { get; init; } = [];
 
     public IReadOnlyList<FoodStock> Stocks { get; init; } = [];
@@ -192,6 +102,25 @@ public sealed record FoodForecast
 
 public static class FoodForecastRules
 {
+    public static bool IsCorpse(this FoodStock stock) => stock.Form is FoodForm.Corpse;
+    public static FoodSupply FromCensus(RimGovernor.Contracts.Wire.Observations.FoodSupplyFacts census)
+    {
+        ArgumentNullException.ThrowIfNull(census);
+        var stocks = new List<FoodStock>();
+        var barred = new List<FoodStock>();
+        var reserved = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var stock in census.Stocks)
+        {
+            var reserve = stock.Forbidden && !stock.IsCorpse() && FoodReserveRules.ReserveFoodDefinition(new Resource(stock.DefName));
+            if (reserve) reserved.Add(stock.Id);
+            if (stock.Forbidden && !stock.IsCorpse() && !reserve && !stock.IsHumanMeat)
+                barred.Add(stock);
+            else
+                stocks.Add(stock);
+        }
+        return new FoodSupply { Consumers = census.Consumers, Stocks = stocks, Barred = barred, Reserved = reserved, Larder = census.Larder };
+    }
+
     internal static bool FoodNumber(double n) => !double.IsNaN(n) && !double.IsInfinity(n) && n >= 0;
 
     internal static bool FoodId(string id) =>
@@ -271,7 +200,7 @@ public static class FoodForecastRules
             var amount = input.Nutrition;
             var holder = input.Holder;
             if (!FoodId(input.Id) || seen.Contains(input.Id) || !FoodNumber(amount)
-                || (input.Eaters.Count == 0 && !input.Corpse && !input.IsHumanMeat) || input.Eaters.Count > ids.Count)
+                || (input.Eaters.Count == 0 && !input.IsCorpse() && !input.IsHumanMeat) || input.Eaters.Count > ids.Count)
             {
                 throw new FoodFactsException();
             }
@@ -311,11 +240,11 @@ public static class FoodForecastRules
             {
                 throw new FoodFactsException();
             }
-            if (input.Corpse && input.Forbidden)
+            if (input.IsCorpse() && input.Forbidden)
             {
                 continue;
             }
-            if (!input.Reserve)
+            if (!supply.IsReserved(input) && !supply.IsBarred(input))
             {
                 stocks.Add(entry);
             }

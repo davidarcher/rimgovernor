@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsFieldPlanner
 {
-    internal static IReadOnlyList<WorkRequirement> FishingWork(ColonyProjection p)
+    internal static IReadOnlyList<WorkRequirement> FishingWork(ColonyReading p)
     {
         if (p.Facts.FoodPlan is not { } plan)
         {
@@ -67,7 +67,7 @@ public sealed partial class Rounder
                 return needs;
             }
 
-            var p = census.Reading.Projection;
+            var p = census.Reading.Reading;
             var state = Player.Session.State();
             if (!RoundsBuildingPlanner.RoundsBuildingBoundary(p.Identity, state.Snapshot, new Tick(0)))
             {
@@ -75,7 +75,7 @@ public sealed partial class Rounder
             }
 
             var plan = p.Facts.FoodPlan;
-            if (p.FoodChannels.FishableWater is { } w && plan is not null)
+            if (p.Facts.FoodChannels.FishableWater is { } w && plan is not null)
             {
                 var target = FishingRules.FishingResearchRequest(plan, w.Research);
                 if (target.Length != 0)
@@ -84,9 +84,9 @@ public sealed partial class Rounder
                 }
             }
 
-            if (p.LayoutPlan is { } layout)
+            if (p.Facts.LayoutPlan is { } layout)
             {
-                needs = SleepingRules.BedResearchRequest(needs, layout, p.Rooms, p.Facts.Sleeping, RoundsSleepingUpkeepPlanner.BedroomTargets(p));
+                needs = SleepingRules.BedResearchRequest(needs, layout, p.Facts.Upkeep.Rooms, p.Facts.Sleeping, RoundsSleepingUpkeepPlanner.BedroomTargets(p));
             }
 
             return needs;
@@ -102,9 +102,9 @@ public sealed partial class RoundsFieldPlanner
     /// </summary>
     internal async Task<(RoundsFieldResult Result, bool Handled)> FishingAsync(ControlState state, NeedOwner goal, RoundsReading read, CancellationToken call, CancellationToken epoch)
     {
-        var p = read.Projection;
+        var p = read.Reading;
         var plan = p.Facts.FoodPlan;
-        if (plan is null || p.FoodChannels.FishableWater is not { } water || water.Research is not FishingResearch.Researched)
+        if (plan is null || p.Facts.FoodChannels.FishableWater is not { } water || water.Research is not FishingResearch.Researched)
         {
             return (new RoundsFieldResult(), false);
         }
@@ -118,7 +118,7 @@ public sealed partial class RoundsFieldPlanner
 
             foreach (var region in water.Regions)
             {
-                if (entry.Channel.Id != FishingRules.FishingRegionId(region.Root))
+                if (entry.Channel.Id != FishingRules.FishingRegionId(region.Observed.Root))
                 {
                     continue;
                 }
@@ -130,7 +130,7 @@ public sealed partial class RoundsFieldPlanner
                     continue;
                 }
 
-                if (entry.Decision != FoodPlanDecision.Open || region.Zoned || region.ProposedCells.Count == 0)
+                if (entry.Decision != FoodPlanDecision.Open || region.Observed.Zoned || region.ProposedCells.Count == 0)
                 {
                     continue;
                 }
@@ -184,7 +184,7 @@ public sealed partial class RoundsFieldPlanner
                     Plan = spec,
                     Current = snapshot,
                     Tick = p.Identity.Tick,
-                    Bounds = p.Bounds,
+                    Bounds = p.Facts.MapBounds,
                     Stock = new StockObservation { Snapshot = snapshot, Tick = p.Identity.Tick },
                     Previews = [preview],
                     Purpose = Purpose.Rounds,

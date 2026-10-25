@@ -108,7 +108,7 @@ internal sealed partial record ForecastComposedCandidates
                                         var links = allocations.Where(a => a.Kind == ForecastRequirementKind.Consumed && supplies[a.Source] is var source
                                             && source.Resource == input.Resource && (source.Lot.Length == 0 ? source.Id : source.Lot) == input.Lot).ToArray();
                                         return new SelectedActivityInput(input.Resource.Value, input.Lot, checked((int)input.Units),
-                                            binding.Source ?? binding.Location, string.Join(";", links.Select(a => a.Provenance)))
+                                            binding.Source, string.Join(";", links.Select(a => a.Provenance)))
                                         { Observed = links.Length > 0 && links.All(a => a.Producer.Length == 0),
                                             Producers = EquatableArray.From(links.Where(a => a.Producer.Length != 0)
                                                 .Select(a => Intern(a.Producer)).Distinct().Order(StringComparer.Ordinal)) };

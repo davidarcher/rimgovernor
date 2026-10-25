@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class NativeOpsTests
 {
     [Fact]
-    public void EveryFacadeCallIsBoundByExactlyOneOp()
+    public async Task EveryFacadeCallIsBoundByExactlyOneOp()
     {
         var facade = DispatchProxy.Create<INativeFacade, RecordingFacade>();
         var recorder = (RecordingFacade)(object)facade;
@@ -29,9 +29,10 @@ public sealed class NativeOpsTests
                 : ReferenceEquals(op, NativeOps.ReadRecipes) ? """{"benchId":""}"""
                 : ReferenceEquals(op, NativeOps.ReadWorldProgression) ? """{"scope":{}}"""
                 : ReferenceEquals(op, NativeOps.ReadCombatGeometry) ? """{"identity":{"colonyId":"","loadToken":"","mapId":0},"cells":[],"hostileIds":[]}"""
-                : ReferenceEquals(op, NativeOps.ReadDefenseSite) ? """{"scope":{},"region":{}}"""
+                : ReferenceEquals(op, NativeOps.ReadDefenseSite) ? """{"scope":{},"region":{"minimum":{"x":0,"z":0},"maximum":{"x":0,"z":0}}}"""
                 : ReferenceEquals(op, NativeOps.ReadLinesOfFire) ? """{"scope":{},"firingCells":[],"approachCells":[],"budgetMs":0}"""
                 : ReferenceEquals(op, NativeOps.ReadSpatialAccess) ? """{"scope":{},"blockedCells":[],"targetCells":[],"pawnIds":[],"budgetMs":0}"""
+                : ReferenceEquals(op, NativeOps.ReadExcavationSite) ? """{"scope":{},"cells":[],"accessCell":{"x":0,"z":0}}"""
                 : ReferenceEquals(op, NativeOps.Apply) ? """{"deferSnapshot":false}"""
                 : ReferenceEquals(op, NativeOps.ApplyOverlay) ? """{"identity":{"colonyId":"","loadToken":"","mapId":0},"layerId":"","enabled":false,"shapes":[],"labels":[]}"""
                 : ReferenceEquals(op, NativeOps.DemandRendering) ? """{"viewer":{"identity":{"colonyId":"","loadToken":"","mapId":0}},"leaseSeconds":0}"""
@@ -45,7 +46,7 @@ public sealed class NativeOpsTests
                 : ReferenceEquals(op, NativeOps.HoldClock) ? """{"reason":"HOLD_REASON_REVIEW"}"""
                 : ReferenceEquals(op, NativeOps.RunClock) ? """{"expectedGeneration":1,"speed":"SPEED_NORMAL","plannedHoldSerial":0,"holdAtTick":1,"policy":{"mode":"WATCH_MODE_COLONY","healthDropFraction":0.5,"minHealthFraction":0.2,"hostileWithin":40,"injuryStopCooldownMs":0,"hungerHoldCategory":"HUNGER_CATEGORY_URGENTLY_HUNGRY","seriousSingleHitDamage":10,"seriousSummaryHealthFloor":0.3,"seriousBleedRateFloor":0.1,"seriousVitalPartFloor":0.2,"explosiveNearMarginCells":2,"meleeReachCells":1,"injurySeverityFloorTicks":1000}}"""
                 : ReferenceEquals(op, NativeOps.ListSupplies) ? """{"filter":{"category":"STOCK_CATEGORY_HAULABLE","ownership":"STOCK_OWNERSHIP_OURS","includeHeld":true}}""" : "{}";
-            _ = op.InvokeJsonAsync(facade, body, CancellationToken.None);
+            await Assert.ThrowsAsync<NotSupportedException>(() => op.InvokeJsonAsync(facade, body, CancellationToken.None));
         }
 
         // Opening the colony events hands over an in-process reader, so no op routes it.
@@ -70,7 +71,7 @@ public sealed class NativeOpsTests
         Assert.False(NativeOps.TryGet("rimgovernor/no_such_op", out _));
     }
 
-    /// <summary>Records which facade method each call reached; the reply is a faulted task the op's edge never awaits.</summary>
+    /// <summary>Records which facade method each call reached; its fault proves deserialization reached the facade.</summary>
     public class RecordingFacade : DispatchProxy
     {
         internal List<string> Called { get; } = [];

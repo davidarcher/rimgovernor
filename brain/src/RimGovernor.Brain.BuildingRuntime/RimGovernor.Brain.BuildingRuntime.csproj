@@ -12,7 +12,6 @@
     <ProjectReference Include="../RimGovernor.Brain.Contracts/RimGovernor.Brain.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
-    <ProjectReference Include="../RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
    <ProjectReference Include="../RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
@@ -21,9 +20,7 @@
  </ItemGroup>
   <ItemGroup>
     <Using Include="RimGovernor.Brain.Domain" />
-    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
     <Using Include="RimGovernor.Brain.Policy" />
-    <Using Include="RimGovernor.Brain.Observation" />
     <Using Include="RimGovernor.Brain.Store" />
     <Using Include="RimGovernor.Brain.Bridge" />
     <Using Include="RimGovernor.Brain.Telemetry" />
@@ -53,12 +50,11 @@
     <Using Include="RimGovernor.Brain.Policy.Amount" Alias="Amount" />
     <Using Include="RimGovernor.Brain.Telemetry.Decision" Alias="Decision" />
     <Using Include="RimGovernor.Brain.Domain.ControllerSessionId" Alias="ControllerSessionId" />
-    <Using Include="RimGovernor.Brain.Observation.Identity" Alias="Identity" />
+    <Using Include="RimGovernor.Brain.Bridge.Contracts.ObservationIdentity" Alias="Identity" />
     <Using Include="RimGovernor.Brain.Domain.RecoveryMethod" Alias="RecoveryMethod" />
     <!-- Bridge types whose names the policy or domain package also declares. -->
     <Using Include="RimGovernor.Brain.Bridge.Contracts.CellRect" Alias="BridgeCellRect" />
-    <Using Include="RimGovernor.Brain.Observation.Combat" Alias="BridgeCombat" />
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.CombatOrderResult" Alias="BridgeCombatOrderResult" />
+    <Using Include="RimGovernor.Brain.Bridge.Combat" Alias="BridgeCombat" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.EmergencyObservation" Alias="BridgeEmergencyObservation" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.EquipCandidate" Alias="BridgeEquipCandidate" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.EquipRead" Alias="BridgeEquipRead" />
@@ -87,5 +83,17 @@
     <!-- The headless real-engine host drives the live combat read and decision over its arena (#3142). -->
     <InternalsVisibleTo Include="RimGovernor.RealCombat.Native" />
     <InternalsVisibleTo Include="RimGovernor.Brain.Domain.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="PowerSite" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="PowerBuilding" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.TurretGun" Alias="TurretGun" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PowerNetwork" Alias="PowerNetworkFact" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.SteamGeyser" Alias="PowerGeyser" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="DefenseTurretFacts" />
   </ItemGroup>
 </Project>

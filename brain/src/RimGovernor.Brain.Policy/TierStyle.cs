@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 // does not hold, the rung one tier down is tried, and nothing further. A rule never proposes a stuff the colony
 // has none of, so a Camp colony never receives a stone, powered or floored proposal.
 //
-// The shell planners take wall and door stuff from the def stats (ColonyProjection.BulkBuildStuff, not a tier
+// The shell planners take wall and door stuff from the def stats (ColonyPlanningRules.BulkBuildStuff, not a tier
 // rule); the flooring planner prefers FloorDef's floor for a deficient room's role and the lighting planner
 // PlannedLighting's fixture. The shape-family rules (double-module hall, paired wings, courtyard) are
 // their own.

@@ -20,6 +20,6 @@
   </ItemGroup>
   <ItemGroup Condition="'$(GameAvailable)' == 'true'">
     <Using Include="RimGovernor.Brain.Domain" />
-    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
   </ItemGroup>
+  <ItemGroup><InternalsVisibleTo Include="RimGovernor.Brain.BuildingRuntime" /><InternalsVisibleTo Include="RimGovernor.RealCombat.Native" /></ItemGroup>
 </Project>

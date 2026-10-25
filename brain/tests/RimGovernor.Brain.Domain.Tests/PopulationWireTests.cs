@@ -5,7 +5,6 @@ using RimGovernor.Contracts.Wire;
 using Xunit;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
-using Ops = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,7 +15,6 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class PopulationWireTests
 {
-    private static readonly Obs.PawnBiography Bio = PawnFixtures.Row("p").Biography;
 
     private static Obs.PopulationPerson Person(string id) => new()
     {
@@ -26,10 +24,6 @@ public sealed class PopulationWireTests
         Recruitable = false,
         IdeoId = null,
         WildMan = false,
-        Biography = Bio,
-        HealthSummary = 1,
-        LuciferiumAddicted = false,
-        WearingApparel = true,
         Custody = new Obs.PersonCustody.None(),
         WillJoinIfRescued = false,
     };
@@ -43,9 +37,9 @@ public sealed class PopulationWireTests
             {
                 Guest = true,
                 Recruitable = true,
-                Custody = new Obs.PersonCustody.Prisoner(12.5, "ReduceResistance", 2500, Ops.MedicalCare.HerbalOrWorse, new Obs.PawnConditions { LifeThreatening = false, Hediffs = [] }, PawnFixtures.Healthy.Surgery!, new Common.Ref { Id = "Faction_3" }, -40),
+                Custody = new Obs.PersonCustody.Prisoner(12.5, "ReduceResistance", 2500, new Common.Ref { Id = "Faction_3" }, -40),
             },
-            Person("guest") with { Guest = true, Custody = new Obs.PersonCustody.Guest(Ops.MedicalCare.Best, new Obs.PawnConditions { LifeThreatening = false, Hediffs = [] }) },
+            Person("guest") with { Guest = true, Custody = new Obs.PersonCustody.Guest() },
         ],
         Ideology = new Obs.ColonyIdeology.Installed(false, "Ideo_1"),
         OwnedNames = [new Obs.OwnedName { PawnId = new PawnId("colonist"), ShortName = "Tess", ThingId = 7 }],
@@ -69,7 +63,16 @@ public sealed class PopulationWireTests
     [Fact]
     public void TheCensusReadsEachCustodyStateKnown()
     {
-        var pawns = Pawns.Of(PawnFixtures.Row("colonist"), PawnFixtures.Row("prisoner") with { Prisoner = true, Colonist = false, FreeColonist = false }, PawnFixtures.Row("guest") with { Colonist = false, FreeColonist = false });
+        var native = PopulationFixtures.Held("prisoner").Observed;
+        var guest = PawnFixtures.Row("guest");
+        guest = guest with
+        {
+            Colonist = false,
+            FreeColonist = false,
+            Health = guest.Health with { LifeThreatening = true },
+            Settings = guest.Settings with { Care = new Obs.PawnCare.Configured(RimGovernor.Contracts.Wire.Operations.MedicalCare.Best, false, RimGovernor.Contracts.Wire.Operations.HostilityResponse.Flee) },
+        };
+        var pawns = Pawns.Of(PawnFixtures.Row("colonist"), native, guest);
 
         var census = PopulationDecoder.Decode(Population, pawns, null);
 
@@ -84,7 +87,47 @@ public sealed class PopulationWireTests
         Assert.Equal("Ideo_1", census.Colony.PrimaryIdeo);
         Assert.Equal(1, census.Colony.Colonists);
         Assert.Equal(3, census.Custody.Count);
+        Assert.Same(Population.Persons[1], prisoner.Person);
+        Assert.Same(Population.Persons[1].Custody, prisoner.Held);
+        Assert.True(pawns.TryGetValue("prisoner", out var nativePrisoner));
+        Assert.Same(nativePrisoner, prisoner.Observed);
+        Assert.Same(prisoner.Observed, prisoner.Prospect.Observed);
+        Assert.Same(Population.Persons[2], Assert.Single(census.Guests).Person);
+        Assert.Same(Population.Persons[2].Custody, Assert.Single(census.Guests).Person.Custody);
+        Assert.Equal(MedicalCare.Herbal, prisoner.MedicalCare);
+        Assert.Same(guest, Assert.Single(census.Guests).Observed);
+        Assert.Equal(MedicalCare.Best, Assert.Single(census.Guests).Care);
+        Assert.True(Assert.Single(census.Guests).LifeThreatening);
         Assert.Equal([new Obs.OwnedName { PawnId = new("colonist"), ShortName = "Tess", ThingId = 7 }], census.Names);
+    }
+
+    [Fact]
+    public void RecruitmentUsesTheJoinedPawnSkillAndHealthWithoutCopies()
+    {
+        var pawn = PawnFixtures.Row("p");
+        var skill = new Obs.Skill { DefName = "Shooting", Level = 12, Passion = Obs.Passion.Major };
+        pawn = pawn with
+        {
+            Biography = pawn.Biography with { BiologicalAgeYears = 30, Skills = [skill] },
+            Health = pawn.Health with { SummaryFraction = 0.3 },
+        };
+        var population = Population with { Persons = [Person("p") with { Admitted = true }] };
+        var census = PopulationDecoder.Decode(population, Pawns.Of(pawn), null);
+        var prospect = Assert.Single(census.Custody).Prospect;
+        Assert.Same(skill, Assert.Single(prospect.Skills));
+        Assert.Same(pawn, prospect.Observed);
+        Assert.Equal(0.3, prospect.Health);
+        Assert.Equal(12, census.Colony.BestSkill["Shooting"]);
+        Assert.Equal(2, PopulationRules.PrisonerWorth(prospect, 0, census.Colony));
+    }
+
+    [Fact]
+    public void TraitWorthRequiresTheCatalogInsteadOfInventingZero()
+    {
+        var pawn = PawnFixtures.Row("p");
+        pawn = pawn with { Biography = pawn.Biography with { Traits = [new Obs.Trait { DefName = "Nervous", Degree = 1 }] } };
+        Assert.Throws<BridgeContractException>(() => PopulationDecoder.Decode(
+            Population with { Persons = [Person("p")] }, Pawns.Of(pawn), null));
     }
 
     [Theory]

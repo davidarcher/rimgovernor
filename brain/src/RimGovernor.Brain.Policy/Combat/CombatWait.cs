@@ -61,8 +61,12 @@ public static partial class CombatWaitRules
     }
 
     /// <summary>Reports a measured outdoor temperature at or past the cold or heat bound; a frame without colony facts never shelters.</summary>
-    internal static bool ExtremeWeather(CombatView view) =>
-        view.OutdoorTemperature is OutdoorTemperature.Measured { C: var t } && (t <= ExtremeColdC || t >= ExtremeHeatC);
+    internal static bool ExtremeWeather(CombatView view) => view.OutdoorTemperature switch
+    {
+        OutdoorTemperature.Measured(var t) => t <= ExtremeColdC || t >= ExtremeHeatC,
+        OutdoorTemperature.NoColonyFacts => false,
+        var invalid => throw new ArgumentOutOfRangeException(nameof(view), invalid, "Invalid outdoor temperature state."),
+    };
 
     /// <summary>
     /// Reports a fight whose live hostile pawns (at least one) are all known humanlike, with no pods arrival
@@ -147,7 +151,7 @@ public static partial class CombatWaitRules
             // A fight with no armed defender already shelters.
             return m;
         }
-        m = m with { Kiter = default, Leading = false, PotshotDoor = null, Intercept = false, Rushing = false, MechLure = false };
+        m = m with { Kiter = default, Leading = false, PotshotDoor = null, Intercept = false, Rushing = false, MechLure = false, Flank = null, Groups = [] };
         var inner = new List<Cell>();
         if (view.Layout is { } layout)
         {
@@ -162,7 +166,7 @@ public static partial class CombatWaitRules
         var roles = m.Roles.ToList();
         for (var i = 0; i < roles.Count; i++)
         {
-            var r = roles[i] with { Target = default, Duty = CombatDuty.None, Post = new CombatPost.Free(), Retreat = false };
+            var r = roles[i] with { Target = default, Duty = CombatDuty.None, Post = new CombatPost.Free(), Retreat = false, Fire = new RoleFire.Own() };
             if (inner.Count > 0)
             {
                 var k = CombatManhunterRules.NearestIndex(at.GetValueOrDefault(r.Pawn), inner);

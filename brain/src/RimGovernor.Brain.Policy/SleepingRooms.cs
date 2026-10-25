@@ -1,5 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>Catalog stat names, supplied through compiler-checked native definition members.</summary>
+public sealed record RoomQualityStatKeys(string Space, string Beauty, string Cleanliness, string Wealth, string Impressiveness);
+
 /// <summary>
 /// One row of the upkeep room census: a room holding a colonist bed or carrying a common role (DiningRoom,
 /// RecRoom), with its native quality stats. Beds lists the
@@ -8,14 +11,16 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record UpkeepRoom
 {
-    public required string Id { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.RoomState Native { get; init; }
+    public required RoomQualityStatKeys StatKeys { get; init; }
+    public string Id => Native.Id;
+    public RoomRole Role => Native.Role;
+    public int Cells => checked((int)Native.CellCount);
+    public RoomQuality Quality => new(Stat(StatKeys.Space), Stat(StatKeys.Beauty),
+        Stat(StatKeys.Cleanliness), Stat(StatKeys.Wealth), Stat(StatKeys.Impressiveness));
 
-    /// <summary>The native room role.</summary>
-    public required RoomRole Role { get; init; }
-
-    public required RoomQuality Quality { get; init; }
-
-    public required int Cells { get; init; }
+    private double Stat(string name) => Native.Stats.FirstOrDefault(stat => stat.DefName == name)?.Value
+        ?? throw new DomainException($"room {Native.Id} carries no {name} stat");
 
     public required EquatableArray<string> Beds { get; init; }
 }

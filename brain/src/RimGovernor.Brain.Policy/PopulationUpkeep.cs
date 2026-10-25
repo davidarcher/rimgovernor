@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Policy;
@@ -39,42 +40,19 @@ public sealed record PrisonerCensus
     public static PrisonerCensus Nobody { get; } = new() { Prisoners = [], Custody = [], Colony = new PrisonerColony(), Guests = [], Names = [] };
 }
 
-/// <summary>One pawn's native skill row. Passion is "None", "Minor" or "Major".</summary>
-public sealed record PrisonerSkill
-{
-    public string Name { get; init; } = "";
+/// <summary>The catalog-derived worth of a native trait's degree.</summary>
+public sealed record PrisonerTrait(double Worth);
 
-    public int Level { get; init; }
-
-    public string Passion { get; init; } = "";
-
-    public bool Disabled { get; init; }
-}
-
-/// <summary>One pawn's native trait row. Worth is the net worth of the degree (TraitBalance.Worth); zero when the read had no catalog to derive it.</summary>
-public sealed record PrisonerTrait
-{
-    public string Def { get; init; } = "";
-
-    public int Degree { get; init; }
-
-    public double Worth { get; init; }
-}
-
-/// <summary>The biography a prisoner's use is judged by. Health is SummaryHealthPercent, 0..1; Incapable lists the work types the pawn can never do.</summary>
+/// <summary>The native pawn whose biography and health determine recruitment worth.</summary>
 public sealed record PrisonerProspect
 {
-    public double Age { get; init; }
-
-    public double Health { get; init; }
-
-    public IReadOnlyList<PrisonerSkill> Skills { get; init; } = [];
-
+    public required O.PawnState Observed { get; init; }
+    public double Age => Observed.Biography.BiologicalAgeYears;
+    public double Health => Observed.Health.SummaryFraction;
+    public EquatableArray<O.Skill> Skills => Observed.Biography.Skills;
     public IReadOnlyList<PrisonerTrait> Traits { get; init; } = [];
-
-    public IReadOnlyList<string> Incapable { get; init; } = [];
+    public EquatableArray<string> Incapable => Observed.Biography.IncapableWorkTypes;
 }
-
 /// <summary>
 /// The colony side of the decision: the free colonists' best level per skill and the Ideology facts Enslave
 /// and Convert need.
@@ -145,55 +123,60 @@ public abstract record PrisonerHeldInteraction
 /// <summary>One observed colony prisoner's population census row.</summary>
 public sealed partial record PrisonerFacts
 {
-    public required PawnId Pawn { get; init; }
+    public required O.PopulationPerson Person { get; init; }
+    public required O.PawnState Observed { get; init; }
+    public required O.PersonCustody.Prisoner Held { get; init; }
+    public PawnId Pawn => Person.Pawn;
 
-    public required bool Dead { get; init; }
+    public bool Dead => Observed.Dead;
 
-    public required bool Recruitable { get; init; }
+    public bool Recruitable => Person.Recruitable;
 
     public required PrisonerHeldInteraction CurrentInteraction { get; init; }
 
     /// <summary>Native's remaining recruit resistance.</summary>
-    public required double Resistance { get; init; }
+    public double Resistance => Held.Resistance;
 
     /// <summary>The TimeAsPrisoner record, in ticks.</summary>
-    public required long HeldTicks { get; init; }
+    public long HeldTicks => Held.HeldTicks;
 
     /// <summary>The prisoner's ideoligion id, empty for none.</summary>
-    public string Ideo { get; init; } = "";
+    public string Ideo => Person.IdeoId ?? "";
 
     /// <summary>Bars Enslave.</summary>
-    public bool WildMan { get; init; }
+    public bool WildMan => Person.WildMan;
 
     public required PrisonerProspect Prospect { get; init; }
 
     // Organ harvest facts: the prisoner's operations and queued medical bills, its home faction's id (empty
     // for none) and the goodwill change vanilla's harvest violation would make with it (<= 0). MissingParts:
     // the prisoner's missing parts; removal must retain one leg.
-    public EquatableArray<MissingBodyPart> MissingParts { get; init; } = [];
+    public EquatableArray<MissingBodyPart> MissingParts => Surgery.MissingParts;
 
     public EquatableArray<CareOperation> Operations { get; init; } = [];
 
-    public int QueuedSurgeries { get; init; }
+    private O.PawnSurgery Surgery => Observed.Health.Surgery ?? throw new RequiredFactException("prisoner surgery");
 
-    public required int HarvestGoodwill { get; init; }
+    public int QueuedSurgeries => Surgery.SurgeryBills.Count;
+
+    public int HarvestGoodwill => Held.HarvestGoodwillChange;
 
     /// <summary>The prisoner's MedicalCareCategory.</summary>
-    public MedicalCare MedicalCare { get; init; }
+    public MedicalCare MedicalCare => Observed.Settings.Care is O.PawnCare.Configured care ? WorkRules.MedicalCareOf(care.MedicalCare) : throw new RequiredFactException("prisoner medical care settings");
 
     // Care cap inputs: conditions and life threat, the queued bills' recipes and an Execution interaction.
-    public EquatableArray<Hediff> Conditions { get; init; } = [];
+    public EquatableArray<Hediff> Conditions => Observed.Health.Hediffs;
 
-    public bool LifeThreatening { get; init; }
+    public bool LifeThreatening => Observed.Health.LifeThreatening;
 
-    public IReadOnlyList<string> QueuedRecipes { get; init; } = [];
+    public IReadOnlyList<string> QueuedRecipes => [.. Surgery.SurgeryBills.Where(b => b.Recipe.Length > 0).Select(b => b.Recipe)];
 
-    public bool Executing { get; init; }
+    public bool Executing => Held.Interaction == "Execution";
 
     /// <summary>The prisoner has a creepjoiner tracker; Kind is its PawnKindDef name.</summary>
-    public required bool CreepJoiner { get; init; }
+    public bool CreepJoiner => Observed.Anomaly is PawnAnomalyState.Active { Facts.Creepjoiner: not null };
 
-    public string Kind { get; init; } = "";
+    public string Kind => Observed.KindDefName;
 
     internal bool WorthRecruiting(PrisonerColony c) =>
         c.NamedPrisoners.Contains(Pawn) || PopulationRules.PrisonerWorth(Prospect, Resistance, c) >= PopulationRules.RecruitThreshold(c.Colonists);
@@ -234,14 +217,14 @@ public static partial class PopulationRules
             }
             switch (s.Passion)
             {
-                case "Major":
+                case RimGovernor.Contracts.Wire.Observations.Passion.Major:
                     score++;
                     break;
-                case "Minor":
+                case RimGovernor.Contracts.Wire.Observations.Passion.Minor:
                     score += 0.5;
                     break;
             }
-            var ok = c.BestSkill.TryGetValue(s.Name, out var best);
+            var ok = c.BestSkill.TryGetValue(s.DefName, out var best);
             if (s.Level >= 6 && (!ok || s.Level >= best + 3))
             {
                 score += 2;

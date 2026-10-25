@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -18,7 +17,7 @@ public sealed class CombatNeedTests
     private static RoundsResult Reviewed(Journal journal, GenerationSnapshot world, long hostiles, long tick, CancellationToken ct, FoodPlan? foodPlan = null) => journal.ReviewRounds(new()
     {
         Current = world, Tick = new(tick), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = journal.LoadRounds(ct).Revision,
-        Facts = WorkResourceTestFacts.Create("a", "b") with { Colonists = 2, Items = ItemFactsFixtureRules.CoreItemFacts(), Wealth = new(0, 0), Hostiles = HostileCensus.Of(hostiles), Tick = new(tick), FoodPlan = foodPlan },
+        Facts = WorkResourceTestFacts.Create("a", "b") with { Census = (WorkResourceTestFacts.Create("a", "b")).Census with { ColonistCount = 2, Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } }, Items = ItemFactsFixtureRules.CoreItemFacts(),  Hostiles = HostileCensus.Of(hostiles), Tick = new(tick), FoodPlan = foodPlan },
     }, ct);
 
     /// <summary>

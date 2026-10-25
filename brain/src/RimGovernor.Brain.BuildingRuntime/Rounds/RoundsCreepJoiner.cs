@@ -5,33 +5,30 @@ internal static class RoundsCreepJoiner
 {
     /// <summary>
     /// The creepjoiner work a census owes against the stored inspection record (#3264): weapon drops, inspections and
-    /// isolation moves while the colonist census is complete, and disarm orders for arrested creepjoiners. Owed is
-    /// unknown while the colonist census is incomplete and nothing is known owed.
+    /// isolation moves while the colonist census is complete, and disarm orders for arrested creepjoiners. The complete
+    /// colonist census is required before deriving any work.
     /// </summary>
-    internal static CreepJoinerWork CreepJoinerWorkOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
+    internal static CreepJoinerWork CreepJoinerWorkOf(ColonyReading facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
     {
-        var hands = CreepJoinerHands(frame);
+        var hands = CreepJoinerHands(frame) ?? throw new RequiredFactException("creepjoiner colonist census");
         var due = false;
         var work = new CreepJoinerWork();
-        if (hands is not null)
+        var defs = catalog ?? throw new ControlException("creepJoiner review: no definition catalog");
+        var downsides = defs.CreepJoinerDownsides();
+        var drops = downsides.WeaponDrops(hands);
+        due = drops.Count > 0;
+        var inspections = downsides.Inspections(hands, defs.SurgicalInspectionRecipes(), record);
+        if (inspections.Owed(record))
         {
-            var defs = catalog ?? throw new ControlException("creepJoiner review: no definition catalog");
-            var downsides = defs.CreepJoinerDownsides();
-            var drops = downsides.WeaponDrops(hands);
-            due = drops.Count > 0;
-            var inspections = downsides.Inspections(hands, defs.SurgicalInspectionRecipes(), record);
-            if (inspections.Owed(record))
-            {
-                due = true;
-            }
-            var projection = facts with { Isolation = CreepJoinerIsolation(facts, frame, catalog, record) };
-            var isolation = downsides.IsolationMoves(hands, inspections.Record, facts.Facts.IsolationArea, IsolationReady(projection));
-            if (isolation.Count > 0)
-            {
-                due = true;
-            }
-            work = work with { Drops = drops, Inspections = inspections, Isolation = isolation };
+            due = true;
         }
+        var projection = facts with { Facts = facts.Facts with { Isolation = CreepJoinerIsolation(facts, frame, catalog, record) } };
+        var isolation = downsides.IsolationMoves(hands, inspections.Record, facts.Facts.IsolationArea, IsolationReady(projection));
+        if (isolation.Count > 0)
+        {
+            due = true;
+        }
+        work = work with { Drops = drops, Inspections = inspections, Isolation = isolation };
         DisarmWork disarm;
         try
         {
@@ -47,7 +44,7 @@ internal static class RoundsCreepJoiner
         {
             due = true;
         }
-        return work with { Owed = due || hands is not null ? Known(due) : Unknown<bool>() };
+        return work with { Owed = due };
     }
 
     /// <summary>The hands of the colonists when the frame's pawn census is complete; null otherwise.</summary>
@@ -61,37 +58,19 @@ internal static class RoundsCreepJoiner
         return frame.Pawns.Pawns.Select(CreepJoinerHandOf).ToList();
     }
 
-    /// <summary>Lifts a combat-detail pawn row into the weapon drop's facts (the downside check's facts, whether the colonist can take an order, its weapon, surgery operations and bills, allowed area and hunger).</summary>
+    /// <summary>Retains the canonical colonist row and requires its weapon and living surgery reads.</summary>
     internal static CreepJoinerHand CreepJoinerHandOf(PbObservations.PawnState row)
     {
-        // A dead colonist has no surgery facts and no operations; a living census colonist always has them.
-        var surgery = row.Health.Surgery
-            ?? (row.Dead
-                ? new PbObservations.PawnSurgery { SurgeryBills = [], MissingParts = [], Operations = [] }
-                : throw BridgeContractException.Contract($"living colonist {row.Pawn.Id} without surgery facts"));
-        var hand = new CreepJoinerHand
-        {
-            Pawn = new PawnId(row.Pawn.Id ?? ""),
-            Facts = CreepJoinerFacts.CreepJoinerPawn(row),
-            Available = !row.Dead && !row.Downed && !row.Drafted && row.MentalState is null,
-            // An armed pawn's primary is always read (PawnEquipment.PrimaryId).
-            Weapon = row.Equipment.Armed
-                ? row.Equipment.PrimaryId ?? throw BridgeContractException.Contract($"armed colonist {row.Pawn.Id} without a primary id")
-                : null,
-            Operations = surgery.Operations,
-            QueuedSurgeries = surgery.SurgeryBills.Count,
-            QueuedRecipes = EquatableArray.From(SurgeryFactsRules.QueuedSurgeryRecipes(surgery)),
-            // An unset allowed area is an unrestricted pawn (native AllowedArea).
-            Area = row.Settings.AllowedAreaId ?? "",
-            // A pawn with no food need is never hungry.
-            Hungry = row.Needs.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food && food.Hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed,
-        };
+        var hand = new CreepJoinerHand { Observed = row };
+        // Validate required native reads before admitting this census into the review.
+        _ = hand.Surgery;
+        _ = hand.Weapon;
         return hand;
     }
 
-    internal static IsolationPlanning CreepJoinerIsolation(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
+    internal static IsolationPlanning CreepJoinerIsolation(ColonyReading facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
     {
-        var output = new IsolationPlanning { Beds = facts.Shapes.Furniture.SleepingBeds() };
+        var output = new IsolationPlanning { Beds = facts.Facts.Shapes.Furniture.SleepingBeds() };
         if (CreepJoinerHands(frame) is { } hands)
         {
             var defs = catalog ?? throw new ControlException("creepJoinerIsolation: no definition catalog");
@@ -101,13 +80,13 @@ internal static class RoundsCreepJoiner
     }
 
     /// <summary>
-    /// The isolation credit's creepjoiners (#3844): each one the projection holds apart (<see cref="ColonyProjection.Isolation"/>)
+    /// The isolation credit's creepjoiners (#3844): each one the projection holds apart (<see cref="ColonyReading.Isolation"/>)
     /// with the days since its tracker's joinedTick, and the catalog's downside table. Unknown while the held-apart census or
     /// the pawn rows are unread.
     /// </summary>
-    internal static CreepJoinerForecast CreepJoinerForecastOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog)
+    internal static CreepJoinerForecast CreepJoinerForecastOf(ColonyReading facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog)
     {
-        if (facts.Isolation.Pawns is not IsolationCensus.Counted { Held: var pawns } || frame.Pawns is null)
+        if (facts.Facts.Isolation.Pawns is not IsolationCensus.Counted { Held: var pawns } || frame.Pawns is null)
         {
             return new CreepJoinerForecast { Unread = "the held-apart creepjoiner census is unread" };
         }
@@ -135,7 +114,7 @@ internal static class RoundsCreepJoiner
     /// (<see cref="CreepJoinerDownsides.Revealed"/>), an unshown one with the days since its tracker's joinedTick and its kindDef.combatPower,
     /// and the catalog's downside table. Unread while the colonist census is incomplete.
     /// </summary>
-    internal static CreepJoinerHarmInputs CreepJoinerHarmOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog)
+    internal static CreepJoinerHarmInputs CreepJoinerHarmOf(ColonyReading facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog)
     {
         if (frame.Pawns is null || CreepJoinerHands(frame) is null)
         {
@@ -154,7 +133,7 @@ internal static class RoundsCreepJoiner
             }
             // The row's facts are all read, so whether the downside has shown is known (CreepJoinerDownsides.Revealed).
             var pawn = row.Pawn.Id ?? "";
-            if (downsides.Unrevealed(CreepJoinerFacts.CreepJoinerPawn(row)))
+            if (downsides.Unrevealed(row))
             {
                 unshown.Add(new UnshownCreepJoiner(pawn, Math.Max(0, now - tracker.JoinedTick) / (double)GameTime.TicksPerDay, tracker.CombatPower));
             }
@@ -166,10 +145,10 @@ internal static class RoundsCreepJoiner
         return new CreepJoinerHarmInputs { Unshown = EquatableArray.From(unshown), Shown = EquatableArray.From(shown), Table = unshown.Count > 0 ? defs.CreepJoinerDownsideTable() : new() };
     }
 
-    internal static bool IsolationReady(ColonyProjection facts)
+    internal static bool IsolationReady(ColonyReading facts)
     {
         var (need, owed) = RoundsSleepingUpkeepPlanner.IsolationRoomNeed(facts);
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
         var ground = RoundsBuildingPlanner.ColonyGround(facts);
         var census = facts.Facts.CurrentConstruction;

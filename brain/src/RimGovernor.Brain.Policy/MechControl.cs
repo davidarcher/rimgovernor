@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -46,36 +47,33 @@ public sealed record MechCatalog
 /// <summary>One colonist mechanitor. It is composed with forwarding members.</summary>
 public sealed record MechanitorInput
 {
-    public PawnId Id { get; init; }
-    public required PawnMechanitor Mechanitor { get; init; }
+    public required O.PawnState Observed { get; init; }
+    public PawnId Id => new(Observed.Pawn.Id);
+    public O.PawnMechanitor Mechanitor => Observed.Biotech is O.PawnBiotechState.Active { Facts.Mechanitor: { } mechanitor }
+        ? mechanitor : throw new RequiredFactException("mechanitor facts");
 
     public int UsedBandwidth => Mechanitor.UsedBandwidth;
     public int TotalBandwidth => Mechanitor.TotalBandwidth;
     public int ControlGroups => Mechanitor.ControlGroups;
 }
 
-/// <summary>One colony mech with its Biotech row. It is composed with forwarding members.</summary>
+/// <summary>One colony mech retaining its native pawn and Biotech records.</summary>
 public sealed record MechInput
 {
-    public PawnId Id { get; init; }
-    public string Kind { get; init; } = "";
-    public required PawnMech Mech { get; init; }
-
-    /// <summary>Where the mech stands: on the colony map, or unplaced (carried, in a caravan), which plans no guard order.</summary>
-    public required RimGovernor.Contracts.Wire.Observations.EntityPlace Place { get; init; }
-
-    public bool Downed { get; init; }
-    public bool Drafted { get; init; }
-
-    /// <summary>The pawn its current attack job targets, empty for none.</summary>
-    public PawnId Target { get; init; }
-
-    public string Overseer => Mech.Overseer;
+    public required O.PawnState Observed { get; init; }
+    public PawnId Id => new(Observed.Pawn.Id);
+    public string Kind => Observed.KindDefName;
+    public O.PawnMech Mech => Observed.Biotech is O.PawnBiotechState.Active { Facts.Mech: { } mech }
+        ? mech : throw new RequiredFactException("mech facts");
+    public O.EntityPlace Place => Observed.Pawn.Place;
+    public bool Downed => Observed.Downed;
+    public bool Drafted => Observed.Drafted;
+    public PawnId Target => new(Observed.Job.TargetA?.Target?.Entity?.Id ?? "");
+    public string Overseer => Mech.Overseer?.Id ?? "";
     public string? WorkMode => Mech.WorkMode;
-    public PawnMechGroup? Group => Mech.Group;
-    public MechEnergy Energy => Mech.Energy;
+    public O.PawnMechGroup? Group => Mech.Group;
+    public O.PawnMechEnergy Energy => Mech.Energy;
 }
-
 /// <summary>The colony's mechanitors and mechs as one read recorded them.</summary>
 public sealed record MechFleet
 {

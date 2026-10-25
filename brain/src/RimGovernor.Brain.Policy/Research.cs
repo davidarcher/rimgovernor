@@ -30,15 +30,10 @@ public readonly record struct ResearchProjectId(string Value) : IComparable<Rese
 }
 
 /// <summary>
-/// Mirrors the native research snapshot fields prerequisite_queue inspects for one project. A hidden project
-/// can never be treated as a selectable prerequisite. A knowledge-category project (Anomaly) is selectable
-/// like any other: it fills its category's knowledge slot instead of the ordinary one and progresses from
-/// study knowledge, not research work.
+/// Static project definition values used by planning. Native progress, locks and visibility belong to the research snapshot.
 /// </summary>
-public sealed record ResearchProjectFacts
+public sealed record ResearchProjectDefinition
 {
-    public bool Hidden { get; init; }
-
     public string KnowledgeCategory { get; init; } = "";
 
     public EquatableArray<ResearchProjectId> Prerequisites { get; init; }
@@ -52,26 +47,52 @@ public sealed record ResearchProjectFacts
     /// </summary>
     public EquatableArray<string> Unlocks { get; init; }
 
-    /// <summary>
-    /// The native census's CanStartNow predicates the project fails (prerequisite:name, techprints,
-    /// ResearchLockBench, ...), empty when it can start now.
-    /// </summary>
-    public EquatableArray<string> LockReasons { get; init; }
-
-    /// <summary>
-    /// Says the native census listed the project with its lock reasons: a project it does not list carries no lock
-    /// reasons, which is not startable.
-    /// </summary>
-    public bool Census { get; init; }
-
     /// <summary>The project's apparent cost (knowledge points for a knowledge-category project), from the definition catalog.</summary>
     public double Cost { get; init; }
 
     /// <summary>The project's tech level (ResearchProjectDef.techLevel), from the definition catalog.</summary>
     public TechLevel TechLevel { get; init; }
 
-    /// <summary>The native progress fraction of the cost already researched (0 to 1): a project the census does not list is unfinished with none, or finished.</summary>
-    public double Progress { get; init; }
+}
+
+/// <summary>A project's native row, or its absence from a filtered snapshot whose finished set remains total.</summary>
+public abstract record ResearchProjectObservation
+{
+    private ResearchProjectObservation() { }
+    public sealed record Listed(RimGovernor.Contracts.Wire.Observations.ResearchProject Project) : ResearchProjectObservation;
+    public sealed record NotListed(RimGovernor.Contracts.Wire.Observations.ResearchSnapshot Snapshot, string Project) : ResearchProjectObservation;
+}
+
+/// <summary>Catalog planning values joined to canonical native evidence without copying its fields.</summary>
+public sealed record ResearchProjectFacts
+{
+    public required ResearchProjectDefinition Definition { get; init; }
+    public required ResearchProjectObservation Observation { get; init; }
+    public string KnowledgeCategory => Definition.KnowledgeCategory;
+    public EquatableArray<ResearchProjectId> Prerequisites => Definition.Prerequisites;
+    public EquatableArray<ResearchProjectId> HiddenPrerequisites => Definition.HiddenPrerequisites;
+    public EquatableArray<string> Unlocks => Definition.Unlocks;
+    public double Cost => Definition.Cost;
+    public TechLevel TechLevel => Definition.TechLevel;
+    public bool Census => Observation switch
+    {
+        ResearchProjectObservation.Listed => true,
+        ResearchProjectObservation.NotListed => false,
+        var invalid => throw new ArgumentOutOfRangeException(nameof(Observation), invalid, "Invalid research observation."),
+    };
+    public EquatableArray<string> LockReasons => Observation switch
+    {
+        ResearchProjectObservation.Listed(var row) => row.LockReasons,
+        ResearchProjectObservation.NotListed => [],
+        var invalid => throw new ArgumentOutOfRangeException(nameof(Observation), invalid, "Invalid research observation."),
+    };
+    public bool Hidden => LockReasons.Contains(ResearchRules.ResearchLockHidden);
+    public double Progress => Observation switch
+    {
+        ResearchProjectObservation.Listed(var row) => row.ProgressFraction,
+        ResearchProjectObservation.NotListed(var snapshot, var project) => snapshot.Finished.Contains(project) ? 1 : 0,
+        var invalid => throw new ArgumentOutOfRangeException(nameof(Observation), invalid, "Invalid research observation."),
+    };
 }
 
 public static partial class ResearchRules

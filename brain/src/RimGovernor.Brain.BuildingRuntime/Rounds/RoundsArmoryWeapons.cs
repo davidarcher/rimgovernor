@@ -135,7 +135,7 @@ partial class RoundsArmoryPlanner
             var facts = catalog.WeaponOf(def);
             // A qualityless weapon counts as Normal.
             var quality = item.Quality is O.ItemQuality.Graded graded ? (int)graded.Category : (int)RimGovernor.Contracts.Wire.Defs.QualityCategory.Normal;
-            return new ArmoryPrimary { Definition = def, Ranged = facts.Ranged, Quality = quality, Facts = facts };
+            return new ArmoryPrimary { Ranged = facts.Ranged, Quality = quality, Facts = facts };
         }
         return null;
     }

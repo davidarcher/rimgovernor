@@ -54,7 +54,7 @@ public sealed record StagedThings(IReadOnlyList<string> Ids, IReadOnlyList<Stage
 }
 
 /// <summary>A staged turret gun: its damage per second and whether its power trader is on.</summary>
-public sealed record StagedGun(string Id, double Dps, bool Powered);
+public sealed record StagedGun(double Dps, bool Powered);
 
 /// <summary>A staged pawn's primary weapon kind.</summary>
 public enum StagedPrimary

@@ -126,7 +126,7 @@ public static partial class SleepingRules
             {
                 continue;
             }
-            if (old.ContainsKey(p.OwnedBed))
+            if (p.OwnedBed is { } ownedBed && old.ContainsKey(ownedBed))
             {
                 movers.Add(p);
             }
@@ -176,7 +176,7 @@ public static partial class SleepingRules
         }
         foreach (var p in movers)
         {
-            var previous = p.OwnedBed;
+            var previous = p.OwnedBed ?? throw new DomainException("bedroom mover owns no bed");
             if (vacant.TryGetValue(old[previous], out var ids))
             {
                 foreach (var id in ids)
@@ -190,7 +190,7 @@ public static partial class SleepingRules
         }
         foreach (var p in movers)
         {
-            var previous = p.OwnedBed;
+            var previous = p.OwnedBed ?? throw new DomainException("bedroom mover owns no bed");
             var role = old[previous];
             var candidates = new List<PlannedRoom>();
             if (empty.TryGetValue(role, out var e))

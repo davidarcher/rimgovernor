@@ -164,7 +164,7 @@ public static partial class SleepingRules
         {
             if (NextOpenBed(unhoused, free, beds, priced ? gains : null, null) is { } next)
             {
-                return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = next.Pawn.Id, Bed = next.Bed, PreviousBed = next.Pawn.OwnedBed, Unhoused = unhoused.Count };
+                return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = next.Pawn.Id, Bed = next.Bed, PreviousBed = next.Pawn.OwnedBed ?? "", Unhoused = unhoused.Count };
             }
         }
         var owed = OwedRoomsOf(plan, rooms, census.Spots);
@@ -303,7 +303,7 @@ public static partial class SleepingRules
         {
             var bed = p.OwnedBed;
             // A colonist with no bed is unhoused too: with nothing better buildable they get a bedroom shell and a spot.
-            if (bed == "")
+            if (bed is null)
             {
                 unhoused.Add(p);
                 continue;
@@ -517,7 +517,7 @@ public static partial class SleepingRules
         }
         foreach (var p in sleeping.People)
         {
-            if (p.OwnedBed == "")
+            if (p.OwnedBed is null)
             {
                 return needs;
             }

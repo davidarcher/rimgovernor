@@ -127,7 +127,7 @@ public static class ClothingDemandRules
                 Garments = f.Garments,
                 Items = f.Items,
                 Gear = f.Gear,
-                Stock = new StockReader { Resources = f.Resources, Wood = f.Wood },
+                Stock = new StockReader { Resources = f.ObservedStock(), Wood = f.WoodStock() },
                 GoalBills = f.WornBills,
                 Chosen = f.ClothingStuff,
             }
@@ -189,7 +189,8 @@ public static class ClothingDemandRules
         {
             if (s.Serviceable())
             {
-                spare[s.Definition] = spare.GetValueOrDefault(s.Definition) + s.Count;
+                var definition = new Resource(s.DefName);
+                spare[definition] = spare.GetValueOrDefault(definition) + s.Count;
             }
         }
 
@@ -270,16 +271,16 @@ public static class ClothingDemandRules
     }
 
     /// <summary>
-    /// The census row as the acquisition candidate of <paramref name="resource"/> prices it, null when it does
+    /// The yield priced by the acquisition candidate of <paramref name="resource"/> prices it, null when it does
     /// not serve it. A row serves a resource it names; a hunt serves a clothing-demanded stuff its animal's
     /// butchery yields (a deer's leather), at the leather's units: the hunt is one candidate whatever else it
     /// yields, its labor charged once.
     /// </summary>
-    public static AcquisitionSource? ResourceSourceFor(AcquisitionSource s, Resource resource, IReadOnlySet<Resource> clothing)
+    public static double? ResourceYieldFor(AcquisitionSource s, Resource resource, IReadOnlySet<Resource> clothing)
     {
         if (new Resource(s.Resource) == resource)
         {
-            return s;
+            return s.Yield;
         }
 
         if (!s.Hunt || !clothing.Contains(resource))
@@ -288,7 +289,7 @@ public static class ClothingDemandRules
         }
 
         var units = s.Products.Items.Where(p => p.Def == resource).Sum(p => p.Amount);
-        return units > 0 ? s with { Resource = resource.Value, Yield = units } : null;
+        return units > 0 ? units : null;
     }
 
     /// <summary>

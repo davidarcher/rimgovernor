@@ -1,7 +1,7 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -11,26 +11,15 @@ public sealed class FoodForageTests
 {
     private static readonly AcquisitionSource Berries = new()
     {
-        Id = "Plant_Berry1",
-        Resource = "RawBerries",
-        Token = "Plant_Berry1",
-        Definition = "Plant_Berry",
-        Cell = new Cell(10, 10),
-        Food = true,
-        Yield = 10,
+        Observed = new() { Source = new() { Id = "Plant_Berry1" }, Token = "Plant_Berry1", Resource = "RawBerries", Yield = 10, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Plant(true, 1, false) },
+        Entity = new() { Id = "Plant_Berry1", DefName = "Plant_Berry", Label = "berry bush", Place = new O.EntityPlace.OnMap(1, new Cell(10, 10)) },
         NutritionYield = 0.5,
     };
 
     private static readonly AcquisitionSource Deer = new()
     {
-        Id = "Deer1",
-        Resource = "Deer",
-        Token = "Deer1",
-        Definition = "Deer",
-        Cell = new Cell(30, 30),
-        Food = true,
-        Hunt = true,
-        Yield = 1,
+        Observed = new() { Source = new() { Id = "Deer1" }, Token = "Deer1", Resource = "Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = "Deer1", DefName = "Deer", Label = "deer", Place = new O.EntityPlace.OnMap(1, new Cell(30, 30)) },
         NutritionYield = 4.1,
     };
 

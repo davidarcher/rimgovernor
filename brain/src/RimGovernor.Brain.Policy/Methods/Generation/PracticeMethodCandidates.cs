@@ -89,7 +89,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         var trainees = new List<PracticeTrainee>();
         foreach (var pawn in pawns.OrderBy(p => p.Id.Value, StringComparer.Ordinal))
         {
-            if (pawn.Skills.FirstOrDefault(s => s.Name == skill)?.Learning is not { Practice: SkillPractice.Drill { Capable: true, Ceiling: var ceiling } } learning) continue;
+            if (pawn.Skills.FirstOrDefault(s => s.DefName == skill)?.Learning is not { Practice: SkillPractice.Drill { Capable: true, Ceiling: var ceiling } } learning) continue;
             // Ranged damage counts at full health in the defense capacity; melee power scales with it.
             var health = melee ? pawn.Health : 1d;
             if (pawn.SkillStatCurves.FirstOrDefault(c => c.Stat == stat && c.Skill == skill) is not { } curve)

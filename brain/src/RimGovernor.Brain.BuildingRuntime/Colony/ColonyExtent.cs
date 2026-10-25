@@ -6,7 +6,7 @@ public sealed partial class ClockScheduler
     /// <summary>Records the colony's extent from the held census at the review's tick.</summary>
     internal async Task EstablishExtentAsync(Tick tick, CancellationToken ct)
     {
-        if (!FactStore.TryGet<ColonyProjection>(_facts.Store, Section.Colony, out var held) || !held.Complete)
+        if (!FactStore.TryGet<ColonyReading>(_facts.Store, Section.Colony, out var held) || !held.Complete)
         {
             return;
         }
@@ -17,7 +17,7 @@ public sealed partial class ClockScheduler
             return;
         }
         var f = p.Facts;
-        var extent = ColonyExtentRules.DeriveColonyExtent(p.Bounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
+        var extent = ColonyExtentRules.DeriveColonyExtent(p.Facts.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage);
         if (extent is ExtentDerivation.Derived { Extent: var value })
         {
             // Cached evidence may predate a player's latest expansion. Record at this review's live tick so

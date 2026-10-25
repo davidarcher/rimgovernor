@@ -3,10 +3,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsResourcePlanner
 {
     /// <summary>Declares the production orders the resource targets owe, scoped to the economy/resource Need.</summary>
-    public Declared DeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public Declared DeclareOrders(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         InternalDeclareOrders(snapshot, projection, benches, ct).For(EconomyFamily.Resource.FilingKey.Value);
 
-    private Declared InternalDeclareOrders(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    private Declared InternalDeclareOrders(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var floors = new List<ResourceFloor>();
         foreach (var (resource, target) in reviewer.ResourceTargets(snapshot))
@@ -26,6 +26,6 @@ public sealed partial class RoundsResourcePlanner
             floors.Add(new ResourceFloor { Resource = resource, Target = target });
         }
 
-        return ResourceRules.DeclareResourceOrders(new ResourceOrderRequest { Floors = [.. floors], Stock = projection.Resources, Benches = [.. benches], Crafts = projection.Facts.Crafts });
+        return ResourceRules.DeclareResourceOrders(new ResourceOrderRequest { Floors = [.. floors], Stock = ResourceStockRules.Count(projection.Snapshot.Resources), Benches = [.. benches], Crafts = projection.Facts.Crafts });
     }
 }

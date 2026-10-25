@@ -80,8 +80,8 @@ The step then reads the file back through `RaidExposure` and prints what each ce
 ## Reader
 
 `RaidExposure.Load()` parses the embedded table once. `RaidExposure.HitsPerColonist(ratio, role)` returns a
-`Fact<HitRange>` (mean, low, high) with findings, so the ledger reads a range and never only a mean. The answer is
-unknown with `exposure_cell_uncalibrated:<bin>/<role>` for a cell under 20 trials, an absent cell, or a ratio outside the
+`ExposureReading.Calibrated` carrying a `HitRange` (mean, low, high) and findings, so the ledger reads a range and never only a mean.
+`ExposureReading.Uncalibrated` names `exposure_cell_uncalibrated:<bin>/<role>` for a cell under 20 trials, an absent cell, or a ratio outside the
 table (`outside`). `RaidExposure.DownRate` answers the down rate the same way. Every reading carries
 `exposure_layout_unassessed`: the defense layout is a reported key, not a table axis, in v1.
 

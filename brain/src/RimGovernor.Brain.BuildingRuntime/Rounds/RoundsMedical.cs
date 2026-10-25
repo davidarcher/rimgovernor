@@ -129,17 +129,17 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         return null;
     }
 
-    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         Task.FromResult(Declare(reviewer.Policy, projection, benches).For(MedicalRules.MedicalReservesNeed.FilingKey.Value));
 
     /// <summary>
     /// The reserves Need's medicine bill: while the stock is below the target bar, the stock-target bill
     /// <see cref="MedicalRules.SelectMedicineMethod"/> picks; nothing while it is met. The medicine catalog is required.
     /// </summary>
-    internal static Declared Declare(RoundsPolicy policy, ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    internal static Declared Declare(RoundsPolicy policy, ColonyReading projection, IReadOnlyList<GearBench> benches)
     {
         var f = projection.Facts;
-        var reserve = MedicalRules.MedicalReserveAtTarget(f.MedicalReserve with { Colonists = f.Colonists }, policy.Seasonal(f.Calendar, f.DisasterConditions).MedicalReserve);
+        var reserve = MedicalRules.MedicalReserveAtTarget(f.MedicalReserve with { Census = f.Census }, policy.Seasonal(f.Calendar, f.DisasterConditions).MedicalReserve);
 
         if (!reserve.Active)
         {
@@ -277,7 +277,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await reviewer.ObserveOwnedAsync(reviewer.Native, expected, claims, call).ConfigureAwait(false);
         var window = expected.Tick.Value / RoundsMedicalPlanner.AmputationRequeueTicks;
-        var pawns = read.Projection.Facts.MedicalPawns;
+        var pawns = read.Reading.Facts.MedicalPawns;
 
         foreach (var pawn in pawns.Where(pawn => pawn.Id == patient))
         {

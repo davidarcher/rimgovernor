@@ -31,7 +31,7 @@ public static class RoyaltyFactsRules
             }
             var key = new PawnId(pawn.Pawn.Id ?? "");
             holders[key] = row.Holdings;
-            psycasts[key] = EquatableArray.From(row.Psycasts.Select(cast => new KnownPsycast(psycast(cast.DefName), cast.CooldownRemainingTicks)));
+            psycasts[key] = EquatableArray.From(row.Psycasts.Select(cast => new KnownPsycast(psycast(cast.DefName), cast)));
             if (row.Psylink is { } link)
             {
                 casters[key] = link;

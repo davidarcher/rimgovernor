@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -124,7 +123,7 @@ public static class QuestCapacity
                     return result with { Reason = "gift_value_limit" };
                 }
                 long have = 0;
-                foreach (var amount in f.Resources)
+                foreach (var amount in f.ObservedStock())
                 {
                     if (amount.Resource == def)
                     {

@@ -12,9 +12,9 @@ namespace RimGovernor.Brain.Bridge;
 
 public sealed partial class DefinitionCatalog
 {
-    private Dictionary<string, P.ResearchProjectFacts> BuildResearchFacts()
+    private Dictionary<string, P.ResearchProjectDefinition> BuildResearchFacts()
     {
-        var facts = new Dictionary<string, P.ResearchProjectFacts>(StringComparer.Ordinal);
+        var facts = new Dictionary<string, P.ResearchProjectDefinition>(StringComparer.Ordinal);
         var unlocks = Unlocks();
         foreach (var row in Rows<ResearchProjectDef>().Values)
         {
@@ -31,7 +31,7 @@ public sealed partial class DefinitionCatalog
                 throw new CatalogException($"catalog knowledge project {name} lacks a finite cost");
             }
 
-            facts.Add(name, new P.ResearchProjectFacts
+            facts.Add(name, new P.ResearchProjectDefinition
             {
                 KnowledgeCategory = category,
                 Cost = cost,

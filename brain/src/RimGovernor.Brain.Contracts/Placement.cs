@@ -183,8 +183,8 @@ public sealed record PlacementRotation
     /// <summary>
     /// Evaluated rotation guarantees complete footprint and blocker scans.
     /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public required EquatableArray<Common.Cell> OccupiedCells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> OccupiedCells { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlacementBlocker>))]
     public required EquatableArray<PlacementBlocker> BlockingThings { get; init; }
@@ -200,8 +200,8 @@ public sealed record PlacementRotation
     /// none): the cell a worker must stand on, outside occupied_cells, which a
     /// later placement there would block.
     /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public required EquatableArray<Common.Cell> InteractionCells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> InteractionCells { get; init; }
 
     /// <summary>
     /// Wind turbines only: the cells of the native wind catch zone

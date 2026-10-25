@@ -20,7 +20,7 @@ internal static class LayoutFieldShrink
     /// Each crop's full field target in cells: a food crop's FieldTarget for the colony, haygrass for the pens'
     /// whole need, and the fixed social ceiling. A crop whose target is unknown is absent and never shrinks.
     /// </summary>
-    public static Dictionary<string, int> FieldTargets(ColonyProjection projection, FieldRequest field)
+    public static Dictionary<string, int> FieldTargets(ColonyReading projection, FieldRequest field)
     {
         var output = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var crop in field.Choices)
@@ -55,15 +55,15 @@ internal static class LayoutFieldShrink
     /// hysteresis band, and returns its largest zone. Crops with no positive target never shrink, and a zone
     /// never gives up its last cell. Other zones never move.
     /// </summary>
-    public static FieldShrink? PlanFieldShrink(ColonyProjection facts, IReadOnlyDictionary<string, int> targets)
+    public static FieldShrink? PlanFieldShrink(ColonyReading facts, IReadOnlyDictionary<string, int> targets)
     {
         var growing = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var f in facts.Farms)
+        foreach (var f in (facts.Tables.Zones ?? throw new RequiredFactException("zone census")).Zones.OfType<O.ZoneState.Growing>())
         {
             growing[f.Id] = f.Crop;
         }
         var zones = new Dictionary<string, HashSet<Cell>>(StringComparer.Ordinal);
-        foreach (var c in facts.Cells)
+        foreach (var c in facts.PlanningWindow.Cells)
         {
             if (c.ZoneId is { Length: > 0 } id && growing.ContainsKey(id))
             {
@@ -163,13 +163,13 @@ internal static class LayoutFieldShrink
 public sealed partial class RoundsFieldPlanner
 {
     /// <summary>Gives up one surplus zone's bare cells with remove-cells, committed directly like a grow. Returns null when nothing was shrunk (no surplus, no bare cell, the method already committed).</summary>
-    internal async Task<RoundsFieldResult?> ShrinkAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, FieldRequest field, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsFieldResult?> ShrinkAsync(ControlState state, NeedOwner goal, ColonyReading projection, RoundsReading read, FieldRequest field, CancellationToken call, CancellationToken epoch)
     {
         if (LayoutFieldShrink.PlanFieldShrink(projection, LayoutFieldShrink.FieldTargets(projection, field)) is not { } plan)
         {
             return null;
         }
-        var cells = LayoutFieldShrink.ShrinkCells(plan, LayoutFieldShrink.BareCells(projection.Cells, plan.Order));
+        var cells = LayoutFieldShrink.ShrinkCells(plan, LayoutFieldShrink.BareCells(projection.PlanningWindow.Cells, plan.Order));
         if (cells.Count == 0)
         {
             return null;

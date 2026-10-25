@@ -34,7 +34,7 @@ public sealed record FoodStorageObservation
     public EquatableArray<FoodStorageStock> Stocks { get; init; }
 
     /// <summary>The larder facts beside the census.</summary>
-    public FoodLarder Larder { get; init; } = new();
+    public FoodLarder Larder { get; init; } = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] };
 
     /// <summary>
     /// The storage temperature at or below which perishable stock counts as refrigerated: the catalog's

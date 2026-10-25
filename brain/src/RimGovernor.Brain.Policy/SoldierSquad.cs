@@ -59,11 +59,11 @@ public sealed record SoldierSquad
         var score = -1;
         foreach (var s in skills!)
         {
-            if (s.Disabled || (s.Name != "Shooting" && s.Name != "Melee"))
+            if (s.Disabled || (s.DefName != "Shooting" && s.DefName != "Melee"))
             {
                 continue;
             }
-            score = Math.Max(score, (s.Level * 3) + GearLoadoutRules.GearPassionRank(s.Passion));
+            score = Math.Max(score, (s.Level * 3) + GearLoadoutRules.GearPassionRank(WorkRules.PassionName(s.Passion)));
         }
         return (score, score >= 0, true);
     }

@@ -5,9 +5,9 @@ public sealed partial class JoinersRounds
     /// <summary>Hacks a quest target or holds a quest gift; not handled when neither is owed.</summary>
     internal (Verdict Verdict, bool Handled) AdmitIdeologyQuestWork(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
-        var f = read.Projection.Facts;
-        var hack = QuestHackPolicy.SelectQuestHack(f, read.Projection.Identity.Map);
-        var gift = QuestCapacity.SelectQuestGift(f, read.Projection.Identity.Map);
+        var f = read.Reading.Facts;
+        var hack = QuestHackPolicy.SelectQuestHack(f, read.Reading.Identity.Map);
+        var gift = QuestCapacity.SelectQuestGift(f, read.Reading.Identity.Map);
         if (hack.Reason != "")
         {
             reviewer.LogQuestSkip(new QuestSkip(hack.Quest, "", hack.Reason, ""), call);

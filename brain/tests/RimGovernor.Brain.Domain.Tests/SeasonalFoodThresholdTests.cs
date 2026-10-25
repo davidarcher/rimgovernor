@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Policy;
+using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,8 +13,10 @@ public sealed class SeasonalFoodThresholdTests
     private const double NonGrowing = 20;
 
 
-    private static readonly Calendar LastGrowingDay = new()
+    private static readonly O.FoodClimate LastGrowingDay = new()
     {
+        GrowingYear = EquatableArray.From(Enumerable.Range(0, CalendarRules.YearDays).Select(day => day == 0 || day > 20)),
+        SowingNow = true,
         Season = "Fall",
         DayOfYear = 39,
         GrowingDays = 40,
@@ -23,12 +25,16 @@ public sealed class SeasonalFoodThresholdTests
         NonGrowingDays = NonGrowing,
     };
 
-    private static RoundsPolicy Seasonal(Calendar calendar) => RoundsRules.DefaultRoundsPolicy().Seasonal(calendar, default(EquatableArray<DisasterCondition>));
+    private static RoundsPolicy Seasonal(O.FoodClimate calendar) => RoundsRules.DefaultRoundsPolicy().Seasonal(calendar, default(EquatableArray<DisasterCondition>));
 
     [Fact]
     public void ThresholdsDoNotJumpAtTheFrost()
     {
-        var firstNonGrowingDay = LastGrowingDay with { DayOfYear = 40, GrowingDaysRemaining = 0, GrowingDaysUntil = NonGrowing };
+        var firstNonGrowingDay = LastGrowingDay with
+        {
+            DayOfYear = 40, GrowingDaysRemaining = 0, GrowingDaysUntil = NonGrowing, SowingNow = false,
+            GrowingYear = EquatableArray.From(Enumerable.Range(0, CalendarRules.YearDays).Select(day => day >= 20)),
+        };
 
         var before = Seasonal(LastGrowingDay);
         var after = Seasonal(firstNonGrowingDay);
@@ -41,7 +47,11 @@ public sealed class SeasonalFoodThresholdTests
     [Fact]
     public void MidsummerPhasesTheGapIn()
     {
-        var midsummer = LastGrowingDay with { DayOfYear = 20, GrowingDaysRemaining = 20 };
+        var midsummer = LastGrowingDay with
+        {
+            DayOfYear = 20, GrowingDaysRemaining = 20,
+            GrowingYear = EquatableArray.From(Enumerable.Range(0, CalendarRules.YearDays).Select(day => day < 20 || day >= 40)),
+        };
 
         Assert.True(Seasonal(midsummer).FoodMinDays < Seasonal(LastGrowingDay).FoodMinDays);
     }

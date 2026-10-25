@@ -37,22 +37,22 @@ partial class Rounder
     /// The mech gestation facts of the review: the mechanitors and their controlled mechs, gestators, wastepacks
     /// and chargers. Null while the biotech census or the work pawns are unread.
     /// </summary>
-    internal static async Task<MechGestation?> MechGestationAsync(object native, C.Identity identity, ColonyProjection projection, CancellationToken call)
+    internal static async Task<MechGestation?> MechGestationAsync(object native, C.Identity identity, ColonyReading projection, CancellationToken call)
     {
-        var pawns = projection.WorkPawns.Pawns;
-        if (projection.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var colony })
+        var pawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
+        if (projection.Snapshot.Biotech is not PbObservations.BiotechSection.Active { Facts: var colony })
         {
             return null;
         }
-        var g = new MechGestation { Catalog = projection.MechCatalog };
+        var g = new MechGestation { Catalog = projection.Facts.MechCatalog };
         var ids = new List<string>();
         var mechanitors = new List<MechanitorInput>();
         foreach (var p in pawns)
         {
             if (p.Biotech is PawnBiotechStatus.Active { Facts.Mechanitor: { } m })
             {
-                mechanitors.Add(new MechanitorInput { Id = p.Id, Mechanitor = m });
-                ids.AddRange(m.ControlledMechs);
+                mechanitors.Add(new MechanitorInput { Observed = p.Observed });
+                ids.AddRange(m.ControlledMechs.Select(mech => mech.Id));
             }
         }
         if (ids.Count > 0)
@@ -67,7 +67,7 @@ partial class Rounder
         {
             g = g with { Coverage = roster };
         }
-        return g with { Mechanitors = mechanitors, Gestators = BiotechColonyReads.GestatorFacts(colony), Wastepacks = BiotechColonyReads.WastepackFacts(colony), Chargers = MechRules.MechChargersOf(colony) };
+        return g with { Mechanitors = mechanitors, Gestators = colony.Gestators, Wastepacks = colony.Wastepacks, Chargers = colony.Chargers };
     }
 
     /// <summary>The part benches with each recipe's mech kind carried over from the gear census.</summary>
@@ -136,17 +136,16 @@ partial class Rounder
                 // These rows feed part fabrication only, which never reads a recipe or a product as food.
                 benchRecipes.Add(new ProductionRecipe
                 {
-                    Name = recipe.Definition,
+                    Access = recipe.Access,
                     Food = new RecipeFood.NotFood(),
-                    Available = recipe.Available && recipe.AvailableOn,
-                    Products = [.. recipe.Products.Select(product => new ProductionProduct { Name = product.Value, Food = new ProductFood.NotFood() })],
+                    Products = [.. recipe.Products.Select(product => new ProductionProduct { Food = new ProductFood.CatalogProduct(product.Value) })],
                 });
             }
             foreach (var bill in gear.Bills)
             {
-                benchBills.Add(bill.Existing);
+                if (!bill.Spent) benchBills.Add(bill.Existing);
             }
-            output.Add(new ProductionBench { Id = gear.Id, Token = gear.Id, Usable = true, Recipes = benchRecipes, Bills = benchBills });
+            output.Add(new ProductionBench { Observed = gear.Observed, Use = new ProductionUse.Ordinary(), Recipes = benchRecipes, Bills = benchBills });
         }
         return output;
     }

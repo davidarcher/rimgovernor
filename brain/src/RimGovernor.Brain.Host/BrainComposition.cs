@@ -48,7 +48,7 @@ public sealed record SessionParts
 public sealed record PlayerNatives
 {
     /// <summary>The tick and status reads behind the cached controller snapshot.</summary>
-    public RimGovernor.Brain.Observation.ISource? Source { get; init; }
+    public RimGovernor.Brain.Bridge.Contracts.IObservationSource? Source { get; init; }
 
     public IPresentationReader? Presentation { get; init; }
 

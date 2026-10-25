@@ -12,18 +12,18 @@ public static partial class WealthBudgetRules
     /// may grow by that much, negative means shed it. Raid points are floored at 35. Missing, non-finite or
     /// negative inputs refuse the calculation.
     /// </summary>
-    public static double WealthBudget(double points, double capacity, WealthFacts wealth)
+    public static double WealthBudget(double points, double capacity, RimGovernor.Contracts.Wire.Observations.ThreatFacts wealth)
     {
         var strength = capacity;
         var w = wealth ?? throw new RequiredFactException("wealth");
-        if (!TradePolicyRules.Finite(points) || !TradePolicyRules.Finite(strength) || !TradePolicyRules.Finite(w!.Total) || points < 0 || strength < 0 || w.Total < 0)
+        if (!TradePolicyRules.Finite(points) || !TradePolicyRules.Finite(strength) || !TradePolicyRules.Finite(w.WealthTotal) || points < 0 || strength < 0 || w.WealthTotal < 0)
         {
             throw new RequiredFactException("finite nonnegative wealth budget inputs");
         }
         points = Math.Max(points, WealthBudgetMinRaidPoints);
-        return w.Total * (strength - points) / points;
+        return w.WealthTotal * (strength - points) / points;
     }
 
     /// <summary>The headroom from f's raid points, defense capacity and wealth.</summary>
-    public static double WealthBudget(this RoundsFacts f) => WealthBudget(f.RaidPoints, f.DefenseCapacity, f.Wealth);
+    public static double WealthBudget(this RoundsFacts f) => WealthBudget(f.Census.Threat.Observed.RaidPoints, f.DefenseCapacity, f.Census.Threat.Observed);
 }

@@ -16,7 +16,7 @@ internal sealed record FoodTrade
 public sealed partial class Rounder
 {
     /// <summary>Plans food into the projection and marks the traders the offer book has not priced.</summary>
-    internal void PlanFood(ref ColonyProjection p)
+    internal void PlanFood(ref ColonyReading p)
     {
         p = p with { Facts = p.Facts with { FoodPlan = FoodPlanOf(p) } };
         MarkUnpriced(ref p);
@@ -34,7 +34,7 @@ public sealed partial class Rounder
     /// The cached food plan for the projection; recomputed when the census generation, the offers, the seasonal thresholds
     /// or the observed identity moved, or a held formation hunt is due for release, so the release's re-comparison is never skipped.
     /// </summary>
-    internal FoodPlan FoodPlanOf(ColonyProjection p)
+    internal FoodPlan FoodPlanOf(ColonyReading p)
     {
         var s = Census;
         lock (s.Mu)
@@ -43,8 +43,8 @@ public sealed partial class Rounder
             var trade = FoodTradeOf(p);
             var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
             if (s.FoodPlanHeld is { } held && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
-                && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity)
-                && HuntAdmission.Release(huntRead, p.Acquisition, HuntHungry(p)).Length == 0)
+                && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && s.FoodIdentity is { } foodIdentity && RoundsCensus.SameObservedIdentity(foodIdentity, p.Identity)
+                && HuntAdmission.Release(huntRead, p.Facts.Acquisition, HuntHungry(p)).Length == 0)
             {
                 return held;
             }
@@ -78,15 +78,15 @@ public sealed partial class Rounder
         lock (s.Mu)
         {
             var id = s.FoodIdentity;
-            return id.Colony == world.Colony && id.Load == world.Load && id.Map == world.Map ? s.FoodPlanHeld : null;
+            return id is not null && id.Colony == world.Colony && id.Load == world.Load && id.Map == world.Map ? s.FoodPlanHeld : null;
         }
     }
 
-    internal FoodTrade FoodTradeOf(ColonyProjection p)
+    internal FoodTrade FoodTradeOf(ColonyReading p)
     {
         var traders = p.Facts.Traders;
         var silver = p.Facts.Silver();
-        var (reserve, rk) = TradePolicyRules.TradeSilverReserve(p.Facts.Colonists);
+        var (reserve, rk) = TradePolicyRules.TradeSilverReserve(p.Facts.Census.ColonistCount);
         var output = new FoodTrade { Revision = TradeOffers.Version() };
         if (rk)
         {
@@ -98,7 +98,7 @@ public sealed partial class Rounder
     }
 
     /// <summary>Marks the traders whose offers the book has not priced, so the plan does not count them as a channel.</summary>
-    internal void MarkUnpriced(ref ColonyProjection p)
+    internal void MarkUnpriced(ref ColonyReading p)
     {
         var traders = p.Facts.Traders;
         var silver = p.Facts.Silver();
@@ -118,25 +118,25 @@ public sealed partial class Rounder
 partial class Rounder
 {
     /// <summary>The colonists the projection reads too hungry to hunt (<see cref="HuntPlanningRules.Hungry"/>); none when the work census is unread.</summary>
-    private static IReadOnlySet<string> HuntHungry(ColonyProjection p) =>
-        HuntPlanningRules.Hungry(p.WorkPawns.Pawns.Items);
+    private static IReadOnlySet<string> HuntHungry(ColonyReading p) =>
+        HuntPlanningRules.Hungry(p.Facts.ForecastObserved.WorkPawns.Pawns.Items);
 
-    internal static FoodPlan ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, Action<HuntPlan, string>? onHunt = null)
+    internal static FoodPlan ReviewFoodPlan(ColonyReading p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, Action<HuntPlan, string>? onHunt = null)
     {
-        var supply = p.CombinedFoodSupply;
+        var supply = p.Facts.CombinedFoodSupply;
 
-        var sources = p.Acquisition;
+        var sources = p.Facts.Acquisition;
 
-        var workers = ResearchRules.RoundsWorkers(p.WorkPawns.Pawns);
+        var workers = ResearchRules.RoundsWorkers(p.Facts.ForecastObserved.WorkPawns.Pawns);
 
         var forecast = FoodForecastRules.ForecastFood(supply, null);
 
-        var human = p.FoodSupply;
+        var human = p.Facts.FoodSupply;
         forecast = forecast.GateOnColonists(FoodConsumerIds(human), thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodMinDays);
 
         var gunners = 0;
         var hunters = 0;
-        var pawns = p.WorkPawns.Pawns;
+        var pawns = p.Facts.ForecastObserved.WorkPawns.Pawns;
         {
             var profiles = PawnRules.Profiles(pawns);
             gunners = HuntSquadRules.ArmedHunters(profiles);
@@ -154,46 +154,33 @@ partial class Rounder
         var (formation, released) = hunt.Formation(huntPlan.Channel(sources), huntPlan, sources, huntRead, hungry);
         onHunt?.Invoke(huntPlan, released);
         channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, formation));
-        channels.AddRange(HuntPrerequisiteRules.HuntPrerequisiteCandidates(p.HuntHolds));
-        channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(p.DeliveryLedger.Kills, hunters, p.Identity.Tick.Value)).ToList();
+        channels.AddRange(HuntPrerequisiteRules.HuntPrerequisiteCandidates(p.Facts.HuntHolds));
+        channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(p.Snapshot.DeliveryLedger.Kills, hunters, p.Identity.Tick.Value)).ToList();
         var ids = human.Consumers.Select(c => c.Id).ToList();
-        if (HumanFoodPlanRules.HumanFoodChannel(p.ProductionBenches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.Ideology) is { } channel)
+        if (HumanFoodPlanRules.HumanFoodChannel(p.Facts.EssentialInputs.Benches, supply, ids, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays, p.Facts.Ideology) is { } channel)
         {
             channels.Add(channel);
         }
 
-        if (p.FoodChannels.FishableWater is { } water)
+        if (p.Facts.FoodChannels.FishableWater is { } water)
         {
-            var regions = water.Regions.Select(region => new FishingRegion
-            {
-                Id = FishingRules.FishingRegionId(region.Root),
-                Population = region.Population,
-                MaxPopulation = region.MaxPopulation,
-                NutritionPerFish = region.NutritionPerFish,
-                Crew = region.Crew,
-                Reachable = region.Reachable,
-                Frozen = region.Frozen,
-                Designated = region.Delivering,
-                Source = $"fish:{region.Root.X},{region.Root.Z}",
-                DistanceSquared = region.DistanceSquared,
-            }).ToList();
-            var request = new FishingRequest { Research = water.Research, Regions = regions };
+            var request = new FishingRequest { Research = water.Research, Regions = water.Regions };
             channels.AddRange(FishingRules.FishingChannels(request));
         }
 
-        channels.AddRange(FoodAnimalProductsRules.AnimalProductChannels(p.FoodChannels.Products));
+        channels.AddRange(FoodAnimalProductsRules.AnimalProductChannels(p.Facts.FoodChannels.Products));
 
         channels.AddRange(MealRules.StockIngredientChannels(supply));
-        var fields = p.FoodFields;
+        var fields = p.Facts.FoodFields;
         {
             channels.AddRange(FoodPlanRules.CropChannels(
                 fields,
-                new CropKitchen { Benches = p.ProductionBenches, Cooks = workers },
+                new CropKitchen { Benches = p.Facts.EssentialInputs.Benches, Cooks = workers },
                 new CropSeason { Calendar = p.Facts.Calendar, Conditions = p.Facts.DisasterConditions }));
         }
 
         var (field, _) = RoundsFieldPlanner.FieldRequestOf(p, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays);
-        channels.AddRange(FoodPlanRules.NewFieldChannels(field, new CropKitchen { Benches = p.ProductionBenches, Cooks = workers }));
+        channels.AddRange(FoodPlanRules.NewFieldChannels(field, new CropKitchen { Benches = p.Facts.EssentialInputs.Benches, Cooks = workers }));
         (CandidateKind Kind, string Id)[] supports = [(CandidateKind.Cook, "cooking-capacity"), (CandidateKind.Reserve, "stock-protection")];
         foreach (var support in supports)
         {
@@ -217,7 +204,7 @@ partial class Rounder
         if (plan.GapPerDay > 0)
         {
             var offers = new List<SupplyCandidate>();
-            offers.AddRange(AnimalFoodRules.SlaughterFoodChannels(p.FoodChannels.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPlans.HerdPolicyOf(p.Facts, plan)));
+            offers.AddRange(AnimalFoodRules.SlaughterFoodChannels(p.Facts.FoodChannels.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPlans.HerdPolicyOf(p.Facts, plan)));
 
             offers.AddRange(TradePolicyRules.TradeFoodChannels(trade.Offers, trade.Silver, trade.Reserve, plan.GapPerDay * plan.HorizonDays));
             var acquire = new AnimalAcquisition
@@ -263,9 +250,9 @@ partial class Rounder
         return plan with { Portfolio = portfolio };
     }
 
-    internal static CreditInput FoodCreditInput(ColonyProjection p, DeliveryCredit credit)
+    internal static CreditInput FoodCreditInput(ColonyReading p, DeliveryCredit credit)
     {
-        var ledger = p.DeliveryLedger;
+        var ledger = p.Snapshot.DeliveryLedger;
         var delivered = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var count in ledger.Counts)
         {
@@ -273,7 +260,7 @@ partial class Rounder
             delivered[k] = delivered.GetValueOrDefault(k) + count.Nutrition;
         }
 
-        delivered[HuntCreditRules.HuntSource] = credit.HuntDelivered(ledger.Kills, ledger.Butchers, p.CombinedFoodSupply.Stocks, true);
+        delivered[HuntCreditRules.HuntSource] = credit.HuntDelivered(ledger.Kills, ledger.Butchers, p.Facts.CombinedFoodSupply.Stocks, true);
         return new CreditInput { Tick = p.Identity.Tick, LoadToken = ledger.LoadToken, Delivered = delivered };
     }
 

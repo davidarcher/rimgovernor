@@ -28,7 +28,6 @@
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
     <!-- The in-process brain host (#3115): BrainBootstrap starts it. Its graph (Store carries native SQLite) is referenced directly, as Policy is, so each assembly is a project output beside the Bridge and not a recorded NuGet runtime dependency. -->
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
-   <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
     <ProjectReference Include="../../../../brain/src/RimGovernor.Brain.BuildingRuntime/RimGovernor.Brain.BuildingRuntime.csproj" />

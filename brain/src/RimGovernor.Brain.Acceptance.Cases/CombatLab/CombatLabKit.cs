@@ -50,7 +50,7 @@ internal static class CombatLabKit
     /// Sends one combat_orders batch through operations_apply and returns its per-order results; a refused or failed
     /// action, or a result count off the batch, fails the label.
     /// </summary>
-    internal static async Task<IReadOnlyList<Receipts.CombatOrderResult>> OrdersAsync(TypedSession s, string label, CancellationToken cancellationToken, params Operations.CombatOrder[] orders)
+    internal static async Task<IReadOnlyList<RimGovernor.Brain.Domain.CombatResult>> OrdersAsync(TypedSession s, string label, CancellationToken cancellationToken, params Operations.CombatOrder[] orders)
     {
         var reply = await s.CallAsync(label, NativeOps.Apply, new Operations.ApplyRequest
         {
@@ -79,11 +79,11 @@ internal static class CombatLabKit
     }
 
     /// <summary>Sends one order and returns its result.</summary>
-    internal static async Task<Receipts.CombatOrderResult> OrderAsync(TypedSession s, string label, string? pawn, Operations.CombatOrderOrder order, CancellationToken cancellationToken) =>
+    internal static async Task<RimGovernor.Brain.Domain.CombatResult> OrderAsync(TypedSession s, string label, string? pawn, Operations.CombatOrderOrder order, CancellationToken cancellationToken) =>
         (await OrdersAsync(s, label, cancellationToken, Order(pawn, order)).ConfigureAwait(false))[0];
 
     /// <summary>Checks an order applied (with <paramref name="job"/> when given).</summary>
-    internal static void Applied(string label, Receipts.CombatOrderResult r, string? job = null)
+    internal static void Applied(string label, RimGovernor.Brain.Domain.CombatResult r, string? job = null)
     {
         if (r.Applied != true || (job is not null && (r.JobDef ?? "") != job))
         {
@@ -92,7 +92,7 @@ internal static class CombatLabKit
     }
 
     /// <summary>Checks an order refused with <paramref name="reason"/>.</summary>
-    internal static void Refused(string label, Receipts.CombatOrderResult r, string reason)
+    internal static void Refused(string label, RimGovernor.Brain.Domain.CombatResult r, string reason)
     {
         if (r.Applied == true || r.Refusal != reason)
         {
@@ -131,7 +131,7 @@ internal static class CombatLabKit
     }
 
     /// <summary>The player building at <paramref name="cell"/> (a door, a mortar), from the production building read.</summary>
-    internal static async Task<Observations.BuildingState> BuildingAtAsync(TypedSession s, string label, Common.Cell cell, CancellationToken cancellationToken)
+    internal static async Task<Observations.BuildingState> BuildingAtAsync(TypedSession s, string label, RimGovernor.Brain.Domain.Cell cell, CancellationToken cancellationToken)
     {
         var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest(), cancellationToken).ConfigureAwait(false);
         return rows.FirstOrDefault(b => b.Building.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: var at } && at == cell)
@@ -158,10 +158,10 @@ internal static class CombatLabKit
     /// <summary>Load ids as a geometry request's hostile ids.</summary>
     internal static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.Domain.PawnId> PawnIds(IEnumerable<string> ids) => [.. ids.Select(id => new RimGovernor.Brain.Domain.PawnId(id))];
 
-    internal static string Show(Common.Cell? c) => c is null ? "<none>" : string.Create(CultureInfo.InvariantCulture, $"({c.X},{c.Z})");
+    internal static string Show(RimGovernor.Brain.Domain.Cell? c) => c is {} at ? string.Create(CultureInfo.InvariantCulture, $"({at.X},{at.Z})") : "<none>";
 
     /// <summary>The Chebyshev distance between two cells.</summary>
-    internal static int Chebyshev(Common.Cell a, Common.Cell b) =>
+    internal static int Chebyshev(RimGovernor.Brain.Domain.Cell a, RimGovernor.Brain.Domain.Cell b) =>
         Math.Max(Math.Abs(a.X - b.X), Math.Abs(a.Z - b.Z));
 
     /// <summary>A report object of the named values (a write-only summary; replies are read as typed records).</summary>
@@ -201,10 +201,10 @@ internal sealed class StagedLab
     public int Cz => _z + CombatLabKit.Half;
 
     /// <summary>The absolute cell at an offset from the fixture centre.</summary>
-    public Common.Cell Cell(int dx, int dz) => new() { X = Cx + dx, Z = Cz + dz };
+    public RimGovernor.Brain.Domain.Cell Cell(int dx, int dz) => new() { X = Cx + dx, Z = Cz + dz };
 
     /// <summary>The absolute cell of a fixture coordinate (a pawn's or a thing's X, Z).</summary>
-    public Common.Cell At(int x, int z) => new() { X = _x + x, Z = _z + z };
+    public RimGovernor.Brain.Domain.Cell At(int x, int z) => new() { X = _x + x, Z = _z + z };
 
     /// <summary>The staged pawn <paramref name="i"/> (fixture order).</summary>
     public Fx.StagedPawn Pawn(int i) => Staged.Pawns[LabFixture.PawnName(i)];
@@ -403,7 +403,7 @@ internal static class CombatGeometryContract
     /// <summary>A proposal's cells as a set.</summary>
     internal static HashSet<(int X, int Z)> Cells(IEnumerable<Mirror.CombatGeometryCell> rows) => [.. rows.Select(r => Key(r.Cell))];
 
-    internal static (int X, int Z) Key(Common.Cell? c) => (c?.X ?? 0, c?.Z ?? 0);
+    internal static (int X, int Z) Key(RimGovernor.Brain.Domain.Cell c) => (c.X, c.Z);
 
     private static void Lines(string label, Mirror.CombatGeometryCell row, Mirror.CombatGeometryRequest request, int i)
     {

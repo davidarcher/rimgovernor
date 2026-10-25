@@ -231,8 +231,8 @@ namespace HomeBridge.BridgeTools
             } : null,
         };
 
-        private static bool CellPresent([NotNullWhen(true)] Common.Cell? cell) => cell != null;
-        private static IntVec3 NativeCell(Common.Cell? cell) => new IntVec3(cell?.X ?? 0, 0, cell?.Z ?? 0);
+        private static bool CellPresent(RimGovernor.Brain.Domain.Cell cell) => cell.X >= 0 && cell.Z >= 0;
+        private static IntVec3 NativeCell(RimGovernor.Brain.Domain.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
     }
 }

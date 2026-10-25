@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -285,7 +284,7 @@ public static class QuestDecrees
                 continue;
             }
             var recipes = r.Recipes(objective);
-            var (bill, why) = PlanDecreeProduction(objective, recipes, r.Facts.Resources);
+            var (bill, why) = PlanDecreeProduction(objective, recipes, r.Facts.ObservedStock());
             switch (why)
             {
                 case "":

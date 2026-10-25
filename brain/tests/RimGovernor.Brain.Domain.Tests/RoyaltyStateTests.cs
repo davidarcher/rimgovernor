@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
@@ -48,7 +47,7 @@ public sealed class RoyaltyStateTests
     public void AnInactiveSectionIsTheInactiveStateAndReadsNoPawnRows()
     {
         // No pawn rows: the inactive section reads nothing, so it never asks for them.
-        Assert.IsType<RoyaltyState.Inactive>(ColonyProjection.RoyaltyOf(RoyaltySectionTests.NoRoyalty, null, Catalog));
+        Assert.IsType<RoyaltyState.Inactive>(ColonyPlanningReads.RoyaltyOf(RoyaltySectionTests.NoRoyalty, null, Catalog));
         // The rounds facts hold the Inactive state before the read.
         Assert.IsType<RoyaltyState.Inactive>(new RoundsFacts().Royalty);
     }

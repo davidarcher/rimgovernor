@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Common;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -33,8 +32,8 @@ public sealed class ForecastPortfolioChoiceTests
         var needs = facts.ForecastObserved.Needs!;
         facts = facts with
         {
-            Resources = EquatableArray.From(sources.GroupBy(s => s.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new(g.Key), g.Sum(s => s.Count)))),
-            WorkResources = roster.WorkResources,
+
+            Census = (facts.Census with { WorkResources = roster.Census.WorkResources }) with { Resources = EquatableArray.From((EquatableArray.From(sources.GroupBy(s => s.Resource).Select(g => new RimGovernor.Brain.Policy.Amount(new(g.Key), g.Sum(s => s.Count))))).Select(amount => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) },
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,

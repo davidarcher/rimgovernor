@@ -49,7 +49,12 @@ public sealed partial class HomeUpkeepReader
             return new HomeUpkeepFacts();
         }
         var review = _reviewer.Player.Journal.LoadRounds(call);
-        var expected = scope.Scope ?? DecodeReads.DecodeIdentity(await _native.IdentityAsync(call).ConfigureAwait(false));
+        var expected = scope.Scope;
+        if (expected is null)
+        {
+            var identity = await _native.IdentityAsync(call).ConfigureAwait(false);
+            expected = new ObservationIdentity { Context = identity.Context, Paused = identity.Paused };
+        }
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, scope.World, review.Tick))
         {
             throw new ControlException("home upkeep: the native boundary moved");
@@ -61,21 +66,21 @@ public sealed partial class HomeUpkeepReader
         var facts = new HomeUpkeepFacts();
         if (_repairs)
         {
-            facts = facts with { Structures = colony.Projection.Facts.Upkeep.Structures };
+            facts = facts with { Structures = colony.Facts.Upkeep.Structures };
         }
         if (!_clearance)
         {
             return facts;
         }
-        var ground = Rounder.PlannedGround(colony.Projection);
+        var ground = Rounder.PlannedGround(colony);
         var census = await _native.ReadClearanceAsync(expected, true, ground, call).ConfigureAwait(false);
-        var (others, player) = ClearanceGroundRules.SplitGroundRows(ClearanceReads.Targets(census).Concat(GroundBlueprints(colony.Projection) ?? []), colony.Projection.Facts.Preferences);
-        var wants = _reviewer.ClearFloors(colony.Projection);
+        var (others, player) = ClearanceGroundRules.SplitGroundRows(ClearanceReads.Targets(census).Concat(GroundBlueprints(colony) ?? []), colony.Facts.Preferences);
+        var wants = _reviewer.ClearFloors(colony);
         facts = facts with
         {
-            Clearance = new ClearanceCensus([.. others]) { Ground = [.. PlannedGroundWork(colony.Projection, player, census.Floors, wants)] },
+            Clearance = new ClearanceCensus([.. others]) { Ground = [.. PlannedGroundWork(colony, player, census.Floors, wants)] },
         };
-        var step = await RecoveryStepAsync(Boundary.Identity(scope.World), review.RecoveryQueue, others, colony.Projection, call).ConfigureAwait(false);
+        var step = await RecoveryStepAsync(Boundary.Identity(scope.World), review.RecoveryQueue, others, colony, call).ConfigureAwait(false);
         Func<PlanId, GroundStep, (string Prefix, IReadOnlyList<DomainAction> Actions)> method;
         if (step.Roof.Count > 0 || step.Targets.Count > 0)
         {
@@ -88,7 +93,7 @@ public sealed partial class HomeUpkeepReader
         }
         else
         {
-            var (planned, ok) = PlannedGroundStep(colony.Projection, StampPacking(player, colony.Projection), census.Floors, wants);
+            var (planned, ok) = PlannedGroundStep(colony, StampPacking(player, colony), census.Floors, wants);
             if (!ok)
             {
                 return facts;
@@ -123,26 +128,26 @@ partial class HomeUpkeepReader
             Floors = [.. step.Floors.Where(f => !f.Designated)],
         };
 
-    internal static (GroundStep Step, bool Ok) PlannedGroundStep(ColonyProjection colony, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, RoomFloors wants)
+    internal static (GroundStep Step, bool Ok) PlannedGroundStep(ColonyReading colony, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, RoomFloors wants)
     {
-        if (colony.LayoutPlan is not { } plan)
+        if (colony.Facts.LayoutPlan is not { } plan)
         {
             return (new GroundStep(), false);
         }
         var ground = RoundsBuildingPlanner.ColonyGround(colony);
-        var rooms = colony.Rooms;
+        var rooms = colony.Facts.Upkeep.Rooms;
         var planned = ClearanceReconcileRules.PlannedGroundStep(plan, ground, player, floors, rooms, Rounder.RetiredGroundOfColony(colony), wants);
         return planned is null ? (new GroundStep(), false) : (planned, true);
     }
 
-    internal static IReadOnlyList<string> PlannedGroundWork(ColonyProjection colony, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, RoomFloors wants)
+    internal static IReadOnlyList<string> PlannedGroundWork(ColonyReading colony, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, RoomFloors wants)
     {
-        if (colony.LayoutPlan is not { } plan)
+        if (colony.Facts.LayoutPlan is not { } plan)
         {
             return [];
         }
         var ground = RoundsBuildingPlanner.ColonyGround(colony);
-        var rooms = colony.Rooms;
+        var rooms = colony.Facts.Upkeep.Rooms;
         return ClearanceReconcileRules.PlannedGroundWork(plan, ground, player, floors, rooms, Rounder.RetiredGroundOfColony(colony), wants);
     }
 
@@ -151,7 +156,7 @@ partial class HomeUpkeepReader
     /// is one), so retired-ground clearance reads the blueprints from the construction census and cancels them. Null
     /// while that census is incomplete.
     /// </summary>
-    internal static List<ClearanceTarget>? GroundBlueprints(ColonyProjection colony)
+    internal static List<ClearanceTarget>? GroundBlueprints(ColonyReading colony)
     {
         var census = colony.Facts.CurrentConstruction;
         var sizes = Rounder.DefinitionSizes(colony);
@@ -177,14 +182,14 @@ partial class HomeUpkeepReader
     }
 
     /// <summary>Stamps the packable flag and the in-use flag (a bed with owners or a bench with an active bill) onto the rows.</summary>
-    internal static List<ClearanceTarget> StampPacking(IReadOnlyList<ClearanceTarget> rows, ColonyProjection colony)
+    internal static List<ClearanceTarget> StampPacking(IReadOnlyList<ClearanceTarget> rows, ColonyReading colony)
     {
         var inUse = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var bed in colony.Facts.Sleeping.Beds)
         {
             inUse[bed.Id] = (inUse.TryGetValue(bed.Id, out var was) && was) || bed.Owners.Count > 0;
         }
-        foreach (var bench in colony.ProductionBenches)
+        foreach (var bench in colony.Facts.EssentialInputs.Benches)
         {
             foreach (var bill in bench.Bills)
             {
@@ -199,7 +204,7 @@ partial class HomeUpkeepReader
         {
             output.Add(row with
             {
-                Packable = colony.Packable.Contains(row.DefName),
+                Packable = colony.Facts.Packable.Contains(row.DefName),
                 InUse = inUse.TryGetValue(row.EntityId, out var used) && used,
             });
         }

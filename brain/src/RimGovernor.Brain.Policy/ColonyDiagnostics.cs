@@ -3,11 +3,10 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The facts one projection reads. Observed diagnostics are separate from proposed inventory changes.</summary>
 public sealed record ColonyForecastFacts
 {
-    /// <summary>Complete observed resource census. An empty census means zero stock.</summary>
-    public EquatableArray<Amount> Stock { get; init; }
-    public EquatableArray<string> ResourceThings { get; init; }
+    private RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot? census;
+    public RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
 
-    public FoodSupply Food { get; init; } = new() { Larder = new() };
+    public FoodSupply Food { get; init; } = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } };
 
     /// <summary>The frame read no food census: Food stays empty and every food result of the projection is unknown.</summary>
     public bool FoodUnread { get; init; }

@@ -53,10 +53,10 @@ internal static class WallRemoval
         var cell = await CellAsync(s, "site-cell", target, cancellationToken).ConfigureAwait(false);
         s.Record("site_wall", target);
 
-        Operations.DesignateIntent Guarded(Common.Cell at, string expected) => new()
+        Operations.DesignateIntent Guarded(RimGovernor.Brain.Domain.Cell at, string expected) => new()
         {
             Designation = Operations.ThingDesignation.Deconstruct,
-            Cell = at,
+            Location = new Operations.DesignationLocation.At(at),
             Guard = Operations.DesignationGuard.WallUpgrade, ReplaceWithWall = false, Withdraw = false,
             Target = new() { Id = expected },
         };
@@ -76,7 +76,7 @@ internal static class WallRemoval
         }
 
         // Completed backups: granite walls in the three backup cells make the site demolition ready.
-        var backups = (await StageWallsAsync(s, "backups", site.BackupCells.Select(c => new Common.Cell { X = c.X, Z = c.Z }), cancellationToken).ConfigureAwait(false)).ToList();
+        var backups = (await StageWallsAsync(s, "backups", site.BackupCells.Select(c => new RimGovernor.Brain.Domain.Cell { X = c.X, Z = c.Z }), cancellationToken).ConfigureAwait(false)).ToList();
         var ready = await RowAsync("ready-census", target).ConfigureAwait(false);
         if (ready.CompletedBackups.Count != 3 || !string.IsNullOrEmpty(ready.Blocker) || ready.Designated == true)
         {
@@ -143,14 +143,14 @@ internal static class WallRemoval
     }
 
     /// <summary>The cell a building stands on, from the building census.</summary>
-    private static async Task<Common.Cell> CellAsync(TypedSession s, string label, string id, CancellationToken cancellationToken)
+    private static async Task<RimGovernor.Brain.Domain.Cell> CellAsync(TypedSession s, string label, string id, CancellationToken cancellationToken)
     {
         var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [id] }, cancellationToken).ConfigureAwait(false);
         return rows.FirstOrDefault(r => r.Building.Id == id)?.Building.Place is Observations.EntityPlace.OnMap { Cell: var at } ? at : throw new AcceptanceException($"{label}: {id} is not on the building census");
     }
 
     /// <summary>Stages finished player granite walls at absolute cells (clearing the leftovers there) and returns their ids in order.</summary>
-    private static async Task<IReadOnlyList<string>> StageWallsAsync(TypedSession s, string name, IEnumerable<Common.Cell> cells, CancellationToken cancellationToken)
+    private static async Task<IReadOnlyList<string>> StageWallsAsync(TypedSession s, string name, IEnumerable<RimGovernor.Brain.Domain.Cell> cells, CancellationToken cancellationToken)
     {
         var at = cells.Select(c => new Fx.StageCell(c.X, c.Z)).ToList();
         var reply = await s.StageAsync(name, new Fx.StageSpec

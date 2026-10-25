@@ -18,7 +18,7 @@ public sealed record HerdFurniture
 /// <summary>The next animal-bed step.</summary>
 public enum HerdStepKind
 {
-    /// <summary>Nothing is due, or a fact is unknown.</summary>
+    /// <summary>Nothing is due.</summary>
     [WireName("")]
     None = 0,
 
@@ -28,6 +28,10 @@ public enum HerdStepKind
     /// </summary>
     [WireName("reconcile")]
     Reconcile,
+
+    /// <summary>The native animal bed definition cannot currently furnish the ward.</summary>
+    [WireName("bed_unavailable")]
+    BedUnavailable,
 
     /// <summary>Flag Bed, a standing hospital ward bed, medical.</summary>
     [WireName("medical")]

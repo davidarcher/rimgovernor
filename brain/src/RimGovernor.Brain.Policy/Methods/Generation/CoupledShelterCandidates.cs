@@ -168,9 +168,9 @@ internal static class CoupledShelterCandidates
                     if (read.RoofRoutes.SingleOrDefault(r => r.Pawn == worker.Pawn && r.Cell == cell)?.Approach is not RoofApproach.Path path) continue;
                     options.Add(new(id, worker.Pawn, worker.RoofCellWorkTicks, 0) { SkillWork = worker.SkillWork });
                     routes.TryAdd((worker.Pawn, "start", location), new(worker.Pawn, "start", location, new RouteTicks.Reachable(path.Ticks)));
-                    bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work,
+                    bindings[(id, worker.Pawn)] = new CellActivityTaskCandidate(new ActivityTaskCandidate(id, worker.Pawn, [], PawnActivityKind.Work,
                         // One claim target per cell: a shared "roof" target made two pawns on different cells refuse each other at admission.
-                        "roof/" + cell.X + "/" + cell.Z, "BuildRoofs", "BuildRoof", 0, deadline, cell) { Destination = cell };
+                        "roof/" + cell.X + "/" + cell.Z, "BuildRoofs", "BuildRoof", 0, deadline, cell), cell);
                 }
                 groups.Add([id]); roofCells.Add([id]);
                 demands.Add(new("roof/" + id, supply.Resource, 1, location, ForecastRequirementKind.Reusable,

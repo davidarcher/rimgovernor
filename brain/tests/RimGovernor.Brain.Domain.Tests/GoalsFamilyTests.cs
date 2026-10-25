@@ -3,7 +3,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 using QuestStatus = RimGovernor.Contracts.Wire.Receipts.QuestStatus;
 
@@ -20,28 +19,27 @@ public sealed class GoalsFamilyTests
     private static GoalRecord Goal(int id, GoalKind kind, string target = "", int count = 0, string qualifier = "") =>
         new() { Id = id, Kind = kind, Target = target, Count = count, Qualifier = qualifier };
 
-    private static ResearchFacts Research(params string[] finished) => new()
-    {
-        Projects = [new("Smithing"), new("Electricity"), new("Stonecutting")],
-        Finished = [.. finished.Select(f => new ResearchProjectId(f))],
-    };
+    private static ResearchFacts Research(params string[] finished) => ResearchTestFacts.Read(["Smithing", "Electricity", "Stonecutting"], finished);
 
     private static GoalsFacts Facts(params GoalRecord[] goals) => new()
     {
         Goals = goals,
         Research = Research(),
-        Tier = Known(TechTier.Camp),
+        Tier = TechTier.Camp,
         Stock = [new Amount(new Resource("Steel"), 40)],
         Colonists = 5L,
-        Animals = EquatableArray.From<UpkeepAnimal>([new UpkeepAnimal { Definition = new Resource("Muffalo") }]),
+        Animals = EquatableArray.From<UpkeepAnimal>([AnimalFixtures.Owned("muffalo", "Muffalo")]),
     };
 
     private static Need Derive(GoalsFacts facts, GoalRecord goal) => Assert.Single(new GoalsFamily().Derive(facts), n => n.Id == GoalRules.NeedOf(goal));
 
     private static Ideoligion Ideo(bool fluid, params string[] precepts) => new(new IdeologyDefs { Precepts = new Dictionary<string, PreceptDef> { ["Slavery_Acceptable"] = new([]) } }, new IdeoligionFacts
     {
-        Precepts = [.. precepts.Select((p, i) => new HeldPrecept("p" + i, p))],
-        Development = new IdeoDevelopment(fluid, fluid, 0, 0, 0),
+        Observed = IdeologyReadsTests.NoPrecepts with
+        {
+            Precepts = [.. precepts.Select((p, i) => IdeologyTestRows.Precept("p" + i, p))],
+            Development = fluid ? new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid(true, 0, 0, 0) : new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fixed(),
+        },
     });
 
     [Fact]
@@ -79,18 +77,13 @@ public sealed class GoalsFamilyTests
         var facts = Facts(goal);
         Assert.Equal(["Electricity", "Stonecutting"], GoalRules.DemandOf(facts).Research);
         Assert.Equal((Satisfaction.Unmet, 2.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit));
-        Assert.Equal(Satisfaction.Met, Derive(facts with { Tier = Known(TechTier.Industrial) }, goal).Satisfaction);
-        Assert.Equal("tech tier", Assert.Throws<RequiredFactException>(() => Derive(facts with { Tier = default }, goal)).Fact);
+        Assert.Equal(Satisfaction.Met, Derive(facts with { Tier = TechTier.Industrial }, goal).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Derive(facts with { Tier = TechTier.Camp }, goal).Satisfaction);
     }
 
     private static GoalsFacts WithLevels(GoalsFacts facts, string[] finished, params (string Project, RimGovernor.Contracts.Wire.Defs.TechLevel Level)[] levels) => facts with
     {
-        Research = new ResearchFacts
-        {
-            Projects = [.. levels.Select(l => new ResearchProjectId(l.Project))],
-            Finished = [.. finished.Select(f => new ResearchProjectId(f))],
-            Levels = levels.ToDictionary(l => new ResearchProjectId(l.Project), l => l.Level),
-        },
+        Research = ResearchTestFacts.Read(finished: finished, levels: levels.ToDictionary(l => l.Project, l => l.Level)),
     };
 
     [Fact]
@@ -106,8 +99,8 @@ public sealed class GoalsFamilyTests
         Assert.Equal(["Electricity", "Fabrication", "Geothermal", "Machining", "Stonecutting"], GoalRules.DemandOf(facts).Research);
         Assert.DoesNotContain("Cryptosleep", GoalRules.DemandOf(facts).Research);
         Assert.DoesNotContain("Smithing", GoalRules.DemandOf(facts).Research);
-        Assert.Equal(Satisfaction.Met, Derive(facts with { Tier = Known(TechTier.Industrial) }, goal).Satisfaction);
-        Assert.Empty(GoalRules.DemandOf(facts with { Tier = Known(TechTier.Industrial) }).Research);
+        Assert.Equal(Satisfaction.Met, Derive(facts with { Tier = TechTier.Industrial }, goal).Satisfaction);
+        Assert.Empty(GoalRules.DemandOf(facts with { Tier = TechTier.Industrial }).Research);
     }
 
     [Fact]
@@ -186,7 +179,7 @@ public sealed class GoalsFamilyTests
         var goal = Goal(4, GoalKind.Animals, "Muffalo", 6);
         var facts = Facts(goal);
         Assert.Equal((Satisfaction.Unmet, 5.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit));
-        var applied = GoalRules.Apply(new RoundsFacts { Wealth = new(0, 0) }, GoalRules.DemandOf(facts));
+        var applied = GoalRules.Apply(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } } }, GoalRules.DemandOf(facts));
         Assert.Equal(new Dictionary<Resource, long> { [new Resource("Muffalo")] = 6 }, applied.AnimalGoals);
         Assert.Equal(applied.AnimalGoals, applied.HerdPlanInput().Goals);
     }
@@ -253,7 +246,7 @@ public sealed class GoalsFamilyTests
         QuestStateTests.Root("MechanoidSignal_" + cost, new QuestProfile { Family = QuestFamily.OdysseyGround, Cost = cost, Disposition = QuestDisposition.Decide });
 
     private static GoalsFacts QuestFacts(params RimGovernor.Contracts.Wire.Observations.QuestState[] offers) =>
-        new() { Rounds = QuestStateTests.WithQuests(new RoundsFacts { CurrentConstruction = CurrentConstruction.Empty }, offers, SignalRoot(QuestCost.Free), SignalRoot(QuestCost.Pawns)) };
+        new() { Rounds = QuestStateTests.WithQuests(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot(), CurrentConstruction = CurrentConstruction.Empty }, offers, SignalRoot(QuestCost.Free), SignalRoot(QuestCost.Pawns)) };
 
     [Fact]
     public void ANamedQuestIsConsideredFirstAndAcceptedWhenFeasible()

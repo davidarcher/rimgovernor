@@ -33,7 +33,7 @@ public sealed partial class LayoutRounds
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, call).ConfigureAwait(false);
-        var projection = read.Projection;
+        var projection = read.Reading;
         var owned = ConstructionOwnershipRules.OwnedConstructions(claims, projection.Facts.CurrentConstruction);
         var walls = FacilityUpkeepRules.ReviewStoneShell(owned, projection.Facts.Upkeep.Structures);
         var candidates = new List<string>();
@@ -85,11 +85,11 @@ public sealed partial class LayoutRounds
     /// the next candidate (no site, no material, unsupported backup geometry); any other outcome, admitted or
     /// refused, is this tick's final result: the first candidate whose bundle fully builds wins.
     /// </summary>
-    private async Task<(Verdict Verdict, bool Ok)> ProposeAsync(Sto.NeedOwner goal, ControlState state, Observation.RoundsReading read, string wall, CancellationToken call, CancellationToken epoch)
+    private async Task<(Verdict Verdict, bool Ok)> ProposeAsync(Sto.NeedOwner goal, ControlState state, RoundsReading read, string wall, CancellationToken call, CancellationToken epoch)
     {
         var none = (default(Verdict), false);
         var p = _reviewer.Player;
-        var projection = read.Projection;
+        var projection = read.Reading;
         var sites = await _stone!.ReadWallUpgradeSitesAsync(Boundary.Identity(state.Snapshot), wall, call).ConfigureAwait(false);
         GenerationSnapshot current;
         try
@@ -212,7 +212,7 @@ public sealed partial class LayoutRounds
         {
             throw new ControlException("propose: p.session.State() != state");
         }
-        Observation.Identity actual;
+        ObservationIdentity actual;
         try
         {
             actual = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
@@ -228,7 +228,7 @@ public sealed partial class LayoutRounds
         var now = _reviewer.Clock.Now();
         if (now < read.StartedAt || now - read.StartedAt > _reviewer.MaxAge)
         {
-            throw new Observation.ObservationStaleException();
+            throw new RimGovernor.Brain.Bridge.Contracts.ObservationStaleException();
         }
         var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new Sto.BuildingMethodRequest
         {
@@ -237,7 +237,7 @@ public sealed partial class LayoutRounds
             Plan = plan,
             Current = snapshot,
             Tick = projection.Identity.Tick,
-            Bounds = projection.Bounds,
+            Bounds = projection.Facts.MapBounds,
             Stock = stock,
             Previews = previews,
             Purpose = Pol.Purpose.Rounds,

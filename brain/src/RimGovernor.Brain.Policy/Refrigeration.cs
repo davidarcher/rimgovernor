@@ -25,29 +25,24 @@ public sealed record RefrigerationReview
 }
 
 /// <summary>
-/// One observed Cooler building: geometry and setpoint from the typed building read, power state from the same-tick
-/// power census. Cold is the cell behind the cooler (Position - facing), Hot the cell in front.
+/// One observed Cooler building: geometry and setpoint from the typed building read, power state from the same native building row. Cold is the cell behind the cooler (Position - facing), Hot the cell in front.
 /// </summary>
 public sealed record RefrigerationCooler
 {
-    public required string Id { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.BuildingState Observed { get; init; }
 
-    public required Cell Position { get; init; }
-
-    public required Rotation Rotation { get; init; }
-
-    /// <summary>The cooler's CompTempControl target temperature.</summary>
-    public required double Target { get; init; }
-
-    public required bool Connected { get; init; }
-
-    public required bool PowerOn { get; init; }
+    public string Id => Observed.Building.Id;
+    public Cell Position => Observed.Cell;
+    public Rotation Rotation => ConstructionOwnershipRules.BuildingOf(Observed, Observed.Building.DefName).Rotation;
+    public double Target => Observed.Settings.Control is RimGovernor.Contracts.Wire.Observations.BuildingControl.Temperature temperature
+        ? temperature.TargetC
+        : throw new RequiredFactException($"cooler {Id}: temperature control");
+    public bool Connected => Observed.Connected;
+    public bool PowerOn => Observed.Powered;
 
     public Cell Cold() => RefrigerationRules.ColdSide(Position, Rotation);
-
     public Cell Hot() => RefrigerationRules.HotSide(Position, Rotation);
 }
-
 public sealed record RefrigerationObservation
 {
     public required RoomObservation Rooms { get; init; }

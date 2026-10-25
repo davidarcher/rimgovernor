@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Bridge.Contracts;
 using Xunit;
 using O = RimGovernor.Contracts.Wire.Observations;
@@ -18,7 +18,8 @@ public sealed class ConstructionCensusTests
     {
         var row = new O.BuildingState
         {
-            Building = new O.EntityRef { Id = "frame", DefName = "Frame_Wall", Label = "wall (building)", Place = new O.EntityPlace.OnMap(0, new C.Cell { X = 1, Z = 1 }) },
+            Roofed = false, RainVulnerable = false, FuelDefinitions = [], Turret = null, Conduit = O.ConduitKind.None,
+            Building = new O.EntityRef { Id = "frame", DefName = "Frame_Wall", Label = "wall (building)", Place = new O.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 }) },
             Rotation = RimGovernor.Contracts.Wire.Placement.Rotation.North,
             Stuff = null,
             Faction = null,
@@ -36,11 +37,13 @@ public sealed class ConstructionCensusTests
             Service = BuildingServiceWire.NoService,
             Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
             Burning = false,
-            Occupied = new O.Rectangle { Minimum = new C.Cell { X = 1, Z = 1 }, Maximum = new C.Cell { X = 1, Z = 1 } },
+            Occupied = new O.Rectangle { Minimum = new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 }, Maximum = new RimGovernor.Brain.Domain.Cell { X = 1, Z = 1 } },
             Anomaly = null,
             Door = null,
         };
         var observed = ConstructionReads.ConstructionFromTables(new(Buildings.Of(row), Pawns.Of(), Things.Of(), []));
+        Assert.Same(row, observed.Sites[0].Observed);
+        Assert.Same(row.Construction, observed.Sites[0].Construction);
         Assert.Equal("TestBuilding", observed.Sites[0].Building!.Definition);
         Assert.Equal(7, observed.Deficit[Material]);
         Assert.False(observed.Sites[0].ResourcesComplete);
@@ -55,6 +58,8 @@ public sealed class ConstructionCensusTests
             },
         };
         var gatedSite = ConstructionReads.ConstructionFromTables(new(Buildings.Of(gated), Pawns.Of(), Things.Of(), [])).Sites[0];
+        Assert.Same(gated, gatedSite.Observed);
+        Assert.Same(((O.ConstructionState.Build)gated.Construction).Minimum, gatedSite.Minimum);
         Assert.Equal(new O.FinishingMinimum { Skill = 6, EligibleFinishers = 2 }, gatedSite.Minimum);
         Assert.Equal(ConstructionTier.Sustain, Assert.IsType<O.ConstructionGate.Tiered>(gatedSite.Gate).Tier);
         var missing = row with { Construction = null };

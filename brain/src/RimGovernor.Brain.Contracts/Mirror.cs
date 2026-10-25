@@ -106,7 +106,7 @@ public sealed record CombatPawn
 
     public required CombatSide Side { get; init; }
 
-    public required Common.Cell Cell { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Cell { get; init; }
 
     public required bool Downed { get; init; }
 
@@ -218,7 +218,7 @@ public sealed record CarriedDrugs
 /// </summary>
 public sealed record CombatDoorRow
 {
-    public required Common.Cell Cell { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Cell { get; init; }
 }
 
 /// <summary>
@@ -231,7 +231,7 @@ public sealed record CombatMortarRow
     /// </summary>
     public required string Id { get; init; }
 
-    public required Common.Cell Cell { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Cell { get; init; }
 
     public required float MinRange { get; init; }
 
@@ -293,8 +293,8 @@ public sealed record PodLanding
 {
     public required int OpenTick { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public required EquatableArray<Common.Cell> LandingCells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> LandingCells { get; init; }
 }
 
 /// <summary>
@@ -312,8 +312,8 @@ public sealed record CombatGeometryRequest
     /// 1..cap distinct, in-bounds cells; 0..cap-1 with a propose block (named plus proposed cells together score at
     /// most the cells cap).
     /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public required EquatableArray<Common.Cell> Cells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> Cells { get; init; }
 
     /// <summary>1..cap distinct pawn load ids; 0..cap for named cells alone (their standability), with no propose.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
@@ -346,17 +346,17 @@ public abstract record CombatGeometryPropose
     public sealed record CoverBehindLine : CombatGeometryPropose
     {
         /// <summary>1..cells cap, distinct.</summary>
-        [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-        public required EquatableArray<Common.Cell> Line { get; init; }
+        [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+        public required EquatableArray<RimGovernor.Brain.Domain.Cell> Line { get; init; }
     }
 
     /// <summary>The choke's 8-way neighbours strictly nearer our_side than the choke; ranked by distance to our_side.</summary>
     public sealed record AdjacentToChoke : CombatGeometryPropose
     {
-        public required Common.Cell Choke { get; init; }
+        public required RimGovernor.Brain.Domain.Cell Choke { get; init; }
 
         /// <summary>Any cell on our side, distinct from the choke.</summary>
-        public required Common.Cell OurSide { get; init; }
+        public required RimGovernor.Brain.Domain.Cell OurSide { get; init; }
     }
 
     /// <summary>
@@ -366,10 +366,10 @@ public abstract record CombatGeometryPropose
     public sealed record FiringCells : CombatGeometryPropose
     {
         /// <summary>1..hostiles cap, distinct.</summary>
-        [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-        public required EquatableArray<Common.Cell> Targets { get; init; }
+        [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+        public required EquatableArray<RimGovernor.Brain.Domain.Cell> Targets { get; init; }
 
-        public required Common.Cell From { get; init; }
+        public required RimGovernor.Brain.Domain.Cell From { get; init; }
 
         /// <summary>1..12.</summary>
         public required int Radius { get; init; }
@@ -387,7 +387,7 @@ public abstract record CombatGeometryPropose
         public required PawnId Pawn { get; init; }
 
         /// <summary>The downed pawn's cell.</summary>
-        public required Common.Cell To { get; init; }
+        public required RimGovernor.Brain.Domain.Cell To { get; init; }
     }
 }
 
@@ -422,7 +422,7 @@ public sealed record CombatSightLine
 
 public sealed record CombatGeometryCell
 {
-    public required Common.Cell Cell { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Cell { get; init; }
 
     /// <summary>
     /// request hostile order

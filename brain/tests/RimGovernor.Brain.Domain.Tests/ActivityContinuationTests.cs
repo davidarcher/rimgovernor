@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Bridge.Contracts;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -63,7 +62,7 @@ public sealed class ActivityContinuationTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Open(ct);
         var delivery = new SelectedActivityTask("delivery", "helper", [],
-            new(PawnActivityKind.Deliver, "observed-output", "", "", 6, 500) { Destination = new(2, 2) },
+            new PawnActivityStep(PawnActivityKind.Deliver, "observed-output", "", "", 6, 500).At(new(2, 2)),
             new(1, 1), 100)
         {
             Resource = "Rice", Source = new(1, 1),
@@ -153,7 +152,7 @@ public sealed class ActivityContinuationTests
         var initial = Plan("initial", Batch);
         Admit(journal, initial, ct);
         var next = Plan("next", Batch with { Orders = [Order with { ExpectedRevision = 1, Revision = 2,
-            Steps = [new(PawnActivityKind.Deliver, "fresh-observed-stack", "", "", 2, 600) { Destination = new Cell(3, 4) }] }] });
+            Steps = [new PawnActivityStep(PawnActivityKind.Deliver, "fresh-observed-stack", "", "", 2, 600).At(new Cell(3, 4))] }] });
         Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row()], next, ct));
         Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed") with { Revision = 2 }], next, ct));
         Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root with { Load = new("other") }, new(110), [Row("completed")], next, ct));
@@ -191,7 +190,7 @@ public sealed class ActivityContinuationTests
         // No progress row yet: unlisted, so the activity is neither released nor productively continued.
         Assert.Equal(ActivityNeed.Unlisted, Assert.Single(journal.ActivityMethods(Root, ct)).Needed);
         var next = Plan("need-next", Batch with { Orders = [Order with { ExpectedRevision = 1, Revision = 2,
-            Steps = [new(PawnActivityKind.Deliver, "fresh-observed-stack", "", "", 2, 600) { Destination = new Cell(3, 4) }] }] });
+            Steps = [new PawnActivityStep(PawnActivityKind.Deliver, "fresh-observed-stack", "", "", 2, 600).At(new Cell(3, 4))] }] });
         Assert.Throws<ConflictException>(() => journal.ContinueActivityMethod(initial.Id, Root, new(110), [Row("completed")], next, ct));
 
         void File(bool met) => journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(),

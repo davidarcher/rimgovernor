@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using System.Buffers;
 using System.Text.Json;
@@ -13,7 +14,7 @@ public sealed class PolicyDefaultsTests
     [Fact]
     public void ResourceDemandRequiresConstructionCensus()
     {
-        var f = new RoundsFacts { Gear = ColonyModelFixtures.NoGear() };
+        var f = new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot(), Gear = ColonyModelFixtures.NoGear() };
         Assert.NotNull(f.ResourceNeeds);
         Assert.Throws<RequiredFactException>(() => ResourceRules.ResourceDemandOf(f, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches()));
         var demand = ResourceRules.ResourceDemandOf(f with { CurrentConstruction = CurrentConstruction.Empty }, RoundsRules.DefaultRoundsPolicy(), new RoundsLatches());
@@ -37,8 +38,8 @@ public sealed class PolicyDefaultsTests
     [Fact]
     public void AnAbsentRecordSurvivesTheJournalCodec()
     {
-        var mech = new PawnMech { Overseer = "", WorkMode = null, Energy = new MechEnergy.NoEnergyNeed(), Group = null };
-        var biotech = new PawnBiotech { DevelopmentalStage = default, Genes = [], Mechanitor = null, Mech = mech, Deathrest = null };
+        var mech = new O.PawnMech { Overseer = null, WorkMode = null, Energy = new O.PawnMechEnergy.NoEnergyNeed(), Group = null };
+        var biotech = new PawnBiotech { Observed = new O.PawnBiotech { DevelopmentalStage = default, Genes = [], Mechanitor = null, Mech = mech, Deathrest = null } };
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
         {
@@ -46,7 +47,7 @@ public sealed class PolicyDefaultsTests
         }
         using var doc = JsonDocument.Parse(buffer.WrittenMemory);
         var back = Codecs.Default.Read<PawnBiotech>(doc.RootElement);
-        Assert.Equal(biotech with { Genes = back.Genes, Effects = back.Effects, WorkMinAges = back.WorkMinAges }, back);
+        Assert.Equal(biotech with { Effects = back.Effects, WorkMinAges = back.WorkMinAges }, back);
         Assert.Empty(back.Effects.Stats);
         Assert.Empty(back.Effects.DisabledNeeds);
         Assert.Empty(back.Effects.EnabledNeeds);

@@ -5,7 +5,6 @@ using RimGovernor.Brain.Telemetry.Otlp;
 using RimGovernor.Contracts.Wire.Common;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 

@@ -30,7 +30,7 @@ public sealed partial class GoalsRounds
     {
         var started = _reviewer.Clock.Now();
         var read = await BiotechRounds.StepReadingAsync(_reviewer, work, call).ConfigureAwait(false);
-        var f = read.Projection;
+        var f = read.Reading;
         var standing = GoalRules.BuiltOf(f.Facts, goal.Target);
         if (standing >= goal.Count)
         {
@@ -40,9 +40,9 @@ public sealed partial class GoalsRounds
         {
             return FieldUnavailable("definition_catalog");
         }
-        read = read.WithProjection(f.AddDefinitions(read.Frame, read.Catalog, [goal.Target]));
-        f = read.Projection;
-        var defs = f.Definitions.Where(d => d.Name == goal.Target && d.Available).ToList();
+        read = read.WithReading(ColonyPlanningReads.AddDefinitions(f, read.Frame, read.Catalog, [goal.Target]));
+        f = read.Reading;
+        var defs = f.Facts.Definitions.Where(d => d.Name == goal.Target && d.Available).ToList();
         if (defs.Count == 0)
         {
             return FieldUnavailable(goal.Target + "_definition");
@@ -64,15 +64,15 @@ public sealed partial class GoalsRounds
         IEnumerable<Rectangle> sites;
         if (placer == BuiltPlacer.Geothermal)
         {
-            sites = GeyserSites(f.PowerPlanning.Geysers, f.Center(), size);
+            sites = GeyserSites(f.Facts.EssentialInputs.Power.Geysers, f.Facts.LayoutPlan?.Center(), size);
         }
         else
         {
-            if (f.Center() is not { } center)
+            if (f.Facts.LayoutPlan?.Center() is not { } center)
             {
                 return BuildingReasonNoLayoutPlan;
             }
-            sites = FreeSitesRules.FreeSites(new FreeSiteRequest { Bounds = f.Bounds, Anchor = center, Cells = f.Cells, Light = f.LightTerrains }, size.Width, size.Height);
+            sites = FreeSitesRules.FreeSites(new FreeSiteRequest { Bounds = f.Facts.MapBounds, Anchor = center, Cells = f.PlanningWindow.Cells, Light = f.Facts.LightTerrains }, size.Width, size.Height);
         }
         var verdict = await BiotechRounds.PlaceAsync(_reviewer, _building, work, f, goal.Target, method, size, sites, SiteTries, started, call).ConfigureAwait(false);
         return verdict ?? NoSpace(placer == BuiltPlacer.Geothermal ? "geyser" : "beacon_cell");

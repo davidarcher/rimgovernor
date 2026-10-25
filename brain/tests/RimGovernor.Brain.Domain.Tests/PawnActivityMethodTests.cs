@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Bridge.Contracts;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -20,8 +19,7 @@ public sealed class PawnActivityMethodTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-support-method-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var world = Owner(journal, ct);
         var step = kind == "delivery"
-            ? new PawnActivityStep(PawnActivityKind.Deliver, "input", "", "", 1, 500)
-                { SupportDemand = "bill:bill:material", Container = "bench", Destination = new(1, 1) }
+            ? new PawnActivityStep(PawnActivityKind.Deliver, "input", "", "", 1, 500) { SupportDemand = "bill:bill:material", Container = "bench" }.At(new(1, 1))
             : new PawnActivityStep(PawnActivityKind.Work, "patient", "Doctor", kind == "tend" ? "TendPatient" : "DoBill", 0, 500)
                 { SupportDemand = kind + ":patient:bill", Medicine = "input", Recipe = kind == "surgery"
                     ? new("bill", "operation", [new("input", 1)]) { Resource = "Rice" } : null };
@@ -50,7 +48,7 @@ public sealed class PawnActivityMethodTests
 
     private static PawnActivityOrder Order(string pawn = "pawn", string method = "food-method", bool release = false) =>
         new(pawn, "assignment-" + pawn, method, 0, 1, release, release ? [] :
-            [new(PawnActivityKind.Deliver, "observed-stack-" + pawn, "", "", 2, 500) { Destination = new Cell(pawn == "helper" ? 12 : 10, 11) }]);
+            [new PawnActivityStep(PawnActivityKind.Deliver, "observed-stack-" + pawn, "", "", 2, 500).At(new Cell(pawn == "helper" ? 12 : 10, 11))]);
 
     private static DomainAction Action(string id, params PawnActivityOrder[] orders) =>
         DomainAction.NewPawnActivitiesAction(new ActionId(id), new PawnActivities(1, orders));

@@ -3,7 +3,6 @@ using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -196,12 +195,12 @@ public sealed class LayoutFamilyTests
     public void TheRoutesNeedReadsTheCensusFreshWithNoLatch()
     {
         var composed = new LayoutNeeds { Routes = true };
-        RoutesObservation Census(bool reachable, string pending = "") => new()
+        RimGovernor.Contracts.Wire.Observations.RoutesFacts Census(bool reachable, string pending = "") => new()
         {
-            Pawns = ["a"],
+            PawnIds = ["a"], Traffic = [], TrafficSamples = 0,
             Facilities = [new() { Id = "store", Kind = RouteFacilityKind.Storage, Cell = new(4, 4), Travel = [reachable ? new RouteTravel.Measured { Pawn = "a", Cost = 30, Cells = 12 } : new RouteTravel.Unreachable { Pawn = "a" }], Breaches = [] }],
         };
-        LayoutFacts Facts(RoutesObservation census) =>
+        LayoutFacts Facts(RimGovernor.Contracts.Wire.Observations.RoutesFacts census) =>
             new() { Routes = LayoutFamily.RoutesStandingOf(census, RoomTestFacts.NoRooms, RoundsRules.DefaultRoundsPolicy()) };
 
         var unmet = Single(composed, Facts(Census(reachable: false)));

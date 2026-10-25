@@ -10,7 +10,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal async Task<RoundsDefenseLayoutResult> AdmitAsync(NeedOwner goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, DefenseTierRecord tier, List<Building> buildings, MethodId key, DefensePipeline pipe, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        var projection = read.Projection;
+        var projection = read.Reading;
         var id = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
         var actions = new List<DomainAction>();
@@ -19,8 +19,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var unfloorable = new HashSet<Cell>();
         var placed = 0;
         var candidates = new List<DomainAction>(buildings.Count);
-        var promoted = DefensePromoted(read.Projection);
-        var roamer = DefenseRoamerOwned(read.Projection);
+        var promoted = DefensePromoted(read.Reading);
+        var roamer = DefenseRoamerOwned(read.Reading);
         for (var i = 0; i < buildings.Count; i++)
         {
             candidates.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), buildings[i], DefenseTier.DefenseBuildTier(promoted, LayoutPerimeterSitesRules.IsCorePerimeterTier(tier.Name), roamer)));
@@ -128,7 +128,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             throw DefenseControlErr(358);
         }
-        if (!pipe.Scoped)
+        if (pipe.Scope is null)
         {
             try
             {
@@ -138,9 +138,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 throw DefenseControlErr(366);
             }
-            pipe.Scoped = true;
         }
-        var actual = pipe.Scope;
+        var actual = pipe.Scope ?? throw DefenseControlErr(366);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(actual, state.Snapshot, projection.Identity.Tick))
         {
             throw DefenseControlErr(366);
@@ -148,7 +147,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var now = _reviewer.Clock.Now();
         if (now < read.StartedAt || now - read.StartedAt > _reviewer.MaxAge)
         {
-            throw new Observation.ObservationStaleException();
+            throw new RimGovernor.Brain.Bridge.Contracts.ObservationStaleException();
         }
         var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new BuildingMethodRequest
         {
@@ -157,7 +156,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             Plan = plan,
             Current = snapshot,
             Tick = projection.Identity.Tick,
-            Bounds = projection.Bounds,
+            Bounds = projection.Facts.MapBounds,
             Stock = stock,
             Previews = previews,
             Purpose = Pol.Purpose.Defense,
@@ -229,9 +228,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return (preview, true);
     }
 
-    internal static string DefensePerimeterBridge(ColonyProjection projection)
+    internal static string DefensePerimeterBridge(ColonyReading projection)
     {
-        if (projection.Facts.Research is { } research && research.Finished.Contains(new ResearchProjectId(LayoutDefenseRules.PerimeterHeavyResearch)))
+        if (projection.Facts.Research.Finished.Contains(new ResearchProjectId(LayoutDefenseRules.PerimeterHeavyResearch)))
         {
             return LayoutDefenseRules.PerimeterHeavyBridge;
         }
@@ -257,9 +256,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         definition == DefenseDefinitionNames.Floor || definition == LayoutDefenseRules.PerimeterBridge || definition == LayoutDefenseRules.PerimeterHeavyBridge;
 
     /// <summary>The stone block resource with the most stock, when it covers the stone the buildings need.</summary>
-    internal static (string Stuff, bool Ok) DefensePerimeterStone(ColonyProjection projection, IReadOnlyList<Building> buildings)
+    internal static (string Stuff, bool Ok) DefensePerimeterStone(ColonyReading projection, IReadOnlyList<Building> buildings)
     {
-        var stock = projection.Resources;
+        var stock = ResourceStockRules.Count(projection.Snapshot.Resources);
         long need = 0;
         foreach (var b in buildings)
         {
@@ -283,13 +282,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return (best, best != "" && most >= need);
     }
 
-    internal static (DefenseKillbox Killbox, BridgeCellRect Region, Cell Home, bool Ok) DefenseKillbox(ColonyProjection projection)
+    internal static (DefenseKillbox Killbox, BridgeCellRect Region, Cell Home, bool Ok) DefenseKillbox(ColonyReading projection)
     {
-        if (projection.LayoutPlan is not { } plan)
+        if (projection.Facts.LayoutPlan is not { } plan)
         {
             return (new DefenseKillbox(), new BridgeCellRect(), default, false);
         }
-        var (k, region, home, ok) = LayoutPlan.LayoutKillbox(plan, projection.Bounds);
+        var (k, region, home, ok) = LayoutPlan.LayoutKillbox(plan, projection.Facts.MapBounds);
         if (!ok)
         {
             return (new DefenseKillbox(), new BridgeCellRect(), default, false);
@@ -398,11 +397,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
     internal static DefenseRequest DefenseIedRequest(RoundsReading read, DefenseRequest request)
     {
-        var projection = read.Projection;
-        request = request with { IEDMax = DefenseIEDs.IEDBudget(RaidDefense.Of(projection.Facts), projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets), IEDStock = projection.Resources };
+        var projection = read.Reading;
+        request = request with { IEDMax = DefenseIEDs.IEDBudget(RaidDefense.Of(projection.Facts), projection.Facts.EssentialInputs.Power.Buildings.Where(b => b.Turret is not null).ToArray(), projection.Facts.GoalBuild.Turrets), IEDStock = ResourceStockRules.Count(projection.Snapshot.Resources) };
         var ieds = new List<DefenseIED>();
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(request.UnitCosts, StringComparer.Ordinal);
-        foreach (var d in projection.Definitions)
+        foreach (var d in projection.Facts.Definitions)
         {
             if (d.Name != DefenseIedHighExplosive && d.Name != DefenseIedIncendiary)
             {
@@ -429,7 +428,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var stockpiles = zones.Value.Zones.OfType<O.ZoneState.Stockpile>().Select(row => row.Id).ToHashSet(StringComparer.Ordinal);
         var storage = new List<Cell>();
-        foreach (var cell in projection.Cells)
+        foreach (var cell in projection.PlanningWindow.Cells)
         {
             if (cell.ZoneId is { } id && stockpiles.Contains(id))
             {
@@ -474,9 +473,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
     }
 
-    internal async Task<IReadOnlyList<O.DefenseCell>> DefenseSiteAsync(C.Identity identity, ColonyProjection projection, BridgeCellRect region, CancellationToken call)
+    internal async Task<IReadOnlyList<O.DefenseCell>> DefenseSiteAsync(C.Identity identity, ColonyReading projection, BridgeCellRect region, CancellationToken call)
     {
         var catalog = await RoundsEquipPawn.PawnCatalogAsync(_native, identity, call).ConfigureAwait(false) ?? throw new ControlException("defense site: no definition catalog");
-        return catalog.DefenseSiteFromCells(projection.Cells, projection.Bounds, region);
+        return catalog.DefenseSiteFromCells(projection.PlanningWindow.Cells, projection.Facts.MapBounds, region);
     }
 }

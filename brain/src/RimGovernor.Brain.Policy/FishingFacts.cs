@@ -1,36 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A fishable water cell with whether any available fisher can reach it, and its squared distance to the colony centre.</summary>
-public sealed record FishingCell
-{
-    public Cell Cell { get; init; }
-
-    public bool Reachable { get; init; }
-
-    public double DistanceSquared { get; init; }
-}
-
-/// <summary>A fishing zone touching a water body.</summary>
-public sealed record FishingZoneState(bool Allowed, bool DoForever, bool HasFishableCells);
-
-/// <summary>The raw native facts of the Fishing project.</summary>
-public sealed record FishingResearchInputs
-{
-    public bool Researched { get; init; }
-
-    public double BaseCost { get; init; }
-
-    public double Progress { get; init; }
-
-    public double CostFactor { get; init; }
-
-    public IReadOnlyList<double> ResearcherSpeeds { get; init; } = [];
-
-    public double PointsPerWorkTick { get; init; }
-
-    public double Difficulty { get; init; }
-}
-
 /// <summary>
 /// The Fishing project: researched, pending with the days the fastest researcher needs to finish it, or without
 /// progress (no researcher, or the pace is not a finite positive rate).
@@ -59,8 +28,6 @@ public abstract record FishingCrew
     public sealed record Fishers(double FishPerBatch, double WorkTicksPerBatch, double CapacityPerDay) : FishingCrew;
 }
 
-/// <summary>One available fisher's native rates.</summary>
-public sealed record Fisher(double Yield, double Speed);
 
 public static class FishingFactsRules
 {
@@ -72,7 +39,7 @@ public static class FishingFactsRules
     /// flood fill from the cell nearest the colony centre (ties by x then z), at most one cell per available
     /// fisher. It is access capacity, never a population or yield multiplier.
     /// </summary>
-    public static IReadOnlyList<Cell> FishingFootprint(IReadOnlyList<FishingCell> cells, int fishers)
+    public static IReadOnlyList<Cell> FishingFootprint(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.FishableCell> cells, int fishers)
     {
         var free = cells.Where(c => c.Reachable).ToList();
         if (free.Count == 0 || fishers <= 0)
@@ -110,15 +77,15 @@ public static class FishingFactsRules
         reaches && (zoned || footprint >= fishers);
 
     /// <summary>The observed zone state: some zone is allowed, fishes forever and has fishable cells.</summary>
-    public static bool FishingDelivering(IReadOnlyList<FishingZoneState> zones) => zones.Any(z => z.Allowed && z.DoForever && z.HasFishableCells);
+    public static bool FishingDelivering(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.FishingZoneFacts> zones) => zones.Any(z => z.Allowed && z.DoForever && z.HasFishableCells);
 
     /// <summary>
     /// Researched, or pending with the remaining project cost over the fastest researcher's daily points; no
     /// progress without a researcher or when that pace is not a finite positive rate.
     /// </summary>
-    public static FishingResearch FishingResearchState(FishingResearchInputs input)
+    public static FishingResearch FishingResearchState(RimGovernor.Contracts.Wire.Observations.FishableWater input)
     {
-        if (input.Researched)
+        if (input.FishingResearched)
         {
             return new FishingResearch.Researched();
         }
@@ -127,7 +94,7 @@ public static class FishingFactsRules
         {
             speed = Math.Max(speed, s);
         }
-        var lead = Math.Max(0, input.BaseCost - input.Progress) * input.CostFactor / (speed * input.PointsPerWorkTick * FishingWorkTicksPerDay * input.Difficulty);
+        var lead = Math.Max(0, input.ResearchBaseCost - input.ResearchProgress) * input.ResearchCostFactor / (speed * input.ResearchPointsPerWorkTick * FishingWorkTicksPerDay * input.ResearchDifficultySpeedFactor);
         return speed > 0 && FoodForecastRules.FoodNumber(lead) ? new FishingResearch.Pending(lead) : new FishingResearch.NoProgress();
     }
 
@@ -136,9 +103,9 @@ public static class FishingFactsRules
     /// FishingYield, at least one fish; the base duration over the lowest FishingSpeed), and per fisher a day of
     /// batches at the population's yield as raw nutrition. A fisher with zero speed does not work.
     /// </summary>
-    public static FishingCrew FishingCrewAt(IReadOnlyList<Fisher> fishers, double yieldCurve, double nutritionPerFish, double baseTicks)
+    public static FishingCrew FishingCrewAt(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.FisherFacts> fishers, double yieldCurve, double nutritionPerFish, double baseTicks)
     {
-        var working = fishers.Where(f => f.Speed > 0).ToList();
+        var working = fishers.Where(f => f.FishingSpeed > 0).ToList();
         if (working.Count == 0 || !(baseTicks > 0))
         {
             return new FishingCrew.NoFisher();
@@ -146,9 +113,9 @@ public static class FishingFactsRules
         var sum = 0.0;
         foreach (var f in working)
         {
-            sum += FishingWorkTicksPerDay * Math.Max(1, Math.Round(yieldCurve * f.Yield, MidpointRounding.ToEven)) * nutritionPerFish * f.Speed / baseTicks;
+            sum += FishingWorkTicksPerDay * Math.Max(1, Math.Round(yieldCurve * f.FishingYield, MidpointRounding.ToEven)) * nutritionPerFish * f.FishingSpeed / baseTicks;
         }
-        var batch = Math.Max(1, Math.Round(yieldCurve * working.Min(f => f.Yield), MidpointRounding.ToEven));
-        return new FishingCrew.Fishers(batch, baseTicks / working.Min(f => f.Speed), sum);
+        var batch = Math.Max(1, Math.Round(yieldCurve * working.Min(f => f.FishingYield), MidpointRounding.ToEven));
+        return new FishingCrew.Fishers(batch, baseTicks / working.Min(f => f.FishingSpeed), sum);
     }
 }

@@ -95,8 +95,8 @@ internal static class FarmBlight
 
     private static Observations.Rectangle Rect(int minX, int minZ, int maxX, int maxZ) => new()
     {
-        Minimum = new Common.Cell { X = minX, Z = minZ },
-        Maximum = new Common.Cell { X = maxX, Z = maxZ },
+        Minimum = new RimGovernor.Brain.Domain.Cell { X = minX, Z = minZ },
+        Maximum = new RimGovernor.Brain.Domain.Cell { X = maxX, Z = maxZ },
     };
 
     private static async Task<Observations.CellsSnapshot> ReadAsync(TypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)

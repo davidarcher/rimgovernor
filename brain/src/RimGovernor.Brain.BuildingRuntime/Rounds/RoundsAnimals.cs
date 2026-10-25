@@ -51,12 +51,12 @@ public sealed class AnimalsReader
         }
         var started = _reviewer.Clock.Now();
         var (_, reading) = await ReadingAsync(scope, call).ConfigureAwait(false);
-        var projection = reading.Projection;
+        var projection = reading.Reading;
         var f = projection.Facts;
         var handlers = projection.Facts.WorkProfiles;
         var uncontained = AnimalUpkeepRules.ReviewAnimalUpkeep(f.AnimalUpkeep).Containment;
-        var (pen, penKnown) = RoundsHerdRooms.PenStepOf(projection);
-        var (ward, wardKnown) = RoundsHerdRooms.WardStepOf(projection);
+        var pen = RoundsHerdRooms.PenStepOf(projection);
+        var ward = RoundsHerdRooms.WardStepOf(projection);
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
         {
@@ -71,8 +71,8 @@ public sealed class AnimalsReader
             FoodPlan = f.FoodPlan,
             Handlers = handlers,
             Uncontained = uncontained,
-            Pen = penKnown ? Known(pen) : Unknown<HerdStep>(),
-            Ward = wardKnown ? Known(ward) : Unknown<HerdStep>(),
+            Pen = pen,
+            Ward = ward,
             WardRoom = f.AnimalWard with { Ready = RoundsHerdRooms.WardReadyOf(projection) },
         };
     }
@@ -112,17 +112,14 @@ public sealed class AnimalsReader
 
     private async Task<Verdict> ContainAsync(NeedWork work, AnimalsFacts facts, CancellationToken call)
     {
-        if (!facts.Pen.TryGetValue(out var pen))
-        {
-            return FieldUnavailable("herd_rooms");
-        }
+        var pen = facts.Pen;
         var (review, reading) = await ReadingAsync(new FamilyReadScope(work.State.Snapshot, false), call).ConfigureAwait(false);
         if (pen.Owed())
         {
             return await ReconcileAsync(work, review, reading, pen, call).ConfigureAwait(false);
         }
-        var projection = reading.Projection;
-        var workPawns = projection.WorkPawns.Pawns;
+        var projection = reading.Reading;
+        var workPawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
         var handler = RoundsAnimalContainment.AnimalHandlerAvailable(workPawns);
         var choice = AnimalUpkeepRules.SelectAnimalContainmentMethod(projection.Facts.AnimalUpkeep.Animals, handler, RoundsAnimalContainment.PensStand(projection));
         return choice.Reason == AnimalContainmentReason.NoDeficit ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : RoundsAnimalContainment.ContainmentWait(choice.Reason);
@@ -130,9 +127,10 @@ public sealed class AnimalsReader
 
     private async Task<Verdict> WardAsync(NeedWork work, AnimalsFacts facts, CancellationToken call)
     {
-        if (!facts.Ward.TryGetValue(out var step))
+        var step = facts.Ward;
+        if (step.Kind == HerdStepKind.BedUnavailable)
         {
-            return FieldUnavailable("herd_rooms");
+            return Verdict.AwaitingPlan(work.Need.Id.Value, "animal_bed_unavailable");
         }
         if (!step.Owed())
         {
@@ -140,7 +138,7 @@ public sealed class AnimalsReader
         }
         var (review, reading) = await ReadingAsync(new FamilyReadScope(work.State.Snapshot, false), call).ConfigureAwait(false);
         return step.Kind == HerdStepKind.Medical
-            ? await MarkBedMedicalAsync(work, reading.Projection, step.Bed, call).ConfigureAwait(false)
+            ? await MarkBedMedicalAsync(work, reading.Reading, step.Bed, call).ConfigureAwait(false)
             : await ReconcileAsync(work, review, reading, step, call).ConfigureAwait(false);
     }
 
@@ -160,7 +158,7 @@ public sealed class AnimalsReader
     }
 
     /// <summary>Flags one ward bed medical, once per bed: a fresh bed-use read first, so a bed already flagged commits nothing.</summary>
-    private async Task<Verdict> MarkBedMedicalAsync(NeedWork work, ColonyProjection facts, string bed, CancellationToken call)
+    private async Task<Verdict> MarkBedMedicalAsync(NeedWork work, ColonyReading facts, string bed, CancellationToken call)
     {
         var method = new MethodId("herd-medical-" + bed);
         if (!_building.MethodOnce(work.Owner, method, call))

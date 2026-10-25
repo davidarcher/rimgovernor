@@ -4,14 +4,14 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>The planner resolved to a paste dispenser site when the meal tier is paste; otherwise this planner unchanged.</summary>
-    internal (RoundsBuildingPlanner Planner, Verdict Verdict) SelectPaste(ColonyProjection p)
+    internal (RoundsBuildingPlanner Planner, Verdict Verdict) SelectPaste(ColonyReading p)
     {
         var seasonal = Reviewer.Seasonal(p.Facts);
-        var meals = p.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays);
+        var meals = ColonyPlanningRules.MealRequest(p.Facts, p.Snapshot.ControlledEnvironment, seasonal.FoodMinDays, seasonal.FoodTargetDays);
         MealTierReview review;
         try
         {
-            review = MealRules.ReviewMealTier(meals, p.ProductionBenches);
+            review = MealRules.ReviewMealTier(meals, p.Facts.EssentialInputs.Benches);
         }
         catch (DomainException)
         {
@@ -23,13 +23,13 @@ public sealed partial class RoundsBuildingPlanner
             return (this, default);
         }
 
-        if (p.FoodChannels.PasteDispenser.Count > 0)
+        if (p.Facts.FoodChannels.PasteDispenser.Count > 0)
         {
             return (this, BuildingReasonExistingFacility);
         }
 
-        var request = new PasteSiteRequest { Meals = meals, Benches = p.ProductionBenches, Power = p.PowerPlanning };
-        foreach (var d in p.Definitions)
+        var request = new PasteSiteRequest { Meals = meals, Benches = p.Facts.EssentialInputs.Benches, Power = p.Facts.EssentialInputs.Power };
+        foreach (var d in p.Facts.Definitions)
         {
             if (d.Name == "Hopper" && d.Available)
             {
@@ -42,12 +42,12 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        if (p.Center() is not { } anchor)
+        if (p.Facts.LayoutPlan?.Center() is not { } anchor)
         {
             return (this, BuildingReasonNoLayoutPlan);
         }
 
-        var (site, ok) = SiteRules.PlanSiteType(new SiteTypeRequest { Paste = request, Field = new FieldRequest { Site = new FarmSiteRequest { Cells = p.Cells, Anchor = anchor } } });
+        var (site, ok) = SiteRules.PlanSiteType(new SiteTypeRequest { Environment = p.Snapshot.ControlledEnvironment, Paste = request, Field = new FieldRequest { Site = new FarmSiteRequest { Cells = p.PlanningWindow.Cells, Anchor = anchor } } });
         if (!ok)
         {
             return (this, NoSpace("paste_dispenser_site"));
@@ -59,7 +59,7 @@ public sealed partial class RoundsBuildingPlanner
         return (result, default);
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPasteAsync(GenerationSnapshot snapshot, ColonyProjection p, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPasteAsync(GenerationSnapshot snapshot, ColonyReading p, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = p.Identity.Tick };
         var blocked = protectedCells.ToHashSet();
@@ -106,13 +106,13 @@ public sealed partial class RoundsBuildingPlanner
             planned.Add(new RoleCell { Cell = site.Cell, Role = RockRole.NeedsFloor });
         }
 
-        var dig = RockStepRules.RockStep(planned, s.Facts.Cells).Dig;
+        var dig = RockStepRules.RockStep(planned, s.Facts.PlanningWindow.Cells).Dig;
         if (dig.Count == 0)
         {
             return (new RoundsBuildingResult(), false);
         }
 
-        var (access, ok) = RockStepRules.RockAccess(dig, s.Facts.Cells);
+        var (access, ok) = RockStepRules.RockAccess(dig, s.Facts.PlanningWindow.Cells);
         if (!ok)
         {
             return (new RoundsBuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_footprint") }, true);

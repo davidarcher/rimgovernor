@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
             if (room.CellCount != 0 || room.Cells.Any()) throw new InvalidOperationException("Regionless room has physical cells.");
             return false;
         }
-        internal static bool Inside(Obs.Rectangle rectangle, IntVec3 cell) => cell.x >= (rectangle.Minimum?.X).GetValueOrDefault() && cell.x <= (rectangle.Maximum?.X).GetValueOrDefault() && cell.z >= (rectangle.Minimum?.Z).GetValueOrDefault() && cell.z <= (rectangle.Maximum?.Z).GetValueOrDefault();
+        internal static bool Inside(Obs.Rectangle rectangle, IntVec3 cell) => cell.x >= rectangle.Minimum.X && cell.x <= rectangle.Maximum.X && cell.z >= rectangle.Minimum.Z && cell.z <= rectangle.Maximum.Z;
 
         private static Obs.RoomState Project(Room room, Map map, List<IntVec3> cells, List<Pawn> pawns, Obs.ListRoomsRequest request)
         {
@@ -170,8 +170,8 @@ namespace HomeBridge.BridgeTools
             return cells.OrderBy(c => ((long)c.x - x) * ((long)c.x - x) + ((long)c.z - z) * ((long)c.z - z)).ThenBy(c => c.z).ThenBy(c => c.x).First();
         }
         internal static double Finite(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native room fact.") : value;
-        private static bool CellPresent(Common.Cell? cell) => cell != null && cell.X >= 0 && cell.Z >= 0;
-        private static IntVec3 NativeCell(Common.Cell? cell) => new IntVec3((cell?.X).GetValueOrDefault(), 0, (cell?.Z).GetValueOrDefault());
+        private static bool CellPresent(RimGovernor.Brain.Domain.Cell cell) => cell.X >= 0 && cell.Z >= 0;
+        private static IntVec3 NativeCell(RimGovernor.Brain.Domain.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static DomainCell Cell(IntVec3 cell) => new DomainCell(cell.x, cell.z);
         private static string Id(int id) => id >= 0 ? id.ToString(CultureInfo.InvariantCulture) : throw new InvalidOperationException("Invalid room ID.");
         private static string Name(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid native room identifier.");

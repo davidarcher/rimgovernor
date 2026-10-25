@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
@@ -24,6 +23,7 @@ public sealed class QuestPolicyTests
 
     private static RoundsFacts Calm(params Pb.QuestState[] offers) => QuestStateTests.WithQuests(new RoundsFacts
     {
+        Census = ColonyFactsCoreTests.Snapshot(),
         QuestCalm = QuestCalm.Settled,
         DefenseCapacity = 500.0,
         Population = PopulationFixtures.Census(),
@@ -57,7 +57,7 @@ public sealed class QuestPolicyTests
         // Every bed owned (#3749): the joiner sleeps on a stand-in spot and the next replan adds their bed.
         var owned = Calm() with
         {
-            Sleeping = new SleepingObservation { Beds = [new SleepingBed { Id = "bed", Humanlike = true, Owners = [new PawnId("a")] }] },
+            Sleeping = new SleepingObservation { Beds = [new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "bed", owners: [new PawnId("a")]), Building = SleepingNativeFixtures.Building(id: "bed"), Humanlike = true }] },
         };
         Assert.Equal(new PopulationCapacity.Assessed(true), PopulationRules.JoinerCapacity(owned.JoinerCapacity()));
     }
@@ -112,7 +112,7 @@ public sealed class QuestPolicyTests
     }
 
     private static RoundsFacts Hosting(Pb.QuestShuttleState shuttle) => QuestStateTests.WithQuests(
-        new RoundsFacts(),
+        new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() },
         [QuestStateTests.NoQuest with { Id = new("hosting"), State = Receipts.QuestStatus.Ongoing, ScriptDef = "Hospitality_Animals", Shuttles = [shuttle] }],
         QuestStateTests.Root("Hospitality_Animals", new QuestProfile { Family = QuestFamily.HospitalityAnimals }));
 
@@ -217,7 +217,7 @@ public sealed class QuestPolicyTests
             Security = new Pb.SiteThreatBudget.Unbounded(),
         };
         SurveyPlan Work(Pb.QuestSurveyScanner scanner) =>
-            QuestSurvey.SurveyWork(SurveyOffer(scanner), site, Surveying, new FoodSupply { Larder = new() }, RoundsRules.DefaultRoundsPolicy());
+            QuestSurvey.SurveyWork(SurveyOffer(scanner), site, Surveying, new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, RoundsRules.DefaultRoundsPolicy());
 
         var lost = Work(Scanner with { Scanner = Pb.SurveyScannerCondition.Destroyed });
         Assert.Equal((true, "scanner_destroyed"), (lost.Return, lost.Reason.Value));
@@ -227,11 +227,11 @@ public sealed class QuestPolicyTests
         Assert.Equal("survey_supply_unknown", Work(Scanner).Reason.Value);
         // A second scanner naming the same site leaves the hold unread.
         var twice = SurveyOffer(Scanner) with { Objectives = [.. SurveyOffer(Scanner).Objectives, .. SurveyOffer(Scanner).Objectives] };
-        Assert.Equal("survey_unknown", QuestSurvey.SurveyWork(twice, site, Surveying, new FoodSupply { Larder = new() }, RoundsRules.DefaultRoundsPolicy()).Reason.Value);
+        Assert.Equal("survey_unknown", QuestSurvey.SurveyWork(twice, site, Surveying, new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, RoundsRules.DefaultRoundsPolicy()).Reason.Value);
     }
 
     private static RoundsFacts Inspecting(Pb.QuestGravEngine? engine) => QuestStateTests.WithQuests(
-        new RoundsFacts(),
+        new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() },
         [
             QuestStateTests.NoQuest with
             {

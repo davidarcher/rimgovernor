@@ -5,7 +5,6 @@ using RimGovernor.Contracts.Wire.Observations;
 using RimWorld;
 using Verse;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 using P = RimGovernor.Brain.Policy;
 
@@ -47,17 +46,54 @@ public sealed class WorshipCreditTests
         },
     };
 
-    private static BuildingDemand Missing(int area = 0) => new() { Applies = true, MinArea = area };
+    private static BuildingDemand Missing(int area = 0) => new BuildingDemand { Observed = IdeologyTestRows.Building with { Applies = true, MinArea = area } };
+
+    [Fact]
+    public void RitualSiteReadRetainsOnlyTheHeldPatternsActualFinishedBuildings()
+    {
+        var altar = PowerBuildingFixtures.Trader("altar", Altar, new(2, 3), 0, 0, false);
+        var blueprint = altar with { Building = altar.Building with { Id = "blueprint" }, Status = BuildingStatus.Blueprint };
+        var unrelated = altar with { Building = altar.Building with { Id = "other", DefName = Column } };
+        var census = new RimGovernor.Brain.Bridge.Contracts.BuildingCensus(null, RimGovernor.Brain.Bridge.Contracts.Buildings.Of(altar, blueprint, unrelated));
+
+        var sites = RitualSitesReads.RitualSitesOf(census, new IdeologyMode.Installed(Ideo(null, Gathering)));
+
+        Assert.Same(altar, Assert.Single(sites));
+        Assert.Empty(RitualSitesReads.RitualSitesOf(census, new IdeologyMode.NotInstalled()));
+        Assert.Empty(RitualSitesReads.RitualSitesOf(census, new IdeologyMode.Installed(Ideo(null))));
+    }
+
+    [Fact]
+    public void RitualPlanningReadsTheCanonicalBuildingsDefinitionAndStatus()
+    {
+        var ideo = Ideo(null, Gathering with { IntervalDaysMin = 0 });
+        var pawn = PawnFixtures.Worker("pawn");
+        pawn = pawn with { Observed = pawn.Observed with { Settings = pawn.Observed.Settings with
+        {
+            PolicyInputs = PawnFixtures.Inputs("Ideo_1", 1),
+        } } };
+        var altar = PowerBuildingFixtures.Trader("altar", Altar, new(2, 3), 0, 0, false);
+
+        Assert.Equal(new PawnId("pawn"), Assert.Single(RitualRules.PlanRituals(ideo, [pawn], [altar], new(1), true)).Organizer);
+        Assert.Empty(RitualRules.PlanRituals(ideo, [pawn], [altar with { Status = BuildingStatus.Blueprint }], new(1), true));
+        Assert.Empty(RitualRules.PlanRituals(ideo, [pawn], [altar with
+        {
+            Building = altar.Building with { DefName = "Wall" },
+        }], new(1), true));
+    }
 
     private static Ideoligion Ideo(BuildingDemand? demand, params P.RitualDef[] rituals) => new(
         new IdeologyDefs { BuildingMoods = Moods, Rituals = rituals.Select((r, i) => (r, i)).ToDictionary(x => "Pattern" + x.i, x => x.r) },
         new IdeoligionFacts
         {
-            IdeoId = "Ideo_1",
-            Development = RimGovernor.Brain.Policy.IdeoDevelopment.Fixed,
-            BelieverPawns = [new PawnId("pawn")],
-            Buildings = demand is null ? [] : [new HeldBuilding(Altar) { Demand = demand }],
-            Rituals = [.. rituals.Select((_, i) => new HeldRitual { Id = "Ritual_" + i, Pattern = "Pattern" + i })],
+            Observed = IdeologyReadsTests.NoPrecepts with
+            {
+                IdeoId = "Ideo_1",
+                BelieverPawns = [new PawnId("pawn")],
+                Rituals = [.. rituals.Select((_, i) => IdeologyTestRows.Ritual("Ritual_" + i, "Pattern" + i))],
+                Buildings = demand is null ? [] : [demand.Observed with { Building = Altar }],
+            },
+            Buildings = demand is null ? [] : [new HeldBuilding(demand with { Observed = demand.Observed with { Building = Altar } })],
         });
 
     private static PlannedRoomPrediction Prediction(int cells = 4, double impressiveness = 30) =>
@@ -143,14 +179,14 @@ public sealed class WorshipCreditTests
         Assert.Equal(0, ForecastWorship.Deltas(context)[(1, "WoodLog")]);
         Assert.Empty(Credits(Ledger(context)));
         // A demand that does not apply (the colony's expectations are below its minimum) gives no thought either way.
-        Assert.Empty(Credits(Ledger(Context(WorshipOf(Ideo(Missing() with { Applies = false }))))));
+        Assert.Empty(Credits(Ledger(Context(WorshipOf(Ideo(Missing() with { Observed = Missing().Observed with { Applies = false } }))))));
     }
 
     [Fact]
     public void ARequirementOrRitualThePlanCannotPredictIsNamedNotModelled()
     {
         // #3835: a demand of a requirement kind the plan cannot predict adds nothing, named a not-modelled mechanic.
-        var unread = Context(WorshipOf(Ideo(Missing() with { Unread = ["RoomRequirement_Modded"] })));
+        var unread = Context(WorshipOf(Ideo(Missing() with { Observed = Missing().Observed with { Unread = ["RoomRequirement_Modded"] } })));
         var ledger = Ledger(unread);
         Assert.Contains(ForecastWorship.RequirementUnmodelled + "RoomRequirement_Modded", ledger.Findings);
         Assert.Empty(Credits(ledger));
@@ -166,11 +202,7 @@ public sealed class WorshipCreditTests
     [Fact]
     public void ThePlannedRoomMeetsADemandByItsCellsImpressivenessFloorsAndFurniture()
     {
-        var demand = new BuildingDemand
-        {
-            Applies = true, MinArea = 25, MinImpressiveness = 60, FloorTags = ["FineFloor", "Floor"],
-            Counts = [new P.ThingCount { Def = Column, Count = 2 }], ForbiddenDefs = ["Bed"],
-        };
+        var demand = new BuildingDemand { Observed = IdeologyTestRows.Building with { Applies = true, MinArea = 25, MinImpressiveness = 60, FloorTags = ["FineFloor", "Floor"], Things = [new Obs.IdeoThingCount(Column, 2)] }, ForbiddenDefs = ["Bed"] };
         var need = WorshipRules.WorshipRoomNeed(Ideo(demand)).Need;
         Assert.True(ForecastWorship.Meets(demand, Prediction(cells: 25, impressiveness: 59.5), need));
         Assert.False(ForecastWorship.Meets(demand, Prediction(cells: 24, impressiveness: 60), need));
@@ -182,11 +214,7 @@ public sealed class WorshipCreditTests
     [Fact]
     public void TheWorshipRoomIsPlannedToMeetItsDemands()
     {
-        var demand = new BuildingDemand
-        {
-            Applies = true, MinArea = 25, MinImpressiveness = 60, FloorTags = ["FineFloor", "Floor"],
-            Counts = [new P.ThingCount { Def = Column, Count = 2 }], ForbiddenDefs = ["Bed"],
-        };
+        var demand = new BuildingDemand { Observed = IdeologyTestRows.Building with { Applies = true, MinArea = 25, MinImpressiveness = 60, FloorTags = ["FineFloor", "Floor"], Things = [new Obs.IdeoThingCount(Column, 2)] }, ForbiddenDefs = ["Bed"] };
         var need = WorshipRules.WorshipRoomNeed(Ideo(demand)).Need;
         Assert.Equal([(Altar, 1), (Column, 2)], need.Furniture.Items.Select(f => (f.Defs[0], f.Count)));
         Assert.Equal((25, 60), (need.MinArea, need.MinImpressiveness));
@@ -271,7 +299,7 @@ public sealed class WorshipCreditTests
         var held = Assert.Single(ideo.Facts.Buildings);
         Assert.Equal((true, true, false, 25, 60), (held.Demand.Applies, held.Demand.Present, held.Demand.Satisfied, held.Demand.MinArea, held.Demand.MinImpressiveness));
         Assert.Equal(["Bed"], held.Demand.ForbiddenDefs);
-        Assert.Equal([new P.ThingCount { Def = Column, Count = 2 }], held.Demand.Counts);
+        Assert.Equal([new Obs.IdeoThingCount(Column, 2)], held.Demand.Counts);
         Assert.Equal([new PawnId("pawn")], ideo.Facts.BelieverPawns);
     }
 

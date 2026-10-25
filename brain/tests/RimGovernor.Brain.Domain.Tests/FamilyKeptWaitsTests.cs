@@ -3,7 +3,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -20,7 +19,7 @@ public sealed class FamilyKeptWaitsTests
 
     private static readonly NeedId Fix = NeedId.Of("test-keep", "fix");
 
-    private sealed record KeepFacts(Fact<bool> Fixed, double Deficit = 0);
+    private sealed record KeepFacts(bool Fixed, double Deficit = 0);
 
     /// <summary>One Need, ready while the colony is not fixed; its work is the test's, counted and scripted.</summary>
     private sealed class KeepFamily : IFamily<KeepFacts>
@@ -34,7 +33,7 @@ public sealed class FamilyKeptWaitsTests
         public NeedTier Tier { get; set; } = NeedTier.Development;
 
         public IReadOnlyList<Need> Derive(KeepFacts facts) =>
-            [new Need { Id = Fix, Tier = Tier, Satisfaction = !facts.Fixed.TryGetValue(out var v) ? throw new RequiredFactException("fixed") : v ? Satisfaction.Met : Satisfaction.Unmet, Deficit = facts.Deficit }];
+            [new Need { Id = Fix, Tier = Tier, Satisfaction = facts.Fixed ? Satisfaction.Met : Satisfaction.Unmet, Deficit = facts.Deficit }];
 
         public IReadOnlyList<Need> DeriveSeriousHarm(KeepFacts facts) => Tier == NeedTier.SeriousHarm ? Derive(facts) : [];
 
@@ -46,7 +45,7 @@ public sealed class FamilyKeptWaitsTests
         public required Journal Journal { get; init; }
         public required KeepFamily Family { get; init; }
         public required FamilyRunner<KeepFacts> Runner { get; init; }
-        public KeepFacts Facts { get; set; } = new(Known(false));
+        public KeepFacts Facts { get; set; } = new(false);
         public Verdict Work { get; set; } = Verdict.AwaitingPlan("site", "no_space");
         public int Worked { get; set; }
 
@@ -80,7 +79,7 @@ public sealed class FamilyKeptWaitsTests
     {
         var ct = TestContext.Current.CancellationToken;
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0};
+        facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
         journal.ReviewRounds(new() { Current = world, Tick = new(100), Revision = journal.LoadRounds(ct).Revision, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
     }
 
@@ -135,14 +134,14 @@ public sealed class FamilyKeptWaitsTests
         Assert.Equal(1, colony.Worked);
 
         // Met on the cadence: nothing is kept, and the memory now holds no ready Need.
-        colony.Facts = new(Known(true));
+        colony.Facts = new(true);
         var met = colony.Run(cadence: true);
         Assert.Empty(met.Kept);
         Assert.Equal(Verdict.BuildingReasonNoDeficit, Colony.Report(met));
         Assert.Equal(1, colony.Worked);
 
         // Ready again on the cadence: it was not ready last time, so its work runs.
-        colony.Facts = new(Known(false));
+        colony.Facts = new(false);
         Assert.Empty(colony.Run(cadence: true).Kept);
         Assert.Equal(2, colony.Worked);
     }

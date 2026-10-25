@@ -1,22 +1,18 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class WorkOccupancyTests
 {
     private static WorkPawn Pawn(string id, int cooking = 10, int building = 10) => PawnFixtures.Worker(id) with
-    {
-        Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)),
-        Skills = [new() { Name = "Cooking", Level = cooking }, new() { Name = "Construction", Level = building }],
-        Work = new PawnWorkTable.Works(true, [
-            new() { Work = WorkType.Cooking, Skill = "Cooking", Order = 10, Priority = 3 },
-            new() { Work = WorkType.Construction, Skill = "Construction", Order = 5, Priority = 3 }]),
-    };
-    private static WorkPawn WithRows(WorkPawn pawn, IEnumerable<WorkPriority> rows) => pawn with { Work = new PawnWorkTable.Works(true, EquatableArray.From(rows)) };
-    private static WorkPawn Cooking(WorkPawn pawn) => pawn with { Job = new PawnJob { Def = "TestCook", Work = WorkType.Cooking } };
+    { Work = PawnFixtures.WorkTable(true, [
+            new() { Observed = new O.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 10 },
+            new() { Observed = new O.WorkSetting { DefName = "Construction", Priority = 3, Disabled = false }, Skill = "Construction", Order = 5 }]), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { Passion = O.Passion.None, DefName = "Cooking", Level = cooking }, new() { Passion = O.Passion.None, DefName = "Construction", Level = building }] }, Settings = PawnFixtures.Row(id).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new O.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } };
+    private static WorkPawn WithRows(WorkPawn pawn, IEnumerable<WorkPriority> rows) => pawn with { Work = PawnFixtures.WorkTable(true, EquatableArray.From(rows)) };
+    private static WorkPawn Cooking(WorkPawn pawn) => pawn with { Observed = (pawn).Observed with { Job = new O.JobEvidence { DefName = "TestCook", WorkTypeDefName = "Cooking", TargetA = new() { Target = new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.NotApplicable } } } } };
     /// <summary>The capacity forecast over the pawn's own roster row and current job.</summary>
     private static ForecastCapacityInput Input(WorkPawn pawn, ForecastWorkRemaining? remaining = null) => new()
     {
@@ -30,7 +26,7 @@ public sealed class WorkOccupancyTests
     private static WorkDecision Plan(params WorkPawn[] pawns) => WorkRules.PlanWork(pawns, [], new());
     private static WorkPawn Apply(WorkPawn pawn, WorkDecision decision) => pawn with
     {
-        Work = new PawnWorkTable.Works(true, EquatableArray.From(pawn.Work.Priorities().Select(w => w with { Priority = Priority(decision, pawn.Id.Value, w.Work) }))),
+        Work = PawnFixtures.WorkTable(true, EquatableArray.From(pawn.Work.Priorities().Select(w => w with { Observed = w.Observed with { Priority = Priority(decision, pawn.Id.Value, w.Work) } }))),
     };
 
     [Fact]
@@ -58,7 +54,7 @@ public sealed class WorkOccupancyTests
         Assert.Equal(0, building.Owners);
         Assert.Equal(2, Priority(busy, "both", WorkType.Construction));
         // Completion and cancellation both arrive as a fresh job read. No saved hold needs clearing.
-        var idle = Plan(Apply(pawn, busy) with { Job = new PawnJob() });
+        var idle = Plan(Apply(pawn, busy) with { Observed = pawn.Observed with { Job = new O.JobEvidence() } });
         Assert.Equal(1, Priority(idle, "both", WorkType.Construction));
     }
 
@@ -70,17 +66,17 @@ public sealed class WorkOccupancyTests
         Assert.Equal(1, Priority(raised, "both", WorkType.Construction));
         Assert.Equal(0, Priority(raised, "both", WorkType.Cooking));
         var disabled = WithRows(pawn, pawn.Work.Priorities().Select(w =>
-            w.Work == WorkType.Cooking ? w with { Priority = 0 } : w));
+            w.Work == WorkType.Cooking ? w with { Observed = w.Observed with { Priority = 0 } } : w));
         Assert.Equal(1, Priority(Plan(disabled), "both", WorkType.Construction));
         var incapable = WithRows(pawn, pawn.Work.Priorities().Select(w =>
-            w.Work == WorkType.Cooking ? w with { Disabled = true } : w));
+            w.Work == WorkType.Cooking ? w with { Observed = w.Observed with { Disabled = true } } : w));
         Assert.Equal(1, Priority(Plan(incapable), "both", WorkType.Construction));
     }
 
     [Fact]
     public void AnUnavailablePawnHasNoTimeAndDoesNotBlockAnIndependentWorker()
     {
-        var away = Pawn("away") with { Available = false };
+        var away = Pawn("away") with { Observed = (Pawn("away")).Observed with { Downed = true } };
         var free = Pawn("free");
         var decision = Plan(away, free);
         Assert.Contains(decision.Assignments, a => a.Pawn == free.Id);
@@ -91,7 +87,7 @@ public sealed class WorkOccupancyTests
     [Fact]
     public void RosterAndForecastAgreeOnIdleAndOngoingWorkWithoutInventingDuration()
     {
-        var pawn = Pawn("pawn") with { Job = new PawnJob { Def = "Wait_Wander" } };
+        var pawn = Pawn("pawn") with { Observed = (Pawn("pawn")).Observed with { Job = new O.JobEvidence { DefName = "Wait_Wander", TargetA = new() { Target = new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.NotApplicable } } } } };
         Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(pawn)).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
         Assert.Contains("unknown_current_job_remaining", ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn))).Findings);
         Assert.Equal(60, ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn), new ForecastWorkRemaining.Timed(40.0))).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
@@ -102,7 +98,7 @@ public sealed class WorkOccupancyTests
     [Fact]
     public void PreemptibleVanillaJobIsUnoccupiedButKeepsItsRole()
     {
-        var cook = Pawn("cook", building: 20) with { Job = new PawnJob { Def = "DoBill", Work = WorkType.Cooking, Preemptible = true } };
+        var cook = Pawn("cook", building: 20) with { Observed = (Pawn("cook", building: 20)).Observed with { Job = new O.JobEvidence { DefName = "DoBill", WorkTypeDefName = "Cooking", Preemptible = true, TargetA = new() { Target = new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.NotApplicable } } } } };
         var current = ForecastCurrentWork.ForecastCurrentWorkOf(cook);
         Assert.False(current.Occupied);
         Assert.Equal(WorkType.Cooking, current.Work);
@@ -117,7 +113,7 @@ public sealed class WorkOccupancyTests
     [Fact]
     public void ConstructionSkillOrderingStillWinsAmongEligibleBuilders()
     {
-        var working = Pawn("working", building: 6) with { Job = new PawnJob { Def = "TestBuild", Work = WorkType.Construction } };
+        var working = Pawn("working", building: 6) with { Observed = (Pawn("working", building: 6)).Observed with { Job = new O.JobEvidence { DefName = "TestBuild", WorkTypeDefName = "Construction", TargetA = new() { Target = new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.NotApplicable } } } } };
         var skilled = Pawn("skilled", building: 15);
         var decision = Plan(working, skilled);
         Assert.Equal(1, Priority(decision, "skilled", WorkType.Construction));
@@ -164,11 +160,8 @@ public sealed class WorkOccupancyTests
     {
         var pawn = Cooking(Pawn("doctor"));
         pawn = pawn with
-        {
-            Work = new PawnWorkTable.Works(true, [.. pawn.Work.Priorities(),
-                new() { Work = WorkType.Doctor, Skill = "Medicine", Order = 20, Priority = 3 }]),
-            Skills = [.. pawn.Skills, new() { Name = "Medicine", Level = 10 }],
-        };
+        { Work = PawnFixtures.WorkTable(true, [.. pawn.Work.Priorities(),
+                new() { Observed = new O.WorkSetting { DefName = "Doctor", Priority = 3, Disabled = false }, Skill = "Medicine", Order = 20 }]), Observed = pawn.Observed with { Biography = pawn.Observed.Biography with { Skills = [.. pawn.Skills, new() { Passion = O.Passion.None, DefName = "Medicine", Level = 10 }] } } };
         Assert.Equal(1, Priority(Plan(pawn), "doctor", WorkType.Doctor));
         var rest = WorkRules.PlanWork([pawn], [], new() { Resting = [new(pawn.Id, ["TestDisease"])] });
         Assert.Equal(0, Priority(rest, "doctor", WorkType.Cooking));

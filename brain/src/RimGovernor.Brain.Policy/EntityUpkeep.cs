@@ -36,7 +36,7 @@ public static class EntityUpkeepRules
         var seen = new HashSet<Cell>();
         foreach (var h in p.Holders)
         {
-            if (h.HeldPawn.Length == 0)
+            if (h.HeldPawn is null)
             {
                 continue;
             }

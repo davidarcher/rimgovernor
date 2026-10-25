@@ -2,7 +2,7 @@ using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// ReadWorldProgression and its request. The progression census decoder is WorldProgressionRead.DecodeWorldProgressionSnapshot.
+// ReadWorldProgression returns the native census directly.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>
@@ -22,10 +22,10 @@ public sealed partial class FacadeNativeClient
     /// <summary>
     /// The world progression census (maps, caravans, quests, factions, sites).
     /// </summary>
-    internal async Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
+    internal async Task<RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot> ReadWorldProgressionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
         var request = new PbObservations.WorldProgressionRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
         var snapshot = await Facade.ReadWorldProgressionAsync(request, cancellationToken).ConfigureAwait(false);
-        return WorldProgressionRead.DecodeWorldProgressionSnapshot(snapshot);
+        return snapshot;
     }
 }

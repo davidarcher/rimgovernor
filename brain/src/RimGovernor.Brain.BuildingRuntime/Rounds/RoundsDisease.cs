@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static class RoundsDisease
 {
     /// <summary>The work demand of the review: the policy demand, the construction help owed and the disease rest of the medical pawns.</summary>
-    internal static WorkDemand RoundsDiseaseDemand(ColonyProjection facts, IReadOnlyList<string> definitions, RoundsReview previous, GenerationSnapshot current)
+    internal static WorkDemand RoundsDiseaseDemand(ColonyReading facts, IReadOnlyList<string> definitions, RoundsReview previous, GenerationSnapshot current)
     {
         var demand = WorkRules.RoundsWorkDemand(facts.Facts, definitions.Count > 0);
         var history = previous.MedicalCare.Resting;

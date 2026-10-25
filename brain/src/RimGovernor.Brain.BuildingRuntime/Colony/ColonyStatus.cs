@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// uses to learn the current authoritative snapshot, the colony-facts census the rounder judges food from, and
 /// the home colonist roster (downed, needs). Nothing here dispatches a native write.
 /// </summary>
-public interface IColonyStatusNative
+public interface IColonyStatusNative : IResearchSource
 {
     Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct);
 
@@ -21,11 +21,11 @@ public sealed record ColonyStatusPawn
 
     public string Label { get; init; } = "";
 
-    public Fact<bool> Downed { get; init; }
+    public bool Downed { get; init; }
 
-    public Fact<double> Mood { get; init; }
+    public required PbObservations.NeedLevel Mood { get; init; }
 
-    public Fact<double> Food { get; init; }
+    public required PbObservations.FoodNeed Food { get; init; }
 }
 
 /// <summary>What the home roster read found. An empty roster is a valid state (no living colonist), not a read failure.</summary>
@@ -38,15 +38,11 @@ public enum ColonyRoster
     NoColonists,
 }
 
-/// <summary>One <see cref="ColonyStatus"/> read. Unknown facts are unknown, never zero: a native census that omits the field says so.</summary>
+/// <summary>One total native census with an optional matching routine review.</summary>
 public sealed record ColonyStatusReport
 {
-    public FoodPlan? FoodPlan { get; init; }
-
-    public Fact<Tick> FoodPlanTick { get; init; }
-
-    /// <summary>Names the held census's animals for the food plan's pet shortfalls; an animal without a label is absent.</summary>
-    public IReadOnlyDictionary<PawnId, string> PetLabels { get; init; } = new Dictionary<PawnId, string>();
+    /// <summary>Absent until a matching routine review has filed.</summary>
+    public ColonyStatusReview? Review { get; init; }
 
     /// <summary>The colony census's tick.</summary>
     public Tick Tick { get; init; }
@@ -65,7 +61,7 @@ public sealed record ColonyStatusReport
 
     public double NutritionPerDay { get; init; }
 
-    public Fact<double> FoodRunwayDays { get; init; }
+    public required PbObservations.FoodRunway FoodRunway { get; init; }
 
     public double PendingFoodNutrition { get; init; }
 
@@ -75,20 +71,22 @@ public sealed record ColonyStatusReport
     /// <summary>The player faction's native TechLevel.</summary>
     public RimGovernor.Contracts.Wire.Defs.TechLevel PlayerTechLevel { get; init; }
 
-    /// <summary>The construction tier the last rounds derived from the tech level and finished research; unknown until a review with the research census has filed.</summary>
-    public Fact<TechTier> TechTier { get; init; }
-
-    /// <summary>Counts the owned stockpile zones by role kind as the last rounds read them.</summary>
-    public Fact<EquatableArray<StockpileRoleCount>> Stockpiles { get; init; }
-
-    /// <summary>Whether the loot census held a safe stack forbidden at the last rounds.</summary>
-    public Fact<bool> ForbiddenSupplies { get; init; }
-
-    /// <summary>Where the colony loses mood, as the last rounds built it; unknown until a review has filed.</summary>
-    public MoodLedger? MoodLedger { get; init; }
+    /// <summary>The construction tier derived from the current native research census and faction tech level.</summary>
+    public TechTier TechTier { get; init; }
 
     /// <summary>The living home colonist roster, sorted as native listed it.</summary>
     public IReadOnlyList<ColonyStatusPawn> Pawns { get; init; } = [];
+}
+
+/// <summary>The most recent matching routine review; absence from the report means pending review.</summary>
+public sealed record ColonyStatusReview
+{
+    public Tick Tick { get; init; }
+    public FoodPlan? FoodPlan { get; init; }
+    public IReadOnlyDictionary<PawnId, string> PetLabels { get; init; } = new Dictionary<PawnId, string>();
+    public EquatableArray<StockpileRoleCount> Stockpiles { get; init; }
+    public bool ForbiddenSupplies { get; init; }
+    public MoodLedger? MoodLedger { get; init; }
 }
 
 /// <summary>
@@ -123,33 +121,37 @@ public sealed class ColonyStatus
         using var done = Player.Observe(ct);
         var call = done.Token;
         var identityReply = await Native.IdentityAsync(call).ConfigureAwait(false);
-        var decoded = DecodeReads.DecodeIdentity(identityReply);
+        var decoded = new ObservationIdentity { Context = identityReply.Context, Paused = identityReply.Paused };
         var identity = new PbCommon.Identity { ColonyId = decoded.Colony.Value, LoadToken = decoded.Load.Value, MapId = decoded.Map.Value };
         var observed = await Native.ReadColonyFactsAsync(identity, call).ConfigureAwait(false);
         var roster = await Native.ReadHomeColonistsAsync(identity, call).ConfigureAwait(false);
+        var research = await Native.ReadResearchAsync(identity, call).ConfigureAwait(false);
+        foreach (var context in new[] { observed.Context, roster.Context, research.Context })
+        {
+            var read = new ObservationIdentity { Context = context };
+            if (!read.SameContext(decoded) || read.NativeGeneration != decoded.NativeGeneration || read.Tick < decoded.Tick)
+                throw new ObservationChangedException();
+        }
         var pawns = roster;
         var report = new ColonyStatusReport
         {
             Tick = new Tick((long)observed.Context.Tick),
-            RosterTick = new Tick((long)(pawns.Context?.Tick ?? 0)),
+            RosterTick = new ObservationIdentity { Context = pawns.Context }.Tick,
             Colonists = observed.ColonistCount,
             Workers = observed.WorkerCount,
             FoodNutrition = observed.FoodNutrition,
             NutritionPerDay = observed.NutritionPerDay,
-            FoodRunwayDays = OptionalFact(observed.FoodRunway is PbObservations.FoodRunway.Days, observed.FoodRunway is PbObservations.FoodRunway.Days days ? days.Value : 0),
+            FoodRunway = observed.FoodRunway,
             PendingFoodNutrition = observed.PendingFoodNutrition,
             Threat = observed.Threat.Observed,
             PlayerTechLevel = observed.PlayerTechLevel,
-            TechTier = Unknown<TechTier>(),
-            Stockpiles = Unknown<EquatableArray<StockpileRoleCount>>(),
-            ForbiddenSupplies = Unknown<bool>(),
-            MoodLedger = null,
+            TechTier = TechTierRules.SelectTechTier(research.Finished.Select(project => new ResearchProjectId(project)).ToArray(), observed.PlayerTechLevel),
         };
-        if (_food is not null && FactStore.TryGet<ColonyProjection>(_food, FactSection.Colony, out var held))
+        if (_food is not null && FactStore.TryGet<ColonyReading>(_food, FactSection.Colony, out var held))
         {
             var id = held.Value.Identity;
             if (id.SameContext(decoded) && id.Tick <= decoded.Tick
-                && id.NativeGeneration.TryGetValue(out var a) && decoded.NativeGeneration.TryGetValue(out var b) && a == b)
+                && id.NativeGeneration is C.ObservedGeneration.AtCase a && decoded.NativeGeneration is C.ObservedGeneration.AtCase b && a == b)
             {
                 var labels = new Dictionary<PawnId, string>();
                 foreach (var animal in held.Value.Facts.AnimalUpkeep.Animals.Where(animal => animal.Label != ""))
@@ -158,17 +160,16 @@ public sealed class ColonyStatus
                 }
                 report = report with
                 {
-                    TechTier = held.Value.TechTier,
-                    FoodPlan = held.Value.Facts.FoodPlan,
-                    ForbiddenSupplies = Known(ForbiddenSupplies(held.Value.Facts.EventLoot)),
-                    Stockpiles = Known(held.Value.Facts.StockpileZones),
-                    MoodLedger = held.Value.Facts.MoodLedger,
-                    PetLabels = labels,
+                    Review = new ColonyStatusReview
+                    {
+                        Tick = id.Tick,
+                        FoodPlan = held.Value.Facts.FoodPlan,
+                        ForbiddenSupplies = ForbiddenSupplies(held.Value.Facts.EventLoot),
+                        Stockpiles = held.Value.Facts.StockpileZones,
+                        MoodLedger = held.Value.Facts.MoodLedger,
+                        PetLabels = labels,
+                    },
                 };
-                if (report.FoodPlan is not null)
-                {
-                    report = report with { FoodPlanTick = Known(id.Tick) };
-                }
             }
         }
         var rows = new List<ColonyStatusPawn>();
@@ -178,22 +179,12 @@ public sealed class ColonyStatus
             {
                 continue;
             }
-            var pawn = new ColonyStatusPawn { Id = new PawnId((row.Pawn.Id ?? "")), Label = row.Pawn.Label ?? "", Downed = Known(row.Downed) };
-            var needs = row.Needs;
-            pawn = pawn with
-            {
-                Mood = OptionalFact(needs.Mood is PbObservations.NeedLevel.Has, needs.Mood is PbObservations.NeedLevel.Has mood ? mood.Level : 0),
-                Food = OptionalFact(needs.Food is PbObservations.FoodNeed.Has, needs.Food is PbObservations.FoodNeed.Has food ? food.Level : 0),
-            };
+            var pawn = new ColonyStatusPawn { Id = new PawnId((row.Pawn.Id ?? "")), Label = row.Pawn.Label ?? "", Downed = row.Downed, Mood = row.Needs.Mood, Food = row.Needs.Food };
             rows.Add(pawn);
         }
         report = report with { Pawns = rows, Roster = rows.Count == 0 ? ColonyRoster.NoColonists : ColonyRoster.Colonists };
         return report;
     }
-
-    private static Fact<double> OptionalFact(bool has, double value) => has ? Known(value) : Unknown<double>();
-
-    private static Fact<bool> OptionalFact(bool has, bool value) => has ? Known(value) : Unknown<bool>();
 
     /// <summary>Whether the loot census lists a safe stack still forbidden, the stack the admin/supply-safety Need releases.</summary>
     internal static bool ForbiddenSupplies(EquatableArray<LootItem> census) => census.Any(row => row.IsSafe && row.Forbidden);

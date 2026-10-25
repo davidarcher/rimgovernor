@@ -98,7 +98,7 @@ public static partial class TradePolicyRules
             return new HashSet<PawnId>();
         }
         var stock = new Dictionary<Resource, long>();
-        foreach (var row in f.Resources)
+        foreach (var row in f.ObservedStock())
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }

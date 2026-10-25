@@ -2,53 +2,36 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record LootItem
 {
-    public StartingSupply Supply { get; init; } = new();
+    public required RimGovernor.Contracts.Wire.Observations.LootItem Observed { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.EntityRef Entity { get; init; }
 
-    public bool Forbidden { get; init; }
-
-    /// <summary>The colonist route verdict: safe with its measured path, exposed to a hazard, or reached by no colonist.</summary>
-    public RimGovernor.Contracts.Wire.Observations.HaulSafety Haul { get; init; } = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached();
-
-    /// <summary>Whether some colonist has a hazard-free route to the stack and back.</summary>
+    /// <summary>The allow/forbid work identity derived only when policy selects the stack.</summary>
+    public StartingSupply Supply => new()
+    {
+        Thing = Observed.Item.Id ?? throw new RequiredFactException("loot stack id"),
+        Definition = Entity.DefName,
+        Cell = Entity.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap at
+            ? at.Cell : throw new RequiredFactException("loot stack map cell"),
+    };
+    public bool Forbidden => Observed.Forbidden;
+    public RimGovernor.Contracts.Wire.Observations.HaulSafety Haul => Observed.Safety;
     public bool IsSafe => Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe;
-
-    /// <summary>Whether colonists reach the stack but every route meets a hazard.</summary>
     public bool IsExposed => Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe;
-
-    /// <summary>Whether no colonist reaches the stack, so its safety is not measured.</summary>
     public bool IsUnreached => Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached;
-
-    /// <summary>The shortest safe route in cells; false unless the stack is safe to haul.</summary>
     public bool SafePath(out double pathLength)
     {
         pathLength = Haul is RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength: var path } ? path : 0;
         return IsSafe;
     }
 
-    /// <summary>
-    /// Marks a def a native spawner makes forbidden on purpose (a hive's insect jelly:
-    /// CompProperties_Spawner.spawnForbidden in the def mirror); such a stack is never released
-    /// (<c>FilterLootRelease</c>).
-    /// </summary>
+    /// <summary>The catalog's spawner forbids this product intentionally.</summary>
     public bool SpawnForbidden { get; init; }
-
-    /// <summary>The stack size; feeds remote loot's reach and demand filter.</summary>
-    public long Count { get; init; }
-
-    /// <summary>The item units the player's accepting storage can still take for the stack's def.</summary>
-    public long StorageHeadroom { get; init; }
-
-    /// <summary>
-    /// The storage groups (owned zones and storage buildings, by id) whose filter accepts the stack, ignoring
-    /// space. Native fills it only on an unforbidden row with zero headroom that is not exposed
-    /// (<see cref="StoreRules.StrandedStacks"/>); empty elsewhere.
-    /// </summary>
-    public EquatableArray<string> AcceptedBy { get; init; }
-
-    /// <summary>The stack's deterioration where it lies (#3798); null when it cannot deteriorate.</summary>
-    public RimGovernor.Contracts.Wire.Observations.LootDeterioration? Deterioration { get; init; }
+    public long Count => Observed.Count;
+    public long StorageHeadroom => Observed.StorageHeadroom;
+    public EquatableArray<string> AcceptedBy => EquatableArray.From(Observed.AcceptedBy.Select(reference =>
+        reference.Id ?? throw new RequiredFactException("loot accepting storage id")));
+    public RimGovernor.Contracts.Wire.Observations.LootDeterioration? Deterioration => Observed.Deterioration;
 }
-
 /// <summary>
 /// The latest complete safety census's work, not a first-seen cohort. The controller owns both forbidding and
 /// allowing items. Held lists the safe forbidden stacks a safety hold kept forbidden, with reasons.

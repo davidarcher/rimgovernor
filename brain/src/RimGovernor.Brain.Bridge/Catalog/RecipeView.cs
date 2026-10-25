@@ -20,7 +20,7 @@ public sealed partial class DefinitionCatalog
     private const string StatWorkToMake = "WorkToMake";
 
     // The order a raw meal slot lists its classes in.
-    private static readonly P.FoodIngredientClass[] RawClassOrder = [P.FoodIngredientClass.Meat, P.FoodIngredientClass.Vegetable, P.FoodIngredientClass.AnimalProduct];
+    private static readonly RimGovernor.Contracts.Wire.Observations.FoodIngredientClass[] RawClassOrder = [RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Meat, RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Vegetable, RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.AnimalProduct];
 
     private readonly ConcurrentDictionary<string, RecipeSlot[]> _recipeSlots = new(StringComparer.Ordinal);
     private Lazy<IReadOnlyDictionary<string, IReadOnlyList<WorkGiverDef>>>? _billGivers;
@@ -376,7 +376,7 @@ public sealed partial class DefinitionCatalog
                 output.Add(row.Recipe);
                 continue;
             }
-            output.Add(row.Recipe with { Available = true, RequiredWork = host.Work, Armory = host.Armory });
+            output.Add(row.Recipe with { Access = new P.RecipeAccess.Catalog(row.Recipe.Definition, true), RequiredWork = host.Work, Armory = host.Armory });
         }
         return Domain.EquatableArray.From(output);
     }
@@ -420,11 +420,9 @@ public sealed partial class DefinitionCatalog
             var mechKind = RecipeMechKind(row.defName);
             var recipe = new P.GearRecipe
             {
-                Definition = row.defName,
+                Access = new P.RecipeAccess.Catalog(row.defName, false),
                 Role = RecipeRoleOf(row.defName),
                 Products = Domain.EquatableArray.From(products),
-                Available = false,
-                AvailableOn = true,
                 Ingredients = RecipeIngredients(row.defName),
                 RequiredWork = hosts[0].Work,
                 WorkAmount = RecipeWorkAmount(row.defName),
@@ -575,7 +573,7 @@ public sealed partial class DefinitionCatalog
             }
 
             input += count;
-            var classes = new List<P.FoodIngredientClass>();
+            var classes = new List<RimGovernor.Contracts.Wire.Observations.FoodIngredientClass>();
             foreach (var def in AllowedDefs(ingredient.filter))
             {
                 var thing = ThingRow(def);
@@ -590,7 +588,7 @@ public sealed partial class DefinitionCatalog
                 }
 
                 var rawClass = RawFoodClass(def);
-                if (rawClass == P.FoodIngredientClass.None)
+                if (rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.None)
                 {
                     return null;
                 }
@@ -609,7 +607,7 @@ public sealed partial class DefinitionCatalog
             classes.Sort((a, b) => Array.IndexOf(RawClassOrder, a) - Array.IndexOf(RawClassOrder, b));
             if (classes.Count == 3)
             {
-                classes = [P.FoodIngredientClass.Any];
+                classes = [RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Any];
             }
 
             slots.Add(new P.FoodIngredientSlot { Alternatives = [.. classes] });

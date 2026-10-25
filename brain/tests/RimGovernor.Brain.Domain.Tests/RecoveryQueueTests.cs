@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -73,23 +72,17 @@ public sealed class RecoveryQueueTests
     [Fact]
     public void ALootStackWhoseSafetyWasNotReadHasAnUnreadRoute()
     {
-        var row = new LootItem { Supply = new StartingSupply { Thing = "Thing_Steel7", Definition = "Steel", Cell = new Cell(30, 30) }, Forbidden = true, Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached(), Count = 50 };
+        var row = LootFixtures.Stack("Thing_Steel7", "Steel", new Cell(30, 30), true, new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached(), 50, 0, [], null);
         Assert.Equal(RouteSafety.Unread, RecoveryRules.RecoveryLootThing(row).Thing.Route);
-        Assert.Equal(RouteSafety.Safe, RecoveryRules.RecoveryLootThing(row with { Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 } }).Thing.Route);
-        Assert.Equal(RouteSafety.Unsafe, RecoveryRules.RecoveryLootThing(row with { Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() }).Thing.Route);
+        Assert.Equal(RouteSafety.Safe, RecoveryRules.RecoveryLootThing(row with { Observed = row.Observed with { Safety = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 } } }).Thing.Route);
+        Assert.Equal(RouteSafety.Unsafe, RecoveryRules.RecoveryLootThing(row with { Observed = row.Observed with { Safety = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() } }).Thing.Route);
     }
 
     [Fact]
     public void LootStackWithCoveredStockIsAdmitted()
     {
-        var row = new LootItem
-        {
-            Supply = new StartingSupply { Thing = "Thing_Steel7", Definition = "Steel", Cell = new Cell(30, 30) },
-            Forbidden = true,
-            Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 40.0 },
-            Count = 50,
-            StorageHeadroom = 200L,
-        };
+        var row = LootFixtures.Stack("Thing_Steel7", "Steel", new Cell(30, 30), true,
+            new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 40.0 }, 50, 200, [], null);
         var (thing, ok) = RecoveryRules.RecoveryLootThing(row);
         Assert.True(ok);
         Assert.Equal(RemoteWorkKind.Loot, thing.Kind);
@@ -126,13 +119,7 @@ public sealed class RecoveryQueueTests
                     return null;
                 }
                 var onRoof = roofed && roofCells.Contains(c);
-                return SiteCellFixtures.Ground with
-                {
-                    Cell = c,
-                    Roofed = onRoof,
-                    Roof = onRoof ? ThinRoof : null,
-                    Things = walls.TryGetValue(c, out var w) ? [w] : [],
-                };
+                return SiteCellFixtures.At(c, roof: onRoof ? ThinRoof : null, things: walls.TryGetValue(c, out var w) ? [w] : []);
             },
         };
     }

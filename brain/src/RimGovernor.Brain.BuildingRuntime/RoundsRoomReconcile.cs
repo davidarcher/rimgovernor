@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 // clear side's.
 
 /// <summary>Chooses the wall's and the door's stuff for a ring; refusal names what is unavailable.</summary>
-internal delegate (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) ShellStuff(Observation.PlanningDefinition wall, Observation.PlanningDefinition door);
+internal delegate (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) ShellStuff(RimGovernor.Brain.Policy.PlanningDefinition wall, RimGovernor.Brain.Policy.PlanningDefinition door);
 
 /// <summary>
 /// One owner's room: the PlannedRoom, its furniture template and what the owner forbids in it. Name prefixes
@@ -95,10 +95,10 @@ partial class RoundsBuildingPlanner
     /// wall, and obstructions on the ring alone. Stored goods
     /// and furniture inside the room do not obstruct its shell.
     /// </summary>
-    internal static Pol.ReconcileInput RoomRingInput(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
+    internal static Pol.ReconcileInput RoomRingInput(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
     {
         var buildings = ColonyGround(facts);
-        var cells = CellsOn(facts.Cells, room.RoomGround());
+        var cells = CellsOn(facts.PlanningWindow.Cells, room.RoomGround());
         // The cells open to the sky: the room's ground and its airlocks' vestibules.
         var unroofed = new HashSet<Cell>();
         var vestibules = new HashSet<Cell>();
@@ -111,7 +111,7 @@ partial class RoundsBuildingPlanner
         }
         if (!plan.Roofed.Empty())
         {
-            foreach (var c in facts.Cells)
+            foreach (var c in facts.PlanningWindow.Cells)
             {
                 if (!c.Roofed && vestibules.Contains(c.Cell))
                 {
@@ -128,13 +128,13 @@ partial class RoundsBuildingPlanner
         }
         var inside = room.Region.Bounds();
         cells = [.. cells.Where(c => !(c.Cell.X >= inside.X && c.Cell.X < inside.X + inside.Width && c.Cell.Z >= inside.Z && c.Cell.Z < inside.Z + inside.Height))];
-        var ventAvailable = facts.DefinitionAvailable(ClimateRules.ClimateDefs().VentDef);
+        var ventAvailable = ColonyPlanningRules.DefinitionAvailable(facts.Facts, ClimateRules.ClimateDefs().VentDef);
         return new Pol.ReconcileInput
         {
             Plan = plan,
             Room = room,
             Ground = plan.GroundWithRock(buildings, NaturalRock(facts)),
-            Rooms = facts.Rooms,
+            Rooms = facts.Facts.Upkeep.Rooms,
             Cells = cells,
             VentAvailable = ventAvailable,
             Unroofed = unroofed,
@@ -145,7 +145,7 @@ partial class RoundsBuildingPlanner
     /// Whether room is started (PlannedRoomStarted, #3278) against the colony's construction census: its own ring
     /// built, a blueprint or frame on its ground, or a template piece at its anchor.
     /// </summary>
-    internal static bool PlannedRoomStartedOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
+    internal static bool PlannedRoomStartedOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
     {
         var ground = ColonyGround(facts);
         var census = facts.Facts.CurrentConstruction;
@@ -163,14 +163,14 @@ partial class RoundsBuildingPlanner
     /// <summary>
     /// The owed template pieces no builder can work now (#3754, PlannedRoomDone; <see cref="DefinitionBlockedOf"/>).
     /// </summary>
-    internal static Func<Pol.WantedPiece, bool> PieceBlockedOf(Observation.RoundsReading reading)
+    internal static Func<Pol.WantedPiece, bool> PieceBlockedOf(RoundsReading reading)
     {
-        var blocked = DefinitionBlockedOf(reading.Projection);
+        var blocked = DefinitionBlockedOf(reading.Reading);
         return piece => blocked(piece.DefName);
     }
 
     /// <summary>The one blocked predicate (#3754, #3827): a definition <see cref="PieceReadinessOf"/> reads Blocked.</summary>
-    internal static Func<string, bool> DefinitionBlockedOf(Observation.ColonyProjection projection) =>
+    internal static Func<string, bool> DefinitionBlockedOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection) =>
         name => PieceReadinessOf(projection)(name) == DefinitionReadiness.Blocked;
 
     /// <summary>
@@ -182,7 +182,7 @@ partial class RoundsBuildingPlanner
     /// unstocked and read unobtainable (Rounder.PieceCostReadiness). Else Unread while any of those facts is unread, and
     /// Available.
     /// </summary>
-    internal static Func<string, DefinitionReadiness> PieceReadinessOf(Observation.ColonyProjection projection) => name =>
+    internal static Func<string, DefinitionReadiness> PieceReadinessOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection) => name =>
     {
         var (stuffs, stuffRead) = Rounder.PlannedRingStuffsRead(projection, name, "");
         DefinitionReadiness[] halves =
@@ -202,7 +202,7 @@ partial class RoundsBuildingPlanner
     /// definition <see cref="DefinitionBlockedOf"/> blocks. A planned site of a blocked piece is never generated: its
     /// room's alternatives leave it out (PlannedBuildSite.Blocked, #3838).
     /// </summary>
-    internal static IReadOnlySet<string> BlockedRoomItems(Observation.ColonyProjection projection, Pol.ForecastCoupledContext context)
+    internal static IReadOnlySet<string> BlockedRoomItems(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, Pol.ForecastCoupledContext context)
     {
         var blocked = DefinitionBlockedOf(projection);
         var ring = context.Closures.SelectMany(c => c.Placed).Select(p => p.Site).ToHashSet(StringComparer.Ordinal);
@@ -223,7 +223,7 @@ partial class RoundsBuildingPlanner
         [.. cells.Where(c => c.Cell.X >= ground.X && c.Cell.X < ground.X + ground.Width && c.Cell.Z >= ground.Z && c.Cell.Z < ground.Z + ground.Height)];
 
     /// <summary>True while room's ring has a wall or door still to raise.</summary>
-    internal static bool RoomRingOwed(Observation.ColonyProjection facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
+    internal static bool RoomRingOwed(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
     {
         var input = RoomRingInput(facts, plan, room);
         foreach (var op in ReconcileRules.Reconcile(input).Owed)
@@ -237,22 +237,22 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>The flooring review's view of the colony's floors: every definition the mirror describes, the accessible stock and the tier style.</summary>
-    internal static Pol.FlooringFacts FlooringFactsOf(Observation.ColonyProjection facts)
+    internal static Pol.FlooringFacts FlooringFactsOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var definitions = new Dictionary<string, Pol.FloorDefinition>(StringComparer.Ordinal);
         var flooring = new Pol.FlooringFacts
         {
             Definitions = definitions,
-            Stock = facts.Resources,
+            Stock = ResourceStockRules.Count(facts.Snapshot.Resources),
             Style = RoundsTierStyle.FloorStyle(facts),
-            Layout = facts.LayoutPlan,
+            Layout = facts.Facts.LayoutPlan,
             Observation = facts.Facts.Upkeep.Flooring,
         };
         if (facts.Facts.Containment.Defs is ContainmentDefsRead.Read { Defs: var defs })
         {
             flooring = flooring with { ContainmentFloor = defs.Floor };
         }
-        foreach (var d in facts.Definitions.Where(d => d.Floor is not null))
+        foreach (var d in facts.Facts.Definitions.Where(d => d.Floor is not null))
         {
             definitions[d.Name] = new Pol.FloorDefinition
             {
@@ -271,8 +271,8 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>The census cells that are natural rock.</summary>
-    internal static List<Cell> NaturalRock(Observation.ColonyProjection facts) =>
-        [.. facts.Cells.Where(c => c.NaturalRock()).Select(c => c.Cell)];
+    internal static List<Cell> NaturalRock(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts) =>
+        [.. facts.PlanningWindow.Cells.Where(c => c.NaturalRock()).Select(c => c.Cell)];
 
     /// <summary>The wait of a room whose next operation has no ready cell: a prerequisite is outstanding or the native preview refused the placements.</summary>
     internal static RoundsBuildingResult RoomWaiting(string name, params RefusedPlacement[] refused)
@@ -286,7 +286,7 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Names what the preview reported in the way.</summary>
-    internal static string DescribeBlockers(IReadOnlyList<Pol.PlacementBlocker> blockers)
+    internal static string DescribeBlockers(IReadOnlyList<RimGovernor.Contracts.Wire.Placement.PlacementBlocker> blockers)
     {
         if (blockers.Count == 0)
         {
@@ -300,11 +300,11 @@ partial class RoundsBuildingPlanner
             {
                 name = b.Category;
             }
-            if (b.Blueprint)
+            if (b.IsBlueprint)
             {
                 name += " blueprint";
             }
-            else if (b.Frame)
+            else if (b.IsFrame)
             {
                 name += " frame";
             }
@@ -314,9 +314,9 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Records a refused furniture or ring cell in the service log and returns it for the wait key; a ring cell (wall, door) reads as one.</summary>
-    internal static RefusedPlacement ReportRefused(RoomBuild build, Pol.Preview v, CancellationToken ct)
+    internal static RefusedPlacement ReportRefused(RoomBuild build, IReadOnlyList<RimGovernor.Contracts.Wire.Placement.PlacementBlocker> blockers, CancellationToken ct)
     {
-        var r = new RefusedPlacement(build.Def, build.Cell, DescribeBlockers(v.Blockers));
+        var r = new RefusedPlacement(build.Def, build.Cell, DescribeBlockers(blockers));
         var kindWord = build.Ring ? "ring" : "furniture";
         Tel.Event( TelemetryLevel.Info, "building-planner", "placement_refused", kindWord + " cell refused: " + r.Key() + " blocked by " + r.Blocker);
         return r;
@@ -403,10 +403,10 @@ partial class RoundsBuildingPlanner
     /// is placed in its base ring stuff (the first of PlannedRingStuffsOf: the cheapest stocked stuff the door can also
     /// be made from, else the map's wood or rock blocks, #3747), the stuff its planned sites are priced in (#3677).
     /// </summary>
-    internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) ShellMaterials(Observation.ColonyProjection facts, string wall, string door, ShellStuff? choose)
+    internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) ShellMaterials(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, string wall, string door, ShellStuff? choose)
     {
-        var wallDef = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, wall);
-        var doorDef = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, door);
+        var wallDef = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Facts.Definitions, wall);
+        var doorDef = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Facts.Definitions, door);
         if (wallDef is null || doorDef is null)
         {
             return ("", "", FieldUnavailable("wall_door_definitions"), false);
@@ -426,7 +426,7 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Builds both from the ring's base stuff (PlannedRingStuffsOf); refused when the wall and door share no stuff.</summary>
-    private static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) BaseRingStuff(Observation.ColonyProjection facts, string wall, string door) =>
+    private static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) BaseRingStuff(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, string wall, string door) =>
         Rounder.PlannedRingStuffsOf(facts, wall, door) is [{ Length: > 0 } stuff, ..]
             ? (stuff, stuff, new Verdict(), true)
             : ("", "", FieldUnavailable("wall_door_stuff"), false);
@@ -437,9 +437,9 @@ partial class RoundsBuildingPlanner
     /// allows the kit, and the stuff then falls to the best ranked one (stone blocks the map does not have). The
     /// ring waits for the kit instead of laying blueprints nothing can build (#2814).
     /// </summary>
-    internal static bool UnstockedUntilKitAllowed(Observation.ColonyProjection facts, params string[] stuffs)
+    internal static bool UnstockedUntilKitAllowed(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, params string[] stuffs)
     {
-        var stock = facts.Resources;
+        var stock = ResourceStockRules.Count(facts.Snapshot.Resources);
         if (!facts.Facts.EventLoot.Any(row => row.IsSafe && row.Forbidden))
         {
             return false;
@@ -455,13 +455,13 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Drops the blockers that are a blueprint of def, the ring cell's own wanted piece, and reports whether any was dropped.</summary>
-    internal static (List<Pol.PlacementBlocker> Remaining, bool Dropped) WithoutOwnBlueprint(IEnumerable<Pol.PlacementBlocker> blockers, string def)
+    internal static (List<RimGovernor.Contracts.Wire.Placement.PlacementBlocker> Remaining, bool Dropped) WithoutOwnBlueprint(IEnumerable<RimGovernor.Contracts.Wire.Placement.PlacementBlocker> blockers, string def)
     {
-        var rest = new List<Pol.PlacementBlocker>();
+        var rest = new List<RimGovernor.Contracts.Wire.Placement.PlacementBlocker>();
         var dropped = false;
         foreach (var b in blockers)
         {
-            if (b.Blueprint && (b.DefName.StartsWith("Blueprint_", StringComparison.Ordinal) ? b.DefName["Blueprint_".Length..] : b.DefName) == def)
+            if (b.IsBlueprint && (b.DefName.StartsWith("Blueprint_", StringComparison.Ordinal) ? b.DefName["Blueprint_".Length..] : b.DefName) == def)
             {
                 dropped = true;
                 continue;
@@ -475,12 +475,12 @@ partial class RoundsBuildingPlanner
 public sealed partial class Rounder
 {
     /// <summary>The clear side's wanted floor per planned room: the flooring review's choice, with the throne room's title tags.</summary>
-    internal Pol.RoomFloors ClearFloors(Observation.ColonyProjection facts)
+    internal Pol.RoomFloors ClearFloors(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var throne = new Pol.PlannedRoom();
         IReadOnlyList<string> tags = [];
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(facts);
-        if (owed && need.FloorTags.Count > 0 && facts.LayoutPlan is { } plan)
+        if (owed && need.FloorTags.Count > 0 && facts.Facts.LayoutPlan is { } plan)
         {
             (throne, _) = plan.ThroneRoomFor(need.MinArea);
             tags = need.FloorTags;
@@ -492,17 +492,17 @@ public sealed partial class Rounder
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>The definitions other lanes stand in owned rooms, which an owner never removes as stale (ReconcileRules.CarriedOver).</summary>
-    internal Func<string, bool> CarriedOver(ColonyProjection facts) =>
+    internal Func<string, bool> CarriedOver(ColonyReading facts) =>
         ReconcileRules.CarriedOver(LightingDefinitions(), facts.Facts.RequireBasicComfort(), facts.Facts.Items);
 
     /// <summary>
     /// Reconciles one owner's room against its full furniture list: it is diffed, then the next wave is committed: foreign obstructions,
     /// removals, installs from packed stock, then the on-site builds (CommitBuilds).
     /// </summary>
-    internal async Task<RoundsBuildingResult> ReconcileRoomAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, PackedStock? stock, RoomReconcile rr, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> ReconcileRoomAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, RoundsReading reading, PackedStock? stock, RoomReconcile rr, CancellationToken call, CancellationToken epoch)
     {
-        var facts = reading.Projection;
-        if (facts.LayoutPlan is not { } plan)
+        var facts = reading.Reading;
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
         }
@@ -522,8 +522,8 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (!rr.RingOnly)
         {
-            input = input with { Cells = CellsOn(facts.Cells, rr.Room.RoomGround()) };
-            if (Native is not Observation.IClearanceSource source)
+            input = input with { Cells = CellsOn(facts.PlanningWindow.Cells, rr.Room.RoomGround()) };
+            if (Native is not IClearanceSource source)
             {
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
             }
@@ -549,7 +549,8 @@ public sealed partial class RoundsBuildingPlanner
                 left = new Dictionary<string, int>(StringComparer.Ordinal);
                 foreach (var item in items)
                 {
-                    left[item.InnerDef] = left.GetValueOrDefault(item.InnerDef) + 1;
+                    var packed = item.Packed ?? throw new ObservationContractException("packed stock lacks its building");
+                    left[packed.DefName] = left.GetValueOrDefault(packed.DefName) + 1;
                 }
             }
             input = input with { Stock = left };
@@ -810,9 +811,9 @@ public sealed partial class RoundsBuildingPlanner
     /// as one method; a refused placement is left for a later pass. There is no cap on cells and no funding
     /// limit: the native tier gate orders material delivery.
     /// </summary>
-    internal async Task<RoundsBuildingResult> CommitBuildsAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.LayoutPlan plan, RoomWork w, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> CommitBuildsAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, RoundsReading reading, Pol.LayoutPlan plan, RoomWork w, CancellationToken call, CancellationToken epoch)
     {
-        var facts = reading.Projection;
+        var facts = reading.Reading;
         var rr = w.Rr;
         var wantWalls = false;
         foreach (var op in w.Ops)
@@ -863,7 +864,7 @@ public sealed partial class RoundsBuildingPlanner
                     case Pol.OpKind.Build:
                         foreach (var piece in op.Pieces)
                         {
-                            builds.Add(new RoomBuild { Def = piece.DefName, Stuff = piece.Stuff.Length > 0 ? piece.Stuff : facts.BulkBuildStuff(piece.DefName, 1), Cell = piece.Anchor(), Rot = piece.Rot });
+                            builds.Add(new RoomBuild { Def = piece.DefName, Stuff = piece.Stuff.Length > 0 ? piece.Stuff : ColonyPlanningRules.BulkBuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), piece.DefName, 1), Cell = piece.Anchor(), Rot = piece.Rot });
                         }
                         break;
                     case Pol.OpKind.VentIn:
@@ -897,7 +898,7 @@ public sealed partial class RoundsBuildingPlanner
         // A room planned into rock is mined out before its ring.
         if (wantWalls && rr.Room.Dug)
         {
-            var (dug, handled) = await DigPlannedRoomAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading.Reading }, plan, rr.Room, Check, call, epoch).ConfigureAwait(false);
+            var (dug, handled) = await DigPlannedRoomAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts }, plan, rr.Room, Check, call, epoch).ConfigureAwait(false);
             if (handled)
             {
                 return dug;
@@ -919,6 +920,7 @@ public sealed partial class RoundsBuildingPlanner
             var v = preview.Preview;
             if (!v.CanPlace || !v.SafeToPlace)
             {
+                IReadOnlyList<RimGovernor.Contracts.Wire.Placement.PlacementBlocker> blockers = v.Blockers;
                 if (build.Ring)
                 {
                     var (rest, own) = WithoutOwnBlueprint(v.Blockers, build.Def);
@@ -929,7 +931,7 @@ public sealed partial class RoundsBuildingPlanner
                             // Our own blueprint already stands on the cell: it is placed.
                             continue;
                         }
-                        v = v with { Blockers = [.. rest] };
+                        blockers = rest;
                     }
                 }
                 if (build.Ring && !build.Vent && (rr.Room.Outdoor || rr.RingOnly))
@@ -937,7 +939,7 @@ public sealed partial class RoundsBuildingPlanner
                     // The planner sited this ring: a cell the native refuses is reported and left to the plan's replan, never moved to another site.
                     return new RoundsBuildingResult { Verdict = NoSpace("pen_enclosure") };
                 }
-                var r = ReportRefused(build, v, call);
+                var r = ReportRefused(build, blockers, call);
                 if (refused.Count == 0)
                 {
                     refused.Add(r);

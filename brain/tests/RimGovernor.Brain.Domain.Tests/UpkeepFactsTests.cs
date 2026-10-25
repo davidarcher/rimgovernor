@@ -54,17 +54,17 @@ public sealed class UpkeepFactsTests
             new()
             {
                 Id = "Thing_Bed1", Medical = false, Prisoners = false, Owners = [new PawnId("Human1")], Users = [], AccessibleTo = [new PawnId("Human1")],
-                Roofed = true, TemperatureC = 21.5, Room = "room-3", Quality = new BedQuality.Graded(Defs.QualityCategory.Good), Stuff = "WoodLog", ForSlaves = false,
+                TemperatureC = 21.5, Room = "room-3", Quality = new BedQuality.Graded(Defs.QualityCategory.Good), ForSlaves = false,
             },
             new()
             {
                 Id = "Thing_SleepingSpot2", Medical = false, Prisoners = true, Owners = [], Users = [], AccessibleTo = [],
-                Roofed = false, TemperatureC = -3, Room = "room-4", Quality = new BedQuality.Ungraded(), Stuff = null, ForSlaves = false,
+                TemperatureC = -3, Room = "room-4", Quality = new BedQuality.Ungraded(), ForSlaves = false,
             },
         ];
 
         Assert.Equal(
-            """[{"id":"Thing_Bed1","medical":false,"prisoners":false,"owners":["Human1"],"users":[],"accessibleTo":["Human1"],"roofed":true,"temperatureC":21.5,"room":"room-3","quality":{"type":"graded","category":"QUALITY_CATEGORY_GOOD"},"stuff":"WoodLog","forSlaves":false},{"id":"Thing_SleepingSpot2","medical":false,"prisoners":true,"owners":[],"users":[],"accessibleTo":[],"roofed":false,"temperatureC":-3,"room":"room-4","quality":{"type":"ungraded"},"stuff":null,"forSlaves":false}]""",
+            """[{"id":"Thing_Bed1","medical":false,"prisoners":false,"owners":["Human1"],"users":[],"accessibleTo":["Human1"],"temperatureC":21.5,"room":"room-3","quality":{"type":"graded","category":"QUALITY_CATEGORY_GOOD"},"forSlaves":false},{"id":"Thing_SleepingSpot2","medical":false,"prisoners":true,"owners":[],"users":[],"accessibleTo":[],"temperatureC":-3,"room":"room-4","quality":{"type":"ungraded"},"forSlaves":false}]""",
             WireJson.Serialize(rows));
         Assert.All(rows, row => Assert.Equal(row, WireJson.Deserialize<UpkeepBed>(WireJson.Serialize(row))));
     }
@@ -76,18 +76,18 @@ public sealed class UpkeepFactsTests
         [
             new()
             {
-                Pawn = new PawnId("Human1"), OwnedBed = "Thing_Bed1", ComfortableMinC = 16, ComfortableMaxC = 26, Partners = [new PawnId("Human2")],
+                Pawn = new PawnId("Human1"), Partners = [new PawnId("Human2")],
                 BedSharingAllowed = true, Title = new RoyalStanding.Titled("Knight", true, ["Ascetic"]),
             },
             new()
             {
-                Pawn = new PawnId("Human3"), OwnedBed = null, ComfortableMinC = 16, ComfortableMaxC = 26, Partners = [],
+                Pawn = new PawnId("Human3"), Partners = [],
                 BedSharingAllowed = false, Title = new RoyalStanding.Untitled(),
             },
         ];
 
         Assert.Equal(
-            """[{"pawn":"Human1","ownedBed":"Thing_Bed1","comfortableMinC":16,"comfortableMaxC":26,"partners":["Human2"],"bedSharingAllowed":true,"title":{"type":"titled","title":"Knight","ascetic":true,"precepts":["Ascetic"]}},{"pawn":"Human3","ownedBed":null,"comfortableMinC":16,"comfortableMaxC":26,"partners":[],"bedSharingAllowed":false,"title":{"type":"untitled"}}]""",
+            """[{"pawn":"Human1","partners":["Human2"],"bedSharingAllowed":true,"title":{"type":"titled","title":"Knight","ascetic":true,"precepts":["Ascetic"]}},{"pawn":"Human3","partners":[],"bedSharingAllowed":false,"title":{"type":"untitled"}}]""",
             WireJson.Serialize(rows));
         Assert.All(rows, row => Assert.Equal(row, WireJson.Deserialize<UpkeepPerson>(WireJson.Serialize(row))));
     }

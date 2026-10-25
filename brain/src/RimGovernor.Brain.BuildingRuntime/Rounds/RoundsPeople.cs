@@ -52,13 +52,17 @@ public sealed class PeopleRounds
         if (_needs.Dialog)
         {
             var dialog = await ObserveAsync(scope.World, review.Tick, call).ConfigureAwait(false);
-            facts = facts with { DialogOpen = Known(dialog is not null) };
+            facts = facts with { DialogOpen = dialog is not null };
         }
-        if (_needs.Mood && review.Snapshot == scope.World)
+        if (_needs.Mood && review.Snapshot != scope.World)
+        {
+            throw new RequiredFactException("mood review");
+        }
+        if (_needs.Mood)
         {
             facts = facts with
             {
-                Mood = Known(EquatableArray.From(review.MoodHistory().States)),
+                Mood = EquatableArray.From(review.MoodHistory().States),
                 Working = EquatableArray.From(review.Progress.Where(p => p.Method.Length > 0 && new NeedId(p.Concern.Value).IsValid)
                     .Select(p => new NeedId(p.Concern.Value))),
             };
@@ -97,10 +101,7 @@ public sealed class PeopleRounds
         {
             return BuildingReasonNoDeficit;
         }
-        if (!dialog.Window.TryGetValue(out var window))
-        {
-            return FieldUnavailable("dialog");
-        }
+        var window = dialog.Window;
         if (!dialog.Interactive)
         {
             return BuildingReasonNotInteractive;
@@ -138,7 +139,7 @@ public sealed class PeopleRounds
     /// </summary>
     internal static Verdict MoodVerdict(NeedId need, PeopleFacts facts)
     {
-        var pawn = facts.Mood.TryGetValue(out var states) ? states.FirstOrDefault(s => PeopleFamily.Mood(s.Pawn.Id) == need) : null;
+        var pawn = facts.Mood.FirstOrDefault(s => PeopleFamily.Mood(s.Pawn.Id) == need);
         if (pawn is null)
         {
             return FieldUnavailable(need.Value);
@@ -149,7 +150,10 @@ public sealed class PeopleRounds
             MoodMethodReason.Provisioned => WaitFor(Cause.WaitingOnNeed, proposal.Provider.Value),
             MoodMethodReason.NoCause or MoodMethodReason.Exhausted or MoodMethodReason.Unowned => AwaitingPlan("unsupported_forecast_mood_cast",
                 "Preventative mood casts require shared caster time, psyfocus and mood-outcome alternatives."),
-            _ => WaitFor(Cause.MethodUsed, "mood_relief_method"),
+            MoodMethodReason.Recovered or MoodMethodReason.Unavailable or MoodMethodReason.MentalBreak
+                or MoodMethodReason.PlayerWork or MoodMethodReason.Relief => WaitFor(Cause.MethodUsed, "mood_relief_method"),
+            MoodMethodReason.None => throw new ControlException("mood: the proposal has no reason"),
+            var invalid => throw new ControlException($"mood: invalid proposal reason {invalid}"),
         };
     }
 
@@ -180,7 +184,7 @@ public sealed class PeopleRounds
         }
         return new OpenDialog
         {
-            Window = Known(dialog.WindowId),
+            Window = dialog.WindowId,
             Interactive = dialog.Interactive,
             Options = EquatableArray.From(options),
         };

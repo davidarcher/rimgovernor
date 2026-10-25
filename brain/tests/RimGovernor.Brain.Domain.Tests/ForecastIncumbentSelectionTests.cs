@@ -1,8 +1,8 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -11,7 +11,7 @@ public sealed class ForecastIncumbentSelectionTests
     private static (ColonyForecastRequest Request, ForecastCoupledCandidates Candidates) Problem(double food, double fall, bool meal = true)
     {
         var facts = ForecastCoupledSelectionTests.Review(food, fall);
-        facts = WorkRules.ReviewWorkResources(facts with { Resources = [new(new("Rice"), 1)] },
+        facts = WorkRules.ReviewWorkResources(facts with { Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 1 }] }},
             new ProductionBatchCensus.Read([]), new([]));
         var original = facts.CoupledAlternatives!;
         var pawn = original.Context.Needs.Pawns[0] with
@@ -161,8 +161,7 @@ public sealed class ForecastIncumbentSelectionTests
         var bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate>
         {
             [("eat", "pawn")] = new("eat", "pawn", [], PawnActivityKind.Eat, "rice", "", "", 2, 2000, new(1, 1)) { Resource = "Rice", Source = new(1, 1) },
-            [("haul", "helper")] = new("haul", "helper", [], PawnActivityKind.Deliver, "rice", "", "", 4, 2000, new(1, 1))
-                { Resource = "Rice", Source = new(1, 1), Destination = new(2, 1), Capacity = 4 },
+            [("haul", "helper")] = new RimGovernor.Brain.Policy.Methods.CellActivityTaskCandidate(new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("haul", "helper", [], PawnActivityKind.Deliver, "rice", "", "", 4, 2000, new(1, 1)) { Resource = "Rice", Source = new(1, 1), Capacity = 4 }, new(2, 1)),
         };
         var context = candidates.Context with
         {
@@ -314,7 +313,7 @@ public sealed class ForecastIncumbentSelectionTests
         var (request, candidates) = Problem(1, 0, meal: false);
         var facts = WorkResourceTestFacts.Create("pawn", "helper");
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns
-            .Select(p => p.Id.Value == "helper" ? p with { Available = false } : p))) } };
+            .Select(p => p.Id.Value == "helper" ? p with { Observed = p.Observed with { Downed = true } } : p))) } };
         var roster = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         var context = candidates.Context;
         context = context with

@@ -83,7 +83,7 @@ public sealed partial class Rounder
         }
     }
 
-    internal async Task PlanFoodAcquisitionAsync(GenerationSnapshot world, Observation.ColonyProjection p, CancellationToken ct)
+    internal async Task PlanFoodAcquisitionAsync(GenerationSnapshot world, RimGovernor.Brain.Bridge.Contracts.ColonyReading p, CancellationToken ct)
     {
         var demands = new List<Pol.SupplyDemandResult>();
         if (p.Facts.FoodPlan is { } plan)
@@ -106,7 +106,7 @@ public sealed partial class Rounder
     /// Runs inside the existing supply owner. Trips are exact native pack/crew options supplied by the mission
     /// planner, not guessed crews.
     /// </summary>
-    internal async Task PlanTradeAcquisitionAsync(GenerationSnapshot world, string owner, Observation.ColonyProjection p, IReadOnlyList<Pol.SupplyDemandResult> demands, IReadOnlyList<Pol.TradeAcquisitionOption>? trips, CancellationToken ct)
+    internal async Task PlanTradeAcquisitionAsync(GenerationSnapshot world, string owner, RimGovernor.Brain.Bridge.Contracts.ColonyReading p, IReadOnlyList<Pol.SupplyDemandResult> demands, IReadOnlyList<Pol.TradeAcquisitionOption>? trips, CancellationToken ct)
     {
         var m = TradeAcquisition;
         string active = "";
@@ -162,7 +162,7 @@ public sealed partial class Rounder
             }
         }
         // No attempt is proposed while the colony's silver is unread or its size prices no reserve.
-        var (reserve, known) = Pol.TradePolicyRules.TradeSilverReserve(p.Facts.Colonists);
+        var (reserve, known) = Pol.TradePolicyRules.TradeSilverReserve(p.Facts.Census.ColonistCount);
         var plan = known
             ? Pol.TradePolicyRules.PlanTradeAcquisition(new Pol.TradeAcquisitionRequest { Demands = demands, Options = options, Silver = p.Facts.Silver(), Reserve = reserve, ActiveID = active })
             : new Pol.TradeAcquisitionPlan();

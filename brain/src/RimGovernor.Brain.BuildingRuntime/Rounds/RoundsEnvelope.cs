@@ -24,7 +24,7 @@ public sealed partial class LayoutRounds
             throw new ControlException("envelope: the scope is another world or older than the review");
         }
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, [ClimateRules.ClimateDefs().VentDef], call).ConfigureAwait(false);
-        var (rooms, known) = EnvelopeWork(reading.Projection);
+        var (rooms, known) = EnvelopeWork(reading.Reading);
         if (!known)
         {
             return FieldUnavailable("layout_plan");
@@ -49,9 +49,9 @@ public sealed partial class LayoutRounds
 partial class LayoutRounds
 {
     /// <summary>The planned rooms whose ring or roof the envelope still has to build; not known without a layout plan or colony ground.</summary>
-    internal static (List<PlannedRoom> Rooms, bool Known) EnvelopeWork(ColonyProjection facts)
+    internal static (List<PlannedRoom> Rooms, bool Known) EnvelopeWork(ColonyReading facts)
     {
-        if (facts.LayoutPlan is not { } plan)
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return ([], false);
         }

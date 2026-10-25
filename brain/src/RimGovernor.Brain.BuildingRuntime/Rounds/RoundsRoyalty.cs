@@ -53,8 +53,8 @@ public sealed class RoyaltyRounds
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
         var facts = new RoyaltyFamilyFacts
         {
-            Royalty = read.Projection.Facts.Royalty,
-            PsylinkOwed = _psylink is not null && await PsylinkOwedAsync(_psylink, Boundary.Identity(scope.World), read.Projection, call).ConfigureAwait(false),
+            Royalty = read.Reading.Facts.Royalty,
+            PsylinkOwed = _psylink is not null && await PsylinkOwedAsync(_psylink, Boundary.Identity(scope.World), read.Reading, call).ConfigureAwait(false),
         };
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
@@ -70,14 +70,14 @@ public sealed class RoyaltyRounds
     /// are read natively only while a colonist waits and the census does not count none held. Throws while the pawn
     /// rows are unread; a failed item read throws.
     /// </summary>
-    internal static async Task<bool> PsylinkOwedAsync(FacadeNativeClient native, C.Identity identity, ColonyProjection projection, CancellationToken ct)
+    internal static async Task<bool> PsylinkOwedAsync(FacadeNativeClient native, C.Identity identity, ColonyReading projection, CancellationToken ct)
     {
         if (projection.Facts.Royalty is not RoyaltyState.Active { Facts: var royalty })
         {
             return false;
         }
-        var first = PsylinkRules.PsylinkCandidates(royalty, projection.WorkPawns);
-        var up = PsylinkRules.PsylinkLevelUps(royalty, projection.WorkPawns);
+        var first = PsylinkRules.PsylinkCandidates(royalty, projection.Facts.ForecastObserved.WorkPawns);
+        var up = PsylinkRules.PsylinkLevelUps(royalty, projection.Facts.ForecastObserved.WorkPawns);
         if (first.Count + up.Count == 0 || !royalty.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock) || stock.Held == 0)
         {
             return false;

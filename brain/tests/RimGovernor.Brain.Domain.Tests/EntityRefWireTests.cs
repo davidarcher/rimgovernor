@@ -15,7 +15,7 @@ public sealed class EntityRefWireTests
     [Fact]
     public void OnMapJsonRoundTripIsExact()
     {
-        var head = new EntityRef { Id = "Thing_Steel1", DefName = "Steel", Label = "steel x75", Place = new EntityPlace.OnMap(3, new Common.Cell { X = 10, Z = 12 }) };
+        var head = new EntityRef { Id = "Thing_Steel1", DefName = "Steel", Label = "steel x75", Place = new EntityPlace.OnMap(3, new RimGovernor.Brain.Domain.Cell { X = 10, Z = 12 }) };
 
         var json = WireJson.Serialize(head);
 

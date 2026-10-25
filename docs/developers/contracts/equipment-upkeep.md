@@ -64,9 +64,7 @@ Equipment needs include the loadout model gaps:
 replacements for damaged apparel, and definition/stuff options the pawn's
 insulation floor needs ([warmth](#tainted-apparel-and-warmth)). A core body-part group (Torso, Legs)
 the pawn wears nothing over is a deficit in any weather, found by the brain from the
-worn garments' groups. The native producer sends no deficit flag and no
-replacement list (`GearLoadout.deficit` and `replacement_needs` are reserved);
-every gap is the model's. A definition-level
+worn garments' groups. Every deficit and replacement gap is derived by the model. A definition-level
 insulation estimate is a procurement candidate, not proof of the eventual garment's
 quality, eligibility or sufficient protection.
 
@@ -117,7 +115,7 @@ is not yet an executed method.
 
 `policy.PlanGearLoadout` consumes a complete, eligible def × stuff × quality
 catalog and worn gear. The native gear census supplies it per pawn
-(`GearLoadout.loadout_model`, with the outdoor temperature): traits, every
+(`GearLoadout.loadout_model`, with the outdoor temperature): every
 worn garment, the eligible loose or stored candidates and the producible
 definitions whose recipe research is finished (every allowed stuff admitted by the discovered recipe filter), every unworn option uncapped, each an id, def, stuff, quality,
 condition and flags (tainted, locked, smoke-pop). Everything def-static is
@@ -132,6 +130,22 @@ The brain applies the wear filter (gender, stage, a present part in one of the
 garment's groups) to the apparel rows to list the definitions the pawn can
 wear; armor is the Soldier outfit
 tag without Worker, and a def covers the body with a Torso or Legs group.
+
+Gear policy views retain their actual native records. The frame's canonical
+`PawnState` owns equipment, comfort, traits, skills, work settings, draft state,
+disabled work tags and ideology; gear joins that row by pawn id. The gear census
+owns its admission token, wear candidates, outfit, universal developmental stage,
+gender and present body-part groups. An uninitialized work tracker cannot supply
+a modeled role. Policy stores catalog-resolved work and trait effects alongside
+the native records, and keeps goal apparel requirements separate from native
+title, role and precept requirements.
+
+Each loadout option names its source explicitly: an actual native option row,
+an equipped primary and its actual item/entity rows, or a catalog product with
+the actual locked-bill crafter row. Catalog products have no fabricated native
+item observation. Stored apparel uses the canonical `GearStock` rows directly;
+claims and surplus counts are derived balances against those rows, preserving
+their observed counts.
 The brain derives each option's slot from its layers and groups,
 takes the role from the apparel-policy read and narrows unworn options to
 the definitions that role's apparel policy permits. The census row is whole

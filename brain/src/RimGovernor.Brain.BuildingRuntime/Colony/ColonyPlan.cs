@@ -127,17 +127,15 @@ internal static class LayoutPlanning
     public const string FieldLayer = "fields";
 
     /// <summary>The tier and sorted finished research a plan is grown for.</summary>
-    public static string GrownFor(ColonyProjection projection)
+    public static string GrownFor(ColonyReading projection)
     {
-        var research = projection.Facts.Research is { } census
-            ? census.Finished.Select(id => id.Value).Order(StringComparer.Ordinal).ToList()
-            : [];
+        var research = projection.Facts.Research.Finished.Select(id => id.Value).Order(StringComparer.Ordinal).ToList();
         return string.Create(CultureInfo.InvariantCulture, $"{(int)LayoutTier(projection)}|{string.Join(",", research)}");
     }
 
-    /// <summary>The tech tier new bedrooms are sized for; an unknown tier reads Camp.</summary>
-    public static TechTier LayoutTier(ColonyProjection projection) =>
-        projection.TechTier.TryGetValue(out var tier) ? tier : default;
+    /// <summary>The observed tech tier new bedrooms are sized for.</summary>
+    public static TechTier LayoutTier(ColonyReading projection) =>
+        TechTierRules.SelectTechTier(projection.Tables.FinishedResearch.Select(project => new ResearchProjectId(project)).ToArray(), projection.Snapshot.PlayerTechLevel);
 
     /// <summary>Names the triggers that fired, sorted, for the layout_plan replanned row.</summary>
     public static string LayoutReasons(IReadOnlyDictionary<string, bool> fired) =>
@@ -225,14 +223,14 @@ public sealed partial class Rounder
     /// plans nothing. The catalog comes back with it so one review reads the definitions once (the station
     /// chain reuses it).
     /// </summary>
-    internal async Task<(MapSurvey Survey, DefinitionCatalog Catalog)> LayoutSurveyAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    internal async Task<(MapSurvey Survey, DefinitionCatalog Catalog)> LayoutSurveyAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
-        if (Native is not IDefinitionSource source || projection.Region == default)
+        if (Native is not IDefinitionSource source || projection.PlanningWindow.Region == default)
         {
             throw new InvalidOperationException("layout survey: no definitions or planning window");
         }
         var catalog = await source.DefinitionCatalogAsync(Control.ControlIdentity(snapshot), ct).ConfigureAwait(false);
-        return (catalog.SurveyFromCells(projection.Cells, projection.Bounds), catalog);
+        return (catalog.SurveyFromCells(projection.PlanningWindow.Cells, projection.Facts.MapBounds), catalog);
     }
 
     /// <summary>
@@ -244,7 +242,7 @@ public sealed partial class Rounder
     /// (<see cref="PendingLayoutReplan"/>, #3565): the hourly check that finds the inputs drifted starts it and
     /// a later review adopts its result; no second replan starts while one is pending.
     /// </summary>
-    internal async Task<ColonyProjection> ReviewLayoutPlanAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    internal async Task<ColonyReading> ReviewLayoutPlanAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
         var tick = projection.Identity.Tick;
         var (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
@@ -281,7 +279,7 @@ public sealed partial class Rounder
                 Tel.Decide(new Decision { Kind = TelemetryKinds.LayoutReplanTiledKind, Component = "layout", Target = "plan", Verdict = "skipped", Reason = held.Count != 0 ? "room_held" : "superseded", Attrs = attrs });
             }
         }
-        var pawns = projection.Facts.Colonists;
+        var pawns = projection.Facts.Census.ColonistCount;
         // The last check is the newer of the saved plan's tick and the last survey this process read; a rewind
         // past it or a restart falls back to the plan's tick.
         var checkedAt = layout.Tick;
@@ -303,7 +301,7 @@ public sealed partial class Rounder
         {
             if (await CheckSurveyAsync(snapshot, projection, ct).ConfigureAwait(false) is var (survey, catalog))
             {
-                var topology = projection.PowerPlanning;
+                var topology = projection.Facts.EssentialInputs.Power;
                 var colonists = (int)pawns;
                 var (inputs, growth, facts) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
                 var drift = LayoutPlanning.ReplanDrift(inputs, PlanInputs, tick, PlanReplanned);
@@ -322,7 +320,7 @@ public sealed partial class Rounder
         }
         if (haveLayout)
         {
-            projection = projection with { LayoutPlan = layout.Plan };
+            projection = projection with { Facts = projection.Facts with { LayoutPlan = layout.Plan } };
         }
         await DrawLayoutOverlayAsync(snapshot, projection, layout, haveLayout, ct).ConfigureAwait(false);
         return projection;
@@ -336,7 +334,7 @@ public sealed partial class Rounder
     /// The survey read of a layout check, recorded as the last check, with the map's climate latched on it (unknown
     /// reads warm); null when the read failed, which the next review retries.
     /// </summary>
-    private async Task<(MapSurvey Survey, DefinitionCatalog Catalog)?> CheckSurveyAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    private async Task<(MapSurvey Survey, DefinitionCatalog Catalog)?> CheckSurveyAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
         (MapSurvey Survey, DefinitionCatalog Catalog) read;
         try
@@ -351,8 +349,8 @@ public sealed partial class Rounder
         PlanSurveyedIn = snapshot;
         var survey = read.Survey with
         {
-            Cold = projection.ColdMap.TryGetValue(out var cold) && cold,
-            Hot = projection.HotMap.TryGetValue(out var hot) && hot,
+            Cold = LayoutRoofRules.ColdMapCurve(ClimateRules.RequireOutdoorCurve(projection.Snapshot.Gear.Climate.Temperatures)),
+            Hot = LayoutRoofRules.HotMapCurve(ClimateRules.RequireOutdoorCurve(projection.Snapshot.Gear.Climate.Temperatures)),
         };
         return (survey, read.Catalog);
     }
@@ -364,7 +362,7 @@ public sealed partial class Rounder
     /// <see cref="LayoutPlanning.FirstPlanPending"/> once it recorded the plan, until a review starts with the plan in
     /// hand. A review with a saved plan, or a derive that fails for anything but an unread fact, holds nothing.
     /// </summary>
-    internal async Task ReviewFirstPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, ColonyProjection projection, CancellationToken ct)
+    internal async Task ReviewFirstPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, ColonyReading projection, CancellationToken ct)
     {
         var tick = projection.Identity.Tick;
         var (_, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
@@ -383,8 +381,8 @@ public sealed partial class Rounder
         {
             return;
         }
-        FirstPlanUnread = await DeriveLayoutPlanAsync(snapshot, demandWorld, tick, projection, survey, catalog, projection.PowerPlanning.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
-        var pawns = projection.Facts.Colonists;
+        FirstPlanUnread = await DeriveLayoutPlanAsync(snapshot, demandWorld, tick, projection, survey, catalog, projection.Facts.EssentialInputs.Power.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
+        var pawns = projection.Facts.Census.ColonistCount;
         PlanGrownFor = LayoutPlanning.GrownFor(projection);
         PlanPawns = (int)pawns;
         PlanInputs = LayoutInputs.Empty;
@@ -396,7 +394,7 @@ public sealed partial class Rounder
     /// The facts hold the plan itself, so a replan that records a plan changes them. Pure beyond the growth's
     /// reads: the chain runs in the replan.
     /// </summary>
-    internal async Task<(LayoutInputs Inputs, RoomGrowth Growth, StationFacts Facts)> LayoutInputsOfAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, MapSurvey survey, string grown, int pawns, IReadOnlyList<PowerGeyser> geysers, CancellationToken ct)
+    internal async Task<(LayoutInputs Inputs, RoomGrowth Growth, StationFacts Facts)> LayoutInputsOfAsync(GenerationSnapshot snapshot, ColonyReading projection, HeldLayout layout, MapSurvey survey, string grown, int pawns, IReadOnlyList<PowerGeyser> geysers, CancellationToken ct)
     {
         var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, Stockpiles.LayoutDemand(RoundsStockpilePlanner.StockpileWorld(snapshot)), ct).ConfigureAwait(false);
         var bedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false);
@@ -424,7 +422,7 @@ public sealed partial class Rounder
     /// use, the bedrooms a pawn still sleeps in, the herd and the ring's hold. Fixed stays null while the census
     /// or the plan catalog is unknown, which pins every room.
     /// </summary>
-    internal async Task<RoomGrowth> RoomGrowthAsync(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, RoomDemand demand, CancellationToken ct)
+    internal async Task<RoomGrowth> RoomGrowthAsync(GenerationSnapshot snapshot, ColonyReading projection, LayoutPlan plan, RoomDemand demand, CancellationToken ct)
     {
         // The stores' demand, plus the burial's: a tomb or morgue joins the plan only once the dead ask for it.
         var burial = RoundsBurialFacts.BurialDemand(projection, plan);
@@ -433,7 +431,7 @@ public sealed partial class Rounder
         growth = growth with { ThroneArea = ThroneRules.ThroneAreaOwed(plan, need, owed) };
         // A room whose need has ended and that is in use stays.
         var construction = projection.Facts.CurrentConstruction;
-        var ended = LayoutRoomsRules.EndedRoomRoles(projection.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Isolation, RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection));
+        var ended = LayoutRoomsRules.EndedRoomRoles(projection.Facts.ForecastObserved.WorkPawns, projection.Facts.Ideology, projection.Facts.Containment, projection.Facts.Isolation, RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection));
         if (LayoutPlan.RoomsOfRoles(plan, ended) > 0)
         {
             growth = growth with { InUse = LayoutPlan.RoomsInUse(plan, construction.Buildings, RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)) };
@@ -448,7 +446,7 @@ public sealed partial class Rounder
                 InFlight = LayoutPlan.InFlightRooms(plan, found.Origins, found.Rooms),
             };
         }
-        growth = growth with { Slept = SleepingRules.SleptBedrooms(plan, projection.Rooms, projection.Facts.Sleeping) };
+        growth = growth with { Slept = SleepingRules.SleptBedrooms(plan, projection.Facts.Upkeep.Rooms, projection.Facts.Sleeping) };
         // The ring is laid around what the defense record holds of it.
         return growth with { Perimeter = await PerimeterHoldAsync(snapshot, ct).ConfigureAwait(false) };
     }
@@ -457,7 +455,7 @@ public sealed partial class Rounder
     /// Rewrites the overlay when the plan changed or a day passed since the last draw; with the overlay off it
     /// deletes the owned plans once per process. Output only: a failure is dropped, never fatal.
     /// </summary>
-    internal async Task DrawLayoutOverlayAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, bool haveLayout, CancellationToken ct)
+    internal async Task DrawLayoutOverlayAsync(GenerationSnapshot snapshot, ColonyReading projection, HeldLayout layout, bool haveLayout, CancellationToken ct)
     {
         if (Native is not FacadeNativeClient native)
         {
@@ -484,10 +482,10 @@ public sealed partial class Rounder
             {
                 return;
             }
-            var overlay = drawn.Overlay(projection.Bounds);
+            var overlay = drawn.Overlay(projection.Facts.MapBounds);
             if (StationHeld)
             {
-                layout.Plan.RequirementOverlay(StationLast, projection.Bounds, overlay);
+                layout.Plan.RequirementOverlay(StationLast, projection.Facts.MapBounds, overlay);
             }
             var (layer, fields) = LayoutOverlayRules.SplitFields(overlay);
             await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), LayoutPlanning.FieldLayer, fields, fields.Layers.Count > 0, ct).ConfigureAwait(false);
@@ -527,9 +525,9 @@ public sealed partial class Rounder
     /// and nothing is recorded), <see cref="LayoutPlanning.FirstPlanPending"/> when the plan was recorded, and empty when
     /// the chain failed or the map holds no core (nothing is recorded and the next hourly review derives again).
     /// </summary>
-    internal async Task<string> DeriveLayoutPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, Tick tick, ColonyProjection projection, MapSurvey survey, DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
+    internal async Task<string> DeriveLayoutPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, Tick tick, ColonyReading projection, MapSurvey survey, DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
     {
-        var colonists = (int)projection.Facts.Colonists;
+        var colonists = (int)projection.Facts.Census.ColonistCount;
         var start = DateTimeOffset.UtcNow;
         var f = StationFactsBuilder.FirstPlanFacts(projection, survey, StationNeeds(demandWorld), WorkLedgerView());
         f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays, BedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false) };
@@ -573,7 +571,7 @@ public sealed partial class Rounder
     }
 
     /// <summary>Redraws a "heat.&lt;layer&gt;" overlay layer per traffic layer from the census's busiest cells, on its own hourly cadence; with the overlay off it removes them once. Output only, like the layout.</summary>
-    internal async Task DrawHeatOverlayAsync(FacadeNativeClient native, GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    internal async Task DrawHeatOverlayAsync(FacadeNativeClient native, GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
         var census = projection.Facts.Upkeep.Flooring;
         var on = LayoutOverlay;
@@ -590,7 +588,7 @@ public sealed partial class Rounder
         {
             foreach (var layer in TrafficRules.TrafficLayers)
             {
-                var heat = on ? TrafficRules.TrafficOverlay(census.Traffic, layer, projection.Bounds) : new LayoutOverlay();
+                var heat = on ? TrafficRules.TrafficOverlay(census.Traffic, layer, projection.Facts.MapBounds) : new LayoutOverlay();
                 await native.DrawOverlayAsync(Control.ControlIdentity(snapshot), "heat." + Wire.Name(layer), heat, on && heat.Layers.Count > 0, ct).ConfigureAwait(false);
             }
         }

@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -116,7 +115,7 @@ public static class QuestSurvey
         {
             var row = stocks[i] with { Eaters = stocks[i].Eaters.Where(id => !crew.Items.Contains((Domain.PawnId)id)).ToList() };
             stocks[i] = row;
-            var remaining = packed.GetValueOrDefault(row.DefName.Value);
+            var remaining = packed.GetValueOrDefault(row.DefName);
             if (remaining == 0)
             {
                 continue;
@@ -132,7 +131,7 @@ public static class QuestSurvey
                 Count = count - take,
                 Nutrition = row.Nutrition * ((double)(count - take) / count),
             };
-            packed[row.DefName.Value] -= take;
+            packed[row.DefName] -= take;
         }
         return supply with { Consumers = consumers, Stocks = stocks };
     }

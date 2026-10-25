@@ -33,7 +33,7 @@ public sealed partial class RoundsBuildingPlanner
     internal IReadOnlyList<string> FlooringDefinitions() => Reviewer.Policy.Flooring.Floors;
 
     /// <summary>The flooring census the traffic tier prices, with the firebreak ring's pave cells when composed: the rooms/flooring Need's evidence.</summary>
-    internal FlooringObservation FlooringCensus(ColonyProjection facts)
+    internal FlooringObservation FlooringCensus(ColonyReading facts)
     {
         var census = TrafficFlooringFacts(facts, Reviewer.Policy.Flooring);
         return FirebreakPave is not null ? census with { Firebreak = FirebreakPave() } : census;
@@ -43,12 +43,12 @@ public sealed partial class RoundsBuildingPlanner
     /// Reviews the fresh census and maps the policy outcome onto the planner: a build resolves the floor
     /// definition and its cells, everything else is a reason.
     /// </summary>
-    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectFlooringAsync(GenerationSnapshot current, ColonyProjection facts, CancellationToken call)
+    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectFlooringAsync(GenerationSnapshot current, ColonyReading facts, CancellationToken call)
     {
         var p = Reviewer.Policy.Flooring;
         var census = FlooringCensus(facts);
         LogTrafficFindings(census);
-        var review = FlooringRules.ReviewFlooring(census, facts.Rooms, p);
+        var review = FlooringRules.ReviewFlooring(census, facts.Facts.Upkeep.Rooms, p);
         if (!review.Active)
         {
             return (null, BuildingReasonNoDeficit);
@@ -75,7 +75,7 @@ public sealed partial class RoundsBuildingPlanner
     /// no rotation and a one-cell footprint. Cells native refuses (a wall, an identical floor laid meanwhile)
     /// are skipped; the batch is the cells that remain.
     /// </summary>
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewFlooringAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewFlooringAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Flooring is null || Flooring.Method != FlooringMethod.Build)
@@ -93,7 +93,7 @@ public sealed partial class RoundsBuildingPlanner
         // ordered or previewed. A cell the census does not list is the native preview's to judge (the census is
         // a window, not the whole map), so it is not classified here.
         var listed = new HashSet<Cell>();
-        foreach (var c in facts.Cells)
+        foreach (var c in facts.PlanningWindow.Cells)
         {
             listed.Add(c.Cell);
         }
@@ -107,7 +107,7 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        foreach (var cell in RockStepRules.RockStep(role, facts.Cells).Left)
+        foreach (var cell in RockStepRules.RockStep(role, facts.PlanningWindow.Cells).Left)
         {
             guarded.Add(cell);
         }
@@ -181,12 +181,12 @@ partial class RoundsBuildingPlanner
     /// Adds what the traffic tier prices its floor from to the flooring census: every policy floor's planning
     /// row, the accessible stock and the tier style's aisle floor.
     /// </summary>
-    internal static FlooringObservation TrafficFlooringFacts(ColonyProjection facts, FlooringPolicy p)
+    internal static FlooringObservation TrafficFlooringFacts(ColonyReading facts, FlooringPolicy p)
     {
         var v = facts.Facts.Upkeep.Flooring;
 
         var floors = new Dictionary<string, FloorDefinition>();
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             if (p.Floors.Contains(d.Name) && d.Floor is not null)
             {
@@ -207,7 +207,7 @@ partial class RoundsBuildingPlanner
 
         v = v with { Floors = floors };
         v = RoundsSleepingUpkeepPlanner.WithThroneFloor(facts, v);
-        v = v with { Stock = facts.Resources };
+        v = v with { Stock = ResourceStockRules.Count(facts.Snapshot.Resources) };
         var style = RoundsTierStyle.FloorStyle(facts);
         if (style is not null)
         {

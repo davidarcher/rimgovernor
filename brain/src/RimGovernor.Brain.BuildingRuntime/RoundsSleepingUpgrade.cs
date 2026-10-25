@@ -3,52 +3,52 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 partial class RoundsSleepingUpkeepPlanner
 {
-    private static bool DefinitionBuildable(Observation.ColonyProjection facts, string def) =>
-        facts.DefinitionAvailable(def);
+    private static bool DefinitionBuildable(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, string def) =>
+        ColonyPlanningRules.DefinitionAvailable(facts.Facts, def);
 
     /// <summary>The next room quality upgrade: one template piece for an owned bedroom below its target.</summary>
-    internal static (Pol.RoomUpgrade Upgrade, bool Due) RoomUpgradeOf(Observation.ColonyProjection facts)
+    internal static (Pol.RoomUpgrade Upgrade, bool Due) RoomUpgradeOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
         if (census is null || traits is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
-        facts.TechTier.TryGetValue(out var tier);
-        var targets = RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness);
-        foreach (var (id, t) in RoomQualityRules.CommonRoomTargets(obs!, tier, facts.Impressiveness))
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
+        var targets = RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Facts.Impressiveness);
+        foreach (var (id, t) in RoomQualityRules.CommonRoomTargets(obs!, tier, facts.Facts.Impressiveness))
         {
             targets.TryAdd(id, t);
         }
         targets = WithRequirementTargets(facts, targets);
-        return RoomQualityRules.NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, targets), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
+        return RoomQualityRules.NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, targets), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells), def => DefinitionBuildable(facts, def));
     }
 
     /// <summary>The next bed replacement step, read from the same census as RoomUpgradeOf.</summary>
-    internal static (Pol.BedReplacement Replacement, bool Due) BedReplacementOf(Observation.ColonyProjection facts)
+    internal static (Pol.BedReplacement Replacement, bool Due) BedReplacementOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
         if (census is null || traits is null)
         {
             return (new Pol.BedReplacement(), false);
         }
-        facts.TechTier.TryGetValue(out var tier);
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
         var cost = new Dictionary<Pol.Resource, long>();
-        var stock = facts.Resources;
+        var stock = ResourceStockRules.Count(facts.Snapshot.Resources);
         var materials = new Pol.BedMaterials { Cost = cost, Items = facts.Facts.Items, Stock = stock };
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             // A bed's stuff is the allowed stocked one with the best rest effectiveness; a def with no rest effectiveness is no bed.
-            Observation.StuffPrice price;
+            RimGovernor.Brain.Policy.StuffPrice price;
             try
             {
-                price = d.StuffChoice(Observation.StuffCriterion.MaxRestEffectiveness, stock);
+                price = d.StuffChoice(RimGovernor.Brain.Policy.StuffCriterion.MaxRestEffectiveness, stock);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
@@ -66,34 +66,34 @@ partial class RoundsSleepingUpkeepPlanner
                 }
             }
         }
-        return RoomQualityRules.NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), materials, facts.Facts.Preferences);
+        return RoomQualityRules.NextBedReplacement(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells), def => DefinitionBuildable(facts, def), materials, facts.Facts.Preferences);
     }
 
     /// <summary>The next unmet royal bedroom thing.</summary>
-    internal static (Pol.RoomUpgrade Upgrade, bool Due) TitleFurniture(Observation.ColonyProjection facts)
+    internal static (Pol.RoomUpgrade Upgrade, bool Due) TitleFurniture(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         if (census is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
-        return RoomQualityRules.NextTitleFurniture(obs!, FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def));
+        return RoomQualityRules.NextTitleFurniture(obs!, FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells), def => DefinitionBuildable(facts, def));
     }
 
     /// <summary>The next animal sleeping spot for a master's solo bedroom: none while the definition is unavailable or unsized.</summary>
-    internal static (Pol.RoomUpgrade Upgrade, bool Due) CompanionBed(Observation.ColonyProjection facts)
+    internal static (Pol.RoomUpgrade Upgrade, bool Due) CompanionBed(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var animals = facts.Facts.AnimalUpkeep.Animals;
         if (census is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
-        if (RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, facts.Shapes.Furniture.AnimalSpot) is not { } d)
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(facts.Facts.Definitions, facts.Facts.Shapes.Furniture.AnimalSpot) is not { } d)
         {
             return (new Pol.RoomUpgrade(), false);
         }
@@ -104,37 +104,37 @@ partial class RoundsSleepingUpkeepPlanner
             return (new Pol.RoomUpgrade(), false);
         }
         var spot = new Pol.InteriorPieceDef { Def = d.Name, Size = new Cell(size.Width, size.Height) };
-        return HerdCompanionRules.NextCompanionBed(obs!, animals,FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), facts.Shapes.Furniture, spot, available);
+        return HerdCompanionRules.NextCompanionBed(obs!, animals,FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells), facts.Facts.Shapes.Furniture, spot, available);
     }
 
     /// <summary>The next beauty lever: a plant pot or a prettier floor for a bedroom whose weakest stat is beauty.</summary>
-    internal static (Pol.RoomUpgrade Upgrade, bool Due) BeautyUpgrade(Observation.ColonyProjection facts)
+    internal static (Pol.RoomUpgrade Upgrade, bool Due) BeautyUpgrade(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var obs = facts.Facts.Sleeping;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
         if (census is null || traits is null)
         {
             return (new Pol.RoomUpgrade(), false);
         }
-        facts.TechTier.TryGetValue(out var tier);
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
         var definitions = new Dictionary<string, Pol.FloorDefinition>(StringComparer.Ordinal);
-        var floors = new Pol.FlooringFacts { Definitions = definitions, Stock = facts.Resources };
-        foreach (var d in facts.Definitions.Where(d => d.Floor is not null))
+        var floors = new Pol.FlooringFacts { Definitions = definitions, Stock = ResourceStockRules.Count(facts.Snapshot.Resources) };
+        foreach (var d in facts.Facts.Definitions.Where(d => d.Floor is not null))
         {
             definitions[d.Name] = new Pol.FloorDefinition { Available = d.Available, Terrain = d.Terrain, Cleanliness = (d.Floor ?? throw new RequiredFactException("planning Floor")).Cleanliness, Beauty = (d.Floor ?? throw new RequiredFactException("planning Floor")).Beauty, Flammability = (d.Floor ?? throw new RequiredFactException("planning Floor")).Flammability, PathCost = d.PathCost, Costs = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs, WorkToBuild = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).WorkToBuild };
         }
-        return RoomQualityRules.NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithRequirementTargets(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness))), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors);
+        return RoomQualityRules.NextBeautyUpgrade(obs!, UpgradeTargetsOf(facts, WithRequirementTargets(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Facts.Impressiveness))), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells), def => DefinitionBuildable(facts, def), facts.Facts.Upkeep.Flooring, floors);
     }
 }
 
 public sealed partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>Deconstructs a replaced bed, once per bed per Episode.</summary>
-    internal async Task<RoundsBuildingResult> RemoveOldBedAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> RemoveOldBedAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, RoundsReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
     {
-        if (reading.Projection.Facts.Preferences.Protects(rep.Bed))
+        if (reading.Reading.Facts.Preferences.Protects(rep.Bed))
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "protected_thing") };
         }
@@ -157,7 +157,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>The colony's standing buildings, as the room furnishing counts them; none while the census is unknown.</summary>
-    internal static IReadOnlyList<Pol.CurrentBuilding> StandingBuildings(Observation.ColonyProjection facts) =>
+    internal static IReadOnlyList<Pol.CurrentBuilding> StandingBuildings(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts) =>
         facts.Facts.CurrentConstruction.Buildings;
 
     /// <summary>
@@ -165,16 +165,16 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// reconcile: the room's furnishing lists every lever piece standing there and the asked one, and the shared
     /// build side installs or builds what is missing. A census room that stands in no planned room has nowhere to reconcile.
     /// </summary>
-    internal async Task<RoundsBuildingResult> FurnishBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> FurnishBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
     {
-        var facts = reading.Projection;
-        var rooms = facts.Rooms;
+        var facts = reading.Reading;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
-        if (census is null || facts.LayoutPlan is not { } plan)
+        if (census is null || facts.Facts.LayoutPlan is not { } plan)
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
         }
-        var furniture = FurnitureRoomsRules.FurnitureRooms(rooms!, census!, facts.Cells).FirstOrDefault(r => r.Id == u.Room);
+        var furniture = FurnitureRoomsRules.FurnitureRooms(rooms!, census!, facts.PlanningWindow.Cells).FirstOrDefault(r => r.Id == u.Room);
         var planned = furniture is null ? null : plan.Rooms.FirstOrDefault(r => r.Region.Bounds() == furniture.Room.Interior);
         if (planned is null)
         {
@@ -194,16 +194,16 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// piece, and it is laid over the floor already there rather than reconciled (a reconcile tears the old
     /// floor out first and keeps any floor that meets the room's tier), so it stays a special-case op.
     /// </summary>
-    internal async Task<RoundsBuildingResult> LayBeautyFloorAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> LayBeautyFloorAsync(ControlState state, Sto.Rounds review, Sto.NeedOwner goal, RoundsReading reading, Pol.RoomUpgrade u, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
-        var facts = reading.Projection;
+        var facts = reading.Reading;
         var method = new MethodId($"bedroom-upgrade-{u.Slot}-{RoundsBuildingPlanner.DigestHex(u.Room, 8)}");
         if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "bedroom_upgrade") };
         }
-        var stuff = facts.BuildStuff(u.Def);
+        var stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), u.Def);
         var snapshot = state.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
         void Check()
         {

@@ -106,12 +106,7 @@ public static class FoodReserveRules
         // immediately make it eligible to hold again, alternating forbid writes while the colony is still short.
         var baseline = supply with
         {
-            Stocks =
-            [
-                .. supply.Stocks.Select(stock =>
-                    stock.Holder.IsEmpty && ReserveFoodDefinition(stock.DefName) ? stock with { Reserve = true } : stock
-                ),
-            ],
+            Reserved = supply.Reserved.Concat(supply.Stocks.Where(stock => stock.Holder.IsEmpty && ReserveFoodDefinition(new Resource(stock.DefName))).Select(stock => stock.Id)).ToHashSet(StringComparer.Ordinal),
         };
         var forecast = FoodForecastRules.ForecastFood(baseline, selected);
         if (!FieldCapacityRules.FieldPositive(reserveDays) || reserveDays > 60 || !FieldCapacityRules.FieldPositive(minimumDays) || minimumDays > 60)
@@ -144,14 +139,14 @@ public static class FoodReserveRules
         }
         var isShort = days < minimumDays;
         var emergency = complete && days < minimumDays && !arriving;
-        var ordered = supply.Stocks.OrderBy(s => s.Reserve ? 0 : 1).ThenBy(s => s.Id, StringComparer.Ordinal).ToList();
+        var ordered = supply.Stocks.OrderBy(s => supply.IsReserved(s) ? 0 : 1).ThenBy(s => s.Id, StringComparer.Ordinal).ToList();
         double stockNutrition = 0;
         var byDefinition = new Dictionary<Resource, double>();
         var hold = new List<string>();
         var release = new List<string>();
         foreach (var stock in ordered)
         {
-            if (!ReserveFoodDefinition(stock.DefName) || stock.IsHumanMeat)
+            if (!ReserveFoodDefinition(new Resource(stock.DefName)) || stock.IsHumanMeat)
             {
                 continue;
             }
@@ -162,7 +157,7 @@ public static class FoodReserveRules
             // The reserve is surplus insurance: below the seasonal minimum (reserve food excluded) every held stack is released to eat.
             if (emergency || days < minimumDays)
             {
-                if (stock.Reserve)
+                if (supply.IsReserved(stock))
                 {
                     release.Add(stock.Id);
                 }
@@ -186,13 +181,13 @@ public static class FoodReserveRules
                 continue;
             }
             // Supply actions address whole stacks. Hold only enough stacks to cover the target; the final stack may round the reserve upward.
-            if (!stock.Reserve && stockNutrition >= target)
+            if (!supply.IsReserved(stock) && stockNutrition >= target)
             {
                 continue;
             }
             stockNutrition += amount;
-            byDefinition[stock.DefName] = byDefinition.GetValueOrDefault(stock.DefName) + amount;
-            if (!stock.Reserve && days >= minimumDays)
+            byDefinition[new Resource(stock.DefName)] = byDefinition.GetValueOrDefault(new Resource(stock.DefName)) + amount;
+            if (!supply.IsReserved(stock) && days >= minimumDays)
             {
                 hold.Add(stock.Id);
             }

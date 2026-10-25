@@ -1,11 +1,10 @@
 using System.Reflection;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -66,8 +65,12 @@ public sealed class PlannedRoomGateTests
             {
                 Preview = new Preview
                 {
-                    Action = action, Snapshot = snapshot, CanPlace = !own, SafeToPlace = true, MadeFromStuff = false, WatchCells = WatchAccess.NotWatched, Wind = new BuildingWind.NotWindTurbine(), Footprint = [building.Cell], Costs = [],
-                    Blockers = own ? [new PlacementBlocker { DefName = "Blueprint_" + building.Definition, Blueprint = true }] : [],
+                    Action = action, Snapshot = snapshot, CanPlace = !own, SafeToPlace = true, Footprint = [building.Cell], Costs = [],
+                    Source = PreviewTestFacts.Source(building.Cell, own ? [new RimGovernor.Contracts.Wire.Placement.PlacementBlocker
+                    {
+                        DefName = "Blueprint_" + building.Definition, Category = "Building", IsBlueprint = true, IsFrame = false,
+                        WouldBeWiped = false, FrameWouldBeCancelled = false,
+                    }] : []),
                 },
                 Stock = new StockObservation { Snapshot = snapshot, Tick = new(100) },
             };
@@ -162,8 +165,8 @@ public sealed class PlannedRoomGateTests
         var facts = WorkResourceTestFacts.Create("a");
         facts = facts with
         {
-            Resources = [new(new("WoodLog"), 1000), new(new("BlocksGranite"), 1000)],
-            Colonists = 1L, IndoorCapacity = 1L, BedCapacity = 1L, FieldCoverage = 1.0,
+
+            Census = (facts.Census with { ColonistCount = 1, IndoorSleepingCapacity = 1, BedCapacity = 1 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 1000 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "BlocksGranite", Units = 1000 }] },   FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [
@@ -182,18 +185,42 @@ public sealed class PlannedRoomGateTests
             Reviewer = new Rounder(player, native, new Clock(), RoundsRules.DefaultRoundsPolicy(), TimeSpan.FromSeconds(30)),
             Native = native,
         };
-        var projection = ColonyFactsCoreTests.Projection() with
+        var projection = ColonyFactsCoreTests.Reading(new()
+            {
+                Context = ColonyFactsCoreTests.Snapshot().Context with
+                {
+                    Tick = 100
+                }
+            }) with
         {
-            Identity = new() { Tick = new(100) },
-            Bounds = new(50, 50),
-            LayoutPlan = Plan,
-            Rooms = RoomTestFacts.NoRooms,
-            Definitions =
-            [
-                new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = true, FixedConstruction = new(), Size = new(1, 1) },
-                new PlanningDefinition { Name = ContainmentCellRules.ShellDoorDefinition, Available = true, FixedConstruction = new(), Size = new(1, 1) },
-                new PlanningDefinition { Name = "Vent", Available = false },
-            ],
+
+            Window = new RimGovernor.Brain.Facts.Held<PlanningCells> { Value = new() { Cells = [] } },
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                MapBounds = new(50, 50),
+                LayoutPlan = Plan,
+                Definitions = [new PlanningDefinition
+                {
+                    Name = ContainmentCellRules.ShellWallDefinition,
+                    Available = true,
+                    FixedConstruction = new(),
+                    Size = new(1, 1)
+                }, new PlanningDefinition
+                {
+                    Name = ContainmentCellRules.ShellDoorDefinition,
+                    Available = true,
+                    FixedConstruction = new(),
+                    Size = new(1, 1)
+                }, new PlanningDefinition
+                {
+                    Name = "Vent",
+                    Available = false
+                }, ],
+                Upkeep = ColonyFactsCoreTests.Reading().Facts.Upkeep with
+                {
+                    Rooms = RoomTestFacts.NoRooms
+                }
+            }
         };
         Colony? colony = null;
         var runner = new FamilyRunner<bool>(new RoomsFamily(), (_, _) => Task.FromResult(false), null, async (work, _, call) =>
@@ -203,7 +230,13 @@ public sealed class PlannedRoomGateTests
             {
                 Emergency = new(),
                 Frame = new(),
-                Reading = new ColonyReading { Projection = projection with { Facts = projection.Facts with { CurrentConstruction = colony!.Census } } },
+                Reading = projection with
+                {
+                    Facts = projection.Facts with
+                    {
+                        CurrentConstruction = colony!.Census
+                    }
+                },
             };
             // A department room step's ring call: the room's own stuff is wood until the selection says otherwise.
             var rr = new RoomReconcile { RingOnly = true, Room = Room, Name = "test-bedroom", Reason = "test room", Stuff = (_, _) => ("WoodLog", "WoodLog", default, true) };
@@ -227,7 +260,7 @@ public sealed class PlannedRoomGateTests
 
     /// <summary>A colony-built wall on <paramref name="cell"/>: on a room's own ring it starts the room.</summary>
     private static CurrentBuilding Built(string def, Cell cell) =>
-        new() { Id = def + cell.X + "_" + cell.Z, Building = new Building(def, cell, Rotation.North, "WoodLog"), Cells = [cell] };
+        ConstructionObservationFixtures.Built(new Building(def, cell, Rotation.North, "WoodLog"), id: def + cell.X + "_" + cell.Z, cells: [cell]);
 
     /// <summary>
     /// #3754: after a restart the record is empty, so no comparison has assessed the unstarted bedroom: its ring is held
@@ -286,24 +319,39 @@ public sealed class PlannedRoomGateTests
         IReadOnlyList<Operation> walled = [new Operation { Kind = OpKind.WallIn, Cells = [new(4, 6)] }, .. owed];
         RoundsReading Reading(long wood, params string[] finished)
         {
-            var projection = ColonyFactsCoreTests.Projection() with
+            var projection = ColonyFactsCoreTests.Reading() with
             {
-                Definitions =
-                [
-                    new PlanningDefinition
+                Facts = ColonyFactsCoreTests.Reading().Facts with
+                {
+                Census = ColonyFactsCoreTests.Reading().Snapshot with
+                {
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new("WoodLog")] = wood }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                },
+                    Definitions = [new PlanningDefinition
                     {
-                        Name = "Bed", Available = true, Research = ["ComplexFurniture"],
-                        StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [new RimGovernor.Brain.Policy.Amount(new("WoodLog"), 45)] }],
-                    },
-                ],
-                Resources = new Dictionary<Resource, long> { [new("WoodLog")] = wood },
-                RingSources = new RingStuffSources(),
+                        Name = "Bed",
+                        Available = true,
+                        Research = ["ComplexFurniture"],
+                        StuffOptions = [new StuffOption
+                        {
+                            Stuff = "WoodLog",
+                            Value = 1,
+                            Common = true,
+                            Costs = [new RimGovernor.Brain.Policy.Amount(new("WoodLog"), 45)]
+                        }
+                        ],
+                    }, ],
+                    RingSources = new RingStuffSources()
+                }
             };
             projection = projection with
             {
-                Facts = projection.Facts with { Research = new ResearchFacts { Finished = [.. finished.Select(f => new ResearchProjectId(f))] } },
+                Facts = projection.Facts with
+                {
+                    Research = ResearchTestFacts.Read(finished: finished)
+                },
             };
-            return new RoundsReading { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = projection } };
+            return new RoundsReading { Emergency = new(), Frame = new(), Reading = projection };
         }
 
         Assert.True(PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(100))));
@@ -313,53 +361,75 @@ public sealed class PlannedRoomGateTests
     }
 
     /// <summary>A projection describing a bed (ComplexFurniture, wood) and a stuff-less FueledStove (no prerequisite), <paramref name="wood"/> stocked and no ring sources on the map.</summary>
-    private static ColonyProjection BlockedFacts(bool bedAvailable, bool researchRead, long wood = 100)
+    private static ColonyReading BlockedFacts(bool bedAvailable, bool researchRead, long wood = 100)
     {
-        var projection = ColonyFactsCoreTests.Projection() with
+        var projection = ColonyFactsCoreTests.Reading() with
         {
-            Definitions =
-            [
-                new PlanningDefinition
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                Census = ColonyFactsCoreTests.Reading().Snapshot with
                 {
-                    Name = "Bed", Available = bedAvailable, Research = ["ComplexFurniture"],
-                    StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [new RimGovernor.Brain.Policy.Amount(new("WoodLog"), 45)] }],
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new("WoodLog")] = wood }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
                 },
-                new PlanningDefinition { Name = "FueledStove", Available = true, FixedConstruction = new() },
-            ],
-            Resources = new Dictionary<Resource, long> { [new("WoodLog")] = wood },
-            RingSources = new RingStuffSources(),
+                Definitions = [new PlanningDefinition
+                {
+                    Name = "Bed",
+                    Available = bedAvailable,
+                    Research = ["ComplexFurniture"],
+                    StuffOptions = [new StuffOption
+                    {
+                        Stuff = "WoodLog",
+                        Value = 1,
+                        Common = true,
+                        Costs = [new RimGovernor.Brain.Policy.Amount(new("WoodLog"), 45)]
+                    }
+                    ],
+                }, new PlanningDefinition
+                {
+                    Name = "FueledStove",
+                    Available = true,
+                    FixedConstruction = new()
+                }, ],
+                RingSources = new RingStuffSources()
+            }
         };
-        return projection with { Facts = projection.Facts with { Research = researchRead ? new ResearchFacts() : null } };
+        return projection with
+        {
+            Facts = projection.Facts with
+            {
+                Research = researchRead ? ResearchTestFacts.Read() : null!
+            }
+        };
     }
 
     /// <summary>
     /// #3819: a piece is blocked only on read evidence. A started room owing only a bed whose definition's Available is
-    /// unread is open, not done; so is one whose research is unread while the bed has a prerequisite, and one whose stock
-    /// is unread (no stuff stocked is then no evidence). Read unavailable, or read unresearched, it is done.
+    /// unread is open, not done; unread stock is also no evidence. A missing required research census refuses the
+    /// projection. Read unavailable, or read unresearched, it is done.
     /// </summary>
     [Fact]
-    public void ABedWhoseFactsAreUnreadKeepsTheRoomOpen()
+    public void ABedNeedsResearchEvidenceAndUnreadStockKeepsTheRoomOpen()
     {
         var bed = new WantedPiece { DefName = "Bed", Minimum = new(5, 5), Maximum = new(5, 6), Size = new(1, 2), Rot = Rotation.North };
         IReadOnlyList<Operation> owed = [new Operation { Kind = OpKind.Build, Pieces = [bed] }];
-        RoundsReading Reading(ColonyProjection projection) => new() { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = projection } };
-        bool Done(ColonyProjection projection) => PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(projection)));
+        RoundsReading Reading(ColonyReading projection) => new() { Emergency = new(), Frame = new(), Reading = projection };
+        bool Done(ColonyReading projection) => PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(projection)));
 
-        Assert.False(Done(BlockedFacts(true, researchRead: false)));
-        Assert.True(Done(BlockedFacts(false, researchRead: false)));
+        Assert.Throws<RequiredFactException>(() => Done(BlockedFacts(true, researchRead: false)));
+        Assert.Throws<RequiredFactException>(() => Done(BlockedFacts(false, researchRead: false)));
         Assert.True(Done(BlockedFacts(true, researchRead: true)));
         // Researched, nothing stocked: blocked only when the stock was read and the map offers no wood or blocks.
         var read = BlockedFacts(true, researchRead: true, wood: 0);
-        var researched = read with { Facts = read.Facts with { Research = new ResearchFacts { Finished = [new ResearchProjectId("ComplexFurniture")] } } };
+        var researched = read with { Facts = read.Facts with { Research = ResearchTestFacts.Read(finished: ["ComplexFurniture"]) } };
         Assert.True(Done(researched));
-        Assert.False(Done(researched with { RingSources = null }));
+        Assert.False(Done(researched with { Facts = researched.Facts with { RingSources = null } }));
         // A definition the census does not describe is unread, not blocked.
-        Assert.False(Done(researched with { Definitions = [] }));
+        Assert.False(Done(researched with { Facts = researched.Facts with { Definitions = [] } }));
     }
 
     /// <summary>
     /// #3827, #3838: the round marks the planned sites of blocked pieces with the same predicate: a bed site blocked on
-    /// research is one; a stove site whose cost list is unread and a ring site are not, nor is the bed while research is unread.
+    /// research is one; a stove site whose cost list is unread and a ring site are not. Missing research refuses the read.
     /// </summary>
     [Fact]
     public void TheRoundMarksBlockedPlannedPieces()
@@ -371,9 +441,9 @@ public sealed class PlannedRoomGateTests
             Site("planned/room1/build/Bed/5/5", OpKind.Build, "Bed"),
             Site("planned/room1/build/FueledStove/6/6", OpKind.Build, "FueledStove"),
         ];
-        string[] Blocked(ColonyProjection projection) => [.. Rounder.BlockedPiecesOf(projection, sites).Where(s => s.Blocked).Select(s => s.Id)];
+        string[] Blocked(ColonyReading projection) => [.. Rounder.BlockedPiecesOf(projection, sites).Where(s => s.Blocked).Select(s => s.Id)];
         Assert.Equal(["planned/room1/build/Bed/5/5"], Blocked(BlockedFacts(true, researchRead: true)));
-        Assert.Empty(Blocked(BlockedFacts(true, researchRead: false)));
+        Assert.Throws<RequiredFactException>(() => Blocked(BlockedFacts(true, researchRead: false)));
     }
 
     /// <summary>
@@ -381,27 +451,52 @@ public sealed class PlannedRoomGateTests
     /// made of wood beside 50 Steel, none of them behind research, with <paramref name="steel"/> stocked and the map's
     /// <paramref name="sources"/> (none by default); a null stock or sources is unread.
     /// </summary>
-    internal static ColonyProjection StoveFacts(long steel = 0, RingStuffSources? sources = null, bool sourcesRead = true)
+    internal static ColonyReading StoveFacts(long steel = 0, RingStuffSources? sources = null, bool sourcesRead = true)
     {
         RimGovernor.Brain.Policy.Amount Of(string def, long count) => new(new(def), count);
-        return ColonyFactsCoreTests.Projection() with
+        return ColonyFactsCoreTests.Reading() with
         {
-            Definitions =
-            [
-                new PlanningDefinition
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                Census = ColonyFactsCoreTests.Reading().Snapshot with
                 {
-                    Name = "Bed", Available = true,
-                    StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [Of("WoodLog", 45)] }],
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new("WoodLog")] = 300, [new("Steel")] = steel }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
                 },
-                new PlanningDefinition { Name = "FueledStove",Available = true,FixedConstruction=new PlanningFixedConstruction {Costs = EquatableArray.From(new[] { Of("Steel", 80) })}},
-                new PlanningDefinition
+                Definitions = [new PlanningDefinition
                 {
-                    Name = "SimpleResearchBench", Available = true,
-                    StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [Of("WoodLog", 75), Of("Steel", 50)] }],
-                },
-            ],
-            Resources = new Dictionary<Resource, long> { [new("WoodLog")] = 300, [new("Steel")] = steel },
-            RingSources = sourcesRead ? sources ?? new RingStuffSources() : null,
+                    Name = "Bed",
+                    Available = true,
+                    StuffOptions = [new StuffOption
+                    {
+                        Stuff = "WoodLog",
+                        Value = 1,
+                        Common = true,
+                        Costs = [Of("WoodLog", 45)]
+                    }
+                    ],
+                }, new PlanningDefinition
+                {
+                    Name = "FueledStove",
+                    Available = true,
+                    FixedConstruction = new PlanningFixedConstruction
+                    {
+                        Costs = EquatableArray.From(new[] { Of("Steel", 80) })
+                    }
+                }, new PlanningDefinition
+                {
+                    Name = "SimpleResearchBench",
+                    Available = true,
+                    StuffOptions = [new StuffOption
+                    {
+                        Stuff = "WoodLog",
+                        Value = 1,
+                        Common = true,
+                        Costs = [Of("WoodLog", 75), Of("Steel", 50)]
+                    }
+                    ],
+                }, ],
+                RingSources = sourcesRead ? sources ?? new RingStuffSources() : null
+            }
         };
     }
 
@@ -416,8 +511,8 @@ public sealed class PlannedRoomGateTests
     public void AStovesSteelIsReadFromTheStockAndWhatTheMapOffers()
     {
         var offered = SteelOffered;
-        DefinitionReadiness Stove(ColonyProjection projection) => RoundsBuildingPlanner.PieceReadinessOf(projection)("FueledStove");
-        DefinitionReadiness Bench(ColonyProjection projection) => RoundsBuildingPlanner.PieceReadinessOf(projection)("SimpleResearchBench");
+        DefinitionReadiness Stove(ColonyReading projection) => RoundsBuildingPlanner.PieceReadinessOf(projection)("FueledStove");
+        DefinitionReadiness Bench(ColonyReading projection) => RoundsBuildingPlanner.PieceReadinessOf(projection)("SimpleResearchBench");
 
         Assert.Equal(DefinitionReadiness.Blocked, Stove(StoveFacts()));
         Assert.Equal(DefinitionReadiness.Blocked, Bench(StoveFacts()));
@@ -430,13 +525,13 @@ public sealed class PlannedRoomGateTests
         Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(sourcesRead: false)));
         Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(sources: new RingStuffSources { Unsalvaged = MachineUnsalvaged })));
         var read = StoveFacts();
-        Assert.Equal(DefinitionReadiness.Available, Stove(read with { Definitions = [.. read.Definitions.Select(d => d.Name == "FueledStove" ? d with { FixedConstruction = new PlanningFixedConstruction() } : d)] }));
-        Assert.Throws<RequiredFactException>(() => Stove(read with { Definitions = [.. read.Definitions.Select(d => d.Name == "FueledStove" ? d with { FixedConstruction = null } : d)] }));
+        Assert.Equal(DefinitionReadiness.Available, Stove(read with { Facts = read.Facts with { Definitions = [.. read.Facts.Definitions.Select(d => d.Name == "FueledStove" ? d with { FixedConstruction = new PlanningFixedConstruction() } : d)] } }));
+        Assert.Throws<RequiredFactException>(() => Stove(read with { Facts = read.Facts with { Definitions = [.. read.Facts.Definitions.Select(d => d.Name == "FueledStove" ? d with { FixedConstruction = null } : d)] } }));
 
         var stove = new WantedPiece { DefName = "FueledStove", Minimum = new(6, 7), Maximum = new(6, 7), Size = new(1, 1), Rot = Rotation.North };
         IReadOnlyList<Operation> owed = [new Operation { Kind = OpKind.Build, Pieces = [stove] }];
-        bool Done(ColonyProjection projection) => PlannedRules.PlannedRoomDone(owed,
-            RoundsBuildingPlanner.PieceBlockedOf(new RoundsReading { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = projection } }));
+        bool Done(ColonyReading projection) => PlannedRules.PlannedRoomDone(owed,
+            RoundsBuildingPlanner.PieceBlockedOf(new RoundsReading { Emergency = new(), Frame = new(), Reading = projection }));
         Assert.True(Done(StoveFacts()));
         Assert.False(Done(StoveFacts(sourcesRead: false)));
     }
@@ -466,7 +561,7 @@ public sealed class PlannedRoomGateTests
         Assert.All(placed, b => Assert.Equal((ContainmentCellRules.ShellWallDefinition, "BlocksGranite"), (b.Definition, b.Stuff)));
 
         // Its blueprints stand on the room's own ring: the room is started, so the rest is placed as before, whatever the record says.
-        colony.Census = CurrentConstruction.Empty with { Sites = [.. placed.Select(b => new ConstructionSite { Building = b, Stage = "blueprint" })] };
+        colony.Census = CurrentConstruction.Empty with { Sites = [.. placed.Select(b => ConstructionObservationFixtures.Site(b, stage: "blueprint"))] };
         colony.Blueprints.UnionWith(south);
         Select(colony);
         var next = await colony.RunAsync();
@@ -513,7 +608,7 @@ public sealed class PlannedRoomGateTests
         // A colony-built wall on the room's own ring starts it.
         colony.Census = CurrentConstruction.Empty with
         {
-            Buildings = [new CurrentBuilding { Id = "w", Building = new Building(ContainmentCellRules.ShellWallDefinition, new(4, 8), Rotation.North, "WoodLog"), Cells = [new(4, 8)] }],
+            Buildings = [ConstructionObservationFixtures.Built(new Building(ContainmentCellRules.ShellWallDefinition, new(4, 8), Rotation.North, "WoodLog"), id: "w", cells: [new(4, 8)])],
         };
         Select(colony);
         var run = await colony.RunAsync();

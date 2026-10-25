@@ -129,8 +129,8 @@ public sealed class RaidExposureTests
         staged.Pawns.Add(Pawn("d", Fx.StagedPrimary.None, melee: 4, ranged: 0));
         staged.Pawns.Add(Pawn("x", Fx.StagedPrimary.Ranged, combatPower: 30));
         staged.Pawns.Add(Pawn("y", Fx.StagedPrimary.Melee, combatPower: 25));
-        staged.Guns.Add(new Fx.StagedGun("t1", 4, true));
-        staged.Guns.Add(new Fx.StagedGun("t2", 9, false));
+        staged.Guns.Add(new Fx.StagedGun(4, true));
+        staged.Guns.Add(new Fx.StagedGun(9, false));
 
         var roles = CombatLabBundle.Roles(staged);
 

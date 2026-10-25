@@ -13,7 +13,6 @@ public static class CombatOrdersRules
         {
             throw BridgeContractException.Contract("combat order entity missing");
         }
-        FactHelpers.BuildingUnknown(value);
         WireValidation.ValidId((value.EntityId ?? ""));
         if (value.ExpectedSnapshotToken is not null)
         {
@@ -29,7 +28,6 @@ public static class CombatOrdersRules
         {
             throw BridgeContractException.Contract("combat orders missing");
         }
-        FactHelpers.BuildingUnknown(command);
         if (command.Orders.Count < 1)
         {
             throw BridgeContractException.Contract("combat orders need at least one order");
@@ -37,7 +35,6 @@ public static class CombatOrdersRules
         for (var i = 0; i < command.Orders.Count; i++)
         {
             var order = command.Orders[i] ?? throw BridgeContractException.Contract($"combat order {i} missing");
-            FactHelpers.BuildingUnknown(order);
             var door = order.Order is Op.CombatOrderOrder.DoorCase { Value.Mode: not (Op.CombatDoorMode.Open or Op.CombatDoorMode.Shut) };
             var fire = order.Order is Op.CombatOrderOrder.MortarFireCase;
             if (door || fire)
@@ -96,7 +93,7 @@ public static class CombatOrdersRules
                 {
                     throw BridgeContractException.Contract($"combat order {i} rescues its own pawn");
                 }
-                if (rescue.Dest is not null && !Valid(() => BuildingsRules.MovementCell(rescue.Dest)))
+                if (rescue.Bed is Op.RescueBed.At { Cell: var bed } && !Valid(() => BuildingsRules.MovementCell(bed)) || rescue.Bed is not (Op.RescueBed.At or Op.RescueBed.Search))
                 {
                     throw BridgeContractException.Contract($"combat order {i} rescue dest invalid");
                 }
@@ -112,7 +109,7 @@ public static class CombatOrdersRules
                 return;
             case Op.CombatOrderOrder.MortarFireCase { Value: var mortar }:
                 // No target clears the forced target, and names no shell.
-                if (!Valid(() => BuildingsRules.MovementCell(mortar.Mortar)) || (mortar.Target is not null && !Valid(() => BuildingsRules.MovementCell(mortar.Target))) || (mortar.Target is null && mortar.Shell is not null))
+                if (!Valid(() => BuildingsRules.MovementCell(mortar.Mortar)) || (mortar.Aim is Op.MortarAim.At { Cell: var aim } && !Valid(() => BuildingsRules.MovementCell(aim))) || (mortar.Aim is Op.MortarAim.Cleared && mortar.Shell is not null) || mortar.Aim is not (Op.MortarAim.Cleared or Op.MortarAim.At))
                 {
                     throw BridgeContractException.Contract($"combat order {i} mortar_fire mortar or target cell missing or invalid");
                 }

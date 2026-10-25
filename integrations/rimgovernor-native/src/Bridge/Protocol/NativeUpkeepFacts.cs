@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
                 Slaves = Timed("slaves", () => People(colony.Where(p => p.IsSlaveOfColony))),
                 // Hosted guests: housed to their title like a colonist; a visiting envoy is not hosted and stays out.
                 Guests = Timed("guests", () => People(colony.Where(HostedGuest))),
-                Beds = Timed("beds", () => Beds(map, sets, colony.Where(p => p.IsFreeColonist || p.IsSlaveOfColony || HostedGuest(p)).ToList())),
+                Beds = Timed("beds", () => Beds(sets, colony.Where(p => p.IsFreeColonist || p.IsSlaveOfColony || HostedGuest(p)).ToList())),
                 Animals = Timed("animals", () => Animals(colony.Where(p => p.RaceProps.Animal && p.Faction == Faction.OfPlayerSilentFail))),
                 // The factionless animals an animals/herd tame write can target: native tame eligibility rides the
                 // pawn rows. Every spawned wild animal is listed: the census has no row bound.
@@ -180,9 +180,8 @@ namespace HomeBridge.BridgeTools
         // Non-damageable markers (including sleeping spots) have a native -1 sentinel and cannot be repair targets.
         private static RimGovernor.Brain.Domain.EquatableArray<Obs.UpkeepStructure> Structures(Map map, ThingSets sets) =>
             [.. sets.PlayerBuildings.Where(b => b.def.useHitPoints).OrderBy(b => b.thingIDNumber).Select(b => new Obs.UpkeepStructure {
-                Id = Id(b.GetUniqueLoadID()), Definition = Id(b.def.defName), Stuff = b.Stuff?.defName, Cell = Spot(b.Position),
-                Home = b.OccupiedRect().All(c => map.areaManager.Home[c]),
-                HitPoints = b.HitPoints, MaxHitPoints = b.MaxHitPoints
+                Id = Id(b.GetUniqueLoadID()),
+                Home = b.OccupiedRect().All(c => map.areaManager.Home[c])
             })];
 
         // Every proper indoor room the colony lives in (any cell in the home area, not psychologically outdoors) with the
@@ -387,23 +386,20 @@ namespace HomeBridge.BridgeTools
 
         private static RimGovernor.Brain.Domain.EquatableArray<Obs.UpkeepPerson> People(IEnumerable<Pawn> people) =>
             [.. people.Select(p => new Obs.UpkeepPerson {
-                Pawn = PawnIdOf(p), OwnedBed = p.ownership?.OwnedBed is { } bed ? Id(bed.GetUniqueLoadID()) : null,
-                ComfortableMinC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMin)),
-                ComfortableMaxC = Number(p.GetStatValue(StatDefOf.ComfyTemperatureMax)),
+                Pawn = PawnIdOf(p),
                 Partners = Ids(Partners(p)),
                 BedSharingAllowed = BedSharingAllowed(p),
                 Title = Title(p)
             })];
 
-        private static RimGovernor.Brain.Domain.EquatableArray<Obs.UpkeepBed> Beds(Map map, ThingSets sets, List<Pawn> people) =>
+        private static RimGovernor.Brain.Domain.EquatableArray<Obs.UpkeepBed> Beds(ThingSets sets, List<Pawn> people) =>
             [.. sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).Select(b => new Obs.UpkeepBed {
                 Id = Id(b.GetUniqueLoadID()),
-                Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves, Roofed = b.OccupiedRect().All(c => c.Roofed(map)),
+                Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves,
                 TemperatureC = Number(b.AmbientTemperature),
                 // Every spawned bed stands in a room (outdoors is one); none is a broken read.
                 Room = (b.GetRoom() ?? throw new InvalidOperationException("Bed " + b.GetUniqueLoadID() + " stands in no room.")).ID.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 Quality = b.TryGetQuality(out var quality) ? new Obs.BedQuality.Graded((Defs.QualityCategory)(int)quality) : new Obs.BedQuality.Ungraded(),
-                Stuff = b.Stuff?.defName,
                 Owners = [.. b.OwnersForReading.Select(p => Id(p.GetUniqueLoadID())).OrderBy(id => id, StringComparer.Ordinal).Select(id => new PawnId(id))],
                 Users = Ids(people.Where(p => p.CurrentBed() == b)),
                 AccessibleTo = Ids(people.Where(p => !b.IsForbidden(p) && p.CanReach(b, PathEndMode.OnCell, Danger.None)))

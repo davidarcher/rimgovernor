@@ -54,12 +54,7 @@ public sealed class RoomFurnishingTests
 
     private static FurnishingWant BedWant => new() { Key = "bed", Things = [Bed], Count = 1, Piece = BedShape };
 
-    private static CurrentBuilding Standing(string def, int x, int z, int width = 1, int height = 1) => new()
-    {
-        Id = $"{def}{x}_{z}",
-        Building = new Building(def, new Cell(x, z), Rotation.North, ""),
-        Cells = [.. Enumerable.Range(0, width).SelectMany(dx => Enumerable.Range(0, height).Select(dz => new Cell(x + dx, z + dz)))],
-    };
+    private static CurrentBuilding Standing(string def, int x, int z, int width = 1, int height = 1) => ConstructionObservationFixtures.Built(new Building(def, new Cell(x, z), Rotation.North, ""), id: $"{def}{x}_{z}", cells: [.. Enumerable.Range(0, width).SelectMany(dx => Enumerable.Range(0, height).Select(dz => new Cell(x + dx, z + dz)))]);
 
     private static CurrentBuilding StandingAt(WantedPiece p) =>
         Standing(p.DefName, p.Minimum.X, p.Minimum.Z, p.Maximum.X - p.Minimum.X + 1, p.Maximum.Z - p.Minimum.Z + 1);

@@ -13,10 +13,13 @@ public sealed record PawnActivityRecipe(string Bill, string Recipe, EquatableArr
 }
 
 /// <summary>An authorized step, not a native-priority request. Deadlines are absolute game ticks.</summary>
-public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, string WorkGiver,
+[System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(PawnActivityStep), "target")]
+[System.Text.Json.Serialization.JsonDerivedType(typeof(CellActivityStep), "cell")]
+public record PawnActivityStep(PawnActivityKind Kind, string Target, string WorkGiver,
     string Job, int Count, long Deadline, string WaitForFilth = "")
 {
-    public Cell? Destination { get; init; }
+    public CellActivityStep At(Cell destination) => new(this, destination);
     public PawnActivityRecipe? Recipe { get; init; }
     public PawnActivityPractice? Practice { get; init; }
     public string Medicine { get; init; } = "";
@@ -37,6 +40,17 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
     public EquatableArray<string> Collect { get; init; }
 }
 
+/// <summary>An exact cell-targeted step: delivery, approach, roof building or sowing.</summary>
+public sealed record CellActivityStep : PawnActivityStep
+{
+    public CellActivityStep(PawnActivityStep step, Cell destination) : base(step) => Destination = destination;
+    [System.Text.Json.Serialization.JsonConstructor]
+    public CellActivityStep(PawnActivityKind kind, string target, string workGiver, string job, int count, long deadline,
+        Cell destination, string waitForFilth = "") : base(kind, target, workGiver, job, count, deadline, waitForFilth) => Destination = destination;
+    [System.Text.Json.Serialization.JsonRequired]
+    public Cell Destination { get; init; }
+}
+
 /// <summary>Selected remaining intent owned by this Method. No forecast or mutable progress flags.</summary>
 public sealed record SelectedActivityInput(string Resource, string Lot, int Count, Cell Location, string Provenance)
 {
@@ -52,7 +66,9 @@ public record SelectedActivityTask(string Id, string Pawn, EquatableArray<string
     PawnActivityStep Step, Cell Location, long DepartTick)
 {
     public string Resource { get; init; } = "";
-    public Cell? Source { get; init; }
+    /// <summary>The exact input/approach location; construction Supply approaches its source stack rather than its site.</summary>
+    [System.Text.Json.Serialization.JsonRequired]
+    public Cell Source { get; init; } = Location;
     public string SiteDefinition { get; init; } = "";
     public string SupportDemand { get; init; } = "";
     public string ProductStuff { get; init; } = "";
@@ -130,6 +146,11 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                     || practice.Skill == "Melee" && step.Job == "RimGovernor_Spar" && IdText.IsValidText(practice.Partner) && IdText.IsValidText(practice.PartnerTarget)),
                 "invalid selected practice");
     }
+    private static bool ValidDestination(PawnActivityStep step) => step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach
+        ? step is CellActivityStep { Destination: { X: >= 0, Z: >= 0 } } && step.WorkGiver.Length == 0 && step.Job.Length == 0
+        : step.Kind == PawnActivityKind.Work && step.Job is "BuildRoof" or "Sow"
+            ? step is CellActivityStep { Destination: { X: >= 0, Z: >= 0 } } && (step.Job != "Sow" || step.Count > 0)
+            : step is not CellActivityStep;
     public void Validate()
     {
         DomainException.Require(AuthorityGeneration > 0 && Orders is { Length: > 0 and <= 64 }, "activity batch requires authority and bounded orders");
@@ -146,10 +167,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                     && (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Approach || IdText.IsValidText(step.Target))
                     && (step.Kind != PawnActivityKind.Work || IdText.IsValidText(step.WorkGiver) && IdText.IsValidText(step.Job))
                     && (step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Deliver or PawnActivityKind.Supply) || step.Count > 0)
-                    && (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach
-                        ? step.Destination is { X: >= 0, Z: >= 0 } && step.WorkGiver.Length == 0 && step.Job.Length == 0
-                        : step.Kind == PawnActivityKind.Work && step.Job is "BuildRoof" or "Sow"
-                            ? step.Destination is { X: >= 0, Z: >= 0 } && (step.Job != "Sow" || step.Count > 0) : step.Destination is null)
+                    && ValidDestination(step)
                     && step.NotBefore >= 0 && step.NotBefore < step.Deadline
                     && (step.Kind == PawnActivityKind.Supply || step.Kind == PawnActivityKind.Deliver && step.SupportDemand.Length != 0
                         ? IdText.IsValidText(step.Container) : step.Container.Length == 0)
@@ -194,16 +212,18 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 && task.Inputs.All(i => IdText.IsValidText(i.Resource) && IdText.IsValidText(i.Lot) && i.Count > 0
                     && i.Location is { X: >= 0, Z: >= 0 } && IdText.IsValidText(i.Provenance)
                     && i.Producers.All(p => p != task.Id && IdText.IsValidText(p)))
+                && task.Source is { X: >= 0, Z: >= 0 } && task.Location is { X: >= 0, Z: >= 0 }
                 && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");
         foreach (var task in Tasks)
         {
             ValidateSet(task.Step); ValidatePractice(task.Step);
+            DomainException.Require(ValidDestination(task.Step), "invalid selected activity destination");
             DomainException.Require(task.PriorSteps.Count <= 8, "invalid selected prior steps");
             foreach (var prior in task.PriorSteps)
             {
                 DomainException.Require(prior != null && prior.Kind == PawnActivityKind.Work && prior.Deadline > 0 && IdText.IsValidText(prior.Target)
                     && IdText.IsValidText(prior.WorkGiver) && IdText.IsValidText(prior.Job) && prior.NotBefore >= 0 && prior.NotBefore < prior.Deadline
-                    && prior.Destination is null && prior.Recipe == null && prior.Practice == null && prior.Container.Length == 0
+                    && prior is not CellActivityStep && prior.Recipe == null && prior.Practice == null && prior.Container.Length == 0
                     && prior.SupportDemand.Length == 0 && prior.Medicine.Length == 0, "invalid selected prior step");
                 ValidateSet(prior);
             }

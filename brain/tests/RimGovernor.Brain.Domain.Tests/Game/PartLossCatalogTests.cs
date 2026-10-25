@@ -5,7 +5,6 @@ using RimGovernor.Contracts.Wire.Observations;
 using RimWorld;
 using Verse;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;
 
@@ -128,7 +127,7 @@ public sealed class PartLossCatalogTests
         var catalog = Catalog();
         var inputs = HarmInputs.Of(new RoundsFacts
         {
-            RaidPoints = 200d, HostileFactions = ["Pirate"],
+            Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 200d, HostileFactions = ["Pirate"] } } },
             HarmCatalog = new() { Raid = catalog.RaidFactions(), Parts = new() { Rules = catalog.PartHitRules(), Recipes = catalog.PartReplacementRecipes() } },
         });
         var bin = Assert.Single(Assert.IsType<RaidComposition.Expected>(inputs.Composition).Bins);

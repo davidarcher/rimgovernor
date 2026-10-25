@@ -69,7 +69,7 @@ public sealed partial class RoundsResourcePlanner
         Identity expected;
         try
         {
-            expected = DecodeReads.DecodeIdentity(last);
+            expected = new ObservationIdentity { Context = last.Context, Paused = last.Paused };
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -82,7 +82,7 @@ public sealed partial class RoundsResourcePlanner
         }
 
         var reading = await reviewer.ObserveColonyAsync(native, expected, null, call).ConfigureAwait(false);
-        var step = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = reading.Projection, Read = reading };
+        var step = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = reading };
 
         (RoundsResourceResult Result, bool Dispatched) Finish(RoundsBuildingResult result)
         {
@@ -99,7 +99,7 @@ public sealed partial class RoundsResourcePlanner
         }
         async Task<(RoundsBuildingResult Result, bool Done)> ResumeAsync(ExcavationTarget target)
         {
-            step = new ExcavationStep { State = step.State, Review = step.Review, Owner = step.Owner, Facts = step.Facts, Read = step.Read, Target = target };
+            step = new ExcavationStep { State = step.State, Review = step.Review, Owner = step.Owner, Facts = step.Facts, Target = target };
             var result = await dig.StepExcavationAsync(step, call, epoch).ConfigureAwait(false);
             return (result, result.Verdict.Is(Cause.MethodUsed) || result.Verdict.Is(Cause.SiteBlocked));
         }
@@ -157,7 +157,7 @@ public sealed partial class RoundsResourcePlanner
 
         var held = p.Journal.BuildingReservations(state.Snapshot, call);
         var protectedCells = held.SelectMany(h => h.Footprint).ToList();
-        var facts = reading.Projection;
+        var facts = reading;
         if (native is not IDefinitionSource definitions)
         {
             throw new InvalidOperationException("roof rules: the native source serves no definitions");
@@ -165,21 +165,21 @@ public sealed partial class RoundsResourcePlanner
 
         var catalog = await definitions.DefinitionCatalogAsync(identity, call).ConfigureAwait(false);
         var roofs = catalog.RoofRules();
-        if (facts.Center() is not { } anchor)
+        if (facts.Facts.LayoutPlan?.Center() is not { } anchor)
         {
             return (new RoundsResourceResult { Verdict = Verdict.BuildingReasonNoLayoutPlan }, false);
         }
 
         var request = new ExcavationSiteRequest
         {
-            Bounds = facts.Bounds,
-            Region = facts.Region,
+            Bounds = facts.Facts.MapBounds,
+            Region = facts.PlanningWindow.Region,
             Anchor = anchor,
-            Cells = [.. facts.Cells],
+            Cells = [.. facts.PlanningWindow.Cells],
             Protected = [.. protectedCells],
             MinCorridor = 1,
             MaxCorridor = TunnelMaxCorridor,
-            RoofSupport = facts.RoofSupport,
+            RoofSupport = facts.Facts.RoofSupport,
             Roofs = roofs,
         };
         SnapshotPlannerReplay.NoteExcavation(request);

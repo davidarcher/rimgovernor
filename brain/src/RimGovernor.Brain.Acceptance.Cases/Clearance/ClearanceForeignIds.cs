@@ -66,7 +66,7 @@ internal static class ClearanceForeignIds
             Change = new Operations.BuildingPatchIntentChange.ClaimCase(),
         }, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "foreign-cut", new Operations.DesignateIntent
-        {
+        { Location = new Operations.DesignationLocation.ByTarget(),
             Designation = Operations.ThingDesignation.CutPlant,
             Target = new() { Id = bush }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
 

@@ -48,7 +48,7 @@ public sealed partial class DisasterRounds
             throw new ControlException("disaster read: the scope is another world or older than the review");
         }
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
-        var f = read.Projection.Facts;
+        var f = read.Reading.Facts;
         var emergency = EmergencySnapshot.New(scope.World, expected.Tick, read.Emergency);
         f = f with { Hostiles = EmergencyNeedsRules.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles };
         f = f with { DangerSeeds = EquatableArray.From(ShelterRules.DangerSeeds(read.Emergency.Threats)) };
@@ -56,12 +56,12 @@ public sealed partial class DisasterRounds
         f = f with
         {
             DangerWindow = _reviewer.SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(scope.World), f.Hostiles, seeds, expected.Tick),
-            DangerHaulers = ShelterRules.DangerHaulers(read.Projection.WorkPawns),
+            DangerHaulers = ShelterRules.DangerHaulers(read.Reading.Facts.ForecastObserved.WorkPawns),
             Tick = expected.Tick,
             Dash = review.Latches.Dash,
             ShelterCombatants = ShelterCombatants(journal, new StoreWorld(scope.World.Colony, scope.World.Load, scope.World.Map), call),
         };
-        return DisasterFacts.From(f, review.Disaster) with { Workers = read.Projection.WorkPawns };
+        return DisasterFacts.From(f, review.Disaster) with { Workers = read.Reading.Facts.ForecastObserved.WorkPawns };
     }
 
     /// <summary>The work step of a ready Need: the area moves, or (full pass only) a service.</summary>

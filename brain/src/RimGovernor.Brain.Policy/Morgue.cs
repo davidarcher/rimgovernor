@@ -10,14 +10,14 @@ namespace RimGovernor.Brain.Policy;
 public static partial class MorgueRules
 {
     /// <summary>Reports a human corpse lying unburied.</summary>
-    public static bool MorgueWaiting(IReadOnlyList<WasteItem> waste) =>
-        waste.Any(item => !item.Buried && item.CorpseOf is CorpseOf.Stranger or CorpseOf.Colonist);
+    public static bool MorgueWaiting(IReadOnlyList<RimGovernor.Contracts.Wire.Observations.WasteItem> waste) =>
+        waste.Any(item => item.Grave is null && item.CorpseClass is RimGovernor.Contracts.Wire.Common.CorpseClass.Stranger or RimGovernor.Contracts.Wire.Common.CorpseClass.Colonist);
 
     /// <summary>
     /// The planned morgue whose ring does not match the ground while a human corpse waits; null otherwise.
     /// The morgue holds no furniture: the build side reconciles its ring and floor (ReconcileRoom).
     /// </summary>
-    public static PlannedRoom? MorgueRoomOwed(LayoutPlan plan, GroundCensus ground, IReadOnlyList<WasteItem> waste)
+    public static PlannedRoom? MorgueRoomOwed(LayoutPlan plan, GroundCensus ground, IReadOnlyList<RimGovernor.Contracts.Wire.Observations.WasteItem> waste)
     {
         if (!MorgueWaiting(waste))
         {

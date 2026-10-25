@@ -117,17 +117,12 @@ public sealed record Diet
 /// A food policy holder outside the work census: a prisoner with its diet, or a tame animal with the food
 /// definitions its race can eat.
 /// </summary>
-public sealed record FoodEater
+public sealed record FoodEaterDiet
 {
-    public PawnId Pawn { get; init; }
-
-    public bool Animal { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.FoodEater Observed { get; init; }
 
     /// <summary>The prisoner's diet inputs (DietOf).</summary>
     public IReadOnlyList<PawnTrait> Traits { get; init; } = [];
-
-    /// <summary>The prisoner's diet inputs (DietOf).</summary>
-    public IReadOnlyList<string> Precepts { get; init; } = [];
 
     public IReadOnlyList<string> Edible { get; init; } = [];
 }
@@ -325,7 +320,7 @@ public static class FoodPolicyRules
     public static IReadOnlyList<FoodPolicyChange> DietPolicyChanges(
         IdeologyMode ideology,
         IReadOnlyList<WorkPawn> pawns,
-        IReadOnlyList<FoodEater> eaters,
+        IReadOnlyList<FoodEaterDiet> eaters,
         IReadOnlyList<OwnedName> names,
         IReadOnlyList<FoodPolicyEntry> policies,
         IReadOnlyList<Food> foods,
@@ -356,18 +351,22 @@ public static class FoodPolicyRules
         }
         foreach (var e in eaters)
         {
-            if (e.Animal)
+            if (e.Observed.Kind == RimGovernor.Contracts.Wire.Observations.FoodEaterKind.Animal)
             {
-                rows.Add((e.Pawn, AnimalFoods(e.Edible, foods)));
+                rows.Add((e.Observed.Pawn, AnimalFoods(e.Edible, foods)));
             }
-            else
+            else if (e.Observed.Kind == RimGovernor.Contracts.Wire.Observations.FoodEaterKind.Prisoner)
             {
-                var (diet, ok) = DietOf(e.Traits, e.Precepts, ideology, preferences);
+                var (diet, ok) = DietOf(e.Traits, e.Observed.Precepts, ideology, preferences);
                 if (!ok)
                 {
                     continue;
                 }
-                rows.Add((e.Pawn, CaptiveFoods(diet, foods)));
+                rows.Add((e.Observed.Pawn, CaptiveFoods(diet, foods)));
+            }
+            else
+            {
+                throw new RequiredFactException($"Invalid food eater kind {e.Observed.Kind}");
             }
         }
         var shortNames = new Dictionary<PawnId, string>();

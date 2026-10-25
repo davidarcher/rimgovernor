@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
@@ -70,22 +70,48 @@ public sealed class ComfortTests
             Dining = [new("chair", "other-room", [pawn], [])],
             Recreation = [new("horseshoes", "gaming", new ComfortHost.Outdoors(), [pawn], [])],
         } };
-        var projection = ColonyFactsCoreTests.Projection() with { Facts = new() { Comfort = basic, BasicComfort = basic } };
+        var projection = ColonyFactsCoreTests.Reading() with
+        {
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                Comfort = basic,
+                BasicComfort = basic
+            }
+        };
         var frame = new RoundsFrame { Rooms = new() { Context = ColonyFactsCoreTests.Snapshot().Context!, Rooms = [] } };
 
-        var read = RoundsReads.WithFrameRooms(projection, frame, new DiningFurniture());
+        var read = RoundsFrameReads.WithFrameRooms(projection, frame, new DiningFurniture());
 
         Assert.Same(basic, read.Facts.RequireBasicComfort());
         Assert.Empty(read.Facts.RequireComfort().Census.Dining);
         Assert.Empty(read.Facts.RequireComfort().Census.Recreation);
-        Assert.Equal(frame.Rooms!.Rooms, read.Rooms.Rooms);
+        Assert.Equal(frame.Rooms!.Rooms, read.Facts.Upkeep.Rooms.Rooms);
+    }
+
+    [Fact]
+    public void RoomJoinsPreserveTheNativeSleepingTemperature()
+    {
+        var initial = ColonyFactsCoreTests.Reading();
+        var measured = new RimGovernor.Contracts.Wire.Observations.SleepingTemperature.Indoor(-25, -10);
+        initial = initial with { Facts = initial.Facts with { BasicComfort = NoComfortObservation, Census = initial.Snapshot with { SleepingTemperature = measured } } };
+        var frame = new RoundsFrame { Rooms = new() { Context = initial.Snapshot.Context, Rooms = [] } };
+        var joined = RoundsFrameReads.WithFrameRooms(initial, frame, new DiningFurniture());
+        Assert.Same(initial.Snapshot, joined.Snapshot);
+        Assert.Same(measured, joined.Facts.Census.SleepingTemperature);
     }
 
     [Fact]
     public void MissingFrameRoomsCannotCertifyHostedComfort()
     {
-        var projection = ColonyFactsCoreTests.Projection() with { Facts = new() { Comfort = NoComfortObservation, BasicComfort = NoComfortObservation } };
-        Assert.Throws<ObservationContractException>(() => RoundsReads.WithFrameRooms(projection, new RoundsFrame(), new DiningFurniture()));
+        var projection = ColonyFactsCoreTests.Reading() with
+        {
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                Comfort = NoComfortObservation,
+                BasicComfort = NoComfortObservation
+            }
+        };
+        Assert.Throws<ObservationContractException>(() => RoundsFrameReads.WithFrameRooms(projection, new RoundsFrame(), new DiningFurniture()));
     }
     [Theory]
     [InlineData("comfort")]

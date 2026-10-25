@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -68,13 +69,14 @@ public sealed record HuntWeapon
 /// </summary>
 public sealed record HuntHunter
 {
-    public string ID { get; init; } = "";
-    public Cell Cell { get; init; }
-    public bool Downed { get; init; }
-    public bool MentalState { get; init; }
-    public bool HuntingActive { get; init; }
+    public required O.HunterFacts Observed { get; init; }
+    public string ID => Observed.Pawn.Value;
+    public Cell Cell => Observed.Position;
+    public bool Downed => Observed.Downed;
+    public bool MentalState => Observed.InMentalState;
+    public bool HuntingActive => Observed.HuntingActive;
     public HuntWeapon? Weapon { get; init; }
-    public bool RangedBlockingShield { get; init; }
+    public bool RangedBlockingShield => Observed.RangedBlockingShield;
 }
 
 /// <summary>A hunt row policy offers no hunt for: the first gate it fails, and for no_hunter each colonist's reason ("&lt;id&gt; &lt;reason&gt;").</summary>
@@ -85,15 +87,15 @@ public sealed record HuntHold
     public IReadOnlyList<string> Detail { get; init; } = [];
 
     /// <summary>The held prey, set by the census decoder, so the plan can price the prerequisite its hold waits on (HuntPrerequisiteCandidates).</summary>
-    public AcquisitionSource Source { get; init; } = new();
+    public required AcquisitionSource Source { get; init; }
 }
 
 /// <summary>A hunt row with the raw prey flags that are not part of the source: fogged and in a mental state.</summary>
 public sealed record HuntPrey
 {
-    public AcquisitionSource Source { get; init; } = new();
-    public bool Fogged { get; init; }
-    public bool Mental { get; init; }
+    public required AcquisitionSource Source { get; init; }
+    public bool Fogged => Source.Observed.Kind is O.AcquisitionKind.Hunt { Fogged: true };
+    public bool Mental => Source.Observed.Kind is O.AcquisitionKind.Hunt { InMentalState: true };
 
     /// <summary>The pest rule: a pest race that is not in a mental state.</summary>
     internal bool IsPest() => Source.Pest && !Mental;
@@ -154,7 +156,7 @@ public sealed record HuntCensus
     public HuntVerdict Gate(HuntPrey prey)
     {
         HuntVerdict Hold(string reason, IReadOnlyList<string>? detail = null) =>
-            new() { Hold = new HuntHold { ID = prey.Source.Id, Reason = reason, Detail = detail ?? [] } };
+            new() { Hold = new HuntHold { Source = prey.Source, ID = prey.Source.Id, Reason = reason, Detail = detail ?? [] } };
         if (prey.Fogged)
         {
             return Hold(HuntGateRules.HuntHoldFogged);

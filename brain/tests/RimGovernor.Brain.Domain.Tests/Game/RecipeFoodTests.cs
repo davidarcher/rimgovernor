@@ -79,7 +79,7 @@ public sealed class RecipeFoodTests
         Assert.Equal(300 / 0.9, food.WorkPerNutrition, 3);
         var raw = Assert.IsType<P.RecipeCooking.FromRaw>(food.Cooking);
         Assert.Equal(0.9 / 0.5, raw.NutrientEfficiency, 3);
-        Assert.Equal([P.FoodIngredientClass.Vegetable], Assert.Single(raw.IngredientClasses).Alternatives);
+        Assert.Equal([RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Vegetable], Assert.Single(raw.IngredientClasses).Alternatives);
         // Only the requirements on the recipe's own work skill set the cooking floor.
         Assert.Equal(4, raw.CookSkillFloor);
     }

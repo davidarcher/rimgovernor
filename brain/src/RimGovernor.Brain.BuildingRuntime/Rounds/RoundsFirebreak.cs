@@ -58,7 +58,7 @@ internal sealed class FirebreakMemory
     /// <see cref="Take"/> then reports it and the layout read raises <see cref="RequiredFactException"/>, so the shared
     /// review is not failed by the one planner that needs the ring.
     /// </summary>
-    internal async Task ReviewAsync(C.Identity identity, GenerationSnapshot current, ColonyProjection projection, IReadOnlySet<Cell> busy, CancellationToken ct)
+    internal async Task ReviewAsync(C.Identity identity, GenerationSnapshot current, ColonyReading projection, IReadOnlySet<Cell> busy, CancellationToken ct)
     {
         try
         {
@@ -70,18 +70,18 @@ internal sealed class FirebreakMemory
         }
     }
 
-    private async Task ReviewRingAsync(C.Identity identity, GenerationSnapshot current, ColonyProjection projection, IReadOnlySet<Cell> busy, CancellationToken ct)
+    private async Task ReviewRingAsync(C.Identity identity, GenerationSnapshot current, ColonyReading projection, IReadOnlySet<Cell> busy, CancellationToken ct)
     {
         var world = StockpileWorld(current);
         var tick = projection.Identity.Tick;
         var footprint = FirebreakPlan.Footprint(projection);
         var cells = FirebreakRingRules.FirebreakRing(footprint);
         var flooring = projection.Facts.Upkeep.Flooring;
-        var stock = projection.Resources;
+        var stock = ResourceStockRules.Count(projection.Snapshot.Resources);
         var style = FloorStyle(projection);
         var floorName = style is null ? "" : style(RoomRole.None).Floor;
         var floors = new Dictionary<string, FloorDefinition>(StringComparer.Ordinal);
-        foreach (var d in projection.Definitions.Where(d => d.Floor is not null))
+        foreach (var d in projection.Facts.Definitions.Where(d => d.Floor is not null))
         {
             floors[d.Name] = new FloorDefinition
             {
@@ -101,7 +101,7 @@ internal sealed class FirebreakMemory
         // Every tile is asked in one frame (the game-thread pump drains the queued reads together) instead of one frame each.
         var tiles = FirebreakTiles(cells).Select(tile => tile with
         {
-            Max = new Cell(Math.Min(tile.Min.X + FirebreakPlan.FirebreakTile, projection.Bounds.Width) - 1, Math.Min(tile.Min.Z + FirebreakPlan.FirebreakTile, projection.Bounds.Height) - 1),
+            Max = new Cell(Math.Min(tile.Min.X + FirebreakPlan.FirebreakTile, projection.Facts.MapBounds.Width) - 1, Math.Min(tile.Min.Z + FirebreakPlan.FirebreakTile, projection.Facts.MapBounds.Height) - 1),
         }).ToList();
         var reads = await Task.WhenAll(tiles.Select(rect => Native.ReadDefenseSiteAsync(identity, rect, ct))).ConfigureAwait(false);
         foreach (var read in reads)
@@ -146,7 +146,7 @@ internal sealed class FirebreakMemory
         }
         var (plan, next) = FirebreakRules.PlanFirebreak(request, dwell);
         var cut = plan.Cells.Where(c => c.Treatment == FirebreakTreatment.Cut).Select(c => c.Cell).ToList();
-        var standing = StandingPlants(projection.Cells, cut);
+        var standing = StandingPlants(projection.PlanningWindow.Cells, cut);
         var open = new HashSet<Cell>();
         var ruins = new Dictionary<Cell, CoverClearance>();
         foreach (var cell in plan.Deconstruct)
@@ -237,12 +237,12 @@ internal sealed class FirebreakMemory
         }
     }
 
-    private static Dictionary<Resource, long> FirebreakClaimed(ColonyProjection projection, EquatableArray<ConstructionClaim> claims)
+    private static Dictionary<Resource, long> FirebreakClaimed(ColonyReading projection, EquatableArray<ConstructionClaim> claims)
     {
         var claimed = new Dictionary<Resource, long>();
         foreach (var claim in claims)
         {
-            if (claim.Building is null || !projection.TryDefinition(claim.Building.Definition, out var d))
+            if (claim.Building is null || !ColonyPlanningRules.TryDefinition(projection.Facts, claim.Building.Definition, out var d))
             {
                 continue;
             }
@@ -293,7 +293,7 @@ internal sealed class FirebreakMemory
 
     private static string StockpileWorld(GenerationSnapshot current) => RoundsStockpilePlanner.StockpileWorld(current);
 
-    private static Func<RoomRole, (string Floor, bool Ok)>? FloorStyle(ColonyProjection projection) => RoundsTierStyle.FloorStyle(projection);
+    private static Func<RoomRole, (string Floor, bool Ok)>? FloorStyle(ColonyReading projection) => RoundsTierStyle.FloorStyle(projection);
 }
 
 internal sealed partial class FirebreakPlan
@@ -313,11 +313,11 @@ partial class FirebreakPlan
     internal const int FirebreakTile = 32;
 
     /// <summary>The base the ring surrounds; the construction census, the claims and the home coverage must all be read, or <see cref="RequiredFactException"/>.</summary>
-    internal static FirebreakFootprint Footprint(ColonyProjection projection)
+    internal static FirebreakFootprint Footprint(ColonyReading projection)
     {
-        var farms = new HashSet<string>(projection.Farms.Select(f => f.Id), StringComparer.Ordinal);
+        var farms = new HashSet<string>((projection.Tables.Zones ?? throw new RequiredFactException("zones")).Zones.OfType<PbObservations.ZoneState.Growing>().Select(f => f.Id), StringComparer.Ordinal);
         var zones = new List<Cell>();
-        foreach (var cell in projection.Cells)
+        foreach (var cell in projection.PlanningWindow.Cells)
         {
             if (cell.ZoneId is { } id && farms.Contains(id))
             {
@@ -327,7 +327,7 @@ partial class FirebreakPlan
         var f = projection.Facts;
         return new FirebreakFootprint
         {
-            Bounds = projection.Bounds,
+            Bounds = projection.Facts.MapBounds,
             Construction = f.CurrentConstruction,
             Claims = f.ConstructionClaims,
             Home = f.HomeCoverage ?? throw new RequiredFactException("home coverage"),
@@ -336,8 +336,8 @@ partial class FirebreakPlan
     }
 
     /// <summary>The cells of the accepted layout plan's footprints; none while no plan is derived.</summary>
-    internal static EquatableArray<Cell> PlannedFootprint(ColonyProjection projection) =>
-        EquatableArray.From(projection.LayoutPlan is { } plan ? LayoutFootprint(plan) : []);
+    internal static EquatableArray<Cell> PlannedFootprint(ColonyReading projection) =>
+        EquatableArray.From(projection.Facts.LayoutPlan is { } plan ? LayoutFootprint(plan) : []);
 
     internal static List<Cell> LayoutFootprint(LayoutPlan plan)
     {

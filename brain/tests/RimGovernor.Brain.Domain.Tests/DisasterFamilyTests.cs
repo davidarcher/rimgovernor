@@ -3,7 +3,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using ConditionDuration = RimGovernor.Contracts.Wire.Observations.ConditionDuration;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -37,7 +36,7 @@ public sealed class DisasterFamilyTests
         Started = new(1),
         Observed = new(1),
         Phase = DisasterPhase.Disrupted,
-        Conditions = [new DisasterCondition { Id = "condition-1", Definition = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } }],
+        Conditions = [new DisasterCondition { Observed = new RimGovernor.Contracts.Wire.Observations.EnvironmentCondition { Id = "condition-1", DefName = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } } }],
         Services = [.. AllServices.Select(s => new DisasterEvidence(s, s == DisasterService.Infrastructure ? Finding.Unmet : Finding.Met))],
         Affected = [DisasterService.Infrastructure],
     };
@@ -61,7 +60,7 @@ public sealed class DisasterFamilyTests
     {
         var planning = new RecoveryPlanning
         {
-            Safety = new RecoverySafety { Restrictions = [new(new("missing"), "Safe")] },
+            Safety = new RecoverySafety { Restrictions = [RecoveryObservationFixtures.Restriction("missing", "Safe")] },
             Workers = [],
         };
         Assert.Equal("recovery worker and restriction censuses disagree",
@@ -146,7 +145,10 @@ public sealed class DisasterFamilyTests
         var path = Path.Combine(Path.GetTempPath(), "rg-disaster-recovery-" + Guid.NewGuid().ToString("N") + ".db");
         var facts = WorkResourceTestFacts.Create("a") with
         {
-            DisasterConditions = EquatableArray.From([new DisasterCondition { Id = "condition-1", Definition = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } }]),
+            DisasterConditions = EquatableArray.From([new DisasterCondition { Observed = new RimGovernor.Contracts.Wire.Observations.EnvironmentCondition { Id = "condition-1", DefName = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } } }]),
+            RecoveryBuildings = [PowerBuildingFixtures.Trader("generator", "Generator", new(2, 3), 1000, 1000, true)],
+            MoodPawns = [new MoodPawn { Pawn = PawnFixtures.Row("a"), Forecast = null, Thoughts = [] }],
+            RecoverySafety = new RecoverySafety { Restrictions = [RecoveryObservationFixtures.Restriction("a")] },
         };
         RoundsResult Review(Journal journal, long tick) => journal.ReviewRounds(new RoundsRequest
         {
@@ -159,6 +161,12 @@ public sealed class DisasterFamilyTests
             var recovery = Assert.IsType<RoundsRecovery>(review.Recovery);
             Assert.Equal(DisasterFamily.Services, recovery.Need);
             Assert.Equal(new RimGovernor.Brain.Store.World(World.Colony, World.Load, World.Map), recovery.World);
+            Assert.Same(Assert.Single(facts.RecoveryBuildings), Assert.Single(recovery.Buildings));
+            Assert.Equal(facts.MoodPawns.Count, recovery.Workers.Count);
+            for (var i = 0; i < facts.MoodPawns.Count; i++)
+            {
+                Assert.Same(facts.MoodPawns[i], recovery.Workers[i]);
+            }
             Assert.Equal(recovery, journal.LoadRounds(ct).Recovery);
         }
         SqliteConnection.ClearAllPools();

@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -310,7 +309,7 @@ public static partial class OrganHarvestRules
             return false;
         }
         var stock = new Dictionary<Resource, long>();
-        foreach (var row in f.Resources)
+        foreach (var row in f.ObservedStock())
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }

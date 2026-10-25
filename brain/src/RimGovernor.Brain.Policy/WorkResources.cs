@@ -258,7 +258,7 @@ public static partial class WorkRules
                 foreach (var input in task.Inputs.Where(i => i.Observed && i.Lot.Length != 0 && !(sharesService && i.Lot == task.Step.Target)))
                     if (HaulsStack(task.Step, input.Lot)) Share(input.Lot, task.Pawn, task.Id, input.Count, batch, task.Step, true);
                     else Take(input.Lot);
-                if (task.Step.Destination is { } destination) Take("cell/" + destination.X + "/" + destination.Z);
+                if (task.Step is CellActivityStep { Destination: var destination }) Take("cell/" + destination.X + "/" + destination.Z);
                 if (task.Step.Container.Length != 0) Take(task.Step.Container);
                 var executing = batch.Orders.FirstOrDefault(o => !o.Release && !o.Preparing && o.Task == task.Id);
                 var actual = executing is not null && evidence.WorkResources is var actualWorkers
@@ -317,7 +317,7 @@ public static partial class WorkRules
                     ? native.SingleOrDefault(p => p.Pawn == order.Pawn && p.Assignment == order.Assignment && p.Revision == order.Revision) : null;
                 foreach (var step in order.Steps)
                 {
-                    if (step.Destination is { } destination) Take("cell/" + destination.X + "/" + destination.Z);
+                    if (step is CellActivityStep { Destination: var destination }) Take("cell/" + destination.X + "/" + destination.Z);
                     if (SharesCapacity(step)) Share(step.Target, order.Pawn, order.Task, EatCount(step), batch, step, false);
                     else if (HaulsStack(step, step.Target)) Share(step.Target, order.Pawn, order.Task, step.Count, batch, step, true);
                     else if (step.Target.Length != 0) Take(step.Target);

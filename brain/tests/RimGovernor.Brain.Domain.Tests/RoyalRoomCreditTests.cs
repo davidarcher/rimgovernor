@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -121,9 +120,9 @@ public sealed class RoyalRoomCreditTests
     private static SleepingObservation Sleeping(RoyalTitle? title) => new()
     {
         Colonists = 1,
-        People = [new() { Id = A, OwnedBed = "b1", Title = title }],
-        Beds = [new() { Id = "b1", Definition = new("Bed"), Humanlike = true, Room = "std", Owners = [A], AccessibleTo = [A] }],
-        Rooms = [new() { Id = "std", Role = RoomRole.None, Quality = new RoomQuality(30, 0, 0, 0, 30), Cells = 12, Beds = [] }],
+        People = [new SleepingPerson { Native = SleepingNativeFixtures.Person(id: A), Pawn = SleepingNativeFixtures.Pawn(id: A, ownedBed: "b1"), Title = title }],
+        Beds = [new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "b1", room: "std", owners: [A], accessibleTo: [A]), Building = SleepingNativeFixtures.Building(id: "b1", definition: new Resource("Bed")), Humanlike = true }],
+        Rooms = [new UpkeepRoom { StatKeys = SleepingNativeFixtures.StatKeys, Native = SleepingNativeFixtures.Room("std", RoomRole.None, new RoomQuality(30, 0, 0, 0, 30), 12), Beds = [] }],
     };
 
     private static IReadOnlyDictionary<int, RoyalRoomNeed> ProductionRooms(SleepingObservation sleeping, RoyaltyFacts? royalty, TraitEffects? effects = null)

@@ -90,7 +90,7 @@ public sealed partial class RoundsDefensePlanner
             p.Journal.SaveCombatMemory(id, next, call);
             return admitted;
         }
-        IReadOnlyList<BridgeCombatOrderResult>? results;
+        IReadOnlyList<CombatResult>? results;
         try
         {
             (results, orders) = await SendCombatBatchAsync(state, id, $"{id}-admit", drafts, orders, call).ConfigureAwait(false);
@@ -136,7 +136,7 @@ public sealed partial class RoundsDefensePlanner
     }
 
     /// <summary>Records which drafted pawns the native applied; returns the results after the draft rows and the memory without the refused.</summary>
-    internal (IReadOnlyList<BridgeCombatOrderResult>? Results, CombatMemory Memory) RecordDrafts(PlanId plan, IReadOnlyList<PawnId> pawns, IReadOnlyList<BridgeCombatOrderResult>? results, CombatMemory memory, CancellationToken call)
+    internal (IReadOnlyList<CombatResult>? Results, CombatMemory Memory) RecordDrafts(PlanId plan, IReadOnlyList<PawnId> pawns, IReadOnlyList<CombatResult>? results, CombatMemory memory, CancellationToken call)
     {
         if (results is null || pawns.Count == 0)
         {
@@ -170,7 +170,7 @@ public sealed partial class RoundsDefensePlanner
         return (batchPlan.Id, sent.Count, next);
     }
 
-    internal async Task<(IReadOnlyList<BridgeCombatOrderResult>? Results, IReadOnlyList<CombatOrder> Orders)> SendCombatBatchAsync(ControlState state, PlanId fight, string action, IReadOnlyList<PawnId> drafts, IReadOnlyList<CombatOrder>? orders, CancellationToken call)
+    internal async Task<(IReadOnlyList<CombatResult>? Results, IReadOnlyList<CombatOrder> Orders)> SendCombatBatchAsync(ControlState state, PlanId fight, string action, IReadOnlyList<PawnId> drafts, IReadOnlyList<CombatOrder>? orders, CancellationToken call)
     {
         orders = await CaptureCombatSettingsAsync(state, fight, orders ?? [], call).ConfigureAwait(false);
         if (drafts.Count + orders.Count == 0)
@@ -211,12 +211,7 @@ public sealed partial class RoundsDefensePlanner
         {
             return (null, orders);
         }
-        var output = new List<BridgeCombatOrderResult>();
-        foreach (var v in results.Orders)
-        {
-            output.Add(new BridgeCombatOrderResult { Index = v.Index, PawnId = v.PawnId, Applied = v.Applied, Refusal = v.Refusal, JobDef = v.JobDef });
-        }
-        return (output, orders);
+        return (results.Orders, orders);
     }
 
     /// <summary>Answers the policy's geometry question from the native; see <see cref="RoundsDefensePlanner.AnswerGeometry"/>.</summary>
@@ -242,7 +237,7 @@ partial class RoundsDefensePlanner
         {
             return reply;
         }
-        static C.Cell Wire(Cell cell) => new() { X = cell.X, Z = cell.Z };
+        static RimGovernor.Brain.Domain.Cell Wire(Cell cell) => new() { X = cell.X, Z = cell.Z };
         var line = ask.Line.Select(Wire).ToList();
         if (line.Count >= CombatConstants.CombatGeometryMaxCells)
         {
@@ -336,7 +331,7 @@ partial class RoundsDefensePlanner
         {
             return reply;
         }
-        var propose = new M.CombatGeometryPropose.RescuePath { Pawn = ask.Pawn, To = new C.Cell { X = ask.To.X, Z = ask.To.Z } };
+        var propose = new M.CombatGeometryPropose.RescuePath { Pawn = ask.Pawn, To = new RimGovernor.Brain.Domain.Cell { X = ask.To.X, Z = ask.To.Z } };
         M.CombatGeometry geometry;
         try
         {
@@ -515,7 +510,7 @@ partial class RoundsDefensePlanner
     }
 
     /// <summary>The memory after a stop's order results: each refused order is remembered by its refusal. Unknown results change nothing.</summary>
-    internal static CombatMemory CombatStopMemory(IReadOnlyList<CombatPawnState> pawns, IReadOnlyList<CombatOrder> orders, IReadOnlyList<BridgeCombatOrderResult>? results, CombatMemory memory)
+    internal static CombatMemory CombatStopMemory(IReadOnlyList<CombatPawnState> pawns, IReadOnlyList<CombatOrder> orders, IReadOnlyList<CombatResult>? results, CombatMemory memory)
     {
         if (results is null)
         {

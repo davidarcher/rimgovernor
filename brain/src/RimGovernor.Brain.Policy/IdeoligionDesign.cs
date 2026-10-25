@@ -699,9 +699,9 @@ public static class IdeoligionDesignRules
     /// Keeps memes and special instances when their transition cost cannot be valued. Plain-precept changes
     /// may improve known restrictions/mood while preserving obligations and every unvalued effect.
     /// </summary>
-    public static DesignChoice ChooseIdeoligionReform(DesignOptions options, IdeoligionDesign current, IdeoDevelopment state, bool safe, Func<DesignNeeds> believerNeeds, IReadOnlyList<IdeoGoalTarget> targets)
+    public static DesignChoice ChooseIdeoligionReform(DesignOptions options, IdeoligionDesign current, RimGovernor.Contracts.Wire.Observations.IdeoDevelopment state, bool safe, Func<DesignNeeds> believerNeeds, IReadOnlyList<IdeoGoalTarget> targets)
     {
-        if (!safe || !state.Fluid)
+        if (!safe || state is not RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid fluid)
         {
             return new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = safe ? DesignDecision.Ineligible : DesignDecision.Unsafe } };
         }
@@ -719,13 +719,13 @@ public static class IdeoligionDesignRules
                 Blocked = blocked,
                 Comparison = new DesignComparison
                 {
-                    Decision = state.CanReform ? DesignDecision.Improves : DesignDecision.Awaiting,
+                    Decision = fluid.CanReform ? DesignDecision.Improves : DesignDecision.Awaiting,
                     Current = baseline,
                     Candidate = candidate,
                 },
             };
         }
-        var choice = state.CanReform
+        var choice = fluid.CanReform
             ? ChooseImprovement(options, current, believerNeeds())
             : new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = DesignDecision.Ineligible } };
         return choice with { Blocked = blocked };

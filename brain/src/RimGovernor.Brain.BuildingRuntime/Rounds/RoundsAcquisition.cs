@@ -110,7 +110,7 @@ public sealed partial class RoundsAcquisitionPlanner
         foreach (var hunt in new[] { false, true })
         {
             var contract = hunt ? _reviewer.Policy.HuntProgress() : _reviewer.Policy.AcquisitionProgress();
-            foreach (var row in StalledDesignations(projection.Acquisition, hunt, expected.Tick, contract, mine))
+            foreach (var row in StalledDesignations(projection.Facts.Acquisition, hunt, expected.Tick, contract, mine))
             {
                 stalledSources.Add(row.Id);
                 var (method, plan) = StallWithdraw(row);
@@ -128,7 +128,7 @@ public sealed partial class RoundsAcquisitionPlanner
                 return new RoundsAcquisitionResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(withdraw), Plan = withdraw.Outcome is ClaimOutcome.Conflict or ClaimOutcome.Refused ? default : plan.Id };
             }
         }
-        var held = CooledSources(projection.Acquisition, _reviewer.ChopMinGrowth(projection), id => cooled.Contains(id) || AcquisitionCooled(progress, _reviewer.Policy, id, expected.Tick));
+        var held = CooledSources(projection.Facts.Acquisition, _reviewer.ChopMinGrowth(projection), id => cooled.Contains(id) || AcquisitionCooled(progress, _reviewer.Policy, id, expected.Tick));
         // Blocking reads the census, not the journal: a designated row the goal would plan is its ExistingWork. A
         // source this step cancelled or cooled still reads designated until native withdraws it, and never
         // blocks.
@@ -138,7 +138,7 @@ public sealed partial class RoundsAcquisitionPlanner
         // designated resource in resourceSelection instead; its other targets still plan.
         if (!stockGoal)
         {
-            var (block, plants) = CensusBlocking(projection.Acquisition, food, held, undispatched);
+            var (block, plants) = CensusBlocking(projection.Facts.Acquisition, food, held, undispatched);
             if (block)
             {
                 return new RoundsAcquisitionResult { Verdict = BuildingReasonExistingWork };
@@ -147,8 +147,8 @@ public sealed partial class RoundsAcquisitionPlanner
         }
         // A designated or undispatched source is held: it is not planned again. Its resource is busy for
         // the resource Need unless a cooldown held it.
-        var busy = HoldWorked(projection.Acquisition, undispatched, held);
-        var pending = WithoutStalled(projection.PendingFoodNutrition, projection.Acquisition, stalledSources, food);
+        var busy = HoldWorked(projection.Facts.Acquisition, undispatched, held);
+        var pending = WithoutStalled(projection.Snapshot.PendingFoodNutrition, projection.Facts.Acquisition, stalledSources, food);
         var deficit = 0.0;
         FoodRunway? runway = null;
         if (food)
@@ -158,8 +158,8 @@ public sealed partial class RoundsAcquisitionPlanner
                 return new RoundsAcquisitionResult { Verdict = FieldUnavailable("food_plan") };
             }
             runway = foodPlan.Forecast.RunwayDays;
-            var (foodSources, foodDeficit) = FoodPlanAcquisition(foodPlan, projection.Acquisition);
-            projection = projection with { Acquisition = foodSources };
+            var (foodSources, foodDeficit) = FoodPlanAcquisition(foodPlan, projection.Facts.Acquisition);
+            projection = projection with { Facts = projection.Facts with { Acquisition = foodSources } };
             deficit = foodDeficit;
         }
         var (slots, _) = RoundsResourcePlanner.HuntSlots(projection);
@@ -174,7 +174,7 @@ public sealed partial class RoundsAcquisitionPlanner
             }
             else
             {
-                selected = GoalSelection(projection.Acquisition, huntOnly, deficit, pending, food, held, slots);
+                selected = GoalSelection(projection.Facts.Acquisition, huntOnly, deficit, pending, food, held, slots);
             }
         }
         catch (DomainException)
@@ -499,11 +499,11 @@ partial class RoundsAcquisitionPlanner
 public sealed partial class Rounder
 {
     /// <summary>The owned review reading an acquisition step plans on, its census without the sources a field plan reserves.</summary>
-    internal Task<(Identity Expected, ColonyProjection Projection)> AcquisitionReadingAsync(ControlState state, RoundsReview review, CancellationToken call) =>
+    internal Task<(Identity Expected, ColonyReading Reading)> AcquisitionReadingAsync(ControlState state, RoundsReview review, CancellationToken call) =>
         AcquisitionReadingAsync(state.Snapshot, review, call);
 
     /// <summary>The owned review reading of <paramref name="world"/> an acquisition plans on, its census without the sources a field plan reserves.</summary>
-    internal async Task<(Identity Expected, ColonyProjection Projection)> AcquisitionReadingAsync(GenerationSnapshot world, RoundsReview review, CancellationToken call)
+    internal async Task<(Identity Expected, ColonyReading Reading)> AcquisitionReadingAsync(GenerationSnapshot world, RoundsReview review, CancellationToken call)
     {
         var p = Player;
         var plans = p.Journal.LoadPlans(call);
@@ -522,8 +522,8 @@ public sealed partial class Rounder
             read = await ObserveOwnedAsync(Native, expected, claims, unique, call).ConfigureAwait(false);
         }
         using var fields = Tel.Phase("acquisition.fields");
-        var projection = read.Projection;
-        projection = projection with { Acquisition = RoundsAcquisitionFields.WithoutFieldSources(projection.Acquisition, projection, plans, world) };
+        var projection = read.Reading;
+        projection = projection with { Facts = projection.Facts with { Acquisition = RoundsAcquisitionFields.WithoutFieldSources(projection.Facts.Acquisition, projection, plans, world) } };
         return (expected, projection);
     }
 }

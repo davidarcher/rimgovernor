@@ -5,7 +5,7 @@ public sealed partial class JoinersRounds
     /// <summary>Sends a caravan to a quest site, or brings a stopped one home; a wait is not handled.</summary>
     internal (Verdict Verdict, bool Handled) AdmitExpedition(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
-        var facts = read.Projection.Facts;
+        var facts = read.Reading.Facts;
         var expedition = QuestExpedition.SelectExpedition(facts, reviewer.Policy);
         var trips = facts.QuestExpeditionTrips;
         var sites = facts.QuestSites;

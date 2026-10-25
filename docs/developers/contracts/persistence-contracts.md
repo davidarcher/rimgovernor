@@ -8,6 +8,13 @@ transactions. This extends the existing review row, not a second reservation
 store. Native reservations and carried/embedded inputs are reconciled against
 that observation; dispatch alone cannot release an unobserved cost.
 
+Mood history and recovery replay retain each complete native pawn row and its actual same-frame patient forecast (absent only for a pawn lacking a mood need), plus grouped derived thought totals. Scalar mood evidence is read from those retained inputs; replay does not reconstruct a native pawn from selected scalars. Recovery replay also retains canonical building rows. Selected recovery candidates retain the native fuel union, including burn state and target. The existing review journal owns these inputs; no separate recovery observation store is introduced.
+
+Live recovery safety uses the native restriction rows directly, including a null
+area for an unrestricted pawn. The journal's existing flat pawn/area payload
+represents that absence with an empty area string; replay reconstructs the complete
+two-field native restriction without introducing another live observation record.
+
 [Documentation](../../README.md)
 
 Vocabulary follows the [glossary](../glossary.md). Stored names: tables `plan_owner`,
@@ -24,6 +31,11 @@ serializer; the clock evidence records stay canonical wire blobs (`ClockCodec`).
 constraints live in the C# domain constructors a payload is rebuilt through. The journal is disposable on
 upgrade: a file of another version is moved aside to `<path>.v<old>.bak` by `Store.OpenOrReplace` and a new one
 is created, so there are no migrations.
+
+Journaled pawn activities retain exact source/approach cells for every selected
+task. A step's existing kind and job determine whether it has an exact destination:
+only Deliver, Approach, BuildRoof and Sow store that cell. These remain fields of
+the existing Method action, with no separate location or execution-state store.
 
 The save keeps only player intent and `family/*` records
 ([durable state](../architecture/control-loop.md#durable-state)); Methods live in `need_methods`
@@ -208,6 +220,12 @@ stays the only input.
 
 ## What must survive
 
+Journal schema 59 retains complete native pawn rows for profiles, recovery and
+mood, native skill learning, activity locations and named profile Biotech states.
+Profiles derive their native scalar properties from the retained row rather than
+persisting another copy. Opening an older session journal requires a fresh
+journal; this schema change does not invalidate game saves.
+
 - **Receipts for uncertain writes.** Every native write is journaled before dispatch and settled by
   observation, never by transport replay. A reply lost after dispatch leaves the action uncertain; it
   is reconciled from the next observation, and its plan stays live until then.
@@ -295,6 +313,12 @@ leave active capacity and cannot be modified or reused.
   retention bound.
 
 ## Combat batches and restoration
+
+Each tactical step passes its returned combat memory to the next step before
+orders are derived. Siege camp and mortar observations, sapper interception and
+rushing, reactive roles and specialist fire targets therefore inform both the
+current orders and the next decision. A geometry request leaves the caller's
+input memory intact until the answered decision completes.
 
 Combat decisions dispatch one immutable typed batch through Hands. Each batch is
 a `military/combat` Need method beside the fight, linked to its fight plan. Ordered commands,

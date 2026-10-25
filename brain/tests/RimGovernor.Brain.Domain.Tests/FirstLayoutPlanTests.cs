@@ -1,5 +1,5 @@
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -47,6 +47,7 @@ public sealed class FirstLayoutPlanTests
 
     internal static StationFacts Facts(MapSurvey s, long colonists) => new()
     {
+        OutdoorCurve = EquatableArray.From(Curve(s.Cold ? "cold" : s.Hot ? "hot" : "mild")),
         Catalog = new StationCatalog
         {
             PlayBuildings = [],
@@ -117,8 +118,9 @@ public sealed class FirstLayoutPlanTests
         Rest = RestSchedule.Of([]),
         Food = new FoodSupply
         {
-            Larder = new(),
-            Consumers = [.. Enumerable.Range(0, (int)colonists).Select(i => new FoodConsumer { Id = new PawnId("c" + i), NutritionPerDay = 1.6 })],
+            Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] },
+            Consumers = [.. Enumerable.Range(0, (int)colonists).Select(i => new FoodConsumer { Id = new PawnId("c" + i), NutritionPerDay = 1.6,
+        HumanMeatAcceptable = false })],
         },
         Ledger = WorkRules.NewLedgerView(WorkRules.LedgerViewInactive),
         Stock = new Dictionary<Resource, long>(),
@@ -135,7 +137,7 @@ public sealed class FirstLayoutPlanTests
     internal static StationFacts Priced(StationFacts f, string climate) => f with
     {
         Catalog = f.Catalog with { Climate = BedMergePriceTests.Catalog.Climate },
-        OutdoorCurve = Fact.Known(EquatableArray.From(Curve(climate))),
+        OutdoorCurve = EquatableArray.From(Curve(climate)),
         Crops = [BedMergePriceTests.Rice],
         BedMerge = BedMergePriceTests.Wood(BedMergePriceTests.Calm),
     };

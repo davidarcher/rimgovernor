@@ -37,14 +37,20 @@ answers `{"spans": n}`; a malformed body is 400. Senders retry only while the ro
 registered (404) and drop the spans with a logged reason otherwise; spans never fail a run. See
 [launch spans](otel-signals.md#launch-spans).
 
-`/api/player/colony` fields; unknown facts are null:
+`/api/player/colony` fields; native counts, nutrition, threat and downed values are total:
 
 - food nutrition and runway, colonists, workers, downed, mood mean;
 - `roster`: `colonists` or `no_colonists`. An empty home roster is a 200 with `no_colonists` and an empty
   `pawns` list, not a read failure;
-- the living home roster: each colonist's `id`, `label`, `downed`, `mood`, `food`;
-- raid points and the wealth split: `raidPoints`, `wealthTotal`, `wealthItems`, `wealthBuildings`,
-  `wealthPawns`;
+- the living home roster: each colonist's id, label, downed, mood and food.
+  A null mood or food means the pawn has no such need; a present zero is an observed empty need.
+  The mood mean is null when no roster pawn has a mood need. Food runway days is null when there are no eaters;
+- raid points and the wealth split: raidPoints, wealthTotal, wealthItems, wealthBuildings and wealthPawns;
+- foodPlanTick, stockpiles, forbiddenSupplies and moodLedger come from the latest matching routine
+  review. Before that review, the review payload is absent and these fields are null. A completed review
+  publishes empty stockpiles and false forbidden supplies as observed values;
+- the construction techTier derives from the live finished-research census and player faction tech level,
+  including before the first routine review.
 
 Mutations require JSON and the process token in `X-RimGovernor-Player`. Bodies are bounded to 8192
 bytes; duplicate, unknown, null, malformed and trailing fields are rejected. Errors keep the sanitized

@@ -149,19 +149,13 @@ public sealed partial record Ideoligion
         };
     }
 
+    private IReadOnlyList<string>? SelectedPrecepts { get; init; }
+
     /// <summary>
     /// The ideoligion's defs with exactly the named precept defs in force: the ideoligion of a pawn whose
     /// row lists its own precepts, which may differ from the colony's primary one.
     /// </summary>
-    public Ideoligion HeldBy(IReadOnlyList<string> precepts)
-    {
-        var held = new List<HeldPrecept>(precepts.Count);
-        for (var n = 0; n < precepts.Count; n++)
-        {
-            held.Add(new HeldPrecept(n.ToString(System.Globalization.CultureInfo.InvariantCulture), precepts[n]));
-        }
-        return new Ideoligion(Defs, new IdeoligionFacts { IdeoId = Facts.IdeoId, Precepts = held, Development = Facts.Development });
-    }
+    public Ideoligion HeldBy(IReadOnlyList<string> precepts) => this with { SelectedPrecepts = precepts };
 
     /// <summary>The worst and the best stance over the events, in the order approved, allowed, penalised, forbidden, unknown.</summary>
     internal (PreceptStance Worst, PreceptStance Best) EventStances(IReadOnlyList<string> events)

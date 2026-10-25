@@ -5,6 +5,16 @@
 The `economy/research` Need (#3263; was EnsureResearch) shares ColonyPlan, priority arbitration and Hands. Advisory concerns cannot create
 research orders.
 
+Every routine frame carries its research census. Decoding a frame without that
+section fails the read. The review retains a total `RoundsFacts.Research` record;
+an observed empty finished-project list is valid, while a synthetic projection
+that never supplied the census throws before research-dependent planning.
+The census retains its actual native snapshot, listed project rows and knowledge
+slots. Static definition facts stay in the catalog. A catalog project absent from
+a filtered snapshot has an explicit `NotListed` observation and reads completion
+from that snapshot's total finished set; it cannot imply a startable project.
+Review summaries compute native values from the retained census.
+
 ## Target
 
 `policy.ResearchConcern` picks the first unfinished project among the recorded needs, all *derived*
@@ -21,6 +31,14 @@ planner lends the clock ticks until the target finishes, and skips projects the 
 A concern whose only method is gated on research reports the project instead of no method:
 the `power/basic` Need with every generator definition unavailable and the `layout/stone-shell` Need with no
 replacement material report `awaiting_plan:research:<project>` (`policy.ResearchGate`).
+
+## Construction technology
+
+The construction TechTier is derived from the finished research census with the
+player faction's native tech level as its floor. Both direct colony reads and
+routine frames derive it from their total Tables.FinishedResearch census. Status reads its research
+census directly, so it does not depend on a prior routine review. An Undefined faction level fails the read; it never implies Camp.
+An observed empty census with a Neolithic faction is Camp.
 
 ## Anomaly knowledge
 

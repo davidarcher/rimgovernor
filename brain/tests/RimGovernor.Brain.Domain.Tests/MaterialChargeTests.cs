@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using ResourceSource = RimGovernor.Brain.Policy.ResourceSource;
 
 namespace RimGovernor.Brain.Domain.Tests;

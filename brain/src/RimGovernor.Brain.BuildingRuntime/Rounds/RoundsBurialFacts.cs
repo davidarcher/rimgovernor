@@ -4,26 +4,26 @@ internal static class RoundsBurialFacts
 {
     internal static readonly string[] BurialDefinitions = ["Wall", "Door", TombRules.GraveDefinition];
 
-    internal static TombStep TombStep(ColonyProjection facts)
+    internal static TombStep TombStep(ColonyReading facts)
     {
         if (!TombOwed(facts))
         {
             return new TombStep();
         }
         var available = SarcophagusAvailable(facts);
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var waste = facts.Facts.Waste;
-        return TombRules.NextTombStep(plan ?? new LayoutPlan(), waste, facts.Facts.CurrentConstruction.Buildings, facts.Shapes, available);
+        return TombRules.NextTombStep(plan ?? new LayoutPlan(), waste, facts.Facts.CurrentConstruction.Buildings, facts.Facts.Shapes, available);
     }
 
-    internal static bool TombOwed(ColonyProjection facts) =>
-        TombRules.TombOwed(facts.Shapes, SarcophagusAvailable(facts), facts.LayoutPlan, facts.Facts.Waste, facts.Facts.CurrentConstruction);
+    internal static bool TombOwed(ColonyReading facts) =>
+        TombRules.TombOwed(facts.Facts.Shapes, SarcophagusAvailable(facts), facts.Facts.LayoutPlan, facts.Facts.Waste, facts.Facts.CurrentConstruction);
 
-    internal static bool SarcophagusAvailable(ColonyProjection facts)
+    internal static bool SarcophagusAvailable(ColonyReading facts)
     {
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
-            if (d.Name != facts.Shapes.Furniture.Sarcophagus)
+            if (d.Name != facts.Facts.Shapes.Furniture.Sarcophagus)
             {
                 continue;
             }
@@ -36,9 +36,9 @@ internal static class RoundsBurialFacts
         throw new RequiredFactException("sarcophagus definition");
     }
 
-    internal static (PlannedRoom Room, bool Owed) PlannedMorgue(ColonyProjection facts)
+    internal static (PlannedRoom Room, bool Owed) PlannedMorgue(ColonyReading facts)
     {
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
         var waste = facts.Facts.Waste;
         var ground = RoundsBuildingPlanner.ColonyGround(facts);
@@ -54,34 +54,34 @@ internal static class RoundsBurialFacts
     /// A human corpse waits and the plan holds no morgue yet: the burial demand asks layout for one
     /// (RoomDemand.Morgue) and the burial waits for the replan to plan it.
     /// </summary>
-    internal static bool MorgueAwaitingRoom(ColonyProjection facts) =>
+    internal static bool MorgueAwaitingRoom(ColonyReading facts) =>
         MorgueRules.MorgueWaiting(facts.Facts.Waste)
-        && facts.LayoutPlan is { } plan && plan.RoomsOf(PlannedRole.Morgue).Count == 0;
+        && facts.Facts.LayoutPlan is { } plan && plan.RoomsOf(PlannedRole.Morgue).Count == 0;
 
     /// <summary>
     /// The burial's asks of the layout plan (RoomDemand.Tomb, RoomDemand.Morgue): another tomb while a dead
     /// colonist is owed a sarcophagus no planned tomb has room for, a morgue while a human corpse waits.
     /// </summary>
-    internal static RoomDemand BurialDemand(ColonyProjection facts, LayoutPlan plan)
+    internal static RoomDemand BurialDemand(ColonyReading facts, LayoutPlan plan)
     {
         var tomb = TombStep(facts).Kind == TombStepKind.Full ? plan.TombRooms() + 1 : 0;
         var morgue = MorgueRules.MorgueWaiting(facts.Facts.Waste) ? 1 : 0;
         return new RoomDemand { Tomb = tomb, Morgue = morgue };
     }
 
-    internal static Fact<bool> BurialOwed(ColonyProjection facts) =>
-        Known(PlannedMorgue(facts).Owed || MorgueAwaitingRoom(facts) || TombOwed(facts));
+    internal static bool BurialOwed(ColonyReading facts) =>
+        PlannedMorgue(facts).Owed || MorgueAwaitingRoom(facts) || TombOwed(facts);
 
-    internal static (PlannedRoom Room, bool Owed) PlannedMealCloset(ColonyProjection facts)
+    internal static (PlannedRoom Room, bool Owed) PlannedMealCloset(ColonyReading facts)
     {
-        var available = facts.DefinitionAvailable("Cooler");
+        var available = ColonyPlanningRules.DefinitionAvailable(facts.Facts, "Cooler");
         if (!available)
         {
             return (new PlannedRoom(), false);
         }
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         if (!pk)
         {
             return (new PlannedRoom(), false);
@@ -90,8 +90,8 @@ internal static class RoundsBurialFacts
         return (room ?? new PlannedRoom(), owed);
     }
 
-    internal static bool MealClosetOwed(ColonyProjection facts) => PlannedMealCloset(facts).Owed;
+    internal static bool MealClosetOwed(ColonyReading facts) => PlannedMealCloset(facts).Owed;
 
-    internal static EquatableArray<string> WarmCoolingRooms(ColonyProjection facts) =>
-        TombRules.WarmCoolingRooms(facts.DefinitionAvailable("Cooler"), facts.LayoutPlan, facts.Rooms);
+    internal static EquatableArray<string> WarmCoolingRooms(ColonyReading facts) =>
+        TombRules.WarmCoolingRooms(ColonyPlanningRules.DefinitionAvailable(facts.Facts, "Cooler"), facts.Facts.LayoutPlan, facts.Facts.Upkeep.Rooms);
 }

@@ -22,7 +22,6 @@ public sealed class LayersAnalyzer : GateAnalyzer
         new[] { "Contracts" },
         new[] { "Policy" },
         new[] { "Bridge.Contracts", "Bridge" },
-        new[] { "Observation" },
         new[] { "Store" },
        new[] { "Executor" },
         new[] { "BuildingRuntime" },
@@ -233,16 +232,16 @@ public sealed class PolicyPurityAnalyzer : GateAnalyzer
 
 /// <summary>
 /// Rule 3, one owner per exported type (RGARCH003). A public type name declared in two or more of Domain, Policy,
-/// Bridge (and its contracts) and Observation fails unless listed. The four form a reference chain, so the higher
+/// Bridge and its contracts fails unless listed. These form a reference chain, so the higher
 /// project sees every collision with the lower ones and reports it: key "Higher|Name".
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class OneOwnerAnalyzer : GateAnalyzer
 {
-    private static readonly string[] Owners = { "RimGovernor.Brain.Domain", "RimGovernor.Brain.Policy", "RimGovernor.Brain.Bridge.Contracts", "RimGovernor.Brain.Bridge", "RimGovernor.Brain.Observation" };
+    private static readonly string[] Owners = { "RimGovernor.Brain.Domain", "RimGovernor.Brain.Policy", "RimGovernor.Brain.Bridge.Contracts", "RimGovernor.Brain.Bridge" };
 
     public OneOwnerAnalyzer()
-        : base(3, "One owner per exported type", "exported type declared by more than one of domain, policy, bridge, observation")
+        : base(3, "One owner per exported type", "exported type declared by more than one of domain, policy and bridge")
     {
     }
 

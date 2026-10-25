@@ -8,17 +8,22 @@ internal static class CareFixtures
     /// <summary>A living colonist on Best care, nothing life-threatening, no surgery queued.</summary>
     public static CarePawn Patient(string id, IEnumerable<Hediff>? conditions = null, IEnumerable<CareOperation>? operations = null) => new()
     {
-        Id = new PawnId(id),
-        Care = MedicalCare.Best,
-        LifeThreatening = false,
-        Dead = false,
-        NeedsRest = false,
+        Observed = NativePatient(id, conditions),
         BadConditions = false,
-        QueuedSurgeries = 0,
-        Conditions = EquatableArray.From(conditions ?? []),
         Operations = EquatableArray.From(operations ?? []),
     };
 
+    public static RimGovernor.Contracts.Wire.Observations.PawnState NativePatient(string id, IEnumerable<Hediff>? conditions = null)
+    {
+        var pawn = PawnFixtures.Row(id);
+        return pawn with
+        {
+            Settings = pawn.Settings with { Care = new RimGovernor.Contracts.Wire.Observations.PawnCare.Configured(
+                RimGovernor.Contracts.Wire.Operations.MedicalCare.Best, false,
+                RimGovernor.Contracts.Wire.Operations.HostilityResponse.Flee) },
+            Health = pawn.Health with { Hediffs = EquatableArray.From(conditions ?? []) },
+        };
+    }
     /// <summary>A visible, untended, whole-body hediff.</summary>
     public static Hediff Condition(string def) => new()
     {

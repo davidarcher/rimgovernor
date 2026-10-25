@@ -59,7 +59,7 @@ internal static class NativeActivityTasks
                 { satisfied.Add(task.Id); continue; }
                 if (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply)
                 {
-                    var source = task.Source ?? task.Location;
+                    var source = task.Source;
                     var carried = pawn.carryTracker.CarriedThing;
                     var dropped = NativePawnActivities.Dropped(pawn);
                     var candidates = carried is not null ? new[] { carried }
@@ -90,7 +90,7 @@ internal static class NativeActivityTasks
                         }
                         else
                         {
-                            var destination = (step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination."));
+                            var destination = ((CellActivityStep)step).Destination;
                             if (!(step.SupportDemand.Length != 0 ? NativeSupportActivities.DestinationAllowed(pawn, item, new(destination.X, 0, destination.Z), count)
                                 : JobDriver_GovernorDeliver.DestinationAvailable(pawn, new(destination.X, 0, destination.Z), item, count))
                                 || !pawn.CanReserveAndReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) continue;
@@ -131,7 +131,7 @@ internal static class NativeActivityTasks
                     var target = RefIndex.Thing(map, step.Target);
                     if (target != null && NativePracticeActivities.Legal(pawn, target, step)) bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step));
                 }
-                else if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof" && step.Destination is { } destination)
+                else if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof" && step is CellActivityStep { Destination: var destination })
                 {
                     var cell = new IntVec3(destination.X, 0, destination.Z);
                     if (!cell.InBounds(map)) continue;
@@ -147,7 +147,7 @@ internal static class NativeActivityTasks
                     if (NativeSowingActivities.FullySown(map, step.Target)) { satisfied.Add(task.Id); continue; }
                     if (NativeSowingActivities.Giver?.defName == step.WorkGiver && NativeSowingActivities.Grower(map, step.Target) is { } grower
                         && NativeSowingActivities.LegalCells(pawn, grower) is [var nearest, ..])
-                        bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step with { Destination = new(nearest.x, nearest.z) }));
+                        bindings.Add(new Obs.ActivityTaskBinding.Bound(task.Id, step.At(new(nearest.x, nearest.z))));
                 }
                 else if (step.Kind == PawnActivityKind.Work && step.IsSet)
                 {
@@ -184,7 +184,8 @@ internal static class NativeActivityTasks
                 else if (step.Kind == PawnActivityKind.Recipe)
                 {
                     var bench = RefIndex.Thing(map, step.Target);
-                    if (bench == null || step.Recipe is not { } recipe || task.Source is not { } input) continue;
+                    if (bench == null || step.Recipe is not { } recipe) continue;
+                    var input = task.Source;
                     if (recipe.Stuff.Length != 0)
                     {
                         // A fresh selected task keeps its exact recipe/stuff. Rebind split/merged inputs only;

@@ -11,6 +11,11 @@ row. Its Method is the one husbandry write the choice chain picks, named
 itself; there are no operator flags. Sterilizing is the `animals/sterilize` Need,
 which waits on the hospital's animal ward (`animals/ward`).
 
+Containment and ward steps are total observations of a complete planning frame.
+An unavailable animal-bed definition is the explicit `bed_unavailable` ward step:
+the ward Need remains unmet and its work waits for `animal_bed_unavailable`.
+Missing plan, construction, room or sleeping input fails the read before planning.
+
 **Race catalog.** Static per-race facts (carrying capacity,
 trainability and trainables, wildness, body size, combat power, market value,
 minimum handling skill, life expectancy, the manhunter chances and products

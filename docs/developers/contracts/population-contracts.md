@@ -29,17 +29,21 @@ Ideology is active. Execution and non-exclusive toggles are player-only.
 - The intent rides Actions/Apply. Native requires a living current-map colony prisoner when it
   applies; its gates (recruitable, wild man, classic ideology mode) refuse ineligible modes; a prisoner
   already set to the mode applies again.
-- The read also carries each prisoner's will, ideoligion, wild-man flag, biography (skills, passions,
-  traits, incapable work types, age) and summary health, the free colonists' biographies, and the
-  snapshot's `ideology_active`, `classic_ideo_mode` and `colony_ideo_id`. Slavery reads the ideoligion
+- The population section carries recruitment eligibility, ideoligion and the wild-man flag. Biography
+  (skills, passions, traits, incapable work types and age), summary health, luciferium addiction and worn
+  apparel come from the same frame's canonical `PawnState`, joined by pawn ID. A missing pawn fails the
+  read. Prisoner, custody and guest-care policy views retain their native person, pawn and typed custody
+  rows; skills retain the native skill records, while traits add only catalog-derived worth. A trait
+  without its definition catalog fails the read. The colony's best skills and living colonist count
+  remain derived aggregates. The population snapshot also names the colony ideology mode. Slavery reads the ideoligion
   through the precept rule (`PrisonerColony.Ideology`, `EnslavedPrisoner`).
-- **Organ harvest.** Each colony prisoner carries `surgery` (`missing_parts`, `operations` with a
-  harvest's `yield_market_value`, and `surgery_bills` from the care read's producer), `faction_id`,
+- **Organ harvest.** Each colony prisoner's joined pawn carries `surgery` (`missing_parts`, `operations` with a
+  harvest's `yield_market_value`, and `surgery_bills`). The population custody row carries `faction_id`,
   and `harvest_goodwill_change`: the goodwill change vanilla's harvest violation report (-70) would
   make with its home faction after `CalculateAdjustedGoodwillChange` and the -100 floor, 0 when that
   goodwill cannot change. The snapshot carries nothing precept-shaped: `HarvestMood` reads the rule for
   `HarvestedOrgan` (and `SoldOrgan` when selling); without Ideology it is Core's thought.
-- **Medical care.** Each colony prisoner carries `medical_care`; an operation reads
+- **Medical care.** Each colony prisoner's joined pawn settings carry `medical_care`; an operation reads
   `medicine_care_limited` when medicine it takes is stocked but that care level forbids it. Prisoners
   stay at herbal care at most: the `medical/surgery` Need pins a prisoner above `HerbalOrWorse` back to it through
   a care-only `WorkSettingsIntent` (native accepts it on a living colony prisoner) and never raises it.
@@ -98,9 +102,14 @@ A creepjoiner is accepted, then held back from arms: its downside is hidden at a
 shows the colonist is a risk and holds no weapon. The downside has shown when the tracker's
 `downside_triggered` is true, or the colonist carries a trait or visible hediff that some downside def
 in the definition catalog adds (`policy.CreepJoinerDownsides`, built from the catalog's downside rows;
-no def name is written in the brain, and the colonist's own downside def is never read). Unread facts leave
-the answer unknown, and unknown holds the colonist back; a colonist with no Anomaly block is no
-creepjoiner. The tracker's `joined_tick` (`Pawn_CreepJoinerTracker.joinedTick`, #3844) dates the downside's timers for the
+no def name is written in the brain, and the colonist's own downside def is never read). Downside
+checks read the canonical census's native `PawnState` directly: traits and visible hediffs are
+predicates over its biography and health blocks. `CreepJoinerHand` retains that same pawn row;
+identity, availability, primary weapon, allowed area, hunger, surgery operations and queued bills
+are derived from it. The independent downside catalog is shared across those reads. Inactive
+Anomaly means no creepjoiner. Missing required facts fail the read: a living pawn must have surgery
+facts and an armed pawn must have its primary ID. A dead pawn may have no surgery block and
+offers no operations. The tracker's `joined_tick` (`Pawn_CreepJoinerTracker.joinedTick`, #3844) dates the downside's timers for the
 isolation room credit ([forecast value](../architecture/forecast-value.md)) and the harm term's downside part, which also reads its
 `combat_power` (`kindDef.combatPower`, the aggressive downside's fight, #3844).
 

@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,6 +12,13 @@ public sealed class SiteHydroponicsUnitTests
     private const int GridKey = 4;
 
     [Fact]
+    public void PasteHasAnExplicitNameAndInvalidSiteKindsCannotFormat()
+    {
+        Assert.Equal("paste", SiteRules.KindName(SiteKind.Paste));
+        Assert.Throws<DomainException>(() => SiteRules.KindName((SiteKind)int.MaxValue));
+    }
+
+    [Fact]
     public void ColdRoomKeyedByTheGridNeedsAHeaterEvenWhenOutdoorsIsWarm()
     {
         var cells = new List<SiteCell>();
@@ -20,17 +26,7 @@ public sealed class SiteHydroponicsUnitTests
         {
             for (var z = 0; z < 6; z++)
             {
-                cells.Add(SiteCellFixtures.Ground with
-                {
-                    Cell = new Cell(x, z),
-                    Walkable = true,
-                    Zone = false,
-                    Roofed = true,
-                    Indoors = true,
-                    Room = new CellRoom.InRoom(GridKey),
-                    // A floored room: no soil a crop grows in, so the soil-free unit is the kind.
-                    Fertility = 0,
-                });
+                cells.Add(SiteCellFixtures.At(new Cell(x, z), roof: "RoofConstructed", indoors: true, room: GridKey, fertility: 0, terrain: "WoodPlankFloor"));
             }
         }
         var crop = new CropChoice
@@ -52,7 +48,7 @@ public sealed class SiteHydroponicsUnitTests
             Field = new FieldRequest
             {
                 Choices = EquatableArray.From([crop]),
-                Climate = new CropClimate { Sowing = false, OutdoorsDark = false},
+                Climate = new CropClimate { Census = ColonyFactsCoreTests.Snapshot(), OutdoorsDark = false},
                 Colonists = 3L,
                 ReserveDays = 5,
                 Coverage = 0.0,

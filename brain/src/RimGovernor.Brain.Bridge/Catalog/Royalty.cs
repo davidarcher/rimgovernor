@@ -194,7 +194,7 @@ public sealed partial class DefinitionCatalog
         foreach (var stock in colony.Neuroformers)
         {
             var row = ThingRow(stock.DefName);
-            var neuroformer = new P.Neuroformer { Held = stock.Held, Craftable = stock.Craftable, Tradeable = row.tradeability is Tradeability.Sellable or Tradeability.All };
+            var neuroformer = new P.Neuroformer { Observed = stock, Tradeable = row.tradeability is Tradeability.Sellable or Tradeability.All };
             if (!neuroformers.TryAdd(stock.DefName, neuroformer))
             {
                 throw new InvalidOperationException($"the royalty section lists neuroformer {stock.DefName} twice");

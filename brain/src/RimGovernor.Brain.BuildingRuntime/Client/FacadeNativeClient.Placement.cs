@@ -163,13 +163,8 @@ public sealed partial class FacadeNativeClient
                 && orientation.Accepted
                 && evaluation.ResearchFinished
                 && evaluation.BuildableByPlayer;
-            // A wind turbine's count caps at the preview's 4096-cell bound.
-            var wind = orientation.Wind is O.BuildingWind.WindTurbine turbine
-                ? new O.BuildingWind.WindTurbine { BlockedCells = Math.Min(turbine.BlockedCells, 4096u) }
-                : orientation.Wind;
             var safe = true;
             var nativeWorkPending = false;
-            var blockers = new List<PlacementBlocker>();
             foreach (var blocker in orientation.BlockingThings)
             {
                 var replaceConduit = b.Definition == "HiddenConduit"
@@ -183,15 +178,6 @@ public sealed partial class FacadeNativeClient
                     safe = false;
                 }
                 nativeWorkPending = nativeWorkPending || blocker.IsBlueprint || blocker.IsFrame;
-                blockers.Add(new PlacementBlocker
-                {
-                    Category = blocker.Category,
-                    DefName = blocker.DefName,
-                    Wiped = blocker.WouldBeWiped,
-                    Blueprint = blocker.IsBlueprint,
-                    Frame = blocker.IsFrame,
-                    Cancelled = blocker.FrameWouldBeCancelled,
-                });
             }
 
             var stocks = new List<Stock>();
@@ -223,11 +209,8 @@ public sealed partial class FacadeNativeClient
                     Action = action,
                     Snapshot = snapshot,
                     CanPlace = canPlace,
-                    MadeFromStuff = evaluation.MadeFromStuff,
-                    WatchCells = orientation.WatchCells,
-                    Wind = wind,
+                    Source = new PreviewSource.Native(evaluation, 0),
                     SafeToPlace = safe,
-                    Blockers = EquatableArray.From(blockers),
                     Costs = EquatableArray.From(costs),
                     Footprint = EquatableArray.From(footprint),
                 },
@@ -263,8 +246,8 @@ public sealed partial class FacadeNativeClient
                 {
                     lines.Add(new PbPresentation.OverlayLine
                     {
-                        From = new PbCommon.Cell { X = ln.From.X, Z = ln.From.Z },
-                        To = new PbCommon.Cell { X = ln.To.X, Z = ln.To.Z },
+                        From = new RimGovernor.Brain.Domain.Cell { X = ln.From.X, Z = ln.From.Z },
+                        To = new RimGovernor.Brain.Domain.Cell { X = ln.To.X, Z = ln.To.Z },
                         Arrow = ln.Arrow,
                     });
                 }
@@ -280,7 +263,7 @@ public sealed partial class FacadeNativeClient
             var labels = new List<PbPresentation.OverlayLabel>(overlay.Labels.Count);
             foreach (var l in overlay.Labels)
             {
-                labels.Add(new PbPresentation.OverlayLabel { Text = l.Text, Cell = new PbCommon.Cell { X = l.Cell.X, Z = l.Cell.Z } });
+                labels.Add(new PbPresentation.OverlayLabel { Text = l.Text, Cell = new RimGovernor.Brain.Domain.Cell { X = l.Cell.X, Z = l.Cell.Z } });
             }
             return (shapes, labels);
         }

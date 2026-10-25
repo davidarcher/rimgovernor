@@ -4,7 +4,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Store.Codec;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 using StoreWorld = RimGovernor.Brain.Store.World;
 
@@ -33,28 +32,28 @@ public sealed class AnimalsIdeologyFamilyTests
     private static HerdStep Step(HerdStepKind kind) => new() { Kind = kind };
 
     [Fact]
-    public void ContainmentIsMetUnmetOrUnknownByThePenBoundAnimalsAndThePenStep()
+    public void ContainmentIsMetOrUnmetByTheObservedPenBoundAnimalsAndPenStep()
     {
-        var penned = new AnimalsFacts { Uncontained = EquatableArray.From<PawnId>([]), Pen = Known(Step(HerdStepKind.None)) };
+        var penned = new AnimalsFacts { Uncontained = EquatableArray.From<PawnId>([]), Pen = Step(HerdStepKind.None) };
         Assert.Equal((Satisfaction.Met, NeedTier.Wellbeing), (Animal(penned, AnimalsFamily.Containment).Satisfaction, Animal(penned, AnimalsFamily.Containment).Tier));
 
         var loose = Animal(penned with { Uncontained = EquatableArray.From<PawnId>([new("cow"), new("pig")]) }, AnimalsFamily.Containment);
         Assert.Equal((Satisfaction.Unmet, 2.0), (loose.Satisfaction, loose.Deficit));
 
-        var owed = Animal(penned with { Pen = Known(Step(HerdStepKind.Reconcile)) }, AnimalsFamily.Containment);
+        var owed = Animal(penned with { Pen = Step(HerdStepKind.Reconcile) }, AnimalsFamily.Containment);
         Assert.Equal((Satisfaction.Unmet, 1.0), (owed.Satisfaction, owed.Deficit));
 
-        // No latch: the Need is only what this read shows, and an unread pen step is unknown.
-        Assert.Equal("pen step", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Containment)).Fact);
+        // No latch: an observed no-op pen step is met.
+        Assert.Equal(Satisfaction.Met, Animal(new AnimalsFacts { Pen = new HerdStep() }, AnimalsFamily.Containment).Satisfaction);
     }
 
     [Fact]
-    public void TheWardIsMetUnmetOrUnknownByItsStep()
+    public void AnUnavailableWardBedRemainsUnmet()
     {
-        Assert.Equal(Satisfaction.Met, Animal(new AnimalsFacts { Ward = Known(Step(HerdStepKind.None)) }, AnimalsFamily.Ward).Satisfaction);
-        var medical = Animal(new AnimalsFacts { Ward = Known(Step(HerdStepKind.Medical)) }, AnimalsFamily.Ward);
+        Assert.Equal(Satisfaction.Met, Animal(new AnimalsFacts { Ward = Step(HerdStepKind.None) }, AnimalsFamily.Ward).Satisfaction);
+        var medical = Animal(new AnimalsFacts { Ward = Step(HerdStepKind.Medical) }, AnimalsFamily.Ward);
         Assert.Equal(Satisfaction.Unmet, medical.Satisfaction);
-        Assert.Equal("ward step", Assert.Throws<RequiredFactException>(() => Animal(new AnimalsFacts(), AnimalsFamily.Ward)).Fact);
+        Assert.Equal(Satisfaction.Unmet, Animal(new AnimalsFacts { Ward = Step(HerdStepKind.BedUnavailable) }, AnimalsFamily.Ward).Satisfaction);
     }
 
     [Fact]
@@ -69,8 +68,8 @@ public sealed class AnimalsIdeologyFamilyTests
             Handlers = [],
             FoodPlan = new FoodPlan(),
             Uncontained = EquatableArray.From<PawnId>([]),
-            Pen = Known(Step(HerdStepKind.None)),
-            Ward = Known(Step(HerdStepKind.None)),
+            Pen = Step(HerdStepKind.None),
+            Ward = Step(HerdStepKind.None),
             WardRoom = new AnimalWard { Area = "ward" },
         };
         var needs = new AnimalsFamily().Derive(settled);
@@ -79,11 +78,12 @@ public sealed class AnimalsIdeologyFamilyTests
         Assert.Empty(Animal(settled, AnimalsFamily.Sterilize, containment: false).Preconditions);
         Assert.DoesNotContain(new AnimalsFamily(true, false).Derive(settled), n => n.Id == AnimalsFamily.Ward);
 
-        var cow = new UpkeepAnimal { Id = new("cow"), Definition = new("Cow"), AllowedArea = "pasture" };
+        var observed = AnimalFixtures.Row("cow", "Cow");
+        var cow = new UpkeepAnimal { Pawn = observed with { Settings = observed.Settings with { AllowedAreaId = "pasture" } } };
         var empty = new AnimalsFacts { Animals = EquatableArray.From<UpkeepAnimal>([cow]), WardRoom = new AnimalWard { Area = "ward" } };
         Assert.Equal(Satisfaction.Met, Animal(empty, AnimalsFamily.Sterilize).Satisfaction);
 
-        var held = empty with { Animals = EquatableArray.From<UpkeepAnimal>([cow with { AllowedArea = "ward" }]) };
+        var held = empty with { Animals = EquatableArray.From<UpkeepAnimal>([cow with { Pawn = cow.Pawn with { Settings = cow.Pawn.Settings with { AllowedAreaId = "ward" } } }]) };
         Assert.Equal(Satisfaction.Unmet, Animal(held, AnimalsFamily.Sterilize).Satisfaction);
 
         Assert.Equal(Satisfaction.Met, Animal(empty with { WardRoom = new AnimalWard() }, AnimalsFamily.Sterilize).Satisfaction);

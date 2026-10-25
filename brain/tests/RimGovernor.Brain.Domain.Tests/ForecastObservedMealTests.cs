@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -17,7 +16,7 @@ public sealed class ForecastObservedMealTests
                 { Location = new(1, 1), Stock = new NeedStock.Stacked(count, new FoodFreshness.Rots(expiry)) }] };
         facts = facts with
         {
-            Resources = [new(new("Meal"), count)],
+            Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Meal", Units = count }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },
@@ -28,7 +27,7 @@ public sealed class ForecastObservedMealTests
         facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!;
         Assert.Contains(candidates.Context.NeedTasks, n => n.Target == "meal-stack");
-        return ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100), 1, facts, 
+        return ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100), 1, facts,
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), candidates);
     }
 

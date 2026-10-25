@@ -33,9 +33,9 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>The count the concern wants built, the method that builds it, or the verdict that explains why none is wanted.</summary>
-    internal (long Count, MethodId Method, Verdict Verdict) Selection(ColonyProjection facts)
+    internal (long Count, MethodId Method, Verdict Verdict) Selection(ColonyReading facts)
     {
-        var count = facts.Facts.Colonists;
+        var count = facts.Facts.Census.ColonistCount;
         if (count <= 0)
         {
             return (0, default, FieldUnavailable("colonists"));
@@ -47,12 +47,12 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (0, default, FieldUnavailable("butcher_table_definition"));
             }
-            var benches = facts.ButcheringBenches;
-            if (!ButcherBenchApart(benches, facts.Rooms))
+            var benches = facts.Facts.EssentialInputs.Benches.Where(b => b.Butcher).ToArray();
+            if (!ButcherBenchApart(benches, facts.Facts.Upkeep.Rooms))
             {
                 return (1, new MethodId("butcher-spot"), default);
             }
-            if (StandingButcherSpot(facts).Retire)
+            if (StandingButcherSpot(facts) is not null)
             {
                 return (1, new MethodId("butcher-spot-retire"), default);
             }
@@ -160,7 +160,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
                 return (1, new MethodId(string.Create(CultureInfo.InvariantCulture, $"sleeping-{Definition}-{Sleeping.Unhoused}")), default);
             }
-            var capacity = facts.Facts.IndoorCapacity;
+            var capacity = facts.Facts.Census.IndoorSleepingCapacity;
             var missing = count - capacity;
             if (missing <= 0)
             {
@@ -186,7 +186,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (0, default, BuildingReasonNoDeficit);
             }
-            foreach (var bench in facts.CookingBenches)
+            foreach (var bench in facts.Facts.EssentialInputs.Benches.Where(b => !b.Butcher).ToArray())
             {
                 if (bench.Definition == "Campfire" || bench.Usable)
                 {
@@ -209,7 +209,7 @@ public sealed partial class RoundsBuildingPlanner
 
 partial class RoundsBuildingPlanner
 {
-    internal static bool ButchersAllColocated(IReadOnlyList<CookingBench> benches, RoomObservation rooms)
+    internal static bool ButchersAllColocated(IReadOnlyList<ProductionBench> benches, RoomObservation rooms)
     {
         var shared = KitchenSeparationRules.KitchenSeparation(rooms);
         if (benches.Count == 0)
@@ -257,10 +257,10 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Whether the stock covers the butcher table's build cost at its cheapest stuff choice; unknown without the definition.</summary>
-    internal static bool ButcherTableAffordable(ColonyProjection facts)
+    internal static bool ButcherTableAffordable(ColonyReading facts)
     {
-        var stock = facts.Resources;
-        foreach (var d in facts.Definitions)
+        var stock = ResourceStockRules.Count(facts.Snapshot.Resources);
+        foreach (var d in facts.Facts.Definitions)
         {
             if (d.Name != KitchenSeparationRules.ButcherTableDefinition)
             {
@@ -276,11 +276,11 @@ partial class RoundsBuildingPlanner
         throw new RequiredFactException("butcher table build cost");
     }
 
-    internal static bool ButcherTableWanted(ColonyProjection facts, IReadOnlyList<CookingBench> benches)
+    internal static bool ButcherTableWanted(ColonyReading facts, IReadOnlyList<ProductionBench> benches)
     {
         foreach (var b in benches)
         {
-            if (b.Definition == "TableButcher" && !ButchersAllColocated([b], facts.Rooms))
+            if (b.Definition == "TableButcher" && !ButchersAllColocated([b], facts.Facts.Upkeep.Rooms))
             {
                 return false;
             }
@@ -288,15 +288,15 @@ partial class RoundsBuildingPlanner
         return facts.Facts.ButcherTableAffordable && ComfortBuilderAvailable(facts, "TableButcher");
     }
 
-    internal static bool ButcherBenchApart(IReadOnlyList<CookingBench> benches, RoomObservation rooms) =>
+    internal static bool ButcherBenchApart(IReadOnlyList<ProductionBench> benches, RoomObservation rooms) =>
         benches.Count > 0 && !ButchersAllColocated(benches, rooms);
 
-    internal static bool ButcherRoomWanted(ColonyProjection facts, IReadOnlyList<CookingBench> benches) =>
-        !ButcherBenchApart(benches, facts.Rooms) || ButcherTableWanted(facts, benches);
+    internal static bool ButcherRoomWanted(ColonyReading facts, IReadOnlyList<ProductionBench> benches) =>
+        !ButcherBenchApart(benches, facts.Facts.Upkeep.Rooms) || ButcherTableWanted(facts, benches);
 
-    internal static (CurrentBuilding Building, bool Retire) StandingButcherSpot(ColonyProjection facts)
+    internal static CurrentBuilding? StandingButcherSpot(ColonyReading facts)
     {
-        var benches = facts.ButcheringBenches;
+        var benches = facts.Facts.EssentialInputs.Benches.Where(b => b.Butcher).ToArray();
         var census = facts.Facts.CurrentConstruction;
         var table = false;
         foreach (var bench in benches)
@@ -305,7 +305,7 @@ partial class RoundsBuildingPlanner
         }
         if (!table)
         {
-            return (new CurrentBuilding(), false);
+            return null;
         }
         foreach (var bench in benches)
         {
@@ -317,11 +317,11 @@ partial class RoundsBuildingPlanner
             {
                 if (b.Id == bench.Id && b.Cells.Count > 0)
                 {
-                    return (b, true);
+                    return b;
                 }
             }
         }
-        return (new CurrentBuilding(), false);
+        return null;
     }
 
     internal static bool ButcherBenchDefinition(string definition) =>

@@ -1,3 +1,4 @@
+using GearStock = RimGovernor.Contracts.Wire.Observations.GearStock;
 using System.Text;
 
 namespace RimGovernor.Brain.Policy;
@@ -7,7 +8,24 @@ namespace RimGovernor.Brain.Policy;
 /// player-job, ownership, reachability and resource-policy checks. Proposals still require a fresh native
 /// admission against the exact inspected loadout before dispatch.
 /// </summary>
-public sealed record GearCandidate(string Target, double Gain, Resource Definition);
+public sealed record GearCandidate(RimGovernor.Contracts.Wire.Observations.GearCandidate Observed, Resource Definition)
+{
+    public string Target => Observed.Item.Thing.Id;
+    public GearCandidateValuation Valuation { get; init; } = new GearCandidateValuation.Native();
+    public double Gain => Valuation switch
+    {
+        GearCandidateValuation.Native => Observed.Gain,
+        GearCandidateValuation.Modeled modeled => modeled.Gain,
+        GearCandidateValuation invalid => throw new DomainException($"invalid gear candidate valuation: {invalid}"),
+    };
+}
+
+public abstract record GearCandidateValuation
+{
+    private GearCandidateValuation() { }
+    public sealed record Native : GearCandidateValuation;
+    public sealed record Modeled(double Gain) : GearCandidateValuation;
+}
 
 /// <summary>
 /// A definition a pawn or the armory batch needs made. It names no stuff: a clothing craft takes its stuff from the
@@ -22,8 +40,10 @@ public sealed record GearReplacement
 /// <summary>One worn garment as the native loadout reports it: Condition is its hit-point fraction (1 for a definition without hit points) and Groups the body-part groups it covers.</summary>
 public sealed record GearApparel
 {
-    public Resource Definition { get; init; }
-    public double Condition { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.GearItem Observed { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.EntityRef Entity { get; init; }
+    public Resource Definition => new(Entity.DefName);
+    public double Condition => Observed.ConditionFraction;
     public EquatableArray<string> Groups { get; init; }
 
     internal bool Valid()
@@ -58,7 +78,8 @@ public sealed record GearPawn
     /// <summary>The modeled loadout input; null for a pawn with no outfit or one the model refused.</summary>
     public GearLoadoutInput? Model => LoadoutModel is GearModel.Modeled m ? m.Input : null;
 
-    public PawnId Pawn { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.GearLoadout Observed { get; init; }
+    public PawnId Pawn => Observed.Pawn;
 
     /// <summary>
     /// Whether the pawn's outfit allows tainted apparel, as the latest review's coupled comparator chose it (GearChoices,
@@ -71,8 +92,8 @@ public sealed record GearPawn
 
     /// <summary>The pawn's heat insulation floor, as <see cref="ColdFloor"/> is.</summary>
     public InsulationFloor HeatFloor { get; init; } = new InsulationFloor.Worn();
-    public string Loadout { get; init; } = "";
-    public bool Blocked { get; init; }
+    public string Loadout => Observed.Token;
+    public bool Blocked => Observed.Blocked;
 
     public EquatableArray<GearCandidate> Candidates { get; init; }
     public EquatableArray<GearApparel> Apparel { get; init; }
@@ -159,17 +180,17 @@ public sealed record GearObservation
     /// <summary>Throws <see cref="DomainException"/>.</summary>
     public void Validate()
     {
-        var seen = new HashSet<GearStock>();
+        var seen = new HashSet<(string, string?, RimGovernor.Contracts.Wire.Observations.ItemQuality, int)>();
         foreach (var row in Stored)
         {
-            var key = row with { Count = 0 };
+            var key = (row.DefName, row.Stuff, row.Quality, row.HpBand);
             DomainException.Require(
-                AdmissionRules.ValidResource(row.Definition)
-                    && (string.IsNullOrEmpty(row.Stuff.Value) || AdmissionRules.ValidResource(row.Stuff))
-                    && row.Quality >= 0
-                    && row.Quality <= 6
-                    && row.HPBand >= 5
-                    && row.HPBand <= 9
+                AdmissionRules.ValidResource(new Resource(row.DefName))
+                    && (string.IsNullOrEmpty(row.Stuff) || AdmissionRules.ValidResource(new Resource(row.Stuff)))
+                    && row.QualityIndex() >= 0
+                    && row.QualityIndex() <= 6
+                    && row.HpBand >= 5
+                    && row.HpBand <= 9
                     && row.Count > 0
                     && seen.Add(key),
                 "invalid gear storage"
@@ -236,17 +257,18 @@ public sealed record GearMethod
 
 public sealed record GearBill
 {
-    public string Id { get; init; } = "";
-    public string Recipe { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.BillState Observed { get; init; }
+    public string Id => Observed.Id;
+    public string Recipe => Observed.Recipe;
 
     /// <summary>The recipe's role by its catalog row.</summary>
     public RecipeRole Role { get; init; }
 
     /// <summary>Neither suspended nor finished.</summary>
-    public required bool Active { get; init; }
+    public bool Active => !Observed.Suspended && !Observed.Finished;
 
     /// <summary>The pinned pawn, "" when unrestricted.</summary>
-    public required string Worker { get; init; }
+    public string Worker => Observed.Worker ?? "";
 
     public EquatableArray<Resource> Products { get; init; }
 
@@ -254,10 +276,10 @@ public sealed record GearBill
     public required OrderSpec Spec { get; init; }
 
     /// <summary>The bill as the production bill selectors read it (the art selectors' bench rows); active as <see cref="Active"/> is.</summary>
-    public required ExistingProductionBill Existing { get; init; }
+    public ExistingProductionBill Existing => new() { Observed = Observed, Role = Role };
 
     /// <summary>A finished bill.</summary>
-    public bool Spent { get; init; }
+    public bool Spent => Observed.Finished;
 
     /// <summary>The declare-only class of its recipe (GearRecipe.Kind), production otherwise.</summary>
     public LedgerBillKind Kind { get; init; }
@@ -265,7 +287,8 @@ public sealed record GearBill
 
 public sealed record GearRecipe
 {
-    public string Definition { get; init; } = "";
+    public required RecipeAccess Access { get; init; }
+    public string Definition => Access.Definition;
 
     /// <summary>What the recipe does by its catalog row.</summary>
     public RecipeRole Role { get; init; }
@@ -273,10 +296,10 @@ public sealed record GearRecipe
     public EquatableArray<Resource> Products { get; init; }
 
     /// <summary>Whether the recipe's own gates (research) admit it now.</summary>
-    public required bool Available { get; init; }
+    public bool Available => Access.ResearchReady;
 
     /// <summary>Whether the bench offers the recipe now; true for a catalog recipe, which no bench stands to refuse.</summary>
-    public required bool AvailableOn { get; init; }
+    public bool AvailableOn => Access.HostReady;
 
     /// <summary>The ingredient slots as alternatives, each allowed def with the count it takes (the catalog's RecipeIngredients).</summary>
     public required EquatableArray<EquatableArray<Amount>> Ingredients { get; init; }
@@ -302,17 +325,11 @@ public sealed record GearRecipe
 
 public sealed record GearBench
 {
-    public string Id { get; init; } = "";
-
-    /// <summary>The workbench definition, empty when unread.</summary>
-    public string Def { get; init; } = "";
-
-    /// <summary>Whether the bench takes a new bill.</summary>
-    public required bool Usable { get; init; }
-
-    /// <summary>The bench's WorkTableWorkSpeedFactor now.</summary>
-    public required double WorkSpeed { get; init; }
-
+    public required RimGovernor.Contracts.Wire.Observations.BillStackRow Observed { get; init; }
+    public string Id => Observed.Bench;
+    public string Def => Observed.BenchDef;
+    public bool Usable => Observed.Usable;
+    public double WorkSpeed => Observed.WorkSpeed;
     public required EquatableArray<GearBill> Bills { get; init; }
     public required EquatableArray<GearRecipe> Recipes { get; init; }
 }
@@ -564,11 +581,12 @@ public static class GearRules
             demand[n.Need.Definition] = demand.GetValueOrDefault(n.Need.Definition) + 1;
         }
         var stored = GearStockRules.UnassignedGearStock(v.Stored, review.Loadouts);
-        foreach (var row in stored)
+        foreach (var balance in stored)
         {
-            if (row.HPBand >= 5 && row.Quality >= 2 && demand.TryGetValue(row.Definition, out var owed))
+            var row = balance.Observed;
+            if (row.HpBand >= 5 && row.QualityIndex() >= 2 && demand.TryGetValue(new Resource(row.DefName), out var owed))
             {
-                demand[row.Definition] = Math.Max(0, owed - row.Count);
+                demand[new Resource(row.DefName)] = Math.Max(0, owed - balance.Count);
             }
         }
         foreach (var count in demand.Values)

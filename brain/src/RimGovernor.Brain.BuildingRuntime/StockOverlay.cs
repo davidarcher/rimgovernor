@@ -8,7 +8,7 @@ public sealed partial class Rounder
     /// runway, sent when it changes or an hour passed, and cleared once with the flag off or no stockpile.
     /// Output only: a failure is dropped and the next review draws again.
     /// </summary>
-    internal async Task DrawStockOverlayAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, Sto.RoundsResult result, CancellationToken ct)
+    internal async Task DrawStockOverlayAsync(GenerationSnapshot snapshot, ColonyReading projection, Sto.RoundsResult result, CancellationToken ct)
     {
         if (Native is not FacadeNativeClient native)
         {
@@ -35,11 +35,11 @@ public sealed partial class Rounder
                 FoodDays = f.RequireFoodRunway(),
                 FoodTargetDays = Seasonal(f).FoodTargetDays,
             };
-            foreach (var row in new Pol.StockReader { Resources = f.Resources, Wood = f.Wood }.Census())
+            foreach (var row in new Pol.StockReader { Resources = f.ObservedStock(), Wood = f.WoodStock() }.Census())
             {
                 stockByResource[row.Resource] = stockByResource.GetValueOrDefault(row.Resource) + row.Count;
             }
-            layer = Pol.StockOverlayRules.StockOverlay(zones, levels, projection.Bounds);
+            layer = Pol.StockOverlayRules.StockOverlay(zones, levels, projection.Facts.MapBounds);
         }
         var on = layer.Layers.Count > 0 || layer.Labels.Count > 0;
         var tick = projection.Identity.Tick;
@@ -79,7 +79,7 @@ public sealed partial class Rounder
     /// bounds), with the colony's claim role and settings, the latest patch superseding them, when the colony
     /// created it.
     /// </summary>
-    internal IReadOnlyList<Pol.StockZone> StockZones(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
+    internal IReadOnlyList<Pol.StockZone> StockZones(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
         var tick = projection.Identity.Tick;
         var claims = Player.Journal.ZoneClaims(snapshot, tick, ct);
@@ -90,7 +90,7 @@ public sealed partial class Rounder
             owned[z.Id] = z;
         }
         var cells = new Dictionary<string, List<Cell>>(StringComparer.Ordinal);
-        foreach (var cell in projection.Cells)
+        foreach (var cell in projection.PlanningWindow.Cells)
         {
             if (cell.ZoneId is { Length: > 0 } id)
             {

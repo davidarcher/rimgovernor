@@ -145,7 +145,7 @@ public static partial class ForecastCoupled
         private ColonyForecastRules.InventoryBase Inventory(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments)
         {
             if (inventoryOf is not { } of || !ReferenceEquals(of.Request, request) || !ReferenceEquals(of.Commitments, commitments))
-                (inventoryOf, inventory) = ((request, commitments), new(request.Facts.Stock, commitments, request.HorizonDays));
+                (inventoryOf, inventory) = ((request, commitments), new(request.Facts.ObservedStock(), commitments, request.HorizonDays));
             return inventory;
         }
         private ForecastCoupledContext? indexed;

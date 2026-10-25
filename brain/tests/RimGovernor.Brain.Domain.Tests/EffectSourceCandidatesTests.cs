@@ -1,7 +1,8 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Policy.Methods.Generation;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -16,21 +17,12 @@ public sealed class EffectSourceCandidatesTests
     private static readonly MechanicCard Verified = Shipped with { Status = MechanicCardStatus.Verified };
 
     internal static GearOption Garment(string id, GearSlot slot, string layer, string group, double cold = 0, bool tainted = false,
-        GearSource source = GearSource.Worn) => new()
-    {
-        ID = id, Definition = new("Apparel_" + id), Quality = 2, Slot = slot, Layers = [layer], Groups = [group], Source = source,
-        Condition = 1, Cold = cold, Tainted = tainted,
-    };
+        GearSource source = GearSource.Worn) => new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option(id, "Apparel_" + id, "", source) with { Tainted = tainted }), Slot = slot, Layers = [layer], Groups = [group], Cold = cold };
 
     // A pawn in a dead man's parka (cold insulation 30) over a clean shirt and pants; the only other parka is worse (10).
     internal static EffectSourcePawn Pawn(string id = "pawn", bool locked = false, string[]? traits = null) =>
-        new(id, new GearLoadoutInput
-        { Threat = ColonyModelFixtures.NoThreat,
-            Ambient = -10, ComfortableMin = 10, ComfortableMax = 30,
-            Worn = [Garment("shirt", GearSlot.SkinTorso, "OnSkin", "Torso"), Garment("pants", GearSlot.SkinLegs, "OnSkin", "Legs"),
-                Garment("parka", GearSlot.Outer, "Shell", "Torso", 30, tainted: true) with { Locked = locked }],
-            Options = [Garment("thin-parka", GearSlot.Outer, "Shell", "Torso", 10, source: GearSource.Stored)],
-        }, new CardPawnFacts
+        new(id, new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Threat = ColonyModelFixtures.NoThreat, Ambient = -10, Worn = [Garment("shirt", GearSlot.SkinTorso, "OnSkin", "Torso"), Garment("pants", GearSlot.SkinLegs, "OnSkin", "Legs"),
+                Garment("parka", GearSlot.Outer, "Shell", "Torso", 30, tainted: true) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Garment("parka", GearSlot.Outer, "Shell", "Torso", 30, tainted: true)).Origin).Value) with { Locked = locked }) }], Options = [Garment("thin-parka", GearSlot.Outer, "Shell", "Torso", 10, source: GearSource.Stored)], Role = GearFixtures.Role }, new CardPawnFacts
         {
             Traits = [.. traits ?? []], Hediffs = [], IdeologyActive = false, Precepts = [],
         });
@@ -49,7 +41,7 @@ public sealed class EffectSourceCandidatesTests
     internal static GearObservation Census(EffectSourcePawn pawn) => ColonyModelFixtures.NoGear() with
     {
         Stored = [],
-        Pawns = [new GearPawn { Pawn = new(pawn.Pawn), LoadoutModel = new GearModel.Modeled(pawn.Gear), Candidates = [] }],
+        Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new(pawn.Pawn) }, LoadoutModel = new GearModel.Modeled(pawn.Gear), Candidates = [] }],
     };
 
     internal static EffectSourceFacts Facts(int budget = 32, params EffectSourcePawn[] pawns) =>
@@ -161,8 +153,8 @@ public sealed class EffectSourceCandidatesTests
     public void CensusFactsReadHediffsFromTheMedicalRead()
     {
         var model = Pawn().Gear;
-        model = model with { Role = model.Role with { Traits = [new() { Name = "Kind" }] } };
-        var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model) }, new GearPawn { Pawn = new("blocked"), Blocked = true, LoadoutModel = new GearModel.NoOutfit() }] };
+        model = model with { Role = model.Role with { Traits = [new() { Observed = new() { DefName = "Kind" } }] } };
+        var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("pawn") }, LoadoutModel = new GearModel.Modeled(model) }, new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("blocked"), Blocked = true }, LoadoutModel = new GearModel.NoOutfit() }] };
         var care = CareFixtures.Patient("pawn", [CareFixtures.Condition("Flu")]);
 
         var facts = EffectSourcesRules.EffectSourceFactsOf(gear, [care], false);
@@ -180,8 +172,8 @@ public sealed class EffectSourceCandidatesTests
     public void CensusFactsCarryTheIdeologyStateAndTheRolesPrecepts()
     {
         var model = Pawn().Gear;
-        model = model with { Role = model.Role with { Precepts = ["Temperature_Tough"] } };
-        var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model) }] };
+        model = model with { Role = model.Role with { Pawn = model.Role.Pawn with { Settings = model.Role.Pawn.Settings with { PolicyInputs = model.Role.Pawn.Settings.PolicyInputs with { Ideo = new O.PawnIdeo.Member("ideo", ["Temperature_Tough"], null, 1) } } } } };
+        var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("pawn") }, LoadoutModel = new GearModel.Modeled(model) }] };
         EquatableArray<CarePawn> medical = [CareFixtures.Patient("pawn", [])];
 
         var read = Assert.Single(EffectSourcesRules.EffectSourceFactsOf(gear, medical, true).Pawns).Card;
@@ -194,14 +186,8 @@ public sealed class EffectSourceCandidatesTests
     public void ByDefaultNoPawnIsAllowedTaintedApparel()
     {
         var model = Pawn().Gear;
-        var state = new ApparelPolicyState
-        {
-            Token = "t", PawnName = "pawn", PolicyID = "outfit-1",
-            Definitions = [new() { Name = "Apparel_parka", Adult = true }, new() { Name = "Apparel_shirt", Adult = true }, new() { Name = "Apparel_pants", Adult = true }],
-            Current = new(new("pawn"), "t", "pawn", ["Apparel_pants", "Apparel_parka", "Apparel_shirt"], .51, 1, 2, 6),
-            ExcludesTainted = true,
-        };
-        var pawn = new GearPawn { Pawn = new("pawn"), Policy = state, LoadoutModel = new GearModel.Modeled(model) };
+        var state = new ApparelPolicyState { Observed = PoliciesTests.EmptyOutfit with { Token = "t", PawnName = "pawn", PolicyId = "outfit-1", Name = "pawn", AllowedDefs = ["Apparel_pants", "Apparel_parka", "Apparel_shirt"], MinHitPoints = (float)(.51), MaxHitPoints = (float)(1), MinQuality = 2, MaxQuality = 6, ExcludesTainted = true }, Definitions = [new() { Name = "Apparel_parka", Adult = true }, new() { Name = "Apparel_shirt", Adult = true }, new() { Name = "Apparel_pants", Adult = true }], Role = GearFixtures.Role };
+        var pawn = new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("pawn") }, Policy = state, LoadoutModel = new GearModel.Modeled(model) };
 
         Assert.False(ApparelPolicyRules.DesiredApparelPolicy(pawn, out _));
         Assert.DoesNotContain(GearLoadoutRules.PlanColonyGear([pawn])[0].Target, o => o.ID == "parka");
@@ -220,7 +206,7 @@ public sealed class EffectSourceCandidatesTests
         var gear = ColonyModelFixtures.NoGear() with
         {
             Stored = [],
-            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "worker", LoadoutModel = new GearModel.Modeled(model), Candidates = [] }],
+            Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "worker", Pawn = new("pawn") }, LoadoutModel = new GearModel.Modeled(model), Candidates = [] }],
         };
         var facts = new RoundsFacts { Gear = gear };
 
@@ -267,7 +253,7 @@ public sealed class EffectSourceCandidatesTests
     {
         var thin = Garment("thin-parka", GearSlot.Outer, "Shell", "Torso", 10, source: GearSource.Stored) with { Sharp = .5 };
         var model = Pawn().Gear with { Options = [Garment("clean-parka", GearSlot.Outer, "Shell", "Torso", 30, source: GearSource.Stored), thin] };
-        var pawn = new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model) };
+        var pawn = new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("pawn") }, LoadoutModel = new GearModel.Modeled(model) };
 
         var floored = GearLoadoutRules.PlanColonyGear([pawn])[0];
         Assert.Contains(floored.Target, o => o.ID == "clean-parka");

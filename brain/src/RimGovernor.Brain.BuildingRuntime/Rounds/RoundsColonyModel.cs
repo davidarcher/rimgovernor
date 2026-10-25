@@ -68,7 +68,7 @@ internal static class RoundsColonyModel
     /// Runs the model over the review's frame and prices it in the coupled context's currency. Once per review, no caching: the
     /// marginal value of each valued project goes to <see cref="ForecastCoupledContext.Investment"/> and the event to telemetry.
     /// </summary>
-    internal static ColonyModelReview Review(ColonyProjection colony, ForecastCoupledContext context, GoalsFacts? goals)
+    internal static ColonyModelReview Review(ColonyReading colony, ForecastCoupledContext context, GoalsFacts? goals)
     {
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var read = InputOf(colony);
@@ -91,7 +91,7 @@ internal static class RoundsColonyModel
         {
             Projects = paths.Aggregate(ProjectGraph.Standing(input, options, gear.Threat), (graph, p) => graph.Then(p.Path.Graph)),
             MedicineTendsPerDay = valuation.TreatmentsPerDay(input),
-            MedicineCraft = context.Stock.MedicineCraft([.. reserve.Catalog.MedicineTiers().Reverse()], colony.Facts.Colonists * MedicalReservePolicy.Default().TargetPerColonist),
+            MedicineCraft = context.Stock.MedicineCraft([.. reserve.Catalog.MedicineTiers().Reverse()], colony.Facts.Census.ColonistCount * MedicalReservePolicy.Default().TargetPerColonist),
             MedicineTrade = context.Stock.MedicineTrade,
         };
         var marginals = ProjectMarginalValue.Of(input, policy, valuation, [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
@@ -129,7 +129,7 @@ internal static class RoundsColonyModel
     /// The input when the frame carries every section it needs and each value is inside its range (<see cref="ColonyModelInput.Gaps"/>);
     /// otherwise the sections it cannot start from, each named with its reason.
     /// </summary>
-    internal static ColonyModelInputRead InputOf(ColonyProjection colony)
+    internal static ColonyModelInputRead InputOf(ColonyReading colony)
     {
         var facts = colony.Facts;
         var gaps = new List<string>();
@@ -139,9 +139,9 @@ internal static class RoundsColonyModel
 
         var recipes = facts.WorkAdmission.Recipes;
 
-        var wildlife = HuntSquadRules.Herds(colony.Acquisition);
+        var wildlife = HuntSquadRules.Herds(colony.Facts.Acquisition);
 
-        var otherDemand = ForecastStockScope.OtherDemand(colony.CombinedFoodSupply, facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []);
+        var otherDemand = ForecastStockScope.OtherDemand(colony.Facts.CombinedFoodSupply, facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []);
 
         var land = LandOf(colony, gaps);
         var crops = CropsOf(colony, gaps);
@@ -174,23 +174,23 @@ internal static class RoundsColonyModel
     /// fertility. A cell outside the planning window or without a fertility reading makes the land unread: a field is not priced
     /// on the cells that happened to be read.
     /// </summary>
-    internal static EquatableArray<ModelField> LandOf(ColonyProjection colony, List<string> gaps)
+    internal static EquatableArray<ModelField> LandOf(ColonyReading colony, List<string> gaps)
     {
         const string Unread = "land: a cell of a growing zone or planned field has no fertility reading";
-        var cells = new Dictionary<Cell, SiteCell>(colony.Cells.Count);
-        foreach (var cell in colony.Cells)
+        var cells = new Dictionary<Cell, SiteCell>(colony.PlanningWindow.Cells.Count);
+        foreach (var cell in colony.PlanningWindow.Cells)
         {
             cells[cell.Cell] = cell;
         }
 
         var zoned = new Dictionary<string, List<double>>(StringComparer.Ordinal);
-        foreach (var farm in colony.Farms)
+        foreach (var farm in (colony.Tables.Zones ?? throw new RequiredFactException("zones")).Zones.OfType<PbObservations.ZoneState.Growing>())
         {
             zoned[farm.Id] = [];
         }
 
         var occupied = new HashSet<Cell>();
-        foreach (var cell in colony.Cells)
+        foreach (var cell in colony.PlanningWindow.Cells)
         {
             if (cell.ZoneId is not { } id || !zoned.TryGetValue(id, out var fertility))
             {
@@ -202,13 +202,13 @@ internal static class RoundsColonyModel
         }
 
         var fields = new List<ModelField>();
-        foreach (var farm in colony.Farms)
+        foreach (var farm in (colony.Tables.Zones ?? throw new RequiredFactException("zones")).Zones.OfType<PbObservations.ZoneState.Growing>())
         {
             fields.Add(new ModelField { Id = farm.Id, Crop = farm.Crop, Fertility = [.. zoned[farm.Id]],
-                Cells = [.. colony.Cells.Where(c => c.ZoneId == farm.Id).Select(c => c.Cell)] });
+                Cells = [.. colony.PlanningWindow.Cells.Where(c => c.ZoneId == farm.Id).Select(c => c.Cell)] });
         }
 
-        if (colony.LayoutPlan is { } plan)
+        if (colony.Facts.LayoutPlan is { } plan)
         {
             var index = 0;
             foreach (var zone in plan.Zones.Where(z => z.Kind == LayoutPlanRules.ZoneField))
@@ -246,7 +246,7 @@ internal static class RoundsColonyModel
         return EquatableArray.From(fields);
     }
 
-    private static EquatableArray<CropChoice> CropsOf(ColonyProjection colony, List<string> gaps)
+    private static EquatableArray<CropChoice> CropsOf(ColonyReading colony, List<string> gaps)
     {
         var crops = RoundsFieldPlanner.CropChoices(colony);
         if (crops.Count == 0)
@@ -258,14 +258,8 @@ internal static class RoundsColonyModel
         return EquatableArray.From(crops);
     }
 
-    private static ModelResearch? ResearchOf(ResearchFacts? facts, NeedsForecastRead? needs, List<string> gaps)
+    private static ModelResearch? ResearchOf(ResearchFacts facts, NeedsForecastRead? needs, List<string> gaps)
     {
-        if (facts is null)
-        {
-            gaps.Add("research: the review frame carries no research census");
-            return null;
-        }
-
         if (needs is null)
         {
             gaps.Add("research: the review frame carries no research bench read");
@@ -305,15 +299,15 @@ internal static class RoundsColonyModel
     }
 
     /// <summary>The colony's nutrition, materials and medicine from the required frame censuses.</summary>
-    private static ModelStocks StocksOf(ColonyProjection colony)
+    private static ModelStocks StocksOf(ColonyReading colony)
     {
-        var nutrition = ForecastStockScope.Nutrition(colony.CombinedFoodSupply);
+        var nutrition = ForecastStockScope.Nutrition(colony.Facts.CombinedFoodSupply);
         var materials = default(EquatableArray<Amount>);
         var medicine = default(EquatableArray<Amount>);
 
-        materials = EquatableArray.From(colony.Resources.OrderBy(p => p.Key).Select(p => new Amount(p.Key, p.Value)));
+        materials = EquatableArray.From(ResourceStockRules.Count(colony.Snapshot.Resources).OrderBy(p => p.Key).Select(p => new Amount(p.Key, p.Value)));
 
-        medicine = MedicineOf(colony.Facts.MedicalReserve, colony.Facts.ResourceThings);
+        medicine = MedicineOf(colony.Facts.MedicalReserve, colony.Facts.Census.ResourceThings);
 
         return new ModelStocks { Nutrition = nutrition, Materials = materials, Medicine = medicine };
     }
@@ -327,11 +321,11 @@ internal static class RoundsColonyModel
         var items = reserve.Items;
         var potency = reserve.Catalog.MedicalPotency;
         return EquatableArray.From(items.Where(i => !i.Forbidden && identities.Contains(i.Id)).GroupBy(i => i.Definition)
-            .Select(g => new Amount(g.Key, g.Sum(i => i.Count)))
+            .Select(g => new Amount(new Resource(g.Key), g.Sum(i => i.Count)))
             .OrderByDescending(a => potency.TryGetValue(a.Resource, out var p) ? p : double.NegativeInfinity).ThenBy(a => a.Resource));
     }
 
-    private static EquatableArray<ModelPawn> PawnsOf(ColonyProjection colony, List<string> gaps)
+    private static EquatableArray<ModelPawn> PawnsOf(ColonyReading colony, List<string> gaps)
     {
         if (colony.Facts.NeedsAlternatives is not { } review)
         {
@@ -339,10 +333,10 @@ internal static class RoundsColonyModel
             return default;
         }
 
-        var skills = new Dictionary<string, EquatableArray<WorkSkill>>(StringComparer.Ordinal);
+        var skills = new Dictionary<string, EquatableArray<RimGovernor.Contracts.Wire.Observations.Skill>>(StringComparer.Ordinal);
         var hunters = new Dictionary<string, bool>(StringComparer.Ordinal);
         var curves = new Dictionary<string, EquatableArray<SkillStatCurve>>(StringComparer.Ordinal);
-        var workers = colony.WorkPawns.Pawns;
+        var workers = colony.Facts.ForecastObserved.WorkPawns.Pawns;
         {
             foreach (var worker in workers)
             {

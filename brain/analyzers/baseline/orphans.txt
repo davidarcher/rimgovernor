@@ -1,7 +1,6 @@
 Contracts|Authority.WritePrecondition.Attempt
 Contracts|Authority.WritePrecondition.Identity
 Contracts|Common.TradeTargetKind.Settlement
-Contracts|Operations.AbilityIntentTarget.Cell
 Contracts|Operations.AbilityIntentTarget.NoTargetCase.Value
 Contracts|Operations.CombatAnimalAreaArea.Clear
 Contracts|Operations.CombatAnimalAreaArea.ClearCase.Value
@@ -10,7 +9,6 @@ Contracts|Operations.CombatOrderOrder.Door
 Contracts|Operations.CombatOrderOrder.Draft
 Contracts|Operations.CombatOrderOrder.DraftCase.Value
 Contracts|Operations.CombatOrderOrder.HoldPositionCase.Value
-Contracts|Operations.CombatOrderOrder.Move
 Contracts|Operations.CombatOrderOrder.Release
 Contracts|Operations.CombatOrderOrder.Rescue
 Contracts|Operations.CombatOrderOrder.Stop
@@ -52,7 +50,6 @@ Policy|ForecastNeedsResult.ThoughtOffsetAtHorizon
 Policy|ForecastNeedsReview.Alternatives
 Policy|ForecastWorkInputs.IngredientReservations
 Policy|ForecastWorkInputs.Pawns
-Policy|FuelConsumer.Definition
 Policy|MechanicCardField.Field
 Policy|MechanicCardField.Follows
 Policy|MechanicCardField.Writers

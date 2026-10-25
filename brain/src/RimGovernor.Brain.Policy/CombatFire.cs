@@ -471,8 +471,10 @@ public static partial class CombatFireRules
 
             if (quietPawn || locked.Contains(r.Target) || (locked.Contains(shooting) && (r.Target.IsEmpty || busy)))
             {
-                orders.RemoveAll(o => o.Pawn == pawn);
-                if (((quietPawn && !shooting.IsEmpty) || locked.Contains(shooting)) && busy)
+                // A quiet pawn may still retreat or finish a stop already required by its shelter role.
+                orders.RemoveAll(o => o.Pawn == pawn && (!quietPawn || o.Kind is not (CombatOrderKind.Move or CombatOrderKind.Stop or CombatOrderKind.Repair)));
+                if (((quietPawn && !shooting.IsEmpty) || locked.Contains(shooting)) && busy
+                    && !orders.Any(o => o.Pawn == pawn && o.Kind == CombatOrderKind.Stop))
                 {
                     orders.Add(new CombatOrder { Pawn = r.Pawn, Kind = CombatOrderKind.Stop, Reason = CombatOrderReason.HoldFire });
                 }

@@ -30,11 +30,11 @@ internal sealed class StockpileMemory
     }
 
     // Whether the latest review in activeWorld proposed stockpile work: the admin/stockpiles Need reads it.
-    private Fact<bool> _active;
+    private bool? _active;
     private GenerationSnapshot _activeWorld;
 
-    /// <summary>Records whether the review in <paramref name="world"/> proposed stockpile work; unknown when its request was incomplete.</summary>
-    public void SetActive(GenerationSnapshot world, Fact<bool> active)
+    /// <summary>Records whether the review in <paramref name="world"/> proposed stockpile work; null while the current review has not completed.</summary>
+    public void SetActive(GenerationSnapshot world, bool? active)
     {
         lock (_gate)
         {
@@ -43,12 +43,12 @@ internal sealed class StockpileMemory
         }
     }
 
-    /// <summary>Whether the latest review in <paramref name="world"/> proposed stockpile work; unknown for another world or before a review.</summary>
-    public Fact<bool> Active(GenerationSnapshot world)
+    /// <summary>Whether the latest review in <paramref name="world"/> proposed stockpile work; requires a completed review in this world.</summary>
+    public bool Active(GenerationSnapshot world)
     {
         lock (_gate)
         {
-            return _activeWorld == world ? _active : Unknown<bool>();
+            return _activeWorld == world && _active is { } active ? active : throw new RequiredFactException("stockpile review");
         }
     }
 }
@@ -63,9 +63,9 @@ partial class RoundsStockpilePlanner
     /// (<paramref name="zones"/>, StockpileZones.OwnedStockpileZones: the colony's stockpile claims the cells name,
     /// their settings superseded by the latest patch of each); the registered roles judge on the projection and benches.
     /// </summary>
-    internal static Pol.StockpileRequest StockpileRequest(Observation.ColonyProjection projection, IReadOnlyList<Pol.StockpileZone> zones, IReadOnlyDictionary<string, bool> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
+    internal static Pol.StockpileRequest StockpileRequest(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, IReadOnlyList<Pol.StockpileZone> zones, IReadOnlyDictionary<string, bool> benches, IReadOnlyList<Pol.BenchInput> inputs, Pol.GearStore? gear, IReadOnlyList<Cell> protectedCells)
     {
-        var request = new Pol.StockpileRequest { Cells = projection.Cells, Bounds = projection.Bounds, Protected = protectedCells, Loot = projection.Facts.EventLoot };
+        var request = new Pol.StockpileRequest { Cells = projection.PlanningWindow.Cells, Bounds = projection.Facts.MapBounds, Protected = protectedCells, Loot = projection.Facts.EventLoot };
         var rooms = new List<Pol.PlannedRole>();
         foreach (var module in new[] { Pol.PlannedRole.Storage })
         {
@@ -105,9 +105,9 @@ partial class RoundsStockpilePlanner
     /// The Shelf's build cost for the storage option report: the stuff an ordinary placement builds it from
     /// (BuildStuff), that stuff's required cost list and WorkToBuild.
     /// </summary>
-    internal static Pol.StorageBuildCost ShelfCost(Observation.ColonyProjection projection)
+    internal static Pol.StorageBuildCost ShelfCost(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection)
     {
-        if (!projection.TryDefinition(StorageRules.ShelfDefinition, out var d))
+        if (!ColonyPlanningRules.TryDefinition(projection.Facts, StorageRules.ShelfDefinition, out var d))
         {
             throw new RequiredFactException("shelf build cost");
         }
@@ -117,7 +117,7 @@ partial class RoundsStockpilePlanner
             var recipe = d.FixedConstruction ?? throw new RequiredFactException("shelf construction recipe");
             return new Pol.StorageBuildCost { Costs = [.. recipe.Costs], WorkTicks = recipe.WorkToBuild };
         }
-        var stuff = projection.BuildStuff(StorageRules.ShelfDefinition);
+        var stuff = ColonyPlanningRules.BuildStuff(projection.Facts, ResourceStockRules.Count(projection.Snapshot.Resources), StorageRules.ShelfDefinition);
         if (d.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is not { } option)
         {
             throw new RequiredFactException("shelf build cost");
@@ -126,7 +126,7 @@ partial class RoundsStockpilePlanner
         {
             Stuff = stuff,
             Costs = option.Costs,
-            WorkTicks = option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var stuffedWork) ? stuffedWork : throw new RequiredFactException("shelf stuff build work"),
+            WorkTicks = option.Stats.TryGetValue(Domain.StatDefNames.StatWorkToBuild, out var stuffedWork) ? stuffedWork : throw new RequiredFactException("shelf stuff build work"),
         };
     }
 
@@ -135,9 +135,9 @@ partial class RoundsStockpilePlanner
     /// owes for it (PlannedConstructionOf; a yard is unfenced and owes none) and the catalog work its planned sites owe
     /// (PlannedRoomWork over PlannedRoomSitesOf). The saved plan is required.
     /// </summary>
-    internal static IReadOnlyList<Pol.PlannedStoreRoom> StoreRooms(Observation.ColonyProjection projection, Pol.FlooringPolicy flooring)
+    internal static IReadOnlyList<Pol.PlannedStoreRoom> StoreRooms(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, Pol.FlooringPolicy flooring)
     {
-        if (projection.LayoutPlan is not { } plan)
+        if (projection.Facts.LayoutPlan is not { } plan)
         {
             throw new RequiredFactException("storage layout plan");
         }
@@ -173,14 +173,14 @@ partial class RoundsStockpilePlanner
     }
 
     /// <summary>Initial review can finish before first-plan derivation; only saved-plan geometry requires room costs and routes.</summary>
-    internal static Pol.StorageLayout StorageLayout(Observation.ColonyProjection projection, Pol.FlooringPolicy flooring) =>
-        projection.LayoutPlan is { } plan
+    internal static Pol.StorageLayout StorageLayout(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, Pol.FlooringPolicy flooring) =>
+        projection.Facts.LayoutPlan is { } plan
             ? new Pol.StorageLayout.Planned(Pol.StorageRules.PlannedWalkways(plan), StoreRooms(projection, flooring))
             : new Pol.StorageLayout.AwaitingFirstPlan();
     /// <summary>Whether the census found the Shelf buildable (researched).</summary>
-    internal static bool ShelfAvailable(Observation.ColonyProjection projection)
+    internal static bool ShelfAvailable(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection)
     {
-        foreach (var d in projection.Definitions)
+        foreach (var d in projection.Facts.Definitions)
         {
             if (d.Name == StorageRules.ShelfDefinition)
             {
@@ -203,7 +203,7 @@ public sealed partial class Rounder
     /// </summary>
     internal readonly record struct StockpileZoneReads(EquatableArray<Sto.OwnedZone> Claims, Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent);
 
-    internal StockpileZoneReads ReadStockpileZones(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
+    internal StockpileZoneReads ReadStockpileZones(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, CancellationToken ct)
     {
         var claims = Player.Journal.ZoneClaims(snapshot, projection.Identity.Tick, ct);
         var (shelves, spent) = ShelfPlans(snapshot, claims, projection, ct);
@@ -211,7 +211,7 @@ public sealed partial class Rounder
     }
 
     /// <summary>Files the owned zones per role kind on the projection, whether or not the stockpile method is served.</summary>
-    internal static Observation.ColonyProjection CensusStockpileZones(Observation.ColonyProjection projection, StockpileZoneReads zones)
+    internal static RimGovernor.Brain.Bridge.Contracts.ColonyReading CensusStockpileZones(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, StockpileZoneReads zones)
     {
         var owned = zones.Claims;
         var ownedZones = StockpileZones.OwnedStockpileZones(projection, StockpileZones.CensusByCell(projection), owned, null, zones.Shelves);
@@ -227,13 +227,13 @@ public sealed partial class Rounder
     // The review's parts are lapped onto fine under d_stock/stockpile/ (#3566): census (the patches and the mirrored
     // bench census), build (the request: zones, stores, demand), shelves (the shelf stacks and rows), occupancy (the
     // occupancy ring read), plan (the maintenance review).
-    internal async Task<(IReadOnlyList<Pol.ShelfCandidate> Shelves, Pol.StockpileRequest? Request)> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct, StepStages? fine = null)
+    internal async Task<(IReadOnlyList<Pol.ShelfCandidate> Shelves, Pol.StockpileRequest? Request)> ReviewStockpilesAsync(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, StockpileZoneReads? zones, CancellationToken ct, StepStages? fine = null)
     {
         if (!Needs.Contains(AdminFamily.Stockpiles))
         {
             return ([], null);
         }
-        Stockpiles.SetActive(snapshot, Unknown<bool>());
+        Stockpiles.SetActive(snapshot, null);
         fine?.Mark();
         var (request, missing) = await StockpileRequestAsync(snapshot, projection, zones, ct, fine).ConfigureAwait(false);
         if (missing != "")
@@ -243,7 +243,7 @@ public sealed partial class Rounder
         Stockpiles.SetDemand(RoundsStockpilePlanner.StockpileWorld(snapshot), request.RoomDemand);
         var review = Pol.StockpileRules.PlanStockpileMaintenance(request);
         fine?.Lap("d_stock/stockpile/plan");
-        Stockpiles.SetActive(snapshot, Known(review.Active));
+        Stockpiles.SetActive(snapshot, review.Active);
         foreach (var e in review.Edits)
         {
             ct.ThrowIfCancellationRequested();
@@ -255,7 +255,7 @@ public sealed partial class Rounder
     /// <summary>The stacks one Shelf holds: the load catalog's Shelf station item slots; unknown without the catalog or the station.</summary>
     private async Task<int> ShelfStacksAsync(GenerationSnapshot snapshot, CancellationToken ct)
     {
-        if (Native is not Observation.IDefinitionSource source)
+        if (Native is not IDefinitionSource source)
         {
             throw new RequiredFactException("shelf station capacity");
         }
@@ -268,15 +268,15 @@ public sealed partial class Rounder
     }
 
     /// <summary>Assembles the maintenance request; the string names the fact still unread (empty when the request is whole). <paramref name="zones"/> null reads the zone claims and shelf plans here.</summary>
-    internal Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct) =>
+    internal Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, CancellationToken ct) =>
         StockpileRequestAsync(snapshot, projection, null, ct);
 
-    internal async Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct, StepStages? fine = null)
+    internal async Task<(Pol.StockpileRequest Request, string Missing)> StockpileRequestAsync(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, StockpileZoneReads? zones, CancellationToken ct, StepStages? fine = null)
     {
         var tick = projection.Identity.Tick;
         var reads = zones ?? ReadStockpileZones(snapshot, projection, ct);
         var owned = reads.Claims;
-        if (projection.Cells.Count == 0)
+        if (projection.PlanningWindow.Cells.Count == 0)
         {
             return (new Pol.StockpileRequest(), "site_cells");
         }
@@ -367,7 +367,7 @@ public sealed partial class Rounder
     /// <paramref name="snapshot"/>'s world), built or in flight, and whether
     /// the zone's shelf attempts are used up.
     /// </summary>
-    internal (Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent) ShelfPlans(GenerationSnapshot snapshot, IReadOnlyList<Sto.OwnedZone> owned, Observation.ColonyProjection projection, CancellationToken ct)
+    internal (Dictionary<string, List<Pol.ShelfRecord>> Shelves, Dictionary<string, bool> Spent) ShelfPlans(GenerationSnapshot snapshot, IReadOnlyList<Sto.OwnedZone> owned, RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, CancellationToken ct)
     {
         var need = StockpileNeedOwner(snapshot);
         var shelves = new Dictionary<string, List<Pol.ShelfRecord>>();
@@ -389,7 +389,7 @@ public sealed partial class Rounder
     /// inside a shell's wall ring, which belongs to the shell's own furniture until a roof stands. Every sited
     /// role reads it as the planner's protected set.
     /// </summary>
-    internal List<Cell> ReservedGround(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
+    internal List<Cell> ReservedGround(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, CancellationToken ct)
     {
         var held = Player.Journal.BuildingReservations(snapshot, ct);
         var protectedCells = new List<Cell>();
@@ -399,7 +399,7 @@ public sealed partial class Rounder
         }
         var claims = Player.Journal.ConstructionClaims(snapshot, projection.Identity.Tick, ct);
         var unroofed = new HashSet<Cell>();
-        foreach (var c in projection.Cells)
+        foreach (var c in projection.PlanningWindow.Cells)
         {
             if (!c.Roofed)
             {
@@ -417,10 +417,10 @@ public sealed partial class Rounder
     }
 
     /// <summary>The gear stores' filters from the catalog's armor split; a catalog naming no armor fails with <see cref="Pol.NoArmorDefsException"/>.</summary>
-    internal static Pol.GearStore GearStore(Observation.ColonyProjection projection) => Pol.GearStore.NewGearStore(projection.Facts.Items);
+    internal static Pol.GearStore GearStore(RimGovernor.Brain.Bridge.Contracts.ColonyReading projection) => Pol.GearStore.NewGearStore(projection.Facts.Items);
 
     /// <summary>The bench census (bills and recipes per bench).</summary>
-    internal async Task<IReadOnlyList<GearBenchRead>> BenchCensusAsync(GenerationSnapshot snapshot, Observation.Identity expected, CancellationToken ct)
+    internal async Task<IReadOnlyList<GearBenchRead>> BenchCensusAsync(GenerationSnapshot snapshot, ObservationIdentity expected, CancellationToken ct)
     {
         if (Native is not IRoundsWorkBenchSource native)
         {
@@ -473,13 +473,13 @@ internal sealed partial class RoundsStockpilePlanner
     /// missing). Zoning is instant and needs no builder, so a room waiting on its shell never holds the stores'
     /// zones back.
     /// </summary>
-    private async Task<(Verdict Verdict, bool Handled)> RaiseRoomAsync(NeedWork work, Sto.Rounds review, Observation.RoundsReading read, Pol.PlannedRole module, CancellationToken call)
+    private async Task<(Verdict Verdict, bool Handled)> RaiseRoomAsync(NeedWork work, Sto.Rounds review, RoundsReading read, Pol.PlannedRole module, CancellationToken call)
     {
         if (_building is null)
         {
             return (FieldUnavailable("building_source"), false);
         }
-        var (room, owed) = RoundsBuildingPlanner.PlannedRoomOwed(read.Projection, module);
+        var (room, owed) = RoundsBuildingPlanner.PlannedRoomOwed(read.Reading, module);
         if (!owed)
         {
             return (WaitFor(Pol.Cause.MethodUsed, "stockpile_room_built"), false);
@@ -515,8 +515,8 @@ internal sealed partial class RoundsStockpilePlanner
         // The medicine store reads the medical beds, so the census carries them. The planned rooms are shelled from
         // the same reading, so the census carries the wall and door definitions.
         string[] definitions = [ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, HerdPenRules.PenFenceDefinition, HerdPenRules.PenGateDefinition, StorageRules.ShelfDefinition];
-        var read = await _reviewer.ObserveOwnedAsync((Observation.IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
-        var projection = read.Projection;
+        var read = await _reviewer.ObserveOwnedAsync((IRoundsSource)_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
+        var projection = read.Reading;
         var (request, missing) = await _reviewer.StockpileRequestAsync(state.Snapshot, projection, call).ConfigureAwait(false);
         if (missing != "")
         {

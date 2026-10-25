@@ -1,8 +1,9 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Gender = RimGovernor.Contracts.Wire.Defs.Gender;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -17,12 +18,7 @@ public sealed class ApparelCreditTests
     private static NeedThoughtStage Stage(string thought, string role, int stage, double offset)
         => new(thought, role, stage, offset, NeedsFixtures.Lasting(Day, false));
 
-    private static GearOption Shirt(double condition) => new()
-    {
-        ID = "shirt" + condition, Definition = new("Apparel_BasicShirt"), Stuff = new("Cloth"), Slot = GearSlot.SkinTorso,
-        Quality = 2, Condition = condition, Layers = ["OnSkin"], Groups = ["Torso", "Arms"],
-        CareIfDamaged = true, CountsAsClothingForNudity = true,
-    };
+    private static GearOption Shirt(double condition) => new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("shirt" + condition, "Apparel_BasicShirt", "Cloth", GearSource.Worn) with { Condition = condition }), Slot = GearSlot.SkinTorso, Layers = ["OnSkin"], Groups = ["Torso", "Arms"], CareIfDamaged = true, CountsAsClothingForNudity = true };
 
     private static NeedsForecastPawn Pawn(NeedApparel? apparel, params NeedThoughtStage[] stages) => ForecastValueTests.Pawn() with
     {
@@ -81,7 +77,7 @@ public sealed class ApparelCreditTests
     {
         // DeadMansApparel: -5, -8, -11, then -14 for four or more (ThoughtState.StageIndexFor clamps).
         var pawn = Pawn(Warm, [.. new[] { -5, -8, -11, -14 }.Select((o, i) => Stage("DeadMansApparel", ForecastApparel.DeadMans, i, o))]);
-        GearOption Tainted(int i) => Shirt(1) with { ID = "t" + i, Tainted = true, Slot = GearSlot.Unset, Groups = [], Layers = [] };
+        GearOption Tainted(int i) => Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Id = "t" + i, Tainted = true }), Slot = GearSlot.Unset, Groups = [], Layers = [] };
         Assert.Equal(-14, ForecastApparel.MoodOf(pawn, [.. Enumerable.Range(0, 5).Select(Tainted)]));
         Assert.Equal(-8, ForecastApparel.MoodOf(pawn, [Tainted(0), Tainted(1)]));
         Assert.Equal(0, ForecastApparel.MoodOf(pawn, []));
@@ -95,14 +91,14 @@ public sealed class ApparelCreditTests
         Assert.Equal(-3, ForecastApparel.MoodDelta(Pawn(Warm, covered), [], [Shirt(1)]));
         Assert.Equal(0, ForecastApparel.MoodDelta(Pawn(Warm with { SafeAmbient = false }, covered), [], [Shirt(1)]));
         // Kind-required apparel is no cover of the pawn's own (PawnUtility.HasClothingNotRequiredByKind).
-        var uniform = Shirt(1) with { Definition = new("Apparel_Uniform"), Slot = GearSlot.SkinLegs, Groups = ["Legs"] };
+        var uniform = Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { DefName = "Apparel_Uniform" }), Slot = GearSlot.SkinLegs, Groups = ["Legs"] };
         Assert.Equal(0, ForecastApparel.MoodDelta(Pawn(Warm with { KindRequired = ["Apparel_Uniform"] }, covered), [], [uniform]));
     }
 
     [Fact]
     public void AnUncoveredGroinPreceptAndNakednessAreRelievedByPants()
     {
-        var pants = Shirt(1) with { Definition = new("Apparel_Pants"), Slot = GearSlot.SkinLegs, Groups = ["Legs"] };
+        var pants = Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { DefName = "Apparel_Pants" }), Slot = GearSlot.SkinLegs, Groups = ["Legs"] };
         var stages = new[] { Stage("GroinUncovered", ForecastApparel.GroinUncovered, 0, -4), Stage("Naked", ForecastApparel.Naked, 0, -6) };
         Assert.Equal(10, ForecastApparel.MoodDelta(Pawn(Warm, stages), [], [pants]));
         // A legless pawn counts as wearing pants: only the precept's thought is lifted.
@@ -113,7 +109,7 @@ public sealed class ApparelCreditTests
     public void AFemalesShirtAndPantsShareTheNakednessTheyEndTogetherAndTheLaterDeliveryIsCreditedIt()
     {
         // PsychologicallyNude: a female pawn is nude without a shirt or without pants, so neither alone ends it.
-        var pants = Shirt(1) with { ID = "pants", Definition = new("Apparel_Pants"), Slot = GearSlot.SkinLegs, Groups = ["Legs"] };
+        var pants = Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Id = "pants", DefName = "Apparel_Pants" }), Slot = GearSlot.SkinLegs, Groups = ["Legs"] };
         var pawn = Pawn(NeedsFixtures.Apparel(Gender.Female, true, true), Stage("Naked", ForecastApparel.Naked, 0, -6));
         Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [], [Shirt(1)]));
         Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [], [pants]));
@@ -133,8 +129,7 @@ public sealed class ApparelCreditTests
     private static readonly NeedThoughtStage[] RequirementThoughts =
         [Stage("TitleApparelRequirementNotMet", ForecastApparel.TitleApparel, 0, -4), Stage("IdeoRoleApparelRequirementNotMet", ForecastApparel.RoleApparel, 0, -4)];
 
-    private static GearOption Crown() => Shirt(1) with
-    { ID = "crown", Definition = new("Apparel_Crown"), Slot = GearSlot.Headgear, Layers = ["Overhead"], Groups = ["UpperHead"] };
+    private static GearOption Crown() => Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Id = "crown", DefName = "Apparel_Crown" }), Slot = GearSlot.Headgear, Layers = ["Overhead"], Groups = ["UpperHead"] };
 
     [Fact]
     public void ATitledPawnMissingTheirRequiredApparelGainsTheRequirementThoughtsMoodWhenItIsDelivered()
@@ -148,7 +143,7 @@ public sealed class ApparelCreditTests
         Assert.Equal((ForecastApparel.CreditKey("pawn", "Apparel_Crown"), Horizon - 0.5), (row.Key, row.Units));
         Assert.Equal(-perDay * (Horizon - 0.5), row.Value, 12);
         // A requirement already met by a worn garment raises no thought to lift.
-        Assert.Equal(0, ForecastApparel.MoodDelta(context.Needs.Pawns[0], [Crown() with { ID = "worn-crown" }], [Crown()]));
+        Assert.Equal(0, ForecastApparel.MoodDelta(context.Needs.Pawns[0], [Crown() with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Crown()).Origin).Value) with { Id = "worn-crown" }) }], [Crown()]));
     }
 
     [Fact]
@@ -157,7 +152,7 @@ public sealed class ApparelCreditTests
         var holder = Warm with { Requirements = [new(ForecastApparel.RoleApparel, ["Apparel_Crown"]), new(ForecastApparel.RoleApparel, ["Apparel_Robe"])] };
         // Both role requirements must be met for Thought_IdeoRoleApparelRequirementNotMet to lift; the title thought has none.
         Assert.Equal(0, ForecastApparel.MoodDelta(Pawn(holder, RequirementThoughts), [], [Crown()]));
-        var robe = Shirt(1) with { ID = "robe", Definition = new("Apparel_Robe"), Slot = GearSlot.Outer, Layers = ["Shell"], Groups = ["Torso"] };
+        var robe = Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Id = "robe", DefName = "Apparel_Robe" }), Slot = GearSlot.Outer, Layers = ["Shell"], Groups = ["Torso"] };
         Assert.Equal(4, ForecastApparel.MoodDelta(Pawn(holder, RequirementThoughts), [Crown()], [robe]));
     }
 
@@ -175,12 +170,12 @@ public sealed class ApparelCreditTests
     // title in effect (ThoughtWorker_RoyalTitleApparelMinQualityNotMet).
     private static readonly NeedThoughtStage[] QualityThought = [Stage("TitleApparelMinQualityNotMet", ForecastApparel.TitleApparelQuality, 0, -4)];
 
-    private static readonly NeedApparel Knight = Warm with { MinimumQuality = RimGovernor.Contracts.Wire.Defs.QualityCategory.Normal };
+    private static readonly NeedApparel Knight = Warm with { MinimumQuality = D.QualityCategory.Normal };
 
     [Fact]
     public void ATitledPawnInBelowMinimumApparelGainsTheMinimumQualityThoughtsMoodWhenAGarmentAtTheMinimumIsDelivered()
     {
-        var context = Context(Pawn(Knight, QualityThought), Shirt(1) with { Quality = 1 });
+        var context = Context(Pawn(Knight, QualityThought), Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Poor) }) });
         Assert.Equal(4, ForecastApparel.MoodDelta(context.Needs.Pawns[0], context.Outfits["pawn"], [Shirt(1)]));
         Assert.True(ForecastApparel.ChangesThoughts(context.Outfits["pawn"], [Shirt(1)]));
         Assert.Equal([0.04], ForecastApparel.BreakShifts(context.Needs, context.Outfits, [Craft(Shirt(1))])["pawn"]);
@@ -189,25 +184,25 @@ public sealed class ApparelCreditTests
         Assert.Equal((ForecastApparel.CreditKey("pawn", "Apparel_BasicShirt"), Horizon - 0.5), (row.Key, row.Units));
         Assert.Equal(-perDay * (Horizon - 0.5), row.Value, 12);
         // Without a title in effect the minimum is Awful, which no garment is below.
-        Assert.Equal(0, ForecastApparel.MoodDelta(Pawn(Warm, QualityThought), [Shirt(1) with { Quality = 0 }], [Shirt(1)]));
+        Assert.Equal(0, ForecastApparel.MoodDelta(Pawn(Warm, QualityThought), [Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }) }], [Shirt(1)]));
     }
 
     [Fact]
     public void AQualitylessGarmentChangesNothing()
     {
         // TryGetQuality fails for a def without CompQuality: the worker skips it, so it neither raises nor lifts the thought.
-        var crown = Crown() with { Quality = 2, Qualityless = true };
+        var crown = Crown() with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Crown()).Origin).Value) with { Quality = new O.ItemQuality.Qualityless() }) };
         var pawn = Pawn(Knight, QualityThought);
-        Assert.Equal(0, ForecastApparel.MoodOf(pawn, [crown with { Quality = 0 }]));
-        Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [Shirt(1)], [crown with { Quality = 0 }]));
-        Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [Shirt(1) with { Quality = 1 }, Crown() with { ID = "old", Quality = 0, Qualityless = true }], [crown]));
-        Assert.Equal(-4, ForecastApparel.MoodOf(pawn, [Shirt(1) with { Quality = 1 }, crown]));
+        Assert.Equal(0, ForecastApparel.MoodOf(pawn, [crown]));
+        Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [Shirt(1)], [crown]));
+        Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Poor) }) }, Crown() with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Crown()).Origin).Value) with { Id = "old", Quality = new O.ItemQuality.Qualityless() }) }], [crown]));
+        Assert.Equal(-4, ForecastApparel.MoodOf(pawn, [Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Poor) }) }, crown]));
     }
 
     // #3850: a crafted garment comes out at its crafter's quality odds (QualityUtility.GenerateQualityCreatedByPawn).
     private static GearOption Crafted(int skill) => Shirt(1) with { QualityOdds = EquatableArray.From(CraftedQualityRules.Odds(new(skill, false, 0))) };
 
-    private static readonly NeedApparel Count = Warm with { MinimumQuality = RimGovernor.Contracts.Wire.Defs.QualityCategory.Excellent };
+    private static readonly NeedApparel Count = Warm with { MinimumQuality = D.QualityCategory.Excellent };
 
     [Fact]
     public void ATitleMinimumOfExcellentIsLiftedOnlyWithTheChanceTheCrafterReachesIt()
@@ -216,7 +211,7 @@ public sealed class ApparelCreditTests
         var reach = bill.QualityOdds[4] + bill.QualityOdds[5] + bill.QualityOdds[6];
         Assert.InRange(reach, 0.05, 0.95);
         // A Good shirt is below Excellent: the thought holds unless the crafted one reaches it.
-        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Quality = 3 });
+        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Good) }) });
         var pawn = context.Needs.Pawns[0];
         var outcomes = ForecastApparel.MoodOutcomes(pawn, [bill])!;
         Assert.Equal([-4.0, 0.0], outcomes.Select(o => o.Mood));
@@ -234,7 +229,7 @@ public sealed class ApparelCreditTests
     [Fact]
     public void ASkillThreeCraftersBillIsWorthLessThanASkillFifteenCrafters()
     {
-        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Quality = 3 });
+        var context = Context(Pawn(Count, QualityThought), Shirt(1) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt(1)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Good) }) });
         double Credit(GearOption bill) =>
             Assert.Single(Value(context, bill, shift: 0.04).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal)).Value;
         // Credits are gains, negative: the skilled crafter's shirt lifts the thought more often.

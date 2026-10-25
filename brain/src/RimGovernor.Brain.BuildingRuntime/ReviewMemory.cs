@@ -25,12 +25,12 @@ internal sealed class ReviewMemory<T>(T empty)
         }
     }
 
-    /// <summary>The value the review of <paramref name="snapshot"/>'s world derived; unknown before one did.</summary>
-    public Fact<T> Read(GenerationSnapshot snapshot)
+    /// <summary>The value the review of <paramref name="snapshot"/>'s world derived; a required read fails before that review.</summary>
+    public T Require(GenerationSnapshot snapshot, string fact)
     {
         lock (_mu)
         {
-            return _set && _snapshot == snapshot ? Known(_value) : Unknown<T>();
+            return _set && _snapshot == snapshot ? _value : throw new RequiredFactException(fact);
         }
     }
 
@@ -148,7 +148,7 @@ public sealed partial class Rounder
     internal TradeReviewMemory TradeMemory { get; } = new();
 
     /// <summary>Whether the latest review owed work assignments (WorkAssignmentsOwed), read by the admin/work-assignments Need (#3304); unknown for another world.</summary>
-    internal ReviewMemory<Fact<bool>> WorkAssignments { get; } = new(Unknown<bool>());
+    internal ReviewMemory<WorkAssignmentsReview> WorkAssignments { get; } = new(WorkAssignmentsReview.AwaitingPlanner);
 
     /// <summary>
     /// Keeps a review's per-pawn gear outcome (filter and floor) when its comparator ran (#3325). A review with no coupled
@@ -172,10 +172,7 @@ public sealed partial class Rounder
     /// </summary>
     internal IReadOnlyDictionary<Resource, long> StationNeeds(GenerationSnapshot snapshot)
     {
-        if (!Demand.Read(snapshot).TryGetValue(out var demand))
-        {
-            throw new RequiredFactException("resource demand");
-        }
+        var demand = Demand.Require(snapshot, "resource demand");
         var needs = demand.Needs;
         if (StockDemand is not { Count: > 0 } stockDemand)
         {

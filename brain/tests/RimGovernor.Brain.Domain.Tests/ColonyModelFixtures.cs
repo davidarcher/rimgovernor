@@ -1,15 +1,17 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.Facts;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The tier-2 colony model's worked case (forecast value, "Devilstrand worked through"): 800 research points, Plants 10, 400 sow work
 /// per plant on soil of at least 0.5 fertility, 22.5 grow days, 6 fibre per plant and a duster of 80 fabric and 10,000 work.
-/// <see cref="Projection"/> is a review frame carrying it, so <c>RoundsColonyModel.InputOf</c> is tested on the same numbers.
+/// <see cref="Reading"/> is a review frame carrying it, so <c>RoundsColonyModel.InputOf</c> is tested on the same numbers.
 /// </summary>
 internal static class ColonyModelFixtures
 {
@@ -41,64 +43,122 @@ internal static class ColonyModelFixtures
     {
         Name = Crop,        Research = [Project],        Available = false,Plant=new PlanningPlant {        GrowDays = 22.5,        SowMinSkill = 10,        SowWork = 400.0,        FertilityMin = 0.5,        FertilitySensitivity = 0.7,        HarvestMinGrowth = 0.65,        HarvestWork = 200.0,        MinGrowthTemperature = 0.0,        MinOptimalGrowthTemperature = 10.0,        MaxOptimalGrowthTemperature = 42.0,        MaxGrowthTemperature = 58.0,        RestingDayFraction = PlantResting.RestingDayFraction},Harvest=new PlanningHarvest {        HarvestYield = 6.0,        Edible = false,        HarvestedThingDef = Cloth}    };
 
-    internal static ColonyProjection Projection() => ColonyFactsCoreTests.Projection() with
+    internal static ColonyReading Reading() => ColonyFactsCoreTests.Reading() with
     {
-        Facts = new RoundsFacts
-        {
-            ResourceThings = ["m1"],
-            Gear = NoGear() with { Pawns = [new GearPawn { LoadoutModel = new GearModel.NoOutfit() }] },
-            Calendar = new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 },
-            Research = new ResearchFacts
+        Facts = ColonyFactsCoreTests.Reading().Facts with
             {
-                Current = new ResearchProjectId(Project),
-                Finished = [new ResearchProjectId(Prerequisite)],
-                Projects = [new ResearchProjectId(Prerequisite), new ResearchProjectId(Project)],
-                Details = new Dictionary<string, ResearchProjectFacts>
+                Census = ColonyFactsCoreTests.Reading().Snapshot with
                 {
-                    [Prerequisite] = new() { Cost = 650 },
-                    [Project] = new() { Cost = 800, Prerequisites = [new ResearchProjectId(Prerequisite)], Progress = 0.25 },
+                    FoodClimate = new O.FoodClimate
+                    {
+                        GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)),
+                        Season = "Spring",
+                        SowingNow = true,
+                        DayOfYear = 12,
+                        GrowingDays = 40,
+                        GrowingDaysRemaining = 25,
+                        GrowingDaysUntil = 0,
+                        NonGrowingDays = 0,
+                    },
+                    ResourceThings = ["m1"],
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 }).Select(pair => new O.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
                 },
+            Gear = NoGear() with
+            {
+                Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "" }, LoadoutModel = new GearModel.NoOutfit() }
+                ]
             },
+            Research = ResearchTestFacts.Read([Prerequisite, Project], [Prerequisite], Project,
+                definitions: new Dictionary<string, ResearchProjectDefinition>
+                {
+                    [Prerequisite] = new()
+                    {
+                        Cost = 650
+                    },
+                    [Project] = new()
+                    {
+                        Cost = 800,
+                        Prerequisites = [new ResearchProjectId(Prerequisite)],
+                    },
+                }, progress: new Dictionary<string, double> { [Project] = .25 }),
             MedicalReserve = new MedicalReserveObservation
             {
-                Items = EquatableArray.From(new[]
-                {
-                    new MedicineStackRow { Id = "m1", Definition = new Resource("MedicineHerbal"), Count = 4, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() },
-                    new MedicineStackRow { Id = "m2", Definition = new Resource("MedicineIndustrial"), Count = 9, Forbidden = true, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() },
-                }),
+                Items = EquatableArray.From(new[] { new O.UpkeepItem { Id = "m1", Definition = "MedicineHerbal", Count = 4, Forbidden = false, Rot = new O.ItemRot.Never() }, new O.UpkeepItem { Id = "m2", Definition = "MedicineIndustrial", Count = 9, Forbidden = true, Rot = new O.ItemRot.Never() }, }),
             },
-            NeedsAlternatives = new ForecastNeedsReview(NeedsFixtures.Empty with {
-                Pawns = [Pawn()],
-                ResearchBenches = [new("bench", "SimpleResearchBench", new(0, 0), 1.0)],
-            }, new Dictionary<string, ForecastNeedsCandidates>()),
+            NeedsAlternatives = new ForecastNeedsReview(NeedsFixtures.Empty with { Pawns = [Pawn()], ResearchBenches = [new("bench", "SimpleResearchBench", new(0, 0), 1.0)], }, new Dictionary<string, ForecastNeedsCandidates>()),
             WorkAdmission = new WorkAdmissionObservation
             {
-                Recipes = EquatableArray.From(new[]
-                {
-                    new ProductionRecipeInput(Recipe, EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(new Resource(Cloth), 80) }) }), false)
-                    {
-                        Products = EquatableArray.From(new[] { new Amount(new Resource("Apparel_Duster"), 1) }),
-                        WorkAmount = 10_000.0,
-                    },
-                }),
+                Recipes = EquatableArray.From(new[] { new ProductionRecipeInput(Recipe, EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(new Resource(Cloth), 80) }) }), false) { Products = EquatableArray.From(new[] { new Amount(new Resource("Apparel_Duster"), 1) }), WorkAmount = 10_000.0, }, }),
             },
             CurrentConstruction = CurrentConstruction.Empty,
             PlannedSites = new PlannedSiteFacts(),
+            CombinedFoodSupply = new FoodSupply
+            {
+                Larder = new()
+                {
+                    RawMeatNutrition = 0,
+                    CookDemandNutrition = 0,
+                    Corpses = []
+                },
+                Consumers = [new FoodConsumer
+                {
+                    Id = new("Anna"),
+                    NutritionPerDay = 1d,
+                    HumanMeatAcceptable = false
+                }
+                ],
+                Stocks = [new FoodStock
+                {
+                    Id = "meal",
+                    Nutrition = 12.5,
+                    Place = new FoodPlace.Stands(true, ""),
+                    Form = new FoodForm.Item(),
+                    Rot = new FoodRot.Keeps(),
+                    Eaters = [new("Anna")],
+                    IsHumanMeat = false,
+                    RawMeat = false,
+                    IsHumanlike = false,
+                    Vegetable = false,
+                    RawClass = FoodIngredientClass.None,
+                    Holder = new PawnId(string.Empty),
+                    DefName = string.Empty,
+                    Count = 0,
+                    UnitMass = 0,
+                    TemperatureC = 0,
+                    Forbidden = false
+                }
+                ]
+            },
+            Definitions = [CropRow()],
+            Acquisition = [],
+            ForecastObserved = new ColonyForecastObserved
+            {
+                WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { PawnFixtures.Worker("Anna") with { Observed = PawnFixtures.Row("Anna") with { Biography = PawnFixtures.Row("Anna").Biography with { Skills = [new O.Skill { Passion = O.Passion.None, DefName = "Plants", Level = 10 }] } } } }))
+            }
         },
-        CombinedFoodSupply = new FoodSupply { Larder = new(), Consumers = [new() { Id = new("Anna"), NutritionPerDay = 1d }], Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = 12.5, Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Rot = new FoodRot.Keeps(), Eaters = [new("Anna")] }] },
-        Resources = new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 },
-        Definitions = [CropRow()],
-        Farms = [ZoneFixtures.Growing("zone1", Crop)],
-        Cells = [.. Enumerable.Range(0, 4).Select(x => SiteCellFixtures.Ground with { Cell = new Cell(x, 0), Zone = true, ZoneId = "zone1", Fertility = 0.5 + (0.1 * x) })],
-        WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { PawnFixtures.Worker("Anna") with { Skills = [new WorkSkill { Name = "Plants", Level = 10 }] } })),
-        Acquisition = [],
+
+        Window = new Held<PlanningCells>
+        {
+            Value = new PlanningCells
+            {
+                Cells = [.. Enumerable.Range(0, 4).Select(x => SiteCellFixtures.At(new Cell(x, 0), zoneId: "zone1", fertility: 0.5 + (0.1 * x)))]
+            }
+        },
+        Tables = ColonyFactsCoreTests.Reading().Tables with
+        {
+            Zones = new O.ZonesSnapshot
+            {
+                Context = ColonyFactsCoreTests.Reading().Snapshot.Context,
+                Zones = [ZoneFixtures.Growing("zone1", Crop)]
+            }
+        }
     };
 
     /// <summary>The model input of the worked case.</summary>
-    internal static ColonyModelInput Devilstrand() => ReadyOf(Projection());
+    internal static ColonyModelInput Devilstrand() => ReadyOf(Reading());
 
     /// <summary>The input a frame yields; the test fails when the frame left it unready.</summary>
-    internal static ColonyModelInput ReadyOf(ColonyProjection projection) => RoundsColonyModel.InputOf(projection) switch
+    internal static ColonyModelInput ReadyOf(ColonyReading projection) => RoundsColonyModel.InputOf(projection) switch
     {
         ColonyModelInputRead.Ready ready => ready.Input,
         ColonyModelInputRead.Unready unready => throw new InvalidOperationException("the frame left the input unready: " + string.Join("; ", unready.Gaps)),
@@ -106,7 +166,7 @@ internal static class ColonyModelFixtures
     };
 
     /// <summary>The gaps a frame leaves; empty when the input is ready.</summary>
-    internal static IReadOnlyList<string> GapsOf(ColonyProjection projection) =>
+    internal static IReadOnlyList<string> GapsOf(ColonyReading projection) =>
         RoundsColonyModel.InputOf(projection) is ColonyModelInputRead.Unready unready ? unready.Gaps : [];
 
     /// <summary>

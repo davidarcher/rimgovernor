@@ -37,7 +37,7 @@ internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClien
     /// zones still open continue, and once released they are created again only if the review still finds them
     /// missing.
     /// </summary>
-    public async Task<Verdict> CreateAsync(ControlState state, Sto.NeedOwner owner, Observation.ColonyProjection projection, DateTimeOffset started, IReadOnlyList<Pol.StockpileEdit> edits, CancellationToken call, CancellationToken epoch)
+    public async Task<Verdict> CreateAsync(ControlState state, Sto.NeedOwner owner, ColonyReading projection, DateTimeOffset started, IReadOnlyList<Pol.StockpileEdit> edits, CancellationToken call, CancellationToken epoch)
     {
         var p = reviewer.Player;
         if (native is not FacadeNativeClient preview)
@@ -111,7 +111,7 @@ internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClien
             Plan = plan,
             Current = snapshot,
             Tick = tick,
-            Bounds = projection.Bounds,
+            Bounds = projection.Facts.MapBounds,
             Stock = new Pol.StockObservation { Snapshot = snapshot, Tick = tick },
             Previews = previews,
             Purpose = Pol.Purpose.Rounds,
@@ -137,10 +137,10 @@ partial class StockpileZones
     /// back), and its settings superseded by the latest patch of each. <paramref name="census"/> is the projection's
     /// planning cells keyed by cell (<see cref="CensusByCell"/>).
     /// </summary>
-    internal static List<Pol.StockpileZone> OwnedStockpileZones(Observation.ColonyProjection projection, IReadOnlyDictionary<Cell, Pol.SiteCell> census, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> shelves)
+    internal static List<Pol.StockpileZone> OwnedStockpileZones(ColonyReading projection, IReadOnlyDictionary<Cell, Pol.SiteCell> census, IReadOnlyList<Sto.OwnedZone> owned, IReadOnlyDictionary<string, Sto.AppliedStockpile>? patches, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> shelves)
     {
         var byZone = new Dictionary<string, List<Cell>>();
-        foreach (var cell in projection.Cells)
+        foreach (var cell in projection.PlanningWindow.Cells)
         {
             if (cell.ZoneId is not { Length: > 0 } id)
             {
@@ -188,10 +188,10 @@ partial class StockpileZones
     internal static bool BuiltShelf(Pol.ShelfRecord s) => s.Building != "" && !s.Open;
 
     /// <summary>The planning census keyed by cell.</summary>
-    internal static Dictionary<Cell, Pol.SiteCell> CensusByCell(Observation.ColonyProjection projection)
+    internal static Dictionary<Cell, Pol.SiteCell> CensusByCell(ColonyReading projection)
     {
-        var census = new Dictionary<Cell, Pol.SiteCell>(projection.Cells.Count);
-        foreach (var cell in projection.Cells)
+        var census = new Dictionary<Cell, Pol.SiteCell>(projection.PlanningWindow.Cells.Count);
+        foreach (var cell in projection.PlanningWindow.Cells)
         {
             census[cell.Cell] = cell;
         }

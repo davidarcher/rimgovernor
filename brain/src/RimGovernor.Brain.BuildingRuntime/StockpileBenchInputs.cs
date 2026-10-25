@@ -7,7 +7,7 @@ internal static class StockpileBenchInputs
     /// bench's cell. The kitchen's and butcher's benches (the projection's production benches) are left to the
     /// food stores; with that census or the building census unobserved no bench is planned.
     /// </summary>
-    internal static IReadOnlyList<Pol.BenchInput> BenchInputs(IReadOnlyList<GearBenchRead> census, Observation.ColonyProjection projection)
+    internal static IReadOnlyList<Pol.BenchInput> BenchInputs(IReadOnlyList<GearBenchRead> census, ColonyReading projection)
     {
         var built = projection.Facts.CurrentConstruction;
         var at = new Dictionary<string, Cell>(built.Buildings.Count, StringComparer.Ordinal);
@@ -19,7 +19,7 @@ internal static class StockpileBenchInputs
             }
         }
         var excluded = new Dictionary<string, bool>(StringComparer.Ordinal);
-        foreach (var b in projection.ProductionBenches)
+        foreach (var b in projection.Facts.EssentialInputs.Benches)
         {
             excluded[b.Id] = true;
         }

@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
@@ -32,8 +32,9 @@ public sealed class BlightCensusTests
         Assert.Throws<BridgeContractException>(() => ColonyFramesReads.BlightCensus(snapshot, Empty));
         var things = Things.Of(Plant(new O.EntityPlace.Unplaced()));
         Assert.Throws<BridgeContractException>(() => ColonyFramesReads.BlightCensus(snapshot, Empty with { Things = things }));
-        var missingCell = Things.Of(Plant(new O.EntityPlace.OnMap(0, null!)));
-        Assert.Throws<BridgeContractException>(() => ColonyFramesReads.BlightCensus(snapshot, Empty with { Things = missingCell }));
+        var place = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize<O.EntityPlace>(new O.EntityPlace.OnMap(0, new(1, 2))))!.AsObject();
+        Assert.True(place.Remove("cell"));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<O.EntityPlace>(place.ToJsonString()));
     }
 
     [Theory]
@@ -42,11 +43,12 @@ public sealed class BlightCensusTests
     public void APlantOutsideThePlanningWindowStillProducesTheBlightNeed(bool designated)
     {
         var snapshot = WithPlant(designated);
-        var things = Things.Of(Plant(new O.EntityPlace.OnMap(0, new C.Cell { X = 180, Z = 190 })));
+        var things = Things.Of(Plant(new O.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 180, Z = 190 })));
         var census = ColonyFramesReads.BlightCensus(snapshot, Empty with { Things = things });
         var row = Assert.Single(census);
-        Assert.Equal(("plant", "Plant_Rice", new Cell(180, 190), designated, true), (row.ID, row.Definition, row.Cell, row.Designated, row.Eligible));
+        Assert.Equal(("plant", "Plant_Rice", new Cell(180, 190), designated), (row.ID, row.Definition, row.Cell, row.Designated));
         var family = new FoodFamily(false, false, blight: true);
+        Assert.Same(snapshot.Blight.Plants[0], row.Observed);
         var facts = new FoodFacts { Blight = census };
         var need = Assert.Single(family.Derive(facts));
         Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
@@ -74,6 +76,6 @@ public sealed class BlightCensusTests
     private static O.Thing Plant(O.EntityPlace place) => new()
     {
         Entity = new() { Id = "plant", DefName = "Plant_Rice", Label = "rice plant", Place = place },
-        StackCount = 1, Forbidden = false, Corpse = false, Food = new O.ThingFood.NotFood(),
+        Forbidden = false, Corpse = false,
     };
 }

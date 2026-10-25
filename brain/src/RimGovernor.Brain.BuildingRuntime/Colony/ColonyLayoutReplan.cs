@@ -11,7 +11,7 @@ internal sealed record PendingLayoutReplan(
     GenerationSnapshot Snapshot,
     Tick Started,
     HeldLayout Layout,
-    ColonyProjection Projection,
+    ColonyReading Projection,
     MapSurvey Survey,
     DefinitionCatalog Catalog,
     RoomGrowth Growth,
@@ -55,7 +55,7 @@ public sealed partial class Rounder
     /// the hourly check read (<c>RunLayoutReplan</c>); the review that finds the run complete adopts it
     /// (<c>AdoptLayoutReplanAsync</c>).
     /// </summary>
-    internal static PendingLayoutReplan StartLayoutReplan(GenerationSnapshot snapshot, Tick tick, HeldLayout layout, ColonyProjection projection, MapSurvey survey, DefinitionCatalog catalog, RoomGrowth growth, StationFacts facts, int colonists, string grown, string reason, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, IReadOnlyList<string> drift)
+    internal static PendingLayoutReplan StartLayoutReplan(GenerationSnapshot snapshot, Tick tick, HeldLayout layout, ColonyReading projection, MapSurvey survey, DefinitionCatalog catalog, RoomGrowth growth, StationFacts facts, int colonists, string grown, string reason, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, IReadOnlyList<string> drift)
     {
         var plan = layout.Plan;
         var work = Task.Run(() => RunLayoutReplan(plan, facts, survey, catalog, geysers, growth));
@@ -113,7 +113,7 @@ public sealed partial class Rounder
     /// a shell admitted in the review that started the run, whose blueprints the run may have sited elsewhere. Empty when
     /// the run held every room (the census was unknown) or the occupancy is unknown now.
     /// </summary>
-    internal async Task<IReadOnlyCollection<int>> NewlyHeldRoomsAsync(PendingLayoutReplan pending, ColonyProjection projection, CancellationToken ct)
+    internal async Task<IReadOnlyCollection<int>> NewlyHeldRoomsAsync(PendingLayoutReplan pending, ColonyReading projection, CancellationToken ct)
     {
         if (pending.Growth.Fixed is null || await LayoutOccupiedAsync(projection, pending.Layout.Plan, ct).ConfigureAwait(false) is not { } found)
         {

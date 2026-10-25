@@ -90,7 +90,7 @@ internal static class PlannedRoomPredictionCase
             new Fx.StageSpec { Paused = true, Rooms = [new Fx.StageRoom { Name = "ring", Rect = new Fx.StageRect(site.X + 1, site.Z + 1, 5, 5), Stuff = Stuff, Doors = [new(door.X, door.Z)] }] },
             cancellationToken).ConfigureAwait(false);
 
-        var corner = new Common.Cell { X = interior[0].X, Z = interior[0].Z };
+        var corner = new RimGovernor.Brain.Domain.Cell { X = interior[0].X, Z = interior[0].Z };
         async Task<Observations.RoomState> RoomAsync(string step)
         {
             var rooms = await s.CallAsync(

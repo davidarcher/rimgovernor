@@ -410,10 +410,11 @@ Beside the cooling station each `EnvCold` group carries `GroupAdvice.Climate`
 watts that hold the room under the full-rot temperature (`FullRotRateC`, 10 C;
 that slows rot, it does not stop it) through each opening to the outdoors, as
 `ClimateOptions` lists them: vent, door held open, door held closed, airlock.
-The facts are `StationFacts.OutdoorCurve` (the twelve seasonal means) and
-`FullRotRateC`; without either, the catalog's `Climate` model or steel's market
-value, the group has no answer. Nothing is a veto: an opening the caller leaves
-out (an unresearched vent) is absent.
+The facts are `StationFacts.OutdoorCurve` (the twelve required finite seasonal
+means) and `FullRotRateC`. A missing or malformed outdoor curve fails the
+observation or planning boundary. Without the full-rot rate, the catalog's
+`Climate` model or steel's market value, the group has no answer. Nothing is a
+veto: an opening the caller leaves out (an unresearched vent) is absent.
 
 Every heat number is the game's. `ClimateModel` (`Climate.cs` in `Brain.Bridge/Catalog`)
 reads the vent's interval and rate (`GenTicks.TickRareInterval`,

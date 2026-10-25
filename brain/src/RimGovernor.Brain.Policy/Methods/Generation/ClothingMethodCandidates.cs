@@ -87,8 +87,7 @@ internal static class ClothingMethodCandidates
                 Recipe = new(row.Bill, row.Recipe, EquatableArray.From(row.Inputs.Select(i => new PawnActivityIngredient(i.Thing, i.Count))))
                 { Resource = row.Stuff, Stuff = row.Stuff, Unfinished = row.Unfinished }
             };
-            bindings[(id, row.Pawn)] = new(id, row.Pawn, [make], PawnActivityKind.Deliver, "observed-output", "", "", 1, deadline, row.Location)
-            { Resource = row.Product, ProductStuff = row.Stuff, Source = row.Location, Destination = row.Destination };
+            bindings[(id, row.Pawn)] = new CellActivityTaskCandidate(new ActivityTaskCandidate(id, row.Pawn, [make], PawnActivityKind.Deliver, "observed-output", "", "", 1, deadline, row.Location) { Resource = row.Product, ProductStuff = row.Stuff, Source = row.Location }, row.Destination);
             outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, id));
         }
         var capacities = workers.Order(StringComparer.Ordinal).Select(p => new ForecastPawnCapacity(p, "start",
@@ -108,8 +107,8 @@ internal static class ClothingMethodCandidates
                     || n.Value.Garment.Layers.Intersect(garmentNeeds[o.Id].Garment.Layers).Any() && n.Value.Garment.Groups.Intersect(garmentNeeds[o.Id].Garment.Groups).Any())
                 // A selected output occupies its exact destination beyond the delivery job.
                 // Different garments cannot both claim that cell without an observed onward move.
-                || bindings.Values.Any(a => a.Id == o.Id && a.Destination is not null
-                    && bindings.Values.Any(b => b.Id == n.Key && b.Destination == a.Destination))))
+                || bindings.Values.Any(a => a.Id == o.Id && a is CellActivityTaskCandidate cellA
+                    && bindings.Values.Any(b => b.Id == n.Key && b is CellActivityTaskCandidate cellB && cellB.Destination == cellA.Destination))))
                 .Select(n => n.Key))
         }).ToArray();
         return new(new()

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using LightingCensus = RimGovernor.Contracts.Wire.Observations.LightingFacts;
 using WorkLightCell = RimGovernor.Contracts.Wire.Observations.WorkLightCell;
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -77,17 +78,20 @@ public sealed record LightingObservation
 /// <summary>A census lamp joined with its building row and its def's glow radius.</summary>
 public sealed record Lamp
 {
-    public required string Id { get; init; }
-    public required string Definition { get; init; }
-    public required Cell Cell { get; init; }
+    public required O.LampState Observed { get; init; }
+    public required O.BuildingState Building { get; init; }
+    public string Id => Building.Building.Id;
+    public string Definition => Building.Building.DefName;
+    public Cell Cell => Building.Building.Place is O.EntityPlace.OnMap at ? at.Cell : throw new DomainException("lamp building is unplaced");
     public required double Radius { get; init; }
 
     /// <summary>Native's own "currently emits light" flag, false while the fixture is unpowered, out of fuel, switched off or broken down.</summary>
-    public required bool Lit { get; init; }
+    public bool Lit => Observed.Lit;
 
-    public required bool SwitchedOn { get; init; }
-    public required bool BrokenDown { get; init; }
-    public required LampFuel Fuel { get; init; }
+    public bool SwitchedOn => Building.Service.SwitchedOn;
+    public bool BrokenDown => Building.Service.BrokenDown;
+    public LampFuel Fuel => Building.Service.Fuel is O.BuildingFuel.Refuelable fuel
+        ? (fuel.OutOfFuel ? LampFuel.Empty : LampFuel.Fueled) : LampFuel.Unfueled;
 }
 
 /// <summary>A lamp's fuel: it burns none (an electric lamp), it holds fuel, or it is out of fuel.</summary>

@@ -31,14 +31,16 @@ namespace HomeBridge.BridgeTools
             RefIndex.Thing(map, id) as MinifiedThing ?? RefIndex.ThingOrMinified(map, id)?.ParentHolder as MinifiedThing;
 
         private static bool Valid(Operations.RelocateIntent intent) => ProtoBoundary.IsIdentifier(intent.ThingId)
-            && intent.Destination != null && intent.Mode is Operations.RelocationMode.Move
+            && intent.Mode is Operations.RelocationMode.Move
             && ((Operations.RelocationMode.Move)intent.Mode).Value >= Placement.Rotation.North && ((Operations.RelocationMode.Move)intent.Mode).Value <= Placement.Rotation.West;
+
+        private static RimGovernor.Brain.Domain.Cell Destination(Operations.RelocateIntent intent) => intent.Mode is Operations.RelocationMode.Move move ? move.Destination : throw new InvalidOperationException("Relocation is not a move.");
 
         private static Rot4 Rotation(Operations.RelocateIntent intent) => new Rot4((int)((Operations.RelocationMode.Move)intent.Mode).Value - 1);
 
         private static bool PreparePacked(Operations.RelocateIntent intent, Map map, MinifiedThing mini, out Common.Failure failure)
         {
-            var cell = new IntVec3((intent.Destination?.X).GetValueOrDefault(), 0, (intent.Destination?.Z).GetValueOrDefault());
+            var cell = new IntVec3(Destination(intent).X, 0, Destination(intent).Z);
             var rotation = Rotation(intent);
             var inner = mini.InnerThing;
             var rules = new ApplyPreconditions(Kind)
@@ -58,7 +60,7 @@ namespace HomeBridge.BridgeTools
             piece = null; building = null; queued = null;
             if (!Valid(intent)) return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A move requires an exact building, a destination cell and a cardinal rotation.");
             var map = ProtoBoundary.LoadedMap(context);
-            var cell = new IntVec3((intent.Destination?.X).GetValueOrDefault(), 0, (intent.Destination?.Z).GetValueOrDefault());
+            var cell = new IntVec3(Destination(intent).X, 0, Destination(intent).Z);
             var rotation = Rotation(intent);
             var found = Find(map, (intent.ThingId ?? ""));
             if (found == null && FindPacked(map, (intent.ThingId ?? "")) is MinifiedThing mini)
@@ -100,7 +102,7 @@ namespace HomeBridge.BridgeTools
             if (intent.Mode is Operations.RelocationMode.Uninstall) return NativeUninstallBuilding.Apply(intent, context);
             var failure = Resolve(intent, context, out var piece, out var building, out var queued);
             if (failure != null) throw new InvalidOperationException(failure.Detail);
-            var cell = new IntVec3((intent.Destination?.X).GetValueOrDefault(), 0, (intent.Destination?.Z).GetValueOrDefault());
+            var cell = new IntVec3(Destination(intent).X, 0, Destination(intent).Z);
             var blueprint = queued ?? (piece is MinifiedThing mini
                 ? GenConstruct.PlaceBlueprintForInstall(mini, cell, mini.Map, Rotation(intent), Faction.OfPlayer)
                 : GenConstruct.PlaceBlueprintForReinstall((Building)(building ?? throw new System.InvalidOperationException("Required native value is unavailable: building.")), cell, (building ?? throw new System.InvalidOperationException("Required native value is unavailable: building.")).Map, Rotation(intent), Faction.OfPlayer));

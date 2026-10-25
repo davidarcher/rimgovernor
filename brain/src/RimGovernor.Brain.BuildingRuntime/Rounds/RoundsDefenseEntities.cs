@@ -17,7 +17,7 @@ public sealed partial class RoundsDefensePlanner
         }
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
         var verdicts = new Dictionary<Domain.PawnId, EntityVerdict>();
-        foreach (var v in EntityCaptureRules.EntityVerdicts(read.Projection.Facts.Containment))
+        foreach (var v in EntityCaptureRules.EntityVerdicts(read.Reading.Facts.Containment))
         {
             verdicts[v.Pawn] = v;
         }

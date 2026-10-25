@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -301,7 +300,7 @@ public sealed class MedicineValueTests
         // The production way (#3822): the Core disease defs through the catalog, and the native disease read of a colony settled today
         // (Cassandra's comp starts on day 9), through the review's harm inputs.
         var catalog = Game.DiseaseTableTests.Catalog(Game.DiseaseTableTests.CoreDefs());
-        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Disease = IllnessForecastTests.Facts(0) }).Illness;
+        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Disease = IllnessForecastTests.Facts(0) } } } }).Illness;
         Assert.True(illness.Assessed);
         var input = Colony(3, 100_000);
 

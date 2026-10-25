@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -57,17 +56,22 @@ public abstract record ExpeditionTrip
 {
     private protected ExpeditionTrip() { }
 
-    public required IReadOnlyList<PawnId> PawnIds { get; init; }
+    public abstract IReadOnlyList<PawnId> PawnIds { get; }
 
-    public sealed record Forming : ExpeditionTrip;
-
-    public sealed record OnWorld : ExpeditionTrip
+    public sealed record Forming(Pb.CaravanAssembly Observed) : ExpeditionTrip
     {
-        public required int Tile { get; init; }
+        public override IReadOnlyList<PawnId> PawnIds => Observed.Pawns;
+    }
 
-        public required Pb.CaravanCourse Course { get; init; }
+    public sealed record OnWorld(Pb.CaravanState Observed) : ExpeditionTrip
+    {
+        public override IReadOnlyList<PawnId> PawnIds => [.. Observed.Pawns.Select(pawn => new PawnId(pawn.Pawn.Id))];
 
-        public required IReadOnlyList<Pb.WorldRoute> HomeRoutes { get; init; }
+        public int Tile => Observed.Tile;
+
+        public Pb.CaravanCourse Course => Observed.Course;
+
+        public IReadOnlyList<Pb.WorldRoute> HomeRoutes => Observed.HomeRoutes;
     }
 }
 
@@ -422,8 +426,8 @@ public static class QuestExpedition
             var count = stock.Count;
             var nutrition = stock.Nutrition;
             var mass = stock.UnitMass;
-            if (!stock.Holder.IsEmpty || count <= 0 || !TradePolicyRules.Finite(nutrition) || nutrition <= 0 || stock.Corpse || stock.IsHumanMeat || stock.RawMeat
-                || stock.Forbidden || stock.Reserve || stock.DefName.Value.Length == 0 || !TradePolicyRules.Finite(mass) || mass < 0)
+            if (!stock.Holder.IsEmpty || count <= 0 || !TradePolicyRules.Finite(nutrition) || nutrition <= 0 || stock.IsCorpse() || stock.IsHumanMeat || stock.RawMeat
+                || stock.Forbidden || supply.IsReserved(stock) || stock.DefName.Length == 0 || !TradePolicyRules.Finite(mass) || mass < 0)
             {
                 continue;
             }
@@ -476,7 +480,7 @@ public static class QuestExpedition
                 }
             }
             stocks[index] = stock with { Count = count - lo, Nutrition = nutrition - lo * unit };
-            packed[stock.DefName.Value] = packed.GetValueOrDefault(stock.DefName.Value) + (ulong)lo;
+            packed[stock.DefName] = packed.GetValueOrDefault(stock.DefName) + (ulong)lo;
             need -= lo * unit;
             capacity -= lo * mass;
             if (need <= 0)

@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,8 +19,7 @@ public sealed class CoordinatedActivityTests
     [Fact]
     public void CompletedHoldReleasesBeforeReadyDeliveryRebindWithoutChangingItsObligation()
     {
-        var step = new PawnActivityStep(PawnActivityKind.Deliver, "observed-output", "", "", 6, 2000)
-            { Destination = new(2, 2) };
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, "observed-output", "", "", 6, 2000).At(new(2, 2));
         var delivery = new SelectedActivityTask("delivery", "helper", [], step, new(1, 1), 100) { Resource = "Rice" };
         var idleStep = new PawnActivityStep(PawnActivityKind.Hold, "", "", "", 0, 300);
         var idle = new PawnActivityOrder("producer", "m/idle", "m", 0, 1, false, [idleStep]) { Task = "idle" };
@@ -86,7 +84,7 @@ public sealed class CoordinatedActivityTests
     public void PartialDeliveryAndCarriedRecoveryRetainRemainingQuantityAndOriginalDeadline()
     {
         var task = new SelectedActivityTask("deliver", "producer", [],
-            new(PawnActivityKind.Deliver, "old", "", "", 8, 2000) { Destination = new(30, 10) }, new(10, 10), 100)
+            new PawnActivityStep(PawnActivityKind.Deliver, "old", "", "", 8, 2000).At(new(30, 10)), new(10, 10), 100)
             { Resource = "Rice", Source = new(10, 10) };
         var batch = new PawnActivities(1, [new("producer", "method/producer", "method", 1, 2, false,
             [task.Step with { Target = "split", Count = 3 }]) { Task = "deliver" }]) { Tasks = [task] };

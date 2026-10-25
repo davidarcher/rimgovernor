@@ -406,7 +406,7 @@ public static partial class RecoveryRules
         }
         var output = new HashSet<Resource>();
         var rows = new List<ResourceQuantity>();
-        foreach (var amount in f.Resources)
+        foreach (var amount in f.ObservedStock())
         {
             if (amount.Count > 0)
             {

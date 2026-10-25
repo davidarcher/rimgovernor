@@ -90,14 +90,14 @@ internal static class ProductionBuriedSteel
     {
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("stage: no site");
-        var access = new Common.Cell { X = site.X, Z = site.Z + Face[0].Z };
+        var access = new RimGovernor.Brain.Domain.Cell { X = site.X, Z = site.Z + Face[0].Z };
 
         async Task<Observations.ExcavationSiteSnapshot> ReadAsync(string label, IEnumerable<Fx.StageCell> cells)
         {
             var snapshot = await s.CallAsync(label, NativeOps.ReadExcavationSite, new Observations.ExcavationSiteRequest
             {
                 Scope = s.Scope,
-                Cells = [.. cells.Select(c => new Common.Cell { X = c.X, Z = c.Z })],
+                Cells = [.. cells.Select(c => new RimGovernor.Brain.Domain.Cell { X = c.X, Z = c.Z })],
                 AccessCell = access,
             }, cancellationToken).ConfigureAwait(false);
             s.RecordWire(label, snapshot);
@@ -180,7 +180,7 @@ internal static class ProductionBuriedSteel
     {
         var ore = s.Staged!.Buildings["ore"];
         var at = ore.Cells.Single();
-        var cell = new Common.Cell { X = at.X, Z = at.Z };
+        var cell = new RimGovernor.Brain.Domain.Cell { X = at.X, Z = at.Z };
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         var apply = await s.CallAsync("designate", NativeOps.Apply, new Operations.ApplyRequest
         {
@@ -194,7 +194,7 @@ internal static class ProductionBuriedSteel
                     {
                         Designation = Operations.ThingDesignation.Mine,
                         Target = new Common.Ref { Id = ore.Ids.Single() },
-                        Cell = cell,
+                        Location = new Operations.DesignationLocation.At(cell),
                         Guard = Operations.DesignationGuard.Acquisition,
                         ExpectedDef = "Steel", ReplaceWithWall = false, Withdraw = false },
                 },

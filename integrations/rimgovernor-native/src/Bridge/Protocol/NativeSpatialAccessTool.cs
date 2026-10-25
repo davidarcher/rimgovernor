@@ -42,7 +42,7 @@ namespace HomeBridge.BridgeTools
         internal static bool Validate(Obs.SpatialAccessRequest request, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out Common.Failure? failure)
         {
             failure = null;
-            if (request.BlockedCells.Concat(request.TargetCells).Any(c => c == null || c.X < 0 || c.Z < 0))
+            if (request.BlockedCells.Concat(request.TargetCells).Any(c => c.X < 0 || c.Z < 0))
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Every cell needs nonnegative x and z.");
             else if (request.BlockedCells.Select(Native).Distinct().Count() != request.BlockedCells.Count || request.TargetCells.Select(Native).Distinct().Count() != request.TargetCells.Count)
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Duplicate cells.");
@@ -130,7 +130,7 @@ namespace HomeBridge.BridgeTools
             return new Obs.SpatialAccessSnapshot { Context = context, Pawns = [.. rows] };
         }
 
-        private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
+        private static IntVec3 Native(RimGovernor.Brain.Domain.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         private static DomainCell Cell(IntVec3 cell) => new DomainCell(cell.x, cell.z);
         private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
         private sealed class ReadLimit : Exception { internal ReadLimit(string message) : base(message) { } }

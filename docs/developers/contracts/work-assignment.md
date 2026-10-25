@@ -10,14 +10,28 @@ a pawn's settings; the work review dispatches the differences as a
 `WorkSettingsIntent` on Actions/Apply. The plan owns every
 priority: no player edit is exempt, and a differing readback is replaced.
 
+The admin work-assignment review names its lifecycle: `AwaitingPlanner` before
+coverage is planned, `Settled` when no assignment, setting or coupled activity is
+owed, and `Owed` otherwise. A known owed setting remains owed before coverage is
+planned. The Need requires a completed review of its current world; a previous
+world's settled review cannot certify it.
+
+Admin family inputs use named states: burial and stockpile sections are
+`NotComposed`, `Settled` or `Owed`; the ledger starts `Unread` and work assignments
+start `AwaitingPlanner`. A composed Need requires its completed current review.
+Neither an absent section nor an invalid enum value can certify it as met.
+
 ## Pawn profile
 
 `policy.BuildProfile` reads a `PawnProfile` from the same `WorkPawn` the review
-already carries (`RoundsWork.cs`): skills with the effective
+already carries (`RoundsWork.cs`): the actual native skill rows, including learning evidence, with the effective
 level, the stored level beneath aptitude, passion and disabled flag; traits with
 degree; the backstory-incapable work types; biological age (`Child` from the Biotech developmental stage).
-Unknown traits, incapable rows or age leave those parts empty and the planner
-skill-only for that pawn; they never make the review unknown.
+The profile retains the complete canonical native pawn row. Identity, skills,
+incapable work types, age, inspiration and timetable hours are read from that row;
+catalog-derived trait, gene and work values stay alongside it. Missing required
+native inputs fail the read. An absent skill is explicitly missing, and absent
+Biotech is the named inactive state.
 
 Trait effects are read from the TraitDef rows of the catalog at observation
 time (`DefinitionCatalog.TraitEffects`) and carried on each
@@ -49,7 +63,7 @@ sociability and mood (always-active thought offsets, and the worst negative stag
 of each situational thought the trait requires). The weights are the one table
 in `TraitWorth.cs`.
 
-`ProfileSkill.LearnFactor` is the passion multiplier (none 0.35, minor 1.0,
+`PawnRules.SkillLearnFactor` is the passion multiplier (none 0.35, minor 1.0,
 major 1.5) scaled by `1 + LearnRate`.
 
 ## Planner
@@ -101,7 +115,7 @@ For each:
 `WorkDecision.Coverage` lists demand, owners and capable count per type
 (`RoundsFacts.WorkRoster`: `WorkRosterRead.Read` once the planner planned, `Unread` otherwise;
 `RoundsFacts.WorkCoverage` is the `WorkCoverageState` Unread, Matched or Unmatched).
-The pawn census the planner reads is `ColonyProjection.WorkPawns`, a `WorkPawnsRead` containing every colonist's row. A complete census with no colonists is empty; an absent native census fails the read. `Capacity` is false when a required type or a core
+The pawn census the planner reads is `RoundsFacts.ForecastObserved.WorkPawns`, a `WorkPawnsRead` containing every colonist's row. A complete census with no colonists is empty; an absent native census fails the read. `Capacity` is false when a required type or a core
 role (Doctor, Cooking, Construction, Growing) found no owner. `Matches`
 compares the proposal to the readback with checkbox semantics when manual
 priorities are off (enabled or not, never the rank).
@@ -294,6 +308,8 @@ covers that work type and a catalog work mech kind lists it; a guard otherwise;
 nothing with no free bandwidth. With a single control group threat beats work:
 `Escort` while a hostile is on the map or the group holds only guards, `Work`
 otherwise.
+
+Gestation and recharge retain the native Biotech colony records directly. A gestator is active when its bill relation is present; a charger is busy when its charging-mech relation is present. Waste policy reads the same native wastepack rows, without separate projected copies.
 
 Recharging (`MechRecharge.cs`) rides the same group mode. Each mech row
 carries `PawnMech.energy` (`Need_MechEnergy`, 0-1) and its control group's own

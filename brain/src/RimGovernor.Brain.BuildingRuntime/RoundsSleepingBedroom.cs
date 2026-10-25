@@ -9,11 +9,11 @@ partial class RoundsSleepingUpkeepPlanner
     /// The projection's next bedroom step: none without the layout plan, the room census or the sleeping
     /// census. A tribe builds its wood bedrooms at Camp tier too.
     /// </summary>
-    internal static Pol.BedroomStep BedroomStepOf(Observation.ColonyProjection facts)
+    internal static Pol.BedroomStep BedroomStepOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var sleeping = facts.Facts.Sleeping;
         if (!pk)
         {
@@ -29,11 +29,11 @@ partial class RoundsSleepingUpkeepPlanner
     /// layout plan, the room census or the sleeping census. An unread gain is named in <paramref name="findings"/>.
     /// </summary>
     internal static (IReadOnlyDictionary<int, EquatableArray<string>> Bedrooms, IReadOnlyDictionary<int, Pol.RoyalRoomNeed> Royal) PlannedOccupantsOf(
-        Observation.ColonyProjection facts, ISet<string> findings)
+        RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, ISet<string> findings)
     {
         var sleeping = facts.Facts.Sleeping;
-        var rooms = facts.Rooms;
-        if (facts.LayoutPlan is not { } plan)
+        var rooms = facts.Facts.Upkeep.Rooms;
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return (new Dictionary<int, EquatableArray<string>>(), new Dictionary<int, Pol.RoyalRoomNeed>());
         }
@@ -47,11 +47,11 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>The projection's next wing migration step: none without the layout plan, the room census or the sleeping census.</summary>
-    internal static Pol.BedroomStep MigrateStep(Observation.ColonyProjection facts)
+    internal static Pol.BedroomStep MigrateStep(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var sleeping = facts.Facts.Sleeping;
         if (!pk)
         {
@@ -61,7 +61,7 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>The rooms' quality targets, so a bedroom move leaves an ascetic's NeverUpgrade room alone; null while the census is unknown.</summary>
-    internal static Dictionary<string, Pol.RoomTarget>? BedroomTargets(Observation.ColonyProjection facts)
+    internal static Dictionary<string, Pol.RoomTarget>? BedroomTargets(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var obs = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
@@ -69,17 +69,17 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return null;
         }
-        facts.TechTier.TryGetValue(out var tier);
-        return RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness);
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
+        return RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Facts.Impressiveness);
     }
 
     /// <summary>
     /// The target-sized bedrooms the station graph sizes (#2939): the plan's suites with their owners' targets
     /// and the claims no vacant suite answers; null while the room, sleeping or work census is unknown.
     /// </summary>
-    internal static IReadOnlyList<Pol.SuiteWish>? SuiteWishesOf(Observation.ColonyProjection facts, Pol.LayoutPlan plan)
+    internal static IReadOnlyList<Pol.SuiteWish>? SuiteWishesOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, Pol.LayoutPlan plan)
     {
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var sleeping = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
         if (traits is null)
@@ -92,11 +92,11 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>Excludes pawns awaiting a suite; their current rooms receive no in-place quality upgrade.</summary>
-    internal static IReadOnlyDictionary<string, Pol.RoomTarget> UpgradeTargetsOf(Observation.ColonyProjection facts, IReadOnlyDictionary<string, Pol.RoomTarget>? targets)
+    internal static IReadOnlyDictionary<string, Pol.RoomTarget> UpgradeTargetsOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, IReadOnlyDictionary<string, Pol.RoomTarget>? targets)
     {
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var sleeping = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
         if (!pk || traits is null)
@@ -111,13 +111,13 @@ partial class RoundsSleepingUpkeepPlanner
     /// The review's BedroomsOwed for the projection. A due room quality swap or wing migration owes a
     /// bedroom too, so the sleeping Need stays unmet until it is done.
     /// </summary>
-    internal static bool BedroomsOwedOf(Observation.ColonyProjection facts)
+    internal static bool BedroomsOwedOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
-        if (SleepingRules.BedroomsOwed(facts.LayoutPlan, facts.Rooms, facts.Facts.Sleeping, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts)))
+        if (SleepingRules.BedroomsOwed(facts.Facts.LayoutPlan, facts.Facts.Upkeep.Rooms, facts.Facts.Sleeping, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts)))
         {
             return true;
         }
-        if (facts.LayoutPlan is null)
+        if (facts.Facts.LayoutPlan is null)
         {
             return false;
         }
@@ -142,7 +142,7 @@ partial class RoundsSleepingUpkeepPlanner
         step.Unhoused <= 0 ? "" : string.Create(CultureInfo.InvariantCulture, $"room for {step.Unhoused} unhoused");
 
     /// <summary>Orders the suite queue by the pawns' current bedroom, space and jealousy thoughts; null (pawn-id order) while the mood census is unknown.</summary>
-    internal static Dictionary<PawnId, double>? SuitePressure(Observation.ColonyProjection facts) =>
+    internal static Dictionary<PawnId, double>? SuitePressure(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts) =>
         SuitePriorityRules.SuitePressure(facts.Facts.MoodPawns);
 }
 
@@ -154,27 +154,27 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// on site only when none is stored. A vacant bed left in the starter shell is packed to become that stock;
     /// a placement native refuses means wait.
     /// </summary>
-    internal async Task<RoundsBuildingResult> ReconcileBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.BedroomStep step, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> ReconcileBedroomAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, RoundsReading reading, Pol.BedroomStep step, CancellationToken call, CancellationToken epoch)
     {
-        var facts = reading.Projection;
+        var facts = reading.Reading;
         // A suite is only started with its whole ring in stock.
         if (step.Room.Role == Pol.PlannedRole.Suite)
         {
             var inside = step.Room.Region.Bounds();
-            var walls = facts.StockedStuff("Wall")?.Count ?? 0;
+            var walls = ColonyPlanningRules.StockedStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), "Wall")?.Count ?? 0;
             if (walls < 2 * (inside.Width + inside.Height) + 4)
             {
                 return new RoundsBuildingResult { Verdict = BuildingReasonSuiteStock };
             }
         }
         var request = SleepingRequest(facts, review);
-        var (bed, method) = SleepingRules.SleepingDefinition(facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true);
+        var (bed, method) = SleepingRules.SleepingDefinition(facts.Facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true);
         if (method != Pol.SleepingMethod.Build)
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonSleepingUnavailable };
         }
-        var rooms = facts.Rooms;
-        if (facts.LayoutPlan is not { } plan)
+        var rooms = facts.Facts.Upkeep.Rooms;
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("layout_plan") };
         }

@@ -60,11 +60,13 @@ public sealed record Dependency(ActionId Action, bool Completed, GenerationSnaps
 
 /// <summary>
 /// Bound to the exact action, including resolved anchor/rotation/stuff, and read whole from one native evaluation
-/// (or built whole by a planner's stand-in). SafeToPlace includes normal-game legality and absence of destructive
+/// or named explicitly as a planned zone. SafeToPlace includes normal-game legality and absence of destructive
 /// side effects; CanPlace alone does not establish that existing objects will be preserved.
 /// </summary>
 public sealed record Preview
 {
+    public required PreviewSource Source { get; init; }
+
     public required DomainAction Action { get; init; }
 
     public required GenerationSnapshot Snapshot { get; init; }
@@ -73,13 +75,28 @@ public sealed record Preview
 
     public required bool SafeToPlace { get; init; }
 
-    public required bool MadeFromStuff { get; init; }
+    public bool MadeFromStuff => Source switch
+    {
+        PreviewSource.Native native => native.Observed.MadeFromStuff,
+        PreviewSource.Zone => false,
+        PreviewSource invalid => throw new DomainException($"invalid preview source: {invalid}"),
+    };
 
     /// <summary>Whether every eligible colonist can reach a watch cell; <see cref="WatchAccess.NotWatched"/> for a definition no recreation watches.</summary>
-    public required WatchAccess WatchCells { get; init; }
+    public WatchAccess WatchCells => Source switch
+    {
+        PreviewSource.Native native => native.Orientation.WatchCells,
+        PreviewSource.Zone => WatchAccess.NotWatched,
+        PreviewSource invalid => throw new DomainException($"invalid preview source: {invalid}"),
+    };
 
     /// <summary>A wind turbine's obstructed catch-zone cells; <see cref="BuildingWind.NotWindTurbine"/> for every other definition.</summary>
-    public required BuildingWind Wind { get; init; }
+    public BuildingWind Wind => Source switch
+    {
+        PreviewSource.Native native => native.Orientation.Wind,
+        PreviewSource.Zone => new BuildingWind.NotWindTurbine(),
+        PreviewSource invalid => throw new DomainException($"invalid preview source: {invalid}"),
+    };
 
     /// <summary>The occupied and interaction cells the placement claims; never empty for a native evaluation.</summary>
     public required EquatableArray<Cell> Footprint { get; init; }
@@ -87,7 +104,22 @@ public sealed record Preview
     public required EquatableArray<Amount> Costs { get; init; }
 
     /// <summary>Distinguishes deliberate replacement from accidental destruction. Admission still requires SafeToPlace.</summary>
-    public required EquatableArray<PlacementBlocker> Blockers { get; init; }
+    public EquatableArray<RimGovernor.Contracts.Wire.Placement.PlacementBlocker> Blockers => Source switch
+    {
+        PreviewSource.Native native => native.Orientation.BlockingThings,
+        PreviewSource.Zone => [],
+        PreviewSource invalid => throw new DomainException($"invalid preview source: {invalid}"),
+    };
+}
+
+public abstract record PreviewSource
+{
+    private PreviewSource() { }
+    public sealed record Native(RimGovernor.Contracts.Wire.Placement.PlacementEvaluated Observed, int OrientationIndex) : PreviewSource
+    {
+        public RimGovernor.Contracts.Wire.Placement.PlacementRotation Orientation => Observed.Rotations[OrientationIndex];
+    }
+    public sealed record Zone : PreviewSource;
 }
 
 public static class PreviewRules
@@ -99,12 +131,9 @@ public static class PreviewRules
         Snapshot = snapshot,
         CanPlace = true,
         SafeToPlace = true,
-        MadeFromStuff = false,
-        WatchCells = WatchAccess.NotWatched,
-        Wind = new BuildingWind.NotWindTurbine(),
+        Source = new PreviewSource.Zone(),
         Footprint = cells,
         Costs = [],
-        Blockers = [],
     };
 
     /// <summary>Whether native found no colonist able to reach a watch cell; a definition nothing watches is never unreachable.</summary>
@@ -112,22 +141,6 @@ public static class PreviewRules
 
     /// <summary>A wind turbine whose native catch zone is clear; every other preview is not one.</summary>
     public static bool ClearWindTurbine(Preview p) => p.Wind is BuildingWind.WindTurbine { BlockedCells: 0 };
-}
-
-/// <summary>One thing the previewed placement would disturb.</summary>
-public sealed record PlacementBlocker
-{
-    public string Category { get; init; } = "";
-
-    public string DefName { get; init; } = "";
-
-    public bool Wiped { get; init; }
-
-    public bool Blueprint { get; init; }
-
-    public bool Frame { get; init; }
-
-    public bool Cancelled { get; init; }
 }
 
 public sealed record Candidate

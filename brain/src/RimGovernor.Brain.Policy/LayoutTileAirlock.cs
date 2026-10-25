@@ -162,9 +162,9 @@ internal sealed partial class Tiler
             NoteAirlock(-1, LayoutTileRules.ReasonTileAirlockTemperate, LayoutTileRules.TilePlace);
             return false;
         }
-        var known = In.OutdoorCurve.TryGetValue(out var curve);
+        var curve = In.OutdoorCurve;
         var m = In.Catalog.Climate;
-        if (!known || !m.Valid() || !QuestCapacityForecast.FinitePositive(In.SteelValue))
+        if (!m.Valid() || !QuestCapacityForecast.FinitePositive(In.SteelValue))
         {
             NoteAirlock(-1, LayoutTileRules.ReasonTileAirlockUnpriced, LayoutTileRules.TileUnsatisfied);
             return false;
@@ -188,7 +188,7 @@ internal sealed partial class Tiler
             List<ClimateOption> options;
             try
             {
-                options = ClimateRules.ClimateOptions(m, SiteRules.DefaultSiteTypeWeights(), In.SteelValue, curve!, new ClimateRoom { Cells = room.Region.Area(), Band = band },
+                options = ClimateRules.ClimateOptions(m, SiteRules.DefaultSiteTypeWeights(), In.SteelValue, curve, new ClimateRoom { Cells = room.Region.Area(), Band = band },
                     new ClimateSide { Outdoors = true }, movements.GetValueOrDefault(room.Id), [Opening.Door, Opening.Airlock]);
             }
             catch (DomainException)

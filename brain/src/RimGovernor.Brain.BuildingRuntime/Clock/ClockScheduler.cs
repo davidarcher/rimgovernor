@@ -29,7 +29,7 @@ public interface IClockStepNative : IZonesNative, IPlanningWindowNative, IEntity
     Task<PbObservations.BundleSnapshot?> ReadStepAsync(StepRequest request, CancellationToken ct);
 
     /// <summary>The world progression census, read on demand by the incoming expedition handoff.</summary>
-    Task<WorldProgressionRead> ReadWorldProgressionAsync(PbCommon.Identity identity, CancellationToken ct);
+    Task<RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot> ReadWorldProgressionAsync(PbCommon.Identity identity, CancellationToken ct);
 }
 
 /// <summary>
@@ -76,7 +76,7 @@ public sealed partial class ClockScheduler
     /// The observation scope this step read with its clock status (#3556): the family entries' reads validate
     /// against it instead of each hopping to the game thread for the tick. Null until the step has read its status.
     /// </summary>
-    internal Observation.Identity? StepIdentity { get; private set; }
+    internal ObservationIdentity? StepIdentity { get; private set; }
     private volatile bool _running;
 
     public ClockScheduler(Player player, IClockStepNative native, ClockSchedulerConfig config, IClock clock)
@@ -177,7 +177,7 @@ public sealed partial class ClockScheduler
 
     /// <summary>The store scope an observation context establishes: the load token, map and native generation.</summary>
     internal static FactScope FactScope(PbCommon.ObservationContext context) =>
-        new(context.Identity.LoadToken, context.Identity.MapId, context.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var generation } ? generation : 0UL);
+        new(context.Identity.LoadToken, context.Identity.MapId, context.NativeGeneration switch { PbCommon.ObservedGeneration.AtCase { Value: > 0 } at => at.Value, PbCommon.ObservedGeneration.UnclaimedCase => 0, null => throw new ObservationContractException("missing native generation state"), PbCommon.ObservedGeneration unexpected => throw new ObservationContractException($"invalid native generation state {unexpected}") });
 
     /// <summary>
     /// Why a step that runs planners runs the rounder first, or null when its planners read the last committed
@@ -314,7 +314,7 @@ public sealed partial class ClockScheduler
                 ClockEvents.AuthorityLost("clock status is behind the scope tick");
                 throw new EvidenceException("clock status is behind the scope tick");
             }
-            StepIdentity = DecodeReads.ContextIdentity(status.Context);
+            StepIdentity = new ObservationIdentity { Context = status.Context };
             _running = status.State == PbClock.ClockState.Running;
             result.HoldSerial = status.HoldSerial;
             reason = reason with { TickAdvanced = !_lastTickKnown || statusTick != _lastTick };

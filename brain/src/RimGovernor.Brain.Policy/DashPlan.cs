@@ -258,7 +258,7 @@ public static class DashPlanRules
             var plan = PlanDash(new DashRequest
             {
                 Now = now,
-                Temperature = f.OutdoorTemperature,
+                Temperature = f.Census.OutdoorTemperatureC,
                 ComfortMin = body.ComfortableMinC,
                 Severity = body.Hypothermia,
                 Speed = body.MoveSpeed,

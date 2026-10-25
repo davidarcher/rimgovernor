@@ -1,4 +1,3 @@
-using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
 namespace RimGovernor.Brain.Policy;
 
 public sealed record RoundsPolicy
@@ -106,7 +105,7 @@ public sealed record RoundsPolicy
 /// diet/rot-aware stock runway. FieldCoverage is the separate native crop-capacity forecast; it never
 /// increases FoodDays.
 /// </summary>
-public sealed record RoundsFacts
+public sealed partial record RoundsFacts
 {
     /// <summary>The player's standing preferences (the goals record's); owning policies read them and never propose what they forbid. The default is the behavior without any.</summary>
     public PreferencesRecord Preferences { get; init; } = new();
@@ -187,14 +186,13 @@ public sealed record RoundsFacts
 
     public RecoverySafety RecoverySafety { get; init; } = new();
 
-    public EquatableArray<RecoveryWorker> RecoveryWorkers { get; init; }
 
     public EquatableArray<DisasterCondition> DisasterConditions { get; init; }
 
     /// <summary>The colony biome's permanent darkness: its map conditions include a no-sunlight class.</summary>
     public bool OutdoorsDark { get; init; }
 
-    public EquatableArray<RecoveryBuilding> RecoveryBuildings { get; init; }
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.BuildingState> RecoveryBuildings { get; init; }
 
     public DisasterHistory? Disaster { get; init; }
 
@@ -261,7 +259,6 @@ public sealed record RoundsFacts
     public ProductionPromiseSet ProductionPromises { get; init; } = new ProductionPromiseSet.Blocked(ProductionPromiseBlock.AwaitingReview);
 
     public WorkAdmissionObservation WorkAdmission { get; init; } = new();
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn> WorkResources { get; init; }
     public WorkResourceClaims? WorkClaims { get; init; }
     public WorkResourceView? WorkView { get; init; }
 
@@ -295,10 +292,8 @@ public sealed record RoundsFacts
     /// <summary>The Safe allowed area differs from the enclosed roofed rooms (SafeAreaCells); it keeps the shelter/safe-area Need unmet. Unknown unless that Need is composed.</summary>
     public SafeAreaStatus SafeAreaOwed { get; init; }
 
-
-
     /// <summary>The finished buildings the held rituals' patterns require (observation, from the frame's building census).</summary>
-    public EquatableArray<RitualSite> RitualSites { get; init; }
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.BuildingState> RitualSites { get; init; }
 
     /// <summary>The Safe allowed area's native load id, "" when the map has none (PlanSheltering).</summary>
     public string ShelterArea { get; init; } = "";
@@ -389,16 +384,10 @@ public sealed record RoundsFacts
 
     public EquatableArray<JoinerLetter> JoinerLetters { get; init; } = [];
 
-    public double RaidPoints { get; init; }
+    private RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot? census;
 
-    /// <summary>The def names of the hostile factions that can raid; the harm model's raid composition reads them.</summary>
-    public EquatableArray<string> HostileFactions { get; init; }
-
-    /// <summary>The running storyteller def name (Find.Storyteller.def); the threat schedule (#3539) looks its comps up by it.</summary>
-    public string Storyteller { get; init; } = "";
-
-    /// <summary>GenDate.DaysPassedFloat: the days into the game the storyteller's comps gate on.</summary>
-    public double DaysPassed { get; init; }
+    /// <summary>The canonical native census retained by this review; a missing census refuses planning.</summary>
+    public RimGovernor.Contracts.Wire.Observations.ColonyFactsSnapshot Census { get => census ?? throw new RequiredFactException("colony census"); init => census = value; }
 
     /// <summary>The storyteller defs' threat comps from the catalog (#3539), read by ThreatSchedule.Of; empty without a catalog.</summary>
     public ThreatScheduleTable ThreatTable { get; init; } = new();
@@ -409,8 +398,6 @@ public sealed record RoundsFacts
     /// <summary>The catalog's storyteller disease comps, biomes and disease incidents (#3824), read by IllnessSchedule.Of; empty without a catalog.</summary>
     public DiseaseTable DiseaseTable { get; init; } = new();
 
-    /// <summary>The colony's disease facts (#3824); null when the threat section or its disease read was not observed.</summary>
-    public RimGovernor.Contracts.Wire.Observations.DiseaseFacts? Disease { get; init; }
 
     /// <summary>The built mortars' shell targets (ArmoryShellsRules.MortarShellTargets), read once per review: ShellsShort and the armory declarer's shell orders derive from them (#3566). Empty without a built mortar or a known threat.</summary>
     public EquatableArray<Amount> ShellTargets { get; init; }
@@ -422,7 +409,7 @@ public sealed record RoundsFacts
     public double DefenseCapacity { get; init; }
 
     /// <summary>The total native corpse census that MorgueWaiting and the tomb census read.</summary>
-    public EquatableArray<WasteItem> Waste { get; init; }
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WasteItem> Waste { get; init; }
 
     /// <summary>The map trader census (bridge.ListTraders) the economy/caravan Need needs; a source without the read leaves it unknown and the goal off.</summary>
     public EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader> Traders { get; init; }
@@ -490,9 +477,6 @@ public sealed record RoundsFacts
     /// <summary>The colony's pawns as quest capacity reads them; Unseen without a complete pawn census.</summary>
     public QuestPawns QuestPawns { get; init; } = new QuestPawns.Unseen();
 
-    /// <summary>What the current map's quest workers can do, from the world census.</summary>
-    public EquatableArray<QuestWorkCapacity> QuestWorkCapacity { get; init; } = [];
-
     /// <summary>The caravans and forming assemblies the world census holds.</summary>
     public EquatableArray<ExpeditionTrip> QuestExpeditionTrips { get; init; } = [];
 
@@ -504,12 +488,6 @@ public sealed record RoundsFacts
 
     /// <summary>Every work pawn's typed profile (Profiles); a presentation fact the review records, never a planner input.</summary>
     public EquatableArray<PawnProfile> WorkProfiles { get; init; }
-
-    public long Colonists { get; init; }
-
-    public long BedCapacity { get; init; }
-
-    public long IndoorCapacity { get; init; }
 
     public long GrowingCells { get; init; }
 
@@ -533,15 +511,10 @@ public sealed record RoundsFacts
     public ConstructionHelpRecord? WorkHelp { get; init; }
 
     /// <summary>
-    /// The tile's native growing calendar (policy.Calendar). InspectRounds widens the policy's food and wood
+    /// The tile's canonical native growing calendar. InspectRounds widens the policy's food and wood
     /// targets by its harvest gap (RoundsPolicy.Seasonal) before measuring any latch. Every colony read carries it.
     /// </summary>
-    public Calendar Calendar { get; init; }
-
-    /// <summary>The coldest and warmest eligible sleeping room: <see cref="SleepingTemperature.Indoor"/>, or <see cref="SleepingTemperature.NoIndoorBed"/> when no sleeping room is measured.</summary>
-    public SleepingTemperature SleepingTemperature { get; init; } = new SleepingTemperature.NoIndoorBed();
-
-    public double OutdoorTemperature { get; init; }
+    public RimGovernor.Contracts.Wire.Observations.FoodClimate Calendar => Census.FoodClimate;
 
     public double PowerHeadroom { get; init; }
 
@@ -571,7 +544,6 @@ public sealed record RoundsFacts
     public EquatableArray<PawnValue> PreviousPawnValues { get; init; }
     public EssentialServiceInputs EssentialInputs { get; init; } = new();
 
-    public long Wood { get; init; }
 
     /// <summary>The refuelable buildings of the power census (FuelRunway).</summary>
     public EquatableArray<FuelConsumer> Fuel { get; init; }
@@ -582,9 +554,6 @@ public sealed record RoundsFacts
     /// <summary>The player's unfinished gear bills with their recipe slots (OpenBillDemand): ingredient demand ResourceDemandOf counts.</summary>
     public EquatableArray<OpenBill> OpenBills { get; init; }
 
-    /// <summary>The generic reachable, unforbidden player item census (the same colony facts rows Wood is taken from), so the economy/resource Need's deficit is measured at review time instead of assumed from config.</summary>
-    public EquatableArray<Amount> Resources { get; init; }
-    public EquatableArray<string> ResourceThings { get; init; }
 
     /// <summary>The safe surface ore per material the consumption ring names; a material without an entry (its source read failed, or none was read) has none.</summary>
     public IReadOnlyDictionary<Resource, long> ResourceSurfaceOre { get; init; } = new Dictionary<Resource, long>();
@@ -597,11 +566,11 @@ public sealed record RoundsFacts
     /// <summary>The colonists whose drug policy permits each social drug (DrugUsers); it sets the drug runway's reserve before any dose is observed.</summary>
     public IReadOnlyDictionary<Resource, long>? DrugUsers { get; init; }
 
-    /// <summary>The colony wealth split the economy/caravan Need's wealth-driven surplus keys on; unknown leaves that surplus out.</summary>
-    public WealthFacts Wealth { get; init; } = null!;
 
-    /// <summary>The native research state read inside the same paused identity bracket as the other routine facts; every routine frame reads it, so null only on a projection no routine frame built.</summary>
-    public ResearchFacts? Research { get; init; }
+    private ResearchFacts? research;
+
+    /// <summary>The native research state read inside the same paused identity bracket as the other routine facts. A projection without a routine census refuses research planning.</summary>
+    public ResearchFacts Research { get => research ?? throw new RequiredFactException("research census"); init => research = value; }
 
     /// <summary>The sorted ResearchProjectDefs other goals' recorded evidence is waiting on (the workshop ladder's research rung); the first unfinished one is the economy/research Need.s target.</summary>
     public EquatableArray<string> ResearchNeeds { get; init; }
@@ -669,9 +638,6 @@ public sealed record RoundsFacts
     /// <summary>An owned pawn whose short name an older owned pawn holds; the admin/work-assignments Need renames it.</summary>
     public bool NamesOwed { get; init; }
 
-    /// <summary>The standing butcher benches and the room each stands in; the food/supply Need's butcher facility is met once a table stands outside the kitchen.</summary>
-    public EquatableArray<ButcherBench> ButcherBenches { get; init; }
-
     /// <summary>A stocked kitchen stands ready to cook.</summary>
     public bool Cooking { get; init; }
 
@@ -735,7 +701,7 @@ public sealed record RoundsFindings
 
     /// <summary>Whether the review owes work assignments, settings or coupled activities (WorkAssignmentsOwed), which the admin/work-assignments Need reads; derived, not saved.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
-    public Fact<bool> WorkAssignments { get; set; }
+    public WorkAssignmentsReview WorkAssignments { get; set; }
     public EssentialServiceReview? EssentialServices { get; set; }
 }
 
@@ -767,13 +733,13 @@ public static partial class RoundsRules
     // and the food ladder (FoodProgress) read the ones they need.
 
     /// <summary>The colonist count the foothold sizes for.</summary>
-    internal static long FootholdCount(RoundsFacts f) => f.Colonists;
+    internal static long FootholdCount(RoundsFacts f) => f.Census.ColonistCount;
 
-    internal static bool FootholdSleeping(RoundsFacts f) => FootholdCount(f) > 0 && f.BedCapacity >= FootholdCount(f);
+    internal static bool FootholdSleeping(RoundsFacts f) => FootholdCount(f) > 0 && f.Census.BedCapacity >= FootholdCount(f);
 
-    internal static bool FootholdShelter(RoundsFacts f) => FootholdCount(f) > 0 && f.IndoorCapacity >= FootholdCount(f);
+    internal static bool FootholdShelter(RoundsFacts f) => FootholdCount(f) > 0 && f.Census.IndoorSleepingCapacity >= FootholdCount(f);
 
-    internal static bool FootholdProduction(RoundsFacts f) => f.Colonists > 0 && f.GrowingCells >= f.Colonists * 10;
+    internal static bool FootholdProduction(RoundsFacts f) => f.Census.ColonistCount > 0 && f.GrowingCells >= f.Census.ColonistCount * 10;
 
     internal static bool FootholdFood(RoundsFacts f, RoundsPolicy p) => Reached(f.FoodDays, p.FootholdFoodDays);
 
@@ -782,7 +748,7 @@ public static partial class RoundsRules
         (runway ?? throw new RequiredFactException("food runway")).Reaches(days);
 
     internal static bool FootholdTemperature(RoundsFacts f, RoundsPolicy p) =>
-        f.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.Indoor indoor && indoor.MinC >= p.ColdEnter && indoor.MaxC <= p.HotEnter;
+        f.Census.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.Indoor indoor && indoor.MinC >= p.ColdEnter && indoor.MaxC <= p.HotEnter;
 
     internal static bool FootholdPower(RoundsFacts f)
     {
@@ -864,14 +830,14 @@ public static partial class RoundsRules
             throw new DomainException("invalid calendar fact");
         }
         p = p.Seasonal(f.Calendar, f.DisasterConditions);
-        var medicine = MedicalRules.ReviewMedicalReserve(f.MedicalReserve with { Colonists = f.Colonists }, previous.MedicalReserve, p.MedicalReserve);
+        var medicine = MedicalRules.ReviewMedicalReserve(f.MedicalReserve with { Census = f.Census }, previous.MedicalReserve, p.MedicalReserve);
         p.Validate();
         // The colonist and capacity counts are native unsigned counts and need no check.
         if (f.GrowingCells < 0 || f.GrowingCells > long.MaxValue / 10) throw new DomainException("invalid growing cell count");
         if (f.Hostiles is not HostileCensus.AwaitingEmergency && f.Hostiles.ThreatCount > long.MaxValue / 10)
             throw new DomainException("invalid routine hostile count");
         if (f.CriticalPatients < 0 || f.UrgentPatients < 0) throw new DomainException("invalid patient count");
-        if (f.Wood < 0 || f.Wood > long.MaxValue / 10)
+        if (f.WoodStock() < 0 || f.WoodStock() > long.MaxValue / 10)
         {
             throw new DomainException("invalid routine count");
         }
@@ -881,7 +847,7 @@ public static partial class RoundsRules
         }
         if (!double.IsFinite(f.FieldCoverage))
             throw new DomainException("nonfinite routine fact");
-        if (!double.IsFinite(f.OutdoorTemperature))
+        if (!double.IsFinite(f.Census.OutdoorTemperatureC))
         {
             throw new DomainException("nonfinite routine fact");
         }
@@ -927,8 +893,8 @@ public static partial class RoundsRules
     /// </summary>
     internal static bool ButcherFacilityMet(RoundsFacts f)
     {
-        var benches = f.ButcherBenches;
-        if (benches.Count == 0)
+        var benches = f.EssentialInputs.Benches.Where(b => b.Butcher).ToArray();
+        if (benches.Length == 0)
         {
             return false;
         }
@@ -962,12 +928,4 @@ public static partial class RoundsRules
 
     /// <summary>The free, instant butcher bench that stands in the planned butchery until the table is built.</summary>
     public const string ButcherSpotDefinition = "ButcherSpot";
-}
-
-/// <summary>A standing butcher bench and the room it stands in (none outdoors).</summary>
-public sealed record ButcherBench
-{
-    public string Definition { get; init; } = "";
-
-    public string? Room { get; init; }
 }

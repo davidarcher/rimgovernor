@@ -215,7 +215,7 @@ internal sealed class SchedulerLoop
     // retried, as a full step because the scheduler replans after the cancellation, and never counts toward the fault
     // limit that suspends authority.
     internal static bool IsRetry(Exception? error, bool faulted) =>
-        faulted && error is OperationCanceledException or RimGovernor.Brain.Executor.AuthorityException or RimGovernor.Brain.Observation.ObservationChangedException or ControlException or RimGovernor.Brain.Executor.HeldException;
+        faulted && error is OperationCanceledException or RimGovernor.Brain.Executor.AuthorityException or RimGovernor.Brain.Bridge.Contracts.ObservationChangedException or ControlException or RimGovernor.Brain.Executor.HeldException;
 
     /// <summary>
     /// Runs <paramref name="work"/> on the pool and waits for it on this thread, bounded by the watchdog. A work

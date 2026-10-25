@@ -14,7 +14,7 @@ public sealed class ClockWatchBreakTests
 
     private static EmergencyPawn Colonist(string id, bool breaking) => EmergencyFixtures.Colonist(id) with
     {
-        MentalState = breaking ? new MentalState { DefName = "Slaughterer", IsAggro = true, TicksInState = 10 } : null,
+        Observed = EmergencyFixtures.Placed(id, 10, 10) with { MentalState = breaking ? new RimGovernor.Contracts.Wire.Observations.PawnMentalState { DefName = "Slaughterer", IsAggro = true, Ticks = 10 } : null },
     };
 
     private static EmergencyThreat Raider(string id) => EmergencyFixtures.Threat(id);

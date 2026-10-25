@@ -29,12 +29,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static (DefenseCut Cut, bool Known) DefensePerimeterCut(RoundsReading read)
     {
-        var projection = read.Projection;
-        if (projection.LayoutPlan is not { } plan)
+        var projection = read.Reading;
+        if (projection.Facts.LayoutPlan is not { } plan)
         {
             return (new DefenseCut(), false);
         }
-        var cut = new DefenseCut { Plan = plan, Bridge = DefensePerimeterBridge(projection), LampReach = projection.Stations.Light.StandingReach() };
+        var cut = new DefenseCut { Plan = plan, Bridge = DefensePerimeterBridge(projection), LampReach = projection.Facts.Stations.Light.StandingReach() };
         var q = DefenseTurretRequest(read).Turret;
         if (DefenseResearched(projection, DefenseMoistureResearch))
         {
@@ -71,8 +71,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return sections;
     }
 
-    internal static bool DefenseResearched(ColonyProjection projection, string project) =>
-        projection.Facts.Research is { } research && research.Finished.Contains(new ResearchProjectId(project));
+    internal static bool DefenseResearched(ColonyReading projection, string project) =>
+        projection.Facts.Research.Finished.Contains(new ResearchProjectId(project));
 
     internal static string DefenseBuildingKey(DefenseBuilding b) =>
         string.Create(CultureInfo.InvariantCulture, $"{b.Definition}@{b.Cell.X},{b.Cell.Z}/{b.Stuff}");

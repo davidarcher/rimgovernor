@@ -1,32 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
-
-public sealed record PowerSite : PowerBuilding
-{
-    public string Id { get; init; } = "";
-
-    public string Definition { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
-    public IReadOnlyList<Cell> Occupied { get; init; } = [];
-}
-
-/// <summary>One steam geyser as the census reports it.</summary>
-public sealed record PowerGeyser
-{
-    public string Id { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
-    public IReadOnlyList<Cell> Cells { get; init; } = [];
-
-    public bool Occupied { get; init; }
-}
 
 public sealed record PowerTopology
 {
@@ -437,13 +413,13 @@ public static partial class PowerRules
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var b in v.Buildings)
         {
-            if (!FoodForecastRules.FoodId(b.Id) || !FoodForecastRules.FoodId(b.Definition) || seen.Contains(b.Id) || !Inside(b.Cell) || b.Occupied.Count < 1)
+            if (!FoodForecastRules.FoodId(b.Id) || !FoodForecastRules.FoodId(b.Definition) || seen.Contains(b.Id) || !Inside(b.Cell) || b.OccupiedCells.Count < 1)
             {
                 throw new DomainException("invalid power building geometry");
             }
             seen.Add(b.Id);
             var footprint = new HashSet<Cell>();
-            foreach (var c in b.Occupied)
+            foreach (var c in b.OccupiedCells)
             {
                 if (!Inside(c) || !footprint.Add(c))
                 {
@@ -689,7 +665,7 @@ public static partial class PowerRules
                         continue;
                     }
                     destinations.Add(b.Cell);
-                    foreach (var c in b.Occupied)
+                    foreach (var c in b.OccupiedCells)
                     {
                         existing.Add(c);
                     }
@@ -733,7 +709,7 @@ public static partial class PowerRules
                 continue;
             }
             destinations.Add(b.Cell);
-            foreach (var c in b.Occupied)
+            foreach (var c in b.OccupiedCells)
             {
                 occupied.Add(c);
             }
@@ -788,7 +764,7 @@ public static partial class PowerRules
     {
         int minX = target.Cell.X, maxX = target.Cell.X, minZ = target.Cell.Z, maxZ = target.Cell.Z;
         var occupied = new HashSet<Cell>();
-        foreach (var c in target.Occupied)
+        foreach (var c in target.OccupiedCells)
         {
             minX = Math.Min(minX, c.X);
             maxX = Math.Max(maxX, c.X);

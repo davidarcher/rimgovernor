@@ -4,7 +4,6 @@ using RimGovernor.Contracts.Wire.Observations;
 using RimWorld;
 using Verse;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;
 
@@ -71,7 +70,7 @@ public sealed class StockArrivalCatalogTests
         // The production way (#3822): the catalog's recipes, the bills census's benches and a crafting colonist as the read boundary
         // fills them, to the replacement the autopilot would book for a lost arm with no arm on the map.
         var recipes = Catalog().StockRecipes(new HashSet<string>());
-        StockCrafter[] crafters = [new("Anna", 8, [WorkType.Crafting], [new SkillLevel("Crafting", 10)], [new WorkSpeedRead("GeneralLaborSpeed", 1)])];
+        PawnState[] crafters = [StockArrivalTestFacts.Crafter("Anna", 10, 1)];
         var stock = new Dictionary<Resource, long> { [new Resource("Plasteel")] = 100 };
         var replacement = new OrganReplacementRead("Arm", "InstallBionicArm")
         {
@@ -84,7 +83,7 @@ public sealed class StockArrivalCatalogTests
         Assert.Equal((null, SurgeryWantReason.PartShort), (pick, reason));
 
         // A fabrication bench at 1x: 8 hours × 2500 ticks ÷ 10 000 work, 2 arms a day; 100 plasteel pays for 6.
-        var built = StockArrivalRules.Craft(recipes, [new StockBench("FabricationBench", true, 1)], crafters, stock) with { Medicines = [new Resource("MedicineHerbal")] };
+        var built = StockArrivalRules.Craft(recipes, [StockArrivalTestFacts.Bench("FabricationBench", true, 1)], crafters, stock) with { Medicines = [new Resource("MedicineHerbal")] };
         var source = Assert.Single(built.Sources);
         Assert.Equal((new Resource("BionicArm"), 2.0, 6L), (source.Resource, source.PerDay, source.Units));
         (pick, reason, var wait) = SurgeryRules.RestorePick([(replacement, 1.0)], built, 30);
@@ -260,7 +259,7 @@ public sealed class StockArrivalCatalogTests
         };
         var bills = new BillsSnapshot { Context = census.Context, Benches = [] };
         var pawns = new PawnSnapshot { Context = census.Context, Pawns = [] };
-        return RimGovernor.Brain.Observation.StockArrivalReads.Of(catalog, new HashSet<string>(), bills, pawns, census, [new Resource("MedicineHerbal")]);
+        return RimGovernor.Brain.Bridge.StockArrivalReads.Of(catalog, new HashSet<string>(), bills, pawns, census, [new Resource("MedicineHerbal")]);
     }
 
     private static (double Expected, StockArrival Stock) ArmWait(DefinitionCatalog catalog, string storyteller)
@@ -290,10 +289,13 @@ public sealed class StockArrivalCatalogTests
         Assert.Contains(TradeArrivalRules.OrbitalNoComms, stock.Findings);
         Assert.Contains(TradeArrivalRules.SilverIncomeUnmodelled, stock.Findings);
 
-        // Without the native read the stock is unread and a wait on it throws.
+        // An observed empty colony is valid; an omitted required trader census fails the read.
         var bare = ColonyFactsCoreTests.Snapshot();
-        var unread = RimGovernor.Brain.Observation.StockArrivalReads.Of(catalog, new HashSet<string>(), new BillsSnapshot { Context = bare.Context, Benches = [] }, null, bare, [new Resource("MedicineHerbal")]);
-        Assert.Equal("stock_arrival_trade_facts", unread.Unread);
+        var empty = RimGovernor.Brain.Bridge.StockArrivalReads.Of(catalog, new HashSet<string>(), new BillsSnapshot { Context = bare.Context, Benches = [] }, null, bare, [new Resource("MedicineHerbal")]);
+        Assert.Equal("", empty.Unread);
+        var missing = bare with { Threat = bare.Threat with { Observed = bare.Threat.Observed with { Trade = null! } } };
+        Assert.Equal("trader visit observation", Assert.Throws<RequiredFactException>(() =>
+            RimGovernor.Brain.Bridge.StockArrivalReads.Of(catalog, new HashSet<string>(), new BillsSnapshot { Context = bare.Context, Benches = [] }, null, missing, [new Resource("MedicineHerbal")])).Fact);
     }
 
     [Fact]
@@ -323,7 +325,7 @@ public sealed class StockArrivalCatalogTests
         var items = ItemFactsFixtureRules.CoreItemFacts();
         var review = MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
         {
-            Colonists = 3, Catalog = items, Items = [], Resources = [],
+            Catalog = items, Items = [], Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, Resources = [] },
         }, false, MedicalReservePolicy.Default());
         Assert.Equal((true, 9L), (review.Active, review.Replenish));
 

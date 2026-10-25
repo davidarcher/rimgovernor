@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using System.Text.Json;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
@@ -96,30 +97,6 @@ public sealed class RoundsRecoverySafetyConverter : ObjectCodec<RoundsRecoverySa
     protected override void WriteFields(Utf8JsonWriter w, RoundsRecoverySafety v, Codecs o) => w.Put("Restrictions", v.Restrictions, o);
 }
 
-public sealed class RoundsRecoveryWorkerConverter : ObjectCodec<RoundsRecoveryWorker>
-{
-    protected override RoundsRecoveryWorker Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Pawn = new PawnId(e.Str("Pawn")),
-            Dead = e.Bool("Dead"),
-            Downed = e.Bool("Downed"),
-            Drafted = e.Bool("Drafted"),
-            Mental = e.Bool("Mental"),
-            PlayerForced = e.Bool("PlayerForced"),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, RoundsRecoveryWorker v, Codecs o)
-    {
-        w.WriteString("Pawn", v.Pawn.Value);
-        w.WriteBoolean("Dead", v.Dead);
-        w.WriteBoolean("Downed", v.Downed);
-        w.WriteBoolean("Drafted", v.Drafted);
-        w.WriteBoolean("Mental", v.Mental);
-        w.WriteBoolean("PlayerForced", v.PlayerForced);
-    }
-}
-
 /// <summary>The review's retained recovery selection (#3304: it had no codec, so a disaster review could not be written).</summary>
 public sealed class RecoverySelectionConverter : ObjectCodec<RecoverySelection>
 {
@@ -153,7 +130,7 @@ public sealed class RecoveryCandidateConverter : ObjectCodec<RecoveryCandidate>
             HitPoints = e.GetNullable<int>("HitPoints", o) is { } current
                 ? new BuildingHitPoints.Tracked { Current = current, Maximum = e.I32("MaxHitPoints") }
                 : new BuildingHitPoints.Untracked(),
-            Fuel = e.GetNullable<double>("Fuel", o) is { } level ? new RecoveryFuel.Refuelable(level, e.Dbl("FuelTarget")) : new RecoveryFuel.NotRefuelable(),
+            Fuel = e.Get<O.BuildingFuel>("Fuel", o),
             PriorArea = e.Has("PriorArea") ? e.Str("PriorArea") : null,
         };
 
@@ -169,11 +146,7 @@ public sealed class RecoveryCandidateConverter : ObjectCodec<RecoveryCandidate>
             w.WriteNum("HitPoints", hp.Current);
             w.WriteNum("MaxHitPoints", hp.Maximum);
         }
-        if (v.Fuel is RecoveryFuel.Refuelable fuel)
-        {
-            w.WriteNum("Fuel", fuel.Level);
-            w.WriteNum("FuelTarget", fuel.Target);
-        }
+        w.Put("Fuel", v.Fuel, o);
         if (v.PriorArea is null)
         {
             w.WriteNull("PriorArea");
@@ -182,34 +155,6 @@ public sealed class RecoveryCandidateConverter : ObjectCodec<RecoveryCandidate>
         {
             w.WriteString("PriorArea", v.PriorArea);
         }
-    }
-}
-
-public sealed class RoundsRecoveryBuildingConverter : ObjectCodec<RoundsRecoveryBuilding>
-{
-    protected override RoundsRecoveryBuilding Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Id = e.Str("ID"),
-            Broken = e.Bool("Broken"),
-            Forbidden = e.Bool("Forbidden"),
-            Burning = e.Bool("Burning"),
-            HitPoints = e.GetNullable<int>("HitPoints", o),
-            MaxHitPoints = e.GetNullable<int>("MaxHitPoints", o),
-            Fuel = e.GetNullable<double>("Fuel", o),
-            FuelTarget = e.GetNullable<double>("FuelTarget", o),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, RoundsRecoveryBuilding v, Codecs o)
-    {
-        w.WriteString("ID", v.Id);
-        w.WriteBoolean("Broken", v.Broken);
-        w.WriteBoolean("Forbidden", v.Forbidden);
-        w.WriteBoolean("Burning", v.Burning);
-        w.PutNullable("HitPoints", v.HitPoints, o);
-        w.PutNullable("MaxHitPoints", v.MaxHitPoints, o);
-        w.PutNullable("Fuel", v.Fuel, o);
-        w.PutNullable("FuelTarget", v.FuelTarget, o);
     }
 }
 
@@ -222,8 +167,8 @@ public sealed class RoundsRecoveryConverter : ObjectCodec<RoundsRecovery>
             World = e.Get<World>("World", o),
             Used = e.GetOr("Used", default(EquatableArray<MethodId>), o),
             Safety = e.Get<RoundsRecoverySafety>("Safety", o),
-            Workers = e.Get<EquatableArray<RoundsRecoveryWorker>>("Workers", o),
-            Buildings = e.Get<EquatableArray<RoundsRecoveryBuilding>>("Buildings", o),
+            Workers = e.Get<EquatableArray<MoodPawn>>("Workers", o),
+            Buildings = e.Get<EquatableArray<O.BuildingState>>("Buildings", o),
             Selection = e.Get<RecoverySelection>("Selection", o),
         };
 
@@ -250,51 +195,12 @@ public sealed class RoundsMoodCauseConverter : ObjectCodec<RoundsMoodCause>
     }
 }
 
-public sealed class RoundsMoodPawnConverter : ObjectCodec<RoundsMoodPawn>
-{
-    protected override RoundsMoodPawn Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Break = e.GetNullableRef<MentalState>("Break", o),
-            Id = new PawnId(e.Str("ID")),
-            Mood = e.Get<MoodLevel>("Mood", o),
-            Threshold = e.Dbl("Threshold"),
-            Food = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Food", o),
-            Rest = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Rest", o),
-            Joy = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Joy", o),
-            Mental = e.Bool("Mental"),
-            Dead = e.Bool("Dead"),
-            Downed = e.Bool("Downed"),
-            Drafted = e.Bool("Drafted"),
-            PlayerForced = e.Bool("PlayerForced"),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, RoundsMoodPawn v, Codecs o)
-    {
-        if (v.Break is { } brk)
-        {
-            w.Put("Break", brk, o);
-        }
-        w.WriteString("ID", v.Id.Value);
-        w.Put("Mood", v.Mood, o);
-        w.WriteNum("Threshold", v.Threshold);
-        w.Put("Food", v.Food, o);
-        w.Put("Rest", v.Rest, o);
-        w.Put("Joy", v.Joy, o);
-        w.WriteBoolean("Mental", v.Mental);
-        w.WriteBoolean("Dead", v.Dead);
-        w.WriteBoolean("Downed", v.Downed);
-        w.WriteBoolean("Drafted", v.Drafted);
-        w.WriteBoolean("PlayerForced", v.PlayerForced);
-    }
-}
-
 public sealed class RoundsMoodStateConverter : ObjectCodec<RoundsMoodState>
 {
     protected override RoundsMoodState Read(JsonElement e, Codecs o) =>
         new()
         {
-            Pawn = e.Get<RoundsMoodPawn>("Pawn", o),
+            Pawn = e.Get<MoodPawn>("Pawn", o),
             Active = e.Bool("Active"),
             Missing = e.Bool("Missing"),
             MentalRisk = e.Bool("MentalRisk"),

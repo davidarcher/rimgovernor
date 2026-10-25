@@ -32,7 +32,7 @@ public sealed record IdeologyFacts
     public ConversionOwed Conversion { get; init; } = ConversionOwed.None;
 
     /// <summary>The ideoligion's development state: what a reform waiting for points reports. The reader fills it with the reform.</summary>
-    public IdeoDevelopment Development { get; init; }
+    public RimGovernor.Contracts.Wire.Observations.IdeoDevelopment? Development { get; init; }
 }
 
 /// <summary>
@@ -129,7 +129,8 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
             {
                 if (facts.Reform is { Comparison.Decision: DesignDecision.Awaiting })
                 {
-                    output.Add(NeedMethod.Held(Reform, FormattableString.Invariant($"{DevelopmentPoints}:{facts.Development.DevelopmentPoints}/{facts.Development.NextReformPoints}"), "The next reform waits for development points."));
+                    var fluid = facts.Development as RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid ?? throw new RequiredFactException("fluid ideoligion development");
+                    output.Add(NeedMethod.Held(Reform, FormattableString.Invariant($"{DevelopmentPoints}:{fluid.Points}/{fluid.NextReformPoints}"), "The next reform waits for development points."));
                     continue;
                 }
                 output.Add(facts.Intent is { } intent && facts.Reform is { Comparison: { } comparison }

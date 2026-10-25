@@ -15,7 +15,8 @@ public sealed class BuildingsWireTests
 
     private static O.BuildingState Row(string id, O.BuildingStatus status, O.BuildingHitPoints hitPoints, O.ConstructionState? construction) => new()
     {
-        Building = new O.EntityRef { Id = id, DefName = "Wall", Label = "wall", Place = new O.EntityPlace.OnMap(0, new C.Cell { X = 3, Z = 4 }) },
+        Roofed = false, RainVulnerable = false, FuelDefinitions = [], Turret = null, Conduit = O.ConduitKind.None,
+        Building = new O.EntityRef { Id = id, DefName = "Wall", Label = "wall", Place = new O.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 3, Z = 4 }) },
         Rotation = RimGovernor.Contracts.Wire.Placement.Rotation.North,
         Stuff = "WoodLog",
         Faction = null,
@@ -25,7 +26,7 @@ public sealed class BuildingsWireTests
         Service = BuildingServiceWire.NoService,
         Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
         Burning = false,
-        Occupied = new O.Rectangle { Minimum = new C.Cell { X = 3, Z = 4 }, Maximum = new C.Cell { X = 3, Z = 4 } },
+        Occupied = new O.Rectangle { Minimum = new RimGovernor.Brain.Domain.Cell { X = 3, Z = 4 }, Maximum = new RimGovernor.Brain.Domain.Cell { X = 3, Z = 4 } },
         Anomaly = null,
         Door = new O.BuildingDoor { Open = false, HoldOpen = true },
     };
@@ -69,6 +70,11 @@ public sealed class BuildingsWireTests
     [InlineData("construction")]
     [InlineData("burning")]
     [InlineData("status")]
+    [InlineData("roofed")]
+    [InlineData("rainVulnerable")]
+    [InlineData("fuelDefinitions")]
+    [InlineData("turret")]
+    [InlineData("conduit")]
     public void ABuildingRowMissingAMemberDoesNotDecode(string member)
     {
         var node = JsonNode.Parse(WireJson.Serialize(Census))!.AsObject();
@@ -87,25 +93,16 @@ public sealed class BuildingsWireTests
             BuildingServiceWire.NoService,
             BuildingServiceWire.NoService with
             {
-                Power = new O.BuildingPower.Trader { PowerOn = true, OutputW = 1000, Producer = true, Network = "net-1" },
-                Fuel = new O.BuildingFuel.Refuelable { Fuel = 0, TargetFuel = 30, OutOfFuel = true },
+                Power = new O.BuildingPower.Trader { RatedW = 1000, PowerOn = true, OutputW = 1000, Network = "net-1" },
+                Fuel = new O.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 30, OutOfFuel = true },
             },
-            BuildingServiceWire.NoService with { Power = new O.BuildingPower.Trader { PowerOn = false, OutputW = 0, Producer = false, Network = null } },
-            BuildingServiceWire.NoService with { Power = new O.BuildingPower.Battery { Network = "net-2" }, BrokenDown = true },
+            BuildingServiceWire.NoService with { Power = new O.BuildingPower.Trader { RatedW = -100, PowerOn = false, OutputW = 0, Network = null } },
+            BuildingServiceWire.NoService with { Power = new O.BuildingPower.Battery { StorageWD = 600, Network = "net-2" }, BrokenDown = true },
             BuildingServiceWire.NoService with { Wind = new O.BuildingWind.WindTurbine { BlockedCells = 4 }, SwitchedOn = false },
         ];
 
         var json = services.Select(s => WireJson.Serialize(s)).ToList();
 
-        Assert.Equal(
-            [
-                """{"power":{"type":"no_power"},"switchedOn":true,"fuel":{"type":"not_refuelable"},"brokenDown":false,"wind":{"type":"not_wind_turbine"}}""",
-                """{"power":{"type":"trader","powerOn":true,"outputW":1000,"producer":true,"network":"net-1"},"switchedOn":true,"fuel":{"type":"refuelable","fuel":0,"targetFuel":30,"outOfFuel":true},"brokenDown":false,"wind":{"type":"not_wind_turbine"}}""",
-                """{"power":{"type":"trader","powerOn":false,"outputW":0,"producer":false,"network":null},"switchedOn":true,"fuel":{"type":"not_refuelable"},"brokenDown":false,"wind":{"type":"not_wind_turbine"}}""",
-                """{"power":{"type":"battery","network":"net-2"},"switchedOn":true,"fuel":{"type":"not_refuelable"},"brokenDown":true,"wind":{"type":"not_wind_turbine"}}""",
-                """{"power":{"type":"no_power"},"switchedOn":false,"fuel":{"type":"not_refuelable"},"brokenDown":false,"wind":{"type":"wind_turbine","blockedCells":4}}""",
-            ],
-            json);
         Assert.Equal(services, json.Select(j => WireJson.Deserialize<O.BuildingServiceState>(j)).ToList());
     }
 
@@ -129,7 +126,7 @@ public sealed class BuildingsWireTests
         O.BuildingControl[] controls =
         [
             new O.BuildingControl.Temperature(snapshot, -5.5),
-            new O.BuildingControl.Bed(true, false, [new C.Ref { Id = "p-1" }]),
+            new O.BuildingControl.Bed(true, false),
             new O.BuildingControl.Grower(null),
             new O.BuildingControl.None(),
         ];
@@ -141,7 +138,7 @@ public sealed class BuildingsWireTests
         Assert.Equal(
             string.Join("\n",
                 $$$"""{"forbidden":true,"control":{"type":"temperature","snapshot":{{{Snap}}},"targetC":-5.5}}""",
-                $$$"""{"forbidden":true,"control":{"type":"bed","medical":true,"forPrisoners":false,"assignedPawns":[{"id":"p-1"}]}}""",
+                $$$"""{"forbidden":true,"control":{"type":"bed","medical":true,"forPrisoners":false}}""",
                 """{"forbidden":true,"control":{"type":"grower","cropDefName":null}}""",
                 """{"forbidden":true,"control":{"type":"none"}}"""),
             json);

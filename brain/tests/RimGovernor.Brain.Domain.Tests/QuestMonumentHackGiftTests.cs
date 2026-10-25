@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -34,7 +33,7 @@ public sealed class QuestMonumentHackGiftTests
     private static Pb.QuestObjective Objective => QuestStateTests.Objective(Pb.QuestObjectiveKind.ProduceItem);
 
     private static RoundsFacts Facts(Pb.QuestState offer, QuestFamily family) =>
-        QuestStateTests.WithQuests(new RoundsFacts(), [offer], QuestStateTests.Root(offer.ScriptDef, new QuestProfile { Family = family }));
+        QuestStateTests.WithQuests(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() }, [offer], QuestStateTests.Root(offer.ScriptDef, new QuestProfile { Family = family }));
 
     private static QuestMonumentMethod Select(Pb.QuestMonument marker) => QuestMonumentPolicy.SelectQuestMonument(
         [Ongoing("BuildMonument", Objective with { Monument = marker })],

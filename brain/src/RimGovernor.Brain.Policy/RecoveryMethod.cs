@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -6,36 +7,18 @@ using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoi
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A pawn's player area restriction: the area's load id, or empty when the pawn is unrestricted.</summary>
-public sealed record RecoveryRestriction(PawnId Pawn, string Area);
-
 public sealed record RecoverySafety
 {
-    public EquatableArray<RecoveryRestriction> Restrictions { get; init; }
-}
-
-public sealed record RecoveryWorker
-{
-    public PawnId Pawn { get; init; }
-
-    public bool Dead { get; init; }
-
-    public bool Downed { get; init; }
-
-    public bool Drafted { get; init; }
-
-    public bool Mental { get; init; }
-
-    public bool PlayerForced { get; init; }
+    public EquatableArray<O.RecoveryRestriction> Restrictions { get; init; }
 }
 
 public sealed record RecoveryPlanning
 {
     public RecoverySafety Safety { get; init; } = new();
 
-    public EquatableArray<RecoveryWorker> Workers { get; init; }
+    public EquatableArray<MoodPawn> Workers { get; init; }
 
-    public EquatableArray<RecoveryBuilding> Buildings { get; init; }
+    public EquatableArray<O.BuildingState> Buildings { get; init; }
 
     /// <summary>Throws when the planning facts are inconsistent.</summary>
     public void Validate()
@@ -44,11 +27,11 @@ public sealed record RecoveryPlanning
         var pawns = new HashSet<PawnId>();
         foreach (var r in Safety.Restrictions)
         {
-            if (!FoodForecastRules.FoodId(r.Pawn.Value) || !pawns.Add(r.Pawn))
+            if (!FoodForecastRules.FoodId(r.Pawn.Id) || !pawns.Add(new PawnId(r.Pawn.Id)))
             {
                 throw new DomainException("invalid recovery restriction pawn");
             }
-            if (r.Area.Length != 0 && !FoodForecastRules.FoodId(r.Area))
+            if (r.AreaId is { } area && !FoodForecastRules.FoodId(area))
             {
                 throw new DomainException("invalid current restriction");
             }
@@ -56,7 +39,7 @@ public sealed record RecoveryPlanning
         var seen = new HashSet<PawnId>();
         foreach (var w in Workers)
         {
-            if (!FoodForecastRules.FoodId(w.Pawn.Value) || !seen.Add(w.Pawn))
+            if (!FoodForecastRules.FoodId(w.Id.Value) || !seen.Add(w.Id))
             {
                 throw new DomainException("invalid recovery worker");
             }
@@ -106,7 +89,7 @@ public sealed record RecoveryCandidate
     public required BuildingHitPoints HitPoints { get; init; }
 
     /// <summary>The building's fuel when selected: part of the id, as the hit points are.</summary>
-    public required RecoveryFuel Fuel { get; init; }
+    public required O.BuildingFuel Fuel { get; init; }
 
     public string? PriorArea { get; init; }
 
@@ -118,7 +101,7 @@ public sealed record RecoveryCandidate
             + ",\"Building\":" + GearRules.GoJsonString(Building)
             + ",\"Method\":" + GearRules.GoJsonString(Wire.Name(Method))
             + ",\"HitPoints\":" + (HitPoints is BuildingHitPoints.Tracked h ? h.Current.ToString(CultureInfo.InvariantCulture) : "null")
-            + ",\"Fuel\":" + (Fuel is RecoveryFuel.Refuelable f ? RecoveryRules.GoJsonFloat(f.Level) : "null")
+            + ",\"Fuel\":" + (Fuel is O.BuildingFuel.Refuelable f ? RecoveryRules.GoJsonFloat(f.Fuel) : "null")
             + ",\"PriorArea\":" + (PriorArea is { } a ? GearRules.GoJsonString(a) : "null") + "}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(json));
         return new MethodId("recovery-" + Convert.ToHexStringLower(hash.AsSpan(0, 16)));
@@ -156,13 +139,13 @@ public sealed record RecoverySelection
             {
                 throw new DomainException("invalid recovery candidate identity");
             }
-            if (c.HitPoints is BuildingHitPoints.Tracked { Current: < 0 } || (c.Fuel is RecoveryFuel.Refuelable fuel && !FoodForecastRules.FoodNumber(fuel.Level)))
+            if (c.HitPoints is BuildingHitPoints.Tracked { Current: < 0 } || (c.Fuel is O.BuildingFuel.Refuelable fuel && !FoodForecastRules.FoodNumber(fuel.Fuel)))
             {
                 throw new DomainException("invalid recovery candidate state");
             }
             if (c.Kind != RecoveryProposalKind.ServiceWork || !FoodForecastRules.FoodId(c.Building)
                 || (c.Method != RecoveryMethod.Refuel && c.Method != RecoveryMethod.Breakdown && c.Method != RecoveryMethod.Repair)
-                || (c.Method == RecoveryMethod.Refuel && c.Fuel is not RecoveryFuel.Refuelable) || (c.Method == RecoveryMethod.Repair && c.HitPoints is not BuildingHitPoints.Tracked))
+                || (c.Method == RecoveryMethod.Refuel && c.Fuel is not O.BuildingFuel.Refuelable) || (c.Method == RecoveryMethod.Repair && c.HitPoints is not BuildingHitPoints.Tracked))
             {
                 throw new DomainException("invalid recovery service proposal");
             }
@@ -239,9 +222,9 @@ public static partial class RecoveryRules
     /// create a replacement while that work is still running. This is derived from the census, not a second
     /// commitment ledger. Unknown jobs/targets cannot establish that work stopped.
     /// </summary>
-    public static bool RecoveryWorkContinuing(RecoveryService service, EquatableArray<RecoveryBuilding> buildings, WorkPawnsRead pawns)
+    public static bool RecoveryWorkContinuing(RecoveryService service, EquatableArray<O.BuildingState> buildings, WorkPawnsRead pawns)
     {
-        var work = DisasterRules.RecoveryPending([.. buildings.Where(b => b.Id == service.Thing)]);
+        var work = DisasterRules.RecoveryPending([.. buildings.Where(b => b.Building.Id == service.Thing)]);
         var needed = false;
         foreach (var need in work)
         {
@@ -319,19 +302,19 @@ public static partial class RecoveryRules
         {
             throw new DomainException("recovery worker and restriction censuses disagree");
         }
-        var byPawn = new Dictionary<PawnId, RecoveryWorker>();
+        var byPawn = new Dictionary<PawnId, MoodPawn>();
         foreach (var w in workers)
         {
-            byPawn[w.Pawn] = w;
+            byPawn[w.Id] = w;
         }
         foreach (var r in safety.Restrictions)
         {
-            if (!byPawn.ContainsKey(r.Pawn))
+            if (!byPawn.ContainsKey(new PawnId(r.Pawn.Id)))
             {
-                throw new DomainException($"recovery restriction has no worker: {r.Pawn.Value}");
+                throw new DomainException($"recovery restriction has no worker: {r.Pawn.Id}");
             }
         }
-        var available = new List<RecoveryWorker>();
+        var available = new List<MoodPawn>();
         foreach (var w in workers)
         {
             if (!w.Dead && !w.Downed && !w.Drafted && !w.Mental)
@@ -340,7 +323,7 @@ public static partial class RecoveryRules
             }
         }
         // A player-forced job is costlier to interrupt than an ordinary one.
-        available = available.OrderBy(w => w.PlayerForced ? 1 : 0).ThenBy(w => w.Pawn).ToList();
+        available = available.OrderBy(w => w.PlayerForced ? 1 : 0).ThenBy(w => w.Id).ToList();
         if (available.Count == 0)
         {
             return output with { Reason = RecoverySelectionReason.NoWorker };
@@ -361,11 +344,11 @@ public static partial class RecoveryRules
         var restrictions = new Dictionary<PawnId, string>();
         foreach (var r in safety.Restrictions)
         {
-            restrictions[r.Pawn] = r.Area;
+            restrictions[new PawnId(r.Pawn.Id)] = r.AreaId ?? "";
         }
         var eligible = available;
         var work = DisasterRules.RecoveryPending(buildings);
-        var byBuilding = buildings.ToDictionary(b => b.Id, StringComparer.Ordinal);
+        var byBuilding = buildings.ToDictionary(b => b.Building.Id, StringComparer.Ordinal);
         foreach (var w in eligible)
         {
             if (candidates.Count >= 8)
@@ -382,12 +365,12 @@ public static partial class RecoveryRules
                 Add(new RecoveryCandidate
                 {
                     Kind = RecoveryProposalKind.ServiceWork,
-                    Pawn = w.Pawn,
+                    Pawn = w.Id,
                     Building = job.Building,
                     Method = job.Method,
                     HitPoints = b.HitPoints,
-                    Fuel = b.Fuel,
-                    PriorArea = restrictions[w.Pawn],
+                    Fuel = b.Service.Fuel,
+                    PriorArea = restrictions[w.Id],
                 });
             }
         }

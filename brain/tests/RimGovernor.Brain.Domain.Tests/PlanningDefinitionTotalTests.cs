@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using RimGovernor.Contracts.Wire.Observations;
@@ -84,11 +84,15 @@ public sealed class PlanningDefinitionTotalTests
         {
             PlantedCells = 8, FertilePlantedCells = 8, GrowthTotal = 4, FertilityFactorTotal = 8,
         };
-        var calendar = new Calendar
+        var calendar = new FoodClimate
         {
-            Season = "Summer", DayOfYear = 1, GrowingDays = 60, GrowingDaysRemaining = 59,
+            Season = "Summer", DayOfYear = 1, GrowingDays = 60, GrowingDaysRemaining = 60,
+            GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)),
+            GrowingDaysUntil = 0, NonGrowingDays = 0, SowingNow = true,
         };
         var field = Assert.Single(ColonyProductionReads.ColonyFoodFields([farm], [cotton], calendar));
+        Assert.Same(farm, field.Observed);
+        Assert.Same(farm, Assert.IsType<FieldExposure.FromZone>(field.Exposure).Observed);
         Assert.False(field.Plan.Crop.Edible);
         Assert.Equal(new Resource("Cloth"), field.Plan.Crop.Harvests);
         Assert.NotNull(ClothingDemandRules.GrowingFieldCandidate(field.Plan.Crop.Harvests,
@@ -102,7 +106,13 @@ public sealed class PlanningDefinitionTotalTests
     {
         var flowers = Rice with { Name = "Plant_Rose", Harvest = null };
         var farm = ZoneFixtures.Growing("flowers", flowers.Name, 8);
-        Assert.Empty(ColonyProductionReads.ColonyFoodFields([farm], [flowers], new Calendar()));
+        var calendar = new FoodClimate
+        {
+            Season = "Summer", DayOfYear = 1, GrowingDays = 60, GrowingDaysRemaining = 60,
+            GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)),
+            GrowingDaysUntil = 0, NonGrowingDays = 0, SowingNow = true,
+        };
+        Assert.Empty(ColonyProductionReads.ColonyFoodFields([farm], [flowers], calendar));
         Assert.Empty(ColonyProductionReads.ColonyFieldCrops([farm], [flowers]));
         Assert.Throws<RequiredFactException>(() => ColonyProductionReads.ColonyFieldCrops([farm], []));
     }

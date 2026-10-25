@@ -35,7 +35,7 @@ public static class DeliveryCreditHuntExtensions
         var corpses = new Dictionary<string, FoodStock>(StringComparer.Ordinal);
         foreach (var s in stocks)
         {
-            if (s.Corpse)
+            if (s.IsCorpse())
             {
                 corpses[s.Id] = s;
             }

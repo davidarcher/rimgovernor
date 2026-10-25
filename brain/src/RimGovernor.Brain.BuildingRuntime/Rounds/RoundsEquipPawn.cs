@@ -6,7 +6,7 @@ internal static class RoundsEquipPawn
     /// <summary>The dining furniture and the joy buildings of the definition catalog, for the recreation foothold.</summary>
     internal static async Task<(DiningFurniture Furniture, List<string> Joy)> RecreationDefinitionsAsync(object native, C.Identity identity, CancellationToken ct)
     {
-        if (native is not Observation.IDefinitionSource source)
+        if (native is not IDefinitionSource source)
         {
             throw new InvalidOperationException("native serves no definition catalog for the recreation foothold");
         }
@@ -18,5 +18,5 @@ internal static class RoundsEquipPawn
 
     /// <summary>The definition catalog of the native source; null when the source serves none.</summary>
     internal static async Task<DefinitionCatalog?> PawnCatalogAsync(object native, C.Identity identity, CancellationToken ct) =>
-        native is Observation.IDefinitionSource source ? await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false) : null;
+        native is IDefinitionSource source ? await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false) : null;
 }

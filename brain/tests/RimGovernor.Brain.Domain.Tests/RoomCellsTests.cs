@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.BuildingRuntime;
@@ -55,6 +56,94 @@ public sealed class RoomCellsTests
         Assert.Empty(outside.Things);
     }
 
+    [Fact]
+    public void AClippedWindowRetainsThePublishedGridAndExactRowIndex()
+    {
+        var source = Grid(10, 20, 3, 2, [true, true, false, true, true, true], [null, null, null, null, 7, null]);
+        var things = new RimGovernor.Brain.Policy.Thing[] { new() { Def = "Wall", Flags = RimGovernor.Brain.Policy.ThingMarks.Edifice } };
+        source.Things[4] = things;
+        source.Walkable[4] = true;
+        source.Indoors[4] = true;
+        source.Doorway[4] = true;
+        source.Polluted[4] = true;
+        source.FoundationRemoval[4] = true;
+        source.StorageStacks[4] = 2;
+        source.StorageCapacity[4] = 3;
+        source.Fertility[4] = .75f;
+        source.Glow[4] = .5f;
+        source.Roof[4] = "RoofConstructed";
+        source.ZoneId[4] = "Zone_1";
+        source.Terrain[4] = "WoodPlankFloor";
+        source.BaseTerrain[4] = "Soil";
+        var frame = new FrameCellGrid(source);
+        var rectangle = new RimGovernor.Brain.Policy.Rectangle(11, 20, 2, 2);
+        var (cells, fogged) = frame.Window(rectangle);
+
+        Assert.Equal(1UL, fogged);
+        Assert.Equal([1, 4, 5], cells.Select(c => c.Index));
+        Assert.All(cells, c => Assert.Same(source, c.Native));
+        var row = cells[1];
+        Assert.Equal(new Cell(11, 21), row.Cell);
+        Assert.Same(things, row.Things);
+        Assert.Equal(row, new RimGovernor.Brain.Policy.SiteCell(source, 4));
+        Assert.NotEqual(row, new RimGovernor.Brain.Policy.SiteCell(source, 5));
+        Assert.True(row.Walkable);
+        Assert.True(row.Indoors);
+        Assert.True(row.Doorway);
+        Assert.True(row.Polluted);
+        Assert.True(row.FoundationRemoval);
+        Assert.Equal(2, row.StorageStacks);
+        Assert.Equal(3, row.StorageCapacity);
+        Assert.Equal(.75, row.Fertility);
+        Assert.Equal(.5, row.Glow);
+        Assert.True(row.Roofed);
+        Assert.Equal(source.Roof[4], row.Roof);
+        Assert.True(row.Zone);
+        Assert.Equal(source.ZoneId[4], row.ZoneId);
+        Assert.Equal(source.Terrain[4], row.Terrain);
+        Assert.Equal(source.BaseTerrain[4], row.BaseTerrain);
+        Assert.Equal(new RimGovernor.Brain.Policy.CellRoom.InRoom(7), row.Room);
+        Assert.Same(cells, frame.Window(rectangle).Cells);
+    }
+
+    [Fact]
+    public void FoggedCellsCannotBeExposedAsObservedRows()
+    {
+        var source = Grid(0, 0, 1, 1, [false], [7]);
+        // Other columns have values, but Held alone says whether they represent facts.
+        source.Roof[0] = "RoofConstructed";
+        Assert.Throws<RequiredFactException>(() => new RimGovernor.Brain.Policy.SiteCell(source, 0));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(2)]
+    public void CellIndicesMustLieInsideTheNativeGrid(int index)
+    {
+        var source = Grid(10, 20, 2, 1, [true, true], [null, null]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new RimGovernor.Brain.Policy.SiteCell(source, index));
+    }
+
+    [Fact]
+    public void AHeldArrayCannotAuthorizeAnIndexBeyondTheGridRectangle()
+    {
+        var source = Grid(0, 0, 1, 1, [true, true], [null]);
+        Assert.Throws<ArgumentOutOfRangeException>(() => new RimGovernor.Brain.Policy.SiteCell(source, 1));
+    }
+
+    [Fact]
+    public void GrowingRoomEligibilityDoesNotEraseTheObservedRoof()
+    {
+        var row = SiteCellFixtures.At(new(2, 3), roof: "RoofConstructed", indoors: true, room: 7);
+
+        Assert.False(RimGovernor.Brain.Policy.CropChoiceRules.FreeCropSoil(row, .5, null).Ok);
+        Assert.True(RimGovernor.Brain.Policy.CropChoiceRules.FreeCropSoilUnderRoof(row, .5, null).Ok);
+        Assert.False(RimGovernor.Brain.Policy.CropChoiceRules.FreeCropSoilUnderRoof(row, .5, new HashSet<Cell> { row.Cell }).Ok);
+        Assert.True(row.Roofed);
+        Assert.Equal("RoofConstructed", row.Roof);
+        Assert.Equal("RoofConstructed", row.Native.Roof[row.Index]);
+        Assert.Equal(new RimGovernor.Brain.Policy.CellRoom.InRoom(7), row.Room);
+    }
     // A grid of bare cells (unwalkable open ground, no roof, zone or things) carrying the given held and room arrays.
     private static Mirror.CellGrid Grid(int x, int z, int width, int height, bool[] held, int?[] room)
     {

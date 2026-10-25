@@ -7,10 +7,10 @@ internal static class ColonyPlanCut
     /// the colony would build it from (the stocked stuff with the most hit points per cost), else of the wood the
     /// layout builds with, and of the wood wall laid on light footing.
     /// </summary>
-    public static PerimeterWall PerimeterWallOf(ColonyProjection projection)
+    public static PerimeterWall PerimeterWallOf(ColonyReading projection)
     {
         var output = new PerimeterWall(new WallStrength.Unrated(), new WallStrength.Unrated());
-        foreach (var d in projection.Definitions)
+        foreach (var d in projection.Facts.Definitions)
         {
             if (d.Name != PerimeterCutRules.PerimeterDefs().WallDef)
             {
@@ -19,7 +19,7 @@ internal static class ColonyPlanCut
             var (price, priced) = RoundsDefenseLayoutPlanner.DefenseUnitPrice(projection, d);
             foreach (var option in d.StuffOptions)
             {
-                if (!option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatMaxHitPoints, out var hp))
+                if (!option.Stats.TryGetValue(Domain.StatDefNames.StatMaxHitPoints, out var hp))
                 {
                     continue;
                 }

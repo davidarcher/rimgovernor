@@ -132,7 +132,7 @@ internal static class CombatLabNativeHold
     }
 
     // The frame shows the defender standing, alive, on the assigned cell; anything else fails the case.
-    private static void OnCell(Observations.BundleSnapshot f, string defender, Common.Cell cell)
+    private static void OnCell(Observations.BundleSnapshot f, string defender, RimGovernor.Brain.Domain.Cell cell)
     {
         if (LabFrames.Row(f, defender) is not { Downed: not true, Dead: not true } row || row.Cell != cell)
         {

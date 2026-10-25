@@ -2,7 +2,6 @@ using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -205,10 +204,22 @@ public sealed class IsolationCreditTests
         {
             Pawns = new O.PawnSnapshot { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 }, Pawns = [PawnFixtures.Row("cj") with { Anomaly = tracker }, PawnFixtures.Row("pawn")] },
         };
-        var projection = ColonyFactsCoreTests.Projection() with
+        var projection = ColonyFactsCoreTests.Reading(new()
+            {
+                Context = ColonyFactsCoreTests.Snapshot().Context with
+                {
+                    Tick = (long)(3.5 * Day)
+                }
+            }) with
         {
-            Identity = new() { Tick = new((long)(3.5 * Day)) },
-            Isolation = new IsolationPlanning { Pawns = new IsolationCensus.Counted(EquatableArray.From([new PawnId("cj")])) },
+
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                Isolation = new IsolationPlanning
+                {
+                    Pawns = new IsolationCensus.Counted(EquatableArray.From([new PawnId("cj")]))
+                }
+            }
         };
         var forecast = RoundsCreepJoiner.CreepJoinerForecastOf(projection, frame, catalog);
         Assert.Equal("", forecast.Unread);
@@ -217,11 +228,11 @@ public sealed class IsolationCreditTests
         Assert.Single(ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(forecast), Day));
 
         // A fresh colony holds no creepjoiner apart: a named zero, nothing thrown.
-        var fresh = RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Isolation = new IsolationPlanning { Pawns = new IsolationCensus.Counted(EquatableArray.From(Array.Empty<PawnId>())) } }, frame, catalog);
+        var fresh = RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Facts = projection.Facts with { Isolation = new IsolationPlanning { Pawns = new IsolationCensus.Counted(EquatableArray.From(Array.Empty<PawnId>())) } } }, frame, catalog);
         Assert.Empty(ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(fresh), Day));
         Assert.Equal([ForecastIsolation.NoneHeld], ForecastIsolation.Findings(Room, Outcome(), [], Context(fresh), Day));
         // An unread census of the held apart is unread.
-        Assert.NotEqual("", RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Isolation = new IsolationPlanning() }, frame, catalog).Unread);
+        Assert.NotEqual("", RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Facts = projection.Facts with { Isolation = new IsolationPlanning() } }, frame, catalog).Unread);
     }
 
     private sealed class Tolerance : IEqualityComparer<(double, double)>

@@ -1,8 +1,8 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -379,7 +379,7 @@ public sealed class PlannedRoomCreditTests
         var trainedWith = NeedsFixtures.Memory("RimGovernor_TrainedWith", 3, Day, false) with { StackLimit = 1 };
         var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
-        var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = "Melee", Level = 1, Learning = learning }] }).ToArray();
+        var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Observed = p.Observed with { Biography = p.Observed.Biography with { Skills = [new() { Passion = O.Passion.None, DefName = "Melee", Level = 1, Learning = learning }] } } }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
             0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = .0001, Thoughts = [trainedWith], Equipment = [], Findings = [] }).ToArray();
         facts = facts with { Hostiles = HostileCensus.Of(0L), CriticalPatients = 0L, ForecastObserved = facts.ForecastObserved with
@@ -731,7 +731,7 @@ public sealed class PlannedRoomCreditTests
         {
             var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
             var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
-            var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = "Shooting", Level = 1, Learning = learning }] }).ToArray();
+            var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Observed = p.Observed with { Biography = p.Observed.Biography with { Skills = [new() { Passion = O.Passion.None, DefName = "Shooting", Level = 1, Learning = learning }] } } }).ToArray();
             var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Shooting", "stand/" + i, new(i + 1, 1), "RimGovernor_TrainRange", "RimGovernor_TrainShooting",
                 0d, 100d, learning) { CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [trainedWith], Equipment = [], Findings = [],
                     Company = company ? ["stand/" + (1 - i)] : [] }).ToArray();
@@ -781,11 +781,11 @@ public sealed class PlannedRoomCreditTests
             // each pawn's room memory rows (#3803) and RoundsRead each colonist's thoughts (RoundsMood), none held yet.
             ForecastObserved = review.ForecastObserved with
             {
-                WorkPawns = new WorkPawnsRead(EquatableArray.From(((WorkPawnsRead)review.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Health = 1d }))),
+                WorkPawns = new WorkPawnsRead(EquatableArray.From(((WorkPawnsRead)review.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Observed = p.Observed with { Health = p.Observed.Health with { SummaryFraction = 1d } } }))),
                 Needs = needs with { Pawns = EquatableArray.From(needs.Pawns.Select(p => p with { ThoughtStages = EquatableArray.From([.. p.ThoughtStages, .. DiningRecCreditTests.NativeRows]) })) },
             },
             MoodPawns = review.MoodPawns.Count != 0 ? review.MoodPawns
-                : EquatableArray.From(needs.Pawns.Select(p => new MoodPawn { Id = new(p.Pawn), Thoughts = [] })),
+                : EquatableArray.From(needs.Pawns.Select(p => MoodFixtures.Pawn(p.Pawn))),
             PlannedShelters = [.. review.PlannedShelters, .. roles.Select(r => new PlannedRoom { Id = r.Room, Role = r.Role,
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * r.Room), Z = 5, Width = 3, Height = 3 }) })],
             PlannedRoomPredictions = EquatableArray.From(review.PlannedRoomPredictions.Concat(roles.Select(r => PlannedRoomPredictionTests.Closed(

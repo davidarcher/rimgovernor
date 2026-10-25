@@ -23,7 +23,7 @@ public sealed record EquipCandidatePawn
 
     public Cell Position { get; init; }
 
-    public PawnProfile Profile { get; init; } = new();
+    public required PawnProfile Profile { get; init; }
 
     public bool ShootingDisabled { get; init; }
 
@@ -48,17 +48,24 @@ public sealed record EquipCandidatePawn
 /// <summary>Describes one already-observed loose weapon.</summary>
 public sealed record EquipCandidateWeapon
 {
-    public string Thing { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.ResourceStock Stock { get; init; }
 
-    public string Definition { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.StockItem Item { get; init; }
 
-    public Cell Cell { get; init; }
+    public RimGovernor.Contracts.Wire.Observations.GearItem? Gear { get; init; }
+
+    public string Thing => Item.Id;
+
+    public string Definition => Stock.DefName;
+
+    public Cell Cell => Item.Cell;
 
     public WeaponClass Class { get; init; }
 
-    public Domain.PawnId BiocodedTo { get; init; }
+    public Domain.PawnId BiocodedTo => new(Gear?.BiocodedTo ?? "");
 
-    public bool Biocoded { get; init; }
+    // No matching gear row is the census's explicit absence of a biocode relation.
+    public bool Biocoded => Gear?.Biocoded ?? false;
 
     /// <summary>The weapon def's rows.</summary>
     public WeaponDef Facts { get; init; } = new();

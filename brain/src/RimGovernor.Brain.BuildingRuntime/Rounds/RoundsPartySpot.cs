@@ -23,16 +23,16 @@ partial class RoundsBuildingPlanner
         return (retire, id) => retire ? used.Contains(RetireMethodId(PartySpotRetirePrefix, id)) : used.Contains(PartySpotPlaceMethod(id));
     }
 
-    internal static PartySpotNeed PartySpotReview(ColonyProjection facts, Func<bool, string, bool>? spent)
+    internal static PartySpotNeed PartySpotReview(ColonyReading facts, Func<bool, string, bool>? spent)
     {
         var sleeping = facts.Facts.Sleeping;
         return PartySpotRules.ReviewPartySpot(new PartySpotInput
         {
-            Rooms = facts.Rooms,
+            Rooms = facts.Facts.Upkeep.Rooms,
             Qualities = sleeping.Rooms,
-            Levels = facts.Impressiveness,
+            Levels = facts.Facts.Impressiveness,
             Census = facts.Facts.CurrentConstruction,
-            Cells = facts.Cells,
+            Cells = facts.PlanningWindow.Cells,
             Placeable = ComfortBuilderAvailable(facts, PartySpotRules.PartySpotDefinition),
             Spent = spent,
         });
@@ -42,7 +42,7 @@ partial class RoundsBuildingPlanner
 public sealed partial class Rounder
 {
     /// <summary>Whether a party spot must be placed or retired, read against the rooms/party-spot Need's unretired Methods.</summary>
-    internal static bool PartySpotOwed(NeedOwner? owner, ColonyProjection facts)
+    internal static bool PartySpotOwed(NeedOwner? owner, ColonyReading facts)
     {
         var spent = RoundsBuildingPlanner.PartySpotSpent(owner?.Methods.Select(m => m.Method) ?? []);
         return RoundsBuildingPlanner.PartySpotReview(facts, spent).Owed;
@@ -54,7 +54,7 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Retires a stale party spot, or resolves the planner to place a new one; the planner is null when the step is already decided.</summary>
     internal async Task<(RoundsBuildingResult Result, RoundsBuildingPlanner? Placing)> PartySpotStepAsync(ControlState state, Rounds review, NeedOwner goal, ColonyReading reading, CancellationToken call, CancellationToken epoch)
     {
-        var need = RoundsBuildingPlanner.PartySpotReview(reading.Projection, RoundsBuildingPlanner.PartySpotSpent(goal.OpenMethods.Select(m => m.Method)));
+        var need = RoundsBuildingPlanner.PartySpotReview(reading, RoundsBuildingPlanner.PartySpotSpent(goal.OpenMethods.Select(m => m.Method)));
         if (!need.Owed)
         {
             return (new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit }, null);

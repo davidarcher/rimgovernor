@@ -72,7 +72,15 @@ internal static class DeadMans
                 IdeologyActive = false,
                 Precepts = [],
             };
-            GearOption[] items = [.. Enumerable.Range(0, Garments).Select(i => new GearOption { ID = "g" + i, Tainted = i < tainted })];
+            GearOption[] items = [.. Enumerable.Range(0, Garments).Select(i => new GearOption
+            {
+                Origin = new GearOptionOrigin.Observed(new RimGovernor.Contracts.Wire.Observations.GearLoadoutOption
+                {
+                    Id = "g" + i, DefName = "", Stuff = null,
+                    Quality = new RimGovernor.Contracts.Wire.Observations.ItemQuality.Qualityless(),
+                    Source = RimGovernor.Contracts.Wire.Observations.GearSource.Worn, Condition = 1, Tainted = i < tainted, Locked = false, Crafters = [],
+                }),
+            })];
             if (MechanicCardGuards.CardStageOffset(card, facts, items) is not CardOffset.Staged { Offset: var want })
             {
                 throw new AcceptanceException($"{label}: the card does not model this pawn and outfit");

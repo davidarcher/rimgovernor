@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -38,11 +37,11 @@ public static partial class OutdoorHazardRules
         {
             result.Add(new OutdoorHazard(HazardKind.ToxicFallout));
         }
-        if (f.OutdoorTemperature <= CombatWaitRules.ExtremeColdC)
+        if (f.Census.OutdoorTemperatureC <= CombatWaitRules.ExtremeColdC)
         {
             result.Add(new OutdoorHazard(HazardKind.ExtremeCold));
         }
-        if (f.OutdoorTemperature >= CombatWaitRules.ExtremeHeatC)
+        if (f.Census.OutdoorTemperatureC >= CombatWaitRules.ExtremeHeatC)
         {
             result.Add(new OutdoorHazard(HazardKind.ExtremeHeat));
         }

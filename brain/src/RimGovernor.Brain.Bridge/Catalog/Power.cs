@@ -171,41 +171,4 @@ public sealed partial class DefinitionCatalog
             : throw new CatalogException($"battery {name} has capacity {result.CapacityWD} and efficiency {result.Efficiency}");
     }
 
-    /// <summary>The stored-energy capacity of the named def's CompProperties_Battery; a def without the comp stores none.</summary>
-    public double BatteryCapacityWd(string name) =>
-        ThingRow(name).GetCompProperties<CompProperties_Battery>() is { } battery ? battery.storedEnergyMax : 0;
-
-    /// <summary>Whether the named def is a power conduit: a plain Building whose power comp is a bare CompPowerTransmitter (no generator, consumer, battery or switch class).</summary>
-    public bool PlainConduit(string name)
-    {
-        var row = ThingRow(name);
-        return row.thingClass == typeof(Verse.Building) && row.GetCompProperties<CompProperties_Power>()?.compClass == typeof(CompPowerTransmitter);
-    }
-
-    /// <summary>
-    /// The base wattage a power row states for the named def, in the sign the power policy reads: negative for a consumer,
-    /// positive for a producer, zero for a battery. It is the def's basePowerConsumption with the factor of every power
-    /// upgrade whose research is finished applied in order, as the game's <c>CompProperties_Power.PowerConsumption</c>
-    /// does, with <paramref name="finished"/> the research census's finished projects. A def with no power comp is an error.
-    /// </summary>
-    public double PowerBaseW(string name, EquatableArray<string> finished)
-    {
-        var comp = ThingRow(name).GetCompProperties<CompProperties_Power>() ?? throw new CatalogException($"def {name} has no power comp");
-        var draw = GameMembers.BasePowerConsumption(comp);
-        var num = draw;
-        foreach (var upgrade in comp.powerUpgrades.Seq())
-        {
-            if (upgrade is null)
-            {
-                throw new CatalogException($"def {name} has an empty power upgrade");
-            }
-
-            if (upgrade.researchProject is { } project && finished.Contains(project.defName))
-            {
-                num *= upgrade.factor;
-            }
-        }
-
-        return 0 - (double)num;
-    }
 }

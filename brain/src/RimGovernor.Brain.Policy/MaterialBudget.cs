@@ -1,3 +1,5 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>What one pawn's live bill job has promised: the spawned ingredients it has queued or placed.</summary>
@@ -5,8 +7,9 @@ public sealed record IngredientReservation
 {
     /// <summary>Native bill identity for reconciling this hold with a forecast promise.</summary>
     public required string Bill { get; init; }
-    public PawnId Pawn { get; init; }
-    public IReadOnlyList<Amount> Items { get; init; } = [];
+    public required O.IngredientReservation Observed { get; init; }
+    public PawnId Pawn => new(Observed.PawnId);
+    public IReadOnlyList<Amount> Items => Observed.Items.Select(a => new Amount(new Resource(a.DefName), a.Units)).ToArray();
 }
 
 public static partial class MaterialBudgetRules

@@ -2,7 +2,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using BleedOut = RimGovernor.Contracts.Wire.Observations.BleedOut;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -254,7 +253,7 @@ public sealed class MedicalFamilyTests
     [Fact]
     public void TheForecastMedicalRowsAreTheFamilysNeeds()
     {
-        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, Fuel = [], CriticalPatients = 1L };
+        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, Fuel = [], CriticalPatients = 1L };
         var review = EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
         var medical = review.Coverage.Where(c => c.Service == EssentialService.Medical).ToArray();
         Assert.Contains(medical, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Shortfall);

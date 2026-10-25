@@ -13,7 +13,7 @@ public sealed partial class Store
     internal static EquatableArray<ResourceRunway> ResourceRunways(RoundsRequest r)
     {
         var facts = r.Facts;
-        var reserves = r.Policy.RunwayReserves(facts.Items, facts.Colonists, facts.ResourceConsumption);
+        var reserves = r.Policy.RunwayReserves(facts.Items, facts.Census.ColonistCount, facts.ResourceConsumption);
         foreach (var (resource, reserve) in DrugRunwayRules.DrugRunwayReserves(facts.Items, facts.DrugUsers ?? new Dictionary<Resource, long>(), facts.Preferences))
         {
             reserves[resource] = reserve;
@@ -22,7 +22,7 @@ public sealed partial class Store
         foreach (var resource in reserves.Keys.OrderBy(key => key.Value, StringComparer.Ordinal))
         {
             long stock = 0;
-            foreach (var row in facts.Resources)
+            foreach (var row in facts.ObservedStock())
             {
                 if (row.Resource != resource)
                 {

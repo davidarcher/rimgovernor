@@ -18,8 +18,8 @@ public sealed partial class RoundsBuildingPlanner
         return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Lighting.FilingKey, Need = RoomsFamily.Lighting, Definition = "TorchLamp" };
     }
 
-    internal static EquatableArray<int> PlanLitRooms(ColonyProjection facts) =>
-        LightingRules.PlanLitRooms(facts.LayoutPlan, facts.Rooms, facts.Facts.Upkeep.Lighting, RoundsTierStyle.PoweredSource(facts));
+    internal static EquatableArray<int> PlanLitRooms(ColonyReading facts) =>
+        LightingRules.PlanLitRooms(facts.Facts.LayoutPlan, facts.Facts.Upkeep.Rooms, facts.Facts.Upkeep.Lighting, RoundsTierStyle.PoweredSource(facts));
 
     internal IReadOnlyList<string> LightingDefinitions()
     {
@@ -37,12 +37,12 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>The lighting review of <paramref name="facts"/> with the plan's unlit rooms folded in, measured fresh: the rooms/lighting Need's evidence.</summary>
-    internal static LightingReview LightingReviewOf(ColonyProjection facts, LightingPolicy p) =>
+    internal static LightingReview LightingReviewOf(ColonyReading facts, LightingPolicy p) =>
         LightingRules.ReviewLighting(facts.Facts.Upkeep.Lighting, p, DisasterRules.SkyDarkHold(facts.Facts.DisasterConditions, facts.Facts.OutdoorsDark))
             .WithPlanned(PlanLitRooms(facts));
 
     /// <summary>The planner resolved to the lighting method the policy picked, or the verdict that says why none applies.</summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectLighting(ColonyProjection facts)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectLighting(ColonyReading facts)
     {
         var p = Reviewer.Policy.Lighting;
         var review = LightingReviewOf(facts, p);
@@ -51,18 +51,18 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonNoDeficit);
         }
 
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
 
         var lighting = new LightingFacts
         {
             Rooms = rooms,
-            Cells = facts.Cells,
-            Available = facts.Definitions.ToDictionary(d => d.Name, d => d.Available),
+            Cells = facts.PlanningWindow.Cells,
+            Available = facts.Facts.Definitions.ToDictionary(d => d.Name, d => d.Available),
             PoweredSource = RoundsTierStyle.PoweredSource(facts),
             Styled = RoundsTierStyle.LampStyle(facts),
         };
 
-        if (facts.LayoutPlan is { } plan)
+        if (facts.Facts.LayoutPlan is { } plan)
         {
             lighting = lighting with { Plan = plan };
         }
@@ -89,7 +89,7 @@ public sealed partial class RoundsBuildingPlanner
         throw new ControlException($"invalid lighting proposal method: {proposal.Method}");
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewLightingAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewLightingAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Lighting is null || Lighting.Method != LightingMethod.Build)

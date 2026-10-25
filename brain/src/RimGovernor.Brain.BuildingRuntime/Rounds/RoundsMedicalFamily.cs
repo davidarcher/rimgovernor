@@ -108,11 +108,11 @@ public sealed class MedicalRounds
                 throw new ControlException("medical read: the scope is another world or older than the review");
             }
             var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ct).ConfigureAwait(false);
-            var f = reading.Projection.Facts;
+            var f = reading.Reading.Facts;
             f = f with { MedicalCareRecovered = MedicalRules.ReviewMedicalCare(f.MedicalPawns, review.MedicalCare).Recovered() };
             facts = MedicalFacts.From(f, _reviewer.Policy, review.Latches.MedicalReserve) with
             {
-                HospitalShort = HospitalRules.BedsShort(f.GoalBuild.HospitalBeds, reading.Projection.Rooms, f.Sleeping, SurgeryRules.SurgeryBedShortPatients(f.MedicalPawns).Count > 0),
+                HospitalShort = HospitalRules.BedsShort(f.GoalBuild.HospitalBeds, reading.Reading.Facts.Upkeep.Rooms, f.Sleeping, SurgeryRules.SurgeryBedShortPatients(f.MedicalPawns).Count > 0),
             };
             medicalPawns = f.MedicalPawns;
             emergency = EmergencySnapshot.New(scope.World, expected.Tick, reading.Emergency);

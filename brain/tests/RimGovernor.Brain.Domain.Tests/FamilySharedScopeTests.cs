@@ -1,10 +1,9 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 using PbCommon = RimGovernor.Contracts.Wire.Common;
 using PbLifecycle = RimGovernor.Contracts.Wire.Lifecycle;
@@ -27,7 +26,7 @@ public sealed class FamilySharedScopeTests
     };
 
     /// <summary>A tick source that counts its hops and answers with <see cref="Context"/>.</summary>
-    private sealed class Ticks : ISource
+    private sealed class Ticks : IObservationSource
     {
         public int Hops { get; private set; }
 
@@ -38,7 +37,7 @@ public sealed class FamilySharedScopeTests
         }
     }
 
-    private sealed record ScopeFacts(Identity? Scope);
+    private sealed record ScopeFacts(ObservationIdentity? Scope);
 
     /// <summary>One family whose read records the scope it was handed.</summary>
     private sealed class ScopeFamily : IFamily<ScopeFacts>
@@ -60,9 +59,9 @@ public sealed class FamilySharedScopeTests
     [Fact]
     public void TheStepsIdentityIsItsClockStatusContext()
     {
-        var identity = DecodeReads.ContextIdentity(Context);
+        var identity = new ObservationIdentity { Context = Context };
         Assert.Equal((World.Colony, World.Map, World.Load, new Tick(3000)), (identity.Colony, identity.Map, identity.Load, identity.Tick));
-        Assert.Equal(World.Native, identity.NativeGeneration.TryGetValue(out var generation) ? generation : default);
+        Assert.Equal(World.Native.Value, Assert.IsType<PbCommon.ObservedGeneration.AtCase>(identity.NativeGeneration).Value);
     }
 
     [Fact]
@@ -70,14 +69,14 @@ public sealed class FamilySharedScopeTests
     {
         var ct = TestContext.Current.CancellationToken;
         var ticks = new Ticks();
-        var known = DecodeReads.ContextIdentity(Context);
+        var known = new ObservationIdentity { Context = Context };
 
         var shared = await StepScope.StepScopeAsync(new FamilyReadScope(World, false, known), ticks, ct);
         Assert.Same(known, shared);
         Assert.Equal(0, ticks.Hops);
 
         var own = await StepScope.StepScopeAsync(new FamilyReadScope(World, false), ticks, ct);
-        Assert.Equal(known with { Paused = Known(false) }, own);
+        Assert.Equal(known with { Paused = false }, own);
         Assert.Equal(1, ticks.Hops);
     }
 
@@ -87,15 +86,15 @@ public sealed class FamilySharedScopeTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-shared-scope-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0};
+        facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
         journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
-        var handed = new List<Identity?>();
+        var handed = new List<ObservationIdentity?>();
         var runner = new FamilyRunner<ScopeFacts>(new ScopeFamily(), (scope, _) =>
         {
             handed.Add(scope.Scope);
             return Task.FromResult(new ScopeFacts(scope.Scope));
         }, new FamilySchedule { Kinds = [ActionKind.Building] });
-        var known = DecodeReads.ContextIdentity(Context);
+        var known = new ObservationIdentity { Context = Context };
 
         await runner.RunAsync(new FamilyStep { Journal = journal, World = World, Scope = known }, ct);
         await runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct);

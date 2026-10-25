@@ -1,21 +1,17 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 public sealed record HumanButcherCandidate
 {
-    public PawnId ID { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.HumanButcherCandidate Observed { get; init; }
+    public PawnId ID => new(Observed.PawnId);
     public EquatableArray<PawnTrait> Traits { get; init; }
 
-    /// <summary>The pawn's own ideoligion and precept defNames from its row; required from the matching pawn row.</summary>
-    public required HeldPrecepts Held { get; init; }
+    /// <summary>The canonical ideology state retained from the matching pawn row.</summary>
+    public required O.PawnIdeo Ideology { get; init; }
 
-    public bool CanWork { get; init; }
-}
-
-/// <summary>A pawn's ideoligion load id (empty without one) and the precept defNames of it.</summary>
-public sealed record HeldPrecepts
-{
-    public string Ideo { get; init; } = "";
-    public IReadOnlyList<string> Defs { get; init; } = [];
+    public bool CanWork => Observed.CanWork;
 }
 
 public enum HumanMeatRoute
@@ -55,18 +51,17 @@ public static class HumanFoodRules
     /// has a self-took-action effect on ButcheredHuman with a mood-losing stage. A pawn without an ideoligion is
     /// not acceptable (only a trait qualifies it); with Ideology absent no precept exists to object. The matching pawn row is required.
     /// </summary>
-    public static bool PreceptAcceptable(HeldPrecepts held, IdeologyMode ideology)
+    public static bool PreceptAcceptable(O.PawnIdeo held, IdeologyMode ideology)
     {
-        if (ideology is not IdeologyMode.Installed { Primary: var i })
-        {
+        if (ideology is IdeologyMode.NotInstalled)
             return true;
-        }
-        var h = held;
-        if (h.Ideo.Length == 0)
-        {
+        if (ideology is not IdeologyMode.Installed { Primary: var i })
+            throw new RequiredFactException("human butcher ideology mode");
+        if (held is O.PawnIdeo.None)
             return false;
-        }
-        foreach (var e in i.HeldBy(h.Defs).EffectsInForce())
+        if (held is not O.PawnIdeo.Member member)
+            throw new RequiredFactException("human butcher pawn ideology");
+        foreach (var e in i.HeldBy(member.Precepts).EffectsInForce())
         {
             if (e.Kind == PreceptEffectKind.SelfTookAction && e.HistoryEvent == ButcheredHumanEvent && e.Penalises())
             {
@@ -91,7 +86,7 @@ public static class HumanFoodRules
                 return (default, false);
             }
             if (
-                HumanButcherEligible(row.Traits, PreceptAcceptable(row.Held, ideology), row.CanWork)
+                HumanButcherEligible(row.Traits, PreceptAcceptable(row.Ideology, ideology), row.CanWork)
                 && !ButcherHeld(ideology, row.Traits)
                 && (selected.IsEmpty || row.ID.CompareTo(selected) < 0)
             )

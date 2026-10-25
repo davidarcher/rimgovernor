@@ -1,7 +1,6 @@
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -9,8 +8,10 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>A growing zone's stand (#3949): plants with their means, or fallow. A fallow zone has no harvest to wait for.</summary>
 public sealed class CropStandTests
 {
-    private static readonly Calendar Summer = new()
+    private static readonly O.FoodClimate Summer = new()
     {
+        GrowingYear = EquatableArray.From(Enumerable.Range(0, CalendarRules.YearDays).Select(day => day < 30 || day >= 50)),
+        SowingNow = true,
         Season = "Summer",
         DayOfYear = 10,
         GrowingDays = 40,
@@ -19,10 +20,9 @@ public sealed class CropStandTests
         NonGrowingDays = 20,
     };
 
-    private static CropGrowth Growth(CropStand stand, double temperature = 20) => new()
+    private static CropGrowth Growth(O.ZoneState.Growing observed) => new()
     {
-        Stand = stand,
-        Temperature = temperature,
+        Observed = observed,
         MinGrowth = 6.0,
         MinOptimal = 10.0,
         MaxOptimal = 30.0,
@@ -58,7 +58,7 @@ public sealed class CropStandTests
     [Fact]
     public void AFallowZoneHasNoGrowingCellsAndNoHarvestLead()
     {
-        var growth = Growth(new CropStand.Fallow());
+        var growth = Growth(Farm(0));
 
         Assert.Equal(0L, growth.GrowingCells());
         Assert.IsType<HarvestTiming.Fallow>(CalendarRules.HarvestLeadDays(growth, 6.0, Summer));
@@ -67,8 +67,10 @@ public sealed class CropStandTests
     [Fact]
     public void ASownZoneGrowsItsFertileCellsAndLeadsByTheRemainingGrowth()
     {
-        var growth = Growth(new CropStand.Sown(8, 0.5, 1.0));
+        var native = Farm(8) with { FertilePlantedCells = 8 };
+        var growth = Growth(native);
 
+        Assert.Same(native, growth.Observed);
         Assert.Equal(8L, growth.GrowingCells());
         Assert.Equal(3.0, Assert.IsType<HarvestTiming.Expected>(CalendarRules.HarvestLeadDays(growth, 6.0, Summer)).Days, 9);
     }
@@ -78,7 +80,10 @@ public sealed class CropStandTests
     {
         Assert.IsType<CropStand.Fallow>(ColonyProductionReads.FarmGrowth(Farm(0), Definitions).Stand);
 
-        var sown = Assert.IsType<CropStand.Sown>(ColonyProductionReads.FarmGrowth(Farm(10), Definitions).Stand);
+        var native = Farm(10);
+        var growth = ColonyProductionReads.FarmGrowth(native, Definitions);
+        Assert.Same(native, growth.Observed);
+        var sown = Assert.IsType<CropStand.Sown>(growth.Stand);
         Assert.Equal((5L, 0.5, 1.0), (sown.FertilePlanted, sown.GrowthMean, sown.FertilityMean));
     }
 

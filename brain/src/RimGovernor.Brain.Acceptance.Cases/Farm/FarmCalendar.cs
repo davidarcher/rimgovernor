@@ -31,7 +31,7 @@ internal static class FarmCalendar
         s.RecordWire("food_climate", climate);
         var remaining = climate.GrowingDaysRemaining;
         var until = climate.GrowingDaysUntil;
-        var calendar = new RimGovernor.Brain.Policy.Calendar { Season = climate.Season, DayOfYear = climate.DayOfYear, GrowingDays = climate.GrowingDays, GrowingDaysRemaining = remaining, GrowingDaysUntil = until, NonGrowingDays = climate.NonGrowingDays };
+        var calendar = climate;
         if (!calendar.Valid())
         {
             throw new AcceptanceException($"calendar out of range: {calendar}");

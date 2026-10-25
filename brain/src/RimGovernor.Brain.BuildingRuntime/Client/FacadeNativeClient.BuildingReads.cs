@@ -57,7 +57,7 @@ public sealed partial class FacadeNativeClient
             Statuses = [PbObservations.BuildingStatus.Built],
         };
         var v = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        return new StorageBuildingTarget { Context = v.Context, Thing = thing, Present = v.Buildings.Count != 0 };
+        return new StorageBuildingTarget { Context = v.Context, Present = v.Buildings.Count != 0 };
     }
 
     /// <summary>Observes one exact bed's medical flag, owners and CAS token via the existing building lookup.</summary>
@@ -68,17 +68,14 @@ public sealed partial class FacadeNativeClient
         {
             throw BridgeContractException.Contract("bed medical target missing or ambiguous");
         }
-        if (v.Buildings[0].Settings.Control is not PbObservations.BuildingControl.Bed bed)
+        if (v.Buildings[0].Settings.Control is not PbObservations.BuildingControl.Bed)
         {
             throw BridgeContractException.Contract("building is not a bed");
         }
         return new BedUseTarget
         {
             Context = v.Context,
-            Thing = thing,
-            Medical = bed.Medical,
-            Prisoners = bed.ForPrisoners,
-            Owners = FactHelpers.RefIds(bed.AssignedPawns),
+            Observed = v.Buildings[0],
         };
     }
 
@@ -90,11 +87,11 @@ public sealed partial class FacadeNativeClient
         {
             throw BridgeContractException.Contract("grower crop target missing or ambiguous");
         }
-        if (v.Buildings[0].Settings.Control is not PbObservations.BuildingControl.Grower grower)
+        if (v.Buildings[0].Settings.Control is not PbObservations.BuildingControl.Grower)
         {
             throw BridgeContractException.Contract("building is not a plant grower");
         }
-        return new GrowerCropTarget { Context = v.Context, Thing = thing, Crop = grower.CropDefName ?? "" };
+        return new GrowerCropTarget { Context = v.Context, Observed = v.Buildings[0] };
     }
 
     /// <summary>
@@ -111,10 +108,8 @@ public sealed partial class FacadeNativeClient
         };
         var observed = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
         var stillNeed = new Dictionary<string, long>(StringComparer.Ordinal);
-        var structures = 0;
         foreach (var row in observed.Buildings)
         {
-            structures++;
             if (row.Construction is not PbObservations.ConstructionState.Build build)
             {
                 continue;
@@ -125,7 +120,7 @@ public sealed partial class FacadeNativeClient
             }
         }
         cancellationToken.ThrowIfCancellationRequested();
-        return new ConstructionDeficitRead { Context = observed.Context, StillNeed = stillNeed, Structures = structures };
+        return new ConstructionDeficitRead { Context = observed.Context, StillNeed = stillNeed };
     }
 
     /// <summary>

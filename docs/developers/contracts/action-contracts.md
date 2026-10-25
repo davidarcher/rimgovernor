@@ -20,8 +20,7 @@ following setting read back. Trade evidence distinguishes approach, open,
 staged lines, executed silver transfer and session end; approach and staging
 carry no invented transfer amounts. Zone evidence distinguishes created
 components from one edited or deleted zone. Surgery evidence names either a
-whole-body recipe or its exact part index. Receipt order in a combat batch
-defines the index; the wire carries no redundant index. A wall-removal receipt
+whole-body recipe or its exact part index. Combat batch results use the domain journal result directly: native assigns each original request index, and the same immutable result flows through the receipt, telemetry, journal and combat memory. Draft filtering retains the original index and job evidence. A wall-removal receipt
 does not carry a constant assertion about demolition: the native building read
 proves demolition separately.
 

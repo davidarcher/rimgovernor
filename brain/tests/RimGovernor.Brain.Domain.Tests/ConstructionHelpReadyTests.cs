@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -9,11 +8,7 @@ public sealed class ConstructionHelpReadyTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
 
-    private static readonly ConstructionSite FilledWall = new()
-    {
-        Id = "site", Building = new Building("Wall", new Cell(1, 1), Rotation.North, ""), Stage = "frame",
-        ResourcesComplete = true, QualitySensitive = false, NativeFinishingSkill = 0,
-    };
+    private static readonly ConstructionSite FilledWall = ConstructionObservationFixtures.Site(new Building("Wall", new Cell(1, 1), Rotation.North, ""), id: "site", stage: "frame", resourcesComplete: true, qualitySensitive: false, nativeFinishingSkill: 0);
 
     private static ConstructionHelp Demand(ReadyWorkReport? report, CurrentConstruction? census) => ConstructionHelpersRules.ConstructionHelpDemand(
         report, World, new Tick(10), null, census);
@@ -39,6 +34,6 @@ public sealed class ConstructionHelpReadyTests
     [Fact]
     public void QualityFreeHelpersUseTheObservedNativeSkill()
     {
-        var census = CurrentConstruction.Empty with { Sites = [FilledWall with { NativeFinishingSkill = 3 }] };
+        var census = CurrentConstruction.Empty with { Sites = [FilledWall with { Observed = FilledWall.Observed with { Construction = FilledWall.Construction with { NativeFinishingSkill = 3 } } }] };
         Assert.Equal(3, Demand(null, census).Floor);
     }}

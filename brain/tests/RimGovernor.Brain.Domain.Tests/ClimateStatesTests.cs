@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using O = RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -64,7 +63,7 @@ public sealed class ClimateStatesTests
     [Fact]
     public void ARefuelSwitchOutranksTheRoomMethodAndNamesTheCampfire()
     {
-        var sleeper = new SleepingPerson { Id = new PawnId("p"), OwnedBed = "bed", ComfortableMin = 16, ComfortableMax = 26 };
+        var sleeper = new SleepingPerson { Native = SleepingNativeFixtures.Person(id: new PawnId("p")), Pawn = SleepingNativeFixtures.Pawn(id: new PawnId("p"), ownedBed: "bed", comfortableMin: 16, comfortableMax: 26) };
         var burning = HeatCampfire.Of("fire", "room", new O.BenchAutoRefuel.Refuelable { Allowed = true });
         var cooling = Cooling(campfires: [burning!], sleepers: [sleeper]);
         var off = TemperatureMethodRules.SelectTemperatureMethod(Rooms(30, true, "bed"), ["bed"], cooling, Limits);
@@ -108,13 +107,13 @@ public sealed class ClimateStatesTests
     [Fact]
     public void OutdoorHazardsDeriveFromTheConditionAndTemperatureReads()
     {
-        var calm = new RoundsFacts { DisasterConditions = [], OutdoorTemperature = 15.0 };
+        var calm = new RoundsFacts { DisasterConditions = [], Census = ColonyFactsCoreTests.Snapshot() with { OutdoorTemperatureC = 15.0 } };
         Assert.False(OutdoorHazardRules.OutdoorAcquisitionHeld(calm));
-        var cold = calm with { OutdoorTemperature = -25.0 };
+        var cold = calm with { Census = calm.Census with { OutdoorTemperatureC = -25.0 } };
         Assert.Equal([new OutdoorHazard(HazardKind.ExtremeCold)], OutdoorHazardRules.OutdoorHazardsOf(cold).ToList());
         Assert.False(OutdoorHazardRules.OutdoorHazardHeldDash(OutdoorHazardRules.OutdoorHazardsOf(cold), true));
         Assert.True(OutdoorHazardRules.OutdoorHazardHeldDash(OutdoorHazardRules.OutdoorHazardsOf(cold), false));
-        var hot = calm with { OutdoorTemperature = 50.0 };
+        var hot = calm with { Census = calm.Census with { OutdoorTemperatureC = 50.0 } };
         Assert.True(OutdoorHazardRules.OutdoorHazardHeldDash(OutdoorHazardRules.OutdoorHazardsOf(hot), true));
 
     }
@@ -123,7 +122,7 @@ public sealed class ClimateStatesTests
     public void BlightIsADeficitWhileAnyPlantStands()
     {
         Assert.False(BlightRules.BlightDeficit([]));
-        Assert.True(BlightRules.BlightDeficit([new BlightedPlant { ID = "plant" }]));
+        Assert.True(BlightRules.BlightDeficit([new BlightedPlant { Observed = new() { Thing = new() { Id = "plant" }, Designated = false }, Entity = new() { Id = "plant", DefName = "Plant_Rice", Label = "rice", Place = new RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap(1, new Cell(1, 2)) } }]));
     }
 
     [Fact]

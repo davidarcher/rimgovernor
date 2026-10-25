@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     /// <summary>Cells a field must not cover: held reservations, pending monuments, housing shells and the firebreak ring.</summary>
-    internal IReadOnlyList<Cell> FieldProtected(ControlState state, Rounds review, ColonyProjection projection, EquatableArray<ConstructionClaim> claims, CancellationToken call)
+    internal IReadOnlyList<Cell> FieldProtected(ControlState state, Rounds review, ColonyReading projection, EquatableArray<ConstructionClaim> claims, CancellationToken call)
     {
         var p = Player;
         var held = p.Journal.BuildingReservations(state.Snapshot, call);
@@ -41,14 +41,14 @@ public sealed partial class Rounder
         return catalog.SowableCrops();
     }
 
-    internal ResourceFieldPlanner NewResourceFieldPlanner(ControlState state, Rounds review, Identity expected, ColonyProjection projection, CancellationToken call)
+    internal ResourceFieldPlanner NewResourceFieldPlanner(ControlState state, Rounds review, Identity expected, ColonyReading projection, CancellationToken call)
     {
         var choices = RoundsFieldPlanner.CropChoices(projection);
         return new ResourceFieldPlanner(
             choices,
-            projection.CropClimate,
-            TreePlantationRules.GrowerSkill(projection.WorkPawns),
-            projection.Farms,
+            projection.Facts.CropClimate,
+            TreePlantationRules.GrowerSkill(projection.Facts.ForecastObserved.WorkPawns),
+            (projection.Tables.Zones ?? throw new RequiredFactException("zones")).Zones.OfType<PbObservations.ZoneState.Growing>().ToArray(),
             () =>
             {
                 if (LayoutProtected.FieldAnchor(projection) is not { } anchor)
@@ -58,7 +58,7 @@ public sealed partial class Rounder
 
                 var claims = Player.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
                 var protectedCells = FieldProtected(state, review, projection, claims, call);
-                var site = new FarmSiteRequest { Anchor = anchor, Cells = projection.Cells, Protected = protectedCells };
+                var site = new FarmSiteRequest { Anchor = anchor, Cells = projection.PlanningWindow.Cells, Protected = protectedCells };
                 var fields = LayoutFieldPlanning.LayoutFieldCells(projection);
                 if (fields is not null)
                 {
@@ -69,9 +69,9 @@ public sealed partial class Rounder
             });
     }
 
-    internal double ChopMinGrowth(ColonyProjection projection)
+    internal double ChopMinGrowth(ColonyReading projection)
     {
-        var (fraction, ok) = TreePlantationRules.TreeFellFraction(RoundsFieldPlanner.CropChoices(projection), new Resource("WoodLog"), projection.CropClimate.Biome, TreePlantationRules.GrowerSkill(projection.WorkPawns));
+        var (fraction, ok) = TreePlantationRules.TreeFellFraction(RoundsFieldPlanner.CropChoices(projection), new Resource("WoodLog"), projection.Facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(projection.Facts.ForecastObserved.WorkPawns));
         return ok ? fraction : Policy.ChopMinGrowth;
     }
 }

@@ -43,12 +43,12 @@ namespace HomeBridge.BridgeTools
                             || doorOrder.Mode < Operations.CombatDoorMode.HoldOpen || doorOrder.Mode > Operations.CombatDoorMode.Shut) return false; break;
                     case Operations.CombatOrderOrder.RescueCase { Value: var rescue }:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(rescue.Downed) || rescue.Downed?.EntityId == ownId
-                            || rescue.Dest != null && !ValidCell(rescue.Dest)) return false; break;
+                            || (rescue.Bed is Operations.RescueBed.At bed ? !ValidCell(bed.Cell) : rescue.Bed is not Operations.RescueBed.Search)) return false; break;
                     case Operations.CombatOrderOrder.RepairCase { Value: var repair }: if (!ValidCell(repair.Cell)) return false; break;
                     case Operations.CombatOrderOrder.ManMortarCase { Value: var manMortar }: if (!ValidCell(manMortar)) return false; break;
                     case Operations.CombatOrderOrder.MortarFireCase { Value: var mortarFire }:
-                        if (!ValidCell(mortarFire.Mortar) || mortarFire.Target != null && !ValidCell(mortarFire.Target)
-                            || mortarFire.Target == null && mortarFire.Shell is not null) return false; break;
+                        if (!ValidCell(mortarFire.Mortar) || (mortarFire.Aim is Operations.MortarAim.At aim ? !ValidCell(aim.Cell) : mortarFire.Aim is not Operations.MortarAim.Cleared)
+                            || mortarFire.Aim is Operations.MortarAim.Cleared && mortarFire.Shell is not null) return false; break;
                     case Operations.CombatOrderOrder.ReleaseCase { Value: var release }:
                         if (!NativeDraftProtocol.ValidEntityTokenOptional(release) || release.EntityId == ownId) return false; break;
                     case Operations.CombatOrderOrder.AnimalAreaCase { Value: var animalArea }:
@@ -65,7 +65,7 @@ namespace HomeBridge.BridgeTools
             return true;
         }
 
-        private static bool ValidCell(Common.Cell? cell) => cell != null && cell.X >= 0 && cell.Z >= 0;
+        private static bool ValidCell(RimGovernor.Brain.Domain.Cell cell) => cell.X >= 0 && cell.Z >= 0;
 
         // Applies every order and returns the batch effect; per-order
         // refusals are results. The caller holds native authority.
@@ -133,7 +133,7 @@ namespace HomeBridge.BridgeTools
                         catch (Exception error) { refusal = "native_refused"; ModLog.Warn("combat", "combat order " + i + " failed: " + error.GetType().Name); }
                     }
                 }
-                var result = new Receipts.CombatOrderResult { PawnId = pawnId, Applied = refusal.Length == 0, Refusal = refusal, JobDef = job };
+                var result = new RimGovernor.Brain.Domain.CombatResult { Index = i, PawnId = pawnId ?? "", Applied = refusal.Length == 0, Refusal = refusal, JobDef = job ?? "" };
                 effect = effect with { Results = [.. effect.Results, result] };
             }
             return new Receipts.EffectEvidence { Effect = effect };
@@ -223,9 +223,9 @@ namespace HomeBridge.BridgeTools
                         && NativePawnControlState.Check(identity, patient, downed.ExpectedSnapshotToken ?? "", out _) != NativePawnControlResult.Ready) return "stale_snapshot";
                     if (!NativeCustodyOperations.RescueEligible(pawn, patient)) return "cannot_rescue";
                     Building_Bed? bed;
-                    if (rescue.Dest != null)
+                    if (rescue.Bed is Operations.RescueBed.At requestedBed)
                     {
-                        var dest = new IntVec3(rescue.Dest.X, 0, rescue.Dest.Z);
+                        var dest = new IntVec3(requestedBed.Cell.X, 0, requestedBed.Cell.Z);
                         bed = dest.InBounds(map) ? dest.GetFirstBuilding(map) as Building_Bed : null;
                         if (bed == null || !RestUtility.IsValidBedFor(bed, patient, pawn, checkSocialProperness: false)) return "no_bed";
                     }
@@ -239,7 +239,7 @@ namespace HomeBridge.BridgeTools
                 {
                     // The vanilla Repair job on a damaged player building
                     //; the pawn stays drafted under the fight.
-                    var cell = new IntVec3(repair.Cell?.X ?? 0, 0, repair.Cell?.Z ?? 0);
+                    var cell = new IntVec3(repair.Cell.X, 0, repair.Cell.Z);
                     var building = cell.InBounds(map) ? cell.GetEdifice(map) : null;
                     if (building == null || building.Faction != Faction.OfPlayerSilentFail || !building.def.useHitPoints
                         || building.HitPoints >= building.MaxHitPoints || building.IsBurning()
@@ -314,8 +314,8 @@ namespace HomeBridge.BridgeTools
                 return "";
             }
             if (animal.playerSettings == null || !animal.playerSettings.SupportsAllowedAreas) return "not_ours";
-            var areaCell = areaOrder?.Area?.Cell;
-            var cell = new IntVec3(areaCell?.X ?? 0, 0, areaCell?.Z ?? 0);
+            if (areaOrder?.Area is not Operations.CombatAnimalAreaArea.CellCase { Value: var areaCell }) return "invalid_request";
+            var cell = new IntVec3(areaCell.X, 0, areaCell.Z);
             if (!cell.InBounds(map) || !cell.Standable(map) || !animal.CanReach(cell, PathEndMode.OnCell, Danger.Deadly)) return "unreachable";
             if (owned == null)
             {
@@ -360,9 +360,8 @@ namespace HomeBridge.BridgeTools
         }
 
         // The unroofed player mannable mortar on cell, else null.
-        private static Building_TurretGun? Mortar(Map map, Common.Cell? at)
+        private static Building_TurretGun? Mortar(Map map, RimGovernor.Brain.Domain.Cell at)
         {
-            if (at == null) return null;
             var cell = new IntVec3(at.X, 0, at.Z);
             var mortar = cell.InBounds(map) ? cell.GetEdifice(map) as Building_TurretGun : null;
             return mortar == null || mortar.Faction != Faction.OfPlayerSilentFail || mortar.def.building?.IsMortar != true
@@ -379,7 +378,7 @@ namespace HomeBridge.BridgeTools
             job = null;
             var mortar = Mortar(map, order.Mortar);
             if (mortar == null) return "not_a_mortar";
-            if (order.Target == null)
+            if (order.Aim is Operations.MortarAim.Cleared)
             {
                 // No target: the gizmo's stop-forced-attack, the
                 // aim gone when the siege breaks camp. An invalid target
@@ -387,7 +386,8 @@ namespace HomeBridge.BridgeTools
                 mortar.OrderAttack(LocalTargetInfo.Invalid);
                 return "";
             }
-            var target = new IntVec3(order.Target.X, 0, order.Target.Z);
+            if (order.Aim is not Operations.MortarAim.At aim) return "invalid_request";
+            var target = new IntVec3(aim.Cell.X, 0, aim.Cell.Z);
             var verb = mortar.AttackVerb;
             var distance = (target - mortar.Position).LengthHorizontal;
             if (!target.InBounds(map) || verb == null || distance < verb.verbProps.EffectiveMinRange(target, mortar) || distance > verb.EffectiveRange) return "cannot_hit";
@@ -424,7 +424,7 @@ namespace HomeBridge.BridgeTools
         // the door shuts once nothing stands in it.
         private static string Door(Map map, Operations.CombatDoor order)
         {
-            var cell = new IntVec3(order.Cell?.X ?? 0, 0, order.Cell?.Z ?? 0);
+            var cell = new IntVec3(order.Cell.X, 0, order.Cell.Z);
             if (!cell.InBounds(map)) return "not_a_door";
             var door = cell.GetEdifice(map) as Building_Door;
             if (door == null || door.Faction != Faction.OfPlayerSilentFail) return "not_a_door";
@@ -444,7 +444,7 @@ namespace HomeBridge.BridgeTools
         // without the walk through (vanilla's own approach-open and manual close).
         private static string PawnDoor(Map map, Pawn pawn, Operations.CombatDoor order)
         {
-            var cell = new IntVec3(order.Cell?.X ?? 0, 0, order.Cell?.Z ?? 0);
+            var cell = new IntVec3(order.Cell.X, 0, order.Cell.Z);
             if (!cell.InBounds(map)) return "not_a_door";
             var door = cell.GetEdifice(map) as Building_Door;
             if (door == null || door.Faction != Faction.OfPlayerSilentFail) return "not_a_door";

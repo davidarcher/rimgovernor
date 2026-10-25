@@ -511,8 +511,8 @@ public sealed record CreatedZone
 {
     public string? ZoneId { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public EquatableArray<RimGovernor.Brain.Domain.Cell> Cells { get; init; }
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
@@ -533,28 +533,10 @@ public sealed record DeconstructEffect
     public string? ReplacementId { get; init; }
 }
 
-/// <summary>
-/// One result per CombatOrders order, in request order. An applied result
-/// names the ordered job where one was taken (Goto, AttackStatic,
-/// AttackMelee, Wait_Combat); a refusal carries a short snake_case reason:
-/// not_drafted, cannot_draft, stale_snapshot, not_found, unreachable,
-/// cannot_hit, no_ground_verb, not_a_door, native_refused.
-/// </summary>
-public sealed record CombatOrderResult
-{
-    public string? PawnId { get; init; }
-
-    public required bool Applied { get; init; }
-
-    public string? Refusal { get; init; }
-
-    public string? JobDef { get; init; }
-}
-
 public sealed record CombatOrdersEffect
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<CombatOrderResult>))]
-    public EquatableArray<CombatOrderResult> Results { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.CombatResult>))]
+    public EquatableArray<RimGovernor.Brain.Domain.CombatResult> Results { get; init; }
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

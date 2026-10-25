@@ -3,13 +3,13 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static class LayoutProtected
 {
     /// <summary>The persisted layout plan's core; null until a plan exists.</summary>
-    public static Cell? PlanCore(ColonyProjection facts)
+    public static Cell? PlanCore(ColonyReading facts)
     {
-        if (facts.LayoutPlan is { } plan && plan.Core() is { } core)
+        if (facts.Facts.LayoutPlan is { } plan && plan.Core() is { } core)
         {
             return core;
         }
-        return facts.Center();
+        return facts.Facts.LayoutPlan?.Center();
     }
 
     /// <summary>
@@ -18,30 +18,30 @@ internal static class LayoutProtected
     /// plan is read at every tech tier: gating it on Masonry stacked the pens, barn and turbines of a Camp
     /// colony on the map centre.
     /// </summary>
-    public static Cell? FieldAnchor(ColonyProjection facts)
+    public static Cell? FieldAnchor(ColonyReading facts)
     {
-        if (facts.LayoutPlan is { } plan && plan.FieldAnchor(LayoutFree(facts)) is { } anchor)
+        if (facts.Facts.LayoutPlan is { } plan && plan.FieldAnchor(LayoutFree(facts)) is { } anchor)
         {
             return anchor;
         }
-        return facts.Center();
+        return facts.Facts.LayoutPlan?.Center();
     }
 
     /// <summary>The centre of the nearest free planned room of the role to the point <paramref name="to"/> (reserve rooms when none is free), else the plan's centre; null until a plan exists.</summary>
-    public static Cell? RoomAnchor(ColonyProjection facts, PlannedRole role, Cell to)
+    public static Cell? RoomAnchor(ColonyReading facts, PlannedRole role, Cell to)
     {
-        if (facts.LayoutPlan is { } plan && plan.NearestAnchor(role, to, LayoutFree(facts)) is { } anchor)
+        if (facts.Facts.LayoutPlan is { } plan && plan.NearestAnchor(role, to, LayoutFree(facts)) is { } anchor)
         {
             return anchor;
         }
-        return facts.Center();
+        return facts.Facts.LayoutPlan?.Center();
     }
 
     /// <summary>Reports whether a rectangle is observed open ground free of player buildings and zones.</summary>
-    public static Func<Rectangle, bool> LayoutFree(ColonyProjection facts)
+    public static Func<Rectangle, bool> LayoutFree(ColonyReading facts)
     {
-        var cells = new Dictionary<Cell, SiteCell>(facts.Cells.Count);
-        foreach (var c in facts.Cells)
+        var cells = new Dictionary<Cell, SiteCell>(facts.PlanningWindow.Cells.Count);
+        foreach (var c in facts.PlanningWindow.Cells)
         {
             cells[c.Cell] = c;
         }

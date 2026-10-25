@@ -15,7 +15,7 @@ public readonly record struct RaidDefense(double RaidPoints, double Capacity)
     /// </summary>
     public static RaidDefense Of(RoundsFacts f)
     {
-        return new RaidDefense(f.RaidPoints, f.DefenseCapacity);
+        return new RaidDefense(f.Census.Threat.Observed.RaidPoints, f.DefenseCapacity);
     }
 }
 
@@ -27,7 +27,7 @@ public static class DefenseBudget
     /// yield to measure, so one is built and the next review reads it; standing turrets none of which is powered
     /// yet are that probe, and ask for no more. No shortfall asks for none.
     /// </summary>
-    internal static int TurretsOwed(RaidDefense threat, EquatableArray<DefenseTurretFacts> turrets)
+    internal static int TurretsOwed(RaidDefense threat, IReadOnlyList<DefenseTurretFacts> turrets)
     {
         var shortfall = threat.Shortfall;
         if (shortfall <= 0)
@@ -51,13 +51,13 @@ public static class DefenseBudget
         return Math.Max(1, (int)Math.Ceiling(shortfall / (sum / n)));
     }
 
-    internal static int TurretsStanding(EquatableArray<DefenseTurretFacts> turrets) => turrets.Count;
+    internal static int TurretsStanding(IReadOnlyList<DefenseTurretFacts> turrets) => turrets.Count;
 
     /// <summary>
     /// The turret count the layout plans: those already standing plus those the raid shortfall still asks for.
     /// A turret goal (<paramref name="goalFloor"/>, #3496) raises the count to at least that many. There is no ceiling; power, stock and the layout's geometry decide how many are placed, and each gate that
     /// stops placement is named on the tier.
     /// </summary>
-    public static int TurretBudget(RaidDefense threat, EquatableArray<DefenseTurretFacts> turrets, int goalFloor) =>
+    public static int TurretBudget(RaidDefense threat, IReadOnlyList<DefenseTurretFacts> turrets, int goalFloor) =>
         Math.Max(TurretsStanding(turrets) + TurretsOwed(threat, turrets), goalFloor);
 }

@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -17,17 +16,17 @@ public sealed class BedReplacementBedlessTests
 
     private static SleepingObservation Barracks(string otherBed) => new()
     {
-        People = [new SleepingPerson { Id = Owner, OwnedBed = "bed-owner" }, new SleepingPerson { Id = Other, OwnedBed = otherBed }],
+        People = [new SleepingPerson { Native = SleepingNativeFixtures.Person(id: Owner), Pawn = SleepingNativeFixtures.Pawn(id: Owner, ownedBed: "bed-owner") }, new SleepingPerson { Native = SleepingNativeFixtures.Person(id: Other), Pawn = SleepingNativeFixtures.Pawn(id: Other, ownedBed: otherBed) }],
         Beds =
         [
-            new SleepingBed { Id = "bed-owner", Definition = new Resource("Bed"), Humanlike = true, Room = "dorm", Owners = [Owner] },
-            new SleepingBed { Id = "spot", Definition = new Resource(SleepingRules.SleepingSpotDefinition), Humanlike = true, Room = "dorm", Owners = [] },
-            new SleepingBed { Id = "bed-other", Definition = new Resource("Bed"), Humanlike = true, Room = "other-room", Owners = otherBed == "" ? [] : [Other] },
+            new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "bed-owner", room: "dorm", owners: [Owner]), Building = SleepingNativeFixtures.Building(id: "bed-owner", definition: new Resource("Bed")), Humanlike = true },
+            new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "spot", room: "dorm", owners: []), Building = SleepingNativeFixtures.Building(id: "spot", definition: new Resource(SleepingRules.SleepingSpotDefinition)), Humanlike = true },
+            new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "bed-other", room: "other-room", owners: otherBed == "" ? [] : [Other]), Building = SleepingNativeFixtures.Building(id: "bed-other", definition: new Resource("Bed")), Humanlike = true },
         ],
         Rooms =
         [
-            new UpkeepRoom { Id = "dorm", Role = RoomRole.Bedroom, Beds = ["bed-owner", "spot"], Quality = new RoomQuality(0, 0, 0, 0, 0), Cells = 0 },
-            new UpkeepRoom { Id = "other-room", Role = RoomRole.Bedroom, Beds = ["bed-other"], Quality = new RoomQuality(0, 0, 0, 0, 0), Cells = 0 },
+            new UpkeepRoom { StatKeys = SleepingNativeFixtures.StatKeys, Native = SleepingNativeFixtures.Room("dorm", RoomRole.Bedroom, new RoomQuality(0, 0, 0, 0, 0), 0), Beds = ["bed-owner", "spot"] },
+            new UpkeepRoom { StatKeys = SleepingNativeFixtures.StatKeys, Native = SleepingNativeFixtures.Room("other-room", RoomRole.Bedroom, new RoomQuality(0, 0, 0, 0, 0), 0), Beds = ["bed-other"] },
         ],
     };
 

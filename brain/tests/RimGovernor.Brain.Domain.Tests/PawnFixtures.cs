@@ -38,36 +38,18 @@ internal static class PawnFixtures
     /// <inheritdoc cref="Worker(string)"/>
     public static WorkPawn Worker(PawnId id) => new()
     {
-        Id = id,
-        ConstructionAble = true,
-        Available = true,
-        Work = new PawnWorkTable.Works(true, []),
+        Observed = Row(id.Value),
+        Work = WorkTable(true, []),
         Ranged = false,
         Hunts = false,
-        Skills = [],
-        SkillStatCurves = [],
         Traits = [],
-        Incapable = [],
-        Age = 30,
-        Schedule = [],
-        FoodPolicyRespected = false,
-        Care = new O.PawnCare.None(),
-        PolicyInputs = Inputs(),
-        Body = Body,
-        Job = new PawnJob(),
-        Inspiration = "",
         Biotech = new PawnBiotechStatus.Inactive(),
-        ViolenceCapable = true,
-        BloodLoss = 0,
         SeriousBloodLoss = 0.4,
-        Health = 1,
-        Rest = new O.NeedLevel.Lacks(),
-        Mood = new O.NeedLevel.Lacks(),
-        Food = new O.FoodNeed.Lacks(),
-        BreakThreshold = 0.35,
-        HighExpectations = false,
-        PsylinkLevel = 0,
     };
+
+    /// <summary>A native work table and the catalog views over exactly its observed rows.</summary>
+    public static PawnWorkTable.Works WorkTable(bool manual, EquatableArray<WorkPriority> rows) =>
+        new(new O.PawnWork.Works(manual, EquatableArray.From(rows.Select(row => row.Observed))), rows);
 
     /// <summary>A live, standing colonist with nothing else read into it: no job, needs, conditions, gear or ideoligion.</summary>
     public static O.PawnState Row(string id) => new()

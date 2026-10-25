@@ -28,17 +28,17 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("NewRoundsTemperaturePlanner: reviewer == nil || native == nil || !reviewer.temperatureEnabled()");
         }
-        if (native is not Observation.IRoundsSource)
+        if (native is not IRoundsSource)
         {
             throw new ControlException("NewRoundsTemperaturePlanner: !ok");
         }
         return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ShelterFamily.Temperature.FilingKey, Need = ShelterFamily.Temperature };
     }
 
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectTemperature(Observation.ColonyProjection facts)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectTemperature(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         // An unread room census, bed census or sleeper census is the planner's unavailable verdict, named by its field.
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var cooling = TemperatureCooling(facts);
         var proposal = TemperatureMethodRules.SelectTemperatureMethod(rooms, rooms.EligibleBeds, cooling, Reviewer.Policy);
         switch (proposal.Method)
@@ -77,13 +77,13 @@ partial class RoundsBuildingPlanner
     /// (placeability, draw), the colony power topology, the site cells the vented-wall search walks, and the
     /// sleepers whose comfortable ranges band each room. An unread sleeper census raises.
     /// </summary>
-    internal static Pol.TemperatureCooling TemperatureCooling(Observation.ColonyProjection facts)
+    internal static Pol.TemperatureCooling TemperatureCooling(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var sleeping = facts.Facts.Sleeping;
-        var heater = facts.Shapes.Furniture.Heater;
+        var heater = facts.Facts.Shapes.Furniture.Heater;
         Pol.ClimateGear cooler = new Pol.ClimateGear.NotPlaceable();
         Pol.ClimateGear heaterGear = new Pol.ClimateGear.NotPlaceable();
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             if (!d.Available) continue;
             if (d.Name == "Cooler")
@@ -98,14 +98,14 @@ partial class RoundsBuildingPlanner
         return new Pol.TemperatureCooling
         {
             Cooler = cooler,
-            Power = Pol.ClimatePower.Of(facts.PowerPlanning),
-            Cells = facts.Cells,
+            Power = Pol.ClimatePower.Of(facts.Facts.EssentialInputs.Power),
+            Cells = facts.PlanningWindow.Cells,
             HeatCampfires = HeatCampfires(facts),
             Sleepers = [.. sleeping.People, .. sleeping.Slaves],
             Heater = heater,
             HeaterGear = heaterGear,
             // Campfires burn wood: a finite stock unless a tree species can be sown.
-            HeatFuelFinite = !TreePlantationRules.ResourceGrowable(RoundsFieldPlanner.CropChoices(facts), ConstructionDemandRules.ConstructionWoodLog, facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(facts.WorkPawns)),
+            HeatFuelFinite = !TreePlantationRules.ResourceGrowable(RoundsFieldPlanner.CropChoices(facts), ConstructionDemandRules.ConstructionWoodLog, facts.Facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(facts.Facts.ForecastObserved.WorkPawns)),
         };
     }
 

@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -15,18 +14,14 @@ public sealed class BelieverConversionTests
     private static readonly GoalRecord Everyone = new() { Id = 4, Kind = GoalKind.Believers };
 
     private static WorkPawn Colonist(string id, string ideo, double certainty, RimGovernor.Contracts.Wire.Defs.GuestStatus? guest = null, bool available = true, double age = 30) => PawnFixtures.Worker(id) with
-    {
-        Available = available,
-        Age = age,
-        PolicyInputs = PawnFixtures.Inputs(ideo, certainty, guest: guest),
-    };
+    { Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { BiologicalAgeYears = age }, Settings = PawnFixtures.Row(id).Settings with { PolicyInputs = PawnFixtures.Inputs(ideo, certainty, guest: guest) }, Downed = !available } };
 
     private static WorkPawnsRead Pawns(params WorkPawn[] rows) => new WorkPawnsRead(EquatableArray.From(rows));
 
-    private static IdeologyMode.Installed Ideo(params HeldRole[] roles) => new IdeologyMode.Installed(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { IdeoId = Ours, Development = IdeoDevelopment.Fixed, Roles = roles }));
+    private static IdeologyMode.Installed Ideo(params RimGovernor.Contracts.Wire.Observations.IdeoRole[] roles) => new IdeologyMode.Installed(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { IdeoId = Ours, Roles = [.. roles] } }));
 
-    private static HeldRole Guide(string pawn, bool ready = true, bool active = true) =>
-        new("role-1", "IdeoRole_Moralist", active, pawn.Length == 0 ? [] : [new PawnId(pawn)]) { Converts = true, ConvertReady = ready };
+    private static RimGovernor.Contracts.Wire.Observations.IdeoRole Guide(string pawn, bool ready = true, bool active = true) =>
+        IdeologyTestRows.Role("role-1", "IdeoRole_Moralist", active, pawn.Length == 0 ? [] : [new PawnId(pawn)], converts: true, ready: ready);
 
     private static IdeologyFacts Facts(IdeologyMode ideo, WorkPawnsRead pawns, params GoalRecord[] goals) =>
         new() { Installed = true, Roles = [], Conversion = ConversionRules.Owed(goals, ideo, pawns) };
@@ -135,26 +130,14 @@ public sealed class BelieverConversionTests
     public void AnUnmetGoalTellsThePrisonerDecisionsToConvertEvenAnUnworthyForeignPrisoner()
     {
         var policy = new PrisonerPolicy { ReleaseAfterDays = 10, FoodTargetDays = 5 };
-        var prisoner = new PrisonerFacts
-        {
-            Pawn = new("p"),
-            Dead = false,
-            CreepJoiner = false,
-            Recruitable = true,
-            CurrentInteraction = new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
-            Resistance = 0.0,
-            HeldTicks = 0L,
-            HarvestGoodwill = 0,
-            Ideo = "Ideo_other",
-            Prospect = new PrisonerProspect { Age = 30, Health = 1 },
-        };
+        var prisoner = PopulationFixtures.Held("p", ideo: "Ideo_other");
         var colony = new PrisonerColony { Colonists = 1, Ideology = new ColonyIdeology.Installed(false, Ours) };
 
         Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony, new FoodRunway.Days(20.0), policy));
         Assert.Equal(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true }, new FoodRunway.Days(20.0), policy));
 
         // A prisoner of our own ideoligion is not converted, and a classic game has no conversion.
-        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner with { Ideo = Ours }, colony with { BelieversWanted = true }, new FoodRunway.Days(20.0), policy));
+        Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner with { Person = prisoner.Person with { IdeoId = Ours } }, colony with { BelieversWanted = true }, new FoodRunway.Days(20.0), policy));
         Assert.NotEqual(PrisonerInteractionMode.Convert, PopulationRules.PrisonerIntent(prisoner, colony with { BelieversWanted = true, Ideology = new ColonyIdeology.Installed(true, Ours) }, new FoodRunway.Days(20.0), policy));
     }
 

@@ -1,6 +1,7 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -23,23 +24,17 @@ public sealed class ClothingChosenStuffTests
         {
             Pawns =
             [
-                new GearPawn
-                {
-                    Pawn = new("p1"),
-                    LoadoutModel = new GearModel.Modeled(new GearLoadoutInput
-                    { Threat = ColonyModelFixtures.NoThreat,
-                        Worn = [new GearOption { ID = "worn1", Definition = new(Parka), Stuff = Plain, Slot = GearSlot.Outer, Source = GearSource.Worn, Condition = 0.4 }],
-                    }),
-                },
+                new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("p1") }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Worn = [new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("worn1", Parka, (Plain).Value, GearSource.Worn) with { Condition = 0.4, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }), Slot = GearSlot.Outer }], Role = GearFixtures.Role }) },
             ],
         },
-        Resources = [],
+        Census = ColonyFactsCoreTests.Snapshot() with { Resources = [] },
         Garments = [new ClothingGarment { Definition = new(Parka), Groups = ["Torso"], Slots = [[new Amount(Plain, 80), new Amount(Bear, 80)]] }],
         ClothingStuff = chosen.ToDictionary(c => (new PawnId("p1"), c.Slot), c => c.Stuff),
     };
 
     private static AcquisitionSource Hunt(string id, Resource leather) =>
-        new() { Id = id, Definition = id, Hunt = true, Food = true, NutritionYield = 4, Products = [new SourceProduct(leather, 40)] };
+        new() { Observed = new() { Source = new() { Id = id }, Token = id, Resource = "Meat_Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = id, DefName = id, Label = id, Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) }, NutritionYield = 4, Products = [new SourceProduct(leather, 40)] };
 
     [Fact]
     public void TheRunwayDemandsTheChosenStuffNotTheWornOne()
@@ -66,10 +61,15 @@ public sealed class ClothingChosenStuffTests
     {
         // ResourceDemandOf's clothing set: the stuffs the runway demands.
         var clothing = Facts((GearSlot.Outer, Bear)).ClothingRunway().Needs.Keys.ToHashSet();
-        var bear = ClothingDemandRules.ResourceSourceFor(Hunt("bear", Bear), Bear, clothing);
+        var source = Hunt("bear", Bear);
+        var observed = source.Observed;
+        var bear = ClothingDemandRules.ResourceYieldFor(source, Bear, clothing);
         Assert.NotNull(bear);
-        Assert.Equal(40, bear.Yield);
-        Assert.Null(ClothingDemandRules.ResourceSourceFor(Hunt("deer", Plain), Plain, clothing));
-        Assert.Null(ClothingDemandRules.ResourceSourceFor(Hunt("deer", Plain), Bear, clothing));
+        Assert.Equal(40, bear.Value);
+        Assert.Same(observed, source.Observed);
+        Assert.Equal(1, source.Yield);
+        Assert.NotEqual(Bear.Value, source.Resource);
+        Assert.Null(ClothingDemandRules.ResourceYieldFor(Hunt("deer", Plain), Plain, clothing));
+        Assert.Null(ClothingDemandRules.ResourceYieldFor(Hunt("deer", Plain), Bear, clothing));
     }
 }

@@ -234,8 +234,10 @@ internal static class MedicalSurgery
         var population = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         var person = population.Persons.FirstOrDefault(p => p.Pawn.Value == prisoner)?.Custody as Observations.PersonCustody.Prisoner
             ?? throw new AcceptanceException($"{label}: prisoner {prisoner} is not a colony prisoner in the population read");
-        s.RecordWire("prisoner_surgery", person.Surgery);
-        var harvest = person.Surgery.Operations.FirstOrDefault(o => o.Kind == Observations.SurgeryKind.Harvest && o.Part?.DefName == "Kidney")
+        var health = await HealthAsync(s, label + "-health", prisoner, cancellationToken).ConfigureAwait(false);
+        var surgery = health.Surgery ?? throw new AcceptanceException($"{label}: prisoner {prisoner} has no surgery facts");
+        s.RecordWire("prisoner_surgery", surgery);
+        var harvest = surgery.Operations.FirstOrDefault(o => o.Kind == Observations.SurgeryKind.Harvest && o.Part?.DefName == "Kidney")
             ?? throw new AcceptanceException($"{label}: prisoner {prisoner} has no kidney harvest operation");
         return (person, harvest);
     }
@@ -259,10 +261,11 @@ internal static class MedicalSurgery
     private static async Task HarvestCareLimitAsync(TypedSession s, Fx.MedicalSetup setup, CancellationToken cancellationToken)
     {
         var prisoner = Prisoner(setup);
-        var (person, harvest) = await KidneyHarvestAsync(s, "care-limit-population", prisoner, cancellationToken).ConfigureAwait(false);
-        if (person.MedicalCare != Operations.MedicalCare.HerbalOrWorse)
+        var (_, harvest) = await KidneyHarvestAsync(s, "care-limit-population", prisoner, cancellationToken).ConfigureAwait(false);
+        var pawn = await TypedPawns.OneAsync(s, "care-limit-pawn", prisoner, cancellationToken).ConfigureAwait(false);
+        if (pawn.Settings.Care is not Observations.PawnCare.Configured { MedicalCare: Operations.MedicalCare.HerbalOrWorse })
         {
-            throw new AcceptanceException($"prisoner {prisoner} medical care {person.MedicalCare}, want HerbalOrWorse");
+            throw new AcceptanceException($"prisoner {prisoner} medical care {pawn.Settings.Care}, want HerbalOrWorse");
         }
 
         if (!harvest.MedicineCareLimited || harvest.IngredientsOnMap)

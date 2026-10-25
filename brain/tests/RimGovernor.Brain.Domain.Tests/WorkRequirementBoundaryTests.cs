@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -24,7 +24,7 @@ public sealed class WorkRequirementBoundaryTests
     {
         Assert.Empty(RoundsProjectBill.RoundsBillWork([], []));
         Assert.Throws<RequiredFactException>(() => RoundsProjectBill.RoundsBillWork([new("absent", "recipe")], []));
-        var bench = new GearBenchRead { Bench = new GearBench { Id = "bench", Usable = true, WorkSpeed = 1, Bills = [], Recipes = [] } };
+        var bench = new GearBenchRead { Bench = new GearBench { Observed = ProductionBenchFixtures.Observed("bench", "WorkTable", "bench-token", true), Bills = [], Recipes = [] } };
         Assert.Throws<RequiredFactException>(() => RoundsProjectBill.RoundsBillWork([new("bench", "recipe")], [bench]));
     }
 

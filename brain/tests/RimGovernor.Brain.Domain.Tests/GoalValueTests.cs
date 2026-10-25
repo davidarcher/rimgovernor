@@ -1,7 +1,8 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,7 +14,7 @@ public sealed class GoalValueTests
     private static WorkResourceView Resources()
     {
         var facts = WorkResourceTestFacts.Create("pawn") with
-        { Resources = [] };
+        { Census = (WorkResourceTestFacts.Create("pawn")).Census with { Resources = [] }};
         return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, new ProductionBatchCensus.Read([])),
             new ProductionBatchCensus.Read([]), []);
     }
@@ -121,13 +122,13 @@ public sealed class GoalValueTests
     {
         // #3816: the worn-count goal pays the wearer's share when a selected commitment's outfit change dresses that pawn in the
         // garment, a crafted overlay or a swap into a stored one alike; the delivery adds nothing to the development count.
-        var duster = new GearOption { ID = "duster", Definition = new("Duster"), Stuff = new("Cloth"), Slot = GearSlot.Outer };
+        var duster = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("duster", "Duster", "Cloth", GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }), Slot = GearSlot.Outer };
         var crafted = new ForecastCommitment("clothing", [])
         {
             ActivityCompletions = ["done"], Outcome = new("clothing", "clothing/pawn/Duster", "done"),
             OutfitChanges = [new("pawn", [duster]) { Overlay = true }],
         };
-        var swap = new ForecastCommitment("gear/pawn/a", []) { OutfitChanges = [new("pawn", [duster with { ID = "stored-duster", Source = GearSource.Stored }])] };
+        var swap = new ForecastCommitment("gear/pawn/a", []) { OutfitChanges = [new("pawn", [duster with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(duster).Origin).Value) with { Id = "stored-duster", Source = GearSource.Stored }) }])] };
         var other = new ForecastCommitment("gear/other/a", []) { OutfitChanges = [new("other", [duster])] };
         var context = Context(Importance.Normal) with { GoalValues = [new("goals/worn-count/2", Importance.Normal, new GoalDeadline.Open()) { Wearers = [new("pawn", "Duster", "", .5)] }] };
         var outcome = Outcome(0);
@@ -149,8 +150,8 @@ public sealed class GoalValueTests
         var facts = new GoalsFacts
         {
             Goals = [goal],
-            Research = new ResearchFacts { Projects = [new("Smithing")], Finished = [] },
-            Tier = Known(TechTier.Camp),
+            Research = ResearchTestFacts.Read(["Smithing"]),
+            Tier = TechTier.Camp,
         };
         Assert.Equal(GoalState.Pursuing, GoalRules.Evaluate(goal, facts).State);
 
@@ -160,7 +161,7 @@ public sealed class GoalValueTests
         Assert.Equal(Satisfaction.Unmet, status.Satisfaction);
 
         // A met goal is not reported infeasible.
-        var done = infeasible with { Research = new ResearchFacts { Projects = [new("Smithing")], Finished = [new("Smithing")] } };
+        var done = infeasible with { Research = ResearchTestFacts.Read(["Smithing"], ["Smithing"]) };
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, done).State);
     }
 
@@ -173,12 +174,8 @@ public sealed class GoalValueTests
         {
             Goals = [goal with { ImportanceOverride = ImportanceChoice.Of(Importance.High) }],
             Themes = [theme],
-            Research = new ResearchFacts
-            {
-                Projects = [new("Smithing")], Finished = [],
-                Details = new Dictionary<string, ResearchProjectFacts> { ["Smithing"] = new() { Cost = 800, Progress = .5 } },
-            },
-            Tier = Known(TechTier.Camp),
+            Research = ResearchTestFacts.Read(["Smithing"], definitions: new Dictionary<string, ResearchProjectDefinition> { ["Smithing"] = new() { Cost = 800 } }, progress: new Dictionary<string, double> { ["Smithing"] = .5 }),
+            Tier = TechTier.Camp,
         };
         var row = Assert.Single(GoalRules.ValuesOf(facts));
         Assert.Equal(("goals/research-project/4", Importance.High, (GoalDeadline)new GoalDeadline.Due(30)), (row.Goal, row.Importance, row.Deadline));

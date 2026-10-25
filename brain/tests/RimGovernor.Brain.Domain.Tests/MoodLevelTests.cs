@@ -1,6 +1,7 @@
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
+using RimGovernor.Brain.Store;
 using RimGovernor.Contracts.Wire;
 using Xunit;
 using O = RimGovernor.Contracts.Wire.Observations;
@@ -14,43 +15,36 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class MoodLevelTests
 {
-    private static Dictionary<string, O.PatientForecast> Patients(params (string Id, double Target)[] rows) =>
-        rows.ToDictionary(r => r.Id, r => new O.PatientForecast { PawnId = r.Id, MoodTarget = r.Target }, StringComparer.Ordinal);
-
     [Fact]
     public void AMoodNeedCarriesItsLevelAndTheForecastTarget()
     {
-        Assert.Equal(new MoodLevel.Has(.4, .6), RoundsMoodReads.MoodLevelOf("a", new O.NeedLevel.Has(.4), Patients(("a", .6))));
+        Assert.Equal(new MoodLevel.Has(.4, .6), MoodFixtures.Has("a", .4, .6).Mood);
     }
 
     [Fact]
     public void AColonistWithoutAMoodNeedHasNeitherLevelNorTarget()
     {
-        Assert.Equal(new MoodLevel.Lacks(), RoundsMoodReads.MoodLevelOf("a", new O.NeedLevel.Lacks(), Patients()));
+        Assert.Equal(new MoodLevel.Lacks(), MoodFixtures.Pawn("a").Mood);
     }
 
     [Fact]
     public void AMoodNeedWithoutItsPatientRowIsARequiredFact()
     {
-        var thrown = Assert.Throws<RequiredFactException>(() => RoundsMoodReads.MoodLevelOf("a", new O.NeedLevel.Has(.4), Patients(("b", .6))));
+        var thrown = Assert.Throws<RequiredFactException>(() => (MoodFixtures.Has("a", .4, .6) with { Forecast = null }).Mood);
         Assert.Equal("mood target of a", thrown.Fact);
     }
 
     [Fact]
-    public void BothStatesRoundTripTheStore()
+    public void NativeMoodInputsRoundTripTheStore()
     {
-        MoodLevel has = new MoodLevel.Has(.4, .6);
-        MoodLevel lacks = new MoodLevel.Lacks();
-        Assert.Equal(has, StoreJson.Deserialize<MoodLevel>(StoreJson.Serialize(has)));
-        Assert.Equal(lacks, StoreJson.Deserialize<MoodLevel>(StoreJson.Serialize(lacks)));
-        var pawn = new MoodPawn { Id = new("a"), Mood = has, Threshold = .35, Thoughts = [new("SleptOutside", -4)] };
+        var pawn = MoodFixtures.Has("a", .4, .6) with { Thoughts = [new("SleptOutside", -4)] };
         Assert.Equal(pawn, StoreJson.Deserialize<MoodPawn>(StoreJson.Serialize(pawn)));
     }
 
     [Fact]
     public void ANonFiniteTargetIsRefused()
     {
-        var pawn = new MoodPawn { Id = new("a"), Mood = new MoodLevel.Has(.4, double.NaN), Threshold = .35 };
+        var pawn = MoodFixtures.Has("a", .4, double.NaN);
         Assert.Throws<DomainException>(pawn.Validate);
     }
 
@@ -61,5 +55,85 @@ public sealed class MoodLevelTests
         var json = WireJson.Serialize(patient);
         Assert.Equal("""{"pawnId":"a","moodTarget":0.5}""", json);
         Assert.Equal(patient, WireJson.Deserialize<O.PatientForecast>(json));
+    }
+    [Fact]
+    public void MoodViewRetainsItsActualNativeInputsAndAllNativeFlags()
+    {
+        var input = MoodFixtures.Has("a", .2, .1, .15);
+        var native = input.Pawn with
+        {
+            Dead = true, Downed = true, Drafted = true,
+            Job = input.Pawn.Job with { PlayerForced = true },
+            MentalState = new O.PawnMentalState { DefName = "Berserk", IsAggro = true, Ticks = 90 },
+            Social = input.Pawn.Social with { HighExpectations = true },
+            Needs = input.Pawn.Needs with { Food = new O.FoodNeed.Has(.1, RimGovernor.Contracts.Wire.Defs.HungerCategory.Hungry), Rest = new O.NeedLevel.Has(.2), Joy = new O.NeedLevel.Has(.3) },
+        };
+        var pawn = input with { Pawn = native };
+        Assert.Same(native, pawn.Pawn);
+        Assert.Same(input.Forecast, pawn.Forecast);
+        Assert.True(pawn.Dead && pawn.Downed && pawn.Drafted && pawn.PlayerForced && pawn.Mental && pawn.HighExpectations);
+        Assert.Equal(new MoodLevel.Has(.2, .1), pawn.Mood);
+        Assert.Equal(.15, pawn.Threshold);
+        Assert.Equal(new O.NeedLevel.Has(.1), pawn.Food);
+        Assert.Same(native.Needs.Rest, pawn.Rest);
+        Assert.Same(native.Needs.Joy, pawn.Joy);
+        Assert.Equal(pawn, StoreJson.Deserialize<MoodPawn>(StoreJson.Serialize(pawn)));
+    }
+
+    [Fact]
+    public void MoodHistoryReplayRetainsTheWholeNativePawnForecastAndThoughts()
+    {
+        var input = MoodFixtures.Has("a", .2, .1, .15);
+        var pawn = input with
+        {
+            Pawn = input.Pawn with
+            {
+                Inspiration = "Inspired_Creativity",
+                Social = input.Pawn.Social with { HighExpectations = true },
+                Needs = input.Pawn.Needs with { Rest = new O.NeedLevel.Has(.1) },
+            },
+            Thoughts = [new("SleptOutside", -4)],
+        };
+        var state = Assert.Single(MoodRules.ReviewMood([pawn], new MoodHistory()).States);
+        var rounds = new Rounds { Mood = new RoundsMood { States = [new RoundsMoodState
+        {
+            Pawn = pawn, Active = state.Active, MentalRisk = state.MentalRisk,
+            Causes = EquatableArray.From(state.Causes.Select(c => new RoundsMoodCause(c.Need, c.Level))),
+            Provision = EquatableArray.From(state.Provision), Unowned = EquatableArray.From(state.Unowned),
+        }] } };
+        var restored = StoreJson.Deserialize<Rounds>(StoreJson.Serialize(rounds));
+        var replay = Assert.Single(restored.MoodHistory().States);
+        Assert.Equal(pawn, replay.Pawn);
+        Assert.Equal(MoodRules.SelectMoodMethod(state, []), MoodRules.SelectMoodMethod(replay, []));
+        Assert.Equal("Inspired_Creativity", replay.Pawn.Pawn.Inspiration);
+        Assert.True(replay.Pawn.HighExpectations);
+        Assert.Equal(pawn.Thoughts, replay.Pawn.Thoughts);
+    }
+
+    [Fact]
+    public void ATargetForAnotherPawnOrAPawnWithoutMoodCannotSupplyEvidence()
+    {
+        var wrong = MoodFixtures.Has("a", .4, .6) with { Forecast = new O.PatientForecast { PawnId = "b", MoodTarget = .6 } };
+        Assert.Throws<RequiredFactException>(wrong.Validate);
+        var lacks = MoodFixtures.Pawn("a") with { Forecast = new O.PatientForecast { PawnId = "a", MoodTarget = .6 } };
+        Assert.Throws<DomainException>(lacks.Validate);
+        var restored = StoreJson.Deserialize<MoodPawn>(StoreJson.Serialize(MoodFixtures.Pawn("a")));
+        Assert.Null(restored.Forecast);
+        Assert.IsType<MoodLevel.Lacks>(restored.Mood);
+    }
+
+    [Fact]
+    public void BridgeMoodViewUsesTheSameNativePawnAndForecastReferences()
+    {
+        var native = MoodFixtures.Has("a", .4, .6);
+        var source = ColonyFactsCoreTests.Snapshot();
+        source = source with { ColonistCount = 1, Forecast = source.Forecast with { Patients = [native.Forecast!] } };
+        var emergency = new EmergencyFacts { Colonists = [EmergencyFixtures.Colonist("a")] };
+        var census = new O.PawnSnapshot { Context = source.Context, Pawns = [native.Pawn] };
+        var mood = Assert.Single(RoundsMoodReads.RoundsMood(source, emergency, census));
+        Assert.Same(native.Pawn, mood.Pawn);
+        Assert.Same(native.Forecast, mood.Forecast);
+        source = source with { Forecast = source.Forecast with { Patients = [] } };
+        Assert.Throws<RequiredFactException>(() => RoundsMoodReads.RoundsMood(source, emergency, census));
     }
 }

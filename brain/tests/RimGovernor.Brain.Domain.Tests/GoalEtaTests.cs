@@ -1,10 +1,10 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Host;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -24,7 +24,7 @@ public sealed class GoalEtaTests
     {
         Goals = goals,
         Stock = [],
-        Rounds = new RoundsFacts { Gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("Anna"), LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Worn = [] }) }] } },
+        Rounds = new RoundsFacts { Gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("Anna") }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Worn = [], Role = GearFixtures.Role }) }] } },
         StuffResearch = new Dictionary<string, IReadOnlyList<string>> { [ColonyModelFixtures.Cloth] = [ColonyModelFixtures.Project] },
     };
 
@@ -35,10 +35,7 @@ public sealed class GoalEtaTests
         return ForecastValueTests.Context(pawns[0], ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(), outfits) with { Needs = NeedsFixtures.Empty with { Pawns = [.. pawns] } };
     }
 
-    private static GearOption BillDuster() => ForecastValueTests.Duster(0.8) with
-    {
-        ID = "bill/duster", Definition = new Resource(Duster), Stuff = new Resource(ColonyModelFixtures.Cloth), Source = GearSource.Bill,
-    };
+    private static GearOption BillDuster() => ForecastValueTests.Duster(0.8) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(ForecastValueTests.Duster(0.8)).Origin).Value) with { Id = "bill/duster", DefName = Duster, Stuff = ColonyModelFixtures.Cloth, Source = GearSource.Bill }) };
 
     private static ProjectMarginals Run(ColonyModelInput input, GoalPath path) => ProjectMarginalValue.Of(
         input, new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Projects = path.Graph },
@@ -183,8 +180,8 @@ public sealed class GoalEtaTests
         var facts = new GoalsFacts
         {
             Goals = [goal],
-            Research = new ResearchFacts { Projects = [new("Smithing")], Finished = [] },
-            Tier = Known(TechTier.Camp),
+            Research = ResearchTestFacts.Read(["Smithing"]),
+            Tier = TechTier.Camp,
             Etas = new Dictionary<string, int> { [GoalRules.NeedOf(goal).Value] = 45 },
         };
 

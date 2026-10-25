@@ -1,26 +1,41 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One producing comp, not harvested stock. Rates already incorporate the native interval, resource
 /// nutrition and growth speed. Feed is the animal's own daily plant feed, which the channel nets out.
 /// </summary>
-public sealed record AnimalProduct
+public abstract record AnimalProduct
 {
-    public string Pawn { get; init; } = "";
+    private protected AnimalProduct() { }
 
-    public string Race { get; init; } = "";
-
-    public bool Reachable { get; init; }
-
-    public double NutritionPerDay { get; init; }
-
-    public double WorkPerDay { get; init; }
-
-    public double LeadDays { get; init; }
-
+    public abstract string Pawn { get; }
+    public abstract string Race { get; }
+    public abstract bool Reachable { get; }
+    protected abstract O.AnimalYield Yield { get; }
+    private O.AnimalYield.Producing Production => Yield as O.AnimalYield.Producing
+        ?? throw new RequiredFactException("producing animal yield");
+    public double NutritionPerDay => Production.NutritionPerDay;
+    public double WorkPerDay => Production.WorkPerDay;
+    public double LeadDays => Production.LeadDays;
     public AnimalFeed Feed { get; init; } = new AnimalFeed.NoPlants();
-}
 
+    public sealed record Gatherable(O.GatherableAnimal Observed) : AnimalProduct
+    {
+        public override string Pawn => Observed.PawnId;
+        public override string Race => Observed.Race;
+        public override bool Reachable => Observed.HandlerReachable;
+        protected override O.AnimalYield Yield => Observed.Yield;
+    }
+
+    public sealed record EggLayer(O.EggLayerAnimal Observed) : AnimalProduct
+    {
+        public override string Pawn => Observed.PawnId;
+        public override string Race => Observed.Race;
+        public override bool Reachable => true;
+        protected override O.AnimalYield Yield => Observed.Yield;
+    }
+}
 public static class FoodAnimalProductsRules
 {
     private sealed class AnimalAggregate
@@ -29,13 +44,13 @@ public static class FoodAnimalProductsRules
         public double Work;
         public double Lead = double.PositiveInfinity;
         public double Feed;
-        public bool Unknown;
+        public bool Unreachable;
         public HashSet<string> Pawns { get; } = new(StringComparer.Ordinal);
     }
 
     /// <summary>
     /// Aggregates independent comps by race into the rate net of the herd's
-    /// feed (product minus feed per day, never below zero). An unreachable animal makes that race unknown
+    /// feed (product minus feed per day, never below zero). An unreachable animal makes that race unavailable
     /// rather than silently claiming a partial herd yield.
     /// </summary>
     public static IReadOnlyList<SupplyCandidate> AnimalProductChannels(IReadOnlyList<AnimalProduct> animals)
@@ -56,22 +71,24 @@ public static class FoodAnimalProductsRules
             }
             if (!a.Reachable)
             {
-                r.Unknown = true;
+                r.Unreachable = true;
                 continue;
             }
             r.Nutrition += a.NutritionPerDay;
             r.Work += a.WorkPerDay;
-            r.Feed += f;
+            if (r.Pawns.Add(a.Pawn))
+            {
+                r.Feed += f;
+            }
             r.Lead = Math.Min(r.Lead, a.LeadDays);
-            r.Pawns.Add(a.Pawn);
         }
         var channels = new List<SupplyCandidate>();
         foreach (var race in byRace.Keys.Order(StringComparer.Ordinal))
         {
             var r = byRace[race];
-            // A race with an unread animal is unpriced, unscheduled and not committed; a NaN rate still reaches the planner's check.
-            YieldSupply supply = !r.Unknown || double.IsNaN(r.Nutrition) ? new YieldSupply.Steady(Math.Max(0, r.Nutrition - r.Feed)) : new YieldSupply.Unpriced();
-            var c = r.Unknown
+            // A race with an unreachable animal is unpriced, unscheduled and not committed; a NaN rate still reaches the planner's check.
+            YieldSupply supply = !r.Unreachable || double.IsNaN(r.Nutrition) ? new YieldSupply.Steady(Math.Max(0, r.Nutrition - r.Feed)) : new YieldSupply.Unpriced();
+            var c = r.Unreachable
                 ? CandidateRules.FoodCandidate(CandidateKind.AnimalProduct, race, supply, CandidateState.Closed, new CandidateLead.Unscheduled(), new CandidateWork.Unpriced())
                 : CandidateRules.FoodCandidate(CandidateKind.AnimalProduct, race, supply, CandidateRules.FoodState(false, true), new CandidateLead.Days(r.Lead), new CandidateWork.PerDay(r.Work));
             c = c with

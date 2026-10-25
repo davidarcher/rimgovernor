@@ -10,7 +10,7 @@ public sealed partial class Rounder
     /// </summary>
     internal static DesignChoice ReformChoice(RoundsReading read, GenerationSnapshot snapshot, IReadOnlyList<IdeoGoalTarget> targets)
     {
-        var ideo = read.Projection.Facts.Ideology is IdeologyMode.Installed { Primary: var held } ? held : throw new RequiredFactException("ideoligion");
+        var ideo = read.Reading.Facts.Ideology is IdeologyMode.Installed { Primary: var held } ? held : throw new RequiredFactException("ideoligion");
         var catalog = read.Catalog ?? throw new RequiredFactException("definition catalog");
         var frame = read.Frame.Pawns ?? throw new RequiredFactException("pawn frame");
 
@@ -42,7 +42,7 @@ public sealed partial class Rounder
         }
 
         var current = CurrentDesign(ideo, catalog);
-        var tick = read.Projection.Identity.Tick;
+        var tick = read.Reading.Identity.Tick;
         bool calm;
         try
         {
@@ -58,8 +58,8 @@ public sealed partial class Rounder
         // The believers' needs are read only when the improvement search runs.
         DesignNeeds Needs() => IdeoligionDesignRules.IdeoligionNeeds(
             ideo.Facts,
-            read.Projection.WorkPawns.Pawns,
-            read.Projection.Facts.MoodPawns);
+            read.Reading.Facts.ForecastObserved.WorkPawns.Pawns,
+            read.Reading.Facts.MoodPawns);
         return IdeoligionDesignRules.ChooseIdeoligionReform(options, current, ideo.Facts.Development, calm, Needs, targets);
     }
 
@@ -69,10 +69,10 @@ public sealed partial class Rounder
         var precepts = new List<string>();
         foreach (var held in ideo.Facts.Precepts)
         {
-            var def = catalog.DefRow<RimWorld.PreceptDef>(held.Def) ?? throw new RequiredFactException("precept def");
+            var def = catalog.DefRow<RimWorld.PreceptDef>(held.DefName) ?? throw new RequiredFactException("precept def");
             if (def.preceptClass == typeof(RimWorld.Precept))
             {
-                precepts.Add(held.Def);
+                precepts.Add(held.DefName);
             }
         }
 
@@ -86,14 +86,14 @@ partial class Rounder
     internal static bool ObservedReform(Ideoligion ideo, IdeoligionDesign actual, IdeoligionReform intent)
     {
         var state = ideo.Facts.Development;
-        if (ideo.Facts.IdeoId != intent.IdeoId || state.ReformCount != intent.Count + 1)
+        if (ideo.Facts.IdeoId != intent.IdeoId || state is not PbObservations.IdeoDevelopment.Fluid fluid || fluid.ReformCount != intent.Count + 1)
         {
             return false;
         }
 
         try
         {
-            var canonical = IdeoligionDesign.CanonicalIdeoligionDesign(actual with { Fluid = state.Fluid });
+            var canonical = IdeoligionDesign.CanonicalIdeoligionDesign(actual with { Fluid = true });
             return canonical == intent.Design;
         }
         catch (DomainException)

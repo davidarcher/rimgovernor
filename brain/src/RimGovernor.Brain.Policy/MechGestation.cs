@@ -1,23 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One gestator of the colony section.</summary>
-public sealed record GestatorFact
-{
-    /// <summary>Whether the gestator has an active bill (a mech forming).</summary>
-    public required bool Active { get; init; }
-
-    /// <summary>The wastepacks held in its own waste producer.</summary>
-    public required int WasteCount { get; init; }
-}
-
-/// <summary>One stack of wastepacks as the colony section reads it.</summary>
-public sealed record WastepackFact
-{
-    public required int Count { get; init; }
-    public required bool Frozen { get; init; }
-    public required bool InAtomizer { get; init; }
-}
-
 /// <summary>
 /// What the gestation goal decides from: the catalog, the colony's mechanitors and mechs, the work coverage, and
 /// the gestators and wastepacks of the Biotech colony section, and the chargers.
@@ -28,9 +10,9 @@ public sealed record MechGestation
     public IReadOnlyList<MechanitorInput> Mechanitors { get; init; } = [];
     public IReadOnlyList<MechInput> Mechs { get; init; } = [];
     public IReadOnlyList<WorkCoverage> Coverage { get; init; } = [];
-    public IReadOnlyList<GestatorFact> Gestators { get; init; } = [];
-    public IReadOnlyList<WastepackFact> Wastepacks { get; init; } = [];
-    public IReadOnlyList<MechCharger> Chargers { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Contracts.Wire.Observations.MechGestatorState> Gestators { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Wastepack> Wastepacks { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Contracts.Wire.Observations.MechChargerState> Chargers { get; init; } = [];
 }
 
 /// <summary>The mech kind the next gestation builds.</summary>
@@ -60,7 +42,7 @@ public static partial class MechRules
         g.Gestators.Any(gestator => gestator.WasteCount > 0) || g.Wastepacks.Any(pack => pack.Count > 0 && !pack.Frozen && !pack.InAtomizer);
 
     /// <summary>A mechanitor's bandwidth left for a new mech.</summary>
-    public static int FreeBandwidth(PawnMechanitor m) => m.TotalBandwidth - m.UsedBandwidth - m.GestationBandwidth;
+    public static int FreeBandwidth(RimGovernor.Contracts.Wire.Observations.PawnMechanitor m) => m.TotalBandwidth - m.UsedBandwidth - m.UsedBandwidthFromGestation;
 
     /// <summary>
     /// Picks the next mech: for each mechanitor, most free bandwidth first, the role MechRoleNext names, then the
@@ -131,7 +113,7 @@ public static partial class MechRules
     /// </summary>
     public static bool MechGestationOwed(MechGestation g)
     {
-        if (g.Gestators.Count == 0 || UnclearedWaste(g) || !MechChargerReady(g.Chargers) || g.Gestators.Any(gestator => gestator.Active))
+        if (g.Gestators.Count == 0 || UnclearedWaste(g) || !MechChargerReady(g.Chargers) || g.Gestators.Any(gestator => gestator.BillId is not null))
         {
             return false;
         }

@@ -50,7 +50,7 @@ public sealed class PrisonersRounds
             throw new ControlException("prisoners read: the scope is another world or older than the review");
         }
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ct).ConfigureAwait(false);
-        return PrisonersFacts.From(reading.Projection.Facts);
+        return PrisonersFacts.From(reading.Reading.Facts);
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ public sealed class PrisonersRounds
             throw new ControlException("prisoners jail: the native boundary moved");
         }
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ["Wall", "Door"], call).ConfigureAwait(false);
-        var step = JailStep(reading.Projection);
+        var step = JailStep(reading.Reading);
         switch (step.Kind)
         {
             case JailStepKind.Reconcile:
@@ -87,7 +87,7 @@ public sealed class PrisonersRounds
                 var verdict = Verdict.WaitFor(Cause.MethodUsed, "jail_bed_method");
                 foreach (var bed in step.Marks)
                 {
-                    var one = await MarkJailBedAsync(state, work.Owner, reading.Projection, bed, call, work.Epoch).ConfigureAwait(false);
+                    var one = await MarkJailBedAsync(state, work.Owner, reading.Reading, bed, call, work.Epoch).ConfigureAwait(false);
                     if (one == Verdict.BuildingReasonAdmitted || verdict.Is(Cause.MethodUsed))
                     {
                         verdict = one;
@@ -95,12 +95,14 @@ public sealed class PrisonersRounds
                 }
                 return verdict;
             }
-            default:
+            case JailStepKind.None:
                 return idle;
+            case var invalid:
+                throw new ControlException($"prisoners jail: invalid step {invalid}");
         }
     }
 
-    internal static JailStep JailStep(ColonyProjection facts)
+    internal static JailStep JailStep(ColonyReading facts)
     {
         var (plan, rooms, known) = RoundsBuildingPlanner.PlannedLayout(facts);
         var sleeping = facts.Facts.Sleeping;
@@ -114,7 +116,7 @@ public sealed class PrisonersRounds
     }
 
     /// <summary>Flags one jail bed for prisoners, once per bed under the Need; nothing when native already has it so.</summary>
-    private async Task<Verdict> MarkJailBedAsync(ControlState state, NeedOwner owner, ColonyProjection facts, string bed, CancellationToken call, CancellationToken epoch)
+    private async Task<Verdict> MarkJailBedAsync(ControlState state, NeedOwner owner, ColonyReading facts, string bed, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
         if (_reviewer.Native is not FacadeNativeClient native)

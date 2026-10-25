@@ -13,7 +13,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     /// <summary>The policy request of the site census: the turret and mortar budgets, the defenders, the cover choice and the IEDs.</summary>
     internal async Task<(DefenseRequest Request, Verdict Held, bool Ok)> DefenseCensusRequestAsync(ControlState state, RoundsReading read, DefenseKillbox killbox, BridgeCellRect region, Cell home, CancellationToken call)
     {
-        var projection = read.Projection;
+        var projection = read.Reading;
         var identity = Boundary.Identity(state.Snapshot);
         var site = await DefenseSiteAsync(identity, projection, region, call).ConfigureAwait(false);
         var request = DefenseTurretRequest(read);
@@ -34,10 +34,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             Mortar = mortar.Mortar,
             UnitCosts = unitCosts,
-            Bounds = projection.Bounds,
+            Bounds = projection.Facts.MapBounds,
             Home = home,
             Killbox = killbox,
-            Arrivals = EquatableArray.From(DefenseArrivals(projection.Raids, region)),
+            Arrivals = EquatableArray.From(DefenseArrivals(projection.Snapshot.Threat.Observed.Raids, region)),
             Tick = projection.Identity.Tick,
             Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1),
             Entrances = [.. entrances],
@@ -51,7 +51,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             Defenders = defenders,
             MinRange = minRange,
-            Definitions = DefenseCoverStock.DefenseCoverChoice(projection.Facts.Items, request.Definitions, projection.Resources,
+            Definitions = DefenseCoverStock.DefenseCoverChoice(projection.Facts.Items, request.Definitions, ResourceStockRules.Count(projection.Snapshot.Resources),
                 DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseSandbags), DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseEmbrasure), defenders),
         };
         request = DefenseIedRequest(read, request);
@@ -147,7 +147,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     /// <summary>Sites the record's unstarted tiers on plan and returns the plan the step holds after: the sited one when it was recorded, else plan.</summary>
     internal async Task<LayoutPlan> SiteTiersAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, LayoutPlan plan, DefenseCensus? tierCensus, CancellationToken call)
     {
-        var (killbox, region, home, ok) = DefenseKillbox(read.Projection);
+        var (killbox, region, home, ok) = DefenseKillbox(read.Reading);
         if (!ok)
         {
             return plan;
@@ -173,7 +173,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var held = plan;
         if (DefenseTiersStored(plan, tiers) is { } sited)
         {
-            _reviewer.Player.Journal.RecordLayoutPlan(state.Snapshot, read.Projection.Identity.Tick, sited, call);
+            _reviewer.Player.Journal.RecordLayoutPlan(state.Snapshot, read.Reading.Identity.Tick, sited, call);
             held = sited;
         }
         foreach (var g in tiers.Layout.Gated)
@@ -240,8 +240,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 // A thing without a priced clear row stays unpriced.
             }
         }
-        var p = read.Projection;
-        var facts = new StationFacts { Catalog = p.Stations, Items = p.Facts.Items, Colonists = p.Facts.Colonists, Food = p.FoodSupply, WorkPawns = p.WorkPawns, Crops = FieldCrops.Growing(p) };
+        var p = read.Reading;
+        var facts = new StationFacts { Catalog = p.Facts.Stations, Items = p.Facts.Items, Colonists = p.Facts.Census.ColonistCount, Food = p.Facts.FoodSupply, WorkPawns = p.Facts.ForecastObserved.WorkPawns, Crops = FieldCrops.Growing(p) };
         var decisions = DefenseBlock.PriceTierBlocks(census.Cells, pins, tiers.Sited, DefenseBlock.NewBlockPricing(facts, census.UnitCosts, rows));
         var key = string.Join(" ", decisions.Select(d => d.ToString()));
         if (key == BlocksLogged)

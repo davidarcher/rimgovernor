@@ -45,7 +45,7 @@ public static class FacilityUpkeepRules
         var result = new List<string>();
         foreach (var row in structures)
         {
-            var s = row.Structure;
+            var s = row;
             DomainException.Require(FoodForecastRules.FoodId(s.Id) && seen.Add(s.Id) && AdmissionRules.ValidResource(new Resource(s.Definition)), "invalid structure census");
             if (!walls.Contains(s.Id))
             {

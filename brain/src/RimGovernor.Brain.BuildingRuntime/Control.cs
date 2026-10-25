@@ -180,7 +180,7 @@ public sealed partial class Control : IDisposable
         using var entry = observed.Entry;
         var epoch = observed.Epoch;
         var status = observed.Status;
-        var generation = status.Context?.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observedA } ? observedA : 0UL;
+        var generation = AuthorityGeneration(status.Context);
         if (generation == ulong.MaxValue)
         {
             throw new ControlException("Acquire: generation == ^uint64(0)");
@@ -725,7 +725,7 @@ public sealed partial class Control : IDisposable
         }
         ct.ThrowIfCancellationRequested();
         var status = reply;
-        var statusGeneration = status.Context?.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observedB } ? observedB : 0UL;
+        var statusGeneration = AuthorityGeneration(status.Context);
         if (status.State?.Inactive is not null)
         {
             PublishDisabled(snapshot, statusGeneration, ct);
@@ -821,7 +821,7 @@ public sealed partial class Control : IDisposable
             {
                 throw FailedObservationLocked(err);
             }
-            requested = requested with { Native = new NativeGeneration(reply!.Context?.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observedC } ? observedC : 0UL) };
+            requested = requested with { Native = new NativeGeneration(AuthorityGeneration(reply!.Context)) };
             // The target plan is only a read scope; the grant this process holds is world-scoped and still
             // stands while native reports it Auto at the generation it accepted (the worker retargets reads
             // under a hold).
@@ -881,7 +881,7 @@ public sealed partial class Control : IDisposable
             }
             var status = reply!;
             var active = status.State?.Active;
-            var statusGeneration = status.Context?.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observedD } ? observedD : 0UL;
+            var statusGeneration = AuthorityGeneration(status.Context);
             if (statusGeneration != snapshot.Native.Value || active is null || active.Mode != PbAuthority.Mode.Auto)
             {
                 var invalidated = InvalidateLocked();
@@ -893,6 +893,15 @@ public sealed partial class Control : IDisposable
             _active = true;
         }
     }
+
+    // Zero is the native grant precondition before authority is allocated, not an absent-context fallback.
+    private static ulong AuthorityGeneration(PbCommon.ObservationContext? context) => context?.NativeGeneration switch
+    {
+        PbCommon.ObservedGeneration.AtCase { Value: > 0 } at => at.Value,
+        PbCommon.ObservedGeneration.UnclaimedCase => 0,
+        null => throw new ControlException("authority observation has no generation state"),
+        PbCommon.ObservedGeneration unexpected => throw new ControlException($"authority observation has invalid generation state {unexpected}"),
+    };
 
     internal static void ControlStatus(PbAuthority.Status? status, GenerationSnapshot snapshot)
     {

@@ -2,7 +2,7 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>The native reads a building planner needs: the colony reads plus the native placement preview.</summary>
-public interface IRoundsBuildingSource : Observation.IColonySource
+public interface IRoundsBuildingSource : IColonySource
 {
     Task<BuildingPreview> PreviewBuildingAsync(DomainAction action, GenerationSnapshot snapshot, CancellationToken ct);
 }
@@ -185,7 +185,7 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
         var identity = await r.Native.IdentityAsync(call).ConfigureAwait(false);
-        var expected = DecodeReads.DecodeIdentity(identity);
+        var expected = new ObservationIdentity { Context = identity.Context, Paused = identity.Paused };
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             // A bare control error reads as a lost writer gate in the diagnosis; name the boundary that actually failed.
@@ -237,7 +237,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (r.Concern == MedicalRules.MedicalCareNeed.FilingKey || r.Phase == Pol.Phase.HousingSleeping || r.Concern == EconomyFamily.Research.FilingKey)
         {
-            // The beds and the research bench are the furniture rules', read with every catalog (ColonyProjection.Shapes).
+            // The beds and the research bench are the furniture rules', read with every catalog (ColonyReading.Shapes).
             definitions = [];
         }
         if (r.Phase == Pol.Phase.ComfortWorkChair)
@@ -276,26 +276,26 @@ public sealed partial class RoundsBuildingPlanner
             // The planned kitchen or butchery is shelled first.
             observed = [.. observed, "Wall", "Door"];
         }
-        Observation.ColonyReading reading;
-        var roundsSource = r.Native is Observation.IRoundsSource;
+        RimGovernor.Brain.Bridge.Contracts.ColonyReading reading;
+        var roundsSource = r.Native is IRoundsSource;
         var separation = (r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey) && roundsSource;
         if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == ShelterFamily.Temperature.FilingKey || r.FacilityLadder() || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey || separation)
         {
             // Cooking and butcher placements read rooms too when the source can serve them, so kitchen/butcher
             // separation protects each other's rooms; without a census nothing is protected.
-            var full = await r.Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
+            var full = await r.Reviewer.ObserveOwnedAsync((IRoundsSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
             reading = full.Reading;
         }
         else if (r.Concern == PowerFamily.Basic.FilingKey || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortWorkChair)
         {
-            var full = await r.Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
+            var full = await r.Reviewer.ObserveOwnedAsync((IRoundsSource)r.Native, expected, [.. observed], call).ConfigureAwait(false);
             reading = full.Reading;
         }
         else
         {
             reading = await r.Reviewer.ObserveColonyAsync(r.Native, expected, [.. observed], call).ConfigureAwait(false);
         }
-        var facts = reading.Projection;
+        var facts = reading;
         PlannerSnapshot.RecordStepRead("building", r.Concern, state.Snapshot, facts);
         RecordRoleMismatches(facts, call);
         if (r.Phase == Pol.Phase.ComfortSpot)
@@ -425,9 +425,9 @@ public sealed partial class RoundsBuildingPlanner
         {
             case "butcher-spot-retire":
             {
-                var (spot, owed) = StandingButcherSpot(facts);
-                if (owed && spot.Building is { } spotBuilding)
+                if (StandingButcherSpot(facts) is { } spot)
                 {
+                    var spotBuilding = spot.Building;
                     return await r.RetireBuildingAsync(state, review, goal, reading, spot.Id, spotBuilding.Definition, spot.Cells[0], "butcher-spot-retire", "stand-in_butcher_spot", call, epoch).ConfigureAwait(false);
                 }
                 break;
@@ -446,7 +446,7 @@ public sealed partial class RoundsBuildingPlanner
                 // The real table goes in the planned butchery once the wood is in stock.
                 var table = r.Copy();
                 table.Definition = "TableButcher";
-                table.Stuff = facts.BuildStuff(table.Definition);
+                table.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), table.Definition);
                 r = table;
                 break;
             }
@@ -461,7 +461,7 @@ public sealed partial class RoundsBuildingPlanner
                 var (room, owed) = PlannedRoomOwed(facts, module);
                 if (owed)
                 {
-                    var ring = await r.ReconcileRoomAsync(state, review, goal, new Observation.RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
+                    var ring = await r.ReconcileRoomAsync(state, review, goal, new RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
                     if (ring.Verdict.Is(Pol.Cause.MethodUsed))
                     {
                         return ring;
@@ -482,7 +482,7 @@ public sealed partial class RoundsBuildingPlanner
             var (room, owed) = PlannedRoomOwed(facts, plannedModule);
             if (owed)
             {
-                var ring = await r.ReconcileRoomAsync(state, review, goal, new Observation.RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
+                var ring = await r.ReconcileRoomAsync(state, review, goal, new RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
                 // A ring the portfolio holds is no failure of the station (#3754): the stove or bench takes the usual
                 // placement, off the held room's interior, so its blueprint there does not start the room unpriced.
                 var held = ring.Verdict.PortfolioHolds;
@@ -671,7 +671,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         var pendingAnchors = p.Journal.PendingBuildingAnchors(snapshot, own, call);
         protectedCells.AddRange(pendingAnchors);
-        var excavation = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading };
+        var excavation = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts };
         var (sky, skyHandled) = await r.DigSkyAsync(excavation, protectedCells, Check, call, epoch).ConfigureAwait(false);
         if (skyHandled)
         {
@@ -723,7 +723,7 @@ internal sealed record RoundsAdmission
     public ControlState State { get; init; }
     public Sto.Rounds Review { get; init; } = null!;
     public Sto.NeedOwner Owner { get; init; } = null!;
-    public Observation.ColonyProjection Facts { get; init; } = null!;
+    public RimGovernor.Brain.Bridge.Contracts.ColonyReading Facts { get; init; } = null!;
     public MethodId Method { get; init; }
 
     /// <summary>The planner's short why, stored with the method.</summary>
@@ -740,7 +740,7 @@ public sealed partial class RoundsBuildingPlanner
     /// The fence a waiting verdict passes before it is reported: the session is still current and unchanged, the
     /// native still names the step's world at or past the read, and the read is inside the review's age bound.
     /// </summary>
-    internal async Task WaitFenceAsync(ControlState state, Observation.ColonyReading reading, Observation.ColonyProjection facts, CancellationToken call, CancellationToken epoch)
+    internal async Task WaitFenceAsync(ControlState state, RimGovernor.Brain.Bridge.Contracts.ColonyReading reading, RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         p.Current(call, epoch);
@@ -749,10 +749,10 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("step: p.session.State() != state");
         }
         var last = await Native.IdentityAsync(call).ConfigureAwait(false);
-        Observation.Identity actual;
+        ObservationIdentity actual;
         try
         {
-            actual = DecodeReads.DecodeIdentity(last);
+            actual = new ObservationIdentity { Context = last.Context, Paused = last.Paused };
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -765,7 +765,7 @@ public sealed partial class RoundsBuildingPlanner
         var now = Reviewer.Clock.Now();
         if (now < reading.StartedAt || now - reading.StartedAt > Reviewer.MaxAge)
         {
-            throw new Observation.ObservationStaleException();
+            throw new RimGovernor.Brain.Bridge.Contracts.ObservationStaleException();
         }
     }
 
@@ -794,7 +794,7 @@ public sealed partial class RoundsBuildingPlanner
             Plan = plan,
             Current = a.Snapshot,
             Tick = a.Facts.Identity.Tick,
-            Bounds = a.Facts.Bounds,
+            Bounds = a.Facts.Facts.MapBounds,
             Stock = a.Stock,
             Previews = a.Selected,
             Purpose = a.Purpose,
@@ -812,7 +812,7 @@ public sealed partial class RoundsBuildingPlanner
         return new RoundsBuildingResult { Verdict = reason, Decision = decision };
     }
 
-    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewMethodAsync(GenerationSnapshot snapshot, Observation.ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
+    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewMethodAsync(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
     {
         if (Power is { Method: Pol.PowerMethod.Shelter })
         {
@@ -845,7 +845,7 @@ public sealed partial class RoundsBuildingPlanner
         return (selected, stock, reason);
     }
 
-    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewSearchAsync(GenerationSnapshot snapshot, Observation.ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
+    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewSearchAsync(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
     {
         if (Paste.Count > 0)
         {
@@ -880,7 +880,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (ButcherBenchDefinition(Definition) || Concern == FoodRules.CookingNeed.FilingKey)
         {
-            protectedSet = [.. protectedSet, .. KitchenSeparationRules.SeparationProtectedCells(facts.Rooms, ButcherBenchDefinition(Definition))];
+            protectedSet = [.. protectedSet, .. KitchenSeparationRules.SeparationProtectedCells(facts.Facts.Upkeep.Rooms, ButcherBenchDefinition(Definition))];
         }
         // The cooking campfire stands in the planned kitchen. It has no outdoor stand-in.
         var cookingCampfire = Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire" && Facility is null && Paste.Count == 0;
@@ -950,7 +950,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, new Pol.StockObservation(), NoSpace("layout_room_cells"));
             }
         }
-        foreach (var c in facts.Cells)
+        foreach (var c in facts.PlanningWindow.Cells)
         {
             if (RecreationPowerW > 0 && !PoweredRecreationCell(facts, c.Cell, RecreationPowerW))
             {
@@ -969,7 +969,7 @@ public sealed partial class RoundsBuildingPlanner
                 cells.Add(c);
             }
         }
-        var planCenter = facts.Center();
+        var planCenter = facts.Facts.LayoutPlan?.Center();
         if (planCenter is null && Cells is null && Power is null)
         {
             return (null, new Pol.StockObservation(), BuildingReasonNoLayoutPlan);
@@ -980,12 +980,12 @@ public sealed partial class RoundsBuildingPlanner
         {
             Snapshot = snapshot,
             Tick = facts.Identity.Tick,
-            Bounds = facts.Bounds,
+            Bounds = facts.Facts.MapBounds,
             Center = center,
             Cells = cells,
-            Protected = [.. protectedSet, .. PlacementSearchRules.DoorwayAisles(facts.Bounds, facts.Cells)],
+            Protected = [.. protectedSet, .. PlacementSearchRules.DoorwayAisles(facts.Facts.MapBounds, facts.PlanningWindow.Cells)],
             Environment = Pol.PlacementEnvironment.Indoors,
-            Radius = Math.Max(facts.Bounds.Width, facts.Bounds.Height),
+            Radius = Math.Max(facts.Facts.MapBounds.Width, facts.Facts.MapBounds.Height),
             Limit = 64,
             StockpileZones = StockpileZones.StockpileZoneIds(facts)?.ToDictionary(id => id, _ => true) ?? new Dictionary<string, bool>(),
         };
@@ -1091,7 +1091,7 @@ public sealed partial class RoundsBuildingPlanner
         var occupied = new List<Cell>();
         if (interiorRooms.Count > 0)
         {
-            foreach (var c in facts.Cells)
+            foreach (var c in facts.PlanningWindow.Cells)
             {
                 if (c.Occupied())
                 {
@@ -1203,7 +1203,7 @@ public sealed partial class RoundsBuildingPlanner
                 var slotAnchors = slots.Select(s => s.Anchor()).ToList();
                 var request = searchRequest with
                 {
-                    Protected = [.. protectedSet, .. PlacementSearchRules.DoorwayAisles(facts.Bounds, facts.Cells)],
+                    Protected = [.. protectedSet, .. PlacementSearchRules.DoorwayAisles(facts.Facts.MapBounds, facts.PlanningWindow.Cells)],
                     Anchors = slotAnchors,
                     Limit = Math.Min(slots.Count, 64),
                 };
@@ -1301,10 +1301,10 @@ partial class RoundsBuildingPlanner
     /// The scope every routine planner checks its own identity read against: the reviewed world and native
     /// generation, at a tick that still describes the review's anchor (RoundsBuildingFresh).
     /// </summary>
-    internal static bool RoundsBuildingBoundary(Observation.Identity actual, GenerationSnapshot expected, Tick tick) =>
-        actual.NativeGeneration.TryGetValue(out var generation)
+    internal static bool RoundsBuildingBoundary(ObservationIdentity actual, GenerationSnapshot expected, Tick tick) =>
+        actual.NativeGeneration.IsAt(expected.Native.Value)
         && actual.Colony == expected.Colony && actual.Load == expected.Load && actual.Map == expected.Map
-        && RoundsBuildingFresh(actual.Tick, tick) && generation == expected.Native;
+        && RoundsBuildingFresh(actual.Tick, tick);
 
     /// <summary>
     /// Accepts an identity read the step's fact cache may serve: seeded at the tick the step opened on, it sits
@@ -1365,10 +1365,10 @@ partial class RoundsBuildingPlanner
     /// The interior cells of the layout plan's rooms built for another use than sleeping. The sleeping rooms and
     /// unbuilt reserve ground stay open to furniture.
     /// </summary>
-    internal static List<Cell> NonSleepingPlannedCells(Observation.ColonyProjection facts)
+    internal static List<Cell> NonSleepingPlannedCells(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var cells = new List<Cell>();
-        if (facts.LayoutPlan is not { } plan)
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return cells;
         }
@@ -1402,10 +1402,10 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>The interior cells of the layout plan's rooms a colonist sleeps in: the bedrooms, the barracks and the suites. Loose sleeping spots stand in these and nowhere else.</summary>
-    internal static List<Cell> SleepingPlannedCells(Observation.ColonyProjection facts)
+    internal static List<Cell> SleepingPlannedCells(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var cells = new List<Cell>();
-        if (facts.LayoutPlan is not { } plan)
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return cells;
         }

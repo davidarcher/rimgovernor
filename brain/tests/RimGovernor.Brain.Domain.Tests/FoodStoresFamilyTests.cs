@@ -2,7 +2,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -18,34 +17,34 @@ public sealed class FoodStoresFamilyTests
 
     private static readonly FoodStoragePolicy Policy = FoodStorageUpkeepRules.DefaultFoodStoragePolicy();
 
-    private static FoodStorageStock Stock(string id, double nutrition, bool roofed, string def = "MealSimple") => new(new FoodStock
-    {
+    private static FoodStorageStock Stock(string id, double nutrition, bool roofed, string def = "MealSimple") => new(new FoodStock {
         Id = id,
-        DefName = new(def),
+        DefName = def,
         Nutrition = nutrition,
         Rot = new FoodRot.Rots((long)GameTime.TicksPerDay),
         Place = new FoodPlace.Stands(roofed, ""),
         TemperatureC = roofed ? 0.0 : 20.0,
         Form = new FoodForm.Item(),
-    });
+        IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None, Holder = new PawnId(string.Empty), Eaters = [], Count = 0, UnitMass = 0, Forbidden = false });
 
     /// <summary>A forbidden warm corpse the larder allows again, lying unroofed at (3, 4).</summary>
-    private static FoodStorageStock Corpse() => new(new FoodStock
-    {
+    private static FoodStorageStock Corpse() => new(new FoodStock {
         Id = "corpse-1",
-        DefName = new("Corpse_Muffalo"),
+        DefName = "Corpse_Muffalo",
         Nutrition = 10.0,
         Rot = new FoodRot.Rots((long)GameTime.TicksPerDay),
         Place = new FoodPlace.Stands(false, ""),
         TemperatureC = 20.0,
         Forbidden = true,
         Form = new FoodForm.Corpse(100.0, 1.0),
-    });
+        IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None, Holder = new PawnId(string.Empty), Eaters = [], Count = 0, UnitMass = 0 });
 
     private static FoodStorageObservation Census(params FoodStorageStock[] stocks) => new()
     {
         Stocks = EquatableArray.From(stocks),
-        Larder = new FoodLarder { Corpses = stocks.Any(s => s.Stock.Corpse) ? [new CorpseHandling { Id = "corpse-1", Cell = new(3, 4) }] : [] },
+        Larder = new FoodLarder { Corpses = stocks.Any(s => s.Stock.IsCorpse()) ? [new CorpseHandling { Id = "corpse-1", Cell = new(3, 4),
+        Hauler = new PawnId(string.Empty), FrozenDestination = false }] : [],
+        RawMeatNutrition = 0, CookDemandNutrition = 0 },
         ChilledMaxC = 10,
     };
 
@@ -54,16 +53,15 @@ public sealed class FoodStoresFamilyTests
     private static Need Derive(FoodStoresFacts facts) => Assert.Single(new FoodStoresFamily(Policy, true, false).Derive(facts));
 
     /// <summary>A roofed perishable stock in room r1 measured at <paramref name="celsius"/>, two days from rot.</summary>
-    private static FoodStorageStock Warm(string id, double nutrition, double celsius) => new(new FoodStock
-    {
+    private static FoodStorageStock Warm(string id, double nutrition, double celsius) => new(new FoodStock {
         Id = id,
-        DefName = new("RawFungus"),
+        DefName = "RawFungus",
         Nutrition = nutrition,
         Rot = new FoodRot.Rots(2L * GameTime.TicksPerDay),
         Place = new FoodPlace.Stands(true, "r1"),
         TemperatureC = celsius,
         Form = new FoodForm.Item(),
-    });
+        IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None, Holder = new PawnId(string.Empty), Eaters = [], Count = 0, UnitMass = 0, Forbidden = false });
 
     private static Need Refrigeration(FoodStoresFacts facts) => Assert.Single(new FoodStoresFamily(Policy, false, true).Derive(facts));
 
@@ -154,7 +152,7 @@ public sealed class FoodStoresFamilyTests
         var census = larder ? Census(Stock("pem-1", 10, roofed: true, "Pemmican"), Corpse()) : Census(Stock("pem-1", 10, roofed: true, "Pemmican"));
         var facts = WorkResourceTestFacts.Create("a", "b", "c") with
         {
-            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0,
+            Census = (WorkResourceTestFacts.Create("a", "b", "c")).Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0,
             FoodStorageUpkeep = census,
             FoodReserve = new FoodReserveState.Reviewed(Reserve("pem-1")),
         };
@@ -210,7 +208,7 @@ public sealed class FoodStoresFamilyTests
 
         // The review rebuild keeps the row; a complete run that no longer derives the Need prunes it.
         colony.Journal.ReviewRounds(new() { Current = World, Tick = new(200), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = colony.Journal.LoadRounds(ct).Revision,
-            Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0} }, ct);
+            Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Census = (WorkResourceTestFacts.Create("a", "b", "c")).Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0} }, ct);
         Assert.Equal(row, Row(colony));
         colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [new FamilyProgress("food-stores", true, [])], ct);
         Assert.Null(Row(colony));

@@ -1,9 +1,9 @@
+using RimGovernor.Brain.Facts;
 using System.Reflection;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -41,12 +41,9 @@ public sealed class BatteryPlacementTests
                 Snapshot = snapshot,
                 CanPlace = true,
                 SafeToPlace = true,
-                MadeFromStuff = false,
-                WatchCells = WatchAccess.NotWatched,
-                Wind = new BuildingWind.NotWindTurbine(),
+                Source = PreviewTestFacts.Source(c),
                 Footprint = [c, new(c.X, c.Z + 1)],
                 Costs = [],
-                Blockers = [],
             };
             return Task.FromResult(new BuildingPreview { Preview = preview, Stock = new StockObservation { Snapshot = snapshot, Tick = new(100) } });
         }
@@ -63,13 +60,36 @@ public sealed class BatteryPlacementTests
             for (var x = 0; x < 20; x++)
             {
                 var c = new Cell(x, z);
-                cells.Add(SiteCellFixtures.Ground with { Cell = c, Walkable = true, Zone = false, Roofed = Roofed(c), Indoors = Roofed(c) });
+                cells.Add(SiteCellFixtures.At(c, roof: Roofed(c) ? "RoofConstructed" : null, indoors: Roofed(c)));
             }
         }
-        var facts = ColonyFactsCoreTests.Projection() with
+        var facts = ColonyFactsCoreTests.Reading(new()
+            {
+                Context = ColonyFactsCoreTests.Snapshot().Context with
+                {
+                    Tick = 100
+                }
+            }) with
         {
-            Identity = new() { Tick = new(100) }, Bounds = new(20, 20), Cells = cells,
-            Facts = new() { Comfort = ComfortTests.NoComfortObservation, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, BasicComfort = ComfortTests.NoComfortObservation },
+
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                Comfort = ComfortTests.NoComfortObservation,
+                Upkeep = new()
+                {
+                    Rooms = RoomTestFacts.NoRooms,
+                    Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 }
+                },
+                BasicComfort = ComfortTests.NoComfortObservation,
+                MapBounds = new(20, 20)
+            },
+            Window = new Held<PlanningCells>
+            {
+                Value = new PlanningCells
+                {
+                    Cells = [.. cells]
+                }
+            }
         };
         var native = DispatchProxy.Create<IRoundsBuildingSource, Native>();
         var planner = new RoundsBuildingPlanner
@@ -102,21 +122,14 @@ public sealed class BatteryPlacementTests
         {
             for (var x = 0; x < 20; x++)
             {
-                cells.Add(SiteCellFixtures.Ground with { Cell = new(x, z), Walkable = true, Zone = false, Terrain = "Soil" });
+                cells.Add(SiteCellFixtures.At(new(x, z)));
             }
         }
-        var battery = new PowerSite
+        var battery = PowerBuildingFixtures.Trader("battery", PowerRules.BatteryDefinition, new(8, 8), 0, 0, true) with
         {
-            Id = "battery",
-            Definition = PowerRules.BatteryDefinition,
-            Cell = new(8, 8),
-            Occupied = [new(8, 8), new(8, 9)],
-            BaseW = 0,
-            Fuel = new RimGovernor.Contracts.Wire.Observations.BuildingFuel.NotRefuelable(),
-            Connected = true,
-            Network = "net",
-            RainVulnerable = true,
-            Roofed = false,
+            Service = BuildingServiceWire.NoService with { Power = new RimGovernor.Contracts.Wire.Observations.BuildingPower.Battery { Network = "net", StorageWD = 600 } },
+            Occupied = new RimGovernor.Contracts.Wire.Observations.Rectangle { Minimum = new() { X = 8, Z = 8 }, Maximum = new() { X = 8, Z = 9 } },
+            RainVulnerable = true, Roofed = false,
         };
         var topology = new PowerTopology { Buildings = [battery], Blackout = false, Eclipse = false };
         var planning = new PowerPlanning { ComponentSteel = new InputCost.NoRecipe(), Battery = new PowerBattery(600, 0.5), Light = light };
@@ -125,7 +138,7 @@ public sealed class BatteryPlacementTests
 
         Assert.Equal(PowerMethod.Shelter, proposal.Method);
         Assert.Equal(battery.Cell, proposal.Center);
-        Assert.All(battery.Occupied, c => Assert.True(c.X > proposal.Room.X && c.X < proposal.Room.X + proposal.Room.Width - 1
+        Assert.All(battery.OccupiedCells, c => Assert.True(c.X > proposal.Room.X && c.X < proposal.Room.X + proposal.Room.Width - 1
             && c.Z > proposal.Room.Z && c.Z < proposal.Room.Z + proposal.Room.Height - 1, $"battery cell {c} is not inside the shelter"));
     }
 }

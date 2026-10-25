@@ -41,9 +41,10 @@ public sealed class ExpeditionIncomingHandoffTests
                 throw new NotSupportedException(targetMethod?.Name + " is outside the handoff rig");
             }
             Reads++;
-            return Task.FromResult(new WorldProgressionRead
+            return Task.FromResult(new RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot
             {
                 Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = Colony, LoadToken = Load, MapId = ExpeditionMap }, Tick = 100 },
+                Caravans = [], Assemblies = [], Quests = [], Sites = [],
                 Maps = [new PbObservations.WorldMap { Id = ExpeditionMap, Tile = DestinationTile, Home = true, Pawns = [PawnFixtures.Row(Pawn)], QuestWorkers = [] }],
             });
         }

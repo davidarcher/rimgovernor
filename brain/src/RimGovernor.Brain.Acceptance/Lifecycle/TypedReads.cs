@@ -87,8 +87,8 @@ public static class TypedReads
     }
 
     /// <summary>The cell of a wire position; a missing coordinate fails the read.</summary>
-    public static Cell CellOf(Common.Cell? position, string what) =>
-        position is { X: int x, Z: int z } ? new Cell(x, z) : throw new AcceptanceException($"{what}: no position");
+    public static Cell CellOf(RimGovernor.Brain.Domain.Cell? position, string what) =>
+        position is {} at ? at : throw new AcceptanceException($"{what}: no position");
 }
 
 /// <summary>A growing zone's crop, cells and the cells planted with that crop.</summary>

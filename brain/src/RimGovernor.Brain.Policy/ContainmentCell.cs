@@ -22,21 +22,6 @@ public sealed record ContainmentDemand
     public double Required { get; init; }
 }
 
-/// <summary>A standing holding platform's native facts.</summary>
-public sealed record BuiltHolder
-{
-    public required double Strength { get; init; }
-
-    /// <summary>Whether the platform can take a pawn now.</summary>
-    public required bool Available { get; init; }
-
-    /// <summary>The pawn on the platform (empty when none).</summary>
-    public required string HeldPawn { get; init; }
-
-    /// <summary>The doors of the platform's room.</summary>
-    public required EquatableArray<AnomalyDoor> Doors { get; init; }
-}
-
 /// <summary>
 /// The containment prediction's def inputs: Inactive without the Anomaly expansion (no platform def exists),
 /// Unread when a shell def, the shell's shared stuff or a catalog def could not be read (Reason says which), Read
@@ -70,7 +55,7 @@ public sealed record ContainmentPlanning
     public ContainmentDemand Demand { get; init; } = new();
 
     /// <summary>The standing platforms.</summary>
-    public EquatableArray<BuiltHolder> Holders { get; init; } = [];
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.EntityHolderState> Holders { get; init; } = [];
 
     /// <summary>The prediction's inputs.</summary>
     public ContainmentDefsRead Defs { get; init; } = new ContainmentDefsRead.Inactive();
@@ -123,7 +108,7 @@ public static class ContainmentCellRules
         var required = demand.Required + margin;
         foreach (var h in holders)
         {
-            if (h.Available && h.Strength >= required)
+            if (h.Available && h.ContainmentStrength >= required)
             {
                 return null;
             }
@@ -238,7 +223,7 @@ public static class ContainmentCellRules
             {
                 foreach (var cell in r.Cells)
                 {
-                    if (cell.Pending == floor.Def || (cell.Pending.Length == 0 && cell.Terrain == floor.Def))
+                    if (cell.Pending == floor.Def || (cell.Pending is null && cell.Terrain == floor.Def))
                     {
                         remaining.Remove(cell.Cell);
                     }

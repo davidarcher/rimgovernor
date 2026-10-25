@@ -25,7 +25,7 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
         return output;
     }
 
-    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var journal = _reviewer.Player.Journal;
         var review = journal.LoadRounds(ct);
@@ -50,9 +50,9 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
     }
 
     /// <summary>The surgery part bill: one batch bill fabricating a part a restore operation lacks.</summary>
-    private static Declared SurgeryPartBill(ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    private static Declared SurgeryPartBill(ColonyReading projection, IReadOnlyList<GearBench> benches)
     {
-        var (parts, productions) = Rounder.SurgeryPartsOn(projection.Facts.MedicalPawns, projection.SurgeryContext(), benches);
+        var (parts, productions) = Rounder.SurgeryPartsOn(projection.Facts.MedicalPawns, ColonyPlanningRules.SurgeryContext(projection.Facts), benches);
         var (selected, gap) = SurgeryRules.SelectSurgeryPartBill(productions, parts);
         return CareOrdersRules.DeclareSelection(selected, gap == default, benches);
     }

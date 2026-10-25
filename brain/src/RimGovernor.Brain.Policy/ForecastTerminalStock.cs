@@ -24,7 +24,7 @@ public static class ForecastStockScope
     /// <summary>Whether a fed eater of the stock may eat it; every eater is a consumer of the census. Throws <see cref="FoodFactsException"/>.</summary>
     internal static bool Eligible(FoodStock stock, FoodSupply supply)
     {
-        if (stock.Reserve || stock.Corpse && stock.Forbidden) return false;
+        if (supply.IsReserved(stock) || supply.IsBarred(stock) || stock.IsCorpse() && stock.Forbidden) return false;
         if (stock.Rot is FoodRot.Rots { Ticks: <= 0 }) return false;
         foreach (var eater in stock.Eaters)
         {
@@ -36,7 +36,7 @@ public static class ForecastStockScope
     }
 
     public static double Count(FoodSupply supply, Resource resource) =>
-        supply.Stocks.Where(s => s.DefName == resource && Eligible(s, supply)).Sum(s => (double)s.Count);
+        supply.Stocks.Where(s => new Resource(s.DefName) == resource && Eligible(s, supply)).Sum(s => (double)s.Count);
 
     public static double Nutrition(FoodSupply supply) =>
         supply.Stocks.Where(s => Eligible(s, supply)).Sum(s => s.Nutrition);

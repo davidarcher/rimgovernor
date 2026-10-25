@@ -50,8 +50,7 @@ namespace HomeBridge.BridgeTools
             if (request.Ids.Count > MaxIds || !request.Ids.All(ProtoBoundary.IsIdentifier)
                 || request.Ids.Distinct(StringComparer.Ordinal).Count() != request.Ids.Count) return false;
             if (request.NameContains is not null && ((request.NameContains ?? "").Length == 0 || (request.NameContains ?? "").Length > 256)) return false;
-            if (request.Region != null && (request.Region.Minimum is not { } lo || request.Region.Maximum is not { } hi
-                || lo.X > hi.X || lo.Z > hi.Z)) return false;
+            if (request.Region != null && (request.Region.Minimum.X > request.Region.Maximum.X || request.Region.Minimum.Z > request.Region.Maximum.Z)) return false;
             return true;
         }
 

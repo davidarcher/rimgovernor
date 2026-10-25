@@ -15,7 +15,13 @@ public sealed record ResourceFieldRequest
 
     public IReadOnlyList<CropChoice> Choices { get; init; } = [];
 
-    public CropClimate Climate { get; init; } = new();
+    private CropClimate? climate;
+
+    public CropClimate Climate
+    {
+        get => climate ?? throw new RequiredFactException("crop climate was not composed");
+        init => climate = value ?? throw new RequiredFactException("crop climate is required");
+    }
 
     public FarmSiteRequest Site { get; init; } = new();
 

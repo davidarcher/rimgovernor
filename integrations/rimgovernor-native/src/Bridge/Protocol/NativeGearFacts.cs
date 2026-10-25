@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools
     {
         internal static Obs.GearSnapshot Read(Map map)
         {
-            long mark = System.Diagnostics.Stopwatch.GetTimestamp(), screenTicks = 0, scoreTicks = 0, reachTicks = 0, availTicks = 0, identTicks = 0, comfyTicks = 0, policyTicks = 0, equipTicks = 0, modelTicks = 0, rowTicks = 0;
+            long mark = System.Diagnostics.Stopwatch.GetTimestamp(), screenTicks = 0, scoreTicks = 0, reachTicks = 0, availTicks = 0, identTicks = 0, policyTicks = 0, modelTicks = 0, rowTicks = 0;
             long Lap() { var now = System.Diagnostics.Stopwatch.GetTimestamp(); var spent = now - mark; mark = now; return spent; }
             using var memo = new CensusMemo();
             var people = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.thingIDNumber).ToList();
@@ -46,9 +46,7 @@ namespace HomeBridge.BridgeTools
                 Lap();
                 var refusal = GearUpkeepTools.Available(pawn); availTicks += Lap();
                 var token = GearUpkeepTools.Identity(pawn); identTicks += Lap();
-                var comfyMin = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)); var comfyMax = Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)); comfyTicks += Lap();
                 var policy = pawn.outfits?.CurrentApparelPolicy == null ? null : NativeApparelPolicyOperations.Read(pawn); policyTicks += Lap();
-                var equipment = Equipment(pawn); equipTicks += Lap();
                 var groups = PresentGroups(pawn);
                 rowTicks += Lap();
                 var candidates = new List<Obs.GearCandidate>();
@@ -86,10 +84,7 @@ namespace HomeBridge.BridgeTools
                 rows.Add(new Obs.GearLoadout {
                     Token = token,
                     Pawn = new PawnId(Id(pawn.GetUniqueLoadID())),
-                    Equipment = equipment,
                     Candidates = [.. candidates],
-                    ComfortableMinC = comfyMin,
-                    ComfortableMaxC = comfyMax,
                     Blocked = refusal != null,
                     ApparelPolicy = policy,
                     LoadoutModel = model,
@@ -105,9 +100,7 @@ namespace HomeBridge.BridgeTools
             ObservationWork.Detail("cf.gear.rows", rowTicks);
             ObservationWork.Detail("cf.gear.available", availTicks);
             ObservationWork.Detail("cf.gear.identity", identTicks);
-            ObservationWork.Detail("cf.gear.comfy", comfyTicks);
             ObservationWork.Detail("cf.gear.policy", policyTicks);
-            ObservationWork.Detail("cf.gear.equipment", equipTicks);
             ObservationWork.Detail("cf.gear.screen", screenTicks);
             ObservationWork.Detail("cf.gear.score", scoreTicks);
             ObservationWork.Detail("cf.gear.reach", reachTicks);
@@ -159,9 +152,6 @@ namespace HomeBridge.BridgeTools
         private static Obs.GearLoadoutModel Model(Pawn pawn, List<Obs.GearCandidate> candidates, List<RecipeDef> catalog,
             Dictionary<string, Apparel> things, Dictionary<RecipeDef, IReadOnlyList<Obs.GearLoadoutOption>> billOptions, IReadOnlyList<Pawn> people)
         {
-            var traits = new List<Obs.Trait>();
-            if (pawn.story?.traits != null)
-                foreach (var trait in pawn.story.traits.allTraits) traits.Add(new Obs.Trait { DefName = Id(trait.def.defName), Degree = trait.Degree });
             var worn = new List<Obs.GearLoadoutOption>();
             if (pawn.apparel != null)
                 foreach (var garment in pawn.apparel.WornApparel)
@@ -181,7 +171,7 @@ namespace HomeBridge.BridgeTools
                 if (!billOptions.TryGetValue(recipe, out var bills)) billOptions[recipe] = bills = BillOptions(recipe, people);
                 options.AddRange(bills);
             }
-            return new Obs.GearLoadoutModel { Traits = [.. traits], Worn = [.. worn], Options = [.. options] };
+            return new Obs.GearLoadoutModel { Worn = [.. worn], Options = [.. options] };
         }
 
         // Expose legal material candidates; the brain owns selection and its search bound. A recipe no free colonist can work

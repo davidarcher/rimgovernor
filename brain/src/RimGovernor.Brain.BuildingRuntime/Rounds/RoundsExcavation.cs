@@ -9,8 +9,7 @@ internal sealed class ExcavationStep
     public ControlState State;
     public RoundsReview Review = new();
     public required NeedOwner Owner;
-    public required ColonyProjection Facts;
-    public required ColonyReading Read;
+    public required ColonyReading Facts;
     public ExcavationTarget Target = new();
 }
 
@@ -121,7 +120,7 @@ public sealed partial class RoundsBuildingPlanner
         Identity actual;
         try
         {
-            actual = DecodeReads.DecodeIdentity(last);
+            actual = new ObservationIdentity { Context = last.Context, Paused = last.Paused };
         }
         catch (ControlException)
         {
@@ -132,7 +131,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("admitExcavation: err != nil || !roundsBuildingBoundary(actual, s.state.Snapshot, s.facts.Identity.Tick)");
         }
         var now = Reviewer.Clock.Now();
-        if (now < s.Read.StartedAt || now - s.Read.StartedAt > Reviewer.MaxAge)
+        if (now < s.Facts.StartedAt || now - s.Facts.StartedAt > Reviewer.MaxAge)
         {
             throw new ObservationStaleException();
         }
@@ -149,7 +148,7 @@ public sealed partial class RoundsBuildingPlanner
             Plan = plan,
             Current = snapshot,
             Tick = s.Facts.Identity.Tick,
-            Bounds = s.Facts.Bounds,
+            Bounds = s.Facts.Facts.MapBounds,
             Stock = stock,
             Previews = previews ?? [],
             Purpose = Purpose.Rounds,

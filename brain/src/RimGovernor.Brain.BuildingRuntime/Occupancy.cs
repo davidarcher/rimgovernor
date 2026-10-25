@@ -59,10 +59,10 @@ partial class Rounder
     }
 
     /// <summary>The size of every definition the projection read.</summary>
-    internal static Dictionary<string, Bounds> DefinitionSizes(ColonyProjection projection)
+    internal static Dictionary<string, Bounds> DefinitionSizes(ColonyReading projection)
     {
         var sizes = new Dictionary<string, Bounds>(StringComparer.Ordinal);
-        foreach (var d in projection.Definitions)
+        foreach (var d in projection.Facts.Definitions)
         {
             var size = d.Size;
             {
@@ -92,7 +92,7 @@ partial class Rounder
     /// projection read it, else the anchor), and every player edifice and doorway (a door blueprint or frame
     /// included) the planning cells report. RoomGrowth.Fixed reads it. Null without a complete census.
     /// </summary>
-    public static HashSet<Cell> OccupiedCells(ColonyProjection projection)
+    public static HashSet<Cell> OccupiedCells(ColonyReading projection)
     {
         var census = projection.Facts.CurrentConstruction;
         var sizes = DefinitionSizes(projection);
@@ -126,7 +126,7 @@ partial class Rounder
                 }
             }
         }
-        foreach (var c in projection.Cells)
+        foreach (var c in projection.PlanningWindow.Cells)
         {
             var edifice = c.PlayerEdifice();
             if (edifice.Length != 0 || c.Doorway)
@@ -145,7 +145,7 @@ public sealed partial class Rounder
     /// on (<see cref="Rounder.RoomMethodOrigins"/>). Null when the census or the plan catalog is unknown;
     /// otherwise also the interior origins of those rooms.
     /// </summary>
-    internal async Task<LayoutOccupancy?> LayoutOccupiedAsync(ColonyProjection projection, LayoutPlan plan, CancellationToken ct)
+    internal async Task<LayoutOccupancy?> LayoutOccupiedAsync(ColonyReading projection, LayoutPlan plan, CancellationToken ct)
     {
         var cells = Rounder.OccupiedCells(projection);
         IReadOnlyList<PlanState> plans;

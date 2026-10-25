@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -41,8 +40,8 @@ public sealed class ClaimAdmissionTests
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with
         {
-            Resources = [new(new("Rice"), 100)],
-            Colonists = 1L, IndoorCapacity = 0L, BedCapacity = 0L, FieldCoverage = 0.0,
+
+            Census = (facts.Census with { ColonistCount = 1, IndoorSleepingCapacity = 0, BedCapacity = 0 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 100 }] },   FieldCoverage = 0.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [
@@ -69,7 +68,7 @@ public sealed class ClaimAdmissionTests
 
     private static DomainAction Delivery(string id, string pawn, string method) =>
         DomainAction.NewPawnActivitiesAction(new(id), new(1, [new(pawn, "assignment-" + id, method, 0, 1, false,
-            [new(PawnActivityKind.Deliver, "stack-" + id, "", "", 1, 500) { Destination = new(id[^1] - '0' + (pawn[0] - 'a') * 10, 20) }])]));
+            [new PawnActivityStep(PawnActivityKind.Deliver, "stack-" + id, "", "", 1, 500).At(new(id[^1] - '0' + (pawn[0] - 'a') * 10, 20))])]));
 
     /// <summary>
     /// No labor hold (#3659): with no room standing and no sleeping or indoor place for the colonist, a crafting spot a
@@ -233,7 +232,7 @@ public sealed class ClaimAdmissionTests
         using var colony = Open();
         var haul = DomainAction.NewCoverClearanceAction(new("haul"), new CoverClearance("stack", "Steel", CoverClearanceDesignation.Haul, new(1, 0)));
         Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("room-haul", haul).Outcome);
-        var step = new PawnActivityStep(PawnActivityKind.Deliver, "stack", "", "", 40, 1000) { Destination = new(5, 5) };
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, "stack", "", "", 40, 1000).At(new(5, 5));
         var batch = new PawnActivities(1, [new("a", "removal/a", "remove", 0, 1, false, [step]) { Task = "removal/a" }])
         { Tasks = [new SelectedActivityTask("removal/a", "a", [], step, new(1, 0), 100)] };
         Assert.Equal(ClaimOutcome.Admitted, colony.Work("remove", DomainAction.NewPawnActivitiesAction(new("order"), batch)).Outcome);

@@ -67,11 +67,11 @@ public sealed partial class Rounder
     /// The planned-room selection record after this review (#3278): the comparison's selected planned sites and assessed
     /// rooms replace the previous record (kept when the review compared nothing), and a room observed started clears.
     /// </summary>
-    internal static PlannedSelection PlannedSelectionReviewed(PlannedSelection previous, ColonyProjection colony, ForecastCoupledSelection? selection)
+    internal static PlannedSelection PlannedSelectionReviewed(PlannedSelection previous, ColonyReading colony, ForecastCoupledSelection? selection)
     {
         var facts = colony.Facts;
         var latest = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, selection, facts.PlannedSites);
-        var plan = colony.LayoutPlan;
+        var plan = colony.Facts.LayoutPlan;
         var rooms = plan is not null ? plan.Rooms.DistinctBy(r => r.Id).ToDictionary(r => r.Id) : [];
         return PlannedRules.PlannedSelectionMemory(previous, latest,
             room => rooms.TryGetValue(room, out var planned) && RoundsBuildingPlanner.PlannedRoomStartedOf(colony, plan!, planned) == true,

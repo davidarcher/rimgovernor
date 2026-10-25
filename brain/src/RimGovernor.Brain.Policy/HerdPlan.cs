@@ -43,7 +43,7 @@ public sealed record HerdPlanInput
     public EquatableArray<UpkeepAnimal> Wild { get; init; }
     public required AnimalRaceCatalog Races { get; init; }
     public double Budget { get; init; }
-    public WealthFacts Wealth { get; init; } = null!;
+    public required RimGovernor.Contracts.Wire.Observations.ThreatFacts Threat { get; init; }
     public EquatableArray<PenGrazing> Pens { get; init; }
     public FoodPlan? Food { get; init; }
 
@@ -123,7 +123,7 @@ public static class RoundsFactsHerdPlanExtensions
             Wild = f.AnimalUpkeep.WildAnimals,
             Races = f.AnimalUpkeep.AnimalRaces,
             Budget = f.WealthBudget(),
-            Wealth = f.Wealth,
+            Threat = f.Census.Threat.Observed,
             Pens = f.PenGrazing,
             Food = f.FoodPlan,
             Handlers = f.WorkProfiles,
@@ -283,7 +283,7 @@ public static class HerdPlanRules
     {
         foreach (var t in a.Training)
         {
-            if (t.Learned && t.Def == def)
+            if (t.Learned && t.DefName == def)
             {
                 return true;
             }
@@ -698,12 +698,12 @@ public static class HerdPlanRules
     private static (double Share, bool Ok) HerdBudgetCeiling(HerdPlanInput input)
     {
         var headroom = input.Budget;
-        var w = input.Wealth ?? throw new RequiredFactException("wealth");
-        if (!TradePolicyRules.Finite(headroom) || !TradePolicyRules.Finite(w!.Total))
+        var w = input.Threat ?? throw new RequiredFactException("wealth");
+        if (!TradePolicyRules.Finite(headroom) || !TradePolicyRules.Finite(w.WealthTotal))
         {
             return (0, false);
         }
-        return HerdBudgetShare(headroom, w.Total);
+        return HerdBudgetShare(headroom, w.WealthTotal);
     }
 
     /// <summary>

@@ -1,6 +1,6 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -21,14 +21,10 @@ public sealed class IdeologyRoleWorkTests
                 ["Specialist"] = new(1, [new([new("Crafting", 4)])]) { DisabledWork = [WorkType.Hauling, WorkType.Cleaning] },
             },
         },
-        new IdeoligionFacts { IdeoId = Ours, Development = IdeoDevelopment.Fixed, Roles = [new("role-1", "Specialist", true, [])] });
+        new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { IdeoId = Ours, Roles = [IdeologyTestRows.Role("role-1", "Specialist", true, [])] } });
 
     private static WorkPawn Colonist(string id, int crafting, params WorkPriority[] work) => PawnFixtures.Worker(id) with
-    {
-        Skills = [new() { Name = "Crafting", Level = crafting }],
-        Work = new PawnWorkTable.Works(true, EquatableArray.From(work)),
-        PolicyInputs = PawnFixtures.Inputs(Ours, 0.5),
-    };
+    { Work = PawnFixtures.WorkTable(true, EquatableArray.From(work)), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { Passion = O.Passion.None, DefName = "Crafting", Level = crafting }] }, Settings = PawnFixtures.Row(id).Settings with { PolicyInputs = PawnFixtures.Inputs(Ours, 0.5) } } };
 
     private static EquatableArray<WorkPawn> Pawns(params WorkPawn[] rows) => EquatableArray.From(rows);
 
@@ -39,7 +35,7 @@ public sealed class IdeologyRoleWorkTests
     private static WorkActionCensus Delivery(string pawn)
     {
         var order = new PawnActivityOrder(pawn, "haul-1", "coupled-1", 0, 1, false,
-            [new PawnActivityStep(PawnActivityKind.Deliver, "Thing_1", "", "", 5, 1000) { Destination = new Cell(3, 3) }]);
+            [new PawnActivityStep(PawnActivityKind.Deliver, "Thing_1", "", "", 5, 1000).At(new Cell(3, 3))]);
         var action = DomainAction.NewPawnActivitiesAction(new ActionId("p-0"), new PawnActivities(1, [order]));
         return new([new WorkAction(new PlanId("p"), action, new ProgressView { Action = action.Id, Stage = Stage.Completed })]);
     }
@@ -49,8 +45,8 @@ public sealed class IdeologyRoleWorkTests
     [Fact]
     public void PriorityOneWorkTheRoleDisablesSkipsThePawn()
     {
-        var hauler = Colonist("a", 10, new WorkPriority { Work = WorkType.Hauling, Priority = 1 });
-        var crafter = Colonist("b", 6, new WorkPriority { Work = WorkType.Hauling, Priority = 3 }, new WorkPriority { Work = WorkType.Crafting, Priority = 1 });
+        var hauler = Colonist("a", 10, new WorkPriority { Observed = new O.WorkSetting { DefName = "Hauling", Priority = 1, Disabled = false } });
+        var crafter = Colonist("b", 6, new WorkPriority { Observed = new O.WorkSetting { DefName = "Hauling", Priority = 3, Disabled = false } }, new WorkPriority { Observed = new O.WorkSetting { DefName = "Crafting", Priority = 1, Disabled = false } });
         Assert.Equal(new PawnId("b"), Assigned(IdeologyRolesRules.RoleAssignments(Ideo(), Pawns(hauler, crafter), NoneSelected)));
     }
 

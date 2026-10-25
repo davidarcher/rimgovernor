@@ -74,7 +74,7 @@ public static partial class CombatAnimalsRules
         if (animals.Count == 0)
         {
         }
-        else if (m.Wait && m.Tactic == CombatTactic.Manhunter)
+        else if (m.Wait)
         {
             foreach (var p in animals)
             {

@@ -35,21 +35,21 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// the couple's room's bedroom slot; each step once per Episode. due is false when nothing is to do, so the
     /// ordinary sleeping choice goes on.
     /// </summary>
-    internal async Task<(RoundsBuildingResult Result, bool Due)> CoupleBedAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, bool Due)> CoupleBedAsync(PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, RoundsReading reading, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsBuildingResult(), false);
-        var facts = reading.Projection;
+        var facts = reading.Reading;
         var obs = facts.Facts.Sleeping;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         if (census is null)
         {
             return none;
         }
         var packed = CouplePacked(goal, call);
-        var buildable = facts.DefinitionAvailable(SleepingRules.SleepingCoupleBedDefinition);
-        var plan = facts.LayoutPlan;
-        if (CoupleBedRules.NextCoupleBed(obs!, plan!, CoupleBedRules.CoupleBedRooms(rooms!, census, facts.Cells), packed, census.Buildings, buildable) is not { } step)
+        var buildable = ColonyPlanningRules.DefinitionAvailable(facts.Facts, SleepingRules.SleepingCoupleBedDefinition);
+        var plan = facts.Facts.LayoutPlan;
+        if (CoupleBedRules.NextCoupleBed(obs!, plan!, CoupleBedRules.CoupleBedRooms(rooms!, census, facts.PlanningWindow.Cells), packed, census.Buildings, buildable) is not { } step)
         {
             return none;
         }
@@ -106,11 +106,11 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// bed spot of a hosting room; once per packed bed per Episode. due is false when none is stored or none
     /// fits, so the build goes on.
     /// </summary>
-    internal async Task<(RoundsBuildingResult Result, bool Due)> ReinstallStoredBedAsync(PackedStock stock, ControlState state, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.SleepingChoice choice, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, bool Due)> ReinstallStoredBedAsync(PackedStock stock, ControlState state, Sto.NeedOwner goal, RoundsReading reading, Pol.SleepingChoice choice, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsBuildingResult(), false);
-        var facts = reading.Projection;
-        var rooms = facts.Rooms;
+        var facts = reading.Reading;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         if (census is null)
         {
@@ -118,7 +118,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         var hosting = new HashSet<Cell>(choice.Cells);
         var p = Reviewer.Player;
-        foreach (var room in FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells))
+        foreach (var room in FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells))
         {
             if (CoupleBedRules.BedSpot(room, new Pol.Resource(choice.Definition)) is not var (anchor, rot) || !hosting.Contains(anchor))
             {

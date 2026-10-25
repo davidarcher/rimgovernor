@@ -30,7 +30,7 @@ public static class DefenseMortarsPolicy
     /// <summary>
     /// One mortar while the raid shortfall stands and a turret line exists to place it behind; none otherwise.
     /// </summary>
-    public static int MortarBudget(RaidDefense threat, EquatableArray<DefenseTurretFacts> turrets) =>
+    public static int MortarBudget(RaidDefense threat, IReadOnlyList<DefenseTurretFacts> turrets) =>
         DefenseBudget.TurretsOwed(threat, turrets) > 0 && DefenseBudget.TurretsStanding(turrets) > 0 ? 1 : 0;
 
     /// <summary>Reports whether the observed gates (available definition, budget, stock for one mortar) allow at least one mortar before any site is read.</summary>

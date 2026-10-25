@@ -65,7 +65,7 @@ internal static class WallKit
         [.. from z in Enumerable.Range(rect.Z, rect.Height) from x in Enumerable.Range(rect.X, rect.Width) select new Cell(site.X + x, site.Z + z)];
 
     /// <summary>The wire cell of a domain cell.</summary>
-    internal static RimGovernor.Contracts.Wire.Common.Cell Wire(Cell c) => new() { X = c.X, Z = c.Z };
+    internal static RimGovernor.Brain.Domain.Cell Wire(Cell c) => new() { X = c.X, Z = c.Z };
 
     /// <summary>The ids among <paramref name="ids"/> the building census still lists, any faction.</summary>
     internal static async Task<HashSet<string>> PresentAsync(TypedSession s, string label, IReadOnlyList<string> ids, CancellationToken cancellationToken)
@@ -138,6 +138,7 @@ internal static class WallKit
     internal static Operations.DesignateIntent Deconstruct(string id, bool replaceWithWall = false) => new()
     {
         Designation = Operations.ThingDesignation.Deconstruct,
+        Location = new Operations.DesignationLocation.ByTarget(),
         Target = new() { Id = id },
         Guard = Operations.DesignationGuard.Enclosure,
         ReplaceWithWall = replaceWithWall, Withdraw = false,

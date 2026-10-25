@@ -34,10 +34,6 @@ public static partial class SiteRules
     /// <summary>Reports the cell's edifice is natural rock: a planned ring on it keeps it as wall; inside the room plan dig mines it.</summary>
     public static bool NaturalRock(this SiteCell c) => c.EdificeOf() is { } t && t.Has(ThingMarks.NaturalRock);
 
-    /// <summary>The cell with its occupying things (edifice, blueprints, frames) removed, for offering ground as unoccupied whatever the census says of it.</summary>
-    public static SiteCell Cleared(this SiteCell c) =>
-        c with { Things = EquatableArray.From(c.Things.Where(t => (t.Flags & OccupyingFlags) == 0).ToList()) };
-
     /// <summary>Names the definition of the player-owned edifice on the cell, empty for none: a ring of that wall kind stands on it.</summary>
     public static string PlayerEdifice(this SiteCell c) =>
         c.EdificeOf() is { } t && t.Faction == ThingFaction.Player ? t.Def : "";

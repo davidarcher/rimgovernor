@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -14,28 +13,28 @@ public sealed class PowerMethodTests
         Sources = new Dictionary<string, PowerSourceProfile> { ["WoodFiredGenerator"] = PowerRules.ConstantPowerProfile },
     };
 
-    private static PowerSite Site(string id, string definition, Cell cell, double watts, double output, bool powered) => new()
+    private static PowerSite Site(string id, string definition, Cell cell, double watts, double output, bool powered) =>
+        PowerBuildingFixtures.Trader(id, definition, cell, watts, output, powered);
+
+    [Fact]
+    public void TopologyReadsTheCanonicalBuildingServiceAndRatedCapacity()
     {
-        Id = id,
-        Definition = definition,
-        Cell = cell,
-        Occupied = [cell],
-        BaseW = watts,
-        Fuel = new O.BuildingFuel.NotRefuelable(),
-        OutputW = output,
-        Connected = true,
-        Network = "net",
-        Powered = powered,
-        Forbidden = false,
-        SwitchedOn = true,
-    };
+        var generator = Site("generator", "WoodFiredGenerator", new(1, 1), 1000, 0, false);
+        var topology = new PowerTopology { Buildings = [generator] };
+        Assert.Same(generator, Assert.Single(topology.Buildings));
+        Assert.Equal(1000, topology.Buildings[0].BaseW);
+        Assert.Equal(0, topology.Buildings[0].OutputW);
+        Assert.False(topology.Buildings[0].Powered);
+        Assert.Same(generator.Service.Fuel, topology.Buildings[0].Fuel);
+    }
 
     // power/fuel's native half stages the generator and the refuel; this is the planner's half: an empty generator that
     // could carry the stove holds for ordinary refuelling instead of building another generator or conduit.
     [Fact]
     public void OutOfFuelProducerWithCapacityHoldsForRefuel()
     {
-        var generator = Site("gen", "WoodFiredGenerator", new(2, 3), 1000, 0, powered: false) with { Fuel = new O.BuildingFuel.Refuelable { Fuel = 0, TargetFuel = 30, OutOfFuel = true } };
+        var generator = Site("gen", "WoodFiredGenerator", new(2, 3), 1000, 0, powered: false);
+        generator = generator with { Service = generator.Service with { Fuel = new O.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 30, OutOfFuel = true } } };
         var stove = Site("stove", "ElectricStove", new(8, 2), -350, 0, powered: false);
         var topology = new PowerTopology { Buildings = [generator, stove], Blackout = false, Eclipse = false };
 
@@ -62,8 +61,8 @@ public sealed class PowerMethodTests
         var site = Site("gen", "WoodFiredGenerator", new(2, 3), 1000, 0, powered: false);
 
         Assert.False(site.Unfueled);
-        Assert.False((site with { Fuel = new O.BuildingFuel.Refuelable { Fuel = 5, TargetFuel = 30, OutOfFuel = false } }).Unfueled);
-        Assert.True((site with { Fuel = new O.BuildingFuel.Refuelable { Fuel = 0, TargetFuel = 30, OutOfFuel = true } }).Unfueled);
+        Assert.False((site with { Service = site.Service with { Fuel = new O.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 5, TargetFuel = 30, OutOfFuel = false } } }).Unfueled);
+        Assert.True((site with { Service = site.Service with { Fuel = new O.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 30, OutOfFuel = true } } }).Unfueled);
     }
 
     // #3877: a network with no consumer needs no power; a consumer the producers outrun leaves positive headroom.

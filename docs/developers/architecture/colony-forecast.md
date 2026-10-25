@@ -565,7 +565,7 @@ and stuff:
 
 - walls, doors and vents: one site per ring stuff, for up to `PlannedRingStuffCount` (2) stuffs per room. These
   are the stocked stuffs the wall and door can both be made from, cheapest first; with none stocked, the wood the
-  window's standing trees give, else the blocks of its natural rock's stone (`ColonyProjection.RingSources`, #3747),
+  window's standing trees give, else the blocks of its natural rock's stone (`RoundsFacts.RingSources`, #3747),
   else none.
   With every scope of the first stuff, that covers the 4 alternatives per room.
 - floors: one site per floor def.
@@ -574,7 +574,7 @@ and stuff:
   only, #3819) reads its piece Blocked: research read unfinished or the definition read unavailable; no stuff the ring
   chooser finds; or a material of its cost list beside its stuff (a stove's Steel, a research bench's Steel, #3839)
   read unstocked and read unobtainable. A material is obtainable when the window offers it
-  (`ColonyProjection.RingSources`, `RingStuffSourcesOf`): tree wood, rock blocks, what its natural rock is mined into
+  (`RoundsFacts.RingSources`, `RingStuffSourcesOf`): tree wood, rock blocks, what its natural rock is mined into
   (compacted steel's Steel), a stack lying on it, or what deconstructing an unowned, deconstructible building outside
   any ancient danger yields for certain (its adjusted cost list at `resourcesFractionWhenDeconstructed`, GenLeaving).
   Trade does not count. An unread stock, unread sources or a building whose yield the catalog cannot read leave the
@@ -1103,7 +1103,7 @@ work-time estimation, construction and delivery adapters, and observed replannin
 
 ## Food candidates from acquisition and recipe observations
 
-Acquisition uses required numeric deficits and pending yields. Pending and undispatched work suppress duplicate selection without counting as delivered food; withdrawing a stalled source removes its pending credit. Residual supply labor charges each retained food channel once and refuses an unpriced commitment. Human-butcher candidates require their matching pawn row, traits, ideoligion and work eligibility. Terminal stock evidence distinguishes an eligible quantity (including zero) from a lot with no observed food use. Animal feed is calculated directly from the complete food census and eligible herd, with an empty herd yielding zero shortfall. Missing kept-animal consumption or race growth inputs refuse that calculation. Seasonal hay demand uses the same required harvest-gap value as food reserves. The food family checks reserve and foothold runway, butcher facilities and campfire retirement as plain predicates; absent runway or butcher build definitions refuse the calculation. Caravan and quest packing read the same complete food census.
+Acquisition uses required numeric deficits and pending yields. Pending and undispatched work suppress duplicate selection without counting as delivered food; withdrawing a stalled source removes its pending credit. Residual supply labor charges each retained food channel once and refuses an unpriced commitment. Human-butcher candidates require their matching pawn row, traits, ideoligion and work eligibility. Animal-product views retain the native gatherable or egg-layer row; independent producing components add their yields and work, while feed is charged once per animal. Slaughter views retain the native slaughter row, and fishing queries use the existing region review and its native observations. Terminal stock evidence distinguishes an eligible quantity (including zero) from a lot with no observed food use. Animal feed is calculated directly from the complete food census and eligible herd, with an empty herd yielding zero shortfall. Missing kept-animal consumption or race growth inputs refuse that calculation. Seasonal hay demand uses the same required harvest-gap value as food reserves. The food family checks reserve and foothold runway, butcher facilities and campfire retirement as plain predicates; absent runway or butcher build definitions refuse the calculation. Caravan and quest packing read the same complete food census.
 
 Normal Rounds generates its food alternatives through `FoodMethodCandidates.GenerateCoupled` (the
 [live policy stages](#live-activity-policy-stages)). The supplied-input generator `GenerateFoodActivities` was deleted

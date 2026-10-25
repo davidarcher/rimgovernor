@@ -44,7 +44,7 @@ internal static class MovementArrival
     {
         var pawnId = s.Staged!.Pawns["walker"].Id;
         var site = s.Staged.Site ?? throw new AcceptanceException("stage: no site");
-        var destination = new Common.Cell { X = site.X + To.X, Z = site.Z + To.Z };
+        var destination = new RimGovernor.Brain.Domain.Cell { X = site.X + To.X, Z = site.Z + To.Z };
         var move = new Operations.MoveIntent { PawnId = pawnId, Destination = destination };
 
         _ = await TypedApply.RefusedAsync(s, "move-undrafted", move, cancellationToken).ConfigureAwait(false);
@@ -59,7 +59,7 @@ internal static class MovementArrival
             throw new AcceptanceException($"moving: pawn job is \"{moving.Job.DefName}\", not Goto");
         }
 
-        Common.Cell? at = null;
+        RimGovernor.Brain.Domain.Cell? at = null;
         _ = await s.RunUntilAsync("arrive", 2000, async ct =>
         {
             at = ((await TypedApply.PawnAsync(s, "position", pawnId, ct).ConfigureAwait(false)).Pawn.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell;

@@ -56,14 +56,14 @@ public sealed class IdeologyReader
             throw new ControlException("ideology read: the scope is another world or older than the review");
         }
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
-        var projection = read.Projection;
+        var projection = read.Reading;
         var facts = new IdeologyFacts { Installed = IdeologyFamilyRules.Installed(projection.Facts) };
         if (!facts.Installed)
         {
             return facts;
         }
         var ideology = projection.Facts.Ideology is IdeologyMode.Installed { Primary: var held } ? held : throw new RequiredFactException("ideoligion");
-        var pawns = projection.WorkPawns.Pawns;
+        var pawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
         if (_roles)
         {
             facts = facts with { Roles = IdeologyRolesRules.RoleAssignments(ideology, pawns, SelectedWork(read, scope.World, call)) };
@@ -79,7 +79,7 @@ public sealed class IdeologyReader
         if (_convert)
         {
             var goals = await _reviewer.Player.Journal.LoadGoalsAsync(Player.PlayerWorld(scope.World), call).ConfigureAwait(false);
-            facts = facts with { Conversion = ConversionRules.Owed(goals.Goals, projection.Facts.Ideology, projection.WorkPawns) };
+            facts = facts with { Conversion = ConversionRules.Owed(goals.Goals, projection.Facts.Ideology, projection.Facts.ForecastObserved.WorkPawns) };
         }
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
@@ -121,7 +121,7 @@ public sealed class IdeologyReader
         var goals = _reviewer.Goals ? (await journal.LoadGoalsAsync(Player.PlayerWorld(world), call).ConfigureAwait(false)).Goals : [];
         var choice = Rounder.ReformChoice(read, world, GoalRules.IdeoTargets(goals));
         var pending = (await journal.LoadIdeologyReformAsync(Player.PlayerWorld(world), call).ConfigureAwait(false))?.Reform;
-        var ideo = read.Projection.Facts.Ideology is IdeologyMode.Installed { Primary: var held } ? held : throw new RequiredFactException("ideoligion");
+        var ideo = read.Reading.Facts.Ideology is IdeologyMode.Installed { Primary: var held } ? held : throw new RequiredFactException("ideoligion");
         var current = Rounder.CurrentDesign(ideo, read.Catalog ?? throw new RequiredFactException("definition catalog"));
         var state = ideo.Facts.Development;
         facts = facts with { Development = state };
@@ -132,7 +132,7 @@ public sealed class IdeologyReader
                 await journal.ClearIdeologyReformAsync(call).ConfigureAwait(false);
                 return facts with { Reform = choice, ReformObserved = true };
             }
-            if (state.ReformCount != pending.Count || IdeoligionDesign.CanonicalIdeoligionDesign(current) != pending.Expected || ideo.Facts.IdeoId != pending.IdeoId)
+            if (state is not PbObservations.IdeoDevelopment.Fluid fluid || fluid.ReformCount != pending.Count || IdeoligionDesign.CanonicalIdeoligionDesign(current) != pending.Expected || ideo.Facts.IdeoId != pending.IdeoId)
             {
                 await journal.ClearIdeologyReformAsync(call).ConfigureAwait(false);
                 pending = null;
@@ -143,8 +143,9 @@ public sealed class IdeologyReader
         {
             return facts;
         }
-        var intent = new IdeoligionReform(ideo.Facts.IdeoId, current, choice.Design, state.ReformCount);
-        if (pending is not null && pending.IdeoId == ideo.Facts.IdeoId && pending.Count == state.ReformCount
+        var reformCount = (state as PbObservations.IdeoDevelopment.Fluid ?? throw new RequiredFactException("fluid ideoligion development")).ReformCount;
+        var intent = new IdeoligionReform(ideo.Facts.IdeoId, current, choice.Design, reformCount);
+        if (pending is not null && pending.IdeoId == ideo.Facts.IdeoId && pending.Count == reformCount
             && IdeoligionDesign.CanonicalIdeoligionDesign(current) == pending.Expected && pending.Design == choice.Design)
         {
             intent = pending;

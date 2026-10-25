@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record GearSurplus
 {
     /// <summary>The serviceable stored garment kinds above demand, each row a (definition, stuff, quality, hit-point band) with its surplus count.</summary>
-    public IReadOnlyList<GearStock> Apparel { get; init; } = [];
+    public IReadOnlyList<GearStockBalance> Apparel { get; init; } = [];
 
     /// <summary>The loose weapon counts above the armory's demand, per definition (SpareWeaponCounts).</summary>
     public IReadOnlyDictionary<Resource, int> Weapons { get; init; } = new Dictionary<Resource, int>();
@@ -27,17 +27,17 @@ public static class GearSurplusRules
     /// spare the clothing runway keeps for the worn garments about to wear out. A refused loadout model fails
     /// the review rather than certifying surplus from incomplete requirements.
     /// </summary>
-    public static IReadOnlyList<GearStock> ApparelSurplus(ClothingDemandInput input)
+    public static IReadOnlyList<GearStockBalance> ApparelSurplus(ClothingDemandInput input)
     {
         var gear = input.Gear;
         var review = GearRules.ReviewGear(gear);
-        var left = GearStockRules.UnassignedGearStock(gear.Stored, review.Loadouts).Where(s => s.Serviceable() && s.Count > 0).ToList();
+        var left = GearStockRules.UnassignedGearStock(gear.Stored, review.Loadouts).Where(s => s.Observed.Serviceable() && s.Count > 0).ToList();
         // The best of a kind is claimed first, so the cheapest is what remains.
         left = left
-            .OrderBy(s => s.Definition.Value, StringComparer.Ordinal)
-            .ThenBy(s => s.Stuff.Value, StringComparer.Ordinal)
-            .ThenByDescending(s => s.Quality)
-            .ThenByDescending(s => s.HPBand)
+            .OrderBy(s => s.Observed.DefName, StringComparer.Ordinal)
+            .ThenBy(s => s.Observed.Stuff, StringComparer.Ordinal)
+            .ThenByDescending(s => s.Observed.QualityIndex())
+            .ThenByDescending(s => s.Observed.HpBand)
             .ToList();
         // A replacement or a runway spare is claimed by definition, whatever its stuff.
         void Claim(Resource definition)
@@ -45,9 +45,9 @@ public static class GearSurplusRules
             for (var i = 0; i < left.Count; i++)
             {
                 var row = left[i];
-                if (row.Count > 0 && row.Definition == definition)
+                if (row.Count > 0 && row.Observed.DefName == definition.Value)
                 {
-                    left[i] = row with { Count = row.Count - 1 };
+                    left[i] = row with { Allocated = row.Allocated + 1 };
                     return;
                 }
             }
@@ -115,10 +115,10 @@ public static class GearSurplusRules
         {
             return @out;
         }
-        var apparel = new Dictionary<GearStock, int>();
+        var apparel = new Dictionary<(string Definition, string Stuff, int Quality, int HpBand), int>();
         foreach (var s in surplus.Apparel)
         {
-            var key = s with { Count = 0 };
+            var key = (s.Observed.DefName, s.Observed.Stuff ?? "", s.Observed.QualityIndex(), s.Observed.HpBand);
             apparel[key] = apparel.GetValueOrDefault(key) + s.Count;
         }
         var weapons = new Dictionary<Resource, int>(surplus.Weapons);
@@ -153,19 +153,12 @@ public static class GearSurplusRules
         return @out;
     }
 
-    /// <summary>The surplus kind of a warehouse gear row.</summary>
-    private static GearStock? ApparelKey(TradeSheetRowFact row, IReadOnlySet<string> warehouses)
+    private static (string Definition, string Stuff, int Quality, int HpBand)? ApparelKey(TradeSheetRowFact row, IReadOnlySet<string> warehouses)
     {
         if (!warehouses.Contains(row.ZoneID) || row.Grade is not TradeThingGrade.Graded grade)
         {
             return null;
         }
-        return new GearStock
-        {
-            Definition = new Resource(row.DefName),
-            Stuff = new Resource(row.Stuff),
-            Quality = grade.Quality,
-            HPBand = Math.Min(9, (int)Math.Floor(grade.HitPointsFraction * 10)),
-        };
+        return (row.DefName, row.Stuff, grade.Quality, Math.Min(9, (int)Math.Floor(grade.HitPointsFraction * 10)));
     }
 }

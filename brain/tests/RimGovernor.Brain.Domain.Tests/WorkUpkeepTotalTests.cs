@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
@@ -25,7 +25,7 @@ public sealed class WorkUpkeepTotalTests
             "routes" => snapshot with { Upkeep = snapshot.Upkeep with { Routes = null! } },
             _ => throw new ArgumentException(section),
         };
-        Assert.Contains("upkeep", Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.DecodeColony(snapshot, new(), default!, null)).Message);
+        Assert.Contains("upkeep", Assert.Throws<BridgeContractException>(() => ColonyPlanningReads.Compose(snapshot, new() { Context = snapshot.Context }, default!, null)).Message);
     }
 
     [Theory]
@@ -60,12 +60,12 @@ public sealed class WorkUpkeepTotalTests
         var ingredient = new Resource("observed-ingredient");
         var recipe = new GearRecipe
         {
-            Definition = "observed-recipe", Available = true, AvailableOn = true, RequiredWork = [], WorkAmount = 1,
+            Access = ProductionBenchFixtures.Recipe("observed-recipe"), RequiredWork = [], WorkAmount = 1,
             Ingredients = takesNone ? [] : [[new Amount(ingredient, 1)]],
         };
         var input = new DispatchInputs
         {
-            Benches = offers ? [new GearBench { Id = "observed-bench", Def = "observed-kind", Usable = true, WorkSpeed = 1, Bills = [], Recipes = [recipe] }] : [],
+            Benches = offers ? [new GearBench { Observed = ProductionBenchFixtures.Observed("observed-bench", "observed-kind", "observed-token", true), Bills = [], Recipes = [recipe] }] : [],
             Stock = new Dictionary<Resource, long> { [ingredient] = stock },
         };
         var order = new OrderSpec { Recipe = recipe.Definition, BenchKind = "observed-kind" };

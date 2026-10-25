@@ -58,8 +58,8 @@ internal static class OdysseyLavaField
             Scope = s.Scope,
             Rectangle = new Observations.Rectangle
             {
-                Minimum = new Common.Cell { X = site.X, Z = site.Z },
-                Maximum = new Common.Cell { X = site.X + site.Width - 1, Z = site.Z + site.Height - 1 },
+                Minimum = new RimGovernor.Brain.Domain.Cell { X = site.X, Z = site.Z },
+                Maximum = new RimGovernor.Brain.Domain.Cell { X = site.X + site.Width - 1, Z = site.Z + site.Height - 1 },
             },
         }, cancellationToken).ConfigureAwait(false);
         var grid = MapCellGrid.Of(reply.Grid);
@@ -81,7 +81,7 @@ internal static class OdysseyLavaField
 
         var pawns = await s.CallAsync("colonists", NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new Observations.PawnFilter { Colonist = RimGovernor.Contracts.Wire.Observations.PawnMembership.Only } }, cancellationToken).ConfigureAwait(false);
         var rows = pawns.Pawns;
-        bool OnLava(Common.Cell? at) => at is { X: { } x, Z: { } z } && x >= site.X && x < site.X + site.Width && z >= site.Z && z < site.Z + site.Height;
+        bool OnLava(RimGovernor.Brain.Domain.Cell? at) => at is { X: { } x, Z: { } z } && x >= site.X && x < site.X + site.Width && z >= site.Z && z < site.Z + site.Height;
         var standing = rows.Where(p => OnLava((p.Pawn.Place as Observations.EntityPlace.OnMap)?.Cell)).Select(p => p.Pawn.Id).ToList();
         if (rows.Count == 0 || standing.Count > 0)
         {

@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -56,33 +55,15 @@ public sealed class SurgerySelectionTests
 
     private static CarePawn Patient(IReadOnlyList<CareOperation> ops, IReadOnlyList<Hediff>? conditions = null) => new()
     {
-        Id = Colonist,
-        Care = MedicalCare.Best,
-        LifeThreatening = false,
-        Dead = false,
-        NeedsRest = false,
+        Observed = CareFixtures.NativePatient(Colonist.Value, conditions),
         BadConditions = false,
-        QueuedSurgeries = 0,
         Operations = EquatableArray.From(ops),
-        Conditions = EquatableArray.From(conditions ?? []),
     };
 
     private static EquatableArray<CarePawn> Census(CarePawn pawn) => EquatableArray.From([pawn]);
 
     /// <summary>A living prisoner the colony would not recruit, held under no interaction, with no faction goodwill at stake.</summary>
-    private static PrisonerFacts Prisoner(IReadOnlyList<CareOperation> ops) => new()
-    {
-        Pawn = Captive,
-        Dead = false,
-        CreepJoiner = false,
-        Recruitable = false,
-        CurrentInteraction = new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
-        Resistance = 0.0,
-        HeldTicks = 0L,
-        Prospect = new PrisonerProspect { Age = 30, Health = 1 },
-        HarvestGoodwill = 0,
-        Operations = EquatableArray.From(ops),
-    };
+    private static PrisonerFacts Prisoner(IReadOnlyList<CareOperation> ops) => PopulationFixtures.Held(Captive.Value, recruitable: false) with { Operations = EquatableArray.From(ops) };
 
     private static PrisonerCensus Population(PrisonerFacts row, PrisonerColony colony) => PopulationFixtures.Census([row], colony: colony);
 
@@ -118,7 +99,7 @@ public sealed class SurgerySelectionTests
 
         Assert.Equal(("InstallBionicEye", EyePart, false), (choice.Recipe, choice.Part, choice.Elective));
         // Without the chronic condition a healthy eye is no served operation (and no elective without a hospital bed).
-        Assert.Empty(SurgeryRules.SelectSurgery(Census(pawn with { Conditions = [] }), null, new SurgeryContext()).Queue);
+        Assert.Empty(SurgeryRules.SelectSurgery(Census(pawn with { Observed = pawn.Observed with { Health = pawn.Observed.Health with { Hediffs = [] } } }), null, new SurgeryContext()).Queue);
     }
 
     [Fact]
@@ -131,7 +112,7 @@ public sealed class SurgerySelectionTests
 
         Assert.Equal((Colonist, "RemoveBodyPart", HandPart), (amputation.Pawn, amputation.Recipe, amputation.Part));
         // Winning the race (immunity outpaces severity) cuts nothing.
-        Assert.Empty(EmergencyRules.LifeSavingAmputations(pawn with { Conditions = [infection with { Immunizable = infection.Immunizable! with { Gain = new ImmunityGain.PerDay(2.0) } }] }));
+        Assert.Empty(EmergencyRules.LifeSavingAmputations(pawn with { Observed = pawn.Observed with { Health = pawn.Observed.Health with { Hediffs = [infection with { Immunizable = infection.Immunizable! with { Gain = new ImmunityGain.PerDay(2.0) } }] } } }));
     }
 
     /// <summary>A colonist missing a kidney, none stocked: a part-short want for InstallNaturalKidney.</summary>

@@ -1,5 +1,7 @@
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -23,12 +25,12 @@ public sealed class StoreStacksTests
     private static List<SiteCell> Census(int shelfStacks) =>
     [
         Floor(0, 1), Floor(1, 0), Floor(2, 0), Floor(3, 0),
-        SiteCellFixtures.Ground with { Cell = new Cell(0, 1), StorageStacks = shelfStacks, StorageCapacity = 3 },
-        SiteCellFixtures.Ground with { Cell = new Cell(1, 1), StorageStacks = 0, StorageCapacity = 3 },
+        SiteCellFixtures.At(new Cell(0, 1), storageStacks: shelfStacks, storageCapacity: 3),
+        SiteCellFixtures.At(new Cell(1, 1), storageCapacity: 3),
     ];
 
     private static SiteCell Floor(int x, int stacks) =>
-        SiteCellFixtures.At(new Cell(x, 0)) with { Zone = true, ZoneId = ZoneId, StorageStacks = stacks, StorageCapacity = 1 };
+        SiteCellFixtures.At(new Cell(x, 0), zoneId: ZoneId, storageStacks: stacks);
 
     private static readonly Dictionary<string, List<ShelfRecord>> Shelves = new()
     {
@@ -37,7 +39,16 @@ public sealed class StoreStacksTests
 
     private static StockpileZone Zone(int shelfStacks, IReadOnlyDictionary<string, List<ShelfRecord>> shelves)
     {
-        var projection = ColonyFactsCoreTests.Projection() with { Cells = Census(shelfStacks) };
+        var projection = ColonyFactsCoreTests.Reading() with
+        {
+            Window = new Held<PlanningCells>
+            {
+                Value = new PlanningCells
+                {
+                    Cells = [.. Census(shelfStacks)]
+                }
+            }
+        };
         return Assert.Single(StockpileZones.OwnedStockpileZones(projection, StockpileZones.CensusByCell(projection), [Owned], null, shelves));
     }
 

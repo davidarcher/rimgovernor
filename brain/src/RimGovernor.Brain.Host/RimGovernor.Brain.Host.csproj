@@ -14,7 +14,6 @@
     <ProjectReference Include="../RimGovernor.Brain.Bridge.Contracts/RimGovernor.Brain.Bridge.Contracts.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Bridge/RimGovernor.Brain.Bridge.csproj" />
-   <ProjectReference Include="../RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Store/RimGovernor.Brain.Store.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Telemetry/RimGovernor.Brain.Telemetry.csproj" />
     <ProjectReference Include="../RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />

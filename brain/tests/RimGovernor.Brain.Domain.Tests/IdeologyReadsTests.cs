@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Contracts.Wire;
-using IdeoDevelopment = RimGovernor.Brain.Policy.IdeoDevelopment;
 using RimWorld;
 using Verse;
 using Xunit;
@@ -32,6 +31,47 @@ public sealed class IdeologyReadsTests
         VeneratedAnimals = [],
     };
 
+    [Fact]
+    public void PolicyRetainsCanonicalIdeologyRowsAndPawnSelectionsKeepTheirIdentity()
+    {
+        var precept = IdeologyTestRows.Precept("held", "Nudity_Male_Required");
+        var role = IdeologyTestRows.Role("role", "leader", true, [new PawnId("pawn")], true, true);
+        var ritual = IdeologyTestRows.Ritual("ritual", "Gathering");
+        var building = IdeologyTestRows.Building with { Applies = true, MinArea = 25, Things = [new("Column", 2)] };
+        var snapshot = NoPrecepts with
+        {
+            Precepts = [precept], Roles = [role], Rituals = [ritual], Buildings = [building],
+            Development = new Obs.IdeoDevelopment.Fluid(true, 7, 2, 12),
+        };
+        var ideology = IdeologyDecoder.Decode(snapshot, Catalog());
+
+        Assert.Same(snapshot, ideology.Facts.Observed);
+        Assert.Same(precept, Assert.Single(ideology.Facts.Precepts));
+        Assert.Same(role, Assert.Single(ideology.Facts.Roles));
+        Assert.Same(ritual, Assert.Single(ideology.Facts.Rituals));
+        Assert.Same(snapshot.Development, ideology.Facts.Development);
+        var demand = Assert.Single(ideology.Facts.Buildings).Demand;
+        Assert.Same(building, demand.Observed);
+        Assert.Same(building.Things[0], demand.Counts[0]);
+        Assert.Equal(25, demand.MinArea);
+        Assert.True(demand.Applies);
+
+        var colonyEffect = new RimGovernor.Brain.Policy.PreceptEffect { HistoryEvent = "colony" };
+        var pawnEffect = new RimGovernor.Brain.Policy.PreceptEffect { HistoryEvent = "pawn" };
+        ideology = ideology with { Defs = new RimGovernor.Brain.Policy.IdeologyDefs
+        {
+            Precepts = new Dictionary<string, RimGovernor.Brain.Policy.PreceptDef>
+            {
+                ["Nudity_Male_Required"] = new([colonyEffect]),
+                ["Cannibal_Preferred"] = new([pawnEffect]),
+            },
+        } };
+        var pawn = ideology.HeldBy(["Cannibal_Preferred"]);
+        Assert.Same(ideology.Facts, pawn.Facts);
+        Assert.Same(snapshot, pawn.Facts.Observed);
+        Assert.Same(pawnEffect, Assert.Single(pawn.EffectsInForce()));
+        Assert.Same(colonyEffect, Assert.Single(ideology.EffectsInForce()));
+    }
     [Fact]
     public void JsonRoundTripIsExact()
     {
@@ -78,7 +118,7 @@ public sealed class IdeologyReadsTests
 
         Assert.Equal(["Rustic", "Totemic"], ideo.Facts.StyleCategories);
         Assert.Equal(["Muffalo", "Thrumbo"], ideo.Facts.VeneratedAnimals);
-        Assert.Equal(new IdeoDevelopment(true, true, 2, 7, 12), ideo.Facts.Development);
+        Assert.Equal(new Obs.IdeoDevelopment.Fluid(true, 7, 2, 12), ideo.Facts.Development);
     }
 
     [Fact]
@@ -86,7 +126,7 @@ public sealed class IdeologyReadsTests
     {
         var ideo = IdeologyDecoder.Decode(NoPrecepts, Catalog());
 
-        Assert.Equal(IdeoDevelopment.Fixed, ideo.Facts.Development);
+        Assert.Equal(new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fixed(), ideo.Facts.Development);
         Assert.Empty(ideo.Facts.StyleCategories);
     }
 

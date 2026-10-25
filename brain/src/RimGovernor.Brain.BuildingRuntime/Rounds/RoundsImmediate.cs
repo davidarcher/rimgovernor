@@ -89,7 +89,7 @@ public sealed partial class Rounder
         var previous = p.Journal.LoadRounds(ctx);
         var expected = await StepScope.StepScopeAsync(Native, ctx).ConfigureAwait(false);
         if (expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.Snapshot.Map
-            || !expected.NativeGeneration.TryGetValue(out var native) || native != state.Snapshot.Native)
+            || !expected.NativeGeneration.IsAt(state.Snapshot.Native.Value))
         {
             throw new ControlException("immediate review: the observed world is not the session's");
         }
@@ -97,17 +97,17 @@ public sealed partial class Rounder
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, ctx);
         var reading = await RoundsReads.ObserveRoundsProtection(Native, Clock, expected, MaxAge, claims, ctx).ConfigureAwait(false);
         PublishFrame(reading.Frame);
-        var f = reading.Projection.Facts;
+        var f = reading.Reading.Facts;
         var layout = await p.Journal.LayoutPlanAsync(state.Snapshot, expected.Tick, ctx).ConfigureAwait(false);
         if (layout is { Invalid: true } && !LayoutInvalidLogged)
         {
             LayoutInvalidLogged = true;
         }
 
-        var projection = reading.Projection;
+        var projection = reading.Reading;
         if (layout is { Plan: { } layoutPlan })
         {
-            projection = projection with { LayoutPlan = layoutPlan };
+            projection = projection with { Facts = projection.Facts with { LayoutPlan = layoutPlan } };
         }
 
         if (Needs.Contains(ShelterFamily.SafeArea))
@@ -123,15 +123,15 @@ public sealed partial class Rounder
         f = f with { DangerSeeds = EquatableArray.From(ShelterRules.DangerSeeds(reading.Emergency.Threats)) };
         var seeds = f.DangerSeeds;
         f = f with { DangerWindow = SafeArea.DangerWindow(RoundsStockpilePlanner.StockpileWorld(state.Snapshot), f.Hostiles, seeds, expected.Tick) };
-        f = f with { DangerHaulers = ShelterRules.DangerHaulers(projection.WorkPawns) };
+        f = f with { DangerHaulers = ShelterRules.DangerHaulers(projection.Facts.ForecastObserved.WorkPawns) };
         f = f with { Tick = expected.Tick };
-        f = f with { Dash = DashPlanRules.ReviewDash(previous.Latches.Dash, f, projection.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) };
+        f = f with { Dash = DashPlanRules.ReviewDash(previous.Latches.Dash, f, projection.Facts.ForecastObserved.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) };
         f = f with { AvailableNeeds = AvailableNeeds };
         // The immediate pass plans no food; the last full review's plan carries forward, so a squad hunt it opened
         // stays a combat deficit (#3311).
         f = f with { FoodPlan = HeldFoodPlan(state.Snapshot) };
         projection = projection with { Facts = f };
-        reading = reading with { Reading = reading.Reading with { Projection = projection } };
+        reading = reading with { Reading = projection };
         p.Current(ctx, epoch);
         if (p.Session.State() != state)
         {
@@ -139,18 +139,18 @@ public sealed partial class Rounder
         }
 
         Census.Retain(reading);
-        reading.Sections.File(Store, new FactScope { Load = expected.Load.Value, Map = expected.Map.Value, Generation = native.Value });
+        reading.Sections.File(Store, new FactScope { Load = expected.Load.Value, Map = expected.Map.Value, Generation = state.Snapshot.Native.Value });
         var result = p.Journal.ReviewRounds(new RoundsRequest
         {
             Revision = previous.Revision,
             Current = state.Snapshot,
-            Tick = reading.Projection.Identity.Tick,
+            Tick = reading.Reading.Identity.Tick,
             Enabled = true,
             Immediate = true,
             Policy = Policy,
             Facts = f,
         }, ctx);
-        RecordRoundsSnapshot(state.Snapshot, reading.Projection.Identity.Tick, result, reading.Projection, ctx);
+        RecordRoundsSnapshot(state.Snapshot, reading.Reading.Identity.Tick, result, reading.Reading, ctx);
         return result;
     }
 }

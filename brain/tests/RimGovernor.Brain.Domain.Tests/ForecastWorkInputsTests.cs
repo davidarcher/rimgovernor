@@ -1,7 +1,7 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -111,7 +111,7 @@ public sealed class ForecastWorkInputsTests
         var shifted = ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Schedule = EquatableArray.From(slots) }) with
         { LocalHour = 12.5, HorizonTicks = GameTime.TicksPerHour });
         Assert.Equal(GameTime.TicksPerHour / 2.0, shifted.Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
-        var worker = PawnFixtures.Worker("cook-builder") with { Job = new PawnJob { Def = "UsefulWork" } };
+        var worker = PawnFixtures.Worker("cook-builder") with { Observed = (PawnFixtures.Worker("cook-builder")).Observed with { Job = new O.JobEvidence { DefName = "UsefulWork", TargetA = new() { Target = new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.NotApplicable } } } } };
         var busy = Capacity() with { CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(worker) };
         Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(busy).Capacity.Windows);
         Assert.Equal(80, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(worker, new ForecastWorkRemaining.Timed(20.0)) }).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
@@ -141,16 +141,16 @@ public sealed class ForecastWorkInputsTests
     private static RoundsFacts Facts()
     {
         var building = new Building("TestBuilding", new Cell(1, 1), Rotation.North, "");
-        var site = new ConstructionSite { Id = "frame", Building = building };
+        var site = ConstructionObservationFixtures.Site(building, id: "frame", stage: "frame");
         var claim = new ConstructionClaim { Plan = new PlanId("method"), Action = new ActionId("action"), Building = building };
         return new()
         {
             Tick = new Tick(100), Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { site }) },
             ConstructionClaims = EquatableArray.From(new[] { claim, claim }),
-            ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { PawnFixtures.Worker("cook-builder") with { Schedule = Pawn().Schedule } })) },
+            ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { PawnFixtures.Worker("cook-builder") with { Observed = PawnFixtures.Row("cook-builder") with { Settings = PawnFixtures.Row("cook-builder").Settings with { Schedule = EquatableArray.From((Pawn().Schedule).Select((assignment, hour) => new O.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } } })) },
             BillReservations = [],
             ProductionPromises = new ProductionPromiseSet.Assessed([]),
-            Resources = default(EquatableArray<Amount>),
+            Census = ColonyFactsCoreTests.Snapshot() with { Resources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.Quantity>) },
         };
     }
 

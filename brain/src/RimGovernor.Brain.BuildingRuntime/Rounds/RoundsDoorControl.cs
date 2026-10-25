@@ -6,14 +6,14 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     /// <summary>Opens or holds the doors of rooms the policy wants changed (heat passage or routes), at most one change per step; handled is false when nothing was owed.</summary>
-    internal (RoundsBuildingResult Result, bool Handled) ControlRoomDoor(ControlState state, NeedOwner goal, ColonyProjection facts, CancellationToken call, CancellationToken epoch)
+    internal (RoundsBuildingResult Result, bool Handled) ControlRoomDoor(ControlState state, NeedOwner goal, ColonyReading facts, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
         if (p.Journal.OpenCombatFights(call).Count > 0)
         {
             return (new RoundsBuildingResult(), false);
         }
-        foreach (var change in DoorControlRules.DoorChanges(facts.Rooms, facts.Facts.Upkeep.Routes, Reviewer.Policy))
+        foreach (var change in DoorControlRules.DoorChanges(facts.Facts.Upkeep.Rooms, facts.Facts.Upkeep.Routes, Reviewer.Policy))
         {
             if (Concern == ShelterFamily.Temperature.FilingKey && !change.Heat)
             {

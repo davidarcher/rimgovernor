@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
@@ -82,14 +83,14 @@ public static class HusbandryUpkeepRules
     }
 
     /// <summary>The animal's trainables the job wants, in training order.</summary>
-    internal static IReadOnlyList<HusbandryTrainable> HerdTrainQueue(HerdPolicy herd, UpkeepAnimal a)
+    internal static IReadOnlyList<O.TrainingEntry> HerdTrainQueue(HerdPolicy herd, UpkeepAnimal a)
     {
-        var wanted = new List<HusbandryTrainable>();
+        var wanted = new List<O.TrainingEntry>();
         foreach (var def in HerdTrainOrder(herd, a.Definition))
         {
             foreach (var t in a.Training)
             {
-                if (t.Def == def)
+                if (t.DefName == def)
                 {
                     wanted.Add(t);
                 }
@@ -304,7 +305,7 @@ public static class HusbandryUpkeepRules
                     {
                         continue;
                     }
-                    return new HusbandryChoice.Write(a.Id, HusbandryMethod.Train, t.Def);
+                    return new HusbandryChoice.Write(a.Id, HusbandryMethod.Train, t.DefName);
                 }
             }
         }

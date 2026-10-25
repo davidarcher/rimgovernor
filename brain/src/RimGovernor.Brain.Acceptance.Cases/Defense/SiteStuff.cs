@@ -54,8 +54,8 @@ internal static class DefenseSiteStuff
             Scope = s.Scope,
             Region = new Observations.Rectangle
             {
-                Minimum = new Common.Cell { X = site.X, Z = site.Z },
-                Maximum = new Common.Cell { X = site.X + Width - 1, Z = site.Z },
+                Minimum = new RimGovernor.Brain.Domain.Cell { X = site.X, Z = site.Z },
+                Maximum = new RimGovernor.Brain.Domain.Cell { X = site.X + Width - 1, Z = site.Z },
             },
         }, cancellationToken).ConfigureAwait(false);
         var problems = new List<string>();

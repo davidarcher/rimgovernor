@@ -1,7 +1,6 @@
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -87,7 +86,7 @@ public sealed class LayoutInputsChangedTests
             Stock = new Dictionary<Resource, long> { [new Resource("WoodLog")] = 300 },
             ExpectedMood = new StationMood.Expected(0.8),
             FoodReserveDays = 12,
-            OutdoorCurve = Known(EquatableArray.From(new[] { -22.0, -18, -10, -2, 4, 9, 12, 10, 3, -6, -14, -20 })),
+            OutdoorCurve = EquatableArray.From(new[] { -22.0, -18, -10, -2, 4, 9, 12, 10, 3, -6, -14, -20 }),
         };
 
         Assert.Equal(f.InputsKey(), drifted.InputsKey());

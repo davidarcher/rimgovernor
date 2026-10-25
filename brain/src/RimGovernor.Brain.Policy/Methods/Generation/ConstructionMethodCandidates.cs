@@ -57,12 +57,11 @@ internal static class ConstructionMethodCandidates
     internal static ActivityTaskCandidate RemovalBinding(string id, PlannedClearingKind kind, ConstructionActivityOption row, string target, long deadline,
         EquatableArray<string> targets = default, EquatableArray<Cell> cells = default) =>
         kind == PlannedClearingKind.Haul
-            ? new(id, row.Pawn, [], PawnActivityKind.Deliver, target, "", "", row.Count, deadline, row.Origin)
-                { Resource = row.Resource, Source = row.Origin, Destination = row.Location, Capacity = row.Capacity }
+            ? new CellActivityTaskCandidate(new ActivityTaskCandidate(id, row.Pawn, [], PawnActivityKind.Deliver, target, "", "", row.Count, deadline, row.Origin) { Resource = row.Resource, Source = row.Origin, Capacity = row.Capacity }, row.Location)
             : kind == PlannedClearingKind.Deconstruct
-                ? new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, 0, deadline, row.Location)
+                ? new ActivityTaskCandidate(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, 0, deadline, row.Location)
                     { SiteDefinition = row.Definition, RoofCells = cells }
-                : new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, targets.Count + cells.Count, deadline, row.Location)
+                : new ActivityTaskCandidate(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, targets.Count + cells.Count, deadline, row.Location)
                     { SiteDefinition = row.Definition, Targets = targets, Cells = cells };
 
     /// <summary>A site row whose stack alone covers the site's demand: a whole alternative.</summary>

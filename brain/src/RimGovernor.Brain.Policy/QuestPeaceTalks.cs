@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -97,7 +96,7 @@ public static class QuestPeaceTalksPolicy
             return x.Id.CompareTo(y.Id);
         });
         var capacity = f.DefenseCapacity;
-        var raid = f.RaidPoints;
+        var raid = f.Census.Threat.Observed.RaidPoints;
         if (f.QuestRoster is not QuestRoster.Planned planned || f.QuestPawns is not QuestPawns.Seen { Departures: var departures } || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0)
         {
             return (default, "capacity_unknown");

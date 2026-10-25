@@ -5,68 +5,6 @@ namespace RimGovernor.Brain.Policy;
 // The shortfall is a forward-projector domain and the items to stock ahead of it are an economy/resource level in
 // the Rounder's construction memory, like ClothingRunway.
 
-/// <summary>
-/// The burn a refuelable def states (CompProperties_Refuelable), read from the catalog and never guessed. PerDay
-/// is fuelConsumptionRate, the fuel units a day the comp burns while it ticks (native divides it by 60000 per
-/// tick) and UnitsPerItem the fuel units one item loads (fuelMultiplier). UseDriven (consumeFuelOnlyWhenUsed or
-/// externalTicking) is a comp that burns per use, a turret's per shot: it has no daily rate. InRain is a comp
-/// that also burns in rain. WhenPowered and Flickable gate the continuous burn: native ticks it only while the
-/// building is powered (WhenPowered) and switched on (Flickable). UnitsPerItem uses the game's current-difficulty
-/// multiplier, including its maintenance cost factor.
-/// </summary>
-public sealed record FuelBurn
-{
-    public double PerDay { get; init; }
-
-    public double UnitsPerItem { get; init; }
-
-    public bool UseDriven { get; init; }
-
-    public bool InRain { get; init; }
-
-    public bool WhenPowered { get; init; }
-
-    public bool Flickable { get; init; }
-}
-
-/// <summary>
-/// One refuelable building the power census shows: the fuel units it holds against its target, the facts its
-/// def's burn is gated on and the fuel definitions it accepts, in the census's order.
-/// </summary>
-public sealed record FuelConsumer
-{
-    public string Id { get; init; } = "";
-
-    public string Definition { get; init; } = "";
-
-    public double Fuel { get; init; }
-
-    public double Target { get; init; }
-
-    public bool OutOfFuel { get; init; }
-
-    public bool SwitchedOn { get; init; }
-
-    public bool Powered { get; init; }
-
-    public required FuelBurn Burn { get; init; }
-
-    public IReadOnlyList<Resource> Fuels { get; init; } = [];
-
-    /// <summary>The fuel definition the consumer's demand is named for: the first it accepts that is in stock, else its first (the rearm's choice).</summary>
-    internal (Resource Item, bool Ok) FuelItem(StockReader stock)
-    {
-        foreach (var r in Fuels)
-        {
-            if (stock.Count(r) > 0)
-            {
-                return (r, true);
-            }
-        }
-        return Fuels.Count == 0 ? (default, false) : (Fuels[0], true);
-    }
-}
-
 /// <summary>What the fuel runway is computed from.</summary>
 public sealed record FuelInputs
 {
@@ -99,11 +37,21 @@ public static class RoundsFactsFuelExtensions
 {
     /// <summary><see cref="FuelRunwayRules.PlanFuelRunway"/> of the review's facts.</summary>
     public static FuelRunway FuelRunway(this RoundsFacts f) =>
-        FuelRunwayRules.PlanFuelRunway(new FuelInputs { Consumers = f.Fuel, Stock = new StockReader(f.Resources, f.Wood) });
+        FuelRunwayRules.PlanFuelRunway(new FuelInputs { Consumers = f.Fuel, Stock = new StockReader(f.ObservedStock(), f.WoodStock()) });
 }
 
 public static class FuelRunwayRules
 {
+    /// <summary>The accepted fuel in stock, otherwise the first fuel native accepts.</summary>
+    internal static (Resource Item, bool Ok) FuelItem(this FuelConsumer consumer, StockReader stock)
+    {
+        foreach (var definition in consumer.FuelDefinitions)
+        {
+            var resource = new Resource(definition);
+            if (stock.Count(resource) > 0) return (resource, true);
+        }
+        return consumer.FuelDefinitions.Count == 0 ? (default, false) : (new Resource(consumer.FuelDefinitions[0]), true);
+    }
     /// <summary>
     /// Rolls every refuelable building forward over MaintenanceHorizonDays. A building
     /// that burns at a known daily rate needs the horizon's burn less its tank; one already empty needs its refill
@@ -121,7 +69,7 @@ public static class FuelRunwayRules
         foreach (var c in consumers)
         {
             var burn = c.Burn;
-            var fuel = c.Fuel;
+            var fuel = c.FuelAmount;
             var (item, ik) = c.FuelItem(input.Stock);
             if (!ik || !double.IsFinite(fuel) || fuel < 0 || !double.IsFinite(c.Target) || c.Target < 0
                 || !double.IsFinite(burn.UnitsPerItem) || burn.UnitsPerItem <= 0 || !double.IsFinite(burn.PerDay) || burn.PerDay < 0)

@@ -6,7 +6,7 @@ public sealed partial class JoinersRounds
     internal async Task<(Verdict Verdict, bool Handled)> AdmitDecreeAsync(NeedWork work, Rounds review, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
         var state = work.State;
-        var f = read.Projection.Facts;
+        var f = read.Reading.Facts;
         var known = f.QuestOffers;
 
         var offers = known.OrderBy(o => o.Id.Value, StringComparer.Ordinal).ToList();
@@ -26,7 +26,7 @@ public sealed partial class JoinersRounds
                 continue;
             }
 
-            if (objective.Timing is O.QuestObjectiveTiming.Deadline deadline && deadline.Tick <= read.Projection.Identity.Tick.Value)
+            if (objective.Timing is O.QuestObjectiveTiming.Deadline deadline && deadline.Tick <= read.Reading.Identity.Tick.Value)
             {
                 DecreeSkip(offer, "deadline", call);
                 continue;
@@ -47,7 +47,7 @@ public sealed partial class JoinersRounds
             {
                 case O.QuestObjectiveKind.HarvestPlant:
                 {
-                    var field = reviewer.NewResourceFieldPlanner(state, review, read.Projection.Identity, read.Projection, call);
+                    var field = reviewer.NewResourceFieldPlanner(state, review, read.Reading.Identity, read.Reading, call);
                     var (site, sited) = field.SiteOf();
                     if (!sited)
                     {
@@ -56,7 +56,7 @@ public sealed partial class JoinersRounds
                     }
 
                     long standing = 0;
-                    foreach (var farm in read.Projection.Farms)
+                    foreach (var farm in (read.Reading.Tables.Zones ?? throw new RequiredFactException("zones")).Zones.OfType<PbObservations.ZoneState.Growing>())
                     {
                         if (farm.Crop == due.Def)
                         {
@@ -113,7 +113,7 @@ public sealed partial class JoinersRounds
 
                 case O.QuestObjectiveKind.KillAnimals:
                 {
-                    var (prey, why) = QuestDecrees.PlanDecreeHunt(due, offer.ViolentQuestsAllowed, read.Projection.Acquisition);
+                    var (prey, why) = QuestDecrees.PlanDecreeHunt(due, offer.ViolentQuestsAllowed, read.Reading.Facts.Acquisition);
                     reason = why;
                     for (var i = 0; i < prey.Count; i++)
                     {
@@ -181,9 +181,9 @@ public sealed partial class JoinersRounds
                 Method = method,
                 Plan = plan,
                 Current = snapshot,
-                Tick = read.Projection.Identity.Tick,
-                Bounds = read.Projection.Bounds,
-                Stock = new StockObservation { Snapshot = snapshot, Tick = read.Projection.Identity.Tick },
+                Tick = read.Reading.Identity.Tick,
+                Bounds = read.Reading.Facts.MapBounds,
+                Stock = new StockObservation { Snapshot = snapshot, Tick = read.Reading.Identity.Tick },
                 Previews = previews,
                 Purpose = Purpose.Rounds,
             }, call).ConfigureAwait(false);

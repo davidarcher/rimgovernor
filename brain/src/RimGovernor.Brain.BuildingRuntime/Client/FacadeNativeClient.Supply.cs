@@ -28,8 +28,8 @@ public sealed partial class FacadeNativeClient
                 IncludeHeld = false,
                 Region = new PbObservations.Rectangle
                 {
-                    Minimum = new PbCommon.Cell { X = minimum.X, Z = minimum.Z },
-                    Maximum = new PbCommon.Cell { X = maximum.X, Z = maximum.Z },
+                    Minimum = new RimGovernor.Brain.Domain.Cell { X = minimum.X, Z = minimum.Z },
+                    Maximum = new RimGovernor.Brain.Domain.Cell { X = maximum.X, Z = maximum.Z },
                 },
             },
         };
@@ -82,15 +82,15 @@ public sealed partial class FacadeNativeClient
                 ForbiddenOnly = !forbid,
                 Region = new PbObservations.Rectangle
                 {
-                    Minimum = new PbCommon.Cell { X = cell.X, Z = cell.Z },
-                    Maximum = new PbCommon.Cell { X = cell.X, Z = cell.Z },
+                    Minimum = new RimGovernor.Brain.Domain.Cell { X = cell.X, Z = cell.Z },
+                    Maximum = new RimGovernor.Brain.Domain.Cell { X = cell.X, Z = cell.Z },
                 },
             },
         };
         return SupplyDecodeAccess(await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false), forbid);
     }
 
-    private static EquipRead SupplyDecodeEquipWeapons(PbObservations.SuppliesSnapshot v)
+    internal static EquipRead SupplyDecodeEquipWeapons(PbObservations.SuppliesSnapshot v)
     {
         var targets = new List<EquipCandidate>();
         foreach (var stock in v.Stocks)
@@ -112,12 +112,9 @@ public sealed partial class FacadeNativeClient
                 targets.Add(
                     new EquipCandidate
                     {
-                        Thing = id,
-                        Definition = stock.DefName,
-                        Cell = item.Cell,
-                        Token = item.Snapshot.Token ?? "",
-                        BiocodedTo = new RimGovernor.Brain.Domain.PawnId(weapon?.BiocodedTo ?? ""),
-                        Biocoded = weapon?.Biocoded ?? false,
+                        Stock = stock,
+                        Item = item,
+                        Gear = weapon,
                     }
                 );
             }

@@ -78,7 +78,7 @@ public static class BabyFeedingRules
         {
             var amount = s.Nutrition;
             DomainException.Require(FoodForecastRules.FoodNumber(amount), "food facts unavailable");
-            if (!s.Holder.IsEmpty || s.Corpse)
+            if (!s.Holder.IsEmpty || s.IsCorpse())
             {
                 continue;
             }
@@ -88,7 +88,7 @@ public static class BabyFeedingRules
                 if (isBaby.Contains(e))
                 {
                     stockNutrition += amount;
-                    byDefinition[s.DefName] = byDefinition.GetValueOrDefault(s.DefName) + amount;
+                    byDefinition[new Resource(s.DefName)] = byDefinition.GetValueOrDefault(new Resource(s.DefName)) + amount;
                     break;
                 }
             }

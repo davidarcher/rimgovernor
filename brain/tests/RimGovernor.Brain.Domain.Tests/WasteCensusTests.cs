@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
@@ -48,10 +48,12 @@ public sealed class WasteCensusTests
         };
         var tables = Empty with { Things = Things.Of(Corpse("colonist"), Corpse("stranger")) };
         var waste = ColonyFramesReads.ColonyWaste(snapshot, tables);
-        Assert.Equal(CorpseOf.Colonist, waste[0].CorpseOf);
-        Assert.Equal("", waste[0].Grave);
-        Assert.Equal(CorpseOf.Stranger, waste[1].CorpseOf);
-        Assert.Equal("grave", waste[1].Grave);
+        Assert.Same(snapshot.Waste.Items[0], waste[0]);
+        Assert.Equal(C.CorpseClass.Colonist, waste[0].CorpseClass);
+        Assert.Null(waste[0].Grave);
+        Assert.Same(snapshot.Waste.Items[1], waste[1]);
+        Assert.Equal(C.CorpseClass.Stranger, waste[1].CorpseClass);
+        Assert.Equal("grave", waste[1].Grave!.Id);
         Assert.True(MorgueRules.MorgueWaiting(waste));
     }
 
@@ -69,6 +71,6 @@ public sealed class WasteCensusTests
     private static O.Thing Corpse(string id) => new()
     {
         Entity = new() { Id = id, DefName = "Corpse_Human", Label = "corpse", Place = new O.EntityPlace.Unplaced() },
-        StackCount = 1, Forbidden = false, Corpse = true, Food = new O.ThingFood.NotFood(),
+        Forbidden = false, Corpse = true,
     };
 }

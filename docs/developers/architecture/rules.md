@@ -24,7 +24,7 @@ the rule.
 ## Gates
 
 1. **Layers (`RGARCH001`).** `Domain -> Contracts -> Policy -> Bridge
-   (Bridge.Contracts, Bridge) -> Observation -> Store ->
+   (Bridge.Contracts, Bridge) -> Store ->
    Executor -> BuildingRuntime -> PlayerApi -> Host`. The project references
    already form this order and Roslyn cannot compile a cycle; the analyzer
    reads the assembly references of each compilation and fails a reference that
@@ -32,7 +32,7 @@ the rule.
    or `HttpChannel`; executor does not reference store (it still does, baselined);
    `PlayerApi` does not reference `BuildingRuntime`. `Telemetry`, `Simulation`,
    `HttpChannel` and `Acceptance*` sit outside the order.
-   Bridge validates the wire, observation decodes, policy decides, store
+   Bridge validates and joins native records, policy decides, store
    persists, buildingruntime sequences. Bridge returns Policy types by design, so
    no "bridge does not import policy" edge is denied.
    Baseline `From->To`: the denied edges as they exist today.
@@ -50,8 +50,8 @@ the rule.
    check that; it is a review question. Baseline `file|ban Type`:
    `ClockTypes.cs` (`DateTimeOffset` fields).
 3. **One owner per exported type (`RGARCH003`).** A public type name declared in
-   two or more of `Domain`, `Policy`, `Bridge.Contracts`/`Bridge` and
-   `Observation` fails unless listed. These four form one reference chain, so
+   two or more of `Domain`, `Policy` and `Bridge.Contracts`/`Bridge`
+   fails unless listed. These form one reference chain, so
    the higher project sees the collision and reports it. Baseline
    `Higher|Name`: today's duplicates.
 4. **No swallowed errors (`RGARCH004`).** No `catch` block without a
@@ -84,15 +84,16 @@ the rule.
 
 9. **There is no unknown (`RGARCH009`).** The gate half of review item 9 ([#3753](https://github.com/davidarcher/rimgovernor/issues/3753)).
    In every `RimGovernor.Brain.*` project except `Acceptance*` it counts these tokens per file:
-   - `Fact`: a name bound to `Domain`'s `Fact<T>` (the type, or a member other than `ValueOrDefault`) or to `Fact.Known`;
-   - `Unknown`: a call of `Fact.Unknown<T>()`;
-   - `ValueOrDefault`: `Fact<T>.ValueOrDefault`;
    - `UnknownMember`: an enum member named `Unknown` or `Unspecified`;
    - `NullableValue` (in `Policy`, `Domain` and `Contracts` only): a property or positional parameter of a
      record or class whose type is a nullable value type (`int?`, `Cell?`);
    - `Discard`: a catch-all `_ =>` arm, `default:` or `case _:` label in a switch whose governing type is
      an enum or an abstract or sealed record declared in the repo. Switches over game or BCL enums, strings
      and tuples are not counted; neither is a guarded `_ when ...` arm.
+
+   The former `Fact`, `Unknown` and `ValueOrDefault` wrapper tokens have no production type to bind to;
+   their analyzer checks activate only if both retired wrapper types are present. Required native reads
+   now use Contracts records directly, and missing required inputs raise `RequiredFactException`.
 
    The baseline (`rule9.txt`) is counted, unlike the other gates: each line is `Project/File.cs|token|count`.
    A count above its line fails, a file or token without a line fails on its first hit, and a count below its
@@ -101,7 +102,7 @@ the rule.
    cap is that starting line count. The native mod's Bridge (`integrations/rimgovernor-native`) is not analyzed:
    the native build stages only the sources it ships, and its locked restore records project references, so a
    reference to the analyzer that exists in one build and not the other breaks restore. Its unknowns go with
-   the family children and its nullable checking (#3791).
+   the typed native contracts and its project-wide nullable checking.
 
 **World-state ban (`RGARCH007`)**: no world-state game API on the planner worker thread. The
 whole brain runs off the game thread, so a `brain/src` project that
@@ -225,5 +226,4 @@ The landing report answers each in a line.
    `Never`); a fact that cannot be read raises `RequiredFactException`. Never a
    default, a zero, a sentinel or a clamp: read the fact, name the state, or
    drop the option from planning and file an issue
-   ([#3753](https://github.com/davidarcher/rimgovernor/issues/3753)). `Fact<T>`
-   is being burned down family by family; gate 9 counts what is left and only lets it fall.
+   ([#3753](https://github.com/davidarcher/rimgovernor/issues/3753)). The generic fact wrapper and decode layer are removed. Native observed records have one owner in Contracts; policy reads those records directly and keeps only derived review state. Gate 9 rejects reintroduced unknown wrappers and unnamed catch-all states.

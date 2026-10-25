@@ -4,9 +4,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 partial class RoundsSleepingUpkeepPlanner
 {
     /// <summary>The rooms/art Need's room input: a bedroom below target, weakest in beauty, with a free cell.</summary>
-    internal static bool SculptureRoomsOwedOf(Observation.ColonyProjection facts)
+    internal static bool SculptureRoomsOwedOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var obs = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
@@ -14,31 +14,31 @@ partial class RoundsSleepingUpkeepPlanner
         {
             throw new RequiredFactException(census is null ? "construction census" : "colonist profiles");
         }
-        facts.TechTier.TryGetValue(out var tier);
-        return ArtRules.SculptureRoomsOwed(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells));
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
+        return ArtRules.SculptureRoomsOwed(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells));
     }
 
     /// <summary>The policy view of packed sculpture stock.</summary>
-    internal static List<Pol.PackedSculpture> PackedSculptures(IEnumerable<PackedItem> items, Pol.ItemFacts facts)
+    internal static List<Pol.PackedSculpture> PackedSculptures(IEnumerable<PbObservations.StockItem> items, Pol.ItemFacts facts)
     {
         var output = new List<Pol.PackedSculpture>();
         foreach (var item in items)
         {
-            if (!facts.SculptureSize(item.InnerDef, out _))
+            var packed = item.Packed ?? throw new ObservationContractException("packed stock lacks its building");
+            if (!facts.SculptureSize(packed.DefName, out _))
             {
                 continue;
             }
-            var quality = item.QualityKnown ? (int)item.Quality : -1;
-            output.Add(new Pol.PackedSculpture { Id = item.Id, Def = item.InnerDef, Quality = quality, MarketValue = item.MarketValue });
+            output.Add(new Pol.PackedSculpture { Observed = item });
         }
         return output;
     }
 
     /// <summary>SaleSculptures over a routine projection and the packed items read; null when a room input is unknown.</summary>
-    internal static async Task<HashSet<string>?> SaleSculpturesOfAsync(FacadeNativeClient native, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
+    internal static async Task<HashSet<string>?> SaleSculpturesOfAsync(FacadeNativeClient native, C.Identity identity, RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, CancellationToken ct)
     {
         var obs = facts.Facts.Sleeping;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
         if (census is null || traits is null)
@@ -46,15 +46,15 @@ partial class RoundsSleepingUpkeepPlanner
             return null;
         }
         var items = await native.ReadPackedItemsAsync(identity, RoomQualityRules.PackedSculptureDefinition, ct).ConfigureAwait(false);
-        facts.TechTier.TryGetValue(out var tier);
-        return RoomQualityRules.SaleSculptures(obs!, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), PackedSculptures(items, facts.Facts.Items), facts.Facts.Items);
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
+        return RoomQualityRules.SaleSculptures(obs!, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells), PackedSculptures(items, facts.Facts.Items), facts.Facts.Items);
     }
 
     /// <summary>
     /// The review's shed_art input: the unreserved packed art count, read only while the wealth headroom is
     /// known and negative (unknown otherwise, so the need adds nothing).
     /// </summary>
-    internal static async Task<long> ReviewSaleArtAsync(object source, C.Identity identity, Observation.ColonyProjection facts, CancellationToken ct)
+    internal static async Task<long> ReviewSaleArtAsync(object source, C.Identity identity, RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, CancellationToken ct)
     {
         var native = source as FacadeNativeClient;
         var h = facts.Facts.WealthBudget();
@@ -78,30 +78,30 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// installed (a RelocateIntent on the packed item's inner building) on free floor in the room, once per
     /// Episode. due is false when the lever has nothing to do.
     /// </summary>
-    internal async Task<(RoundsBuildingResult Result, bool Due)> SculptBedroomAsync(PackedStock stock, ControlState state, Sto.NeedOwner goal, Observation.RoundsReading reading, CancellationToken call, CancellationToken epoch)
+    internal async Task<(RoundsBuildingResult Result, bool Due)> SculptBedroomAsync(PackedStock stock, ControlState state, Sto.NeedOwner goal, RoundsReading reading, CancellationToken call, CancellationToken epoch)
     {
         var none = (new RoundsBuildingResult(), false);
-        var facts = reading.Projection;
+        var facts = reading.Reading;
         var obs = facts.Facts.Sleeping;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var traits = SleepingTraits(facts);
         if (census is null || traits is null)
         {
             return none;
         }
-        facts.TechTier.TryGetValue(out var tier);
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
         if (await stock.ItemsAsync(RoomQualityRules.PackedSculptureDefinition, call).ConfigureAwait(false) is not { } items)
         {
             return none;
         }
         var packed = PackedSculptures(items, facts.Facts.Items);
-        var inner = new Dictionary<string, PackedItem>(StringComparer.Ordinal);
+        var inner = new Dictionary<string, PbObservations.StockItem>(StringComparer.Ordinal);
         foreach (var item in items)
         {
             inner[item.Id] = item;
         }
-        var (step, due) = RoomQualityRules.NextSculpture(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells), packed, facts.Facts.Items);
+        var (step, due) = RoomQualityRules.NextSculpture(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells), packed, facts.Facts.Items);
         if (!due)
         {
             return none;
@@ -112,9 +112,11 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return (new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "sculpture_install") }, true);
         }
-        var item2 = inner.GetValueOrDefault(step.Packed);
+        var item2 = inner.GetValueOrDefault(step.Packed)
+            ?? throw new ObservationContractException("selected sculpture missing from packed stock");
+        var building = item2.Packed ?? throw new ObservationContractException("packed stock lacks its building");
         var id = PlanIds.MintPlanId();
-        var move = new MoveBuilding(item2!.Inner, item2.InnerDef, step.Anchor, step.Rot);
+        var move = new MoveBuilding(building.Id, building.DefName, step.Anchor, step.Rot);
         var action = DomainAction.NewMoveBuildingAction(new ActionId($"{id}-0"), move);
         return CommitSleepingPlan(state, goal, method, id, [action], call, epoch);
     }
@@ -137,6 +139,6 @@ public sealed partial class RoundsTradePlanner
         var expected = await StepScope.StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         var claims = Reviewer.Player.Journal.ConstructionClaims(snapshot, expected.Tick, call);
         var read = await Reviewer.ObserveOwnedAsync(Reviewer.Native, expected, claims, call).ConfigureAwait(false);
-        return await RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, read.Projection, call).ConfigureAwait(false);
+        return await RoundsSleepingUpkeepPlanner.SaleSculpturesOfAsync(native, identity, read.Reading, call).ConfigureAwait(false);
     }
 }

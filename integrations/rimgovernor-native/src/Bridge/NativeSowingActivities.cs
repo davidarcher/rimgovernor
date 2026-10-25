@@ -93,7 +93,7 @@ internal static class NativeSowingActivities
         if (Grower(pawn.Map, step.Target) is not { } grower || grower.GetPlantDefToGrow() is not { } crop) return null;
         var cells = LegalCells(pawn, grower);
         if (cells.Count == 0) return null;
-        var cell = sown == 0 && step.Destination is { } first && cells.Contains(new IntVec3(first.X, 0, first.Z))
+        var cell = sown == 0 && step is CellActivityStep { Destination: var first } && cells.Contains(new IntVec3(first.X, 0, first.Z))
             ? new IntVec3(first.X, 0, first.Z) : cells[0];
         return Probe().Sow(pawn, cell, crop);
     }

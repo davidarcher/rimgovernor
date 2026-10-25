@@ -7,8 +7,7 @@ internal sealed partial class DefensePipeline
     public HashSet<Cell> Cells = [];
     public List<Building> Unbuilt = [];
     public int Admitted;
-    public Identity Scope = new();
-    public bool Scoped;
+    public Identity? Scope;
 
     public bool Piped() => Open.Count > 0 || Admitted > 0;
 

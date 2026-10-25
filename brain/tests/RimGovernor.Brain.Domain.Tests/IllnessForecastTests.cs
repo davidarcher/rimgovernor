@@ -3,7 +3,6 @@ using RimGovernor.Brain.Domain.Tests.Game;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -347,11 +346,11 @@ public sealed class IllnessForecastTests
     }
 
     [Fact]
-    public void AnAbsentFactLeavesTheScheduleUnassessedNamingIt()
+    public void MissingFactsRefuseAndUnmodelledFactsNameTheUnassessedSchedule()
     {
         var table = DiseaseTableTests.Table();
 
-        Assert.Equal(["disease_facts_unobserved"], IllnessSchedule.Of(table, null).Findings);
+        Assert.Throws<RequiredFactException>(() => IllnessSchedule.Of(table, null!));
         Assert.Equal(["disease_storyteller_unknown:Ghost"], IllnessSchedule.Of(table, Facts() with { Storyteller = "Ghost" }).Findings);
         Assert.Equal(["disease_biome_unknown:Moon"], IllnessSchedule.Of(table, Facts() with { Biome = "Moon" }).Findings);
         Assert.Equal(["disease_victims_unobserved:Disease_OrganDecay"],
@@ -367,12 +366,12 @@ public sealed class IllnessForecastTests
         var catalog = DiseaseTableTests.Catalog(DiseaseTableTests.CoreDefs());
         var census = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = "Cassandra", DaysPassed = 20, Disease = Facts(20) } } };
 
-        var inputs = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Disease = census.Threat.Observed.Disease });
-        var unread = HarmInputs.Of(new RoundsFacts
+        var inputs = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = census.Threat.Observed } } });
+        Assert.Throws<RequiredFactException>(() => HarmInputs.Of(new RoundsFacts
         {
             DiseaseTable = catalog.DiseaseTable(),
-            Disease = ColonyFactsCoreTests.Snapshot().Threat.Observed.Disease,
-        });
+            Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = census.Threat.Observed with { Disease = null! } } },
+        }));
 
         Assert.True(inputs.Illness.Assessed);
         Assert.Equal(1 / 60.0, inputs.Illness.IncidentsPerDay(30), 12);
@@ -382,9 +381,6 @@ public sealed class IllnessForecastTests
         Assert.True(flu.PatientDays > 0);
         Assert.True(flu.Treatments > 0);
         Assert.True(flu.DeathProbability is > 0 and < 1);
-
-        Assert.False(unread.Illness.Assessed);
-        Assert.Equal(["disease_facts_unobserved"], unread.Illness.Findings);
     }
 
     [Fact]
@@ -399,7 +395,7 @@ public sealed class IllnessForecastTests
         };
         var catalog = DiseaseTableTests.Catalog([.. DiseaseTableTests.CoreDefs(), modded]);
 
-        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Disease = Facts(20) with { Storyteller = "Modded" } }).Illness;
+        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = "Modded", Disease = Facts(20) with { Storyteller = "Modded" } } } } }).Illness;
 
         Assert.True(illness.Assessed);
         Assert.Equal(["disease_comp_unmodelled:" + nameof(ThreatScheduleTests.StorytellerCompProperties_Test)], illness.Findings);
@@ -417,7 +413,7 @@ public sealed class IllnessForecastTests
         // #3830 the production way (#3822): the catalog's organ decay with its heart, lungs and kidneys, a colony settled today, and a
         // pawn as the native read fills it (the torso's organs open, a natural lung on the map).
         var catalog = DiseaseTableTests.Catalog(DiseaseTableTests.CoreDefs());
-        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Disease = Facts(0) with { Biome = "AridShrubland" } }).Illness;
+        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Disease = Facts(0) with { Biome = "AridShrubland" } } } } }).Illness;
         Assert.True(illness.Assessed);
         var decay = Assert.Single(illness.Incidents, i => i.Incident == Decay);
         Assert.Equal(["Heart", "Lung", "Kidney"], decay.Course.Parts.Select(p => p.Part));

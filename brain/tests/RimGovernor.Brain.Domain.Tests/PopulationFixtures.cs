@@ -1,51 +1,51 @@
 using RimGovernor.Brain.Policy;
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-/// <summary>Population census rows for tests: every required fact set to an ordinary held prisoner or a living, unhosted person.</summary>
+/// <summary>Complete population and pawn observations for policy tests.</summary>
 internal static class PopulationFixtures
 {
-    /// <summary>A living, recruitable prisoner maintained without resistance, held no time.</summary>
-    internal static PrisonerFacts Held(string pawn, bool recruitable = true) => new()
+    internal static O.PopulationPerson NativePerson(string pawn, bool recruitable = false, string? ideo = null) => new()
     {
-        Pawn = new(pawn),
-        Dead = false,
-        CreepJoiner = false,
-        Recruitable = recruitable,
-        CurrentInteraction = new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
-        Resistance = 0,
-        HeldTicks = 0,
-        HarvestGoodwill = 0,
-        Prospect = new PrisonerProspect(),
+        Pawn = new(pawn), Admitted = false, Guest = false, Recruitable = recruitable,
+        IdeoId = ideo, WildMan = false,
+        Custody = new O.PersonCustody.None(), WillJoinIfRescued = false,
     };
 
-    /// <summary>A living person with every custody flag false.</summary>
-    internal static CustodyFacts Person(string pawn) => new()
+    internal static PrisonerProspect Prospect(string pawn = "p", EquatableArray<O.Skill> skills = default)
     {
-        Pawn = new(pawn),
-        WillJoinIfRescued = false,
-        Dead = false,
-        Downed = false,
-        Guest = false,
-        Admitted = false,
-        Prisoner = false,
-        Hostile = false,
-        Recruitable = false,
-        Prospect = new PrisonerProspect(),
-        Luciferium = false,
-        WearingApparel = false,
+        var observed = PawnFixtures.Row(pawn);
+        return new PrisonerProspect { Observed = observed with { Biography = observed.Biography with { BiologicalAgeYears = 30, Skills = skills } } };
+    }
+
+    internal static PrisonerFacts Held(string pawn, bool recruitable = true, string? ideo = null)
+    {
+        var held = new O.PersonCustody.Prisoner(0, "MaintainOnly", 0, null, 0);
+        var prospect = Prospect(pawn);
+        var observed = prospect.Observed with { Prisoner = true, Colonist = false, FreeColonist = false, Settings = prospect.Observed.Settings with { Care = new O.PawnCare.Configured(RimGovernor.Contracts.Wire.Operations.MedicalCare.HerbalOrWorse, false, RimGovernor.Contracts.Wire.Operations.HostilityResponse.Flee) } };
+        return new PrisonerFacts
+        {
+            Person = NativePerson(pawn, recruitable, ideo) with { Custody = held, Guest = true },
+            Observed = observed,
+            Held = held,
+            CurrentInteraction = new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
+            Prospect = prospect with { Observed = observed },
+        };
+    }
+
+    internal static CustodyFacts Person(string pawn, bool downed = false, bool guest = false, bool hostile = false, bool admitted = false) => new()
+    {
+        Person = NativePerson(pawn) with { Guest = guest, Admitted = admitted },
+        Observed = PawnFixtures.Row(pawn) with { Downed = downed, Hostile = hostile },
+        Prospect = Prospect(pawn),
     };
 
-    /// <summary>An admitted colonist.</summary>
-    internal static CustodyFacts Admitted(string pawn) => Person(pawn) with { Admitted = true };
+    internal static CustodyFacts Admitted(string pawn) => Person(pawn, admitted: true);
 
-    /// <summary>The census of these rows.</summary>
     internal static PrisonerCensus Census(IEnumerable<PrisonerFacts>? prisoners = null, IEnumerable<CustodyFacts>? custody = null, PrisonerColony? colony = null) => new()
     {
-        Prisoners = [.. prisoners ?? []],
-        Custody = [.. custody ?? []],
-        Colony = colony ?? new PrisonerColony(),
-        Guests = [],
-        Names = [],
+        Prisoners = [.. prisoners ?? []], Custody = [.. custody ?? []],
+        Colony = colony ?? new PrisonerColony(), Guests = [], Names = [],
     };
 }

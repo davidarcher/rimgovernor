@@ -1,6 +1,7 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Amount = RimGovernor.Brain.Policy.Amount;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -11,21 +12,7 @@ public sealed class GearStuffChoiceTests
     private static readonly Resource Steel = new("Steel");
     private static readonly Resource Plasteel = new("Plasteel");
 
-    private static GearOption Shirt(string stuff, double sharp, double cost = 20) => new()
-    {
-        ID = "bill:Shirt/" + stuff,
-        Definition = new("Shirt"),
-        Stuff = new(stuff),
-        Slot = GearSlot.SkinTorso,
-        Layers = ["OnSkin"],
-        Groups = ["Torso"],
-        Source = GearSource.Bill,
-        Quality = 2,
-        Condition = 1,
-        Sharp = sharp,
-        Cost = cost,
-        Ingredients = [new Amount(new(stuff), 50)],
-    };
+    private static GearOption Shirt(string stuff, double sharp, double cost = 20) => new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("bill:Shirt/" + stuff, "Shirt", stuff, GearSource.Bill)), Slot = GearSlot.SkinTorso, Layers = ["OnSkin"], Groups = ["Torso"], Sharp = sharp, Cost = cost, Ingredients = [new Amount(new(stuff), 50)] };
 
     private static readonly Resource Cloth = new("Cloth");
     private static readonly Resource Leather = new("Leather_Plain");
@@ -35,7 +22,7 @@ public sealed class GearStuffChoiceTests
     private static GearOption Arrived(GearOption o, StuffArrival arrival) => o with { Arrival = arrival.Of(o) };
 
     private static Resource? Planned(params GearOption[] options) =>
-        GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = 20, ComfortableMin = 10, ComfortableMax = 30, Options = EquatableArray.From(options) })
+        GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Threat = ColonyModelFixtures.NoThreat, Ambient = 20, Options = EquatableArray.From(options), Role = GearFixtures.Role })
             .Target.SingleOrDefault()?.Stuff;
 
     [Fact]
@@ -44,7 +31,7 @@ public sealed class GearStuffChoiceTests
         Assert.Equal(new GearArrival.InDays(0), Arrival(new() { [Plasteel] = 50 }).Of(Shirt("Plasteel", .5)));
         Assert.IsType<GearArrival.NoKnownDay>(Arrival(new() { [Plasteel] = 49 }).Of(Shirt("Plasteel", .5)));
         // An item, and a bill of a def made from no stuff, are in hand.
-        Assert.Equal(new GearArrival.InDays(0), Arrival(new()).Of(Shirt("Plasteel", .5) with { Source = GearSource.Stored }));
+        Assert.Equal(new GearArrival.InDays(0), Arrival(new()).Of(Shirt("Plasteel", .5) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Shirt("Plasteel", .5)).Origin).Value) with { Source = GearSource.Stored }) }));
     }
 
     [Fact]
@@ -61,13 +48,20 @@ public sealed class GearStuffChoiceTests
     [Fact]
     public void AHuntableAnimalArrivesAtItsHuntLead()
     {
-        var deer = new AcquisitionSource { Id = "deer", Hunt = true, Products = [new SourceProduct(Leather, 30)] };
+        var deer = new AcquisitionSource { Observed = new() { Source = new() { Id = "deer" }, Token = "deer", Resource = "Meat_Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = "deer", DefName = "Deer", Label = "Deer", Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) }, Products = [new SourceProduct(Leather, 30)] };
         var hunt = ClothingDemandRules.HuntYieldCandidate(deer);
         Assert.Equal(new CandidateLead.Days(0), hunt!.Lead);
-        Assert.Equal(new GearArrival.InDays(0), Arrival(new(), hunt, ClothingDemandRules.HuntYieldCandidate(deer with { Id = "doe" })).Of(Shirt(Leather.Value, .1)));
+        Assert.Equal(new GearArrival.InDays(0), Arrival(new(), hunt, ClothingDemandRules.HuntYieldCandidate(deer with { Observed = deer.Observed with { Source = new() { Id = "doe" }, Token = "doe" }, Entity = deer.Entity with { Id = "doe" } })).Of(Shirt(Leather.Value, .1)));
         // One deer's leather is short of the bill.
         Assert.IsType<GearArrival.NoKnownDay>(Arrival(new(), hunt).Of(Shirt(Leather.Value, .1)));
-        Assert.Null(ClothingDemandRules.HuntYieldCandidate(deer with { Hunt = false }));
+        var cotton = new AcquisitionSource
+        {
+            Observed = new() { Source = new() { Id = "cotton" }, Token = "cotton", Resource = "Cloth", Yield = 10, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Plant(false, 1, false) },
+            Entity = new() { Id = "cotton", DefName = "Plant_Cotton", Label = "cotton", Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) },
+            Products = [new SourceProduct(Cloth, 10)],
+        };
+        Assert.Null(ClothingDemandRules.HuntYieldCandidate(cotton));
     }
 
     [Fact]

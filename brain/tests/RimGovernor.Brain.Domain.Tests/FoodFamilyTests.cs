@@ -2,7 +2,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -48,13 +47,13 @@ public sealed class FoodFamilyTests
     public void TheForecastFoodRowReadsTheSupplyNeedWithTheSameAssessmentForTheSameFacts()
     {
         var policy = RoundsRules.DefaultRoundsPolicy();
-        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, FoodDays = new FoodRunway.Days(0), Fuel = [] };
+        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, FoodDays = new FoodRunway.Days(0), Fuel = [] };
         var met = facts with
         {
             FoodDays = new FoodRunway.Days(1000.0), GrowingCells = 10_000L, FieldCoverage = 1.0,
-            ButcherBenches = [new() { Definition = "TableButcher" }],
+            EssentialInputs = new() { Benches = [ProductionBenchFixtures.Butchering("table", "TableButcher", "table-token", true)] },
         };
-        foreach (var f in new[] { facts, met, met with { FoodDays = new FoodRunway.Days(0.0) }, met with { ButcherBenches = default } })
+        foreach (var f in new[] { facts, met, met with { FoodDays = new FoodRunway.Days(0.0) }, met with { EssentialInputs = new() } })
         {
             var row = Assert.Single(EssentialServicesRules.ReviewEssentialServices(f, policy, new() { Work = new() { Tick = f.Tick } }).Coverage,
                 c => c.Service == EssentialService.Food && c.Target == ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed));
@@ -108,7 +107,7 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheForecastCookingRowReadsTheNeedWithTheSameAssessmentForTheSameFacts()
     {
-        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() }, Tick = new(100), Colonists = 2L, FoodDays = new FoodRunway.Days(0), Fuel = [] };
+        var facts = new RoundsFacts { MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } }, Tick = new(100), Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 2 }, FoodDays = new FoodRunway.Days(0), Fuel = [] };
         ServiceCoverage Coverage(RoundsFacts f) => Assert.Single(
             EssentialServicesRules.ReviewEssentialServices(f, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = f.Tick } }).Coverage,
             c => c.Service == EssentialService.Cooking && c.Target == ServiceTarget.ForNeed(FoodRules.CookingNeed)).Coverage;
@@ -195,8 +194,8 @@ public sealed class FoodFamilyTests
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with
         {
-            Resources = [new(new("WoodLog"), 1000)],
-            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0,
+
+            Census = (facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 1000 }] },   FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [
@@ -306,8 +305,8 @@ public sealed class FoodFamilyTests
 
     private static Need BlightOf(FoodFacts facts) => Assert.Single(new FoodFamily(false, false, blight: true).Derive(facts));
 
-    private static BlightedPlant Blighted(string id, int x, bool designated = false, bool eligible = true) =>
-        new() { ID = id, Definition = "Plant_Rice", Cell = new(x, 3), Designated = designated, Eligible = eligible };
+    private static BlightedPlant Blighted(string id, int x, bool designated = false) =>
+        new() { Observed = new() { Thing = new() { Id = id }, Designated = designated }, Entity = new() { Id = id, DefName = "Plant_Rice", Label = "rice", Place = new RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap(1, new Cell(x, 3)) } };
 
     private static FoodFacts Census(params BlightedPlant[] plants) => new() { Blight = [.. plants] };
 
@@ -353,7 +352,6 @@ public sealed class FoodFamilyTests
         IReadOnlyList<NeedMethod> Propose(FoodFacts f) => family.Propose([.. family.Derive(f).Where(n => n.Satisfaction == Satisfaction.Unmet)], f);
         var plants = Enumerable.Range(0, 12).Select(i => Blighted($"plant-{i:D2}", i)).ToList();
         plants.Add(Blighted("plant-designated", 20, designated: true));
-        plants.Add(Blighted("plant-ineligible", 21, eligible: false));
         var facts = Census([.. plants]) with { BlightRefused = ["plant-00"] };
 
         var method = Assert.Single(Propose(facts));
@@ -369,10 +367,10 @@ public sealed class FoodFamilyTests
         Assert.NotEqual(method.Method, Assert.Single(Propose(Census([.. plants]))).Method);
 
         // Only designated plants left: their cuts are under way, nothing more to propose.
-        Assert.Empty(Propose(Census(Blighted("plant-1", 1, designated: true), Blighted("plant-2", 2, eligible: false))));
+        Assert.Empty(Propose(Census(Blighted("plant-1", 1, designated: true))));
 
-        // Nothing designated and nothing eligible: the Need is held.
-        var held = Assert.Single(Propose(Census(Blighted("plant-2", 2, eligible: false))));
+        // A refused target remains a deficit, with no eligible method.
+        var held = Assert.Single(Propose(Census(Blighted("plant-2", 2)) with { BlightRefused = ["plant-2"] }));
         Assert.Equal(new NeedHold("blight_cut_targets", "no_eligible_plant"), held.Hold);
 
         Assert.Empty(Propose(Census()));

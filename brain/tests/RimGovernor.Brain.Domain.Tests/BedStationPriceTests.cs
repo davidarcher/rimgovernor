@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -76,7 +75,7 @@ public sealed class BedStationPriceTests
     private static BedMergePrice Price(BedMergeFacts facts, double[] curve) => new()
     {
         Facts = facts,
-        OutdoorCurve = Known(EquatableArray.From(curve)),
+        OutdoorCurve = EquatableArray.From(curve),
         WorkDay = BedMergePriceTests.Day(8000.0),
         Builders = 1,
     };

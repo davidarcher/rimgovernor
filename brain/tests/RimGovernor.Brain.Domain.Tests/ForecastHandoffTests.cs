@@ -1,7 +1,6 @@
 using RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -23,7 +22,13 @@ public sealed class ForecastHandoffTests
         var evidence = new WorkAdmissionEvidence { Stock = stock, Standing = new([], new Dictionary<Resource, long>()),
             Reservations = [], Promises = AdmissionAssertions.MaterialPromises([]) };
         return new() { Origin = new(0), HorizonDays = 1,
-            Facts = new() { Stock = stock, Food = new() { Larder = new(), Stocks = [new() { Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), DefName = Food, Count = 10L, Nutrition = 5d, Rot = new FoodRot.Keeps() }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
+            Facts = new() { Census = ColonyFactsCoreTests.Snapshot() with { Resources = EquatableArray.From(stock.Select(amount => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) }, Food = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] }, Stocks = [new()
+            {
+                Id = "meal", DefName = Food.Value, Count = 10L, Nutrition = 5d,
+                Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Rot = new FoodRot.Keeps(),
+                IsHumanMeat = false, RawMeat = false, IsHumanlike = false, Vegetable = false, RawClass = FoodIngredientClass.None,
+                Holder = new PawnId(string.Empty), Eaters = [], UnitMass = .1, TemperatureC = 20, Forbidden = false,
+            }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
             Coupled = new() { Activities = new() { Deadline = 0, Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },
                 ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), new MaterialAvailability.Blocked(MaterialBudgetBlock.AwaitingReview)),
                 InitialLots = [new("meal", "", Food, 10d) { Freshness = new FoodFreshness.Rots(120000d) }] } };
@@ -37,6 +42,37 @@ public sealed class ForecastHandoffTests
         commitments ??= new Dictionary<string, ForecastCommitment>();
         return ForecastHandoffPolicy.Project(request, commitments, outcome ?? Outcome(), stock,
             new Dictionary<string, double> { ["research"] = 50 }, ForecastCoupledMaterials.MaterialHoldsOf(request, commitments), new(request, commitments, stock, new Dictionary<string, double>(), null) { Lots = EquatableArray.From(stock.Select(p => new ForecastTerminalLot(p.Key.Value, p.Key, p.Value, double.PositiveInfinity, p.Key == Food ? FoodEligibility.Eligible : FoodEligibility.Ineligible, p.Key == Food ? .5 : 0, [], p.Key == Medicine))) });
+    }
+
+    [Fact]
+    public void TerminalSkillProjectionCopiesTheNativeRecordAndPreservesTheObservedBaseline()
+    {
+        var learning = SkillStockTests.Mechanics(3, 99990);
+        var skill = new Skill { DefName = "Research", Level = 3, StoredLevel = 3, Passion = Passion.Major, Learning = learning };
+        var request = Request();
+        var basis = request.Coupled!.ModelBasis!;
+        var pawn = ProjectGraphTests.Pawn("pawn", null, null) with { Needs = [], Skills = [skill] };
+        request = request with { HorizonDays = 100d / GameTime.TicksPerDay,
+            Coupled = request.Coupled with { ModelBasis = basis with { Input = basis.Input with { Pawns = [pawn] } } } };
+        var callback = new SkillXpEvent("research", 1, 20, SkillXpPath.NormalTracker);
+        var projection = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(learning, [callback], 100));
+        var outcome = Outcome();
+        var allocation = outcome.Plan.Allocations[0] with { Learning = new("Research", [callback], projection, projection, 1, 1, "native") };
+        outcome = outcome with { Plan = new([allocation], 50, 0) };
+
+        var handoff = Handoff(request, new Dictionary<Resource, double> { [Steel] = 20, [Food] = 10, [Medicine] = 3 }, outcome);
+
+        Assert.Empty(handoff.Gaps);
+        var projected = Assert.Single(Assert.Single(handoff.State!.Pawns).Skills);
+        Assert.NotSame(skill, projected);
+        Assert.Equal(4, projected.StoredLevel);
+        Assert.Equal(4, projected.Level);
+        Assert.Equal(skill.DefName, projected.DefName);
+        Assert.Equal(skill.Passion, projected.Passion);
+        Assert.Same(skill, Assert.Single(request.Coupled.ModelBasis!.Input.Pawns[0].Skills));
+        Assert.Same(learning, skill.Learning);
+        Assert.Equal(3, skill.StoredLevel);
+        Assert.Equal(99990, skill.Learning!.Xp);
     }
 
     [Fact]
@@ -64,7 +100,7 @@ public sealed class ForecastHandoffTests
     {
         var request = Request();
         var inventory = new ColonyForecastRules.InventoryWalk();
-        inventory.Run(new(request.Facts.Stock, new Dictionary<string, ForecastCommitment>(), 1),
+        inventory.Run(new(request.Facts.ObservedStock(), new Dictionary<string, ForecastCommitment>(), 1),
             [(Food, .1, -2d), (Food, .2, 4d), (Food, .8, -1d), (Steel, .3, -5d)], []);
         var handoff = Handoff(request, inventory.Terminal);
         Assert.Empty(handoff.Gaps);
@@ -76,7 +112,7 @@ public sealed class ForecastHandoffTests
     public void AnUnreadStockLeavesNoStateAndNamesTheGapRatherThanDefaultingTheStock()
     {
         var request = Request();
-        var handoff = Handoff(request with { Facts = request.Facts with { Stock = default } }, new Dictionary<Resource, double> { [Steel] = 12d, [Food] = 8d, [Medicine] = 3d });
+        var handoff = Handoff(request with { Facts = request.Facts with { Census = request.Facts.Census with { Resources = default } } }, new Dictionary<Resource, double> { [Steel] = 12d, [Food] = 8d, [Medicine] = 3d });
 
         Assert.Null(handoff.State);
         Assert.Contains("terminal_stock_unknown", handoff.Gaps);
@@ -209,10 +245,10 @@ public sealed class ForecastHandoffTests
     {
         var request = Request(0);
         var promise = new ForecastCommitment("other", []) { MaterialClaims = [new(Steel, new MaterialUnits.Exact(3d), "")] };
-        var noSteel = request.Facts.Stock.Where(s => s.Resource != Steel).ToArray();
+        var noSteel = request.Facts.ObservedStock().Where(s => s.Resource != Steel).ToArray();
         var stock = EquatableArray.From(noSteel);
         var basis = request.Coupled!.ModelBasis!;
-        request = request with { Facts = request.Facts with { Stock = stock },
+        request = request with { Facts = request.Facts with { Census = request.Facts.Census with { Resources = EquatableArray.From(stock.Select(amount => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = amount.Resource.Value, Units = amount.Count })) } },
             Coupled = request.Coupled with { ModelBasis = basis with { Input = basis.Input with { Stocks = basis.Input.Stocks with { Materials = stock } } },
                 Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with
                 { Stock = stock, Promises = AdmissionAssertions.MaterialPromises([("other", promise.MaterialClaims)]) } } } };

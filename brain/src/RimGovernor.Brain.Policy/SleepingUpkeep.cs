@@ -1,69 +1,44 @@
-using BedQuality = RimGovernor.Contracts.Wire.Observations.BedQuality;
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>The observed person and the title requirements derived from the definition catalog.</summary>
 public sealed record SleepingPerson
 {
-    public PawnId Id { get; init; }
-
-    /// <summary>The id of the bed the pawn owns, "" when it owns none.</summary>
-    public string OwnedBed { get; init; } = "";
-
-    public double ComfortableMin { get; init; }
-
-    public double ComfortableMax { get; init; }
-
-    /// <summary>The lover, spouse and fiance relations to living pawns on the same map.</summary>
-    public EquatableArray<PawnId> Partners { get; init; }
-
-    /// <summary>The native willingness (ideo precepts) to share a bed with every partner; true without Ideology.</summary>
-    public bool BedSharingAllowed { get; init; }
-
-    /// <summary>The most senior royal title; null without one or without Royalty.</summary>
+    public required O.UpkeepPerson Native { get; init; }
+    public required O.PawnState Pawn { get; init; }
+    public PawnId Id => Native.Pawn;
+    public string? OwnedBed => Pawn.OwnedBed?.Id;
+    public double ComfortableMin => Pawn.Settings.Body.ComfortableMinC;
+    public double ComfortableMax => Pawn.Settings.Body.ComfortableMaxC;
+    public EquatableArray<PawnId> Partners => Native.Partners;
+    public bool BedSharingAllowed => Native.BedSharingAllowed;
     public RoyalTitle? Title { get; init; }
 }
 
+/// <summary>The actual upkeep and building rows, joined with catalog bed properties.</summary>
 public sealed record SleepingBed
 {
-    public string Id { get; init; } = "";
-
-    public Resource Definition { get; init; }
-
+    public required O.UpkeepBed Native { get; init; }
+    public required O.BuildingState Building { get; init; }
+    public string Id => Native.Id;
+    public Resource Definition => new(Building.Building.DefName);
     public bool Humanlike { get; init; }
-
-    public bool Medical { get; init; }
-
-    public bool Prisoners { get; init; }
-
-    public bool Roofed { get; init; }
-
-    /// <summary>Building_Bed.ForSlaves; false without Ideology.</summary>
-    public bool Slaves { get; init; }
-
-    /// <summary>The def's bed_crib flag: native never makes a crib a prisoner bed.</summary>
     public bool Crib { get; init; }
-
     public double RestEffectiveness { get; init; }
-
-    public double Temperature { get; init; }
-
-    public EquatableArray<PawnId> Owners { get; init; }
-
-    public EquatableArray<PawnId> Users { get; init; }
-
-    public EquatableArray<PawnId> AccessibleTo { get; init; }
-
-    /// <summary>The native id (Room.ID) of the room the bed stands in, outdoors included.</summary>
-    public string Room { get; init; } = "";
-
-    /// <summary>The bed's quality, ungraded for a def without CompQuality (a sleeping spot).</summary>
-    public BedQuality Quality { get; init; } = new BedQuality.Ungraded();
-
-    /// <summary>The native stuff defName, null for a stuffless bed.</summary>
-    public string? Stuff { get; init; }
-
-    /// <summary>The bed's position (its head cell).</summary>
-    public Cell Cell { get; init; }
+    public bool Medical => Native.Medical;
+    public bool Prisoners => Native.Prisoners;
+    public bool Roofed => Building.Roofed;
+    public bool Slaves => Native.ForSlaves;
+    public double Temperature => Native.TemperatureC;
+    public EquatableArray<PawnId> Owners => Native.Owners;
+    public EquatableArray<PawnId> Users => Native.Users;
+    public EquatableArray<PawnId> AccessibleTo => Native.AccessibleTo;
+    public string Room => Native.Room;
+    public O.BedQuality Quality => Native.Quality;
+    public string? Stuff => Building.Stuff;
+    public Cell Cell => Building.Building.Place is O.EntityPlace.OnMap at ? at.Cell
+        : throw new DomainException("sleeping building is not on the map");
 }
 
 public sealed record SleepingObservation
@@ -251,7 +226,7 @@ public static partial class SleepingRules
             {
                 throw invalid;
             }
-            if (p.OwnedBed != "" && !FoodForecastRules.FoodId(p.OwnedBed))
+            if (p.OwnedBed is { } ownedBed && !FoodForecastRules.FoodId(ownedBed))
             {
                 throw invalid;
             }
@@ -291,7 +266,7 @@ public static partial class SleepingRules
         var ownedBy = new Dictionary<PawnId, string>();
         foreach (var p in v.People)
         {
-            ownedBy[p.Id] = p.OwnedBed;
+            ownedBy[p.Id] = p.OwnedBed ?? "";
         }
         (string Id, bool Known) RoomOf(string bed)
         {
@@ -332,7 +307,7 @@ public static partial class SleepingRules
                 return b.Humanlike && !b.Medical && !b.Prisoners && b.Slaves == slave.Contains(p.Id) && b.Roofed && b.AccessibleTo.Contains(p.Id) && temperature >= lo && temperature <= hi;
             }
             bool Suitable(SleepingBed b) => Safe(b) && SleepingRung(b.Definition, v.BedBuildable) && b.RestEffectiveness > 0;
-            var bedId = p.OwnedBed;
+            var bedId = p.OwnedBed ?? "";
             var exists = beds.TryGetValue(bedId, out var owned);
             if (guest.Contains(p.Id))
             {

@@ -10,7 +10,7 @@ public sealed partial class Rounder
     /// nearest need targets in a second (PlannedRouteProbes, #3313, #3676); each read covers every free colonist and caps nothing (#3341). Without a read its sites or routes stay
     /// unknown. Null while the plan or the construction census is unread.
     /// </summary>
-    internal async Task<PlannedSiteFacts?> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, PlannedOwed? owed,
+    internal async Task<PlannedSiteFacts?> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyReading colony, PlannedOwed? owed,
         IReadOnlyList<ShelfCandidate> shelves, CancellationToken ct)
     {
         if (PlannedRoomSitesOf(colony, owed) is not { } roomSites)
@@ -20,7 +20,7 @@ public sealed partial class Rounder
         var sites = new List<PlannedBuildSite>(BlockedPiecesOf(colony, roomSites));
         if (shelves.Count > 0)
         {
-            var stuff = colony.BuildStuff(StorageRules.ShelfDefinition);
+            var stuff = ColonyPlanningRules.BuildStuff(colony.Facts, ResourceStockRules.Count(colony.Snapshot.Resources), StorageRules.ShelfDefinition);
             sites.AddRange(PlannedRules.ShelfPlannedSites(shelves, PlannedRingPrice(colony, StorageRules.ShelfDefinition, stuff)));
         }
         var asked = PlannedRules.PlannedSiteRequest(sites);
@@ -44,7 +44,7 @@ public sealed partial class Rounder
     /// The room sites with each Build site whose piece the one blocked predicate blocks marked Blocked (#3838,
     /// RoundsBuildingPlanner.DefinitionBlockedOf): its room's alternatives leave it out.
     /// </summary>
-    internal static IEnumerable<PlannedBuildSite> BlockedPiecesOf(ColonyProjection colony, IEnumerable<PlannedBuildSite> sites)
+    internal static IEnumerable<PlannedBuildSite> BlockedPiecesOf(ColonyReading colony, IEnumerable<PlannedBuildSite> sites)
     {
         var blocked = RoundsBuildingPlanner.DefinitionBlockedOf(colony);
         return sites.Select(s => s.Op == OpKind.Build && blocked(s.Definition) ? s with { Blocked = true } : s);
@@ -57,11 +57,11 @@ public sealed partial class Rounder
     }
 
     /// <summary>The plan's owed operations as planned sites (PlannedSitesOf), unread; null while the plan or the construction census is unknown.</summary>
-    internal static IReadOnlyList<PlannedBuildSite>? PlannedRoomSitesOf(ColonyProjection colony, FlooringPolicy flooring) =>
+    internal static IReadOnlyList<PlannedBuildSite>? PlannedRoomSitesOf(ColonyReading colony, FlooringPolicy flooring) =>
         PlannedRoomSitesOf(colony, PlannedOwedOf(colony, flooring));
 
     /// <summary>PlannedRoomSitesOf over an owed diff already taken (PlannedOwedOf), so one review's readers share it; null without one.</summary>
-    internal static IReadOnlyList<PlannedBuildSite>? PlannedRoomSitesOf(ColonyProjection colony, PlannedOwed? owed) =>
+    internal static IReadOnlyList<PlannedBuildSite>? PlannedRoomSitesOf(ColonyReading colony, PlannedOwed? owed) =>
         owed is null ? null
             : PlannedRules.PlannedSitesOf(owed.Sited, room => PlannedRingStuffsOf(colony, room),
                 (def, stuff) => PlannedRingPrice(colony, def, stuff), def => PlannedPiecePrice(colony, def), owed.FloorPrice,
@@ -71,26 +71,26 @@ public sealed partial class Rounder
     /// A planned site's catalog work per piece (WorkToBuild): its def's for its stuff, a floor's own; unknown where the
     /// catalog does not show it. A roof has no catalog work (PlannedRoomWork reports it apart).
     /// </summary>
-    internal static double PlannedSiteWork(ColonyProjection colony, FlooringFacts floors, PlannedBuildSite site)
+    internal static double PlannedSiteWork(ColonyReading colony, FlooringFacts floors, PlannedBuildSite site)
     {
         if (site.Op == OpKind.FloorIn)
             return floors.Definitions.TryGetValue(site.Definition, out var floor)
                 ? floor.WorkToBuild : throw new RequiredFactException("floor definition:" + site.Definition);
-        var def = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, site.Definition)
+        var def = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, site.Definition)
             ?? throw new RequiredFactException("construction definition:" + site.Definition);
         if (!def.Stuffed)
             return (def.FixedConstruction ?? throw new RequiredFactException("fixed construction:" + site.Definition)).WorkToBuild;
         var option = def.StuffOptions.FirstOrDefault(o => o.Stuff == site.Stuff)
             ?? throw new RequiredFactException("construction stuff:" + site.Definition + ":" + site.Stuff);
-        return option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var work)
+        return option.Stats.TryGetValue(Domain.StatDefNames.StatWorkToBuild, out var work)
             ? work : throw new RequiredFactException("construction work:" + site.Definition + ":" + site.Stuff);
     }
     /// <summary>
     /// The stuffs a planned room's ring is read in (PlannedRingStuffs): the wall def's ordinary stuffs the door can be made
     /// from too, priced by the wall's cost list, stocked when the colony holds any of the stuff, else the wood or rock
-    /// blocks the map offers (ColonyProjection.RingSources, #3747).
+    /// blocks the map offers (RoundsFacts.RingSources, #3747).
     /// </summary>
-    private static IReadOnlyList<string> PlannedRingStuffsOf(ColonyProjection colony, PlannedRoom room)
+    private static IReadOnlyList<string> PlannedRingStuffsOf(ColonyReading colony, PlannedRoom room)
     {
         var (wallDef, doorDef) = room.RingDefs();
         return PlannedRingStuffsOf(colony, wallDef, doorDef);
@@ -101,20 +101,20 @@ public sealed partial class Rounder
     /// first is its base sites' stuff. The one chooser of the ring's stuff: the planned sites, the reconcile's placement
     /// (ShellMaterials) and the bed merge's shell price (BedMergeShell) all read it, so the plan and the placements agree.
     /// </summary>
-    internal static IReadOnlyList<string> PlannedRingStuffsOf(ColonyProjection colony, string wallDef, string doorDef) =>
+    internal static IReadOnlyList<string> PlannedRingStuffsOf(ColonyReading colony, string wallDef, string doorDef) =>
         PlannedRingStuffsRead(colony, wallDef, doorDef).Stuffs;
 
     /// <summary>
     /// <see cref="PlannedRingStuffsOf"/> with whether its facts were read (#3819): the wall's definition, and, unless a
     /// usable stuff is stocked, the stock and the map's ring sources. An unread one reads as none stocked or offered.
     /// </summary>
-    internal static (IReadOnlyList<string> Stuffs, bool Read) PlannedRingStuffsRead(ColonyProjection colony, string wallDef, string doorDef)
+    internal static (IReadOnlyList<string> Stuffs, bool Read) PlannedRingStuffsRead(ColonyReading colony, string wallDef, string doorDef)
     {
-        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, wallDef) is not { } wall)
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, wallDef) is not { } wall)
         {
             return ([], false);
         }
-        var door = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, doorDef);
+        var door = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, doorDef);
         var common = wall.StuffOptions.Any(o => o.Common);
         var (stock, sources) = MapMaterialsOf(colony);
         var options = wall.StuffOptions
@@ -128,9 +128,9 @@ public sealed partial class Rounder
         return (PlannedRules.PlannedRingStuffs(options, sources ?? new RingStuffSources()), options.Any(o => o.Stocked) || sources is not null);
     }
 
-    /// <summary>The colony's stock and the materials the planning window offers (ColonyProjection.RingSources, #3747, #3839); the sources are null while unread.</summary>
-    private static (IReadOnlyDictionary<Resource, long> Stock, RingStuffSources? Sources) MapMaterialsOf(ColonyProjection colony) =>
-        (colony.Resources, colony.RingSources);
+    /// <summary>The colony's stock and the materials the planning window offers (RoundsFacts.RingSources, #3747, #3839); the sources are null while unread.</summary>
+    private static (IReadOnlyDictionary<Resource, long> Stock, RingStuffSources? Sources) MapMaterialsOf(ColonyReading colony) =>
+        (ResourceStockRules.Count(colony.Snapshot.Resources), colony.Facts.RingSources);
 
     /// <summary>
     /// What the stock and the map say of obtaining the materials of a piece's cost list other than its stuff (#3839,
@@ -140,7 +140,7 @@ public sealed partial class Rounder
     /// the stock or the window's sources are unread, or a material none of them offers while a building's salvage is
     /// unread (RingStuffSources.Unsalvaged); else Available.
     /// </summary>
-    internal static DefinitionReadiness PieceCostReadiness(ColonyProjection colony, string name)
+    internal static DefinitionReadiness PieceCostReadiness(ColonyReading colony, string name)
     {
         if (PlannedPiecePrice(colony, name) is not { } price)
         {
@@ -164,9 +164,9 @@ public sealed partial class Rounder
     }
 
     /// <summary>The stuff def is built from for a wanted stuff ("" for a def made from no stuff) and its cost list; null where the def is unavailable or cannot be made from it.</summary>
-    private static (string Stuff, IReadOnlyList<Amount> Costs)? PlannedRingPrice(ColonyProjection colony, string name, string stuff)
+    private static (string Stuff, IReadOnlyList<Amount> Costs)? PlannedRingPrice(ColonyReading colony, string name, string stuff)
     {
-        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, name) is not { } def)
         {
             return null;
         }

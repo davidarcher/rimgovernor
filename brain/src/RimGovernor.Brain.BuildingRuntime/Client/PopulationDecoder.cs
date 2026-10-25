@@ -1,77 +1,54 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Observation;
-using static RimGovernor.Brain.Domain.Fact;
+using RimGovernor.Brain.Bridge;
 using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-/// <summary>
-/// A population snapshot's prisoner and custody census, each person joined to its pawn table row. A person the
-/// frame's pawn table does not hold is a contract failure: both sections read the same spawned pawns.
-/// </summary>
+/// <summary>Joins the population section to the same frame's canonical pawn rows.</summary>
 internal static class PopulationDecoder
 {
     internal static P.PrisonerCensus Decode(PbObservations.PopulationSnapshot observed, Pawns pawns, BridgeCatalog? catalog)
     {
         var bestSkill = new Dictionary<string, int>(StringComparer.Ordinal);
         var colonists = 0;
-        var rows = new List<P.PrisonerFacts>(observed.Persons.Count);
+        var rows = new List<P.PrisonerFacts>();
         var guests = new List<P.CarePatient>();
-        var custody = new List<P.CustodyFacts>(observed.Persons.Count);
+        var custody = new List<P.CustodyFacts>();
         foreach (var person in observed.Persons)
         {
             if (!pawns.TryGetValue(person.Pawn.Value, out var pawn))
-            {
                 throw BridgeContractException.Contract($"population person {person.Pawn.Value} missing from the pawn table");
-            }
-            var prospect = Prospect(person, catalog);
-            custody.Add(new P.CustodyFacts
-            {
-                Pawn = person.Pawn,
-                WillJoinIfRescued = person.WillJoinIfRescued,
-                Dead = pawn.Dead,
-                Downed = pawn.Downed,
-                Hostile = pawn.Hostile,
-                Prisoner = pawn.Prisoner,
-                Recruitable = person.Recruitable,
-                Admitted = person.Admitted,
-                Guest = person.Guest,
-                Prospect = prospect,
-                Luciferium = person.LuciferiumAddicted,
-                WearingApparel = person.WearingApparel,
-            });
-
-            if (person.Custody is PbObservations.PersonCustody.Guest hosted && !pawn.Dead)
-            {
-                guests.Add(
-                    new P.CarePatient
-                    {
-                        Id = person.Pawn,
-                        Care = WireEnums.RequiredMedicalCare(hosted.MedicalCare),
-                        Conditions = hosted.Conditions.Hediffs,
-                        LifeThreatening = hosted.Conditions.LifeThreatening,
-                    });
-            }
+            var prospect = Prospect(pawn, catalog);
+            custody.Add(new P.CustodyFacts { Person = person, Observed = pawn, Prospect = prospect });
+            if (person.Custody is PbObservations.PersonCustody.Guest && !pawn.Dead)
+                guests.Add(new P.CarePatient { Person = person, Observed = pawn });
             if (person.Admitted && !pawn.Dead)
             {
                 colonists++;
-                foreach (var s in person.Biography.Skills)
-                {
-                    if (!s.Disabled && s.Level > bestSkill.GetValueOrDefault(s.DefName))
-                    {
-                        bestSkill[s.DefName] = s.Level;
-                    }
-                }
+                foreach (var skill in pawn.Biography.Skills)
+                    if (!skill.Disabled && skill.Level > bestSkill.GetValueOrDefault(skill.DefName))
+                        bestSkill[skill.DefName] = skill.Level;
             }
-            // prisoners/recruit's census only ever considers colony prisoners.
             if (person.Custody is PbObservations.PersonCustody.Prisoner held)
             {
-                rows.Add(PrisonerRow(person, held, pawn, prospect, catalog));
+                var surgery = pawn.Health.Surgery ?? throw BridgeContractException.Contract("colony prisoner without surgery facts");
+                var operations = surgery.Operations.Count == 0 ? [] : SurgeryFactsRules.CareOperations(
+                    surgery, catalog is null
+                        ? throw BridgeContractException.Contract("prisoner operations read without the definition catalog")
+                        : new DefinitionPartCatalog(catalog));
+                rows.Add(new P.PrisonerFacts
+                {
+                    Person = person,
+                    Observed = pawn,
+                    Held = held,
+                    CurrentInteraction = PrisonerCensusRules.PrisonerInteraction(held.Interaction),
+                    Prospect = prospect,
+                    Operations = operations,
+                });
             }
         }
-
         return new P.PrisonerCensus
         {
             Prisoners = EquatableArray.From(rows),
@@ -82,70 +59,15 @@ internal static class PopulationDecoder
         };
     }
 
-    /// <summary>One colony prisoner's census row.</summary>
-    private static P.PrisonerFacts PrisonerRow(PbObservations.PopulationPerson person, PbObservations.PersonCustody.Prisoner held, PbObservations.PawnState pawn, P.PrisonerProspect prospect, BridgeCatalog? catalog)
+    private static P.PrisonerProspect Prospect(PbObservations.PawnState pawn, BridgeCatalog? catalog)
     {
-        // The part items of the prisoner's operations are the catalog's; a census without one has none to price.
-        var operations = held.Surgery.Operations.Count == 0
-            ? []
-            : SurgeryFactsRules.CareOperations(
-                held.Surgery,
-                catalog is null ? throw BridgeContractException.Contract("prisoner operations read without the definition catalog") : new DefinitionPartCatalog(catalog));
-        var f = new P.PrisonerFacts
+        var traits = new List<P.PrisonerTrait>(pawn.Biography.Traits.Count);
+        foreach (var trait in pawn.Biography.Traits)
         {
-            Pawn = person.Pawn,
-            Dead = pawn.Dead,
-            Recruitable = person.Recruitable,
-            CurrentInteraction = PrisonerCensusRules.PrisonerInteraction(held.Interaction),
-            Resistance = held.Resistance,
-            HeldTicks = held.HeldTicks,
-            Ideo = person.IdeoId ?? "",
-            WildMan = person.WildMan,
-            Prospect = prospect,
-            MissingParts = held.Surgery.MissingParts,
-            Operations = operations,
-            QueuedSurgeries = held.Surgery.SurgeryBills.Count,
-            QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(held.Surgery),
-            Kind = pawn.KindDefName,
-            CreepJoiner = CreepJoinerFacts.CreepJoinerPawn(pawn).CreepJoiner is not null,
-            HarvestGoodwill = held.HarvestGoodwillChange,
-            MedicalCare = WireEnums.RequiredMedicalCare(held.MedicalCare),
-            Conditions = held.Conditions.Hediffs,
-            LifeThreatening = held.Conditions.LifeThreatening,
-            Executing = held.Interaction == "Execution",
-        };
-        return f;
-    }
-
-    /// <summary>
-    /// A person's biography and health. Each trait's worth is derived from the catalog's rows; without a catalog it
-    /// is zero.
-    /// </summary>
-    private static P.PrisonerProspect Prospect(PbObservations.PopulationPerson person, BridgeCatalog? catalog)
-    {
-        var bio = person.Biography;
-        var skills = new List<P.PrisonerSkill>(bio.Skills.Count);
-        foreach (var s in bio.Skills)
-        {
-            skills.Add(new P.PrisonerSkill { Name = s.DefName, Level = s.Level, Passion = WireEnums.PassionName(s.Passion), Disabled = s.Disabled });
+            if (catalog is null)
+                throw BridgeContractException.Contract("population traits read without the definition catalog");
+            traits.Add(new P.PrisonerTrait(catalog.TraitBalance(trait.DefName, trait.Degree).Worth()));
         }
-        var traits = new List<P.PrisonerTrait>(bio.Traits.Count);
-        foreach (var t in bio.Traits)
-        {
-            var trait = new P.PrisonerTrait { Def = t.DefName, Degree = t.Degree };
-            if (catalog is not null)
-            {
-                trait = trait with { Worth = catalog.TraitBalance(trait.Def, trait.Degree).Worth() };
-            }
-            traits.Add(trait);
-        }
-        return new P.PrisonerProspect
-        {
-            Age = bio.BiologicalAgeYears,
-            Health = person.HealthSummary,
-            Incapable = [.. bio.IncapableWorkTypes],
-            Skills = skills,
-            Traits = traits,
-        };
+        return new P.PrisonerProspect { Observed = pawn, Traits = traits };
     }
 }

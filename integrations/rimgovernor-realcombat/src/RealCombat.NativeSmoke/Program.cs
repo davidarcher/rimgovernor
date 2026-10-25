@@ -629,7 +629,7 @@ internal sealed class SeatController : IFightController
         }
     }
 
-    private void Record(IReadOnlyList<RimGovernor.Contracts.Wire.Receipts.CombatOrderResult> results)
+    private void Record(IReadOnlyList<RimGovernor.Brain.Domain.CombatResult> results)
     {
         foreach (var r in results)
         {
@@ -684,14 +684,14 @@ internal sealed class DoorProbe : IFightController
         if (tick == 1)
         {
             Do(new Operations.CombatOrderOrder.DraftCase(new Operations.Clear()));
-            Do(new Operations.CombatOrderOrder.MoveCase(new RimGovernor.Contracts.Wire.Common.Cell { X = 37, Z = 30 }));
+            Do(new Operations.CombatOrderOrder.MoveCase(new RimGovernor.Brain.Domain.Cell { X = 37, Z = 30 }));
             _phase = 1;
         }
 
         if (_phase == 1 && pawn.Position.x == 37 && pawn.Position.z == 30)
         {
             Say("beside the door; ordering onto it");
-            Do(new Operations.CombatOrderOrder.MoveCase(new RimGovernor.Contracts.Wire.Common.Cell { X = 38, Z = 30 }));
+            Do(new Operations.CombatOrderOrder.MoveCase(new RimGovernor.Brain.Domain.Cell { X = 38, Z = 30 }));
             _phase = 2;
             _since = tick;
         }
@@ -707,7 +707,7 @@ internal sealed class DoorProbe : IFightController
         if (_phase == 3 && tick - _since == 120)
         {
             Say("120 ticks later; setting hold-open");
-            Do(new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = new RimGovernor.Contracts.Wire.Common.Cell { X = 38, Z = 30 }, Mode = Operations.CombatDoorMode.HoldOpen }));
+            Do(new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = new RimGovernor.Brain.Domain.Cell { X = 38, Z = 30 }, Mode = Operations.CombatDoorMode.HoldOpen }));
             _phase = 4;
             _since = tick;
         }
@@ -715,7 +715,7 @@ internal sealed class DoorProbe : IFightController
         if (_phase == 4 && tick - _since == 200)
         {
             Say("200 ticks held; releasing hold (Close)");
-            Do(new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = new RimGovernor.Contracts.Wire.Common.Cell { X = 38, Z = 30 }, Mode = Operations.CombatDoorMode.Close }));
+            Do(new Operations.CombatOrderOrder.DoorCase(new Operations.CombatDoor { Cell = new RimGovernor.Brain.Domain.Cell { X = 38, Z = 30 }, Mode = Operations.CombatDoorMode.Close }));
             _phase = 5;
             _since = tick;
         }

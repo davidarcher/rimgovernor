@@ -26,7 +26,7 @@ namespace HomeBridge.BridgeTools
         internal static Common.Failure? Resolve(Operations.MoveIntent? move,Common.ObservationContext context,out Pawn? pawn,out IntVec3 destination)
         {
             pawn=null;destination=IntVec3.Invalid;
-            if(move==null || move.PawnId is null || !ProtoBoundary.IsIdentifier(move.PawnId) || move.Destination==null)
+            if(move==null || move.PawnId is null || !ProtoBoundary.IsIdentifier(move.PawnId))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,"A move requires a pawn id and explicit destination coordinates.");
             if(!NativePawnControlState.IsReady)return ProtoBoundary.Fail(Common.FailureCode.Unavailable,"Live native pawn control hooks are required.");
             destination=new IntVec3(move.Destination.X,0,move.Destination.Z);

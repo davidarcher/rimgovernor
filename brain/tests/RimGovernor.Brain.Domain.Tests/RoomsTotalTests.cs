@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
@@ -14,7 +14,7 @@ public sealed class RoomsTotalTests
     public void MissingRoomsFailsTheDecoder()
     {
         var tables = new Tables(default, default, default, []);
-        var failure = Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.RoomsOf(tables, null!));
+        var failure = Assert.Throws<BridgeContractException>(() => ColonyPlanningReads.RoomsOf(tables, null!));
         Assert.Contains("rooms", failure.Message);
     }
 
@@ -66,8 +66,8 @@ public sealed class RoomsTotalTests
         {
             Sleeping = new()
             {
-                Beds = [new() { Id = "bed", Room = "room", Humanlike = true, Owners = [new PawnId("holder")] }],
-                Rooms = [new() { Id = "room", Role = RoomRole.Bedroom, Beds = ["bed"], Cells = 4, Quality = new(4, 0, 0, 0, 10) }],
+                Beds = [new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "bed", room: "room", owners: [new PawnId("holder")]), Building = SleepingNativeFixtures.Building(id: "bed"), Humanlike = true }],
+                Rooms = [new UpkeepRoom { StatKeys = SleepingNativeFixtures.StatKeys, Native = SleepingNativeFixtures.Room("room", RoomRole.Bedroom, new RoomQuality(4, 0, 0, 0, 10), 4), Beds = ["bed"] }],
             },
         };
         Assert.Equal("royal bedroom furniture", Assert.Throws<RequiredFactException>(() => TitleClaimRules.NextTitleClaim(facts)).Fact);
@@ -82,7 +82,7 @@ public sealed class RoomsTotalTests
         {
             Plan = new LayoutPlan { Rooms = [room] },
             Rooms = RoomFixtures.Census((row, region.Cells())),
-            Built = [new() { Id = "throne", Building = new Building("throne", new(10, 10), Rotation.North, ""), Cells = [new(10, 10)] }],
+            Built = [ConstructionObservationFixtures.Built(new Building("throne", new(10, 10), Rotation.North, ""), "throne", [new(10, 10)])],
         };
     }
 

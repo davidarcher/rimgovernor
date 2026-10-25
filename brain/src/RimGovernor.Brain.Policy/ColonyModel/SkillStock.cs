@@ -78,15 +78,15 @@ internal sealed class SkillStock
     /// </summary>
     internal static IEnumerable<SkillStock> Of(ModelPawn pawn, SortedSet<string> findings)
     {
-        foreach (var skill in pawn.Skills.Where(s => s.Name.Length > 0))
+        foreach (var skill in pawn.Skills.Where(s => s.DefName.Length > 0))
         {
             if (ForecastSkillPolicy.MechanicsGap(skill.Learning) is { } gap)
             {
-                findings.Add($"skill_stock_unknown:{ProjectGraph.SkillKey(pawn.Pawn, skill.Name)}:{gap}");
+                findings.Add($"skill_stock_unknown:{ProjectGraph.SkillKey(pawn.Pawn, skill.DefName)}:{gap}");
                 continue;
             }
 
-            yield return new SkillStock(pawn.Pawn, skill.Name, skill.Learning!);
+            yield return new SkillStock(pawn.Pawn, skill.DefName, skill.Learning!);
         }
     }
 

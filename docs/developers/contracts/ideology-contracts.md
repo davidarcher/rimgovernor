@@ -5,6 +5,17 @@
 How the ideoligion reaches the brain. It follows the wire pattern: each
 concept is modelled once, and there is no Ideology read tool.
 
+Human butchery candidates retain the matching canonical pawn row's `PawnIdeo`
+state by reference. Policy reads a `Member`'s own precepts, which can differ
+from the colony's primary ideoligion. `None` is observed absence: with Ideology
+installed it needs a qualifying trait; without the expansion no precept objects.
+Native work eligibility still gates either case. A missing matching pawn row
+fails observation instead of becoming an empty ideoligion.
+
+Ritual planning retains the canonical finished building rows selected by the held
+rituals' required definitions. It reads definition, identity and built status from
+those rows; there is no separate ritual-site copy of physical state.
+
 ## Creation and reform
 
 `common.IdeoligionDesign` names memes, plain precept definitions, the venerated
@@ -169,6 +180,15 @@ per load, and a row a def names that the catalog lacks is an error.
 
 ## Colony section
 
+Policy retains the frame's canonical `IdeologySnapshot` in `IdeoligionFacts.Observed`.
+Precepts, roles and rituals are the same native rows, and development keeps the
+native `IdeoDevelopment.Fixed`/`Fluid` union through reform planning and goal status.
+Raw getters read the retained snapshot; no policy observation record copies their
+identity, counts, collections or flags. Building demands retain the native
+`IdeoBuilding` row and add only the catalog-derived forbidden building definitions.
+A pawn-specific precept selection evaluates catalog effects while retaining the
+primary snapshot; it never fabricates an incomplete native ideoligion.
+
 `IdeologySnapshot` is the player faction's primary ideoligion
 (`FactionIdeosTracker.PrimaryIdeo`): its memes, the precepts in force (roles,
 rituals and building precepts held apart), each role's holders as pawn row
@@ -179,7 +199,7 @@ game's `AppliesTo`, `BuildingPresent` and `RequirementsSatisfied` computed witho
 and the class name of any kind the brain cannot predict in `unread`; `policy.BuildingDemand`), the free non-slave colonists on
 the map holding it (`believer_pawns`, `WorshipFacts.Believers`), the style category names, the venerated animals'
 ThingDef names, and the reform state (`fluid`, `can_reform`, development
-points, reform count, next reform points; `policy.IdeoDevelopment`; a fixed
+points, reform count, next reform points; `IdeoDevelopment`; a fixed
 ideoligion is `IdeoDevelopment.Fixed`, never an unread state). The
 believers are not a second read: the pawn rows' `policy_inputs` (`ideo_id`,
 `ideo_certainty`) say who holds the ideoligion. The section is absent, with no watermark, without Ideology; the brain then holds `Facts.Ideology` as
@@ -263,7 +283,7 @@ through the Ritual `begin` verb ([action contracts](action-contracts.md)).
 Every value is read from the game; no ritual, building or role name is listed
 in the brain.
 
-- **Due** (`HeldRitual` against its `RitualDef`): not running
+- **Due** (`IdeoRitual` against its `RitualDef`): not running
   (`IdeoRitual.running`: a `LordJob_Ritual` of the precept exists). An active
   obligation is due. Otherwise the pattern must allow a free start
   (`canStartAnytime` or `alwaysStartAnytime`), the repeat penalty must be off

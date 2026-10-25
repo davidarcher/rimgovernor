@@ -15,10 +15,9 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="RimGovernor.Brain.Domain" />
-    <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
     <!-- The wire messages share these names with domain values; this project names the wire message. -->
     <Using Include="RimGovernor.Contracts.Wire.Common.Identity" Alias="Identity" />
-    <Using Include="RimGovernor.Contracts.Wire.Common.Cell" Alias="Cell" />
+    <Using Include="RimGovernor.Brain.Domain.Cell" Alias="Cell" />
   </ItemGroup>
   <ItemGroup>
     <!-- The host's native client (#3113) decodes and validates the replies this assembly's read models describe. -->

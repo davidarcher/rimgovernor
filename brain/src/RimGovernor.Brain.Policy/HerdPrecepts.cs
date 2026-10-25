@@ -32,8 +32,8 @@ public static class HerdPreceptsRules
                 {
                     Herd = a.Herd with
                     {
-                        SlaughterBarred = PreceptBars(ideology, a.Herd.Venerated, EventSlaughteredAnimal, EventSlaughteredVeneratedAnimal),
-                        EatingBarred = PreceptBars(ideology, a.Herd.Venerated, EventAteMeat, EventAteVeneratedAnimalMeat),
+                        SlaughterBarred = PreceptBars(ideology, a.State.Venerated, EventSlaughteredAnimal, EventSlaughteredVeneratedAnimal),
+                        EatingBarred = PreceptBars(ideology, a.State.Venerated, EventAteMeat, EventAteVeneratedAnimalMeat),
                     },
                 }
             );

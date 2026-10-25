@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoints;
 using ConditionDuration = RimGovernor.Contracts.Wire.Observations.ConditionDuration;
 
@@ -55,11 +56,13 @@ public enum DisasterService
 /// </summary>
 public sealed record DisasterCondition
 {
-    public string Id { get; init; } = "";
+    public required O.EnvironmentCondition Observed { get; init; }
 
-    public string Definition { get; init; } = "";
+    public string Id => Observed.Id;
 
-    public required ConditionDuration Duration { get; init; }
+    public string Definition => Observed.DefName;
+
+    public ConditionDuration Duration => Observed.Duration;
 
     /// <summary>The game's ElectricityDisabled for the condition: its def's class is GameCondition_DisableElectricity or derives from it.</summary>
     public bool DisablesPower { get; init; }
@@ -68,35 +71,6 @@ public sealed record DisasterCondition
 public sealed record DisasterEvidence(DisasterService Service, Finding Finding);
 
 public sealed record RecoveryWork(string Building, RecoveryMethod Method);
-
-/// <summary>A recovery building's fuel: a building without a refuelable comp, or its fuel level and the target it is refuelled to.</summary>
-public abstract record RecoveryFuel
-{
-    private protected RecoveryFuel()
-    {
-    }
-
-    public sealed record NotRefuelable : RecoveryFuel;
-
-    public sealed record Refuelable(double Level, double Target) : RecoveryFuel;
-}
-
-/// <summary>A building the disaster services restore, read whole from its building row.</summary>
-public sealed record RecoveryBuilding
-{
-    public required string Id { get; init; }
-
-    /// <summary>Untracked for a definition without hit points.</summary>
-    public required BuildingHitPoints HitPoints { get; init; }
-
-    public required bool Broken { get; init; }
-
-    public required bool Forbidden { get; init; }
-
-    public required bool Burning { get; init; }
-
-    public required RecoveryFuel Fuel { get; init; }
-}
 
 /// <summary>The latest short circuit a disaster history has seen: none yet, or the tick it happened.</summary>
 public abstract record DisasterShortCircuit
@@ -269,17 +243,17 @@ public static class DisasterRules
     /// refuelable building under a quarter of its fuel target, refuels first. Forbidden and burning buildings are
     /// skipped. Native eligibility and resource previews remain mandatory at action admission. Throws on an invalid row.
     /// </summary>
-    public static EquatableArray<RecoveryWork> RecoveryPending(IReadOnlyList<RecoveryBuilding> rows)
+    public static EquatableArray<RecoveryWork> RecoveryPending(IReadOnlyList<O.BuildingState> rows)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var work = new List<RecoveryWork>();
         foreach (var row in rows)
         {
-            if (!FoodForecastRules.FoodId(row.Id) || !seen.Add(row.Id))
+            if (!FoodForecastRules.FoodId(row.Building.Id) || !seen.Add(row.Building.Id))
             {
                 throw new DomainException("invalid recovery identity");
             }
-            if (row.Fuel is RecoveryFuel.Refuelable fuel && (!FoodForecastRules.FoodNumber(fuel.Level) || !FoodForecastRules.FoodNumber(fuel.Target)))
+            if (row.Service.Fuel is O.BuildingFuel.Refuelable fuel && (!FoodForecastRules.FoodNumber(fuel.Fuel) || !FoodForecastRules.FoodNumber(fuel.TargetFuel)))
             {
                 throw new DomainException("invalid recovery fuel");
             }
@@ -287,21 +261,21 @@ public static class DisasterRules
             {
                 throw new DomainException("inconsistent recovery hit points");
             }
-            if (row.Forbidden || row.Burning)
+            if (row.Settings.Forbidden || row.Burning)
             {
                 continue;
             }
-            if (row.Broken)
+            if (row.Service.BrokenDown)
             {
-                work.Add(new RecoveryWork(row.Id, RecoveryMethod.Breakdown));
+                work.Add(new RecoveryWork(row.Building.Id, RecoveryMethod.Breakdown));
             }
             if (row.HitPoints is BuildingHitPoints.Tracked damaged && damaged.Current < damaged.Maximum)
             {
-                work.Add(new RecoveryWork(row.Id, RecoveryMethod.Repair));
+                work.Add(new RecoveryWork(row.Building.Id, RecoveryMethod.Repair));
             }
-            if (row.Fuel is RecoveryFuel.Refuelable low && low.Level < low.Target * .25)
+            if (row.Service.Fuel is O.BuildingFuel.Refuelable low && low.Fuel < low.TargetFuel * .25)
             {
-                work.Add(new RecoveryWork(row.Id, RecoveryMethod.Refuel));
+                work.Add(new RecoveryWork(row.Building.Id, RecoveryMethod.Refuel));
             }
         }
         var sorted = work
@@ -312,8 +286,8 @@ public static class DisasterRules
     }
 
     /// <summary>Whether a building stands whole: at its maximum hit points (or untracked) and not broken down.</summary>
-    private static bool Whole(RecoveryBuilding b) =>
-        (b.HitPoints is not BuildingHitPoints.Tracked hp || hp.Current == hp.Maximum) && !b.Broken;
+    private static bool Whole(O.BuildingState b) =>
+        (b.HitPoints is not BuildingHitPoints.Tracked hp || hp.Current == hp.Maximum) && !b.Service.BrokenDown;
 
     /// <summary>
     /// Uses the same survival gates as routine planning. The store resets history on world replacement or rewind
@@ -329,7 +303,7 @@ public static class DisasterRules
 
     public static DisasterHistory? ReviewDisaster(
         EquatableArray<DisasterCondition> currentRows,
-        EquatableArray<RecoveryBuilding> rows,
+        EquatableArray<O.BuildingState> rows,
         IReadOnlyDictionary<DisasterService, DisasterServiceStatus> services,
         DisasterHistory? previous,
         Tick tick,
@@ -397,7 +371,7 @@ public static class DisasterRules
             {
                 if (!Whole(b))
                 {
-                    tracked.Add(b.Id);
+                    tracked.Add(b.Building.Id);
                 }
             }
         }
@@ -408,7 +382,7 @@ public static class DisasterRules
                 tracked.Add(w.Building);
             }
         }
-        var whole = rows.ToDictionary(b => b.Id, Whole, StringComparer.Ordinal);
+        var whole = rows.ToDictionary(b => b.Building.Id, Whole, StringComparer.Ordinal);
         var recovered = pendingList.Count == 0 && tracked.All(id => whole.GetValueOrDefault(id));
         var infrastructure = recovered ? Finding.Met : Finding.Unmet;
         var evidence = new List<DisasterEvidence>();

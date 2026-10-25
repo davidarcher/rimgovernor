@@ -1,3 +1,5 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 // The Ideology facts. Static defs are a view over the definition catalog's mirrored rows (IdeologyDefs,
@@ -186,109 +188,43 @@ public sealed record IdeologyDefs
     }
 }
 
-/// <summary>A precept in force; role, ritual and building precepts are held apart.</summary>
-public sealed record HeldPrecept(string Id, string Def);
-
-/// <summary>A role precept: whether enough believers make it active and the pawns holding it.</summary>
-public sealed record HeldRole(string Id, string Def, bool Active, IReadOnlyList<PawnId> Pawns)
+/// <summary>A building precept joined with the catalog's forbidden building definitions.</summary>
+public sealed record HeldBuilding(BuildingDemand Demand)
 {
-    /// <summary>Whether the role grants the Convert ability (the moral guide's).</summary>
-    public bool Converts { get; init; }
-
-    /// <summary>Whether a holder's Convert ability is charged: off cooldown and not already ordered.</summary>
-    public bool ConvertReady { get; init; }
+    public O.IdeoBuilding Observed => Demand.Observed;
+    public string Building => Observed.Building;
 }
 
-/// <summary>
-/// A ritual precept. LastFinishedTick is the game's Precept_Ritual.lastFinishedTick as read; no sentinel is
-/// interpreted here. Running is whether a lord job of the precept is running now.
-/// </summary>
-public sealed record HeldRitual
-{
-    public string Id { get; init; } = string.Empty;
-
-    public string Pattern { get; init; } = string.Empty;
-
-    public long LastFinishedTick { get; init; }
-
-    public int ActiveObligations { get; init; }
-
-    public bool RepeatPenaltyActive { get; init; }
-
-    public bool Running { get; init; }
-}
-
-/// <summary>A building precept: the ThingDef it takes and its presence demand on the frame's map.</summary>
-public sealed record HeldBuilding(string Building)
-{
-    public BuildingDemand Demand { get; init; } = new();
-}
-
-/// <summary>
-/// A building precept's presence demand (#3808): whether it applies on the map (the game's AppliesTo), whether a
-/// building of the precept stands (BuildingPresent) and whether one stands in a room meeting every requirement
-/// (RequirementsSatisfied). The requirements: the room's least area and impressiveness (0 none), the terrain tags
-/// every floor cell needs (none: any), the things it must hold, the building defs it must not hold, and the class name
-/// of each requirement of a kind the plan cannot predict.
-/// </summary>
+/// <summary>The canonical native building demand and its catalog-derived forbidden definitions.</summary>
 public sealed record BuildingDemand
 {
-    public bool Applies { get; init; }
-
-    public bool Present { get; init; }
-
-    public bool Satisfied { get; init; }
-
-    public int MinArea { get; init; }
-
-    public int MinImpressiveness { get; init; }
-
-    public IReadOnlyList<string> FloorTags { get; init; } = [];
-
-    public IReadOnlyList<ThingCount> Counts { get; init; } = [];
-
+    public required O.IdeoBuilding Observed { get; init; }
+    public bool Applies => Observed.Applies;
+    public bool Present => Observed.Present;
+    public bool Satisfied => Observed.Satisfied;
+    public int MinArea => Observed.MinArea;
+    public int MinImpressiveness => Observed.MinImpressiveness;
+    public IReadOnlyList<string> FloorTags => Observed.FloorTags;
+    public IReadOnlyList<O.IdeoThingCount> Counts => Observed.Things;
     public IReadOnlyList<string> ForbiddenDefs { get; init; } = [];
-
-    public IReadOnlyList<string> Unread { get; init; } = [];
+    public IReadOnlyList<string> Unread => Observed.Unread;
 }
 
-/// <summary>The player faction's primary ideoligion as it stands.</summary>
+/// <summary>The primary ideoligion's canonical snapshot and catalog joins.</summary>
 public sealed record IdeoligionFacts
 {
-    public string IdeoId { get; init; } = string.Empty;
-
-    public IReadOnlyList<string> Memes { get; init; } = [];
-
-    public IReadOnlyList<HeldPrecept> Precepts { get; init; } = [];
-
-    public IReadOnlyList<HeldRole> Roles { get; init; } = [];
-
-    public IReadOnlyList<HeldRitual> Rituals { get; init; } = [];
-
+    public required O.IdeologySnapshot Observed { get; init; }
+    public string IdeoId => Observed.IdeoId;
+    public IReadOnlyList<string> Memes => Observed.Memes;
+    public IReadOnlyList<O.IdeoPrecept> Precepts => Observed.Precepts;
+    public IReadOnlyList<O.IdeoRole> Roles => Observed.Roles;
+    public IReadOnlyList<O.IdeoRitual> Rituals => Observed.Rituals;
     public IReadOnlyList<HeldBuilding> Buildings { get; init; } = [];
-
-    public int Believers { get; init; }
-
-    /// <summary>The free non-slave colonists on the frame's map holding the ideoligion, by pawn id, sorted.</summary>
-    public IReadOnlyList<PawnId> BelieverPawns { get; init; } = [];
-
-    public required IdeoDevelopment Development { get; init; }
-
-    /// <summary>The ThingStyleCategoryDef names of the ideoligion's styles, sorted.</summary>
-    public IReadOnlyList<string> StyleCategories { get; init; } = [];
-
-    /// <summary>The ThingDef names of the venerated animals, sorted.</summary>
-    public IReadOnlyList<string> VeneratedAnimals { get; init; } = [];
-}
-
-/// <summary>
-/// The reform state. DevelopmentPoints and NextReformPoints (what the next reform costs) are 0 for a non-fluid
-/// ideoligion, which cannot reform.
-/// </summary>
-public readonly record struct IdeoDevelopment(bool Fluid, bool CanReform, int ReformCount, int DevelopmentPoints, int NextReformPoints)
-{
-    /// <summary>A fixed ideoligion: it cannot reform, so it has no points and no reform cost.</summary>
-    public static readonly IdeoDevelopment Fixed = new(false, false, 0, 0, 0);
+    public int Believers => Observed.Believers;
+    public IReadOnlyList<PawnId> BelieverPawns => Observed.BelieverPawns;
+    public O.IdeoDevelopment Development => Observed.Development;
+    public IReadOnlyList<string> StyleCategories => Observed.StyleCategories;
+    public IReadOnlyList<string> VeneratedAnimals => Observed.VeneratedAnimals;
 }
 
 /// <summary>The ideoligion with the defs its rows resolve against.</summary>
@@ -302,9 +238,9 @@ public sealed partial record Ideoligion(IdeologyDefs Defs, IdeoligionFacts Facts
     public IReadOnlyList<PreceptEffect> EffectsInForce()
     {
         var output = new List<PreceptEffect>();
-        foreach (var precept in Facts.Precepts.OrderBy(p => p.Id, StringComparer.Ordinal))
+        foreach (var precept in SelectedPrecepts ?? Facts.Precepts.OrderBy(p => p.Id, StringComparer.Ordinal).Select(p => p.DefName).ToArray())
         {
-            if (!Defs.Precepts.TryGetValue(precept.Def, out var def))
+            if (!Defs.Precepts.TryGetValue(precept, out var def))
             {
                 continue;
             }

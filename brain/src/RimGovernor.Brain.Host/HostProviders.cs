@@ -1,11 +1,11 @@
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Host;
 
@@ -37,7 +37,7 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
 
         // Read-only diagnostics: missing complete extent geometry stays Incomplete. This does not widen any planner or
         // dispatch surface.
-        if (FactStore.TryGet<ColonyProjection>(sections, Section.Colony, out var held) && held.Complete)
+        if (FactStore.TryGet<ColonyReading>(sections, Section.Colony, out var held) && held.Complete)
         {
             var f = held.Value.Facts;
             var threat = f.Hostiles switch
@@ -48,7 +48,7 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
                 HostileCensus unexpected => throw new DomainException($"invalid hostile census state: {unexpected.GetType().Name}"),
             };
 
-            status = status with { Extent = ColonyExtentRules.DeriveColonyExtent(held.Value.Bounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage) };
+            status = status with { Extent = ColonyExtentRules.DeriveColonyExtent(held.Value.Facts.MapBounds, f.CurrentConstruction, f.ConstructionClaims, f.HomeCoverage) };
             var id = held.Value.Identity;
             if (IsValid(id))
             {
@@ -93,14 +93,14 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
         return status;
     }
 
-    private static bool IsValid(RimGovernor.Brain.Observation.Identity id)
+    private static bool IsValid(RimGovernor.Brain.Bridge.Contracts.ObservationIdentity id)
     {
         try
         {
             id.Validate();
             return true;
         }
-        catch (ObservationContractException)
+        catch (RimGovernor.Brain.Bridge.Contracts.ObservationContractException)
         {
             return false;
         }

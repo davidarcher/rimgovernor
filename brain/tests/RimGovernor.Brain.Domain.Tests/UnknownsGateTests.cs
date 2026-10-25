@@ -48,6 +48,15 @@ public sealed class UnknownsGateTests
         Assert.Empty(messages);
     }
 
+    [Theory]
+    [InlineData("GameFacts")]
+    [InlineData("GameOrders")]
+    public async Task SplitGameBoundaryProjectsRetainTheNullableValueBan(string project)
+    {
+        var messages = await Run("", $"RimGovernor.Brain.{project}", Probe("public int? Count { get; init; }", project));
+        Assert.Contains(messages, m => m.Contains($"{project}/Probe.cs|NullableValue|1 has no baseline line", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task ACountAtItsLineIsClean()
     {

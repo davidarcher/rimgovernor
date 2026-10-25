@@ -103,6 +103,11 @@ catalog are def-mirror rows; per-colonist holdings and known psycasts are
 `PawnState.royalty`; neuroformer stock, bestowing ceremonies and thrones are the colony
 section (see observations.md). Without Royalty the read is `RoyaltyState.Inactive`, never unknown.
 
+Known psycasts retain their actual native pawn ability rows alongside catalog
+definitions; cooldown reads use those rows. Neuroformer planning retains each
+native stock row for held count and craftability, with tradeability derived from
+its definition. Neither join copies native scalars into a second observation.
+
 Throne-room requirements are not a wire field: the client builds a view from each
 `RoyalTitleDef.throneRoomRequirements` in the definition catalog (`DefinitionCatalog.ThroneRequirements`,
 `WithThroneRequirements`) into `RoyalRung.Throne` before projection. A missing
@@ -239,9 +244,9 @@ fields, and a batch on a cell an open Method holds is a claim conflict. The food
 work step places only the Need's fields; the `fields` clock slot keeps the hay, social and
 `economy/resource` fields.
 
-**Site types** (`policy.PlanSiteType`, over the planning window `ColonyProjection.Cells`
-and `ColonyProjection.Environment` / `policy.ControlledEnvironment`, observed only and
-unknown when withheld; see [clock-recovery](clock-recovery.md)):
+**Site types** (`policy.PlanSiteType`, over the planning window `ColonyReading.PlanningWindow.Cells`
+and `ColonyReading.Snapshot.ControlledEnvironment`, observed only and
+required when planning; a withheld read fails (see [clock-recovery](clock-recovery.md))):
 
 | Site type | Meaning |
 | --- | --- |

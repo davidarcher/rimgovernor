@@ -39,7 +39,7 @@ public static class DefenseCapacityPolicy
     /// of violence) adds melee power plus ranged weapon DPS weighted by its hit factor, and every powered turret adds its
     /// DPS. Both inputs are total same-frame censuses.
     /// </summary>
-    public static double DefenseCapacity(EquatableArray<DefenderStrength> defenders, EquatableArray<DefenseTurretFacts> turrets)
+    public static double DefenseCapacity(EquatableArray<DefenderStrength> defenders, IEnumerable<(double Dps, bool Powered)> turrets)
     {
         var strength = 0.0;
         foreach (var d in defenders.Where(d => d.Fighting))

@@ -75,7 +75,7 @@ internal static class ZoneDelete
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var interior = s.Staged!.Rooms["hut"].Interior;
-        var corner = new Common.Cell { X = interior.Min(c => c.X), Z = interior.Min(c => c.Z) };
+        var corner = new RimGovernor.Brain.Domain.Cell { X = interior.Min(c => c.X), Z = interior.Min(c => c.Z) };
         var footprint = new Fx.StageRect(corner.X, corner.Z, 2, 2);
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
 

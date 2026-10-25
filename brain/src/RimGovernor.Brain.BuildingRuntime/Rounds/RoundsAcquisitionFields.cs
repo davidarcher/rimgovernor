@@ -8,7 +8,7 @@ internal static class RoundsAcquisitionFields
     /// plant acquisition inside a growing zone, and the census can predate a zone the fields plan just created.
     /// Hunts move and are kept.
     /// </summary>
-    internal static EquatableArray<AcquisitionSource> WithoutFieldSources(EquatableArray<AcquisitionSource> rows, ColonyProjection projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)
+    internal static EquatableArray<AcquisitionSource> WithoutFieldSources(EquatableArray<AcquisitionSource> rows, ColonyReading projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)
     {
         var fields = FieldCells(projection, plans, current);
         if (fields.Count == 0)
@@ -27,11 +27,11 @@ internal static class RoundsAcquisitionFields
         return [.. kept];
     }
 
-    internal static HashSet<Cell> FieldCells(ColonyProjection projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)
+    internal static HashSet<Cell> FieldCells(ColonyReading projection, IReadOnlyList<PlanState> plans, GenerationSnapshot current)
     {
         var cells = new HashSet<Cell>();
-        var farms = new HashSet<string>(projection.Farms.Select(f => f.Id), StringComparer.Ordinal);
-        foreach (var cell in projection.Cells)
+        var farms = new HashSet<string>((projection.Tables.Zones ?? throw new RequiredFactException("zones")).Zones.OfType<PbObservations.ZoneState.Growing>().Select(f => f.Id), StringComparer.Ordinal);
+        foreach (var cell in projection.PlanningWindow.Cells)
         {
             if (cell.ZoneId is { } id && farms.Contains(id))
             {

@@ -33,7 +33,7 @@ public sealed record DisasterFacts
         {
             Changes = EquatableArray.From(ShelterRules.PlanSheltering(f)),
             Disaster = history,
-            Planning = new RecoveryPlanning { Safety = f.RecoverySafety, Workers = f.RecoveryWorkers, Buildings = f.RecoveryBuildings },
+            Planning = new RecoveryPlanning { Safety = f.RecoverySafety, Workers = f.MoodPawns, Buildings = f.RecoveryBuildings },
         };
     }
 }

@@ -135,7 +135,7 @@ public sealed record IdeoligionDesign
 }
 
 /// <summary>
-/// Presence is significant: map zero and tick zero are valid observations. The brain's typed form is <c>Observation.Identity</c>.
+/// Presence is significant: map zero and tick zero are valid observations. The brain's typed form is <c>RimGovernor.Brain.Bridge.Contracts.ObservationIdentity</c>.
 /// </summary>
 public sealed record Identity
 {
@@ -257,13 +257,6 @@ public sealed record AttemptKey
 public sealed record Ref
 {
     public string Id { get; init; } = "";
-}
-
-public sealed record Cell
-{
-    public int X { get; init; }
-
-    public int Z { get; init; }
 }
 
 /// <summary>

@@ -1,4 +1,3 @@
-using static RimGovernor.Brain.Domain.Fact;
 using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using Domain = RimGovernor.Brain.Domain;
 

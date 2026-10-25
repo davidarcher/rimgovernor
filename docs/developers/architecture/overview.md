@@ -22,6 +22,14 @@ flowchart LR
     Native -. colony events .-> Runtime
 ```
 
+Native observations have one record owner in Contracts. Policy reads those records
+through the canonical colony census and keyed tables; catalog joins retain references
+to those rows and add derived policy values. `ColonyReading.Snapshot` reads the same
+census owned by `RoundsFacts.Census`. A review can update its derived facts without
+copying native observations into another projection. Required native reads fail the
+read; real absence uses the contract's named state. The former Observation project,
+generic fact wrappers and hand-decoder layer are removed.
+
 ## Ownership
 
 | Component | Owns | Does not decide |
@@ -42,7 +50,7 @@ unification. New writers must also use Hands.
 
 ## The control cycle
 
-1. Read a coherent native frame; retain unknowns explicitly.
+1. Read a coherent native frame; required facts fail the read and real absence has a named state.
 2. Inspect Concerns and select due or invalidated planners.
 3. Validate proposals against current authority, dependencies and claims.
 4. Journal admitted actions before dispatch; retain receipts or uncertainty.

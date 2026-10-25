@@ -24,8 +24,8 @@ public static partial class SilverGapRules
         return n;
     }
 
-    /// <summary>The colony silver stock (SilverStock over f.Resources).</summary>
-    public static long Silver(this RoundsFacts f) => SilverStock(f.Items, f.Resources);
+    /// <summary>The colony silver stock (SilverStock over f.ObservedStock()).</summary>
+    public static long Silver(this RoundsFacts f) => SilverStock(f.Items, f.ObservedStock());
 
     /// <summary>
     /// The rough silver the need's purchases cost at the game's market values (ItemFacts): the cheapest medicine
@@ -80,13 +80,13 @@ public static partial class SilverGapRules
         SilverGap(items, need, silver, colonists) > 0;
     /// <summary>The review's purchase need as the silver decisions read it.</summary>
     private static TradeNeed ReviewTradeNeedOf(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
-        TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), f.Wealth, demand.Retained, TradePolicyRules.RoundsTradeFood(f, p));
+        TradePolicyRules.ReviewTradeNeed(f.Items, medicine, f.ObservedStock(), demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), f.Census.Threat.Observed, demand.Retained, TradePolicyRules.RoundsTradeFood(f, p));
 
     internal static double ReviewSilverGap(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
-        SilverGap(f.Items, ReviewTradeNeedOf(f, p, medicine, demand), f.Silver(), f.Colonists);
+        SilverGap(f.Items, ReviewTradeNeedOf(f, p, medicine, demand), f.Silver(), f.Census.ColonistCount);
 
     private static bool ReviewSilverShort(RoundsFacts f, RoundsPolicy p, MedicalReserveReview medicine, DerivedDemand demand) =>
-        SilverShort(f.Items, ReviewTradeNeedOf(f, p, medicine, demand), f.Silver(), f.Colonists);
+        SilverShort(f.Items, ReviewTradeNeedOf(f, p, medicine, demand), f.Silver(), f.Census.ColonistCount);
 
     /// <summary>
     /// The seasonal policy and the medical reserve review a planner recomputes from its own read, with the
@@ -95,7 +95,7 @@ public static partial class SilverGapRules
     private static (RoundsPolicy Policy, MedicalReserveReview Medicine) RoundsMedicineReview(RoundsFacts f, RoundsPolicy p, bool medicineActive)
     {
         p = p.Seasonal(f.Calendar, f.DisasterConditions);
-        var facts = f.MedicalReserve with { Colonists = f.Colonists };
+        var facts = f.MedicalReserve with { Census = f.Census };
         var medicine = MedicalRules.ReviewMedicalReserve(facts, medicineActive, p.MedicalReserve);
         return (p, medicine);
     }

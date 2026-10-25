@@ -8,14 +8,14 @@ internal sealed partial class RoundsStockpilePlanner
     /// NextShelfStep picked the step (one open shelf at a time, a third of the footprint at most); the
     /// admin/stockpiles Need configures every built shelf like its zone (StockpileShelfPatch, role shelf:buildingId).
     /// </summary>
-    private async Task<Verdict> ShelveAsync(NeedWork work, Sto.Rounds review, Observation.RoundsReading reading, Pol.ShelfStep step, CancellationToken call)
+    private async Task<Verdict> ShelveAsync(NeedWork work, Sto.Rounds review, RoundsReading reading, Pol.ShelfStep step, CancellationToken call)
     {
         if (_building is null)
         {
             return FieldUnavailable("building_source");
         }
         var zone = step.Zone?.Zone ?? throw new InvalidOperationException("a shelf step names the zone it shelves");
-        var (_, index) = ZoneShelves(_reviewer.Player.Journal, work.Owner, zone, reading.Projection.Facts.CurrentConstruction, call);
+        var (_, index) = ZoneShelves(_reviewer.Player.Journal, work.Owner, zone, reading.Reading.Facts.CurrentConstruction, call);
         if (index >= MaxShelvesPerZone)
         {
             return Refuse(Pol.Cause.RetriesSpent, "maxShelvesPerZone", "");
@@ -24,15 +24,15 @@ internal sealed partial class RoundsStockpilePlanner
     }
 
     /// <summary>Previews the step's candidate sites in turn and admits the first native accepts as the zone's next shelf.</summary>
-    private async Task<Verdict> BuildShelfAsync(NeedWork work, Sto.Rounds review, Observation.RoundsReading reading, Pol.ShelfStep step, int index, CancellationToken call)
+    private async Task<Verdict> BuildShelfAsync(NeedWork work, Sto.Rounds review, RoundsReading reading, Pol.ShelfStep step, int index, CancellationToken call)
     {
         var shelfZone = step.Zone?.Zone ?? throw new InvalidOperationException("a shelf step names the zone it shelves");
         var p = _reviewer.Player;
         var state = work.State;
         var goal = work.Owner;
         var epoch = work.Epoch;
-        var facts = reading.Projection;
-        var stuff = facts.BuildStuff(StorageRules.ShelfDefinition);
+        var facts = reading.Reading;
+        var stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), StorageRules.ShelfDefinition);
         var snapshot = state.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
         void Check()
         {
@@ -56,16 +56,16 @@ internal sealed partial class RoundsStockpilePlanner
                     planned.Add(new Pol.RoleCell { Cell = new Cell(x, z), Role = Pol.RockRole.NeedsFloor });
                 }
             }
-            var dig = Pol.RockStepRules.RockStep(planned, facts.Cells).Dig;
+            var dig = Pol.RockStepRules.RockStep(planned, facts.PlanningWindow.Cells).Dig;
             if (dig.Count > 0)
             {
-                var (access, ok) = Pol.RockStepRules.RockAccess(dig, facts.Cells);
+                var (access, ok) = Pol.RockStepRules.RockAccess(dig, facts.PlanningWindow.Cells);
                 if (!ok)
                 {
                     return RockNotDug(StorageRules.ShelfDefinition, "no_open_cell_beside_footprint");
                 }
                 var rockMethod = ShelfMethod(shelfZone, index);
-                var (dug, handled) = await building.AdmitRockStepAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading.Reading }, planned, access, rockMethod, [value], Check, call, epoch).ConfigureAwait(false);
+                var (dug, handled) = await building.AdmitRockStepAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts }, planned, access, rockMethod, [value], Check, call, epoch).ConfigureAwait(false);
                 if (handled)
                 {
                     return dug.Verdict;

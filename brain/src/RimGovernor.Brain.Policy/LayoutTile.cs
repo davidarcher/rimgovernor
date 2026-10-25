@@ -22,7 +22,7 @@ public sealed record TileInput
     public IReadOnlyList<LayoutZone> Zones { get; init; } = [];
     public IReadOnlyList<LayoutReservation> Reservations { get; init; } = [];
     public MapSurvey Survey { get; init; } = default!;
-    public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
+    public EquatableArray<double> OutdoorCurve { get => ClimateRules.RequireOutdoorCurve(field); init; }
     public double FullRotRateC { get; init; }
     public double SteelValue { get; init; }
     public bool VentAvailable { get; init; }

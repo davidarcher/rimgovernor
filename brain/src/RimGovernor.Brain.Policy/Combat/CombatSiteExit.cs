@@ -1,13 +1,6 @@
 using RimGovernor.Contracts.Wire.Clock;
 namespace RimGovernor.Brain.Policy;
 
-public sealed record CombatSiteExit
-{
-    public EquatableArray<PawnId> Crew { get; init; }
-
-    public EquatableArray<Cell> Cells { get; init; }
-}
-
 public static partial class CombatSiteExitRules
 {
     internal static (CombatMemory Memory, List<CombatOrder> Orders, bool Ran) SiteExitTurn(
@@ -17,7 +10,7 @@ public static partial class CombatSiteExitRules
         IReadOnlyDictionary<PawnId, CombatPawnState> state,
         IReadOnlySet<PawnId> orderable)
     {
-        if (view.SiteExit is not { } exit || exit.Cells.Count == 0)
+        if (view.SiteExit is not { } exit || exit.ExitCells.Count == 0)
         {
             return (m, [], false);
         }
@@ -39,9 +32,9 @@ public static partial class CombatSiteExitRules
             {
                 continue;
             }
-            var cell = exit.Cells[0];
+            var cell = exit.ExitCells[0];
             var available = false;
-            foreach (var candidate in exit.Cells)
+            foreach (var candidate in exit.ExitCells)
             {
                 if (m.Unreachable.Contains(candidate))
                 {

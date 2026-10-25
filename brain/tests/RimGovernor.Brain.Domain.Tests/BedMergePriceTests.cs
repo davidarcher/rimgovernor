@@ -3,8 +3,7 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using Obs = RimGovernor.Brain.Observation;
-using static RimGovernor.Brain.Domain.Fact;
+using Obs = RimGovernor.Brain.Bridge;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -109,7 +108,7 @@ public sealed class BedMergePriceTests
     private static BedMergePrice Price(BedMergeFacts facts, double[]? curve) => new()
     {
         Facts = facts,
-        OutdoorCurve = curve is null ? default : Known(EquatableArray.From(curve)),
+        OutdoorCurve = curve is null ? default : EquatableArray.From(curve),
         WorkDay = Day(8000.0), // a colonist's work-day at the game's rice (the key test's facts give the same)
         Builders = 1,
     };
@@ -337,7 +336,7 @@ public sealed class BedMergePriceTests
         {
             Catalog = FirstLayoutPlanTests.Facts(s, 6).Catalog with { Stations = new Dictionary<string, Station>(FirstLayoutPlanTests.Facts(s, 6).Catalog.Stations) { [Bed] = Catalog.Stations[Bed] }, Climate = Catalog.Climate },
             Plan = new LayoutPlan { Rooms = [barracks], NextRoomId = 3, Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [2] = [Slot(10), Slot(12), Slot(14)] } },
-            OutdoorCurve = Known(EquatableArray.From(IceSheet)),
+            OutdoorCurve = EquatableArray.From(IceSheet),
             BedMerge = Wood(CalmOf(6)),
             Crops = [Rice],
         };
@@ -351,7 +350,7 @@ public sealed class BedMergePriceTests
         // The outdoor curve unread on this cold map (#3747): no size is keyed, and the chain fails naming the curve, so
         // the replan is skipped with the required_fact row and the next hourly check tries again.
         var unread = f with { OutdoorCurve = default };
-        Assert.NotEqual(Key(f), Key(unread));
+        Assert.NotEqual(f.InputsKey(), unread.InputsKey());
         Assert.Equal("outdoor_curve", Assert.Throws<RequiredFactException>(() => LayoutStationPlanRules.AdviseStations(unread)).Fact);
     }
 
@@ -395,7 +394,7 @@ public sealed class BedMergePriceTests
     }
 
     // The game's wall and door: 135 and 850 work, five and 25 stuff; wood builds them at 0.7 work, granite blocks at 2.
-    private static Obs.StuffOption Option(Resource stuff, double value, double work, long count) => new()
+    private static StuffOption Option(Resource stuff, double value, double work, long count) => new()
     {
         Stuff = stuff.Value, Value = value, Common = true, Costs = [new Amount(stuff, count)],
         Stats = new Dictionary<string, double> { [StatDefNames.StatWorkToBuild] = work },
@@ -406,15 +405,21 @@ public sealed class BedMergePriceTests
     {
         var wood = new Resource("WoodLog");
         var granite = new Resource("BlocksGranite");
-        Obs.PlanningDefinition Def(string name, double work, long count) => new()
+        PlanningDefinition Def(string name, double work, long count) => new()
         {
             Name = name, Available = true,
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
-        var colony = ColonyFactsCoreTests.Projection() with
+        var colony = ColonyFactsCoreTests.Reading() with
         {
-            Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
-            Resources = new Dictionary<Resource, long> { [wood] = 600 },
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                Census = ColonyFactsCoreTests.Reading().Snapshot with
+                {
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [wood] = 600 }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                },
+                Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)]
+            }
         };
 
         // The blocks are cheaper but the colony holds none: the planned ring is read in wood, and the merge prices wood.
@@ -423,7 +428,13 @@ public sealed class BedMergePriceTests
         Assert.Equal((850 * 0.7, wood, 25L), (door!.Value.Work, door.Value.Costs.Single().Resource, door.Value.Costs.Single().Count));
 
         // With blocks in stock too, the cheaper blocks are the base ring's stuff.
-        var stocked = colony with { Resources = new Dictionary<Resource, long> { [wood] = 600, [granite] = 300 } };
+        var stocked = colony with
+        {
+            Facts = colony.Facts with { Census = colony.Snapshot with
+            {
+                Resources = EquatableArray.From((new Dictionary<Resource, long> { [wood] = 600, [granite] = 300 }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+            } }
+        };
         Assert.Equal(granite, Rounder.BedMergeShell(stocked).Wall!.Value.Costs.Single().Resource);
     }
 
@@ -432,18 +443,24 @@ public sealed class BedMergePriceTests
     {
         var wood = new Resource("WoodLog");
         var granite = new Resource("BlocksGranite");
-        Obs.PlanningDefinition Def(string name, double work, long count) => new()
+        PlanningDefinition Def(string name, double work, long count) => new()
         {
             Name = name, Available = true,
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
-        Obs.ColonyProjection Colony(RingStuffSources map, params Resource[] stocked) => ColonyFactsCoreTests.Projection() with
+        RimGovernor.Brain.Bridge.Contracts.ColonyReading Colony(RingStuffSources map, params Resource[] stocked) => ColonyFactsCoreTests.Reading() with
         {
-            Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
-            Resources = stocked.ToDictionary(r => r, _ => 300L),
-            RingSources = map,
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                Census = ColonyFactsCoreTests.Reading().Snapshot with
+                {
+                    Resources = EquatableArray.From((stocked.ToDictionary(r => r, _ => 300L)).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                },
+                Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
+                RingSources = map
+            }
         };
-        Resource WallStuff(Obs.ColonyProjection colony) => Rounder.BedMergeShell(colony).Wall!.Value.Costs.Single().Resource;
+        Resource WallStuff(RimGovernor.Brain.Bridge.Contracts.ColonyReading colony) => Rounder.BedMergeShell(colony).Wall!.Value.Costs.Single().Resource;
         var trees = new RingStuffSources { Wood = EquatableArray.From([wood.Value]), Blocks = EquatableArray.From([granite.Value]) };
         var rock = new RingStuffSources { Blocks = EquatableArray.From([granite.Value]) };
 
@@ -467,16 +484,22 @@ public sealed class BedMergePriceTests
         // Only a little wood stocked and no trees in reach (#3677): a started ring the record selected nothing of is placed in wood, not in the blocks the colony lacks.
         var wood = new Resource("WoodLog");
         var granite = new Resource("BlocksGranite");
-        Obs.PlanningDefinition Def(string name, double work, long count) => new()
+        PlanningDefinition Def(string name, double work, long count) => new()
         {
             Name = name, Available = true,
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
-        var colony = ColonyFactsCoreTests.Projection() with
+        var colony = ColonyFactsCoreTests.Reading() with
         {
-            Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
-            Resources = new Dictionary<Resource, long> { [wood] = 30 },
-            Acquisition = [],
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                Census = ColonyFactsCoreTests.Reading().Snapshot with
+                {
+                    Resources = EquatableArray.From((new Dictionary<Resource, long> { [wood] = 30 }).Select(pair => new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = pair.Key.Value, Units = pair.Value }))
+                },
+                Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
+                Acquisition = []
+            }
         };
 
         var (wall, door, _, ok) = RoundsBuildingPlanner.ShellMaterials(colony, ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, null);
@@ -510,7 +533,7 @@ public sealed class BedMergePriceTests
 
         // Each reason it has no price is named, and the work price stays invalid.
         Assert.IsType<StationWorkDay.NoColonist>(LayoutLightRules.StationWorkDayOf(f with { Colonists = 0 }));
-        Assert.IsType<StationWorkDay.NoEater>(LayoutLightRules.StationWorkDayOf(f with { Food = new FoodSupply { Larder = new(), Consumers = [] } }));
+        Assert.IsType<StationWorkDay.NoEater>(LayoutLightRules.StationWorkDayOf(f with { Food = new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] }, Consumers = [] } }));
         Assert.IsType<StationWorkDay.NoCrop>(LayoutLightRules.StationWorkDayOf(f with { Crops = [] }));
         Assert.False(LayoutRegroupRules.StationWorkPrice(f with { Crops = [] }).Valid());
         Assert.Empty(LayoutComfortChooseRules.AdviseComfort(f with { Crops = [], ExpectedMood = new StationMood.Expected(0.5) }, new StationGraph(), 1));

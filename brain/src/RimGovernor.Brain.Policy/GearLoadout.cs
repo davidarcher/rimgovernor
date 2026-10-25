@@ -66,34 +66,72 @@ public sealed record GearRoleInput
 {
     /// <summary>The gear census's work rows (catalog-resolved), skills and traits.</summary>
     public EquatableArray<WorkPriority> Work { get; init; } = [];
-    public EquatableArray<WorkSkill> Skills { get; init; } = [];
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.Skill> Skills => Pawn.Biography.Skills;
     public EquatableArray<PawnTrait> Traits { get; init; } = [];
-    public bool Child { get; init; }
-    public bool Slave { get; init; }
-    public bool IncapableOfViolence { get; init; }
-    public bool DraftedSquad { get; init; }
-    public bool Prisoner { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.GearLoadout Observed { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.PawnState Pawn { get; init; }
+    public bool Child => (Observed.DevelopmentalStage & RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child) != 0;
+    public bool Slave => Observed.ApparelPolicy?.Slave ?? throw new DomainException("gear role has no apparel policy");
+    // DisabledWorkTags carries native enum names; policy has no game-enum dependency.
+    public bool IncapableOfViolence => Pawn.Biography.DisabledWorkTags.Contains("Violent");
+    public bool DraftedSquad => Pawn.Drafted;
+    public bool Prisoner => Pawn.Prisoner;
     public bool UnrevealedCreepjoiner { get; init; }
 
     /// <summary>The PreceptDef names of the pawn's ideo, from its pawn row (<see cref="GearObservation"/>'s stamp); empty for a pawn without an ideo.</summary>
-    public EquatableArray<string> Precepts { get; init; } = [];
+    public RimGovernor.Contracts.Wire.Observations.PawnIdeo Ideology => Pawn.Settings.PolicyInputs.Ideo;
+    public EquatableArray<string> Precepts => Ideology is RimGovernor.Contracts.Wire.Observations.PawnIdeo.Member m ? m.Precepts : [];
 }
 
 /// <summary>
-/// Stats are for this def x stuff at Normal quality, before condition. The provider resolves native material
-/// factors, eligibility and production gates; the model never invents materials, recipes or modded definition stats.
+/// The actual source of an option: a native option row, an equipped item and its entity, or a catalog product
+/// and the actual locked-bill crafter census. Catalog products do not fabricate native item observations.
 /// </summary>
+public abstract record GearOptionOrigin
+{
+    private GearOptionOrigin() { }
+    public sealed record Observed(RimGovernor.Contracts.Wire.Observations.GearLoadoutOption Value) : GearOptionOrigin;
+    public sealed record Equipped(RimGovernor.Contracts.Wire.Observations.GearItem Item, RimGovernor.Contracts.Wire.Observations.EntityRef Entity) : GearOptionOrigin;
+    public sealed record Catalog(RimGovernor.Contracts.Wire.Observations.GearLockedBill Bill, string Stuff, bool Qualityless) : GearOptionOrigin;
+}
+
 public sealed record GearOption
 {
-    public string ID { get; init; } = "";
-    public Resource Definition { get; init; }
-    public Resource Stuff { get; init; }
+    public required GearOptionOrigin Origin { get; init; }
+    public string ID => Origin switch
+    {
+        GearOptionOrigin.Observed o => o.Value.Id,
+        GearOptionOrigin.Equipped e => e.Item.Thing.Id,
+        GearOptionOrigin.Catalog c => $"bill:{c.Bill.DefName}/{c.Stuff}",
+        GearOptionOrigin invalid => throw new DomainException($"invalid gear origin: {invalid}"),
+    };
+    public Resource Definition => new(Origin switch
+    {
+        GearOptionOrigin.Observed o => o.Value.DefName,
+        GearOptionOrigin.Equipped e => e.Entity.DefName,
+        GearOptionOrigin.Catalog c => c.Bill.DefName,
+        GearOptionOrigin invalid => throw new DomainException($"invalid gear origin: {invalid}"),
+    });
+    public Resource Stuff => new(Origin switch
+    {
+        GearOptionOrigin.Observed o => o.Value.Stuff ?? "",
+        GearOptionOrigin.Equipped => "",
+        GearOptionOrigin.Catalog c => c.Stuff,
+        GearOptionOrigin invalid => throw new DomainException($"invalid gear origin: {invalid}"),
+    });
 
     /// <summary>
     /// Awful=0 through Legendary=6; Normal for a <see cref="Qualityless"/> item, whose stats StatPart_Quality leaves unscaled as
     /// Normal's factors do. A crafted bill's quality is its <see cref="QualityOdds"/> instead.
     /// </summary>
-    public int Quality { get; init; }
+    public int Quality => ItemQuality is RimGovernor.Contracts.Wire.Observations.ItemQuality.Graded g ? (int)g.Category : 2;
+    private RimGovernor.Contracts.Wire.Observations.ItemQuality? ItemQuality => Origin switch
+    {
+        GearOptionOrigin.Observed o => o.Value.Quality,
+        GearOptionOrigin.Equipped e => e.Item.Quality,
+        GearOptionOrigin.Catalog => null,
+        GearOptionOrigin invalid => throw new DomainException($"invalid gear origin: {invalid}"),
+    };
 
     /// <summary>
     /// A crafted bill's odds of each quality (#3850), Awful through Legendary, for the colony's best crafter of it
@@ -103,13 +141,25 @@ public sealed record GearOption
     public EquatableArray<double> QualityOdds { get; init; }
 
     /// <summary>The def has no quality (no CompQuality): the item counts toward no royal title's minimum apparel quality (#3841).</summary>
-    public bool Qualityless { get; init; }
+    public bool Qualityless => Origin is GearOptionOrigin.Catalog c ? c.Qualityless : ItemQuality is RimGovernor.Contracts.Wire.Observations.ItemQuality.Qualityless;
 
     public GearSlot Slot { get; init; }
     public EquatableArray<string> Layers { get; init; }
     public EquatableArray<string> Groups { get; init; }
-    public GearSource Source { get; init; }
-    public double Condition { get; init; }
+    public GearSource Source => Origin switch
+    {
+        GearOptionOrigin.Observed o => o.Value.Source,
+        GearOptionOrigin.Equipped => GearSource.Worn,
+        GearOptionOrigin.Catalog => GearSource.Bill,
+        GearOptionOrigin invalid => throw new DomainException($"invalid gear origin: {invalid}"),
+    };
+    public double Condition => Origin switch
+    {
+        GearOptionOrigin.Observed o => o.Value.Condition,
+        GearOptionOrigin.Equipped e => e.Item.ConditionFraction,
+        GearOptionOrigin.Catalog => 1,
+        GearOptionOrigin invalid => throw new DomainException($"invalid gear origin: {invalid}"),
+    };
     public double Sharp { get; init; }
     public double Blunt { get; init; }
 
@@ -128,8 +178,14 @@ public sealed record GearOption
     /// <summary>The def's hit points lost per day worn (ApparelProperties.wearPerDay; zero is no wear).</summary>
     public double WearPerDay { get; init; }
 
-    public bool Tainted { get; init; }
-    public bool Locked { get; init; }
+    public bool Tainted => Origin is GearOptionOrigin.Observed o && o.Value.Tainted;
+    public bool Locked => Origin switch
+    {
+        GearOptionOrigin.Observed o => o.Value.Locked,
+        GearOptionOrigin.Equipped e => e.Item.Locked || e.Item.Forced,
+        GearOptionOrigin.Catalog => false,
+        GearOptionOrigin invalid => throw new DomainException($"invalid gear origin: {invalid}"),
+    };
 
     /// <summary>The def has hit points and ApparelProperties.careIfDamaged: its wear counts toward ThoughtWorker_ApparelDamaged.</summary>
     public bool CareIfDamaged { get; init; }
@@ -181,8 +237,9 @@ public abstract record GearArrival
 
 public sealed record GearLoadoutInput
 {
-    public GearRoleInput Role { get; init; } = new();
-    public bool Female { get; init; }
+    public required GearRoleInput Role { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.GearLoadout Observed { get; init; }
+    public bool Female => Observed.Gender == RimGovernor.Contracts.Wire.Defs.Gender.Female;
     public bool Nudist { get; init; }
 
     /// <summary>The finished research census; an option is eligible only once every project its Research names is finished.</summary>
@@ -192,8 +249,9 @@ public sealed record GearLoadoutInput
     public bool PsychicDrone { get; init; }
 
     public double Ambient { get; init; }
-    public double ComfortableMin { get; init; }
-    public double ComfortableMax { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.PawnBodyStats Body { get; init; }
+    public double ComfortableMin => Body.ComfortableMinC;
+    public double ComfortableMax => Body.ComfortableMaxC;
     public EquatableArray<GearOption> Worn { get; init; }
 
     /// <summary>Options have passed outfit/body/stage and resource-policy eligibility. Loose/stored IDs identify physical items; bill IDs identify products.</summary>
@@ -276,7 +334,7 @@ public sealed record GearLoadoutInput
 public sealed record GearGap
 {
     public GearSlot Slot { get; init; }
-    public GearOption Wanted { get; init; } = new();
+    public required GearOption Wanted { get; init; }
     public GearSource Source { get; init; }
     public double Gain { get; init; }
 
@@ -343,7 +401,7 @@ public static class GearLoadoutRules
         {
             if (!s.Disabled)
             {
-                skills[s.Name] = s.Level * 3 + GearPassionRank(s.Passion);
+                skills[s.DefName] = s.Level * 3 + GearPassionRank(WorkRules.PassionName(s.Passion));
             }
         }
         var best = 5;
@@ -482,11 +540,11 @@ public static class GearLoadoutRules
         {
             if (!s.Disabled)
             {
-                if (s.Name == "Melee")
+                if (s.DefName == "Melee")
                 {
                     melee = s.Level;
                 }
-                if (s.Name == "Shooting")
+                if (s.DefName == "Shooting")
                 {
                     shooting = s.Level;
                 }
@@ -1049,7 +1107,7 @@ public static class GearLoadoutRules
                 {
                     if (c.Target == g.Wanted.ID && c.Definition == g.Wanted.Definition && c.Gain > 0)
                     {
-                        candidates.Add(c with { Gain = g.Gain });
+                        candidates.Add(c with { Valuation = new GearCandidateValuation.Modeled(g.Gain) });
                     }
                 }
             }

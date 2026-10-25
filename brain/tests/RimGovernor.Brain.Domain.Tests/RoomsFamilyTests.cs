@@ -1,8 +1,8 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -45,10 +45,9 @@ public sealed class RoomsFamilyTests
 
     private static PawnProfile Artist(string id, string inspiration = "") => new()
     {
-        Id = new(id),
+        Observed = PawnFixtures.Row(id) with { Inspiration = inspiration,
+            Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { DefName = "Artistic", Passion = O.Passion.None, Level = 10 }] } },
         WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Artistic" },
-        Skills = new Dictionary<string, ProfileSkill> { ["Artistic"] = new() { Name = "Artistic", Level = 10 } },
-        Inspiration = inspiration,
     };
 
     [Fact]
@@ -234,8 +233,8 @@ public sealed class RoomsFamilyTests
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with
         {
-            Resources = [new(new("WoodLog"), 1000)],
-            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0,
+
+            Census = (facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 1000 }] },   FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [

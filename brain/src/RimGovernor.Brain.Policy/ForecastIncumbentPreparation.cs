@@ -103,7 +103,7 @@ public static class ForecastIncumbentPreparation
             {
                 if (physical[0].State != "holding" || task.DepartTick <= facts.Tick.Value
                     || order.Steps.Length != 2 || order.Steps[0].Kind != PawnActivityKind.Approach
-                    || order.Steps[0].Destination != task.Location || order.Steps[0].NotBefore != task.DepartTick
+                    || order.Steps[0] is not CellActivityStep { Destination: var destination } || destination != task.Location || order.Steps[0].NotBefore != task.DepartTick
                     || order.Steps[1].Kind != PawnActivityKind.Hold
                     || order.Steps.Any(s => s.Deadline != task.Step.Deadline || s.Target.Length != 0
                         || s.Recipe is not null || s.Medicine.Length != 0 || s.Container.Length != 0)) continue;
@@ -326,8 +326,8 @@ public static class ForecastIncumbentPreparation
             if (!options.TryGetValue((cook.Id, cook.Pawn), out var work) || work <= 0) continue;
             var needed = cook.Recipe?.Ingredients.Sum(i => i.Count) ?? 0;
             var fetch = context.Bindings.Values.Where(b => b.Pawn == cook.Pawn && b.Kind == PawnActivityKind.Deliver
-                    && b.Resource == cook.Resource && b.Destination == cook.Source && b.Source is { } && b.Count >= needed)
-                .Select(b => options.TryGetValue((b.Id, b.Pawn), out var haul) && Route(b.Pawn, b.Source!.Value) is { } approach ? approach + haul : (double?)null)
+                    && b.Resource == cook.Resource && b is Methods.CellActivityTaskCandidate cell && cell.Destination == cook.Source && b.Count >= needed)
+                .Select(b => options.TryGetValue((b.Id, b.Pawn), out var haul) && Route(b.Pawn, b.Source) is { } approach ? approach + haul : (double?)null)
                 .Where(t => t is not null).Min() ?? Route(cook.Pawn, cook.Location);
             if (fetch is null) continue;
             offered.Add((cook.Pawn, fetch.Value + work, cook.FoodPoisonChance));

@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -269,20 +270,8 @@ public sealed record StockWait(StockArrival Stock, EquatableArray<StockNeed> Nee
     }
 }
 
-/// <summary>A crafter's level in a skill (SkillRecord.Level); a recipe's requirement of it is a <see cref="SkillRequirement"/>.</summary>
-public sealed record SkillLevel(string Skill, int Level);
-
-/// <summary>A bench of the bills census (#3868): its def, whether it takes a new bill, its WorkTableWorkSpeedFactor now.</summary>
-public sealed record StockBench(string Def, bool Usable, double WorkSpeed);
-
 /// <summary>A bench def hosting a stock recipe and the work type of the DoBill giver serving it there (the catalog's RecipeWork).</summary>
 public sealed record StockRecipeBench(string Bench, WorkType Work);
-
-/// <summary>
-/// A colonist who may craft (#3868): its timetable's work hours, the work types it does (enabled, priority above 0), its skill levels
-/// and its work speed stats (<see cref="PawnBiography.WorkSpeeds"/>).
-/// </summary>
-public sealed record StockCrafter(string Pawn, int WorkHours, EquatableArray<WorkType> Works, EquatableArray<SkillLevel> Skills, EquatableArray<WorkSpeedRead> Speeds);
 
 /// <summary>
 /// A recipe that makes a stock a rule waits on (#3868, the catalog's StockRecipes): a medicine, or the part an install recipe takes,
@@ -319,9 +308,18 @@ public static class StockArrivalRules
     /// no crafter, bench or ingredient serves is no source. A crafter without the recipe's speed stat read leaves the model unread
     /// (<see cref="StockArrival.Unread"/>).
     /// </summary>
-    public static StockArrival Craft(IReadOnlyList<StockRecipe> recipes, IReadOnlyList<StockBench> benches, IReadOnlyList<StockCrafter> crafters,
+    public static StockArrival Craft(IReadOnlyList<StockRecipe> recipes, IReadOnlyList<O.BillStackRow> benches, IReadOnlyList<O.PawnState> crafters,
         IReadOnlyDictionary<Resource, long> stock)
     {
+        var workers = new List<(O.PawnState Pawn, int Hours)>();
+        foreach (var pawn in crafters)
+        {
+            if (PawnRules.WorkHours([.. pawn.Settings.Schedule.Select(slot => slot.AssignmentDefName)]) is not { } hours)
+            {
+                return new StockArrival { Unread = "stock_arrival_schedule:" + pawn.Pawn.Id };
+            }
+            workers.Add((pawn, hours));
+        }
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var sources = new List<StockSource>();
         foreach (var recipe in recipes.OrderBy(r => r.Recipe, StringComparer.Ordinal))
@@ -340,16 +338,16 @@ public static class StockArrivalRules
             var best = 0.0;
             foreach (var host in recipe.Benches)
             {
-                foreach (var bench in benches.Where(b => b.Usable && b.Def == host.Bench))
+                foreach (var bench in benches.Where(b => b.Usable && b.BenchDef == host.Bench))
                 {
-                    foreach (var crafter in crafters.Where(c => c.Works.Contains(host.Work) && recipe.Skills.All(s => Level(c, s.Skill) >= s.MinLevel)))
+                    foreach (var crafter in workers.Where(c => DoesWork(c.Pawn, host.Work) && recipe.Skills.All(s => Level(c.Pawn, s.Skill) >= s.MinLevel)))
                     {
-                        if (Speed(crafter, recipe.WorkSpeedStat) is not { } speed)
+                        if (Speed(crafter.Pawn, recipe.WorkSpeedStat) is not { } speed)
                         {
-                            return new StockArrival { Unread = "work_speed:" + crafter.Pawn + ":" + recipe.WorkSpeedStat };
+                            return new StockArrival { Unread = "work_speed:" + crafter.Pawn.Pawn.Id + ":" + recipe.WorkSpeedStat };
                         }
 
-                        best = Math.Max(best, crafter.WorkHours * GameTime.TicksPerHour * speed * bench.WorkSpeed / recipe.WorkAmount * recipe.Batch);
+                        best = Math.Max(best, crafter.Hours * GameTime.TicksPerHour * speed * bench.WorkSpeed / recipe.WorkAmount * recipe.Batch);
                     }
                 }
             }
@@ -365,9 +363,13 @@ public static class StockArrivalRules
     }
 
     // SkillRequirement.PawnSatisfies reads the skill's level; a skill the pawn lacks is at 0.
-    private static int Level(StockCrafter crafter, string skill) => crafter.Skills.FirstOrDefault(s => s.Skill == skill)?.Level ?? 0;
+    private static int Level(O.PawnState crafter, string skill) => crafter.Biography.Skills.FirstOrDefault(s => s.DefName == skill)?.Level ?? 0;
 
-    private static double? Speed(StockCrafter crafter, string stat) => stat.Length == 0 ? 1 : crafter.Speeds.FirstOrDefault(s => s.Stat == stat)?.Value;
+    private static double? Speed(O.PawnState crafter, string stat) => stat.Length == 0 ? 1 : crafter.Biography.WorkSpeeds.FirstOrDefault(s => s.Stat == stat)?.Value;
+
+    private static bool DoesWork(O.PawnState pawn, WorkType work) =>
+        pawn.Settings.Work is O.PawnWork.Works working
+        && working.Rows.Any(row => row.Priority > 0 && !row.Disabled && WorkRules.WorkTypeOf(row.DefName) == work);
 
     // The iterations the stock pays for: each slot by its best-stocked alternative, the scarcest slot bounding them.
     private static long Iterations(EquatableArray<EquatableArray<Amount>> slots, IReadOnlyDictionary<Resource, long> stock)

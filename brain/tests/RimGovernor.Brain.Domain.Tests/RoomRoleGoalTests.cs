@@ -1,7 +1,6 @@
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -22,7 +21,7 @@ public sealed class RoomRoleGoalTests
         Rounds = new RoundsFacts { Sleeping = new SleepingObservation { Beds = [] } },
     };
 
-    private static SleepingBed Bed(string id, bool medical) => new() { Id = id, Definition = new Resource("Bed"), Humanlike = true, Medical = medical };
+    private static SleepingBed Bed(string id, bool medical) => new SleepingBed { Native = SleepingNativeFixtures.Bed(id: id, medical: medical), Building = SleepingNativeFixtures.Building(id: id, definition: new Resource("Bed")), Humanlike = true };
 
     private static OwnerProgress Working => new(true, "");
 
@@ -81,7 +80,7 @@ public sealed class RoomRoleGoalTests
         var none = Facts(goal) with { Ideology = new IdeologyMode.NotInstalled() };
         Assert.Equal((GoalState.NoMethod, "missing_dlc"), (GoalRules.Evaluate(goal, none).State, GoalRules.Evaluate(goal, none).Reason));
 
-        var bare = Facts(goal) with { Ideology = new IdeologyMode.Installed(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { Development = IdeoDevelopment.Fixed })) };
+        var bare = Facts(goal) with { Ideology = new IdeologyMode.Installed(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts })) };
         Assert.Equal((GoalState.NoMethod, "no_required_buildings"), (GoalRules.Evaluate(goal, bare).State, GoalRules.Evaluate(goal, bare).Reason));
 
         // The worship room itself is the ideoligion's need, so the goal asks for no child room of its own.
@@ -150,7 +149,7 @@ public sealed class RoomRoleGoalTests
 
         var sick = Ward(1, Bed("b1", true)) with
         {
-            Patients = [.. SickIds.Select(id => CareFixtures.Patient(id) with { NeedsRest = true })],
+            Patients = [.. SickIds.Select(id => CareFixtures.Patient(id) with { Observed = CareFixtures.NativePatient(id) with { Health = PawnFixtures.Healthy with { ShouldSeekMedicalRest = true } } })],
         };
         Assert.Equal(3, HospitalRules.SelectHospitalBed(sick).Needed);
     }

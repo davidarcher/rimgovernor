@@ -70,8 +70,8 @@ namespace HomeBridge.BridgeTools
                     rotations.Add(new Wire.PlacementRotation {
                         Accepted = row.accepted,
                         Reason = PlacementPreviewOperation.Diagnostic(row.reason),
-                        OccupiedCells = [.. row.occupiedCells.Select(cell => new Cell { X = cell.x, Z = cell.z })],
-                        InteractionCells = [.. row.interactionCells.Select(cell => new Cell { X = cell.x, Z = cell.z })],
+                        OccupiedCells = [.. row.occupiedCells.Select(cell => new RimGovernor.Brain.Domain.Cell(cell.x, cell.z))],
+                        InteractionCells = [.. row.interactionCells.Select(cell => new RimGovernor.Brain.Domain.Cell(cell.x, cell.z))],
                         BlockingThings = [.. blockers],
                         WatchCells = row.watchCellsAccessible is { } reachable
                             ? (reachable ? Wire.WatchAccess.Reachable : Wire.WatchAccess.Unreachable)

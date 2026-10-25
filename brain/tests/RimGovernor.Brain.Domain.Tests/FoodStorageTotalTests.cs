@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
@@ -12,8 +12,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class FoodStorageTotalTests
 {
     [Theory]
-    [InlineData(nameof(O.ColonyFactsSnapshot.Cooking))]
-    [InlineData(nameof(O.ColonyFactsSnapshot.Butchering))]
+    [InlineData(nameof(O.ColonyFactsSnapshot.ProductionBenches))]
     [InlineData(nameof(O.ColonyFactsSnapshot.FoodSupply))]
     public void EveryColonyFrameRequiresItsFoodCensuses(string member)
     {
@@ -23,17 +22,18 @@ public sealed class FoodStorageTotalTests
     }
 
     [Fact]
-    public void MissingFoodSupplyFailsTheDecoder()
+    public void MissingFoodSupplyFailsThePolicyView()
     {
-        Assert.Throws<BridgeContractException>(() => FoodSupplyReads.DecodeFoodSupply(null!, default, null));
+        Assert.Throws<ArgumentNullException>(() => FoodForecastRules.FromCensus(null!));
     }
 
     [Fact]
     public void NoEatersHasNoMealTierAndMeasuredRunwayMustBeValid()
     {
-        Assert.Equal(MealTier.None, MealRules.ReviewMealTier(new() { RawRunwayDays = new FoodRunway.NoEaters() }, []).Tier);
+        Assert.Equal(MealTier.None, MealRules.ReviewMealTier(new() { Environment = ControlledEnvironmentTests.NoEnvironment, RawRunwayDays = new FoodRunway.NoEaters() }, []).Tier);
         Assert.Throws<MealTierFactsException>(() => MealRules.ReviewMealTier(new()
         {
+            Environment = ControlledEnvironmentTests.NoEnvironment,
             RawRunwayDays = new FoodRunway.Days(double.NaN),
             Plan = new(),
             MinDays = 1,
@@ -65,11 +65,15 @@ public sealed class FoodStorageTotalTests
         };
         var policy = FoodStorageUpkeepRules.DefaultFoodStoragePolicy();
         Assert.Throws<RequiredFactException>(() => RefrigerationRules.SelectRefrigerationMethod(review, observation, policy, false));
-        var cooler = new RefrigerationCooler
-        {
-            Id = "cooler", Position = new(1, 1), Rotation = Rotation.North,
-            Target = -5, Connected = true, PowerOn = true,
-        };
+        var native = PowerBuildingFixtures.Trader("cooler", "Cooler", new(1, 1), -200, -200, true);
+        native = native with { Settings = native.Settings with { Control = new O.BuildingControl.Temperature(new O.SnapshotRef { Context = ConstructionFixtures.Context(), EntityId = native.Building.Id, Token = "cooler-control" }, -5) } };
+        var cooler = new RefrigerationCooler { Observed = native };
+        Assert.Same(native, cooler.Observed);
+        Assert.Equal(new Cell(1, 1), cooler.Position);
+        Assert.Equal(-5, cooler.Target);
+        Assert.True(cooler.Connected);
+        Assert.True(cooler.PowerOn);
+        Assert.Throws<RequiredFactException>(() => new RefrigerationCooler { Observed = native with { Settings = native.Settings with { Control = new O.BuildingControl.None() } } }.Target);
         Assert.Throws<RequiredFactException>(() => RefrigerationRules.HeatRejectionBlocked(cooler,
             new Dictionary<string, RoomState>(), new Dictionary<Cell, string>(), new Dictionary<Cell, SiteCell>()));
         Assert.Equal(RefrigerationMethod.WaitBlackout,

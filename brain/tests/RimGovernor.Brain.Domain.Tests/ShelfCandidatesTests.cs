@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -43,7 +42,7 @@ public sealed class ShelfCandidatesTests
             stores.Add(new Policy.Store { Site = new StoreSite { Role = role, Interior = room, Filter = filter } });
             foreach (var c in PlannedRules.RectCells(room))
             {
-                cells.Add(SiteCellFixtures.Ground with { Cell = c, Walkable = true, Doorway = doors.Contains(c), StorageCapacity = 1, StorageStacks = 0 });
+                cells.Add(SiteCellFixtures.At(c, doorway: doors.Contains(c)));
             }
         }
         return new StockpileRequest { Zones = zones, Stores = stores, Cells = cells, Layout = new StorageLayout.Planned(walkways, []), ShelfStacks = 6 };

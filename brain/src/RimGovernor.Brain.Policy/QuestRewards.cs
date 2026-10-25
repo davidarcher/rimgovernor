@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -81,7 +80,7 @@ public static class QuestRewards
         foreach (var (def, floor) in f.ResourceNeeds)
         {
             long have = 0;
-            foreach (var amount in f.Resources)
+            foreach (var amount in f.ObservedStock())
             {
                 if (amount.Resource == def)
                 {
@@ -95,7 +94,7 @@ public static class QuestRewards
             need[def] = Math.Max(need.GetValueOrDefault(def), count);
         }
         var titles = QuestWantsTitles(f);
-        var hosted = Math.Max(1L, f.Colonists);
+        var hosted = Math.Max(1L, f.Census.ColonistCount);
         var royalty = f.Royalty is RoyaltyState.Active { Facts: var active } ? active : null;
         var best = new QuestRewardChoice();
         for (var ordinal = 0; ordinal < indices.Count; ordinal++)

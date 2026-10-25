@@ -88,16 +88,7 @@ public static class ColonyExtentRules
 {
     private const int ExtentCellLimit = 65536;
 
-    /// <summary>
-    /// The review's extent from its Fact-typed members. An unread bounds, construction census or Home census is
-    /// Incomplete; claims always carry the complete applied construction provenance.
-    /// </summary>
-    public static ExtentDerivation DeriveColonyExtent(Fact<Bounds> bounds, CurrentConstruction? construction, EquatableArray<ConstructionClaim> claims, HomeCoverageFacts? home, int margin = 0)
-    {
-        return bounds.TryGetValue(out var read) ? DeriveColonyExtent(read, construction, claims, home, margin) : new ExtentDerivation.Incomplete("map bounds");
-    }
-
-    /// <summary>The same for a caller whose bounds are plain.</summary>
+    /// <summary>Derives the extent from the observed bounds and censuses.</summary>
     public static ExtentDerivation DeriveColonyExtent(Bounds bounds, CurrentConstruction? construction, EquatableArray<ConstructionClaim> claims, HomeCoverageFacts? home, int margin = 0)
     {
         if (construction is null)

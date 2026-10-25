@@ -18,7 +18,7 @@ public static class ForecastLiveEvidence
                 tick, target, value, status ?? admission);
         if (selection.Selected.Terminal is { } terminal)
         {
-            var resources = terminal.Request.Facts.Food.Stocks.Select(s => s.DefName)
+            var resources = terminal.Request.Facts.Food.Stocks.Select(s => new Resource(s.DefName))
                 .Concat(terminal.Lots.Where(l => l.FoodEligible is not FoodEligibility.Ineligible).Select(l => l.Resource)).Where(r => !string.IsNullOrEmpty(r.Value)).Distinct().OrderBy(r => r.Value, StringComparer.Ordinal).ToArray();
             if (resources.Length == 0 && terminal.FoodUnread)
                 yield return Row(ForecastMetric.FoodStock, "unavailable", ForecastStockScope.Food, "items", Unavailable("food_stock_census_unknown"));

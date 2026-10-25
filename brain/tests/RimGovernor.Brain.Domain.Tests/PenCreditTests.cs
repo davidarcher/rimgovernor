@@ -1,4 +1,4 @@
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
@@ -17,9 +17,9 @@ public sealed class PenCreditTests
     /// <summary>A cow's value in capability-days: its market value at the ledger's value per work tick, a day of work a capability-day.</summary>
     private static readonly double CowDays = CowValue / SilverGapRules.ValuePerWorkTick / GameTime.TicksPerDay;
 
-    private static PenRoamer Cow(string id, bool reachesEdge = true) => new(id, "Cow", MtbDays, CowValue, reachesEdge);
+    private static ColonyAnimal Cow(string id, bool reachesEdge = true) => Feed(id, new() { Race = "Cow", MtbDays = MtbDays, MarketValue = CowValue, ReachesMapEdge = reachesEdge });
 
-    private static ForecastCoupledContext Context(IReadOnlyList<PenRoamer>? roamers, IReadOnlyDictionary<int, string>? pens = null) =>
+    private static ForecastCoupledContext Context(IReadOnlyList<ColonyAnimal>? roamers, IReadOnlyDictionary<int, string>? pens = null) =>
         PlannedRoomCreditTests.Context(PlannedRoomCredits.Shipped) with
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Pen, [2] = PlannedRole.Workshop },
@@ -55,7 +55,7 @@ public sealed class PenCreditTests
     [Fact]
     public void APenTakesItsHerdsRoamersTheLowestIdFirstAndAMiscPenTheRest()
     {
-        var alpaca = new PenRoamer("alpaca1", "Alpaca", 4, 200, true);
+        var alpaca = Feed("alpaca1", new() { Race = "Alpaca", MtbDays = 4, MarketValue = 200, ReachesMapEdge = true });
         var roamers = new[] { Cow("cow1"), alpaca };
         // The cows' pen takes the cow only.
         Assert.Equal(["cow1"], ForecastPens.PenCredit(new(1, "", 0), default!, [], Context(roamers), 0).Select(g => g.Subject));
@@ -66,7 +66,7 @@ public sealed class PenCreditTests
         pens = new Dictionary<int, string> { [1] = "Cow", [3] = "Cow" };
         Assert.Single(ForecastPens.PenCredit(new(1, "", 0), default!, [], Context(roamers, pens), 0));
         Assert.Empty(ForecastPens.PenCredit(new(3, "", 0), default!, [], Context(roamers, pens), 0));
-        Assert.Equal(200 / SilverGapRules.ValuePerWorkTick / GameTime.TicksPerDay / 4, ForecastPens.LossPerDay(alpaca), 12);
+        Assert.Equal(200 / SilverGapRules.ValuePerWorkTick / GameTime.TicksPerDay / 4, ForecastPens.LossPerDay(Assert.IsType<AnimalRoping.Roped>(alpaca.Roping).Roam), 12);
     }
 
     [Fact]
@@ -79,9 +79,11 @@ public sealed class PenCreditTests
     [Fact]
     public void TheCoupledContextCarriesThePensAndRoamersTheRoundsRead()
     {
-        // The production path (#3822): ColonyDecode fills AnimalUpkeep.Roamers from the census rows' Roam; Rounder fills
+        // The production path (#3822): ColonyPlanningReads fills AnimalUpkeep.Roamers from the census rows' Roam; Rounder fills
         // PlannedPens from the layout plan; GenerateCoupledActivities builds the context from the review's facts.
-        var roamers = AnimalUpkeepReads.ColonyRoamers(Census(Feed("cow1", new() { Race = "Cow", MtbDays = MtbDays, MarketValue = CowValue, ReachesMapEdge = true }), Feed("chicken1")));
+        var cow = Cow("cow1");
+        var roamers = AnimalUpkeepReads.ColonyRoamers(Census(cow, Feed("chicken1")));
+        Assert.Same(cow, Assert.Single(roamers));
         var facts = ForecastCoupledTests.ConstructionReview() with
         {
             PlannedPens = new Dictionary<int, string> { [1] = "Cow" },
@@ -89,7 +91,8 @@ public sealed class PenCreditTests
         };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         Assert.Same(facts.PlannedPens, context.PenHerds);
-        Assert.Equal([Cow("cow1")], context.Roamers!);
+        Assert.Same(roamers, context.Roamers);
+        Assert.Same(roamers[0], Assert.Single(context.Roamers!));
         Assert.Single(ForecastPens.PenCredit(new(1, "", 0), default!, [], context, 0));
         // A fresh colony (an empty animal census) credits its planned pen nothing and throws nothing.
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { AnimalUpkeep = new() { Roamers = AnimalUpkeepReads.ColonyRoamers(Census()) } })!.Context;

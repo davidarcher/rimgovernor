@@ -110,20 +110,20 @@ Deleted (Go reads the mirror row, or the field was dead):
 - The `Quality`, `HungerCategory`, `PriceType` and `TradeCurrencyKind` enums: `GearItem.quality`, `FoodNeed.Has.hunger`, `TradeLine.*_price_type` and `TradeSheet.currency_kind` carry the `defs.proto` `QualityCategory`, `HungerCategory`, `PriceType` and `TradeCurrency` values (presence replaces the `UNSPECIFIED` zero). `TechLevel` went with #2654.
 - `ExtractionWorkType`, `ExtractionSite`, `OwnedDrill`, `ExtractionDevelopment`, `ResourceSourcesSnapshot.development` and `ResourceSourcesRequest.include_development`: no native code wrote them and no Go code read them.
 - `ArchitectCategory`, `ArchitectDesignator`, their snapshot, request and reply messages and the `ListArchitectCategories`/`ListArchitectDesignators` reads: native never implemented the tools and nothing called them.
-- `DevelopmentFurniture` and `DevelopmentFacts.furniture`, the native `PowerConduit`/`HiddenConduit`/`WaterproofConduit` list: the conduit census is `DefinitionCatalog.PlainConduit` (a built plain `Building` whose `CompProperties_Power` is a bare `CompPowerTransmitter`) over the building table.
-- `DevelopmentPower.capacity_watt_days`: `DefinitionCatalog.BatteryCapacityWD` (`CompProperties_Battery.storedEnergyMax`).
+- `DevelopmentFurniture` and `DevelopmentFacts.furniture`, the native `PowerConduit`/`HiddenConduit`/`WaterproofConduit` list: the conduit census is the canonical `BuildingState.Conduit` (a built plain `Building` whose `CompProperties_Power` is a bare `CompPowerTransmitter`).
+- `DevelopmentPower`: its distinct physical fields are now on canonical `BuildingState`/`BuildingPower` records, including battery capacity from `CompProperties_Battery.storedEnergyMax`.
 - `NativeGiveItemOperations.Allowed()`: the five defNames are `policy.QuestGiftDefs`; `SelectQuestGift` refuses any other request (`gift_def_unsupported`).
 
 Kept, reason recorded:
 - `TrainingEntry.def_name`: the key of the live learned/wanted/available row, not a copy of a `TrainableDef` property.
 - `AnimalState.tameable`: `TameUtility.CanTame` on the live animal plus its hunting designation; a game-method output.
-- `DevelopmentPower.turret` (`gun` with `dps`): `NativeDefenseStats.TurretDps` reads the live gun (its quality-scaled verb), not a row.
+- `BuildingState.Turret` (a gun with `Dps`): `NativeDefenseStats.TurretDps` reads the live gun (its quality-scaled verb), not a row.
 - `DefinitionCatalog.thing_defs`/`terrain_defs`, `ClassChain`: these are the mirror rows (`DefSets` omits ThingDef and TerrainDef by construction), not copies of them; `ClassChain` is the `ClassIsA` index.
 - `NativeColonyObservationTools.Crops`: the `EdibleCrop` row is the live per-map diet and animal nutrition demand of a crop; the `CropDefs` list only enumerates `DefDatabase` and its food filter is `NativeFoodPolicy.IsFood`, the game-method output the `ThingDefFacts` section keeps.
 - `NativeColonyObservationTools` room roles: `room.Role` is the live room's computed role (`NativeUpkeepFacts`), nothing in the file retypes the role table.
 
 Second slice, deleted:
-- The `CellGrid` `supports_light` and `foundation_affordances` columns, with the native terrain-light and affordance-join caches. The grid carries `base_terrain` (the def under a floor or bridge) beside `terrain`; Go reads `TerrainDef.affordances` from the mirror: `DefinitionCatalog.LightTerrains` feeds `ColonyProjection.LightTerrains`, which `FreeSiteRequest.Light` and `PowerPlanning.Light` pass to `SiteCell.SupportsLight`, and `SurveyFromCells` takes the footing and bridgeable bits from the base terrain's row. The committed `planning_cells` fixtures lost the `SupportsLight` field; a cell whose old recording had no terrain got `Soil` (lit) or `WaterDeep` (not) so the lit set survives, and each fixture's projection carries `LightTerrains`.
+- The `CellGrid` `supports_light` and `foundation_affordances` columns, with the native terrain-light and affordance-join caches. The grid carries `base_terrain` (the def under a floor or bridge) beside `terrain`; Go reads `TerrainDef.affordances` from the mirror: `DefinitionCatalog.LightTerrains` feeds `RoundsFacts.LightTerrains`, which `FreeSiteRequest.Light` and `PowerPlanning.Light` pass to `SiteCell.SupportsLight`, and `SurveyFromCells` takes the footing and bridgeable bits from the base terrain's row. The committed `planning_cells` fixtures lost the `SupportsLight` field; a cell whose old recording had no terrain got `Soil` (lit) or `WaterDeep` (not) so the lit set survives, and each fixture's projection carries `LightTerrains`.
 - `ProtoLifecycleNewColonyTools`: the "valid: ..." name lists in the scenario, difficulty, storyteller, biome and world-temperature refusals (the `ScenarioDef`/`DifficultyDef`/`StorytellerDef`/`BiomeDef` rows list them), and the `SkillDefFor` switch (a `TeamSkill` member is the `SkillDef` defName).
 
 Kept, reason recorded:
@@ -593,7 +593,6 @@ Kept, reason recorded:
 | RoyaltySection | message | 1418 | 2 | state | Royalty colony section envelope |  |  |
 | RoyaltyColonyFacts | message | 1419 | 3 | state | Neuroformers, ceremonies, thrones |  |  |
 | ColonyAnimal | message | 1422 | 2 | mixed | Player animal and its roping (roam, suitable pen) | diet | RaceProperties.foodType (ThingDef.race) |
-| DevelopmentPower | message | 1423 | 3 | state | Power consumer/battery roof and turret dps (capacity deleted, #2657; stored energy is the network's) |  | turret gun dps kept: the live gun's verb output |
 | SteamGeyser | message | 1431 | 3 | state | Steam geyser cells and occupancy |  |  |
 | DevelopmentFacts | message | 1432 | 5 | state | Development power, furniture, networks, geysers |  |  |
 | EnvironmentCondition | message | 1433 | 3 | state | Active game condition with id, def name and a permanent or timed duration (class and label deleted, #2657; duration a named state, #3888) |  |  |

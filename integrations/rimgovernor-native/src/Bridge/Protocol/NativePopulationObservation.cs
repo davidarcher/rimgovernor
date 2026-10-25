@@ -51,7 +51,6 @@ namespace HomeBridge.BridgeTools
             foreach (var p in people)
             {
                 var guest = p.guest ?? throw new InvalidOperationException("Humanlike without a guest tracker.");
-                var health = p.health?.summaryHealth ?? throw new InvalidOperationException("Humanlike without a health summary.");
                 persons.Add(new Obs.PopulationPerson
                 {
                     Pawn = PawnId(p),
@@ -59,14 +58,7 @@ namespace HomeBridge.BridgeTools
                     Guest = p.HostFaction == player,
                     Recruitable = guest.Recruitable,
                     IdeoId = p.Ideo == null ? null : NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID()),
-                    // Prospect facts: the prisoners family weighs a prisoner's skills, traits, age and health against
-                    // the free colonists'; a hostile's skills rank it as a lance target.
                     WildMan = p.IsWildMan(),
-                    Biography = NativePawnDetails.Biography(p),
-                    HealthSummary = Number(health.SummaryHealthPercent),
-                    // After combat: a luciferium addict is stripped and finished, not captured; every raider is stripped first.
-                    LuciferiumAddicted = CombatMirror.HasHediff(p, "LuciferiumAddiction"),
-                    WearingApparel = p.apparel?.WornApparel.Count > 0,
                     Custody = Custody(p, player, guest),
                     WillJoinIfRescued = p.mindState.WillJoinColonyIfRescued,
                 });
@@ -85,15 +77,12 @@ namespace HomeBridge.BridgeTools
             return new Obs.PopulationSnapshot { Persons = [.. persons], Ideology = ideology, OwnedNames = [.. names] };
         }
 
-        // A colony prisoner's custody facts: its resistance and interaction, the time held, its care and surgery
-        // facts through the care read's own producers, its home faction and vanilla's harvest goodwill report
-        // (Recipe_RemoveBodyPart reports -70 to HomeFaction when the pawn has a faction). A hosted guest carries
-        // its medical care cap inputs.
+        // Custody owns resistance, interaction, time held and harvest goodwill. Health, surgery and care
+        // stay on the canonical pawn. Recipe_RemoveBodyPart reports -70 to HomeFaction when one exists.
         private static Obs.PersonCustody Custody(Pawn p, Faction player, Pawn_GuestTracker guest)
         {
             if (p.IsPrisonerOfColony)
             {
-                var settings = p.playerSettings ?? throw new InvalidOperationException("Colony prisoner without player settings.");
                 var interaction = guest.ExclusiveInteractionMode ?? throw new InvalidOperationException("Colony prisoner without an interaction mode.");
                 var records = p.records ?? throw new InvalidOperationException("Colony prisoner without records.");
                 var home = p.Faction == null ? null : p.HomeFaction;
@@ -105,17 +94,11 @@ namespace HomeBridge.BridgeTools
                     Number(guest.Resistance),
                     NativePawnObservationTools.Id(interaction.defName),
                     (long)records.GetValue(RecordDefOf.TimeAsPrisoner),
-                    NativeEnums.Care(settings.medCare),
-                    NativePawnDetails.Conditions(p),
-                    NativePawnDetails.Surgery(p) ?? throw new InvalidOperationException("Spawned colony prisoner without surgery facts."),
                     faction == null ? null : NativeRef.Of(NativePawnObservationTools.Id(faction.GetUniqueLoadID())),
                     goodwill);
             }
             if (p.HostFaction == player && !p.IsPrisoner && !p.IsSlave)
-            {
-                var settings = p.playerSettings ?? throw new InvalidOperationException("Colony guest without player settings.");
-                return new Obs.PersonCustody.Guest(NativeEnums.Care(settings.medCare), NativePawnDetails.Conditions(p));
-            }
+                return new Obs.PersonCustody.Guest();
             return new Obs.PersonCustody.None();
         }
 

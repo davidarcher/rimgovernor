@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Domain;
 
 /// <summary>A grid cell.</summary>
-public readonly record struct Cell(int X, int Z);
+public readonly record struct Cell([property: System.Text.Json.Serialization.JsonRequired] int X, [property: System.Text.Json.Serialization.JsonRequired] int Z);
 
 public enum Rotation
 {

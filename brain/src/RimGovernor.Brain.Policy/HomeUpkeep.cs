@@ -118,12 +118,12 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
         var selected = new List<RepairStructure>();
         foreach (var row in structures)
         {
-            var s = row.Structure;
-            if (!FoodForecastRules.FoodId(s.Id) || !seen.Add(s.Id) || s.HitPoints < 0 || s.MaxHitPoints < s.HitPoints || row.Priority < 0 || row.Priority > 2 || s.Cell.X < 0 || s.Cell.Z < 0)
+            var s = row;
+            if (!FoodForecastRules.FoodId(s.Id) || !seen.Add(s.Id) || s.HitPoints.Current < 0 || s.HitPoints.Maximum < s.HitPoints.Current || row.Priority < 0 || row.Priority > 2 || s.Cell.X < 0 || s.Cell.Z < 0)
             {
                 throw new DomainException("invalid upkeep structure");
             }
-            if (s.Home && s.MaxHitPoints > 0 && s.HitPoints < s.MaxHitPoints)
+            if (s.Home && s.HitPoints.Maximum > 0 && s.HitPoints.Current < s.HitPoints.Maximum)
             {
                 selected.Add(row);
             }
@@ -134,16 +134,16 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
             {
                 return a.Priority.CompareTo(b.Priority);
             }
-            var x = (double)a.Structure.HitPoints / a.Structure.MaxHitPoints;
-            var y = (double)b.Structure.HitPoints / b.Structure.MaxHitPoints;
-            return x != y ? (x < y ? -1 : 1) : string.CompareOrdinal(a.Structure.Id, b.Structure.Id);
+            var x = (double)a.HitPoints.Current / a.HitPoints.Maximum;
+            var y = (double)b.HitPoints.Current / b.HitPoints.Maximum;
+            return x != y ? (x < y ? -1 : 1) : string.CompareOrdinal(a.Id, b.Id);
         });
-        var missing = selected.Sum(r => (double)(r.Structure.MaxHitPoints - r.Structure.HitPoints));
+        var missing = selected.Sum(r => (double)(r.HitPoints.Maximum - r.HitPoints.Current));
         if (!double.IsFinite(missing))
         {
             throw new DomainException("upkeep metric overflow");
         }
-        return ([.. selected.Select(r => r.Structure.Id)], missing);
+        return ([.. selected.Select(r => r.Id)], missing);
     }
 
     /// <summary>

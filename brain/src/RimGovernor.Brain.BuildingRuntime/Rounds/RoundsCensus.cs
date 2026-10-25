@@ -20,7 +20,7 @@ internal sealed class RoundsCensusStore
     internal readonly object Mu = new();
     internal RoundsCensus? Latest;
     internal ulong Generation;
-    internal Identity FoodIdentity = new();
+    internal Identity? FoodIdentity;
     internal FoodPlan? FoodPlanHeld;
     internal ulong FoodGeneration;
     internal double FoodMin;
@@ -32,7 +32,7 @@ internal sealed class RoundsCensusStore
     internal ResourceSupplyState? Supply;
     internal ResourceSupplyKey SupplyKey;
     internal LayoutPlan? Layout;
-    internal Identity LayoutScope = new();
+    internal Identity? LayoutScope;
 
     /// <summary>The latest review's royalty read with Royalty active; null with Royalty inactive or before the first review.</summary>
     internal RoyaltyFacts? Royalty;
@@ -68,7 +68,7 @@ internal sealed class RoundsCensusStore
             version = Benches;
         }
         table = default!;
-        if (version == 0 || census is null || census.Generation != generation || !SameObservedIdentity(census.Reading.Projection.Identity, expected))
+        if (version == 0 || census is null || census.Generation != generation || !SameObservedIdentity(census.Reading.Reading.Identity, expected))
         {
             return false;
         }
@@ -127,20 +127,20 @@ internal sealed class RoundsCensusStore
     }
 
     /// <summary>Serves the remembered layout plan into a projection that did not read it, within one colony/map/load.</summary>
-    internal ColonyProjection ServeLayout(ColonyProjection projection)
+    internal ColonyReading ServeLayout(ColonyReading projection)
     {
         LayoutPlan? layout;
-        Identity scope;
+        Identity? scope;
         lock (Mu)
         {
             layout = Layout;
             scope = LayoutScope;
         }
         var id = projection.Identity;
-        bool Same(Identity s) => s.Colony == id.Colony && s.Map == id.Map && s.Load == id.Load;
-        if (projection.LayoutPlan is null && layout is not null && Same(scope))
+        bool Same(Identity? s) => s is not null && s.Colony == id.Colony && s.Map == id.Map && s.Load == id.Load;
+        if (projection.Facts.LayoutPlan is null && layout is not null && Same(scope))
         {
-            projection = projection with { LayoutPlan = layout };
+            projection = projection with { Facts = projection.Facts with { LayoutPlan = layout } };
         }
 
         return projection;
@@ -149,7 +149,7 @@ internal sealed class RoundsCensusStore
     internal void Retain(RoundsReading reading)
     {
         var census = new RoundsCensus { Reading = reading };
-        foreach (var definition in reading.Projection.Definitions)
+        foreach (var definition in reading.Reading.Facts.Definitions)
         {
             census.Definitions.Add(definition.Name);
         }
@@ -177,7 +177,7 @@ internal sealed class RoundsCensusStore
             census = Latest;
             generation = Generation;
         }
-        if (census is null || census.Generation != generation || !RoundsCensus.SameObservedIdentity(census.Reading.Projection.Identity, expected))
+        if (census is null || census.Generation != generation || !RoundsCensus.SameObservedIdentity(census.Reading.Reading.Identity, expected))
         {
             return null;
         }
@@ -206,7 +206,7 @@ internal sealed class RoundsCensusStore
             census = Latest;
             generation = Generation;
         }
-        if (census is null || census.Generation != generation || !RoundsCensus.SameObservedIdentity(census.Reading.Projection.Identity, expected))
+        if (census is null || census.Generation != generation || !RoundsCensus.SameObservedIdentity(census.Reading.Reading.Identity, expected))
         {
             return false;
         }
@@ -271,10 +271,8 @@ partial class RoundsCensus
 {
     internal static bool SameObservedIdentity(Identity census, Identity expected)
     {
-        var ak = census.NativeGeneration.TryGetValue(out var a);
-        var bk = expected.NativeGeneration.TryGetValue(out var b);
         var lag = expected.Tick.Value - census.Tick.Value;
-        return census.SameContext(expected) && lag >= 0 && ak && bk && a == b;
+        return census.SameContext(expected) && lag >= 0 && census.NativeGeneration is C.ObservedGeneration.AtCase a && expected.NativeGeneration is C.ObservedGeneration.AtCase b && a == b;
     }
 
     /// <summary>Whether two native sources are the same comparable object: reference identity for classes, equality for values.</summary>
@@ -319,7 +317,7 @@ public sealed partial class Rounder
             return cached;
         }
         var reading = await ObserveRoundsAsync(source, expected, claims, definitions, ct).ConfigureAwait(false);
-        return reading.WithProjection(ServeAndReview(reading.Projection));
+        return reading.WithReading(ServeAndReview(reading.Reading));
     }
 
     /// <summary>
@@ -353,7 +351,7 @@ public sealed partial class Rounder
     }
 
     /// <summary>The remembered layout served into a fresh projection, then the food plan, meals, reserve and baby feeding reviews.</summary>
-    private ColonyProjection ServeAndReview(ColonyProjection fresh)
+    private ColonyReading ServeAndReview(ColonyReading fresh)
     {
         var projection = Census.ServeLayout(fresh);
         PlanFood(ref projection);
@@ -368,7 +366,7 @@ public sealed partial class Rounder
         {
             return native;
         }
-        expected.NativeGeneration.TryGetValue(out var generation);
+        var generation = expected.NativeGeneration as C.ObservedGeneration.AtCase ?? throw new ObservationChangedException();
         var scope = new FactScope(expected.Load.Value, expected.Map.Value, generation.Value);
         return new MirroredBenches(this, native, scope, expected, fresh);
     }
@@ -394,6 +392,6 @@ public sealed partial class Rounder
             return cached.Reading;
         }
         var reading = await ColonyReads.ObserveColony(source, Clock, expected, MaxAge, true, ct).ConfigureAwait(false);
-        return reading with { Projection = ServeAndReview(reading.Projection with { Facts = reading.Projection.Facts with { ConstructionClaims = claims } }) };
+        return ServeAndReview(reading with { Facts = reading.Facts with { ConstructionClaims = claims } });
     }
 }

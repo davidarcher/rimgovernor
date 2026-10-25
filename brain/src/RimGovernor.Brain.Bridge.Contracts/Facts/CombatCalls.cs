@@ -32,21 +32,15 @@ public static class CombatCalls
         row.Kind == CombatLogKind.HostileArrived && row.RaidStrategy == PodsStrategy;
 
     /// <summary>
-    /// Decodes an applied combat_orders action receipt, one result per order, in
-    /// order. A receipt that is not applied, or carries no combat orders evidence, yields none.
+    /// Retains an applied combat_orders action's native results, in request order.
+    /// A receipt that is not applied, or carries no combat orders evidence, yields none.
     /// </summary>
-    public static IReadOnlyList<CombatOrderResult> CombatOrderResults(Receipt receipt)
+    public static IReadOnlyList<Domain.CombatResult> CombatOrderResults(Receipt receipt)
     {
         if (receipt.Outcome.Applied?.Observed?.Effect?.CombatOrders is not { } effect)
         {
             return [];
         }
-        var output = new List<CombatOrderResult>(effect.Results.Count);
-        for (var i = 0; i < effect.Results.Count; i++)
-        {
-            var v = effect.Results[i];
-            output.Add(new CombatOrderResult { Index = i, PawnId = v.PawnId ?? "", Applied = v.Applied, Refusal = v.Refusal ?? "", JobDef = v.JobDef ?? "" });
-        }
-        return output;
+        return effect.Results;
     }
 }

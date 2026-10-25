@@ -1,8 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using O = RimGovernor.Contracts.Wire.Observations;
 using Ops = RimGovernor.Contracts.Wire.Operations;
 using RimGovernor.Brain.Store;
@@ -23,15 +22,7 @@ public sealed class ProductionPromisesTests
 
     private static EquatableArray<ProductionBatchState> Census(int remaining = 5) =>
         [
-            new(
-                "bill",
-                true,
-                BillRepeat.Count,
-                remaining,
-                false,
-                false,
-                new ProductionUnfinishedWork("", default)
-            ),
+            new(BillWire.Bill("bill") with { ManagedUnchanged = true, RepeatMode = Ops.RepeatMode.Count, RepeatCount = remaining }),
         ];
 
     private static ProductionBatch Placed =>
@@ -57,23 +48,19 @@ public sealed class ProductionPromisesTests
 
     private static EquatableArray<IngredientReservation> Reserved(string bill) =>
         [
-            new()
-            {
-                Pawn = new RimGovernor.Brain.Domain.PawnId("cook"),
-                Bill = bill,
-                Items = [new(Material, 10)],
-            },
+            BillWire.Reservation(bill, "cook", new Amount(Material, 10)),
         ];
 
     private static RoundsFacts Facts(ProductionPromiseSet promises) =>
         new()
         {
-            MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
+            MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } },
+            Research = ResearchTestFacts.Read(),
             Comfort = ComfortTests.NoComfortObservation,
             BasicComfort = ComfortTests.NoComfortObservation,
             ProductionPromises = promises,
             BillReservations = EmptyReservations,
-            Resources = [new(Material, 100), new(Other, 20)],
+            Census = ColonyFactsCoreTests.Snapshot() with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Material.Value, Units = 100 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Other.Value, Units = 20 }] },
             Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty with
             {
                 Deficit = new Dictionary<Resource, long> { [Material] = 60 },
@@ -136,7 +123,7 @@ public sealed class ProductionPromisesTests
         Assert.Equal(50, Promises(cancelled, Census()).AssessedPromises()[0].MaterialClaims[0].ExactCount());
         Assert.Empty(Promises(cancelled, default(EquatableArray<ProductionBatchState>)).AssessedPromises());
         Assert.Empty(Promises(Placed, Census(0)).AssessedPromises());
-        EquatableArray<ProductionBatchState> suspended = [Census()[0] with { Suspended = true }];
+        EquatableArray<ProductionBatchState> suspended = [new(Census()[0].Observed with { Suspended = true })];
         Assert.Empty(Promises(Placed, suspended).AssessedPromises());
         // A lingering native job still owns its materials after the future promise ends.
         Assert.Equal(10, ProductionRules.ProductionMaterialHoldsOf(Promises(Placed, Census(0)), Reserved("bill")).AssessedBalances()[Material].ExactCount());
@@ -202,9 +189,9 @@ public sealed class ProductionPromisesTests
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
         var facts = Facts(new ProductionPromiseSet.Assessed([])) with
         {
-            Tick = new Tick(100), Resources = [new(Material, 120)],
+            Tick = new Tick(100),
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
-            WorkResources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>),
+            Census = ((Facts(new ProductionPromiseSet.Assessed([]))).Census with { WorkResources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>) }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Material.Value, Units = 120 }] },
             WorkAdmission = new() { Recipes = [new("TestRecipe", Slots, false) { Products = [], WorkAmount = 0 }],
                 Bills = default(EquatableArray<ProductionBatchState>) },
         };

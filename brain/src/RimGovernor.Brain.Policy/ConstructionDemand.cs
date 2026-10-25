@@ -148,7 +148,7 @@ public static class ConstructionDemandRules
     public static Dictionary<Resource, long> ConstructionDemandOf(RoundsFacts f, RoundsPolicy p, RoundsLatches l) =>
         ConstructionDemand(new ConstructionDemandInput
         {
-            Stock = new StockReader(f.Resources, f.Wood),
+            Stock = new StockReader(f.ObservedStock(), f.WoodStock()),
             Owed = f.CurrentConstruction.Deficit,
             Admitted = f.Admitted,
             Planned = f.PlannedConstruction is { } rooms ? PlannedRules.PlannedTotal(rooms.Values) : null,

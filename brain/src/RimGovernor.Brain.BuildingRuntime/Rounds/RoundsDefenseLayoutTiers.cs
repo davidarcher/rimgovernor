@@ -10,7 +10,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static string DefenseTurretRung(RoundsReading read)
     {
-        var facts = read.Projection.Facts;
+        var facts = read.Reading.Facts;
         foreach (var rung in DefenseTurretsPolicy.TurretRungs(ArmoryRules.AssessArmory(facts).Tier))
         {
             if (DefenseDefinitionAvailable(read, rung))
@@ -23,7 +23,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static Bounds DefenseTurretSize(RoundsReading read, string definition)
     {
-        foreach (var d in read.Projection.Definitions)
+        foreach (var d in read.Reading.Facts.Definitions)
         {
             if (d.Name == definition)
             {
@@ -46,7 +46,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     /// <summary>Replaces one standing turret below the current rung on plan and returns the plan the step holds after: the one recorded with the replacement, else plan.</summary>
     internal async Task<LayoutPlan> ReplaceTurretAsync(ControlState state, RoundsReading read, DefenseLayoutRecord record, LayoutPlan plan, CancellationToken call)
     {
-        var projection = read.Projection;
+        var projection = read.Reading;
         if (projection.Facts.Hostiles is not HostileCensus.Quiet)
         {
             return plan;
@@ -74,7 +74,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return plan;
         }
         var site = await DefenseSiteAsync(identity, projection, region, call).ConfigureAwait(false);
-        request = request with { Bounds = projection.Bounds };
+        request = request with { Bounds = projection.Facts.MapBounds };
         request = request with { Home = home };
         request = request with { Killbox = killbox };
         request = request with { Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1) };
@@ -152,7 +152,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 continue;
             }
-            foreach (var cell in b.Occupied)
+            foreach (var cell in b.OccupiedCells)
             {
                 foreach (var c in topology.Conduits)
                 {
@@ -267,14 +267,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return null;
         }
-        var projection = read.Projection;
+        var projection = read.Reading;
         var census = new DefenseCensus();
         var (_, baseCell, _, ok) = DefenseKillbox(projection);
         if (!ok)
         {
             return null;
         }
-        var site = await DefenseSiteAsync(Boundary.Identity(state.Snapshot), projection, DefenseCensusRegion(scope, projection.Bounds, baseCell), call).ConfigureAwait(false);
+        var site = await DefenseSiteAsync(Boundary.Identity(state.Snapshot), projection, DefenseCensusRegion(scope, projection.Facts.MapBounds, baseCell), call).ConfigureAwait(false);
         foreach (var cell in site)
         {
             census.Fogged[cell.Cell] = cell is O.DefenseCell.Fogged;
@@ -287,11 +287,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 census.Unbridging[cell.Cell] = seen.FoundationRemovalDesignated;
             }
         }
-        foreach (var c in projection.PowerPlanning.Conduits)
+        foreach (var c in projection.Facts.EssentialInputs.Power.Conduits)
         {
             census.Conduits[c] = true;
         }
-        foreach (var b in projection.PowerPlanning.Buildings)
+        foreach (var b in projection.Facts.EssentialInputs.Power.Buildings)
         {
             census.Consumers[b.Cell] = b;
         }
@@ -327,7 +327,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     /// </summary>
     internal async Task<(DefenseLayout Layout, List<Cell> Entrances, LayoutPlan Sited, Verdict Held, bool Ok)> ProposeAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, LayoutPlan plan, CancellationToken call, CancellationToken epoch)
     {
-        var projection = read.Projection;
+        var projection = read.Reading;
         var (killbox, region, home, ok) = DefenseKillbox(projection);
         if (!ok)
         {
@@ -385,7 +385,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return (new RoundsBuildingResult(), false);
         }
         var dig = new RoundsBuildingPlanner { Reviewer = _reviewer, Concern = LayoutFamily.Defense.FilingKey, Need = LayoutFamily.Defense, Excavation = source };
-        var step = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = read.Projection, Read = read.Reading };
+        var step = new ExcavationStep { State = state, Review = review, Owner = goal, Facts = read.Reading };
         var p = _reviewer.Player;
         void Check()
         {

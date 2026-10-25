@@ -2,7 +2,6 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -51,14 +50,9 @@ public sealed class YardRunwayTests
             : new Obs.StorageOccupancySnapshot { CurrentHour = Now, Groups = [] },
     };
 
-    private static LootItem Stranded() => new()
-    {
-        Supply = new StartingSupply { Thing = "Thing_1", Definition = "Steel", Cell = new Cell(50, 50) },
-        Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 },
-        Count = 10,
-        StorageHeadroom = 0L,
-        AcceptedBy = EquatableArray.From<string>(["Zone_yard"]),
-    };
+    private static LootItem Stranded() =>
+        LootFixtures.Stack("Thing_1", "Steel", new Cell(50, 50), false,
+            new Obs.HaulSafety.Safe { PathLength = 0 }, 10, 0, ["Zone_yard"], null);
 
     [Fact]
     public void ASmallColonyFillingFastAsksBeforeALargeOneAtTheSameFill()

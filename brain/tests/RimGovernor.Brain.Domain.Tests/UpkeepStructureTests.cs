@@ -6,8 +6,8 @@ using Xunit;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The structure census rows are read whole (#3833): every member is set, a stuffless def's stuff is null and the
-/// flammability and repair priority are the catalog's, not the wire's. On the wire a row round-trips through
+/// The structure census retains Home coverage and joins canonical building state. Flammability and repair priority
+/// are the catalog's, not the wire's. On the wire a row round-trips through
 /// <c>WireJsonContext</c> exactly.
 /// </summary>
 public sealed class UpkeepStructureTests
@@ -17,15 +17,37 @@ public sealed class UpkeepStructureTests
     {
         EquatableArray<UpkeepStructure> rows =
         [
-            new() { Id = "Thing_Wall3", Definition = "Wall", Stuff = "BlocksGranite", Cell = new(3, 4), Home = true, HitPoints = 280, MaxHitPoints = 300 },
-            new() { Id = "Thing_Cooler4", Definition = "Cooler", Stuff = null, Cell = new(5, 6), Home = false, HitPoints = 100, MaxHitPoints = 100 },
+            new() { Id = "Thing_Wall3", Home = true },
+            new() { Id = "Thing_Cooler4", Home = false },
         ];
 
         var json = WireJson.Serialize(rows);
 
         Assert.Equal(
-            """[{"id":"Thing_Wall3","definition":"Wall","stuff":"BlocksGranite","cell":{"x":3,"z":4},"home":true,"hitPoints":280,"maxHitPoints":300},{"id":"Thing_Cooler4","definition":"Cooler","stuff":null,"cell":{"x":5,"z":6},"home":false,"hitPoints":100,"maxHitPoints":100}]""",
+            """[{"id":"Thing_Wall3","home":true},{"id":"Thing_Cooler4","home":false}]""",
             json);
         Assert.All(rows, row => Assert.Equal(row, WireJson.Deserialize<UpkeepStructure>(WireJson.Serialize(row))));
+    }
+
+    [Fact]
+    public void RepairUsesCanonicalBuildingHitPointsAndHomeCoverage()
+    {
+        var native = new UpkeepStructure { Id = "wall", Home = true };
+        var hp = new BuildingHitPoints.Tracked { Current = 70, Maximum = 100 };
+        var building = PowerBuildingFixtures.Trader("wall", "Wall", new(3, 4), 0, 0, false) with { HitPoints = hp };
+        var repair = new RimGovernor.Brain.Policy.RepairStructure(native, building, 1, 0);
+
+        Assert.Same(native, repair.Observed);
+        Assert.Same(building, repair.Building);
+        Assert.Same(hp, repair.HitPoints);
+        var damaged = RimGovernor.Brain.Policy.HomeUpkeepFamily.DamagedStructures([repair]);
+        Assert.Equal(["wall"], damaged.Targets);
+        Assert.Equal(30, damaged.Missing);
+        Assert.Empty(RimGovernor.Brain.Policy.HomeUpkeepFamily.DamagedStructures(
+            [repair with { Building = building with { HitPoints = hp with { Current = 100 } } }]).Targets);
+        Assert.Empty(RimGovernor.Brain.Policy.HomeUpkeepFamily.DamagedStructures(
+            [repair with { Observed = native with { Home = false } }]).Targets);
+        Assert.Throws<DomainException>(() => RimGovernor.Brain.Policy.HomeUpkeepFamily.DamagedStructures(
+            [repair with { Building = building with { HitPoints = new BuildingHitPoints.Untracked() } }]));
     }
 }

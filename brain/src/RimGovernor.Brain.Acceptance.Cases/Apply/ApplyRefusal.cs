@@ -25,7 +25,7 @@ internal static class ApplyRefusal
         _ => [],
         ServedOps.Succeeded<Fx.ApplyRefusalPrepared>(PrepareTool, r => r is { Success: true, ZoneCells.Count: > 0, FreeCells.Count: > 0, BuildCell: not null }));
 
-    private static readonly FixtureOp<(string Action, string Id, Common.Cell? Cell), Fx.FixtureDone> Move = new(
+    private static readonly FixtureOp<(string Action, string Id, RimGovernor.Brain.Domain.Cell? Cell), Fx.FixtureDone> Move = new(
         MoveTool,
         m => ServedOps.Args(("action", m.Action), ("id", m.Id), ("x", m.Cell?.X ?? -1), ("z", m.Cell?.Z ?? -1)),
         ServedOps.Done(MoveTool));
@@ -46,13 +46,13 @@ internal static class ApplyRefusal
     {
         var prepared = await s.FixtureAsync("prepare", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         s.Record("prepared", ServedOps.Json(prepared));
-        static Common.Cell Cell(Fx.FixtureCell c) => new() { X = c.X, Z = c.Z };
+        static RimGovernor.Brain.Domain.Cell Cell(Fx.FixtureCell c) => new() { X = c.X, Z = c.Z };
         var free = Cell(prepared.FreeCells[0]);
         var zoneCell = Cell(prepared.ZoneCells[0]);
         var buildCell = Cell(prepared.BuildCell!);
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
 
-        Task MoveAsync(string label, string action, string id = "", Common.Cell? cell = null) =>
+        Task MoveAsync(string label, string action, string id = "", RimGovernor.Brain.Domain.Cell? cell = null) =>
             s.FixtureAsync(label, Move, (action, id, cell), cancellationToken);
 
         async Task RefusedAsync(string label, Operations.ActionIntent intent, Common.FailureCode code, string reason)

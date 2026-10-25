@@ -86,7 +86,7 @@ public static class EssentialServicesRules
         var truncated = false;
         var spent = 0;
         var beneficiaries = EquatableArray.From(facts.ForecastObserved.WorkPawns.Pawns.Select(p => p.Id.Value).Order(StringComparer.Ordinal));
-        var inactive = facts.Colonists == 0;
+        var inactive = facts.Census.ColonistCount == 0;
         // An owner whose Need raises on an unread fact is an explicit evidence gap, never adequate,
         // with the owner named as the missing evidence. The review itself still commits.
         void NeedOwner(EssentialService service, NeedId id, Func<Need> need)
@@ -222,7 +222,7 @@ public static class EssentialServicesRules
                         if (!worker.Available || worker.Work is not PawnWorkTable.Works { Rows: var rows } || facts.WorkClaims?.Pawns.Contains(worker.Id.Value) == true) continue;
                         var work = rows.FirstOrDefault(w => w.Work == WorkType.Cooking);
                         if (work is null || work.Disabled || work.Priority <= 0) continue;
-                        var skill = worker.Skills.FirstOrDefault(s => s.Name == work.Skill);
+                        var skill = worker.Skills.FirstOrDefault(s => s.DefName == work.Skill);
                         if (skill is null) { unknown = true; continue; }
                         if (!skill.Disabled && skill.Level >= floor) capable = true;
                     }
@@ -302,9 +302,9 @@ public static class EssentialServicesRules
             var target = ServiceTarget.ForNeed(LayoutFamily.Routes, facility.Id, "observed_facility_reachable");
             (ServiceCoverage, EquatableArray<string>) Assess(string excluded)
             {
-                var remaining = routes.Pawns.Where(p => p != excluded).ToArray();
+                var remaining = routes.PawnIds.Where(p => p != excluded).ToArray();
                 if (remaining.Any(p => facility.Travel.Any(t => t.Pawn == p && t.Reachable))) return (ServiceCoverage.Adequate, []);
-                if (routes.Pawns.Count == 0 || remaining.Any(p => !facility.Travel.Any(t => t.Pawn == p)))
+                if (routes.PawnIds.Count == 0 || remaining.Any(p => !facility.Travel.Any(t => t.Pawn == p)))
                     return (ServiceCoverage.EvidenceGap, ["facility_reachability"]);
                 return (ServiceCoverage.Shortfall, []);
             }

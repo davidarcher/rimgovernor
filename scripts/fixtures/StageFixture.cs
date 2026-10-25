@@ -456,7 +456,7 @@ namespace HomeBridge.BridgeTools
             .Where(b => b.Faction == Faction.OfPlayer && b.TryGetComp<CompPowerTrader>() != null)
             .Select(b => (Building: b, Dps: NativeDefenseStats.TurretDps(b)))
             .Where(g => g.Dps.HasValue)
-            .Select(g => new StagedGun(g.Building.GetUniqueLoadID(), (g.Dps ?? throw new InvalidOperationException("Gun DPS missing.")), g.Building.TryGetComp<CompPowerTrader>().PowerOn))
+            .Select(g => new StagedGun((g.Dps ?? throw new InvalidOperationException("Gun DPS missing.")), g.Building.TryGetComp<CompPowerTrader>().PowerOn))
             .ToList();
 
         // The primary weapon's kind, as NativeDefenseStats.PawnRangedDps reads it.

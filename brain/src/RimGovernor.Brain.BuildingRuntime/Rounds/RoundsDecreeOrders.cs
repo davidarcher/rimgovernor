@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class JoinersRounds
 {
-    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(JoinersFamily.Decrees.FilingKey.Value);
 
     /// <summary>
@@ -16,7 +16,7 @@ public sealed partial class JoinersRounds
     /// synchronous, so a first pass finds out whether the policy asks for recipes at all and the catalog is
     /// read (once) only then, before the declaration runs again with it.
     /// </summary>
-    private async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    private async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var asked = false;
         var request = new DecreeOrderRequest

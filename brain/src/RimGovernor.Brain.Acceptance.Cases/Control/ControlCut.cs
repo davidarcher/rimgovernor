@@ -76,7 +76,7 @@ internal static class ControlCut
         foreach (var tree in trees)
         {
             _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent
-            {
+            { Location = new Operations.DesignationLocation.ByTarget(),
                 Designation = Operations.ThingDesignation.CutPlant,
                 Target = new() { Id = tree }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
         }

@@ -25,7 +25,7 @@ public sealed class CombatPresenceTests
     {
         Id = new PawnId(id),
         Side = side,
-        Cell = new C.Cell { X = 3, Z = 4 },
+        Cell = new RimGovernor.Brain.Domain.Cell { X = 3, Z = 4 },
         Downed = false,
         Dead = false,
         Stance = M.CombatStance.Warmup,
@@ -42,7 +42,7 @@ public sealed class CombatPresenceTests
 
     private static O.PawnState Placed(string id) => EmergencyFixtures.Placed(id, 3, 4);
 
-    private static RimGovernor.Brain.Observation.Combat Combat(IReadOnlyList<M.CombatPawn> rows, params O.PawnState[] table) =>
+    private static RimGovernor.Brain.Bridge.Combat Combat(IReadOnlyList<M.CombatPawn> rows, params O.PawnState[] table) =>
         new() { Pawns = rows, Detail = Pawns.Of(table), Catalog = Catalog };
 
     [Fact]

@@ -6,22 +6,24 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A colonist on the current map as the departure planners read it: the native quest worker row and its defense points.</summary>
 public sealed record QuestDeparturePawn
 {
-    public required PawnId Id { get; init; }
+    public required Pb.QuestWorker Observed { get; init; }
 
-    public required bool HealthyAdult { get; init; }
+    public PawnId Id => Observed.PawnId;
 
-    public required bool CanFight { get; init; }
+    public bool HealthyAdult => Observed.HealthyAdult;
+
+    public bool CanFight => Observed.CanFight;
 
     /// <summary>Melee power plus ranged DPS in raid points; 0 for a pawn that cannot fight.</summary>
     public required double DefensePoints { get; init; }
 
-    public required double CarryCapacity { get; init; }
+    public double CarryCapacity => Observed.CarryCapacity;
 
-    public required double CarriedMass { get; init; }
+    public double CarriedMass => Observed.CarriedMass;
 
-    public required bool FactionLeader { get; init; }
+    public bool FactionLeader => Observed.FactionLeader;
 
-    public required Pb.QuestNegotiation Negotiation { get; init; }
+    public Pb.QuestNegotiation Negotiation => Observed.Negotiation;
 }
 
 public sealed record QuestDepartureWork
@@ -155,7 +157,7 @@ public static class QuestDeparture
             return x.Id.CompareTo(y.Id);
         });
         var capacity = f.DefenseCapacity;
-        var raid = f.RaidPoints;
+        var raid = f.Census.Threat.Observed.RaidPoints;
         if (family == QuestFamily.BanditCamp && (!TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(raid) || capacity < 0 || raid < 0))
         {
             return (none, "defense_unknown");

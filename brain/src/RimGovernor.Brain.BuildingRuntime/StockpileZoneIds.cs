@@ -6,7 +6,7 @@ partial class StockpileZones
     /// The native stockpile zones of a complete zones read; null when the read is partial, so no zoned cell is
     /// taken for a stockpile.
     /// </summary>
-    internal static HashSet<string>? StockpileZoneIds(Observation.ColonyProjection projection)
+    internal static HashSet<string>? StockpileZoneIds(ColonyReading projection)
     {
         if (projection.Zones is not { Complete: true } zones)
         {

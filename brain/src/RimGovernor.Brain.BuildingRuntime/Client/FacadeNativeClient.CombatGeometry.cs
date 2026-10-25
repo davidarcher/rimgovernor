@@ -54,7 +54,7 @@ public sealed partial class FacadeNativeClient
         }
 
         /// <summary>min..cap distinct, valid cells.</summary>
-        private static void GeometryCells(EquatableArray<PbCommon.Cell> cells, int min)
+        private static void GeometryCells(EquatableArray<RimGovernor.Brain.Domain.Cell> cells, int min)
         {
             var n = cells.Count;
             if (n < min || n > CombatConstants.CombatGeometryMaxCells)
@@ -75,7 +75,7 @@ public sealed partial class FacadeNativeClient
             }
         }
 
-        private static bool GeometryCell(PbCommon.Cell cell) => cell.X >= 0 && cell.Z >= 0;
+        private static bool GeometryCell(RimGovernor.Brain.Domain.Cell cell) => cell.X >= 0 && cell.Z >= 0;
 
         /// <summary>One role and its anchor.</summary>
         private static void ValidatePropose(PbMirror.CombatGeometryPropose p)

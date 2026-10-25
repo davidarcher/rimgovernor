@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
@@ -72,9 +72,9 @@ public sealed class BiotechSectionTests
             json);
         Assert.Equal(state, WireJson.Deserialize<O.PawnBiotechState>(json));
 
-        var lifted = PawnBiotech.Of(((O.PawnBiotechState.Active)state).Facts, new GeneEffects(), new Dictionary<WorkType, int>());
-        Assert.Equal(new PawnMechGroup(1, 0.1, 1), lifted.Mech!.Group);
-        Assert.Equal(new MechEnergy.Level(0.5), lifted.Mech.Energy);
+        var lifted = new PawnBiotech { Observed = ((O.PawnBiotechState.Active)state).Facts };
+        Assert.Equal(new O.PawnMechGroup { Index = 1, RechargeBelow = 0.1, RechargeAbove = 1 }, lifted.Mech!.Group);
+        Assert.Equal(new O.PawnMechEnergy.Level { Fraction = 0.5 }, lifted.Mech.Energy);
         Assert.Null(lifted.Mechanitor);
         Assert.Equal(2, lifted.Deathrest!.Capacity);
     }
@@ -85,18 +85,23 @@ public sealed class BiotechSectionTests
         var pollution = PollutionRules.PollutionOf(Colony);
         Assert.Equal(7u, pollution.UncoveredCells);
         Assert.True(Assert.Single(pollution.Wastepacks).Forbidden);
-        Assert.Equal([true, false], BiotechColonyReads.GestatorFacts(Colony).Select(g => g.Active));
-        Assert.False(Assert.Single(MechRules.MechChargersOf(Colony)).Charging);
+        Assert.Equal([true, false], Colony.Gestators.Select(g => g.BillId is not null));
+        Assert.Null(Assert.Single(Colony.Chargers).ChargingMechId);
+        var gestation = new MechGestation { Gestators = Colony.Gestators, Wastepacks = Colony.Wastepacks, Chargers = Colony.Chargers };
+        Assert.Same(Colony.Gestators[0], gestation.Gestators[0]);
+        Assert.Same(Colony.Wastepacks[0], gestation.Wastepacks[0]);
+        Assert.Same(Colony.Chargers[0], gestation.Chargers[0]);
+        Assert.True(MechRules.UnclearedWaste(gestation));
 
         // One bank of four holds one pack: three free slots hold the one loose pack, so no bank is owed; four loose packs overflow it.
         Assert.False(GeneBankConcernRules.GeneBankOwed(Colony));
         Assert.True(GeneBankConcernRules.GeneBankOwed(Colony with { Genepacks = [.. Enumerable.Repeat(new O.GenepackState { BankId = null }, 4)] }));
 
         // A charger is owed only with a mechanitor and every charger busy and clear of waste.
-        Assert.False(MechRules.MechChargerOwed(1, MechRules.MechChargersOf(Colony)));
+        Assert.False(MechRules.MechChargerOwed(1, Colony.Chargers));
         var busy = Colony with { Chargers = [new O.MechChargerState { Powered = true, FullOfWaste = false, ChargingMechId = "Thing_Mech1" }] };
-        Assert.True(MechRules.MechChargerOwed(1, MechRules.MechChargersOf(busy)));
-        Assert.False(MechRules.MechChargerOwed(0, MechRules.MechChargersOf(busy)));
+        Assert.True(MechRules.MechChargerOwed(1, busy.Chargers));
+        Assert.False(MechRules.MechChargerOwed(0, busy.Chargers));
     }
 
     [Fact]

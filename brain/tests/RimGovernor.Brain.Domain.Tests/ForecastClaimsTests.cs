@@ -1,8 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -16,7 +15,7 @@ public sealed class ForecastClaimsTests
     private static ForecastCommitment Promise(string id, Resource resource, double units, string bill = "") => new(id, default)
     { MaterialClaims = [new(resource, new MaterialUnits.Exact(units), bill)] };
     private static EquatableArray<IngredientReservation> Native(string bill = "bill") => [
-        new() { Pawn = new RimGovernor.Brain.Domain.PawnId("cook"), Bill = bill, Items = [new(Material, 20)] }];
+        BillWire.Reservation(bill, "cook", new Amount(Material, 20))];
 
     [Fact]
     public void NativeHandoffCountsSameBillOnceAndOtherBillsStillCompete()

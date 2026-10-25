@@ -83,6 +83,15 @@ defender shots. This is a registered nightly gameplay proof, not evidence of a
 passed run: its result artifact establishes the outcome. It does not establish
 local movement, squad coordination, tactical quality or brain throughput.
 
+A humanoid raid without a complete defensive layout waits at measured outdoor
+temperatures of −20°C or below and 45°C or above, or when outmatched. The wait
+vetoes offensive roles after specialist targeting and finishing decisions, stops
+active attacks, holds ranged fire and keeps colony animals off room doors.
+No attack, mortar, combat psycast, permit or animal release is issued while waiting.
+Doors close and become forbidden; the raid reforms when waiting ends or its
+38,000-tick give-up window expires. A frame without colony temperature facts
+cannot start a weather wait.
+
 An aggressive mental break's subdue response is an owned combat fight. Its
 actions retain native's guarded blunt melee and never finish a downed colonist.
 An injury or downing of the target or a responder cancels the response and

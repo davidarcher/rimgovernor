@@ -3,15 +3,6 @@ using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public sealed record QuestWorkCapacity
-{
-    public PawnId Pawn { get; init; }
-
-    public IReadOnlyDictionary<string, double> Rates { get; init; } = new Dictionary<string, double>();
-
-    public required bool HealthyAdult { get; init; }
-}
-
 /// <summary>An objective's remaining work: the work type that does it, the speed stat (null: every worker at rate 1), the amount and the bench factor.</summary>
 public sealed record QuestWorkload
 {
@@ -45,8 +36,7 @@ public static class QuestCapacityForecast
         {
             return "";
         }
-        var capacities = f.QuestWorkCapacity;
-        if (f.QuestPawns is not QuestPawns.Seen { Workers: var workers } || f.QuestRoster is not QuestRoster.Planned { Spare: var spare })
+        if (f.QuestPawns is not QuestPawns.Seen { Workers: var workers, Departures: var capacities } || f.QuestRoster is not QuestRoster.Planned { Spare: var spare })
         {
             return "deadline_unknown";
         }
@@ -92,10 +82,10 @@ public static class QuestCapacityForecast
             byId[p.Id] = p;
         }
         var allowed = new HashSet<PawnId>(spare);
-        var eligible = new List<QuestWorkCapacity>();
-        foreach (var p in capacities.OrderBy(c => c.Pawn))
+        var eligible = new List<Pb.QuestWorker>();
+        foreach (var p in capacities.Select(c => c.Observed).OrderBy(c => c.PawnId))
         {
-            if (!allowed.Contains(p.Pawn))
+            if (!allowed.Contains(p.PawnId))
             {
                 continue;
             }
@@ -103,7 +93,7 @@ public static class QuestCapacityForecast
             {
                 continue;
             }
-            if (!byId.ContainsKey(p.Pawn))
+            if (!byId.ContainsKey(p.PawnId))
             {
                 continue;
             }
@@ -129,7 +119,7 @@ public static class QuestCapacityForecast
             }
             foreach (var pawn in eligible)
             {
-                var p = byId[pawn.Pawn];
+                var p = byId[pawn.PawnId];
                 var scheduled = p.WorkHoursPerDay();
                 if (!QuestWorkEnabled(p, task.Workload.Work))
                 {
@@ -137,19 +127,19 @@ public static class QuestCapacityForecast
                 }
                 // Native rates every recipe work speed stat, construction and plant work, so a missing one is a broken read.
                 var rate = task.Workload.Stat is not { } stat ? 1.0
-                    : pawn.Rates.TryGetValue(stat, out var measured) ? measured : throw new RequiredFactException($"quest work rate {stat} of {pawn.Pawn}");
+                    : pawn.Rates.FirstOrDefault(r => r.Stat == stat) is { } measured ? measured.Rate : throw new RequiredFactException($"quest work rate {stat} of {pawn.PawnId}");
                 rate *= task.Workload.RateFactor;
                 if (!FinitePositive(rate))
                 {
                     continue;
                 }
-                var budget = (double)((task.Deadline - now) / GameTime.TicksPerDay) * (Math.Min(scheduled, 8) * GameTime.TicksPerHour) / 2 - used.GetValueOrDefault(pawn.Pawn);
+                var budget = (double)((task.Deadline - now) / GameTime.TicksPerDay) * (Math.Min(scheduled, 8) * GameTime.TicksPerHour) / 2 - used.GetValueOrDefault(pawn.PawnId);
                 if (budget <= 0)
                 {
                     continue;
                 }
                 var done = Math.Min(remaining, budget * rate);
-                used[pawn.Pawn] = used.GetValueOrDefault(pawn.Pawn) + done / rate;
+                used[pawn.PawnId] = used.GetValueOrDefault(pawn.PawnId) + done / rate;
                 remaining -= done;
                 if (remaining <= 1e-6)
                 {

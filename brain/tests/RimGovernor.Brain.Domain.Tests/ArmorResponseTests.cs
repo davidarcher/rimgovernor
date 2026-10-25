@@ -1,3 +1,5 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -13,7 +15,7 @@ public sealed class ArmorResponseTests
     };
 
     private static GearOption Garment(double sharp, double blunt = 0, string layer = "Shell", string group = "Torso") =>
-        new() { ID = layer + sharp, Quality = 2, Condition = 1, Sharp = sharp, Blunt = blunt, Layers = [layer], Groups = [group] };
+        new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option(layer + sharp, "", "", GearSource.Worn)), Sharp = sharp, Blunt = blunt, Layers = [layer], Groups = [group] };
 
     private static WeaponBin Sharp(double damage, double ap) => new() { Damage = damage, ArmorPenetration = ap, Category = ArmorCategory.Sharp, Weight = 1 };
 
@@ -86,7 +88,7 @@ public sealed class ArmorResponseTests
     public void PenetrationAboveTheArmorPassesTheHitAndQualityAndConditionScaleTheRating()
     {
         Assert.Equal(10, Of([Garment(0.5)], Torso, Sharp(10, 0.5)).ExpectedDamage, 9);
-        var worn = Garment(0.5) with { Quality = 6, Condition = 0.5 };
+        var worn = Garment(0.5) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Garment(0.5)).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Legendary), Condition = 0.5 }) };
 
         // 0.5 x 1.8 x 0.5 = 0.45.
         Assert.Equal(0.225, Of([worn], Torso, Sharp(10, 0)).DeflectChance, 9);

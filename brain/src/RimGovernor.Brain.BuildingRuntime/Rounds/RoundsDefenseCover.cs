@@ -21,7 +21,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             throw DefenseControlErr(248);
         }
-        SameTick(observed.Context, state, read.Projection.Identity.Tick);
+        SameTick(observed.Context, state, read.Reading.Identity.Tick);
         var arms = await Armament.ReadArmamentAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         var (defenders, minRange) = DefenderRangeOf(observed.Pawns, arms);
         return (defenders, minRange, defenders > 0);
@@ -30,7 +30,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal async Task<(RoundsDefenseLayoutResult Result, bool Done)> ClearCoverAsync(NeedOwner goal, RoundsReview review, ControlState state, RoundsReading read, DefenseLayoutRecord record, LayoutPlan layoutPlan, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        var projection = read.Projection;
+        var projection = read.Reading;
         var tick = projection.Identity.Tick;
         var identity = Boundary.Identity(state.Snapshot);
         var (killbox, region, home, ok) = DefenseKillbox(projection);
@@ -40,7 +40,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var site = await DefenseSiteAsync(identity, projection, region, call).ConfigureAwait(false);
         var request = DefenseTurretRequest(read);
-        request = request with { Bounds = projection.Bounds };
+        request = request with { Bounds = projection.Facts.MapBounds };
         request = request with { Home = home };
         request = request with { Tick = tick };
         request = request with { Killbox = killbox };
@@ -61,7 +61,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
         }
         request = request with { Cells = [.. requestCells], Fogged = [.. fogged], Entrances = [.. entrances] };
-        request = request with { Arrivals = [.. DefenseArrivals(projection.Raids, region)] };
+        request = request with { Arrivals = [.. DefenseArrivals(projection.Snapshot.Threat.Observed.Raids, region)] };
         var (defenders, minRange, haveRange) = await DefenderRangeAsync(state, read, call).ConfigureAwait(false);
         if (!haveRange)
         {

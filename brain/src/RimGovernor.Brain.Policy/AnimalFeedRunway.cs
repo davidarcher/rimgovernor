@@ -18,7 +18,7 @@ public sealed record AnimalFeedInputs
 
     public EquatableArray<Resource> Directed { get; init; }
 
-    public FoodSupply Food { get; init; } = new() { Larder = new() };
+    public FoodSupply Food { get; init; } = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } };
 
     /// <summary>The pens' worst-season pasture rates (PenGrazing).</summary>
     public EquatableArray<PenGrazing> Pens { get; init; }
@@ -63,7 +63,7 @@ public static class AnimalFeedRunwayExtensions
             Food = u.Food,
             Pens = f.PenGrazing,
             Races = u.AnimalRaces,
-            Stock = new StockReader { Resources = f.Resources, Wood = f.Wood },
+            Stock = new StockReader { Resources = f.ObservedStock(), Wood = f.WoodStock() },
         };
 
         return input;
@@ -81,14 +81,14 @@ public static class AnimalFeedRunwayRules
         steps = [];
         var inCatalog = races.Race(a.Definition, out var race);
         var stages = race.LifeStages;
-        var idx = a.Herd.LifeStageIndex;
+        var idx = a.State.LifeStageIndex;
         if (!inCatalog || idx < 0 || idx >= stages.Count)
         {
             return false;
         }
 
         var next = idx + 1;
-        if (next < stages.Count && a.Herd.NextLifeStage is AnimalNextLifeStage.InTicks { Ticks: var ticks })
+        if (next < stages.Count && a.State.NextLifeStage is AnimalNextLifeStage.InTicks { Ticks: var ticks })
         {
             var current = stages[idx].HungerRateFactor;
             if (!(current > 0))
@@ -105,7 +105,7 @@ public static class AnimalFeedRunwayRules
             }
         }
 
-        if (a.Herd.Pregnancy is not AnimalPregnancy.Gestating { TicksToBirth: var birth })
+        if (a.State.Pregnancy is not AnimalPregnancy.Gestating { TicksToBirth: var birth })
         {
             return true;
         }
@@ -225,9 +225,9 @@ public static class AnimalFeedRunwayRules
 
             var count = s.Count;
             var nutrition = s.Nutrition;
-            if (!found || s.DefName < item || (s.DefName == item && string.CompareOrdinal(s.Id, bestId) < 0))
+            if (!found || new Resource(s.DefName) < item || (new Resource(s.DefName) == item && string.CompareOrdinal(s.Id, bestId) < 0))
             {
-                item = s.DefName;
+                item = new Resource(s.DefName);
                 bestId = s.Id;
                 perItem = nutrition / count;
                 found = true;
@@ -379,7 +379,7 @@ public static class AnimalFeedRunwayRules
     /// <summary>Unheld stock with positive count and nutrition that every one of the animals can eat.</summary>
     internal static bool GroupEats(FoodStock s, IReadOnlyList<PawnId> animals)
     {
-        if (!s.Holder.IsEmpty || s.DefName.IsEmpty || !AdmissionRules.ValidResource(s.DefName))
+        if (!s.Holder.IsEmpty || string.IsNullOrEmpty(s.DefName) || !AdmissionRules.ValidResource(new Resource(s.DefName)))
         {
             return false;
         }

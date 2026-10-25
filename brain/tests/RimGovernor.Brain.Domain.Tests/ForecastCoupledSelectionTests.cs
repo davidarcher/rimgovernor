@@ -1,9 +1,10 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Common;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -41,7 +42,7 @@ public sealed class ForecastCoupledSelectionTests
         if (reverse) Array.Reverse(sources);
         facts = facts with
         {
-            Resources = [],
+            Census = facts.Census with { Resources = [] },
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with
@@ -79,7 +80,7 @@ public sealed class ForecastCoupledSelectionTests
             Targets = [NeedsFixtures.Service("shared-service", "joy", 0d, .01) with
                 { Location = new(1, 1) }]
         };
-        facts = facts with { WorkResources = roster.WorkResources, ForecastObserved = facts.ForecastObserved with
+        facts = facts with { Census = facts.Census with { WorkResources = roster.Census.WorkResources }, ForecastObserved = facts.ForecastObserved with
         {
             WorkPawns = roster.ForecastObserved.WorkPawns,
             Needs = facts.ForecastObserved.Needs with { Pawns = [pawn, pawn with { Pawn = "helper" }] },
@@ -159,7 +160,7 @@ public sealed class ForecastCoupledSelectionTests
         var coupled = facts.ForecastObserved.Coupled!;
         facts = facts with
         {
-            WorkResources = roster.WorkResources,
+            Census = facts.Census with { WorkResources = roster.Census.WorkResources },
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,
@@ -558,7 +559,7 @@ public sealed class ForecastCoupledSelectionTests
             Targets = [NeedsFixtures.Food("meal", "MealSimple", 1, 0d, 10d, .9) with
                 { Location = new(1, 1), Stock = new NeedStock.Stacked(1, new FoodFreshness.Rots(100000)), MaxPawns = 1 }]
         };
-        facts = facts with { Resources = [new(new("MealSimple"), 1)], ForecastObserved = facts.ForecastObserved with
+        facts = facts with { Census = facts.Census with { Resources = [new O.Quantity { DefName = "MealSimple", Units = 1 }] }, ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
@@ -986,19 +987,11 @@ public sealed class ForecastCoupledSelectionTests
     private static (RoundsFacts Facts, ForecastCommitment[] Parkas, ForecastCommitment Work) ColdParkaReview(double mood,
         MechanicCardStatus status = MechanicCardStatus.Verified, bool shirt = true)
     {
-        static GearOption Garment(string product, GearSlot slot, string layer, double cold, GearSource source) => new()
-        {
-            ID = product, Definition = new(product), Stuff = new("Cloth"), Slot = slot, Layers = [layer], Groups = ["Torso"],
-            Source = source, Quality = 2, Condition = 1, Cold = cold, Cost = 20
-        };
+        static GearOption Garment(string product, GearSlot slot, string layer, double cold, GearSource source) => new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option(product, product, "Cloth", source)), Slot = slot, Layers = [layer], Groups = ["Torso"], Cold = cold, Cost = 20 };
         var census = ColonyModelFixtures.NoGear() with
         {
-            Stored = default(EquatableArray<RimGovernor.Brain.Policy.GearStock>),
-            Pawns = [new() { Pawn = new("pawn"), Loadout = "load",
-                Candidates = default(EquatableArray<RimGovernor.Brain.Policy.GearCandidate>),
-                LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = -10, ComfortableMin = 10, ComfortableMax = 30,
-                    Worn = shirt ? [Garment("Shirt", GearSlot.SkinTorso, "OnSkin", 2, GearSource.Worn), Garment("Jacket", GearSlot.Outer, "Shell", 5, GearSource.Worn)] : [],
-                    Options = [Garment("Parka", GearSlot.Outer, "Shell", 20, GearSource.Bill)] }) }]
+            Stored = default(EquatableArray<O.GearStock>),
+            Pawns = [new() { Observed = GearFixtures.Loadout("") with { Token = "load", Pawn = new("pawn") }, Candidates = default(EquatableArray<RimGovernor.Brain.Policy.GearCandidate>), LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Threat = ColonyModelFixtures.NoThreat, Ambient = -10, Worn = shirt ? [Garment("Shirt", GearSlot.SkinTorso, "OnSkin", 2, GearSource.Worn), Garment("Jacket", GearSlot.Outer, "Shell", 5, GearSource.Worn)] : [], Options = [Garment("Parka", GearSlot.Outer, "Shell", 20, GearSource.Bill)], Role = GearFixtures.Role }) }]
         };
         var stack = new RecipeIngredientObservation("cloth-stack", "Cloth", 10, new(5, 5), 10)
         { Capacity = 75, ApproachTicks = 5.0, CarryTicks = 5.0, ReturnTicks = 5.0 };
@@ -1006,7 +999,7 @@ public sealed class ForecastCoupledSelectionTests
             [stack], 0.0, 20.0, 5.0, new(15, 15)) { RequiredCount = 10 };
         var facts = Review(level: 1, fall: 0, harvest: 200);
         var roster = WorkResourceTestFacts.Create("pawn", "tailor") with
-        { Resources = [new(new("Cloth"), 10)] };
+        { Census = (WorkResourceTestFacts.Create("pawn", "tailor")).Census with { Resources = [new O.Quantity { DefName = "Cloth", Units = 10 }] }};
         var template = facts.ForecastObserved.Needs!.Pawns[0];
         facts = facts with
         {
@@ -1107,7 +1100,7 @@ public sealed class ForecastCoupledSelectionTests
         model = model with { Role = model.Role with { Traits = [] } };
         var facts = Review() with
         {
-            Gear = ColonyModelFixtures.NoGear() with { Stored = [], Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model), Candidates = [] }] },
+            Gear = ColonyModelFixtures.NoGear() with { Stored = [], Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("pawn") }, LoadoutModel = new GearModel.Modeled(model), Candidates = [] }] },
             MedicalPawns = [CareFixtures.Patient("pawn")],
         };
         var gear = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Alternatives.Where(a => a.ExclusiveOutcome == "gear/pawn").ToArray();

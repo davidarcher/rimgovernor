@@ -41,8 +41,7 @@ namespace HomeBridge.BridgeTools
         // listing row; the settable flag itself is only implied (a refused
         // preview names the gate).
         internal static Obs.BuildingControl.Bed Control(Building_Bed bed) =>
-            new(bed.Medical, bed.ForPrisoners,
-                [.. bed.OwnersForReading.Select(owner => (NativeRef.Of(owner) ?? throw new System.InvalidOperationException("Required native value is unavailable: NativeRef.Of(owner).")))]);
+            new(bed.Medical, bed.ForPrisoners);
 
         private static Common.Failure? Resolve(Operations.BuildingPatchIntent intent, Common.ObservationContext context, out Building_Bed? bed)
         {

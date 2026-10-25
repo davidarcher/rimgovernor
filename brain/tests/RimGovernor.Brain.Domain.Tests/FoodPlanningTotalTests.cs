@@ -1,8 +1,8 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -11,14 +11,14 @@ public sealed class FoodPlanningTotalTests
     private static readonly Resource Food = new("RawBerries");
     private static readonly AcquisitionSource Bush = new()
     {
-        Id = "bush", Token = "bush", Resource = Food.Value, Cell = new(1, 1),
-        Food = true, Yield = 10, NutritionYield = .5,
+        Observed = new() { Source = new() { Id = "bush" }, Token = "bush", Resource = Food.Value, Yield = 10, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Plant(true, 1, false) },
+        Entity = new() { Id = "bush", DefName = "Plant_Berry", Label = "Plant_Berry", Place = new O.EntityPlace.OnMap(1, new Cell(1, 1)) }, NutritionYield = .5,
     };
 
     [Fact]
     public void PendingYieldPreventsDuplicateAcquisitionAndStalledYieldReopensIt()
     {
-        var designated = Bush with { Designated = true };
+        var designated = Bush with { Observed = Bush.Observed with { Designation = new O.AcquisitionDesignation.Designated(new(0)) } };
         var pending = RoundsAcquisitionPlanner.WithoutStalled(.5, [designated], [Bush.Id], true);
         Assert.Equal(0, pending);
         Assert.Empty(AcquisitionRules.SelectAcquisition([Bush], .5, .5, true, new Dictionary<string, bool>()));
@@ -49,24 +49,24 @@ public sealed class FoodPlanningTotalTests
     }
 
     [Fact]
-    public void HumanButcherNeedsMatchingPawnAndWorkDisposition()
+    public void HumanButcherNeedsWorkDisposition()
     {
-        Assert.Throws<ObservationContractException>(() => ColonyProductionReads.HeldPreceptsOf(Pawns.Of(), "missing"));
         Assert.False(HumanFoodRules.HumanButcherEligible([], true, false));
         Assert.False(HumanFoodRules.HumanButcherEligible([], false, true));
-        Assert.True(HumanFoodRules.HumanButcherEligible([new PawnTrait { Effects = new TraitEffects { HumanButcher = true } }], false, true));
-        Assert.True(HumanFoodRules.PreceptAcceptable(new HeldPrecepts(), new IdeologyMode.NotInstalled()));
+        Assert.True(HumanFoodRules.HumanButcherEligible([new PawnTrait { Observed = new() { DefName = "Cannibal" }, Effects = new TraitEffects { HumanButcher = true } }], false, true));
+        Assert.True(HumanFoodRules.PreceptAcceptable(new O.PawnIdeo.None(), new IdeologyMode.NotInstalled()));
     }
     [Fact]
     public void AnimalFeedHasAZeroRunwayForNoHerdAndRequiresTheKeptAnimalsFacts()
     {
         Assert.False(AnimalFeedRunwayRules.PlanAnimalFeedRunway(new()).Projection.IsShort());
-        var animal = new UpkeepAnimal { Id = new("animal"), Definition = new("Alpaca") };
+        var animal = AnimalFixtures.Owned("animal", "Alpaca");
         Assert.Throws<RequiredFactException>(() => AnimalFeedRunwayRules.PlanAnimalFeedRunway(new() { Animals = [animal] }));
         Assert.Throws<RequiredFactException>(() => AnimalFeedRunwayRules.PlanAnimalFeedRunway(new()
         {
             Animals = [animal],
-            Food = new FoodSupply { Larder = new(), Consumers = [new FoodConsumer { Id = animal.Id, NutritionPerDay = 1 }] },
+            Food = new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] }, Consumers = [new FoodConsumer { Id = animal.Id, NutritionPerDay = 1,
+        HumanMeatAcceptable = false }] },
         }));
         Assert.False(HusbandryUpkeepRules.AnimalHerdDeficit([], [], false, new()));
         Assert.True(new AnimalFeedProjection { ShortfallDays = 1 }.IsShort());
@@ -78,7 +78,7 @@ public sealed class FoodPlanningTotalTests
         Assert.Equal(5, AnimalFoodRules.HayNutritionNeed([new PenGrazing
             { DemandPerDay = 2, PasturePerDay = 1, StoredNutrition = 5 }], 10));
         Assert.Throws<RequiredFactException>(() => AnimalFoodRules.HayNutritionNeed([new PenGrazing
-            { DemandPerDay = double.NaN }], 10));
+            { DemandPerDay = double.NaN, PasturePerDay = 0, StoredNutrition = 0 }], 10));
     }
     [Fact]
     public void FoodChecksRequireRunwayAndButcherBuildDefinition()
@@ -86,6 +86,6 @@ public sealed class FoodPlanningTotalTests
         Assert.Throws<RequiredFactException>(() => RoundsRules.Reached(null, 3));
         Assert.True(RoundsRules.Reached(new FoodRunway.NoEaters(), 3));
         Assert.False(RoundsRules.Reached(new FoodRunway.Days(2), 3));
-        Assert.Throws<RequiredFactException>(() => RoundsBuildingPlanner.ButcherTableAffordable(ColonyFactsCoreTests.Projection()));
+        Assert.Throws<RequiredFactException>(() => RoundsBuildingPlanner.ButcherTableAffordable(ColonyFactsCoreTests.Reading()));
     }
 }

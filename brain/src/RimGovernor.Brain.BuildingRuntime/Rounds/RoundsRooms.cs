@@ -142,7 +142,7 @@ public sealed class RoomsRounds
         {
             throw new ControlException("rooms read: the read took too long");
         }
-        var facts = Facts(reading.Projection, _reviewer.Policy, review.Comfort, spot, _flooring);
+        var facts = Facts(reading.Reading, _reviewer.Policy, review.Comfort, spot, _flooring);
         return _gatherings ? facts with { Gathering = Rounder.GatheringPlanOf(reading, scope.World) } : facts;
     }
 
@@ -152,11 +152,11 @@ public sealed class RoomsRounds
     /// basic and hosted comfort against <paramref name="history"/>, the PartySpot step against the
     /// <paramref name="spot"/> Need's Methods, and the work chairs the plan owes standing benches.
     /// </summary>
-    internal static RoomsFacts Facts(ColonyProjection projection, RoundsPolicy policy, ComfortHistory history, NeedOwner? spot, RoundsBuildingPlanner? flooring)
+    internal static RoomsFacts Facts(ColonyReading projection, RoundsPolicy policy, ComfortHistory history, NeedOwner? spot, RoundsBuildingPlanner? flooring)
     {
         var lighting = RoundsBuildingPlanner.LightingReviewOf(projection, policy.Lighting);
         var census = flooring is not null ? flooring.FlooringCensus(projection) : RoundsBuildingPlanner.TrafficFlooringFacts(projection, policy.Flooring);
-        var floorReview = FlooringRules.ReviewFlooring(census, projection.Rooms, policy.Flooring);
+        var floorReview = FlooringRules.ReviewFlooring(census, projection.Facts.Upkeep.Rooms, policy.Flooring);
         var profiles = projection.Facts.WorkProfiles;
         var hosting = ComfortRules.ReviewComfort(projection.Facts.RequireComfort(), history, projection.Identity.Tick);
         return new RoomsFacts
@@ -173,6 +173,6 @@ public sealed class RoomsRounds
     }
 
     /// <summary>Whether a standing bench's chosen work chair is missing; unknown while the plan or the census is unread.</summary>
-    internal static bool WorkChairsOwed(ColonyProjection projection) =>
-        WorkChairRules.OwedSeats(projection.LayoutPlan ?? throw new RequiredFactException("layout plan"), projection.Facts.CurrentConstruction, projection.Shapes).Count > 0;
+    internal static bool WorkChairsOwed(ColonyReading projection) =>
+        WorkChairRules.OwedSeats(projection.Facts.LayoutPlan ?? throw new RequiredFactException("layout plan"), projection.Facts.CurrentConstruction, projection.Facts.Shapes).Count > 0;
 }

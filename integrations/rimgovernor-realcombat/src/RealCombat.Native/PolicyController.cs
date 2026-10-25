@@ -200,7 +200,7 @@ public sealed class PolicyController : IFightController
     // Null when the frame has no colony facts or an inactive royalty section (no Royalty); a row the read cannot use throws.
     private static RoyaltyFacts? RoyaltyOf(Obs.BundleSnapshot frame, DefinitionCatalog catalog) =>
         frame.ColonyFacts is { } colony
-        && RimGovernor.Brain.Observation.ColonyProjection.RoyaltyOf(colony.Royalty, frame.Pawns, catalog) is RoyaltyState.Active { Facts: var royalty }
+        && RimGovernor.Brain.Bridge.ColonyPlanningReads.RoyaltyOf(colony.Royalty, frame.Pawns, catalog) is RoyaltyState.Active { Facts: var royalty }
             ? royalty
             : null;
 

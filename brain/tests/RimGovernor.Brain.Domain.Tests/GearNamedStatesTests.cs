@@ -1,42 +1,36 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>The gear records read whole (#3904): the insulation floor, the arrival, the gear patch and the empty census are named states.</summary>
 public sealed class GearNamedStatesTests
 {
-    private static GearOption Shirt(GearArrival arrival) => new()
-    {
-        ID = "bill:Shirt/Cloth",
-        Definition = new("Shirt"),
-        Stuff = new("Cloth"),
-        Slot = GearSlot.SkinTorso,
-        Layers = ["OnSkin"],
-        Groups = ["Torso"],
-        Source = GearSource.Bill,
-        Quality = 2,
-        Condition = 1,
-        Sharp = .2,
-        Cost = 20,
-        Arrival = arrival,
-    };
+    private static GearOption Shirt(GearArrival arrival) => new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("bill:Shirt/Cloth", "Shirt", "Cloth", GearSource.Bill)), Slot = GearSlot.SkinTorso, Layers = ["OnSkin"], Groups = ["Torso"], Sharp = .2, Cost = 20, Arrival = arrival };
 
     private static GearLoadoutInput Input(GearOption option) =>
-        new() { Threat = ColonyModelFixtures.NoThreat, Ambient = 20, ComfortableMin = 10, ComfortableMax = 30, Options = [option] };
+        new() { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Threat = ColonyModelFixtures.NoThreat, Ambient = 20, Options = [option], Role = GearFixtures.Role };
 
     [Fact]
     public void EveryPlannedWorkTypeDressesForARole()
     {
         // #3923: the mod's Training work type, which every colonist has, dresses for outdoor labour; a missing arm threw at tick 0.
-        foreach (var work in Enum.GetValues<WorkType>().Where(w => w != WorkType.Unrecognized))
+        foreach (var work in Enum.GetValues<WorkType>().Where(w => w is not (WorkType.Unrecognized or WorkType.None)))
         {
-            var role = GearLoadoutRules.DeriveGearRole(new GearRoleInput { Work = [new WorkPriority { Work = work, Priority = 1 }] });
+            var role = GearLoadoutRules.DeriveGearRole(GearFixtures.Role with
+            {
+                Work = [new WorkPriority { Observed = new O.WorkSetting { DefName = Wire.Name(work), Priority = 1, Disabled = false } }],
+            });
             Assert.True(Enum.IsDefined(role), work.ToString());
         }
 
-        Assert.Equal(GearRole.Worker, GearLoadoutRules.DeriveGearRole(new GearRoleInput { Work = [new WorkPriority { Work = WorkType.Training, Priority = 1 }] }));
+        Assert.Equal(GearRole.Worker, GearLoadoutRules.DeriveGearRole(GearFixtures.Role));
+        Assert.Equal(GearRole.Worker, GearLoadoutRules.DeriveGearRole(GearFixtures.Role with
+        {
+            Work = [new WorkPriority { Observed = new O.WorkSetting { DefName = Wire.Name(WorkType.Training), Priority = 1, Disabled = false } }],
+        }));
     }
 
     [Fact]
@@ -44,7 +38,7 @@ public sealed class GearNamedStatesTests
     {
         Assert.Equal(-4.0, new InsulationFloor.Worn().Or(-4));
         Assert.Equal(12.0, new InsulationFloor.Chosen(12).Or(-4));
-        Assert.IsType<InsulationFloor.Worn>(new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.NoOutfit(), Candidates = [] }.ColdFloor);
+        Assert.IsType<InsulationFloor.Worn>(new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("pawn") }, LoadoutModel = new GearModel.NoOutfit(), Candidates = [] }.ColdFloor);
     }
 
     [Fact]
@@ -54,8 +48,8 @@ public sealed class GearNamedStatesTests
         {
             Pawns =
             [
-                new GearPawn { Pawn = new("chosen"), LoadoutModel = new GearModel.NoOutfit(), Candidates = [] },
-                new GearPawn { Pawn = new("unchosen"), LoadoutModel = new GearModel.NoOutfit(), Candidates = [], ColdFloor = new InsulationFloor.Chosen(3) },
+                new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("chosen") }, LoadoutModel = new GearModel.NoOutfit(), Candidates = [] },
+                new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("unchosen") }, LoadoutModel = new GearModel.NoOutfit(), Candidates = [], ColdFloor = new InsulationFloor.Chosen(3) },
             ],
         };
         var stamped = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = gear }, [new GearChoice("chosen", false, new InsulationFloor.Chosen(-10), new InsulationFloor.Worn())]).Gear.Pawns;

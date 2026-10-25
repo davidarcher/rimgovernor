@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,9 +19,9 @@ public sealed class MedicineTradeTests
         // The review stops at the same threshold: 8 usable herbal of 3 colonists is below the target, 9 is not, 2 starts it.
         MedicalReserveReview Review(long herbal, bool active) => MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
         {
-            Colonists = 3, Catalog = items,
-            Items = EquatableArray.From(new[] { new MedicineStackRow { Id = "h", Definition = Herbal, Count = herbal, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() } }),
-            Resources = EquatableArray.From(new[] { new Amount(Herbal, herbal) }),
+            Catalog = items,
+            Items = EquatableArray.From(new[] { new RimGovernor.Contracts.Wire.Observations.UpkeepItem { Id = "h", Definition = Herbal.Value, Count = herbal, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() } }),
+            Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Herbal.Value, Units = herbal }] },
         }, active, policy);
 
         Assert.True(Review(8, true).Active);
@@ -105,19 +104,19 @@ public sealed class MedicineTradeTests
     [Fact]
     public void MedicineReserveRequiresItsCatalogAndCountsOnlyUnexpiredStacks()
     {
-        Assert.Throws<DomainException>(() => MedicalRules.ReviewMedicalReserve(new(), false, MedicalReservePolicy.Default()));
+        Assert.Throws<DomainException>(() => MedicalRules.ReviewMedicalReserve(new() { Census = ColonyFactsCoreTests.Snapshot() }, false, MedicalReservePolicy.Default()));
         Assert.Throws<DomainException>(() => MedicalRules.ColonistCareBase(new(), [], 1, MedicalReservePolicy.Default()));
         Assert.Equal(MedicalCare.Herbal, MedicalRules.ColonistCareBase(ItemFactsFixtureRules.CoreItemFacts(), [], 1, MedicalReservePolicy.Default()));
         Assert.Equal(MedicalCare.Normal, MedicalRules.ColonistCareBase(ItemFactsFixtureRules.CoreItemFacts(), [new(new Resource("MedicineIndustrial"), 3)], 1, MedicalReservePolicy.Default()));
         var observation = new MedicalReserveObservation
         {
-            Colonists = 1,
+
             Catalog = ItemFactsFixtureRules.CoreItemFacts(),
-            Resources = [new(Herbal, 20)],
+            Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 1, Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Herbal.Value, Units = 20 }] },
             Items = [
-                new() { Id = "lasting", Definition = Herbal, Count = 1, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() },
-                new() { Id = "fresh", Definition = Herbal, Count = 1, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(1) },
-                new() { Id = "expired", Definition = Herbal, Count = 10, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(0) }],
+                new() { Id = "lasting", Definition = Herbal.Value, Count = 1, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Never() },
+                new() { Id = "fresh", Definition = Herbal.Value, Count = 1, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(1) },
+                new() { Id = "expired", Definition = Herbal.Value, Count = 10, Forbidden = false, Rot = new RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting(0) }],
         };
         var result = MedicalRules.ReviewMedicalReserve(observation, true, MedicalReservePolicy.Default());
         Assert.Equal(2, result.Stock);

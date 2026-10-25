@@ -56,7 +56,6 @@
           "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Executor": "[1.0.0, )",
-          "RimGovernor.Brain.Observation": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Simulation": "[1.0.0, )",
           "RimGovernor.Brain.Store": "[1.0.0, )",
@@ -78,7 +77,6 @@
           "RimGovernor.Brain.Bridge.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
-          "RimGovernor.Brain.Observation": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Store": "[1.0.0, )"
         }
@@ -93,7 +91,6 @@
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.Executor": "[1.0.0, )",
           "RimGovernor.Brain.HttpChannel": "[1.0.0, )",
-          "RimGovernor.Brain.Observation": "[1.0.0, )",
           "RimGovernor.Brain.PlayerApi": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Store": "[1.0.0, )",
@@ -125,7 +122,6 @@
           "RimGovernor.Brain.Contracts": "[1.0.0, )",
           "RimGovernor.Brain.Domain": "[1.0.0, )",
           "RimGovernor.Brain.HttpChannel": "[1.0.0, )",
-          "RimGovernor.Brain.Observation": "[1.0.0, )",
           "RimGovernor.Brain.Policy": "[1.0.0, )",
           "RimGovernor.Brain.Store": "[1.0.0, )"
         }

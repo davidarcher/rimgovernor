@@ -3,10 +3,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>
 /// What one family read is for: the world it reads, whether it is the immediate pass's narrow read, and the
 /// observation scope the step already read (#3556), which the read validates against instead of hopping to the
-/// game thread for its own (<see cref="StepScope.StepScopeAsync(FamilyReadScope, Observation.ISource, CancellationToken)"/>);
+/// game thread for its own (<see cref="StepScope.StepScopeAsync(FamilyReadScope, IObservationSource, CancellationToken)"/>);
 /// null outside a clock step.
 /// </summary>
-public readonly record struct FamilyReadScope(GenerationSnapshot World, bool Immediate, Observation.Identity? Scope = null);
+public readonly record struct FamilyReadScope(GenerationSnapshot World, bool Immediate, ObservationIdentity? Scope = null);
 
 /// <summary>
 /// How the scheduler runs a family besides what the family itself declares: its class, the action kinds whose
@@ -111,7 +111,7 @@ internal sealed record FamilyStep
     /// The observation scope (world, tick, generation) the clock step read before its wave (#3556): the family
     /// read validates against it instead of reading the tick itself. Null outside a clock step.
     /// </summary>
-    public Observation.Identity? Scope { get; init; }
+    public ObservationIdentity? Scope { get; init; }
 }
 
 /// <summary>

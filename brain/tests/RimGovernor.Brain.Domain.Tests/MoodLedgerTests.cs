@@ -17,12 +17,12 @@ public sealed class MoodLedgerTests
     [Fact]
     public void ThoughtsAreRoutedByOwnerAndRankedByMoodLost()
     {
-        var pawn = new MoodLedgerPawn
+        var native = PawnFixtures.Row("pawn");
+        native = native with { Social = native.Social with { ExpectationDefName = "Moderate" } };
+        var pawn = new MoodPawn
         {
+            Pawn = native, Forecast = null,
             Thoughts = [new(Owned, -4), new(Free, -6)],
-            Traits = [],
-            Precepts = [],
-            Expectation = "Moderate",
         };
 
         var ledger = MoodRules.BuildMoodLedger([pawn], new Dictionary<string, ThoughtFacts>());
@@ -35,5 +35,26 @@ public sealed class MoodLedgerTests
         Assert.Equal((1, -4.0), (owned.Pawns, owned.Lost));
         Assert.Equal((1, -6.0), (free.Pawns, free.Lost));
         Assert.Equal([Free], ledger.Unowned.Select(s => s.Def));
+        Assert.Same(native, pawn.Pawn);
+    }
+
+    [Fact]
+    public void ThoughtGatesReadCanonicalTraitsPreceptsAndExpectations()
+    {
+        var row = PawnFixtures.Row("pawn");
+        row = row with
+        {
+            Biography = row.Biography with { Traits = [new() { DefName = "Ascetic", Degree = 0 }] },
+            Social = row.Social with { ExpectationDefName = "Low" },
+            Settings = row.Settings with { PolicyInputs = PawnFixtures.Inputs("ideo", 1, ["Nudism_Preferred"]) },
+        };
+        var pawn = new MoodPawn { Pawn = row, Forecast = null, Thoughts = [new(Owned, -4)] };
+        MoodLedger Ledger(ThoughtFacts facts) => MoodRules.BuildMoodLedger([pawn], new Dictionary<string, ThoughtFacts> { [Owned] = facts });
+
+        Assert.Single(Ledger(new() { RequiredTraits = ["Ascetic"] }).Sources);
+        Assert.Empty(Ledger(new() { RequiredTraits = ["Greedy"] }).Sources);
+        Assert.Empty(Ledger(new() { NullifyingTraits = ["Ascetic"] }).Sources);
+        Assert.Empty(Ledger(new() { NullifyingPrecepts = ["Nudism_Preferred"] }).Sources);
+        Assert.Empty(Ledger(new() { MinExpectation = "High" }).Sources);
     }
 }

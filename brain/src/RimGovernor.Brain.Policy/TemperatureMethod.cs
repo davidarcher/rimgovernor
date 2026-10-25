@@ -1,4 +1,3 @@
-using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -222,7 +221,7 @@ public static partial class TemperatureMethodRules
         var banded = false;
         foreach (var p in sleepers)
         {
-            if (!beds.Contains(p.OwnedBed))
+            if (p.OwnedBed is null || !beds.Contains(p.OwnedBed))
             {
                 continue;
             }
@@ -397,62 +396,6 @@ public static partial class TemperatureMethodRules
     /// proves nothing.
     /// </summary>
     public static bool ProvesTemperature(this RoomState r) => r.Enclosed() && r.Roofed();
-
-    /// <summary>
-    /// Uses actual sleeping rooms, including beds whose safe reachability disappears during a temperature
-    /// emergency. Missing room evidence cannot become a comfortable temperature or a reason to claim recovery.
-    /// </summary>
-    public static SleepingTemperature TemperatureRange(RoomObservation fact)
-    {
-        SleepingTemperature none = new SleepingTemperature.NoIndoorBed();
-        var v = fact;
-        v.Validate();
-        var eligible = v.EligibleBeds;
-        if (eligible.Count == 0)
-        {
-            return none;
-        }
-        var wanted = new HashSet<string>(eligible, StringComparer.Ordinal);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        double low = 0.0;
-        double high = 0.0;
-        var have = false;
-        foreach (var room in v.Rooms)
-        {
-            var selected = false;
-            foreach (var id in room.BedIds())
-            {
-                if (wanted.Contains(id))
-                {
-                    selected = true;
-                    seen.Add(id);
-                }
-            }
-            if (!selected)
-            {
-                continue;
-            }
-            var temperature = room.TemperatureC;
-            if (!room.ProvesTemperature())
-            {
-                return none;
-            }
-            if (!have || temperature < low)
-            {
-                low = temperature;
-            }
-            if (!have || temperature > high)
-            {
-                high = temperature;
-            }
-            have = true;
-        }
-        if (seen.Count == wanted.Count && have)
-        {
-            return new SleepingTemperature.Indoor(low, high);
-        }
-        return none;
-    }
 
     private sealed class ThermalChoice(RoomState room, IReadOnlyList<Cell> cells, string bed, TemperatureMethod method, double temperature)
     {

@@ -149,9 +149,9 @@ partial record struct RoundsProjectBill
         return into;
     }
 
-    internal static IReadOnlyList<Pol.WorkRequirement> RoundsProjectWork(IReadOnlyList<string> names, IReadOnlyList<Observation.PlanningDefinition> definitions)
+    internal static IReadOnlyList<Pol.WorkRequirement> RoundsProjectWork(IReadOnlyList<string> names, IReadOnlyList<RimGovernor.Brain.Policy.PlanningDefinition> definitions)
     {
-        var byName = new Dictionary<string, Observation.PlanningDefinition>(StringComparer.Ordinal);
+        var byName = new Dictionary<string, RimGovernor.Brain.Policy.PlanningDefinition>(StringComparer.Ordinal);
         foreach (var d in definitions)
         {
             byName[d.Name] = d;

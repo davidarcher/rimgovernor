@@ -1,34 +1,6 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
-
-/// <summary>
-/// Compares a seasonal horizon with the native pen's worst-season pasture rate and stored feed. It does not add
-/// grass to the human food ledger.
-/// </summary>
-public sealed record PenGrazing
-{
-    public double DemandPerDay { get; init; }
-
-    public double PasturePerDay { get; init; }
-
-    public double StoredNutrition { get; init; }
-}
-
-/// <summary>Native's raw per-animal flags the slaughter exclusion reads; Designatable is Designator_Slaughter's own acceptance.</summary>
-public sealed record SlaughterFacts
-{
-    public bool Downed { get; init; }
-
-    public bool InMentalState { get; init; }
-
-    public bool Pregnant { get; init; }
-
-    public bool Mastered { get; init; }
-
-    public bool ColonistBonded { get; init; }
-
-    public bool Designatable { get; init; }
-}
 
 /// <summary>
 /// What an animal eats that the colony's food math counts: Plants at PerDay (its race's adult feed scaled by its
@@ -56,7 +28,9 @@ public abstract record AnimalBreeding
 /// <summary>One animal whose meat the colony eats: the nutrition its live meat yields, what it eats and how often its race renews.</summary>
 public sealed record SlaughterFoodAnimal
 {
-    public PawnId ID { get; init; }
+    public required O.FoodSlaughterAnimal Observed { get; init; }
+
+    public PawnId ID => new(Observed.PawnId);
 
     public double MeatNutrition { get; init; }
 
@@ -72,7 +46,7 @@ public static class AnimalFoodExtensions
     /// release-designated animal, or one the slaughter designator refuses, is protected.
     /// </summary>
     public static bool SafeToSlaughter(this UpkeepAnimal a) =>
-        !a.Release && !a.SlaughterFacts.Protected() && a.SlaughterFacts.Designatable;
+        !a.Release && !a.State.Protected() && a.State.SlaughterDesignatable;
 
     /// <summary>
     /// The release exclusion policy owns: the slaughter protections (downed, mentally broken, pregnant,
@@ -80,11 +54,11 @@ public static class AnimalFoodExtensions
     /// SafeToRelease is Designator_ReleaseAnimalToWild's own acceptance.
     /// </summary>
     public static bool ReleaseAllowed(this UpkeepAnimal a) =>
-        !a.Release && !a.Slaughter && !a.SlaughterFacts.Protected() && a.SafeToRelease;
+        !a.Release && !a.Slaughter && !a.State.Protected() && a.SafeToRelease;
 
     /// <summary>A downed, mentally broken, pregnant, mastered or colonist-bonded animal.</summary>
-    private static bool Protected(this SlaughterFacts f) =>
-        f.Downed || f.InMentalState || f.Pregnant || f.Mastered || f.ColonistBonded;
+    private static bool Protected(this O.AnimalState f) =>
+        f.Downed || f.InMentalState || f.Pregnancy is not O.AnimalPregnancy.NotPregnant || f.MasterId.Length != 0 || f.ColonistBonded;
 }
 
 public static class AnimalFoodRules
@@ -168,7 +142,7 @@ public static class AnimalFoodRules
             if (a.Slaughter)
             {
                 pending.Add(a.Id);
-                a = a with { Slaughter = false, SlaughterFacts = a.SlaughterFacts with { Designatable = true } };
+                a = a with { Pawn = a.Pawn with { AnimalState = new O.PawnAnimalState.Animal(a.State with { Slaughter = false, SlaughterDesignatable = true }) } };
             }
 
             observed.Add(a);

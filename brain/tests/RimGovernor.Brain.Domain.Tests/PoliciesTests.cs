@@ -28,12 +28,7 @@ public sealed class PoliciesTests
         MinQuality = 0,
         MaxQuality = 6,
         ExcludesTainted = false,
-        Child = false,
         Slave = false,
-        IncapableOfViolence = false,
-        Work = [],
-        Drafted = false,
-        Skills = [],
         PawnName = "",
         PolicyId = "",
         RequiredDefs = [],
@@ -94,7 +89,7 @@ public sealed class PoliciesTests
         var json = WireJson.Serialize(EmptyOutfit);
 
         Assert.Equal(
-            """{"token":"","name":"","allowedDefs":[],"minHitPoints":0,"maxHitPoints":1,"minQuality":0,"maxQuality":6,"excludesTainted":false,"child":false,"slave":false,"incapableOfViolence":false,"work":[],"drafted":false,"skills":[],"pawnName":"","policyId":"","requiredDefs":[],"nude":false}""",
+            """{"token":"","name":"","allowedDefs":[],"minHitPoints":0,"maxHitPoints":1,"minQuality":0,"maxQuality":6,"excludesTainted":false,"slave":false,"pawnName":"","policyId":"","requiredDefs":[],"nude":false}""",
             json);
         Assert.Equal(EmptyOutfit, WireJson.Deserialize<ApparelPolicyState>(json));
     }

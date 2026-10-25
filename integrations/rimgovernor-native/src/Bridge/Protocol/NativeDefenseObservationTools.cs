@@ -58,20 +58,20 @@ namespace HomeBridge.BridgeTools
             if (request?.Scope?.ExpectedIdentity == null) return false;
             return Unique(request.FiringCells) && Unique(request.ApproachCells);
         }
-        private static bool Unique(IEnumerable<Common.Cell> cells)
+        private static bool Unique(IEnumerable<RimGovernor.Brain.Domain.Cell> cells)
         {
             var list = cells.ToList();
-            if (list.Count < 1 ||list.Any(c => !HasCell(c))) return false;
+            if (list.Count < 1) return false;
             return list.Select(Native).Distinct().Count() == list.Count;
         }
-        private static bool HasCell(Common.Cell? cell) => cell != null;
-        private static IntVec3 Native(Common.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
+        private static IntVec3 Native(RimGovernor.Brain.Domain.Cell cell) => new IntVec3(cell.X, 0, cell.Z);
         // Region is null when the rectangle leaves the live map, checked on its
         // corners before any cell is listed; a null map checks shape only.
         internal static List<IntVec3>? Region(Obs.Rectangle? region, Map? map)
         {
-            var min = region?.Minimum; var max = region?.Maximum;
-            if (!HasCell(min) || !HasCell(max) || (max ?? throw new System.InvalidOperationException("Required native value is unavailable: max.")).X < (min ?? throw new System.InvalidOperationException("Required native value is unavailable: min.")).X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
+            if (region == null) throw new ArgumentException("Rectangle missing.");
+            var min = region.Minimum; var max = region.Maximum;
+            if (max.X < min.X || max.Z < min.Z) throw new ArgumentException("Invalid rectangle.");
             if (map == null) return new List<IntVec3>();
             if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return null;
             var width = (long)max.X - min.X + 1; var height = (long)max.Z - min.Z + 1;

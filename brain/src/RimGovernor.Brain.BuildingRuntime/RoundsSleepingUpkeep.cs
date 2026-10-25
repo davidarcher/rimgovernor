@@ -29,7 +29,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             throw new ControlException("NewRoundsSleepingUpkeepPlanner: reviewer == nil || native == nil");
         }
-        if (native is not Observation.IRoundsSource)
+        if (native is not IRoundsSource)
         {
             throw new ControlException("NewRoundsSleepingUpkeepPlanner: !ok");
         }
@@ -67,14 +67,14 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var p = Reviewer.Player;
         var started = Reviewer.Clock.Now();
         var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
-        var expected = DecodeReads.DecodeIdentity(identity);
+        var expected = new ObservationIdentity { Context = identity.Context, Paused = identity.Paused };
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("decide: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         List<string> definitions = ["Wall", "Door", .. RoomQualityRules.RoomBeautyDefinitions(), .. Reviewer.RememberedThrones(), .. Reviewer.Census.RememberedWorship()];
-        var reading = await Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)Native, expected, [.. definitions], call).ConfigureAwait(false);
-        var facts = reading.Projection;
+        var reading = await Reviewer.ObserveOwnedAsync((IRoundsSource)Native, expected, [.. definitions], call).ConfigureAwait(false);
+        var facts = reading.Reading;
         // The day-one floor's stand-in spots come before any bed change (#3659).
         if (await StandInSpotsAsync(state, review, goal, facts, call, epoch).ConfigureAwait(false) is { } standIn)
         {
@@ -129,7 +129,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                         return await FirstUnheldRoomAsync(step.Owed.Count > 0 ? step.Owed : [step.Room], room => ReconcileBedroomAsync(stock, state, review, goal, reading, step with { Room = room }, call, epoch)).ConfigureAwait(false);
                     case Pol.BedroomStepKind.Clear:
                         return await RemoveOldBedAsync(state, review, goal, reading, new Pol.BedReplacement { Room = "shell", Bed = step.Bed, Def = SleepingRules.SleepingSpotDefinition.ToString(), Cell = step.Cells[0] }, call, epoch).ConfigureAwait(false);
-                    default:
+                    case Pol.BedroomStepKind.None:
                     {
                         // The title's throne room: reconciled to the plan and its template, then furnished through the room upgrade below.
                         var throne = ThroneStepOf(facts);
@@ -187,6 +187,8 @@ public sealed partial class RoundsSleepingUpkeepPlanner
                         swapping = true;
                         break;
                     }
+                    case var invalid:
+                        throw new ControlException($"sleeping: invalid bedroom step {invalid}");
                 }
                 break;
             }
@@ -313,7 +315,7 @@ public sealed partial class RoundsBuildingPlanner
     /// Resolves the building ladder's definition and site from the same census the sleeping planner chose
     /// from: only a SleepingBuild choice furnishes; every other outcome is reported, never built around.
     /// </summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectSleeping(Observation.ColonyProjection facts, Sto.Rounds review)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectSleeping(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, Sto.Rounds review)
     {
         var request = RoundsSleepingUpkeepPlanner.SleepingRequest(facts, review);
         var choice = SleepingRules.SelectSleepingMethod(request);
@@ -330,7 +332,7 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>The building ladder resolved for a SleepingBuild choice.</summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) ResolveSleeping(Observation.ColonyProjection facts, Pol.SleepingChoice choice)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) ResolveSleeping(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, Pol.SleepingChoice choice)
     {
         if (choice.Cells.Count == 0)
         {
@@ -354,14 +356,14 @@ partial class RoundsSleepingUpkeepPlanner
     /// Re-derives the sleeping targets from this step's census against the review's retained use history, so
     /// the choice and the build site share one observation.
     /// </summary>
-    internal static Pol.SleepingRequest SleepingRequest(Observation.ColonyProjection facts, Sto.Rounds review)
+    internal static Pol.SleepingRequest SleepingRequest(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, Sto.Rounds review)
     {
         var sleeping = SleepingRules.ReviewSleeping(facts.Facts.Sleeping, review.Sleeping, facts.Identity.Tick);
-        EquatableArray<Pol.BenchDefinition> definitions = [.. facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill })];
+        EquatableArray<Pol.BenchDefinition> definitions = [.. facts.Facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill })];
         var stocked = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in new[] { SleepingRules.SleepingBedrollDefinition, SleepingRules.SleepingCoupleBedrollDefinition })
         {
-            if (facts.StockedStuff(name).HasValue)
+            if (ColonyPlanningRules.StockedStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), name).HasValue)
             {
                 stocked.Add(name);
             }
@@ -370,20 +372,20 @@ partial class RoundsSleepingUpkeepPlanner
         {
             Targets = sleeping.Targets,
             Sleeping = facts.Facts.Sleeping,
-            Rooms = facts.Rooms,
+            Rooms = facts.Facts.Upkeep.Rooms,
             Definitions = definitions,
-            Furniture = facts.Shapes.Furniture,
+            Furniture = facts.Facts.Shapes.Furniture,
             Stocked = stocked,
             Traits = SleepingTraits(facts),
         };
-        facts.TechTier.TryGetValue(out var tier);
-        return request with { RoomTargets = RoomQualityRules.RoomQualityTargets(facts.Facts.Sleeping, request.Traits ?? new Dictionary<PawnId, Pol.TraitEffects>(), tier, facts.Impressiveness) };
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
+        return request with { RoomTargets = RoomQualityRules.RoomQualityTargets(facts.Facts.Sleeping, request.Traits ?? new Dictionary<PawnId, Pol.TraitEffects>(), tier, facts.Facts.Impressiveness) };
     }
 
     /// <summary>Each colonist's trait effects from the work census, null while it is unknown.</summary>
-    internal static Dictionary<PawnId, Pol.TraitEffects>? SleepingTraits(Observation.ColonyProjection facts)
+    internal static Dictionary<PawnId, Pol.TraitEffects>? SleepingTraits(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
-        var pawns = facts.WorkPawns.Pawns;
+        var pawns = facts.Facts.ForecastObserved.WorkPawns.Pawns;
         var output = new Dictionary<PawnId, Pol.TraitEffects>(pawns.Count);
         foreach (var p in pawns)
         {
@@ -393,7 +395,7 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>The next room quality swap: a jealous colonist into the best solo bedroom, an ascetic into the plainest.</summary>
-    internal static (Pol.BedroomSwap Swap, bool Ok) BedroomSwapOf(Observation.ColonyProjection facts)
+    internal static (Pol.BedroomSwap Swap, bool Ok) BedroomSwapOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var obs = facts.Facts.Sleeping;
         var traits = SleepingTraits(facts);
@@ -401,8 +403,8 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return (new Pol.BedroomSwap(), false);
         }
-        var rooms = facts.Rooms;
-        if (facts.LayoutPlan is not { } plan)
+        var rooms = facts.Facts.Upkeep.Rooms;
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return (new Pol.BedroomSwap(), false);
         }
@@ -418,15 +420,15 @@ partial class RoundsSleepingUpkeepPlanner
         method == Pol.SleepingMethod.NoDemand || method == Pol.SleepingMethod.Build || method == Pol.SleepingMethod.Unavailable;
 
     /// <summary>The stuff a bed step builds definition from: a bedroll's first stuff option in stock, else the cheapest the rows allow.</summary>
-    internal static string BedStuff(Observation.ColonyProjection facts, string definition)
+    internal static string BedStuff(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, string definition)
     {
         if (definition == SleepingRules.SleepingBedrollDefinition || definition == SleepingRules.SleepingCoupleBedrollDefinition)
         {
-            if (facts.StockedStuff(definition) is { } stocked)
+            if (ColonyPlanningRules.StockedStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), definition) is { } stocked)
             {
                 return stocked.Stuff;
             }
         }
-        return facts.BuildStuff(definition);
+        return ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), definition);
     }
 }

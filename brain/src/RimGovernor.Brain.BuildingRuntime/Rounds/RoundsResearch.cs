@@ -150,7 +150,7 @@ public sealed class EconomyRounds
         var claims = _reviewer.Player.Journal.ConstructionClaims(scope.World, expected.Tick, ct);
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
         var research = EconomyRules.ResearchSummary(economy.Research);
-        var observed = reading.Projection.Facts with
+        var observed = reading.Reading.Facts with
         {
             ResourceRunways = review.ResourceRunwayState(),
             ResearchNeeds = economy.ResearchNeeds,
@@ -253,9 +253,9 @@ public sealed class EconomyRounds
 
 public sealed partial class RoundsBuildingPlanner
 {
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectResearchBench(ColonyProjection facts)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectResearchBench(ColonyReading facts)
     {
-        var bench = facts.Shapes.Furniture.BenchFor(RoomRole.Laboratory);
+        var bench = facts.Facts.Shapes.Furniture.BenchFor(RoomRole.Laboratory);
         if (AdvancedLab)
         {
             var (owed, ok) = AdvancedLabOwed(facts);
@@ -268,7 +268,7 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         PlanningDefinition? definition = null;
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             if (d.Name == bench)
             {
@@ -293,20 +293,20 @@ public sealed partial class RoundsBuildingPlanner
         resolved.Definition = bench;
         resolved.Environment = PlacementEnvironment.Indoors;
         resolved.Facility = facility;
-        resolved.Stuff = facts.BulkBuildStuff(bench, 1);
+        resolved.Stuff = ColonyPlanningRules.BulkBuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), bench, 1);
         return (resolved, default);
     }
 
-    internal static (string Definition, bool Owed) AdvancedLabOwed(ColonyProjection facts)
+    internal static (string Definition, bool Owed) AdvancedLabOwed(ColonyReading facts)
     {
-        var furniture = facts.Shapes.Furniture;
+        var furniture = facts.Facts.Shapes.Furniture;
         if (furniture.AdvancedLab == "")
         {
             return ("", false);
         }
 
         var standing = new HashSet<string>();
-        foreach (var c in facts.Cells)
+        foreach (var c in facts.PlanningWindow.Cells)
         {
             var d = c.PlayerEdifice();
             if (d != "")
@@ -326,7 +326,7 @@ public sealed partial class RoundsBuildingPlanner
             return ("", false);
         }
 
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             if (d.Name == next)
             {

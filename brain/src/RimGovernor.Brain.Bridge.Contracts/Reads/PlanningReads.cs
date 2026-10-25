@@ -7,20 +7,16 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 
 // Read models of the dispatch verticals. The reads and frame decoders are wire plumbing.
 
-/// <summary>One weapon thing a pawn could equip, where it lies and its CAS token.</summary>
+/// <summary>A loose weapon's native stock, item and optional matching gear row.</summary>
 public sealed record EquipCandidate
 {
-    public string Thing { get; init; } = "";
+    public required Obs.ResourceStock Stock { get; init; }
 
-    public string Definition { get; init; } = "";
+    public required Obs.StockItem Item { get; init; }
 
-    public Domain.PawnId BiocodedTo { get; init; }
+    public Obs.GearItem? Gear { get; init; }
 
-    public bool Biocoded { get; init; }
-
-    public DomainCell Cell { get; init; }
-
-    public string Token { get; init; } = "";
+    public string Definition => Stock.DefName;
 }
 
 /// <summary>The equip candidates over a region.</summary>
@@ -124,24 +120,7 @@ public sealed record BuildingPreview
 /// <summary>One workbench's CAS token and its gear bench facts.</summary>
 public sealed record GearBenchRead
 {
-    public string Token { get; init; } = "";
+    public string Token => Bench.Observed.Snapshot.Token ?? throw new RequiredFactException("gear bench CAS token:" + Bench.Id);
 
     public required GearBench Bench { get; init; }
-}
-
-/// <summary>The native answer to one combat order.</summary>
-public sealed record CombatOrderResult
-{
-    public int Index { get; init; }
-
-    /// <summary>Empty for a door order.</summary>
-    public string PawnId { get; init; } = "";
-
-    public bool Applied { get; init; }
-
-    /// <summary>One of the <c>CombatRefusal*</c> reasons when the order was not applied.</summary>
-    public string Refusal { get; init; } = "";
-
-    /// <summary>The ordered job, when the order took one.</summary>
-    public string JobDef { get; init; } = "";
 }

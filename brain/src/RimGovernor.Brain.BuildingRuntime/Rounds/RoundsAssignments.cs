@@ -52,26 +52,26 @@ public sealed partial class RoundsWorkPlanner
         }
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, definitions, call).ConfigureAwait(false);
-        var pawns = read.Projection.WorkPawns.Pawns;
-        var construction = ConstructionSkillRules.ConstructionSkillChoices(read.Projection.Facts.CurrentConstruction, pawns).ToList();
+        var pawns = read.Reading.Facts.ForecastObserved.WorkPawns.Pawns;
+        var construction = ConstructionSkillRules.ConstructionSkillChoices(read.Reading.Facts.CurrentConstruction, pawns).ToList();
         if (construction.Count > 8)
         {
             construction = construction[..8];
         }
-        var required = RoundsProjectBill.RoundsProjectWork(definitions, read.Projection.Definitions);
+        var required = RoundsProjectBill.RoundsProjectWork(definitions, read.Reading.Facts.Definitions);
         var resourceTargets = _reviewer.ResourceTargets(state.Snapshot);
         // The resource targets are in deficit when the economy/resource Need's threshold reads short now.
-        var deficit = !ResearchRules.ResourceTargetNeed(resourceTargets, read.Projection.Facts.Resources).Recovered;
-        var targets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, deficit, read.Projection.Facts.Gear);
-        var benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, targets, targets.Count > 0, read.Projection.Facts.Items.Wort, call).ConfigureAwait(false);
+        var deficit = !ResearchRules.ResourceTargetNeed(resourceTargets, read.Reading.Facts.ObservedStock()).Recovered;
+        var targets = RoundsProjectBill.RoundsDeficitTargets(resourceTargets, deficit, read.Reading.Facts.Gear);
+        var benchWork = await RoundsProjectBill.RoundsBenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, targets, targets.Count > 0, read.Reading.Facts.Items.Wort, call).ConfigureAwait(false);
 
         required = RoundsProjectBill.MergeWorkRequirements([.. required], benchWork);
-        var needs = RoundsProjectBill.RoundsResearchNeeds(p.Journal, _reviewer.Policy, read.Projection.Facts.Items, state.Snapshot, _reviewer.EquipmentOwed(state.Snapshot), call);
+        var needs = RoundsProjectBill.RoundsResearchNeeds(p.Journal, _reviewer.Policy, read.Reading.Facts.Items, state.Snapshot, _reviewer.EquipmentOwed(state.Snapshot), call);
         needs = _reviewer.CensusResearchNeeds(needs);
-        required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsProjectBill.RoundsResearchWork(needs, read.Projection.Facts.Research));
-        required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsFieldPlanner.FishingWork(read.Projection));
-        required = RoundsProjectBill.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(read.Projection.Facts.Containment));
-        var demand = RoundsDisease.RoundsDiseaseDemand(read.Projection, definitions, review, state.Snapshot);
+        required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsProjectBill.RoundsResearchWork(needs, read.Reading.Facts.Research));
+        required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsFieldPlanner.FishingWork(read.Reading));
+        required = RoundsProjectBill.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(read.Reading.Facts.Containment));
+        var demand = RoundsDisease.RoundsDiseaseDemand(read.Reading, definitions, review, state.Snapshot);
         var sharedWork = p.Journal.WorkResources(state.Snapshot, call);
         demand = demand with { CommittedPawns = sharedWork.Claims.Pawns, WorkClaimsTruncated = sharedWork.Claims.Truncated };
         var decision = WorkRules.PlanWork(pawns, required, demand);
@@ -96,10 +96,10 @@ public sealed partial class RoundsWorkPlanner
             if (changed.Count > 0) work.Add(WorkAssignment.NewWorkAssignment(assignment.Pawn, changed));
         }
         var settings = new List<PawnSettings>(HostilityRules.HostilityChanges(HostilityRows(pawns), read.Emergency.Threats));
-        var reserve = MedicalRules.ReviewMedicalReserve(read.Projection.Facts.MedicalReserve, false, _reviewer.Policy.MedicalReserve);
+        var reserve = MedicalRules.ReviewMedicalReserve(read.Reading.Facts.MedicalReserve, false, _reviewer.Policy.MedicalReserve);
         settings.AddRange(MedicineCarryRules.MedicineCarryChanges(MedicineCarryRules.MedicineCarryRows(pawns), reserve.Stock, reserve.Target));
-        settings.AddRange(PawnRules.NicknameChanges(read.Projection.Facts.Population.Names));
-        var care = MedicalRules.MedicalCareChanges(read.Projection.Facts, _reviewer.Policy.MedicalReserve).ToList();
+        settings.AddRange(PawnRules.NicknameChanges(read.Reading.Facts.Population.Names));
+        var care = MedicalRules.MedicalCareChanges(read.Reading.Facts, _reviewer.Policy.MedicalReserve).ToList();
         if (care.Count > 8)
         {
             care = care[..8];
@@ -107,7 +107,7 @@ public sealed partial class RoundsWorkPlanner
         settings.AddRange(care);
         settings.AddRange(RoundsMech.RoundsMechSettings(read));
         var reading = new List<ReadingPolicy>();
-        var readingChanges = RoundsReadingChanges(read.Projection.Policies, read.Projection.Books, read.Projection.Facts.Population, pawns, read.Projection.Facts.GoalTraining);
+        var readingChanges = RoundsReadingChanges(read.Reading.Snapshot.Policies, read.Reading.Facts.Books, read.Reading.Facts.Population, pawns, read.Reading.Facts.GoalTraining);
         if (readingChanges.Count > 0)
         {
             foreach (var c in readingChanges.Take(8))
@@ -123,7 +123,7 @@ public sealed partial class RoundsWorkPlanner
             }
         }
         var food = new List<FoodPolicy>();
-        var dietChanges = RoundsDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Foods, read.Projection.FoodEaters, read.Projection.Facts.Population, pawns, read.Projection.Facts.FoodReserve, read.Projection.Facts.Preferences);
+        var dietChanges = RoundsDietChanges(read.Reading.Facts.Ideology, read.Reading.Snapshot.Policies, read.Reading.Facts.Foods, read.Reading.Facts.FoodEaters, read.Reading.Facts.Population, pawns, read.Reading.Facts.FoodReserve, read.Reading.Facts.Preferences);
         if (dietChanges.Count > 0)
         {
             foreach (var c in dietChanges.Take(8))
@@ -139,7 +139,7 @@ public sealed partial class RoundsWorkPlanner
             }
         }
         var drug = new List<DrugPolicy>();
-        var drugChanges = DrugPolicyPlanRules.Changes(read.Projection.Facts.Preferences, read.Projection.Facts.Items, pawns, OwnedDrugPolicies(read.Projection.Policies));
+        var drugChanges = DrugPolicyPlanRules.Changes(read.Reading.Facts.Preferences, read.Reading.Facts.Items, pawns, OwnedDrugPolicies(read.Reading.Snapshot.Policies));
         if (drugChanges.Write is not null)
         {
             drug.Add(drugChanges.Write);
@@ -368,7 +368,7 @@ partial class RoundsWorkPlanner
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>
-    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(IdeologyMode ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, PrisonerCensus census, IReadOnlyList<WorkPawn> pawns, FoodReserveState reserve, PreferencesRecord preferences)
+    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(IdeologyMode ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEaterDiet> eaters, PrisonerCensus census, IReadOnlyList<WorkPawn> pawns, FoodReserveState reserve, PreferencesRecord preferences)
     {
         if (foods.Count == 0)
         {

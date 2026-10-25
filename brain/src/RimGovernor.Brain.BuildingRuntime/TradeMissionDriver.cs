@@ -6,7 +6,7 @@ partial class RoundsTradePlanner
     /// Requires actual cargo held by the returned native crew. An accept receipt, caravan disappearance, or
     /// existing home stock proves none.
     /// </summary>
-    public static bool TradeMissionDelivered(TradeMission m, WorldProgressionRead world, IReadOnlyDictionary<string, long> cargo)
+    public static bool TradeMissionDelivered(TradeMission m, RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot world, IReadOnlyDictionary<string, long> cargo)
     {
         if (!TradeMissionValid(m) || !m.PurchaseCommitted || m.ReturnGoods.Count == 0 || !TradeMissionCrewAtHome(m, world))
         {
@@ -52,7 +52,7 @@ partial class RoundsTradePlanner
 
 partial class RoundsTradePlanner
 {
-    internal static PbObservations.CaravanState? MissionCaravan(TradeMission m, WorldProgressionRead world)
+    internal static PbObservations.CaravanState? MissionCaravan(TradeMission m, RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot world)
     {
         PbObservations.CaravanState? found = null;
         foreach (var row in world.Caravans)
@@ -340,14 +340,11 @@ public sealed partial class RoundsTradePlanner
             throw new ControlException("missionPurchases: frame tables carry no catalog");
         }
         var catalog = await definitions.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
-        var projection = ColonyDecodeReads.DecodeColony(
+        var projection = ColonyPlanningReads.Compose(
             reply,
-            new Observation.Identity
+            new ObservationIdentity
             {
-                Colony = state.Snapshot.Colony,
-                Load = state.Snapshot.Load,
-                Map = state.Snapshot.Map,
-                Tick = new Tick(reply.Context.Tick),
+                Context = reply.Context with { Identity = Boundary.Identity(state.Snapshot), NativeGeneration = new C.ObservedGeneration.AtCase(state.Snapshot.Native.Value) },
             },
             tables,
             catalog);
@@ -400,7 +397,7 @@ public sealed partial class RoundsTradePlanner
         {
             Mission = m,
             Targets = targets,
-            Stock = projection.Facts.Resources,
+            Stock = projection.Facts.ObservedStock(),
             FoodGapPerDay = foodGap,
             FoodTargetDays = Reviewer.Policy.FoodTargetDays,
             Nutrition = nutrition,

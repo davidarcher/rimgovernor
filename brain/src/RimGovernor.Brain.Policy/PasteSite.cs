@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record PasteSiteRequest
 {
-    public MealTierRequest Meals { get; init; } = new();
+    public required MealTierRequest Meals { get; init; }
 
     public EquatableArray<ProductionBench> Benches { get; init; }
 

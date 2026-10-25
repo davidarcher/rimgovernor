@@ -9,6 +9,40 @@ namespace RimGovernor.Brain.Domain.Tests;
 // headroom is a plain number; each state round-trips exactly through the wire JSON and none is a missing value.
 public sealed class LootWireTests
 {
+    [Fact]
+    public void PolicyRetainsTheNativeRowAndEntityUntilSelectingSupplyWork()
+    {
+        var observed = Row(new O.HaulSafety.Safe { PathLength = 12.5 }, 30, "Zone_a", "Shelf_b");
+        var entity = new O.EntityRef
+        {
+            Id = observed.Item.Id!, DefName = "WoodLog", Label = "wood",
+            Place = new O.EntityPlace.OnMap(7, new(14, 19)),
+        };
+        var stack = new Policy.LootItem { Observed = observed, Entity = entity, SpawnForbidden = true };
+
+        Assert.Same(observed, stack.Observed);
+        Assert.Same(entity, stack.Entity);
+        Assert.Same(observed.Safety, stack.Haul);
+        Assert.Same(observed.Deterioration, stack.Deterioration);
+        Assert.Equal(observed.Count, stack.Count);
+        Assert.Equal(observed.StorageHeadroom, stack.StorageHeadroom);
+        Assert.Equal(["Zone_a", "Shelf_b"], stack.AcceptedBy);
+        Assert.True(stack.SpawnForbidden);
+        Assert.Equal(new Policy.StartingSupply { Thing = observed.Item.Id!, Definition = entity.DefName, Cell = new(14, 19) }, stack.Supply);
+
+        var moved = stack with
+        {
+            Observed = observed with { Forbidden = true, Count = 12, StorageHeadroom = 0, Safety = new O.HaulSafety.Unreached() },
+            Entity = entity with { Place = new O.EntityPlace.OnMap(7, new(20, 21)) },
+        };
+        Assert.True(moved.Forbidden);
+        Assert.Equal(12, moved.Count);
+        Assert.Equal(0, moved.StorageHeadroom);
+        Assert.True(moved.IsUnreached);
+        Assert.Equal(new RimGovernor.Brain.Domain.Cell(20, 21), moved.Supply.Cell);
+        Assert.False(moved.Supply.Forbid);
+    }
+
     private static O.LootItem Row(O.HaulSafety haul, long headroom, params string[] accepted) => new()
     {
         Item = new C.Ref { Id = "Thing_Wood1" },

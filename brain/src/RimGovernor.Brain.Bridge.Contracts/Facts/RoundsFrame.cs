@@ -34,7 +34,7 @@ public sealed record RoundsFrame
 
     public TradersSnapshot? Traders { get; init; }
 
-    public WorldProgressionRead? Quests { get; init; }
+    public RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot? Quests { get; init; }
 
     /// <summary>The Ideology expansion's mode: not installed, or installed with the primary ideoligion and the catalog's defs; a decoded routine frame always says.</summary>
     public IdeologyMode Ideology { get; init; } = new IdeologyMode.NotInstalled();

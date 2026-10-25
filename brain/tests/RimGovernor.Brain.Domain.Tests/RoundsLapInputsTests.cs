@@ -1,9 +1,9 @@
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using SleepingTemperature = RimGovernor.Contracts.Wire.Observations.SleepingTemperature;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -19,7 +19,7 @@ public sealed class RoundsLapInputsTests
     public void NamesTheLapsWhoseEnteringReadingChangedAndTheProperties()
     {
         var inputs = new RoundsLapInputs();
-        var observed = ColonyFactsCoreTests.Projection() with { Identity = new Identity { Tick = new Tick(100) } };
+        var observed = ColonyFactsCoreTests.Reading() with { Identity = new ObservationIdentity { Context = ColonyFactsCoreTests.Snapshot().Context with { Tick = 100 } } };
         var laid = observed with { Facts = observed.Facts with { FoodDays = new FoodRunway.Days(3.0) } };
         inputs.Begin(World);
         inputs.Left("observe", observed);
@@ -30,9 +30,9 @@ public sealed class RoundsLapInputsTests
         // The next review: the observation moved on (its tick), the layout lap left the same food days but a
         // different mood census, and the owed lap left its reading untouched.
         inputs.Begin(World);
-        var observedAgain = observed with { Identity = new Identity { Tick = new Tick(700) } };
+        var observedAgain = observed with { Identity = new ObservationIdentity { Context = ColonyFactsCoreTests.Snapshot().Context with { Tick = 700 } } };
         inputs.Left("observe", observedAgain);
-        var laidAgain = laid with { Identity = observedAgain.Identity, Facts = laid.Facts with { MoodPawns = [new MoodPawn { Id = new("pawn"), Mood = new MoodLevel.Has(.5, .4) }] } };
+        var laidAgain = laid with { Identity = observedAgain.Identity, Facts = laid.Facts with { MoodPawns = [MoodFixtures.Has("pawn", .5, .4)] } };
         inputs.Left("layout", laidAgain);
         inputs.Left("d_owed", laidAgain);
         var changed = inputs.Changed();
@@ -50,14 +50,14 @@ public sealed class RoundsLapInputsTests
     public void ALapEnteringOnAnIdenticalReadingIsSame()
     {
         var inputs = new RoundsLapInputs();
-        var observed = ColonyFactsCoreTests.Projection() with { Identity = new Identity { Tick = new Tick(100) } };
+        var observed = ColonyFactsCoreTests.Reading() with { Identity = new ObservationIdentity { Context = ColonyFactsCoreTests.Snapshot().Context with { Tick = 100 } } };
         inputs.Begin(World);
         inputs.Left("observe", observed);
         inputs.Left("layout", observed);
         inputs.Begin(World);
         // A structurally equal reading, not the same instance.
-        inputs.Left("observe", ColonyFactsCoreTests.Projection() with { Identity = new Identity { Tick = new Tick(100) } });
-        inputs.Left("layout", observed with { Facts = new RoundsFacts() });
+        inputs.Left("observe", ColonyFactsCoreTests.Reading() with { Identity = new ObservationIdentity { Context = ColonyFactsCoreTests.Snapshot().Context with { Tick = 100 } } });
+        inputs.Left("layout", observed with { Facts = observed.Facts with { } });
         var changed = inputs.Changed();
 
         Assert.NotNull(changed);
@@ -70,15 +70,15 @@ public sealed class RoundsLapInputsTests
     {
         // Two default projections differ in nothing the comparison sees; the properties whose types compare by
         // reference (the catalog tables a review rebuilds) are named instead.
-        Assert.Empty(RoundsLapInputs.Differences(ColonyFactsCoreTests.Projection(), ColonyFactsCoreTests.Projection()));
-        Assert.Contains("Shapes", RoundsLapInputs.Uncompared);
+        Assert.Empty(RoundsLapInputs.Differences(ColonyFactsCoreTests.Reading(), ColonyFactsCoreTests.Reading()));
+        Assert.Contains("Facts.Shapes", RoundsLapInputs.Uncompared);
         Assert.Contains("Facts.Items", RoundsLapInputs.Uncompared);
         Assert.Contains("Facts.CurrentConstruction", RoundsLapInputs.Uncompared);
         Assert.Contains("Facts.Gear", RoundsLapInputs.Uncompared);
         Assert.True(RoundsLapInputs.HasValueEquality(typeof(EquatableArray<MoodPawn>)));
-        Assert.True(RoundsLapInputs.HasValueEquality(typeof(Identity)));
+        Assert.True(RoundsLapInputs.HasValueEquality(typeof(ObservationIdentity)));
         Assert.False(RoundsLapInputs.HasValueEquality(typeof(List<string>)));
-        Assert.False(RoundsLapInputs.HasValueEquality(typeof(Fact<IReadOnlyList<string>>)));
+        Assert.False(RoundsLapInputs.HasValueEquality(typeof(IReadOnlyList<string>)));
     }
 
     [Fact]
@@ -86,9 +86,9 @@ public sealed class RoundsLapInputsTests
     {
         var inputs = new RoundsLapInputs();
         inputs.Begin(World);
-        inputs.Left("observe", ColonyFactsCoreTests.Projection());
+        inputs.Left("observe", ColonyFactsCoreTests.Reading());
         inputs.Begin(World with { Map = new(2) });
-        inputs.Left("observe", ColonyFactsCoreTests.Projection());
+        inputs.Left("observe", ColonyFactsCoreTests.Reading());
         Assert.Null(inputs.Changed());
         Assert.Empty(inputs.Same);
     }
@@ -96,17 +96,20 @@ public sealed class RoundsLapInputsTests
     [Fact]
     public void ManyChangedPropertiesAreCappedWithACount()
     {
-        var was = ColonyFactsCoreTests.Projection();
-        var facts = new RoundsFacts
+        var was = ColonyFactsCoreTests.Reading();
+        var facts = was.Facts with
         {
             CurrentConstruction = CurrentConstruction.Empty,
             Gear = ColonyModelFixtures.NoGear(),
-            FoodDays = new FoodRunway.Days(1.0), FieldCoverage = 1.0, Colonists = 1L, BedCapacity = 1L,
-            IndoorCapacity = 1L, GrowingCells = 1L, Armed = 1L, Unarmed = 1L, Wood = 1L, Hostiles = HostileCensus.Of(1L),
-            CriticalPatients = 1L, UrgentPatients = 1L, SleepingTemperature = new SleepingTemperature.Indoor(1.0, 1.0), OutdoorTemperature = 1.0,
+            FoodDays = new FoodRunway.Days(1.0), FieldCoverage = 1.0,
+            Census = was.Facts.Census with { ColonistCount = 1, BedCapacity = 1, IndoorSleepingCapacity = 1, SleepingTemperature = new SleepingTemperature.Indoor(1.0, 1.0), OutdoorTemperatureC = 1.0, Resources = [new() { DefName = ConstructionDemandRules.ConstructionWoodLog.Value, Units = 1 }] },
+            GrowingCells = 1L, Armed = 1L, Unarmed = 1L, Hostiles = HostileCensus.Of(1L),
+            CriticalPatients = 1L, UrgentPatients = 1L,
             PowerHeadroom = 1.0, OutdoorsDark = true, Tick = new Tick(5), DisasterTick = new Tick(5), BedroomsOwed = true,
             MealClosetOwed = true, CampfireRetireOwed = true, TemperatureOwed = true, ButcherTableAffordable = true,
             CleanupPawns = true, WorkCoverage = WorkCoverageState.Matched,
+            SculptureRoomsOwed = true, ShellsShort = true, HostilityOwed = true, MedicalCareOwed = true,
+            MedicineCarryOwed = true, NamesOwed = true, Cooking = true, PowerRequired = true,
         };
         var names = RoundsLapInputs.Differences(was, was with { Facts = facts });
         Assert.True(names.Count > RoundsLapInputs.NamesCap, $"{names.Count} differences");

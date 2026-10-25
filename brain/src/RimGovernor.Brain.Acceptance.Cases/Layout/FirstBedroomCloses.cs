@@ -61,7 +61,7 @@ internal static class LayoutFirstBedroomCloses
         _ => -1,
     };
 
-    private static Cell CellOf(RimGovernor.Contracts.Wire.Common.Cell c) => new(c.X, c.Z);
+    private static Cell CellOf(RimGovernor.Brain.Domain.Cell c) => new(c.X, c.Z);
 
     // The cells a planned room's ring stands on; an unfenced room has none.
     private static HashSet<Cell> Ring(PlannedRoom r) => r.Unfenced() ? [] : [.. r.Region.Walls().Cells()];

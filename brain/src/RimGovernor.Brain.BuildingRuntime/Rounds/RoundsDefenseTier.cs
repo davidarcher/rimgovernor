@@ -11,11 +11,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
     /// <summary>Re-tiers the standing colony buildings that the layout promotes to survive tier, once per site set.</summary>
     internal (RoundsDefenseLayoutResult Result, bool Done) Retier(NeedOwner goal, ControlState state, RoundsReading read, DefenseLayoutRecord record, CancellationToken call, CancellationToken epoch)
     {
-        if (!DefensePromoted(read.Projection))
+        if (!DefensePromoted(read.Reading))
         {
             return (new RoundsDefenseLayoutResult(), false);
         }
-        var census = read.Projection.Facts.CurrentConstruction;
+        var census = read.Reading.Facts.CurrentConstruction;
         var layout = new List<Building>();
         foreach (var tier in record.Tiers)
         {
@@ -67,6 +67,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
 partial class RoundsDefenseLayoutPlanner
 {
-    internal static bool DefensePromoted(ColonyProjection projection) =>
+    internal static bool DefensePromoted(ColonyReading projection) =>
         DefenseTier.DefensePromoted(RaidDefense.Of(projection.Facts));
 }

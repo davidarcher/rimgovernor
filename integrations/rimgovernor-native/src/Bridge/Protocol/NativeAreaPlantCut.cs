@@ -44,15 +44,14 @@ namespace HomeBridge.BridgeTools
         }
 
 
-        private static string? Refusal(IEnumerable<Common.Cell>? requested, Map map, out List<IntVec3> cells)
+        private static string? Refusal(IEnumerable<RimGovernor.Brain.Domain.Cell>? requested, Map map, out List<IntVec3> cells)
         {
             cells = new List<IntVec3>();
-            var rows = requested?.ToList() ?? new List<Common.Cell>();
+            var rows = requested?.ToList() ?? new List<RimGovernor.Brain.Domain.Cell>();
             if (rows.Count == 0) return "Area plant cut requires at least one cell.";
             var seen = new HashSet<IntVec3>();
             foreach (var c in rows)
             {
-                if (c == null) return "Area plant cut cell requires x and z.";
                 var cell = new IntVec3(c.X, 0, c.Z);
                 if (!cell.InBounds(map)) return $"Cell {cell} is out of bounds.";
                 if (!seen.Add(cell)) return $"Cell {cell} is repeated.";

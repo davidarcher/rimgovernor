@@ -52,7 +52,7 @@ public sealed record TradeRowPawn
 
     public RimGovernor.Contracts.Wire.Defs.Gender Gender { get; init; }
 
-    public IReadOnlyList<ProfileSkill> Skills { get; init; } = [];
+    public IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Skill> Skills { get; init; } = [];
 
     public bool ViolenceCapable { get; init; }
 

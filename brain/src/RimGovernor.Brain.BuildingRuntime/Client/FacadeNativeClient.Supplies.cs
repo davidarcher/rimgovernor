@@ -6,25 +6,17 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class FacadeNativeClient
 {
     /// <summary>Lists the colony's spawned, unheld packed items of one packed definition.</summary>
-    internal async Task<IReadOnlyList<PackedItem>> ReadPackedItemsAsync(PbCommon.Identity identity, string packedDef, CancellationToken cancellationToken)
+    internal async Task<IReadOnlyList<PbObservations.StockItem>> ReadPackedItemsAsync(PbCommon.Identity identity, string packedDef, CancellationToken cancellationToken)
     {
         var snapshot = await Facade.ListSuppliesAsync(SupplyRequests.OursUnheldSuppliesRequest(identity, packedDef), cancellationToken).ConfigureAwait(false);
-        var output = new List<PackedItem>();
+        var output = new List<PbObservations.StockItem>();
         foreach (var row in snapshot.Stocks)
         {
             foreach (var item in row.Items)
             {
                 // A packed def's stack is always a packed building.
-                var packed = item.Packed ?? throw BridgeContractException.Contract("packed stock without its building");
-                output.Add(new PackedItem
-                {
-                    Id = item.Id,
-                    Inner = packed.Id,
-                    InnerDef = packed.DefName,
-                    Quality = packed.Quality is RimGovernor.Contracts.Wire.Observations.PackedQuality.Rated rated ? (int)rated.Category : 0,
-                    QualityKnown = packed.Quality is RimGovernor.Contracts.Wire.Observations.PackedQuality.Rated,
-                    MarketValue = packed.MarketValue,
-                });
+                _ = item.Packed ?? throw BridgeContractException.Contract("packed stock without its building");
+                output.Add(item);
             }
         }
         return output;

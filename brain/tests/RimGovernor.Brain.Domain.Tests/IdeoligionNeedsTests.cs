@@ -8,16 +8,15 @@ public sealed class IdeoligionNeedsTests
 {
     private const string Ours = "Ideo_ours";
 
-    private static IdeoligionFacts Ideo(int believers) => new()
+    private static IdeoligionFacts Ideo(int believers) => new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { IdeoId = Ours, Believers = believers } };
+
+    private static WorkPawn Believer(string id)
     {
-        IdeoId = Ours,
-        Believers = believers,
-        Development = RimGovernor.Brain.Policy.IdeoDevelopment.Fixed,
-    };
+        var row = PawnFixtures.Row(id);
+        return PawnFixtures.Worker(id) with { Observed = row with { Settings = row.Settings with { PolicyInputs = PawnFixtures.Inputs(Ours, 0.5) } } };
+    }
 
-    private static WorkPawn Believer(string id) => PawnFixtures.Worker(id) with { PolicyInputs = PawnFixtures.Inputs(Ours, 0.5) };
-
-    private static MoodPawn Mood(string id) => new() { Id = new PawnId(id), Thoughts = [] };
+    private static MoodPawn Mood(string id) => MoodFixtures.Pawn(id);
 
     [Fact]
     public void AMoodRowForEveryBelieverGivesHeldThoughts()

@@ -1,3 +1,5 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 public enum MoodNeed
@@ -28,20 +30,26 @@ public abstract record MoodLevel
 /// </summary>
 public sealed record MoodPawn
 {
-    /// <summary>The active native break; null when the pawn is in none.</summary>
-    public MentalState? Break { get; init; }
-    public bool HighExpectations { get; init; }
-    public PawnId Id { get; init; }
-    public MoodLevel Mood { get; init; } = new MoodLevel.Lacks();
-    public double Threshold { get; init; }
-    public NeedLevel Food { get; init; } = new NeedLevel.Lacks();
-    public NeedLevel Rest { get; init; } = new NeedLevel.Lacks();
-    public NeedLevel Joy { get; init; } = new NeedLevel.Lacks();
-    public bool Mental { get; init; }
-    public bool Dead { get; init; }
-    public bool Downed { get; init; }
-    public bool Drafted { get; init; }
-    public bool PlayerForced { get; init; }
+    public required O.PawnState Pawn { get; init; }
+    /// <summary>The actual same-frame target row; null exactly when the pawn has no mood need.</summary>
+    public required O.PatientForecast? Forecast { get; init; }
+    public bool HighExpectations => Pawn.Social.HighExpectations;
+    public PawnId Id => new(Pawn.Pawn.Id);
+    public MoodLevel Mood => Pawn.Needs.Mood is O.NeedLevel.Has mood
+        ? Forecast is { } forecast && forecast.PawnId == Pawn.Pawn.Id
+            ? new MoodLevel.Has(mood.Level, forecast.MoodTarget)
+            : throw new RequiredFactException($"mood target of {Id.Value}")
+        : Forecast is null ? new MoodLevel.Lacks()
+            : throw new DomainException("mood target without a mood need");
+    public double Threshold => Pawn.Needs.BreakThresholdMinor;
+    public NeedLevel Food => Pawn.Needs.Food is O.FoodNeed.Has food ? new NeedLevel.Has(food.Level) : new NeedLevel.Lacks();
+    public NeedLevel Rest => Pawn.Needs.Rest;
+    public NeedLevel Joy => Pawn.Needs.Joy;
+    public bool Mental => Pawn.MentalState is not null;
+    public bool Dead => Pawn.Dead;
+    public bool Downed => Pawn.Downed;
+    public bool Drafted => Pawn.Drafted;
+    public bool PlayerForced => Pawn.Job.PlayerForced;
 
     /// <summary>The pawn's observed thought rows, negative and positive, most negative first. Consumers must be sign-aware.</summary>
     public EquatableArray<MoodThought> Thoughts { get; init; }
@@ -75,7 +83,7 @@ public sealed record MoodCause
 
 public sealed record MoodState
 {
-    public MoodPawn Pawn { get; init; } = new();
+    public required MoodPawn Pawn { get; init; }
     public bool Active { get; init; }
     public bool Missing { get; init; }
     public bool MentalRisk { get; init; }
@@ -270,7 +278,7 @@ public static partial class MoodRules
                     throw new DomainException("duplicate mood pawn");
                 }
                 seen.Add(p.Id);
-                var prior = old.GetValueOrDefault(p.Id) ?? new MoodState();
+                var prior = old.GetValueOrDefault(p.Id) ?? new MoodState { Pawn = p };
                 var threshold = p.Threshold;
                 var mentalRisk = p.Mental;
                 var active = prior.Active;

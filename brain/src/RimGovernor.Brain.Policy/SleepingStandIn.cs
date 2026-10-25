@@ -26,7 +26,7 @@ public static partial class ShelterRules
             return (0, 0);
         }
         var count = RoundsRules.FootholdCount(f);
-        return (count, (int)Math.Max(0, count - f.BedCapacity));
+        return (count, (int)Math.Max(0, count - f.Census.BedCapacity));
     }
 
     /// <summary>

@@ -36,11 +36,16 @@ public static partial class WeaponAssignmentRules
     /// </summary>
     public static double ScoreWeapon(EquipCandidatePawn p, EquipCandidateWeapon w)
     {
-        if (p.Role == WeaponRole.NonCombatant || p.NoArms.Length != 0)
+        if ((w.Biocoded || !w.BiocodedTo.IsEmpty) && w.BiocodedTo != p.Pawn)
         {
             return 0;
         }
-        if ((w.Biocoded || !w.BiocodedTo.IsEmpty) && w.BiocodedTo != p.Pawn)
+        return ScoreWeapon(p, w.Facts, w.Class);
+    }
+
+    internal static double ScoreWeapon(EquipCandidatePawn p, WeaponDef profile, WeaponClass weaponClass)
+    {
+        if (p.Role == WeaponRole.NonCombatant || p.NoArms.Length != 0)
         {
             return 0;
         }
@@ -50,8 +55,7 @@ public static partial class WeaponAssignmentRules
         }
 
         // The weapon's def rows: a weapon the producer gave none (default Facts) has no damage and scores nothing.
-        var profile = w.Facts;
-        if (p.Role == WeaponRole.Hunter && (w.Class != WeaponClass.Ranged || !profile.Hunts()))
+        if (p.Role == WeaponRole.Hunter && (weaponClass != WeaponClass.Ranged || !profile.Hunts()))
         {
             return 0;
         }
@@ -59,15 +63,15 @@ public static partial class WeaponAssignmentRules
         {
             return 0;
         }
-        var shooting = p.Profile.Skills.GetValueOrDefault("Shooting") ?? new ProfileSkill();
+        var shooting = p.Profile.Skill("Shooting");
         var meleeOnly = p.Profile.Effects.MeleeOnly || p.ShootingDisabled || shooting.Disabled;
-        if (w.Class == WeaponClass.Ranged && meleeOnly)
+        if (weaponClass == WeaponClass.Ranged && meleeOnly)
         {
             return 0;
         }
         double level = Math.Max(0, Math.Min(20, shooting.Level));
         var score = profile.DPS;
-        if (w.Class == WeaponClass.Ranged)
+        if (weaponClass == WeaponClass.Ranged)
         {
             // Precision weapons reward the long engagement distance an accurate pawn can exploit; short burst weapons remain useful to novices.
             var accuracy = .35 + (.0325 * level);
@@ -87,7 +91,7 @@ public static partial class WeaponAssignmentRules
         }
         else
         {
-            level = Math.Max(0, Math.Min(20, (p.Profile.Skills.GetValueOrDefault("Melee") ?? new ProfileSkill()).Level));
+            level = Math.Max(0, Math.Min(20, p.Profile.Skill("Melee").Level));
             score *= .5 + (level / 40);
             if (meleeOnly || p.Role == WeaponRole.Melee)
             {

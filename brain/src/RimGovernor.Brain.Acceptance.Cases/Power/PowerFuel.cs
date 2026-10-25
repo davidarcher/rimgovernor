@@ -78,7 +78,7 @@ internal static class PowerFuel
         var before = await ReadAsync("before", cancellationToken).ConfigureAwait(false);
         s.RecordWire("generator_before", before.Generator);
         s.RecordWire("stove_before", before.Stove);
-        if (!OutOfFuel(before.Generator) || before.Generator.Power is not Observations.BuildingPower.Trader { Producer: true } || PowerOn(before.Stove))
+        if (!OutOfFuel(before.Generator) || before.Generator.Power is not Observations.BuildingPower.Trader { RatedW: > 0 } || PowerOn(before.Stove))
         {
             throw new AcceptanceException($"before: want an out-of-fuel producer and an unpowered stove, got {before.Generator} / {before.Stove}");
         }

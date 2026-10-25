@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 
@@ -8,25 +9,29 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record AcquisitionSource
 {
-    public string Id { get; init; } = "";
+    public required O.AcquisitionFacts Observed { get; init; }
 
-    public string Resource { get; init; } = "";
+    public required O.EntityRef Entity { get; init; }
 
-    public string Token { get; init; } = "";
+    public string Id => Observed.Source.Id;
 
-    public string Definition { get; init; } = "";
+    public string Resource => Observed.Resource;
 
-    public Cell Cell { get; init; }
+    public string Token => Observed.Token;
+
+    public string Definition => Entity.DefName;
+
+    public Cell Cell => Entity.Place is O.EntityPlace.OnMap at ? at.Cell : throw new RequiredFactException("acquisition source map cell");
 
     public bool Tree { get; init; }
 
-    public bool Food { get; init; }
+    public bool Food => Observed.Kind is O.AcquisitionKind.Plant plant ? plant.Food : !Pest;
 
-    public bool Designated { get; init; }
+    public bool Designated => Observed.Designation is O.AcquisitionDesignation.Designated;
 
-    public bool Hunt { get; init; }
+    public bool Hunt => Observed.Kind is O.AcquisitionKind.Hunt;
 
-    public double Yield { get; init; }
+    public double Yield => Observed.Yield;
 
     public double NutritionYield { get; init; }
 
@@ -34,14 +39,14 @@ public sealed record AcquisitionSource
 
     public double WeaponRange { get; init; }
 
-    public int HerdSize { get; init; }
+    public uint HerdSize => Observed.Kind is O.AcquisitionKind.Hunt hunt ? hunt.HerdSize : 0;
 
     public bool MeleeOnly { get; init; }
 
-    public bool Downed { get; init; }
+    public bool Downed => Observed.Kind is O.AcquisitionKind.Hunt { Downed: true };
 
     /// <summary>Sleeping and Predator describe a hunt row for squad planning.</summary>
-    public bool Sleeping { get; init; }
+    public bool Sleeping => Observed.Kind is O.AcquisitionKind.Hunt { Sleeping: true };
 
     public bool Predator { get; init; }
 
@@ -52,19 +57,19 @@ public sealed record AcquisitionSource
     public bool Pest { get; init; }
 
     /// <summary>The tick native first saw the designation (reset on load); set only when Designated.</summary>
-    public Tick DesignatedTick { get; init; }
+    public Tick DesignatedTick => Observed.Designation is O.AcquisitionDesignation.Designated designated ? designated.Since : default;
 
     /// <summary>A pawn's reservation or a colonist's current job targets the source.</summary>
-    public bool Taken { get; init; }
+    public bool Taken => Observed.Taken;
 
     /// <summary>
     /// A plant row's growth fraction (0..1). Plantation marks a sown tree of a harvest-destroys crop in a
     /// growing zone: the only zone plant chop acquisition may offer, and only at or above the chop gate
     /// (BelowChopGate). Wild trees ignore growth.
     /// </summary>
-    public double Growth { get; init; }
+    public double Growth => Observed.Kind is O.AcquisitionKind.Plant plant ? plant.Growth : 0;
 
-    public bool Plantation { get; init; }
+    public bool Plantation => Observed.Kind is O.AcquisitionKind.Plant { Plantation: true };
 
     /// <summary>
     /// Whether the row is a plantation tree still under the minimum growth fraction the chop selection requires
@@ -152,7 +157,6 @@ public static class AcquisitionRules
                 !(
                     !FoodForecastRules.FoodNumber(row.RevengeChance)
                     || row.RevengeChance > 1
-                    || row.HerdSize < 0
                     || row.HerdSize > 65536
                     || !FoodForecastRules.FoodNumber(row.WeaponRange)
                     || !FoodForecastRules.FoodId(row.Id)

@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class SowingProviderTests
@@ -38,7 +37,7 @@ public sealed class SowingProviderTests
         Assert.Contains(generated.Context.Activities.Routes, r => r.Pawn == "pawn" && r.From == "start" && r.To == "cell/10/20" && r.Ticks == new RouteTicks.Reachable(7d));
         var binding = generated.Context.Bindings[(task.Id, "pawn")];
         Assert.Equal((PawnActivityKind.Work, "Zone_Growing12", "GrowerSow", "Sow", 12, new Cell(10, 20)),
-            (binding.Kind, binding.Target, binding.WorkGiver, binding.Job, binding.Count, binding.Destination!.Value));
+            (binding.Kind, binding.Target, binding.WorkGiver, binding.Job, binding.Count, Assert.IsType<RimGovernor.Brain.Policy.Methods.CellActivityTaskCandidate>(binding).Destination));
         Assert.DoesNotContain("sowing_cells_truncated", generated.Findings);
     }
 
@@ -66,9 +65,9 @@ public sealed class SowingProviderTests
     public void ASowStepNeedsACellAndACount()
     {
         PawnActivities Batch(PawnActivityStep step) => new(1, [new("pawn", "a", "m", 0, 1, false, [step])]);
-        var sow = new PawnActivityStep(PawnActivityKind.Work, "Zone_Growing12", "GrowerSow", "Sow", 12, 1000) { Destination = new(10, 20) };
+        var sow = new PawnActivityStep(PawnActivityKind.Work, "Zone_Growing12", "GrowerSow", "Sow", 12, 1000).At(new(10, 20));
         Batch(sow).Validate();
-        Assert.Throws<DomainException>(() => Batch(sow with { Destination = null }).Validate());
+        Assert.Throws<DomainException>(() => Batch(new PawnActivityStep(sow.Kind, sow.Target, sow.WorkGiver, sow.Job, sow.Count, sow.Deadline)).Validate());
         Assert.Throws<DomainException>(() => Batch(sow with { Count = 0 }).Validate());
         Assert.Throws<DomainException>(() => Batch(sow with { Target = "" }).Validate());
         var wire = RimGovernor.Contracts.Wire.WireJson.Deserialize<SowingActivityRead>(RimGovernor.Contracts.Wire.WireJson.Serialize(

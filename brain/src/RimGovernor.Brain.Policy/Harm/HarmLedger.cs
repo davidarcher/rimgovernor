@@ -49,10 +49,10 @@ public sealed record HarmInputs
     /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points, the disease schedule of the observed disease facts, the containment census.</summary>
     internal static HarmInputs Of(RoundsFacts facts)
     {
-        var points = facts.RaidPoints;
+        var points = facts.Census.Threat.Observed.RaidPoints;
         var raid = new RaidDefense(points, facts.DefenseCapacity);
-        RaidComposition composition = RaidCompositionRules.Of(points, [.. facts.HostileFactions], facts.HarmCatalog.Raid);
-        var schedule = ThreatSchedule.Of(facts.ThreatTable, facts.Storyteller, facts.DaysPassed, points);
+        RaidComposition composition = RaidCompositionRules.Of(points, [.. facts.Census.Threat.Observed.HostileFactions], facts.HarmCatalog.Raid);
+        var schedule = ThreatSchedule.Of(facts.ThreatTable, facts.Census.Threat.Observed.Storyteller, facts.Census.Threat.Observed.DaysPassed, points);
         return new()
         {
             Schedule = schedule,
@@ -61,7 +61,7 @@ public sealed record HarmInputs
             Coverage = facts.HarmCatalog.Coverage,
             Natural = facts.HarmCatalog.Natural,
             Parts = facts.HarmCatalog.Parts,
-            Illness = IllnessSchedule.Of(facts.DiseaseTable, facts.Disease),
+            Illness = IllnessSchedule.Of(facts.DiseaseTable, facts.Census.Threat.Observed.Disease),
             Containment = facts.Containment.Forecast,
             CreepJoiners = facts.CreepJoiners with { Values = facts.PreviousPawnValues },
         };
@@ -341,7 +341,7 @@ internal static class HarmLedger
         double perDay = 0, loss = 0, deaths = 0;
         foreach (var entity in held)
         {
-            var rate = ForecastContainment.EscapesPerDay(entity, entity.Platform!.Strength, curves);
+            var rate = ForecastContainment.EscapesPerDay(entity, entity.PlatformStrength, curves);
             if (rate == 0)
             {
                 continue;

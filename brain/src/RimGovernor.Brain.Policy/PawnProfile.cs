@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.Policy;
@@ -9,9 +10,11 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record PawnTrait
 {
-    public string Name { get; init; } = "";
+    public required O.Trait Observed { get; init; }
 
-    public int Degree { get; init; }
+    public string Name => Observed.DefName;
+
+    public int Degree => Observed.Degree;
 
     public TraitEffects Effects { get; init; } = new();
 }
@@ -161,33 +164,15 @@ public sealed record TraitEffects
 /// One skill as the planner scores it: the effective level (with aptitude offsets, what the game applies),
 /// the stored level native keeps beneath it (what learning raises) and the passion.
 /// </summary>
-public sealed record ProfileSkill
+public abstract record ProfileSkill
 {
-    public string Name { get; init; } = "";
-
-    public int Level { get; init; }
-
-    public int Stored { get; init; }
-
-    public string Passion { get; init; } = "";
-
-    public bool Disabled { get; init; }
-
-    /// <summary>The passion learning multiplier (no passion 0.35, minor 1.0, major 1.5) scaled by the pawn's global learning offset.</summary>
-    public double LearnFactor(TraitEffects effects)
-    {
-        if (Disabled)
-        {
-            return 0;
-        }
-        var rate = Passion switch
-        {
-            "Minor" => 1.0,
-            "Major" => 1.5,
-            _ => 0.35,
-        };
-        return rate * (1 + effects.LearnRate);
-    }
+    private ProfileSkill() { }
+    public sealed record Present(O.Skill Observed) : ProfileSkill;
+    public sealed record Missing : ProfileSkill;
+    public int Level => this is Present p ? p.Observed.Level : 0;
+    public string Passion => this is Present p && p.Observed.Passion != O.Passion.None ? WorkRules.PassionName(p.Observed.Passion) : "";
+    public bool Disabled => this is not Present p || p.Observed.Disabled;
+    public double LearnFactor(TraitEffects effects) => this is Present p ? PawnRules.SkillLearnFactor(p.Observed, effects) : 0;
 }
 
 /// <summary>
@@ -196,15 +181,17 @@ public sealed record ProfileSkill
 /// </summary>
 public sealed record PawnProfile
 {
-    public PawnId Id { get; init; }
+    public required O.PawnState Observed { get; init; }
 
-    public IReadOnlyDictionary<string, ProfileSkill> Skills { get; init; } = new Dictionary<string, ProfileSkill>();
+    public PawnId Id => new(Observed.Pawn.Id ?? throw new RequiredFactException("profile pawn id"));
+
+    public IReadOnlyDictionary<string, O.Skill> Skills => Observed.Biography.Skills.ToDictionary(skill => skill.DefName, StringComparer.Ordinal);
 
     public IReadOnlyList<PawnTrait> Traits { get; init; } = [];
 
     public TraitEffects Effects { get; init; } = new();
 
-    public IReadOnlyDictionary<WorkType, bool> Incapable { get; init; } = new Dictionary<WorkType, bool>();
+    public IReadOnlyDictionary<WorkType, bool> Incapable => Observed.Biography.IncapableWorkTypes.Select(WorkRules.WorkTypeOf).Distinct().ToDictionary(work => work, work => true);
 
     /// <summary>
     /// The skill each work type is scored by, from the pawn's work rows (the WorkTypeDef's first relevant
@@ -213,14 +200,14 @@ public sealed record PawnProfile
     public IReadOnlyDictionary<WorkType, string> WorkSkill { get; init; } = new Dictionary<WorkType, string>();
 
     /// <summary>The biological age in years.</summary>
-    public double Age { get; init; }
+    public double Age => Observed.Biography.BiologicalAgeYears;
 
     /// <summary>
     /// A pre-adult developmental stage (Newborn, Baby, Child) read from the Biotech facts. A colony without
     /// Biotech has no Biotech block and no child pawns: native never spawns one under 14 there, so Child is
     /// false.
     /// </summary>
-    public bool Child { get; init; }
+    public bool Child => Biotech is PawnBiotechStatus.Active { Facts: var facts } && facts.IsChild();
 
     /// <summary>The pawn's Biotech facts: life stage, genes and the rest; Inactive without Biotech.</summary>
     public PawnBiotechStatus Biotech { get; init; } = new PawnBiotechStatus.Inactive();
@@ -238,14 +225,14 @@ public sealed record PawnProfile
     public bool Hunts { get; init; }
 
     /// <summary>The current InspirationDef defName; "" means none.</summary>
-    public string Inspiration { get; init; } = "";
+    public string Inspiration => Observed.Inspiration ?? "";
 
     /// <summary>The hours per day the timetable assigns to Work or Anything (WorkPawn.WorkHoursPerDay); zero for a pawn without a timetable.</summary>
-    public int WorkHours { get; init; }
+    public int WorkHours => WorkPawnProfileExtensions.WorkHoursPerDay(EquatableArray.From(Observed.Settings.Schedule.Select(slot => slot.AssignmentDefName)));
 
     /// <summary>The pawn's skill row; a skill absent from the read is level 0 and never learns (a disabled skill).</summary>
     public ProfileSkill Skill(string name) =>
-        Skills.TryGetValue(name, out var s) ? s : new ProfileSkill { Name = name, Disabled = true };
+        Skills.TryGetValue(name, out var s) ? new ProfileSkill.Present(s) : new ProfileSkill.Missing();
 
     /// <summary>
     /// The pawn's row of the skill the work type is scored by; a work type without one (unskilled, or absent
@@ -333,35 +320,32 @@ public static class WorkPawnProfileExtensions
 
 public static partial class PawnRules
 {
+    public static double SkillLearnFactor(O.Skill skill, TraitEffects effects) => skill.Disabled ? 0 :
+        (skill.Passion switch
+        {
+            O.Passion.None => 0.35,
+            O.Passion.Minor => 1.0,
+            O.Passion.Major => 1.5,
+            var invalid => throw new DomainException($"Invalid native passion: {invalid}."),
+        }) * (1 + effects.LearnRate);
     /// <summary>
     /// Reads the profile from a WorkPawn: skills, traits, incapable work types, age, the weapon and Biotech facts, and
     /// the work skill of each work type the pawn has a row for.
     /// </summary>
     public static PawnProfile BuildProfile(WorkPawn pawn)
     {
-        var skillsByName = new Dictionary<string, ProfileSkill>(StringComparer.Ordinal);
-        var incapable = new Dictionary<WorkType, bool>();
         var workSkill = new Dictionary<WorkType, string>();
         var effects = new TraitEffects();
         var genesEffects = new GeneEffects();
-        var child = false;
         IReadOnlyDictionary<WorkType, int> workMinAge = new Dictionary<WorkType, int>();
         foreach (var row in pawn.Work.Priorities())
         {
             workSkill[row.Work] = row.Skill;
         }
-        foreach (var s in pawn.Skills)
-        {
-            skillsByName[s.Name] = new ProfileSkill { Name = s.Name, Level = s.Level, Stored = s.Stored, Passion = s.Passion, Disabled = s.Disabled };
-        }
         IReadOnlyList<PawnTrait> traitRows = [.. pawn.Traits];
         foreach (var t in pawn.Traits)
         {
             effects = effects.Add(t.Effects);
-        }
-        foreach (var w in pawn.Incapable)
-        {
-            incapable[w] = true;
         }
         if (pawn.Biotech is PawnBiotechStatus.Active { Facts: var bt })
         {
@@ -374,7 +358,6 @@ public static partial class PawnRules
                     LearnRate = genes.Apply("GlobalLearningFactor", effects.LearnRate),
                 };
             }
-            child = bt.IsChild();
             var ages = bt.WorkMinAges;
             {
                 workMinAge = ages;
@@ -382,21 +365,15 @@ public static partial class PawnRules
         }
         return new PawnProfile
         {
-            Id = pawn.Id,
-            Skills = skillsByName,
+            Observed = pawn.Observed,
             Traits = traitRows,
             Effects = effects,
-            Incapable = incapable,
             WorkSkill = workSkill,
-            Age = pawn.Age,
-            Child = child,
             Biotech = pawn.Biotech,
             Genes = genesEffects,
             WorkMinAge = workMinAge,
             Ranged = pawn.Ranged,
             Hunts = pawn.Hunts,
-            Inspiration = pawn.Inspiration,
-            WorkHours = pawn.WorkHoursPerDay(),
         };
     }
 

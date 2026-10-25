@@ -19,7 +19,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, [], call).ConfigureAwait(false);
         var site = await _native.ReadDefenseSiteAsync(Boundary.Identity(state.Snapshot), region, call).ConfigureAwait(false);
-        SameTick(site.Context, state, read.Projection.Identity.Tick);
+        SameTick(site.Context, state, read.Reading.Identity.Tick);
         return (read, DefenseFightCensus(site));
     }
 
@@ -30,7 +30,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonNoDeficit, Tier = DefenseWaitTier };
         }
         var (read, census) = await FightCensusAsync(state, DefenseWaitRegion(m), call).ConfigureAwait(false);
-        var doorStock = read.Projection.Resources.GetValueOrDefault(new Resource(CombatWaitRules.WaitDoorStuff));
+        var doorStock = ResourceStockRules.Count(read.Reading.Snapshot.Resources).GetValueOrDefault(new Resource(CombatWaitRules.WaitDoorStuff));
         var buildings = CombatWaitRules.WaitHardening(m, census, doorStock, DefenseDefinitionNames.Door, DefenseDefinitionNames.Wall, DefenseDefinitionNames.WallStuff);
         if (buildings.Count == 0)
         {
@@ -42,13 +42,13 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal async Task<RoundsDefenseLayoutResult> AdmitFightBuildsAsync(NeedOwner goal, ControlState state, RoundsReading read, IReadOnlyList<Building> buildings, string tier, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        var tick = read.Projection.Identity.Tick;
+        var tick = read.Reading.Identity.Tick;
         var id = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
         var actions = new List<DomainAction>();
         var previews = new List<Preview>();
         var stockSeen = new StockObservation { Snapshot = snapshot, Tick = tick };
-        var promoted = DefensePromoted(read.Projection);
+        var promoted = DefensePromoted(read.Reading);
         foreach (var b in buildings)
         {
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), b, DefenseTier.DefenseBuildTier(promoted, false, false));
@@ -84,7 +84,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             Plan = plan,
             Current = snapshot,
             Tick = tick,
-            Bounds = read.Projection.Bounds,
+            Bounds = read.Reading.Facts.MapBounds,
             Stock = stockSeen,
             Previews = previews,
             Purpose = Purpose.Defense,

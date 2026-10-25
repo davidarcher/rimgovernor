@@ -7,7 +7,7 @@ public sealed partial class Rounder
     /// spot, butcher table and crafting spot, which the layout plan does not hold, drawn from the construction
     /// census. Output only: a failure is dropped and the next review draws again.
     /// </summary>
-    internal async Task DrawSpotOverlayAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, CancellationToken ct)
+    internal async Task DrawSpotOverlayAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
         if (Native is not FacadeNativeClient native)
         {
@@ -16,7 +16,7 @@ public sealed partial class Rounder
         var layer = new Pol.LayoutOverlay();
         if (LayoutOverlay)
         {
-            layer = Pol.SpotOverlayRules.SpotOverlay(projection.Facts.CurrentConstruction, projection.Bounds);
+            layer = Pol.SpotOverlayRules.SpotOverlay(projection.Facts.CurrentConstruction, projection.Facts.MapBounds);
         }
         var tick = projection.Identity.Tick;
         if (layer.Layers.Count == 0)

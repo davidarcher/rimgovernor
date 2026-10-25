@@ -13,16 +13,39 @@ namespace RimGovernor.Brain.Domain.Tests;
 // the watch-cell and wind-catch facts are named states, never an absent value.
 public sealed class PlacementPreviewWholeTests
 {
+    [Fact]
+    public void NativePreviewKeepsItsActualEvaluationOrientationAndBlockers()
+    {
+        var blocker = new Pl.PlacementBlocker
+        {
+            DefName = "Wall", Category = "Building", IsBlueprint = false, IsFrame = false,
+            WouldBeWiped = true, FrameWouldBeCancelled = false,
+        };
+        var wind = new BuildingWind.WindTurbine { BlockedCells = 5000 };
+        var evaluation = Evaluated(Pl.WatchAccess.Reachable, wind);
+        evaluation = evaluation with { Rotations = [evaluation.Rotations[0] with { BlockingThings = [blocker] }] };
+        var (action, snapshot) = Subject("Wall");
+        var preview = FacadeNativeClient.PlacementRequests.BuildingPreviewRow(action, snapshot, new(10), evaluation).Preview;
+        var native = Assert.IsType<PreviewSource.Native>(preview.Source);
+        Assert.Same(evaluation, native.Observed);
+        Assert.Same(evaluation.Rotations[0], native.Orientation);
+        Assert.Same(blocker, Assert.Single(preview.Blockers));
+        Assert.Same(wind, preview.Wind);
+        Assert.False(preview.SafeToPlace);
+        Assert.False(PreviewRules.ClearWindTurbine(preview));
+        Assert.Equal(Pl.WatchAccess.Reachable, preview.WatchCells);
+    }
+
     private static readonly C.ObservationContext Context = new() { NativeGeneration = new C.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
 
     private static Pl.PlacementRotation Rotation(Pl.WatchAccess watch, BuildingWind wind) => new()
     {
         Accepted = true,
         Reason = "",
-        OccupiedCells = [new C.Cell { X = 3, Z = 4 }],
+        OccupiedCells = [new RimGovernor.Brain.Domain.Cell { X = 3, Z = 4 }],
         BlockingThings = [],
         WatchCells = watch,
-        InteractionCells = [new C.Cell { X = 3, Z = 5 }],
+        InteractionCells = [new RimGovernor.Brain.Domain.Cell { X = 3, Z = 5 }],
         Wind = wind,
     };
 
@@ -156,6 +179,7 @@ public sealed class PlacementPreviewWholeTests
         var action = DomainAction.NewZoneCreateAction(new ActionId("plan-z"), new ZoneCreate(Domain.ZoneKind.Growing, "Rice", [new Cell(1, 1)]));
         var preview = PreviewRules.Zone(action, snapshot, new EquatableArray<Cell>([new Cell(1, 1)]));
 
+        Assert.IsType<PreviewSource.Zone>(preview.Source);
         Assert.True(preview.CanPlace);
         Assert.True(preview.SafeToPlace);
         Assert.False(preview.MadeFromStuff);

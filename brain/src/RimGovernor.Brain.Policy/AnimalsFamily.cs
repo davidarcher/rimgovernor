@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// What the animals family reads (#3260): the herd census and the factionless census it tames from, the herd plan,
 /// the feed runway's shortfall, the food plan, the colonists' handling profiles, the pen-bound animals not yet
 /// contained, the next pen and ward steps of the herd rooms and the hospital ward's readiness and area. A step is
-/// unknown while any planning fact behind it is unread.
+/// read from the complete planning frame.
 /// </summary>
 public sealed record AnimalsFacts
 {
@@ -27,10 +27,10 @@ public sealed record AnimalsFacts
     public EquatableArray<PawnId> Uncontained { get; init; }
 
     /// <summary>The next pen step (<see cref="HerdRoomsRules.NextPenStep"/>); a no-op step when nothing is owed.</summary>
-    public Fact<HerdStep> Pen { get; init; }
+    public HerdStep Pen { get; init; } = new();
 
     /// <summary>The next hospital ward step (<see cref="HerdRoomsRules.NextWardStep"/>); a no-op step when nothing is owed.</summary>
-    public Fact<HerdStep> Ward { get; init; }
+    public HerdStep Ward { get; init; } = new();
 
     /// <summary>Whether the ward stands with a medical animal bed, and the hospital's allowed area.</summary>
     public AnimalWard WardRoom { get; init; } = new();
@@ -210,20 +210,15 @@ public static class AnimalsFamilyRules
 
     /// <summary>
     /// The containment Need, a plain threshold (no latch): unmet while a pen-bound animal is uncontained or a pen
-    /// step is owed; met otherwise (a colony with no planned pen or no animals has a no-op pen step). With nothing
-    /// owed, an unread pen step raises <see cref="RequiredFactException"/>. Its deficit is the uncontained animals,
+    /// step is owed; met otherwise (a colony with no planned pen or no animals has a no-op pen step).
+    /// Planning inputs are required before deriving the step. Its deficit is the uncontained animals,
     /// plus one for an owed pen.
     /// </summary>
     public static Need ContainmentNeedOf(AnimalsFacts f)
     {
-        var penKnown = f.Pen.TryGetValue(out var pen);
-        var penOwed = penKnown && pen!.Owed();
+        var penOwed = f.Pen.Owed();
         var count = f.Uncontained.Count;
         var owed = count > 0 || penOwed;
-        if (!owed && !penKnown)
-        {
-            throw new RequiredFactException("pen step");
-        }
         return new Need
         {
             Id = AnimalsFamily.Containment,
@@ -233,14 +228,10 @@ public static class AnimalsFamilyRules
         };
     }
 
-    /// <summary>The ward Need: unmet while a ward step is owed (an animal bed to build or flag medical); an unread step raises <see cref="RequiredFactException"/>.</summary>
+    /// <summary>The ward Need: unmet while a ward step is owed or its bed definition is unavailable; met once no step remains.</summary>
     public static Need WardNeedOf(AnimalsFacts f)
     {
-        if (!f.Ward.TryGetValue(out var step))
-        {
-            throw new RequiredFactException("ward step");
-        }
-        var owed = step.Owed();
+        var owed = f.Ward.Owed() || f.Ward.Kind == HerdStepKind.BedUnavailable;
         return new Need
         {
             Id = AnimalsFamily.Ward,

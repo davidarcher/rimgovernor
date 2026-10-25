@@ -14,7 +14,7 @@ public static partial class MealRules
             var amount = stock.Nutrition;
             // Human stock belongs to its gated routing row; it cannot certify protein availability for an
             // unrestricted shared meal bill.
-            if (!stock.Holder.IsEmpty || stock.Reserve || stock.Corpse || stock.IsHumanMeat || amount <= 0)
+            if (!stock.Holder.IsEmpty || s.IsReserved(stock) || stock.IsCorpse() || stock.IsHumanMeat || amount <= 0)
             {
                 continue;
             }

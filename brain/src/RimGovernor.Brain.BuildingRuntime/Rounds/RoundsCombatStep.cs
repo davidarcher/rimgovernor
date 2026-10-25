@@ -75,13 +75,12 @@ partial record CombatReads
     }
 
     /// <summary>The memory after the batch's results: a refused order is remembered as the round remembers it.</summary>
-    internal static CombatMemory CombatStepResults(CombatStep step, IReadOnlyList<PbReceipts.CombatOrderResult> results)
+    internal static CombatMemory CombatStepResults(CombatStep step, IReadOnlyList<RimGovernor.Brain.Domain.CombatResult> results)
     {
-        var shaped = new List<BridgeCombatOrderResult>();
+        var shaped = new List<CombatResult>();
         for (var i = step.Drafts.Count; i < results.Count; i++)
         {
-            var r = results[i];
-            shaped.Add(new BridgeCombatOrderResult { Index = i, PawnId = r.PawnId ?? "", Applied = r.Applied, Refusal = r.Refusal ?? "" });
+            shaped.Add(results[i]);
         }
         return RoundsDefensePlanner.CombatStopMemory(step.View.Pawns, step.Orders, shaped, step.Memory);
     }

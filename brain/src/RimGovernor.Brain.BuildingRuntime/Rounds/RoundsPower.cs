@@ -19,30 +19,30 @@ public sealed partial class RoundsBuildingPlanner
     }
 
     /// <summary>The planner resolved to the power method the policy picked, or the verdict that says why none applies.</summary>
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectPower(ColonyProjection facts, IReadOnlyList<string> pendingConsumers)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectPower(ColonyReading facts, IReadOnlyList<string> pendingConsumers)
     {
-        var planning = PowerRules.DefaultPowerPlanning(facts.ComponentSteel ?? throw new RequiredFactException("component steel cost"));
+        var planning = PowerRules.DefaultPowerPlanning(facts.Facts.ComponentSteel ?? throw new RequiredFactException("component steel cost"));
         var crops = RoundsFieldPlanner.CropChoices(facts);
-        var biome = facts.CropClimate.Biome;
-        var skill = TreePlantationRules.GrowerSkill(facts.WorkPawns);
-        var generators = facts.GeneratorOptions(fuel => TreePlantationRules.ResourceGrowable(crops, fuel, biome, skill));
+        var biome = facts.Facts.CropClimate.Biome;
+        var skill = TreePlantationRules.GrowerSkill(facts.Facts.ForecastObserved.WorkPawns);
+        var generators = ColonyPlanningRules.GeneratorOptions(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), fuel => TreePlantationRules.ResourceGrowable(crops, fuel, biome, skill));
         planning = planning with
         {
             Generators = generators,
             DaylightHours = facts.Facts.Gear.Climate.DaylightHoursIn(facts.Facts.Gear.Climate.CurrentTwelfth),
-            Sources = facts.PowerSources,
-            Battery = facts.PowerBattery,
-            Light = facts.LightTerrains,
-            BatteryAvailable = facts.DefinitionAvailable(PowerRules.BatteryDefinition),
-            GeothermalAvailable = facts.DefinitionAvailable(PowerRules.GeothermalDefinition),
+            Sources = facts.Facts.PowerSources,
+            Battery = facts.Facts.PowerBattery,
+            Light = facts.Facts.LightTerrains,
+            BatteryAvailable = ColonyPlanningRules.DefinitionAvailable(facts.Facts, PowerRules.BatteryDefinition),
+            GeothermalAvailable = ColonyPlanningRules.DefinitionAvailable(facts.Facts, PowerRules.GeothermalDefinition),
             PendingDemandW = RoundsBuildingPlanner.PendingDemand(facts, pendingConsumers),
         };
-        if (facts.LayoutPlan is { } plan)
+        if (facts.Facts.LayoutPlan is { } plan)
         {
             planning = planning with { Net = PowerRules.PlannedNetOf(plan) };
         }
 
-        var proposal = PowerRules.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, [], planning);
+        var proposal = PowerRules.SelectPowerMethod(facts.Facts.EssentialInputs.Power, facts.Facts.MapBounds, facts.PlanningWindow.Cells, [], planning);
         switch (proposal.Method)
         {
             case PowerMethod.NoMethod:
@@ -92,11 +92,11 @@ public sealed partial class RoundsBuildingPlanner
         return (resolved, default);
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerShelterAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerShelterAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
-        var wall = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, "Wall");
-        var door = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Definitions, "Door");
+        var wall = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Facts.Definitions, "Wall");
+        var door = RoundsAnimalContainment.AnimalContainmentDefinition(facts.Facts.Definitions, "Door");
         if (wall is null || door is null)
         {
             return ([], stock, FieldUnavailable("wall_door_definitions"));
@@ -151,7 +151,7 @@ public sealed partial class RoundsBuildingPlanner
         return (selected, stock, default);
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerSiteAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerSiteAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Power is null || !Power.FixedSite())
@@ -182,7 +182,7 @@ public sealed partial class RoundsBuildingPlanner
         return ([p], stock, default);
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerOrSearchAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerOrSearchAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
     {
         if (Power is not null && Power.Method is PowerMethod.Generate)
         {
@@ -197,13 +197,13 @@ public sealed partial class RoundsBuildingPlanner
         return (found ?? [], searched, verdict);
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, bool Ok)> PreviewPlannedPowerAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, bool Ok)> PreviewPlannedPowerAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var planned = plan is not null;
-        var tk = facts.TechTier.TryGetValue(out var tier);
-        if (!planned || !tk || tier < TechTier.Masonry || missing < 1)
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(project => new ResearchProjectId(project)).ToArray(), facts.Snapshot.PlayerTechLevel);
+        if (!planned || tier < TechTier.Masonry || missing < 1)
         {
             return ([], stock, false);
         }
@@ -290,7 +290,7 @@ async
         return (selected, stock, true);
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerRouteAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerRouteAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (Power is null || Power.Method != PowerMethod.Connect || Power.Cells.Count < 1)
@@ -349,10 +349,10 @@ partial class RoundsBuildingPlanner
         return output;
     }
 
-    internal static double PendingDemand(ColonyProjection facts, IReadOnlyList<string> pending)
+    internal static double PendingDemand(ColonyReading facts, IReadOnlyList<string> pending)
     {
         var draw = new Dictionary<string, double>();
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             if (d.Power is not { } power) continue;
             var w = power.PowerW;
@@ -371,10 +371,10 @@ partial class RoundsBuildingPlanner
         return total;
     }
 
-    internal static IReadOnlyList<string> GeneratorResearch(ColonyProjection facts)
+    internal static IReadOnlyList<string> GeneratorResearch(ColonyReading facts)
     {
         var definitions = new Dictionary<string, PlanningDefinition>();
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             definitions[d.Name] = d;
         }

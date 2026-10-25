@@ -5,6 +5,23 @@
 These rules constrain shared plan admission and each later dispatch. They use native
 observations; they do not reserve permanent ownership of coordinates.
 
+## Native planning cell ownership
+
+A planning `SiteCell` retains the published native `Mirror.CellGrid` and its exact
+row index. Coordinates derive from the grid origin, width and index; native facts
+are read directly from that row. The grid and its thing arrays are immutable after
+publication. A fogged (`Held = false`) cell has no observation row and cannot become
+a `SiteCell`; invalid row indices refuse construction. Windows omit fogged rows and
+report their count. A null roof, zone id, room key or thing array means actual absence
+on a held row. Roofed and zoned predicates derive from the native roof and zone id;
+room absence uses `CellRoom.NoRoom`.
+
+Growing-room alternatives use a soil eligibility predicate that allows an observed
+roof, with roof and indoor suitability screened separately. They retain the same
+native cell instead of rewriting its roof to invent an unroofed observation. Ordinary
+outdoor crop eligibility still requires an unroofed cell. Planning views introduce
+no persisted cell observation copy.
+
 ## Shared admission
 
 Shared spatial validation rejects overlapping planned room bounds, growing zones
@@ -294,6 +311,11 @@ Hot and NextRoomID.
   `Beside` pieces still fit, nearest the doors (a table with room for its chairs); `Clear` keeps a
   lane open in front of a piece (the pin's throw lane; a hard constraint). A role with no
   `regionRoles` entry has no interior.
+  Seasonal outdoor climate is total on every direct and routine colony read: the
+  gear census supplies twelve finite seasonal means. Missing or malformed means
+  fail observation before planning; they never certify a mild map or free heating.
+  The projection derives its cold and hot flags from that curve, and station,
+  bedroom, roof, vent and airlock pricing carry the same required curve.
   **Roofed set (#2941).** On a bad-climate map (the Cold or Hot latch, or a curve under
   `ColdMapBelowC` or over `HotEnter`) `PlanRoofed` (`LayoutRoof.cs`) puts every
   room's floor into `LayoutPlan.Roofed`, except the outdoor
@@ -959,7 +981,7 @@ regions. A missing census, incomplete footprint, invalid membership or failed
 room stat read fails the observation. Room cells come from the same frame's
 visible cell grid; fully fogged rooms legitimately have no visible cells.
 
-ColonyProjection.Rooms is required. Routine and standalone colony reads project
+`RoundsFacts.Upkeep.Rooms` is required. Routine and standalone colony reads join
 the census and its cell map through the shared frame tables, so room policy never
 uses an absent census as an empty map. Room consumers (shelter, upkeep, goals,
 hospital and mech siting) read that same total observation. Party-spot, work-chair
@@ -970,3 +992,10 @@ The title-claim gate returns a claim, insufficient favor, an unmet bedroom, or a
 unmet throne room. An empty ladder has no claimable title. Missing bedroom
 furniture or throne impressiveness raises RequiredFactException rather than
 producing an unspecified hold.
+
+Native observation and operation geometry uses the same Domain.Cell value that
+policy reads. Mandatory cells are required fields; no wire cell is decoded into
+a second coordinate record. An operation without an exact cell names its meaning:
+rescue searches for a bed, mortar aim is cleared, a designation resolves its exact
+target, and a ritual that is not beginning carries NotStarting. A relocation
+move carries its destination together with its rotation; uninstall has neither.

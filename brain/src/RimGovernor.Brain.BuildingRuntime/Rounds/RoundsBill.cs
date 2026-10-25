@@ -82,7 +82,7 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
         }
     }
 
-    internal PurposeReport FoodReport(FoodOrderRequest request, ColonyProjection projection)
+    internal PurposeReport FoodReport(FoodOrderRequest request, ColonyReading projection)
     {
         var order = FoodOrdersRules.SelectFoodOrder(request);
         // Every food bill serves a Need: the Need's standing, not an owner's open work, gates the report.
@@ -102,7 +102,7 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
                 report = report with { Order = BuildingReasonNoDeficit };
                 return report;
             case FoodOrderGap.NoBill:
-                report = report with { Order = NoBill(projection.ProductionBenches) };
+                report = report with { Order = NoBill(projection.Facts.EssentialInputs.Benches) };
                 break;
             case FoodOrderGap.Chosen:
                 report = report with { Order = WaitFor(Cause.MethodUsed, "ledger_bill") };
@@ -111,21 +111,21 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
         return report;
     }
 
-    internal FoodOrderRequest FoodRequest(ColonyProjection projection)
+    internal FoodOrderRequest FoodRequest(ColonyReading projection)
     {
         var seasonal = _reviewer.Seasonal(projection.Facts);
         var request = new FoodOrderRequest
         {
             Purpose = _purpose,
-            Benches = projection.ProductionBenches,
+            Benches = projection.Facts.EssentialInputs.Benches,
             Facts = projection.Facts,
-            Supply = projection.CombinedFoodSupply,
-            Humans = projection.FoodSupply,
+            Supply = projection.Facts.CombinedFoodSupply,
+            Humans = projection.Facts.FoodSupply,
             TargetDays = seasonal.FoodTargetDays,
         };
         if (_purpose == ProductionRules.CookFood)
         {
-            request = request with { Meals = projection.MealRequest(seasonal.FoodMinDays, seasonal.FoodTargetDays) };
+            request = request with { Meals = ColonyPlanningRules.MealRequest(projection.Facts, projection.Snapshot.ControlledEnvironment, seasonal.FoodMinDays, seasonal.FoodTargetDays) };
         }
         else if (_purpose == ProductionRules.CookAheadFood)
         {
@@ -135,10 +135,10 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
         return request;
     }
 
-    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         Task.FromResult(DeclareOrdersAll(snapshot, projection, benches, ct).For(_need.Value));
 
-    internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         try
         {

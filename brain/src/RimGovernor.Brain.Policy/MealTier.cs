@@ -30,7 +30,7 @@ public sealed record MealTierRequest
     public bool HighExpectations { get; init; }
     public MealTier Previous { get; init; }
     public Infrastructure? Paste { get; init; }
-    public ControlledEnvironment Environment { get; init; }
+    public required ControlledEnvironment Environment { get; init; }
 }
 
 public sealed record MealRecipeChoice
@@ -411,8 +411,8 @@ public static partial class MealRules
         // Correct drift even when another matching bill already covers the target.
         foreach (var choice in review.Recipes)
         {
-            // A choice on a bench the census lacks selects nothing.
-            var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench { Token = "", Usable = false };
+            // ReviewMealTier derives each choice from this same immutable bench census.
+            var bench = byBench[choice.Bench];
             bench = bench with { Recipes = recipes.TryGetValue((choice.Bench, choice.Recipe), out var recipe) ? [recipe] : [] };
             var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, [bench], colonists, 0, request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (ok && selected.Replace != "")
@@ -433,8 +433,8 @@ public static partial class MealRules
         }
         foreach (var choice in review.Recipes)
         {
-            // A choice on a bench the census lacks selects nothing.
-            var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench { Token = "", Usable = false };
+            // ReviewMealTier derives each choice from this same immutable bench census.
+            var bench = byBench[choice.Bench];
             bench = bench with { Recipes = recipes.TryGetValue((choice.Bench, choice.Recipe), out var recipe) ? [recipe] : [] };
             var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, [bench], colonists, 0, request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (!ok)

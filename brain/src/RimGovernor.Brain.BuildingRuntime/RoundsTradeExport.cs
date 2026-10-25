@@ -12,7 +12,7 @@ internal sealed class ExportMemory
     private readonly object _gate = new();
     private GenerationSnapshot _snapshot;
     private IReadOnlyList<Pol.Resource> _sale = [];
-    private IReadOnlyList<Pol.GearStock> _apparel = [];
+    private IReadOnlyList<Pol.GearStockBalance> _apparel = [];
     private bool _apparelKnown;
     private IReadOnlyDictionary<Pol.Resource, int>? _weapons;
     private bool _weaponsKnown;
@@ -31,7 +31,7 @@ internal sealed class ExportMemory
         }
     }
 
-    public void SetPlan(GenerationSnapshot snapshot, IReadOnlyList<Pol.Resource> sale, IReadOnlyList<Pol.GearStock> apparel)
+    public void SetPlan(GenerationSnapshot snapshot, IReadOnlyList<Pol.Resource> sale, IReadOnlyList<Pol.GearStockBalance> apparel)
     {
         lock (_gate)
         {
@@ -141,11 +141,11 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     }
 
     /// <summary>The declaration owned by the economy/trade Need.</summary>
-    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct) =>
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct) =>
         (await DeclareOrdersInnerAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(EconomyFamily.Trade.FilingKey.Value);
 
     /// <summary>Declares the export batches (OrderDeclarer) and files the sale path's inputs. Any unread input abstains: the ledger removes nothing.</summary>
-    private async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct)
+    private async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, IReadOnlyList<Pol.GearBench> benches, CancellationToken ct)
     {
         SetWorking(false);
         var rd = _reviewer;
@@ -181,7 +181,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         {
             request = request with { Runways = review.ResourceRunwayState() };
         }
-        var apparel = GearSurplusRules.ApparelSurplus(new Pol.ClothingDemandInput { Garments = f.Garments, Items = f.Items, Gear = f.Gear, Stock = new Pol.StockReader { Resources = f.Resources, Wood = f.Wood } });
+        var apparel = GearSurplusRules.ApparelSurplus(new Pol.ClothingDemandInput { Garments = f.Garments, Items = f.Items, Gear = f.Gear, Stock = new Pol.StockReader { Resources = f.ObservedStock(), Wood = f.WoodStock() } });
         request = request with { Surplus = request.Surplus with { Apparel = apparel } };
         var (weapons, weaponsOk) = rd.Exports.Surplus(snapshot);
         if (weaponsOk && rd.Exports.Known(snapshot))
@@ -240,7 +240,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             }
             request = request with { Supply = supply };
         }
-        var center = projection.Center();
+        var center = projection.Facts.LayoutPlan?.Center();
         for (var i = 0; i < names.Count; i++)
         {
             var name = names[i];
@@ -261,14 +261,14 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             if (center is { } at)
             {
                 var hand = new List<Pol.AcquisitionSource>();
-                foreach (var s in projection.Acquisition)
+                foreach (var s in projection.Facts.Acquisition)
                 {
                     if (new Pol.Resource(s.Resource) == name)
                     {
                         hand.Add(s);
                     }
                 }
-                sources.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(name, hand, at, new YieldStorage.Unread()));
+                sources.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(name, hand.Select(source => (source, source.Yield)), at, new YieldStorage.Unread()));
             }
             candidateSources[name] = sources;
         }
@@ -285,7 +285,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     }
 
     /// <summary>Counts the packed sculptures no owed room reserves; unknown when the count is unread.</summary>
-    private async Task<long> PackedArtAsync(GenerationSnapshot snapshot, C.Identity identity, Observation.ColonyProjection projection, CancellationToken ct)
+    private async Task<long> PackedArtAsync(GenerationSnapshot snapshot, C.Identity identity, RimGovernor.Brain.Bridge.Contracts.ColonyReading projection, CancellationToken ct)
     {
         if (_reviewer.Native is not FacadeNativeClient native)
         {
@@ -416,7 +416,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
     internal static Dictionary<Pol.Resource, long> ExportStock(Pol.RoundsFacts f)
     {
         var output = new Dictionary<Pol.Resource, long>();
-        foreach (var row in f.Resources)
+        foreach (var row in f.ObservedStock())
         {
             output[row.Resource] = output.GetValueOrDefault(row.Resource) + row.Count;
         }

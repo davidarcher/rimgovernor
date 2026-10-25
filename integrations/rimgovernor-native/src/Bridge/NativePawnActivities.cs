@@ -158,13 +158,13 @@ namespace HomeBridge.BridgeTools
                     if (step.Kind == PawnActivityKind.Hold) continue;
                     if (step.Kind == PawnActivityKind.Approach)
                     {
-                        var destination = (step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination."));
+                        var destination = ((CellActivityStep)step).Destination;
                         if (!pawn.CanReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) return Refuse("Approach unavailable.");
                         continue;
                     }
                     if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
                     {
-                        var cell = new IntVec3((step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination.")).X, 0, step.Destination.Value.Z);
+                        var cell = new IntVec3(((CellActivityStep)step).Destination.X, 0, ((CellActivityStep)step).Destination.Z);
                         var roofGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
                         if (roofGiver?.Worker is not WorkGiver_BuildRoof || !cell.InBounds(pawn.Map)
                             || !pawn.Map.areaManager.BuildRoof[cell] || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
@@ -315,7 +315,7 @@ namespace HomeBridge.BridgeTools
         // Names the failed condition: a refusal the brain cannot tell apart is retried verbatim every review.
         private static string? DeliveryRefusal(Pawn pawn, Thing target, PawnActivityStep step)
         {
-            if (step.Destination is not { } destination) return "no destination";
+            if (step is not CellActivityStep { Destination: var destination }) return "no destination";
             if (target.def.category != ThingCategory.Item || !target.def.EverHaulable) return "target not haulable";
             if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)) return "pawn cannot haul";
             if (!pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) return "pawn cannot manipulate";
@@ -472,10 +472,10 @@ namespace HomeBridge.BridgeTools
             var p = e.Pawn;
             if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return JobMaker.MakeJob(holdDef);
             if (step.Kind == PawnActivityKind.Approach)
-                return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3((step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination.")).X, 0, step.Destination.Value.Z));
+                return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3(((CellActivityStep)step).Destination.X, 0, ((CellActivityStep)step).Destination.Z));
             if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
             {
-                var cell = new IntVec3((step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination.")).X, 0, step.Destination.Value.Z);
+                var cell = new IntVec3(((CellActivityStep)step).Destination.X, 0, ((CellActivityStep)step).Destination.Z);
                 if (cell.GetRoof(p.Map) != null)
                 {
                     e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
@@ -559,7 +559,7 @@ namespace HomeBridge.BridgeTools
             else if (step.Kind == PawnActivityKind.Deliver)
             {
                 if (!DeliveryAllowed(p, target, step)) throw new InvalidOperationException("delivery_unavailable");
-                var cell = new IntVec3((step.Destination ?? throw new System.InvalidOperationException("Required native value is unavailable: step.Destination.")).X, 0, step.Destination.Value.Z);
+                var cell = new IntVec3(((CellActivityStep)step).Destination.X, 0, ((CellActivityStep)step).Destination.Z);
                 Preempt(p, cell, PathEndMode.OnCell, Danger.Some);
                 job = JobMaker.MakeJob(deliveryDef, target, cell);
                 job.count = step.Count;

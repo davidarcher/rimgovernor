@@ -60,10 +60,10 @@ internal static class BillsCensus
         }
 
         var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var cooking = facts.Cooking.FirstOrDefault(c => c.Bench?.Id == id);
-        if (cooking?.BenchSnapshot?.Token != snapshot.Token)
+        var cooking = facts.ProductionBenches.FirstOrDefault(c => c.Bench.Bench == id && c.Cooking is Observations.CookingProduction.Supported);
+        if (cooking?.Bench.Snapshot.Token != snapshot.Token)
         {
-            problems.Add($"census token {snapshot.Token} disagrees with the colony-facts cooking row {cooking?.BenchSnapshot?.Token}");
+            problems.Add($"census token {snapshot.Token} disagrees with the colony-facts cooking row {cooking?.Bench.Snapshot.Token}");
         }
 
         var catalog = await s.CallAsync("recipes", NativeOps.ReadRecipes, new Observations.RecipesRequest { Scope = s.Scope, BenchId = id }, cancellationToken).ConfigureAwait(false);

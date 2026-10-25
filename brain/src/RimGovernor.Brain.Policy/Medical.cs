@@ -65,7 +65,7 @@ public sealed record MedicalFacts
     public static MedicalFacts From(RoundsFacts f, RoundsPolicy policy, bool medicineActive)
     {
         var p = policy.Seasonal(f.Calendar, f.DisasterConditions);
-        var reserve = MedicalRules.MedicalReserveAtTarget(f.MedicalReserve with { Colonists = f.Colonists }, p.MedicalReserve);
+        var reserve = MedicalRules.MedicalReserveAtTarget(f.MedicalReserve with { Census = f.Census }, p.MedicalReserve);
         return new()
         {
             CareRecovered = f.MedicalCareRecovered,

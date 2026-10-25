@@ -1,8 +1,7 @@
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -54,9 +53,9 @@ public sealed class ShelterFamilyTests
         Assert.Equal(3, StationGraph.SleepGraph(input).Nodes.Where(n => n.Purpose == StationPurpose.Sleep).Sum(n => n.Count));
 
         // The shelter target is the colonist count: three places for three colonists owe nothing, two owe one.
-        var housed = new RoundsFacts { Colonists = 3L, BedCapacity = 3L, IndoorCapacity = 3L };
+        var housed = new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, BedCapacity = 3, IndoorSleepingCapacity = 3 }, };
         Assert.Equal(0, ShelterRules.StandInsOwed(housed).Missing);
-        Assert.Equal((3L, 1), ShelterRules.StandInsOwed(housed with { BedCapacity = 2L, IndoorCapacity = 2L }));
+        Assert.Equal((3L, 1), ShelterRules.StandInsOwed(housed with { Census = housed.Census with { BedCapacity = 2, IndoorSleepingCapacity = 2 } }));
     }
 
     [Fact]
@@ -87,13 +86,13 @@ public sealed class ShelterFamilyTests
     {
         var memory = new SafeAreaMemory();
         Assert.Equal(SafeAreaStatus.AwaitingReview, memory.Owed("w"));
-        var reviewed = memory.Review("w", ColonyFactsCoreTests.Projection() with { Rooms = RoomTestFacts.NoRooms });
+        var reviewed = memory.Review("w", ColonyFactsCoreTests.Reading() with { Facts = ColonyFactsCoreTests.Reading().Facts with { Upkeep = ColonyFactsCoreTests.Reading().Facts.Upkeep with { Rooms = RoomTestFacts.NoRooms } } });
         Assert.NotEqual(SafeAreaStatus.AwaitingReview, reviewed);
         Assert.Equal(reviewed, memory.Owed("w"));
         Assert.Equal(SafeAreaStatus.AwaitingReview, memory.Owed("other"));
         memory.Commit("w");
         Assert.Equal(SafeAreaStatus.Clear, memory.Owed("w"));
-        Assert.Equal(SafeAreaStatus.Clear, memory.Review("w", ColonyFactsCoreTests.Projection()));
+        Assert.Equal(SafeAreaStatus.Clear, memory.Review("w", ColonyFactsCoreTests.Reading()));
     }
 
     [Fact]

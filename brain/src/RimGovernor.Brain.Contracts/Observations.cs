@@ -310,9 +310,9 @@ public sealed record SnapshotRef
 
 public sealed record Rectangle
 {
-    public Common.Cell? Minimum { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Minimum { get; init; }
 
-    public Common.Cell? Maximum { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Maximum { get; init; }
 }
 
 /// <summary>
@@ -494,7 +494,7 @@ public abstract record EntityPlace
 {
     private protected EntityPlace() { }
 
-    public sealed record OnMap(int MapId, Common.Cell Cell) : EntityPlace;
+    public sealed record OnMap(int MapId, [property: JsonRequired] RimGovernor.Brain.Domain.Cell Cell) : EntityPlace;
 
     public sealed record Unplaced : EntityPlace;
 }
@@ -517,17 +517,11 @@ public abstract record TargetRefTarget
     [JsonIgnore]
     public Common.Ref? Entity => (this as EntityCase)?.Value;
 
-    public sealed record EntityCase(Common.Ref Value) : TargetRefTarget;
+    public sealed record EntityCase(Common.Ref Value, EntityPlace Place) : TargetRefTarget;
 
-    public static implicit operator TargetRefTarget(Common.Ref value) => new EntityCase(value);
+    public sealed record CellCase([property: JsonRequired] RimGovernor.Brain.Domain.Cell Value) : TargetRefTarget;
 
-    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Cell? Cell => (this as CellCase)?.Value;
-
-    public sealed record CellCase(Common.Cell Value) : TargetRefTarget;
-
-    public static implicit operator TargetRefTarget(Common.Cell value) => new CellCase(value);
+    public static implicit operator TargetRefTarget(RimGovernor.Brain.Domain.Cell value) => new CellCase(value);
 
     /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -564,12 +558,6 @@ public sealed record JobEvidence
     /// a job no work giver issued (a forced order, rest, a meal, wandering).
     /// </summary>
     public string? WorkTypeDefName { get; init; }
-
-    /// <summary>
-    /// target_a_cell: a spawned thing target's cell when the job was read
-    /// target_a carries the thing's Ref.
-    /// </summary>
-    public Common.Cell? TargetACell { get; init; }
 
     /// <summary>
     /// preemptible: the pawn is controlled with no committed coupled order, so its job is vanilla job
@@ -773,17 +761,6 @@ public abstract record BleedOut
     public sealed record Within(double Hours) : BleedOut;
 
     public sealed record NotBleedingOut : BleedOut;
-}
-
-/// <summary>
-/// The medical care cap inputs of a pawn: the life threat and every hediff, none filtered.
-/// </summary>
-public sealed record PawnConditions
-{
-    public required bool LifeThreatening { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Hediff>))]
-    public required EquatableArray<Hediff> Hediffs { get; init; }
 }
 
 /// <summary>
@@ -2118,6 +2095,10 @@ public sealed record BillStackRow
     [JsonConverter(typeof(EquatableArrayJsonConverter<BillState>))]
     public required EquatableArray<BillState> Bills { get; init; }
 
+    public Common.Ref? Room { get; init; }
+
+    public required BenchAutoRefuel AutoRefuel { get; init; }
+
     public required double WorkSpeed { get; init; }
 }
 
@@ -2161,11 +2142,10 @@ public abstract record BuildingControl
     /// <summary>A temperature-controlled building and its target temperature.</summary>
     public sealed record Temperature(SnapshotRef Snapshot, double TargetC) : BuildingControl;
 
-    /// <summary>A humanlike bed: its medical and prisoner flags and its assigned owners.</summary>
+    /// <summary>A humanlike bed's medical and prisoner flags.</summary>
     public sealed record Bed(
         bool Medical,
-        bool ForPrisoners,
-        [property: JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))] EquatableArray<Common.Ref> AssignedPawns) : BuildingControl;
+        bool ForPrisoners) : BuildingControl;
 
     /// <summary>A plant grower and its current crop; the crop is null when the grower is set to grow nothing.</summary>
     public sealed record Grower(string? CropDefName) : BuildingControl;
@@ -2289,14 +2269,15 @@ public abstract record BuildingPower
     /// <summary>The building has neither a power trader nor a battery comp.</summary>
     public sealed record NoPower : BuildingPower;
 
-    /// <summary>A power trader (CompPowerTrader): whether it is on, its output, and whether it is a producer (negative base consumption: a generator).</summary>
+    /// <summary>A power trader (CompPowerTrader): whether it is on, its output, and its rated watts with finished upgrades.</summary>
     public sealed record Trader : BuildingPower
     {
         public required bool PowerOn { get; init; }
 
         public required double OutputW { get; init; }
 
-        public required bool Producer { get; init; }
+        /// <summary>Rated output with finished power upgrades applied, negative for consumers.</summary>
+        public required double RatedW { get; init; }
 
         public required string? Network { get; init; }
     }
@@ -2305,6 +2286,8 @@ public abstract record BuildingPower
     public sealed record Battery : BuildingPower
     {
         public required string? Network { get; init; }
+
+        public required double StorageWD { get; init; }
     }
 }
 
@@ -2321,6 +2304,8 @@ public abstract record BuildingFuel
     /// <summary>CompRefuelable's fuel, its target fuel level, and whether it is out of fuel (not HasFuel).</summary>
     public sealed record Refuelable : BuildingFuel
     {
+        public required FuelBurn Burn { get; init; }
+
         public required double Fuel { get; init; }
 
         public required double TargetFuel { get; init; }
@@ -2359,6 +2344,15 @@ public abstract record BuildingWind
 /// </summary>
 public sealed record BuildingState
 {
+    public required bool Roofed { get; init; }
+
+    public required bool RainVulnerable { get; init; }
+
+    public required EquatableArray<string> FuelDefinitions { get; init; }
+
+    public required TurretGun? Turret { get; init; }
+
+    public required ConduitKind Conduit { get; init; }
     public required EntityRef Building { get; init; }
 
     public required Placement.Rotation Rotation { get; init; }
@@ -2414,13 +2408,13 @@ public sealed record BuildingDoor
 /// </summary>
 public sealed record PowerNetwork
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public double GenerationW { get; init; }
+    public required double GenerationW { get; init; }
 
-    public double ConsumptionW { get; init; }
+    public required double ConsumptionW { get; init; }
 
-    public double StoredWattDays { get; init; }
+    public required double StoredWD { get; init; }
 }
 
 public sealed record BuildingsSnapshot
@@ -2778,95 +2772,18 @@ public sealed record ListZonesRequest
 
 /// <summary>
 /// A thing's canonical row, from one native builder: the bundle's things
-/// table. Head, stack count, forbidden, corpse and food are set on every row.
-/// The food facts (<see cref="ThingFood"/>) are an ingestible item's or a
-/// corpse's. What the def alone says (class, vegetable, raw meat and raw
-/// ingredient class, a corpse's humanlike race) is the definition catalog's.
+/// table. Identity, forbidden state and corpse classification are set on every row.
+/// Food stock evidence belongs to FoodSupplyFacts.Stocks.
 /// </summary>
 public sealed record Thing
 {
     [JsonPropertyName("thing")]
     public required EntityRef Entity { get; init; }
 
-    public required long StackCount { get; init; }
-
     public required bool Forbidden { get; init; }
 
     public required bool Corpse { get; init; }
 
-    public required ThingFood Food { get; init; }
-}
-
-/// <summary>A thing's food facts: <see cref="NotFood"/> for anything but an ingestible item or a corpse.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ThingFood.NotFood), "not_food")]
-[JsonDerivedType(typeof(ThingFood.Edible), "edible")]
-public abstract record ThingFood
-{
-    private protected ThingFood() { }
-
-    public sealed record NotFood : ThingFood;
-
-    /// <summary>
-    /// rot at the current ambient temperature, temperature_c that ambient temperature, place (where a spawned thing
-    /// stands, or carried), is_human_meat when the thing or any ingredient it was made from (CompIngredients) is
-    /// humanlike meat; a corpse adds its yield (null for an item).
-    /// </summary>
-    public sealed record Edible : ThingFood
-    {
-        public required ThingRot Rot { get; init; }
-
-        public required double TemperatureC { get; init; }
-
-        public required ThingPlace Place { get; init; }
-
-        public required bool IsHumanMeat { get; init; }
-
-        public required CorpseYield? Yield { get; init; }
-    }
-}
-
-/// <summary>Whether a thing rots: <see cref="Keeps"/>, or <see cref="Rots"/> with the ticks until it rots at the current temperature.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ThingRot.Keeps), "keeps")]
-[JsonDerivedType(typeof(ThingRot.Rots), "rots")]
-public abstract record ThingRot
-{
-    private protected ThingRot() { }
-
-    public sealed record Keeps : ThingRot;
-
-    public sealed record Rots : ThingRot
-    {
-        public required long Ticks { get; init; }
-    }
-}
-
-/// <summary>Where a thing is: <see cref="Carried"/> in an inventory, or <see cref="Stands"/> on the map.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ThingPlace.Carried), "carried")]
-[JsonDerivedType(typeof(ThingPlace.Stands), "stands")]
-public abstract record ThingPlace
-{
-    private protected ThingPlace() { }
-
-    public sealed record Carried : ThingPlace;
-
-    /// <summary>Whether a roof covers its cell, and the room it stands in (null outside any).</summary>
-    public sealed record Stands : ThingPlace
-    {
-        public required bool Roofed { get; init; }
-
-        public required Common.Ref? Room { get; init; }
-    }
-}
-
-/// <summary>A corpse's meat yield (MeatAmount stat) and body size.</summary>
-public sealed record CorpseYield
-{
-    public required double MeatAmount { get; init; }
-
-    public required double BodySize { get; init; }
 }
 
 public sealed record ThingsSnapshot
@@ -3026,11 +2943,11 @@ public sealed record SpatialAccessRequest
 {
     public required ReadScope Scope { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public required EquatableArray<Common.Cell> BlockedCells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> BlockedCells { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public required EquatableArray<Common.Cell> TargetCells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> TargetCells { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> PawnIds { get; init; }
@@ -3200,11 +3117,11 @@ public sealed record LinesOfFireRequest
 {
     public required ReadScope Scope { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public required EquatableArray<Common.Cell> FiringCells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> FiringCells { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public required EquatableArray<Common.Cell> ApproachCells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> ApproachCells { get; init; }
 
     public required uint BudgetMs { get; init; }
 }
@@ -3260,10 +3177,10 @@ public sealed record ExcavationSiteRequest
 {
     public ReadScope? Scope { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public EquatableArray<RimGovernor.Brain.Domain.Cell> Cells { get; init; }
 
-    public Common.Cell? AccessCell { get; init; }
+    public required RimGovernor.Brain.Domain.Cell AccessCell { get; init; }
 }
 
 /// <summary>
@@ -3527,10 +3444,8 @@ public sealed record RecoverySnapshot
 /// <summary>
 /// One spawned humanlike on the map, joined to its pawn table row by <see cref="Pawn"/>. Admitted is a free colonist
 /// of the player faction; Guest is hosted by the player faction (prisoners and slaves included). Recruitable is
-/// Pawn_GuestTracker.Recruitable. The prospect facts (prisoners/recruit weighs a prisoner's use, a hostile's skills
-/// rank it as a lance target) are read for every person: Verse.WildManUtility.IsWildMan, the skill/trait/age
-/// biography and SummaryHealthPercent. After combat, a LuciferiumAddiction hediff (not worth capturing: stripped and
-/// finished instead) and any worn apparel (every downed raider is stripped before it is captured).
+/// Pawn_GuestTracker.Recruitable. WildMan is Verse.WildManUtility.IsWildMan. Biography, health and worn apparel
+/// are owned by the same frame's joined PawnState.
 /// </summary>
 public sealed record PopulationPerson
 {
@@ -3547,14 +3462,6 @@ public sealed record PopulationPerson
 
     public required bool WildMan { get; init; }
 
-    public required PawnBiography Biography { get; init; }
-
-    public required double HealthSummary { get; init; }
-
-    public required bool LuciferiumAddicted { get; init; }
-
-    public required bool WearingApparel { get; init; }
-
     /// <summary>Whether and how the colony holds the person: a colony prisoner, a colony guest, or neither.</summary>
     public required PersonCustody Custody { get; init; }
 
@@ -3565,12 +3472,11 @@ public sealed record PopulationPerson
 /// <summary>
 /// How the colony holds a person. <see cref="Prisoner"/> is a prisoner of the colony: its resistance, the
 /// PrisonerInteractionModeDef it is under, the time held so far (the TimeAsPrisoner record, in ticks: the release
-/// path's "held N days with resistance unbroken" clock), its MedicalCareCategory and care-cap conditions, its surgery
-/// facts as on the pawn care read, its home faction's load id (null for a pawn without a non-player home faction),
+/// path's "held N days with resistance unbroken" clock), its home faction's load id (null without a non-player home faction),
 /// and the goodwill change vanilla's Recipe_RemoveBodyPart violation report (-70) would make with it after
 /// CalculateAdjustedGoodwillChange and the -100 floor (0 when the faction's goodwill cannot change or there is none).
-/// <see cref="Guest"/> is hosted by the colony, neither prisoner nor slave: its MedicalCareCategory and care-cap
-/// conditions. <see cref="None"/> is anyone else (a colonist, a slave, a visitor, a hostile).
+/// <see cref="Guest"/> is hosted by the colony, neither prisoner nor slave. Medical care, conditions and surgery
+/// are read from the joined PawnState. <see cref="None"/> is anyone else (a colonist, a slave, a visitor, a hostile).
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(PersonCustody.Prisoner), "prisoner")]
@@ -3584,13 +3490,10 @@ public abstract record PersonCustody
         double Resistance,
         string Interaction,
         long HeldTicks,
-        Operations.MedicalCare MedicalCare,
-        PawnConditions Conditions,
-        PawnSurgery Surgery,
         Common.Ref? Faction,
         int HarvestGoodwillChange) : PersonCustody;
 
-    public sealed record Guest(Operations.MedicalCare MedicalCare, PawnConditions Conditions) : PersonCustody;
+    public sealed record Guest : PersonCustody;
 
     public sealed record None : PersonCustody;
 }
@@ -4719,14 +4622,8 @@ public sealed record GearLoadout
 
     public required PawnId Pawn { get; init; }
 
-    public required PawnEquipment Equipment { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearCandidate>))]
     public required EquatableArray<GearCandidate> Candidates { get; init; }
-
-    public required double ComfortableMinC { get; init; }
-
-    public required double ComfortableMaxC { get; init; }
 
     public required bool Blocked { get; init; }
 
@@ -4815,9 +4712,6 @@ public sealed record GearCrafter(int Skill, bool Inspired, int QualityOffset);
 /// </summary>
 public sealed record GearLoadoutModel
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Trait>))]
-    public required EquatableArray<Trait> Traits { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearLoadoutOption>))]
     public required EquatableArray<GearLoadoutOption> Worn { get; init; }
 
@@ -5247,62 +5141,13 @@ public abstract record PackRoute
     public sealed record Unreachable : PackRoute;
 }
 
-public sealed record FoodConsumer
-{
-    public required string PawnId { get; init; }
-
-    public required double NutritionPerDay { get; init; }
-
-    public required bool HumanMeatAcceptable { get; init; }
-}
-
-/// <summary>
-/// A food stock references its thing's row in the bundle's things table
-/// and adds what is relative to its eaters: holder when only
-/// that pawn eats it, the nutrition the stack gives them and who can eat it
-/// (the row's forbidden flag is the stack's; the brain decides which forbidden food
-/// is the travel reserve).
-/// </summary>
-public sealed record FoodStock
-{
-    public required Common.Ref Item { get; init; }
-
-    public Common.Ref? Holder { get; init; }
-
-    public required double Nutrition { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Eaters { get; init; }
-}
-
-public sealed record CorpseHandling
-{
-    public string StockId { get; init; } = "";
-
-    public Common.Cell? Cell { get; init; }
-
-    public string? HaulerId { get; init; }
-
-    public bool FrozenDestination { get; init; }
-}
-
-public sealed record FoodLarderFacts
-{
-    public double RawMeatNutrition { get; init; }
-
-    public double CookDemandNutrition { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<CorpseHandling>))]
-    public EquatableArray<CorpseHandling> Corpses { get; init; }
-}
-
 public sealed record FoodSupplyFacts
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodConsumer>))]
-    public EquatableArray<FoodConsumer> Consumers { get; init; }
+    public required EquatableArray<FoodConsumer> Consumers { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodStock>))]
-    public EquatableArray<FoodStock> Stocks { get; init; }
+    public required EquatableArray<FoodStock> Stocks { get; init; }
 
     public required FoodLarderFacts Larder { get; init; }
 }
@@ -5448,8 +5293,6 @@ public sealed record UpkeepBed
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
     public required EquatableArray<PawnId> AccessibleTo { get; init; }
 
-    public required bool Roofed { get; init; }
-
     /// <summary>The bed's ambient temperature (Building_Bed.AmbientTemperature).</summary>
     public required double TemperatureC { get; init; }
 
@@ -5457,8 +5300,6 @@ public sealed record UpkeepBed
     public required string Room { get; init; }
 
     public required BedQuality Quality { get; init; }
-
-    public required string? Stuff { get; init; }
 
     public required bool ForSlaves { get; init; }
 }
@@ -5477,29 +5318,18 @@ public abstract record BedQuality
 }
 
 /// <summary>
-/// One damageable (useHitPoints) spawned player building, read whole: its def, stuff (null for a def not made from
-/// stuff) and position, whether the Home area covers its whole footprint, and its hit points. Its flammability and
-/// repair priority are the def rows' (static-data census).
+/// One damageable (useHitPoints) spawned player building's Home coverage. Identity joins the canonical building
+/// row for physical state; flammability and repair priority are catalog metadata.
 /// </summary>
 public sealed record UpkeepStructure
 {
     public required string Id { get; init; }
 
-    public required string Definition { get; init; }
-
-    public required string? Stuff { get; init; }
-
-    public required Cell Cell { get; init; }
-
     public required bool Home { get; init; }
-
-    public required int HitPoints { get; init; }
-
-    public required int MaxHitPoints { get; init; }
 }
 
 /// <summary>
-/// One person of the sleeping census, read whole. OwnedBed: the bed the pawn owns, null without one. Partners: lover,
+/// One person of the sleeping census, joined by Pawn to its canonical pawn row for bed ownership and comfort. Partners: lover,
 /// spouse and fiance relations to living pawns on the same map (native direct relations). BedSharingAllowed: the
 /// native willingness to share a bed with every listed partner (the SharedBed precepts; with no partner, the plain
 /// SharedBed precept), true without Ideology. Title: the most senior royal title, or untitled.
@@ -5507,14 +5337,6 @@ public sealed record UpkeepStructure
 public sealed record UpkeepPerson
 {
     public required PawnId Pawn { get; init; }
-
-    public required string? OwnedBed { get; init; }
-
-    /// <summary>StatDefOf.ComfyTemperatureMin of the pawn.</summary>
-    public required double ComfortableMinC { get; init; }
-
-    /// <summary>StatDefOf.ComfyTemperatureMax of the pawn.</summary>
-    public required double ComfortableMaxC { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
     public required EquatableArray<PawnId> Partners { get; init; }
@@ -5738,36 +5560,6 @@ public sealed record AnimalRoam
     public required bool ReachesMapEdge { get; init; }
 }
 
-/// <summary>
-/// One player power trader or battery: the building (its service state is its building table row) and
-/// whether a roof covers its whole footprint.
-/// </summary>
-public sealed record DevelopmentPower
-{
-    public Common.Ref Building { get; init; } = new();
-
-    public bool Roofed { get; init; }
-
-    /// <summary>A turret gun's damage per second from its own verb and burst timing; <see cref="PowerTurret.NoGun"/> for other consumers.</summary>
-    public required PowerTurret Turret { get; init; }
-}
-
-/// <summary>Whether a power member is a turret: <see cref="NoGun"/>, or <see cref="Gun"/> with its damage per second.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(PowerTurret.NoGun), "no_gun")]
-[JsonDerivedType(typeof(PowerTurret.Gun), "gun")]
-public abstract record PowerTurret
-{
-    private protected PowerTurret() { }
-
-    public sealed record NoGun : PowerTurret;
-
-    public sealed record Gun : PowerTurret
-    {
-        public required double Dps { get; init; }
-    }
-}
-
 /// <summary>Whether a short circuit was seen on the map: <see cref="NoneSeen"/>, or <see cref="Seen"/> at the latest letter's tick.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(ObservedShortCircuit.NoneSeen), "none_seen")]
@@ -5792,26 +5584,21 @@ public abstract record ObservedShortCircuit
 /// </summary>
 public sealed record SteamGeyser
 {
-    public Common.Ref Geyser { get; init; } = new();
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
-
-    public bool Occupied { get; init; }
+    public required string Id { get; init; }
+    public required Cell Cell { get; init; }
+    public required EquatableArray<Cell> Cells { get; init; }
+    public required bool Occupied { get; init; }
 }
 
 public sealed record DevelopmentFacts
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<DevelopmentPower>))]
-    public EquatableArray<DevelopmentPower> Power { get; init; }
-
     [JsonConverter(typeof(EquatableArrayJsonConverter<PowerNetwork>))]
-    public EquatableArray<PowerNetwork> Networks { get; init; }
+    public required EquatableArray<PowerNetwork> Networks { get; init; }
 
     public required ObservedShortCircuit ShortCircuit { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<SteamGeyser>))]
-    public EquatableArray<SteamGeyser> Geysers { get; init; }
+    public required EquatableArray<SteamGeyser> Geysers { get; init; }
 }
 
 /// <summary>An active game condition affecting the map: its unique id, its def and how long it lasts.</summary>
@@ -5877,81 +5664,6 @@ public sealed record FoodClimate
 }
 
 /// <summary>
-/// Controlled-environment growing facts within the planning region: sun lamps
-/// with the exact cells they grow, plant growers (hydroponics) with their
-/// crop and sowing state, roofed rooms with temperature, and per-network
-/// power headroom split by source so night and outage margins are computable.
-/// Every row is whole; a read native cannot make fails the colony facts read.
-/// </summary>
-public sealed record GrowLight
-{
-    public required Common.Ref Building { get; init; }
-
-    /// <summary>The room the lamp stands in; null when it stands in none.</summary>
-    public required Common.Ref? Room { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
-    public required EquatableArray<Cell> GrowthCells { get; init; }
-
-    public required bool LitNow { get; init; }
-
-    /// <summary>The power network the lamp is connected to; null when it is connected to none.</summary>
-    public required string? PowerNetId { get; init; }
-}
-
-public sealed record PlantGrower
-{
-    public required Common.Ref Building { get; init; }
-
-    /// <summary>The plant the grower sows; null when it is set to sow none.</summary>
-    public required string? CropDefName { get; init; }
-
-    public required bool CanSow { get; init; }
-}
-
-public sealed record GrowRoom
-{
-    public required Common.Ref Room { get; init; }
-
-    /// <summary>The room's key in the cell grid (RoomState.GridRoom). A room whose every cell is fogged is not listed.</summary>
-    public required int GridRoom { get; init; }
-
-    public required double TemperatureC { get; init; }
-}
-
-public sealed record PowerHeadroom
-{
-    public required string Id { get; init; }
-
-    public required double GenerationW { get; init; }
-
-    public required double SolarW { get; init; }
-
-    public required double WindW { get; init; }
-
-    public required double ConsumptionW { get; init; }
-
-    public required double CapacityWattDays { get; init; }
-
-    public required bool HasActiveSource { get; init; }
-}
-
-public sealed record ControlledEnvironment
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<GrowLight>))]
-    public required EquatableArray<GrowLight> Lights { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PlantGrower>))]
-    public required EquatableArray<PlantGrower> Growers { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<GrowRoom>))]
-    public required EquatableArray<GrowRoom> Rooms { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PowerHeadroom>))]
-    public required EquatableArray<PowerHeadroom> Networks { get; init; }
-}
-
-/// <summary>
 /// A sowable crop with an edible product: the map's per-day facts beside
 /// the catalog's static row.
 /// </summary>
@@ -6013,35 +5725,6 @@ public abstract record BenchAutoRefuel
     {
         public required bool Allowed { get; init; }
     }
-}
-
-public sealed record CookingFacts
-{
-    public required Common.Ref Bench { get; init; }
-
-    /// <summary>Not burning, powered when it draws power and fuelled when it burns fuel.</summary>
-    public required bool Usable { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeState>))]
-    public EquatableArray<RecipeState> Recipes { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<BillState>))]
-    public EquatableArray<BillState> Bills { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<FoodProduction>))]
-    public EquatableArray<FoodProduction> Production { get; init; }
-
-    public Common.Ref? Room { get; init; }
-
-    /// <summary>
-    /// auto_refuel is a refuelable bench's CompRefuelable.allowAutoRefuel (BuildingPatchIntent.auto_refuel), or not refuelable.
-    /// </summary>
-    public required BenchAutoRefuel AutoRefuel { get; init; }
-
-    /// <summary>
-    /// The bench's CAS token.
-    /// </summary>
-    public required SnapshotRef BenchSnapshot { get; init; }
 }
 
 /// <summary>
@@ -6134,30 +5817,6 @@ public sealed record HuntCensus
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<HunterFacts>))]
     public required EquatableArray<HunterFacts> Hunters { get; init; }
-}
-
-public sealed record ButcheringFacts
-{
-    public required Common.Ref Bench { get; init; }
-
-    public required SnapshotRef BenchSnapshot { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<BillState>))]
-    public EquatableArray<BillState> Bills { get; init; }
-
-    /// <summary>The bench's NativeProductionBills.Usable: spawned, owned, unforbidden, unfogged, not burning and usable for bills.</summary>
-    public required bool Usable { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeState>))]
-    public EquatableArray<RecipeState> Recipes { get; init; }
-
-    public Common.Ref? Room { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HumanButcherCandidate>))]
-    public EquatableArray<HumanButcherCandidate> HumanButchers { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HumanCorpseMeat>))]
-    public EquatableArray<HumanCorpseMeat> HumanCorpseMeat { get; init; }
 }
 
 /// <summary>
@@ -6533,11 +6192,11 @@ public sealed record ThreatFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<RaidTrack>))]
     public required EquatableArray<RaidTrack> Raids { get; init; }
 
-    /// <summary>What the storyteller's disease comps read of the colony now (#3824); absent when the native read did not run.</summary>
-    public DiseaseFacts? Disease { get; init; }
+    /// <summary>What the storyteller's disease comps read of the colony now (#3824); every threat census reads it.</summary>
+    public required DiseaseFacts Disease { get; init; }
 
-    /// <summary>What the storyteller's trader visits read of the colony now (#3869); absent when the native read did not run.</summary>
-    public TradeVisitFacts? Trade { get; init; }
+    /// <summary>What the storyteller's trader visits read of the colony now (#3869); every threat census reads it.</summary>
+    public required TradeVisitFacts Trade { get; init; }
 }
 
 /// <summary>
@@ -7227,14 +6886,12 @@ public sealed record ColonyFactsSnapshot
 
     public required ControlledEnvironment ControlledEnvironment { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<CookingFacts>))]
-    public required EquatableArray<CookingFacts> Cooking { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ProductionBenchFacts>))]
+    public required EquatableArray<ProductionBenchFacts> ProductionBenches { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<AcquisitionFacts>))]
     public required EquatableArray<AcquisitionFacts> Acquisition { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ButcheringFacts>))]
-    public required EquatableArray<ButcheringFacts> Butchering { get; init; }
 
     public required FoodSupplyFacts FoodSupply { get; init; }
 
@@ -8345,9 +8002,11 @@ public sealed record FlushSnapshotReply
 /// <summary>
 /// One pawn's current outfit and its wearer inputs: the outfit's label (Name), load id (PolicyId), allowed apparel
 /// definitions, hit-point fraction and quality ranges (QualityCategory indices) and whether it excludes tainted
-/// apparel; the pawn's stage, slave and violence flags, work settings, draft state and skills; its short name
+/// apparel; whether the pawn is a slave of the colony; its short name
 /// (PawnName), the definitions its royal title, ideoligion role and ideoligion apparel precepts require, and
 /// whether it goes nude (nudist trait or mandatory nudity precept).
+/// Equipment, comfort, traits, skills, work settings, draft state and disabled work tags belong to the canonical
+/// pawn row; the gear census carries the pawn's universal developmental stage and wear inputs.
 /// </summary>
 public sealed record ApparelPolicyState
 {
@@ -8368,19 +8027,7 @@ public sealed record ApparelPolicyState
 
     public required bool ExcludesTainted { get; init; }
 
-    public required bool Child { get; init; }
-
     public required bool Slave { get; init; }
-
-    public required bool IncapableOfViolence { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<WorkSetting>))]
-    public required EquatableArray<WorkSetting> Work { get; init; }
-
-    public required bool Drafted { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Skill>))]
-    public required EquatableArray<Skill> Skills { get; init; }
 
     public required string PawnName { get; init; }
 

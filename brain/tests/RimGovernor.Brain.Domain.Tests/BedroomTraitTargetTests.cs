@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -18,16 +17,16 @@ public sealed class BedroomTraitTargetTests
 
     private static SleepingObservation Bedrooms(double ownerRoom, double otherRoom) => new()
     {
-        People = [new SleepingPerson { Id = Owner }, new SleepingPerson { Id = Other }],
+        People = [new SleepingPerson { Native = SleepingNativeFixtures.Person(id: Owner), Pawn = SleepingNativeFixtures.Pawn(id: Owner) }, new SleepingPerson { Native = SleepingNativeFixtures.Person(id: Other), Pawn = SleepingNativeFixtures.Pawn(id: Other) }],
         Beds =
         [
-            new SleepingBed { Id = "bed-owner", Humanlike = true, Room = "room-owner", Owners = [Owner] },
-            new SleepingBed { Id = "bed-other", Humanlike = true, Room = "room-other", Owners = [Other] },
+            new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "bed-owner", room: "room-owner", owners: [Owner]), Building = SleepingNativeFixtures.Building(id: "bed-owner"), Humanlike = true },
+            new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "bed-other", room: "room-other", owners: [Other]), Building = SleepingNativeFixtures.Building(id: "bed-other"), Humanlike = true },
         ],
         Rooms =
         [
-            new UpkeepRoom { Id = "room-owner", Role = RoomRole.Bedroom, Beds = ["bed-owner"], Quality = new RoomQuality(0, 0, 0, 0, ownerRoom), Cells = 0 },
-            new UpkeepRoom { Id = "room-other", Role = RoomRole.Bedroom, Beds = ["bed-other"], Quality = new RoomQuality(0, 0, 0, 0, otherRoom), Cells = 0 },
+            new UpkeepRoom { StatKeys = SleepingNativeFixtures.StatKeys, Native = SleepingNativeFixtures.Room("room-owner", RoomRole.Bedroom, new RoomQuality(0, 0, 0, 0, ownerRoom), 0), Beds = ["bed-owner"] },
+            new UpkeepRoom { StatKeys = SleepingNativeFixtures.StatKeys, Native = SleepingNativeFixtures.Room("room-other", RoomRole.Bedroom, new RoomQuality(0, 0, 0, 0, otherRoom), 0), Beds = ["bed-other"] },
         ],
     };
 

@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 

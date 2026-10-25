@@ -1,9 +1,9 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -24,7 +24,7 @@ public sealed class JoinersAnomalyFamilyTests
         FoodDays = new FoodRunway.Days(20.0),
         Sleeping = new SleepingObservation
         {
-            Beds = [new SleepingBed { Id = "bed", Humanlike = true }],
+            Beds = [new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "bed"), Building = SleepingNativeFixtures.Building(id: "bed"), Humanlike = true }],
         },
     };
 
@@ -70,13 +70,13 @@ public sealed class JoinersAnomalyFamilyTests
         Assert.Equal("joiner-accept-q1", JoinersFamily.AcceptMethod("joiner", new("q1")).Value);
     }
 
-    private static readonly ResearchFacts Researched = new() { Finished = [EntityBioferriteRules.ResearchBioferriteExtraction] };
+    private static readonly ResearchFacts Researched = ResearchTestFacts.Read(finished: [EntityBioferriteRules.ResearchBioferriteExtraction.Value]);
 
-    private static BuiltHolder Holder(string pawn, int x, bool holdOpen) => new()
+    private static O.EntityHolderState Holder(string pawn, int x, bool holdOpen) => new()
     {
-        Strength = 0,
+        ContainmentStrength = 0,
         Available = false,
-        HeldPawn = pawn,
+        HeldPawn = new() { Id = pawn },
         Doors = [new AnomalyDoor
         {
             Cell = new(x, 1), HoldOpen = holdOpen, ContainmentBreached = false, BlockedOpen = false,
@@ -85,28 +85,31 @@ public sealed class JoinersAnomalyFamilyTests
 
     private static CapturableEntity Held(string pawn, bool flag = false) => new()
     {
-        Pawn = new(pawn),
-        Dead = false,
-        Downed = false,
-        Need = 10.0,
-        CurrentlyStudiable = false,
-        Target = new PlatformTarget
+        Observed = PawnFixtures.Row(pawn) with
         {
-            CanBeCaptured = true,
-            Held = true,
-            NeedsTend = false,
-            Bleeding = false,
-            Escaping = false,
-            Mode = EntityContainmentModeKind.Study,
-            ExtractBioferrite = flag,
-            HarvesterAttached = false,
-            BioferritePerDay = 1.0,
+            Anomaly = new O.PawnAnomalyState.Active(new O.PawnAnomaly
+            {
+                Entity = true, Mutant = false, MinContainmentStrength = 10,
+                Study = null, HiddenFromPlayer = false, PsychicRitualInvoker = false,
+                MeleeOnly = false, Creepjoiner = null,
+                Held = new O.HeldState
+                {
+                    CanBeCaptured = true, Held = true, NeedsTend = false, Bleeding = false,
+                    Escaping = false, Mode = EntityContainmentModeKind.Study,
+                    ExtractBioferrite = flag, HarvesterAttached = false, BioferritePerDay = 1,
+                    Escape = new O.EntityEscapeState
+                    {
+                        BaseMtbDays = 60, MovingFactor = 1, DaysInCaptivity = 2,
+                        ColdFactor = 1, CombatPower = 100, CanEscape = true,
+                    },
+                },
+            }),
         },
     };
-
-    private static RoundsFacts Containment(BuiltHolder[] holders, params CapturableEntity[] entities) => new()
+    private static RoundsFacts Containment(O.EntityHolderState[] holders, params CapturableEntity[] entities) => new()
     {
         Anomaly = NoMonolith,
+        Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } },
         Containment = new ContainmentPlanning
         {
             Holders = [.. holders],
@@ -118,6 +121,20 @@ public sealed class JoinersAnomalyFamilyTests
 
     private static Need Anomaly(RoundsFacts f, NeedId id) => Assert.Single(new AnomalyFamily().Derive(AnomalyFacts.From(f)), n => n.Id == id);
 
+    [Fact]
+    public void EntityPolicyReadsTheActualNativeHoldingState()
+    {
+        var entity = Held("entity", flag: true);
+        var anomaly = Assert.IsType<O.PawnAnomalyState.Active>(entity.Observed.Anomaly).Facts;
+        Assert.Same(anomaly.Held, entity.Target);
+        Assert.True(entity.Held);
+        Assert.True(entity.CanBeCaptured);
+        Assert.True(entity.Target!.ExtractBioferrite);
+        var downed = entity with { Observed = entity.Observed with { Downed = true } };
+        Assert.True(downed.Downed);
+        Assert.False(entity.Downed);
+        Assert.Same(entity.Target, downed.Target);
+    }
     [Fact]
     public void AnomalyNeedsAreMetUnmetOrUnknownByTheirCensus()
     {
@@ -139,17 +156,17 @@ public sealed class JoinersAnomalyFamilyTests
         // research or gear raises for the whole family, never reading as met.
         Assert.Empty(new AnomalyFamily().Derive(new AnomalyFacts()));
         Assert.Empty(new AnomalyFamily().Derive(AnomalyFacts.From(unmet with { Anomaly = new AnomalyState.Inactive() })));
-        Assert.Equal("whether BioferriteExtraction is researched is unread", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Research = null }, AnomalyFamily.Bioferrite)).Fact);
+        Assert.Equal("research census", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Research = null! }, AnomalyFamily.Bioferrite)).Fact);
         Assert.Equal("gear census", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Gear = null! }, AnomalyFamily.Lance)).Fact);
     }
 
     /// <summary>The Anomaly read of a colony with the expansion and no monolith spawned.</summary>
-    private static readonly AnomalyState NoMonolith = new AnomalyState.Active(new MonolithFacts { AmbientHorror = false, Level = 0, Thing = null });
+    private static readonly AnomalyState NoMonolith = new AnomalyState.Active(new O.AnomalyColonyFacts { Incidents = new() { AmbientHorrorMode = false, Level = 0, MonolithSpawned = false }, Monolith = null });
 
     [Fact]
     public void TheAnomalyReadIsInactiveWithoutTheSectionAndActiveWithTheMonolith()
     {
-        Assert.IsType<AnomalyState.Inactive>(RimGovernor.Brain.Observation.AnomalyColonyReads.AnomalyOf(AnomalySectionTests.NoAnomaly));
+        Assert.IsType<AnomalyState.Inactive>(RimGovernor.Brain.Bridge.AnomalyColonyReads.AnomalyOf(AnomalySectionTests.NoAnomaly));
         Assert.IsType<AnomalyState.Inactive>(new RoundsFacts().Anomaly);
         Assert.IsType<ContainmentDefsRead.Inactive>(new ContainmentPlanning().Defs);
         Assert.Empty(new ContainmentPlanning().Holders);
@@ -193,7 +210,7 @@ public sealed class JoinersAnomalyFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-anomaly-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0};
+        facts = facts with { Census = facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0};
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<AnomalyFacts>(new AnomalyFamily(), (_, _) => Task.FromResult(colony!.Facts), AnomalyRounds.Schedule);

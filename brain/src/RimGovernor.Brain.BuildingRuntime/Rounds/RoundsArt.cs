@@ -29,19 +29,19 @@ public sealed class RoundsArtPlanner : IPurposeReporter
     }
 
     /// <summary>Declares the art orders of this review and returns the rooms/art Need's share.</summary>
-    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         Task.FromResult(DeclareOrdersAll(snapshot, projection, benches, ct).For(RoomsFamily.Art.FilingKey.Value));
 
-    internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var sculpting = ArtOrdersRules.SculptureInProgress(benches);
-        var pawns = projection.WorkPawns.Pawns;
+        var pawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
         var profiles = PawnRules.Profiles(pawns);
         var request = new ArtOrderRequest
         {
             Benches = [.. benches],
             Demand = ArtDemand(projection, profiles),
-            Colonists = projection.Facts.Colonists,
+            Colonists = projection.Facts.Census.ColonistCount,
             Items = projection.Facts.Items,
             RoomsOwed = projection.Facts.SculptureRoomsOwed,
             Profiles = [.. profiles],
@@ -75,14 +75,14 @@ public sealed class RoundsArtPlanner : IPurposeReporter
         }
     }
 
-    internal static ArtDemand ArtDemand(ColonyProjection facts, IReadOnlyList<PawnProfile> profiles)
+    internal static ArtDemand ArtDemand(ColonyReading facts, IReadOnlyList<PawnProfile> profiles)
     {
-        var stock = facts.Resources;
-        var rooms = facts.Rooms;
+        var stock = ResourceStockRules.Count(facts.Snapshot.Resources);
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         var obs = facts.Facts.Sleeping;
         var traits = RoundsSleepingUpkeepPlanner.SleepingTraits(facts) ?? throw new RequiredFactException("sleeping traits");
-        facts.TechTier.TryGetValue(out var tier);
-        return ArtRules.NewArtDemand(obs, RoomQualityRules.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items);
+        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(project => new ResearchProjectId(project)).ToArray(), facts.Snapshot.PlayerTechLevel);
+        return ArtRules.NewArtDemand(obs, RoomQualityRules.RoomQualityTargets(obs, traits, tier, facts.Facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms, census, facts.PlanningWindow.Cells), stock, profiles, facts.Facts.Items);
     }
 }

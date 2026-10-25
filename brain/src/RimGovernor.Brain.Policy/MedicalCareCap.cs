@@ -1,16 +1,20 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>One guest's care cap inputs.</summary>
 public sealed record CarePatient
 {
-    public required PawnId Id { get; init; }
+    public required O.PopulationPerson Person { get; init; }
+    public required O.PawnState Observed { get; init; }
 
-    public required MedicalCare Care { get; init; }
+    public PawnId Id => Person.Pawn;
 
-    public required EquatableArray<Hediff> Conditions { get; init; }
+    public MedicalCare Care => Observed.Settings.Care is O.PawnCare.Configured care ? WorkRules.MedicalCareOf(care.MedicalCare) : throw new RequiredFactException("guest medical care settings");
 
-    public required bool LifeThreatening { get; init; }
+    public EquatableArray<Hediff> Conditions => Observed.Health.Hediffs;
+
+    public bool LifeThreatening => Observed.Health.LifeThreatening;
 }
 
 /// <summary>
@@ -143,7 +147,7 @@ public static partial class MedicalRules
         var combat = false;
         foreach (var t in a.Training)
         {
-            combat = combat || (t.Def == "Release" && t.Learned);
+            combat = combat || (t.DefName == "Release" && t.Learned);
         }
         return a.Bonded || combat ? MedicalCare.Normal : MedicalCare.Herbal;
     }
@@ -172,7 +176,7 @@ public static partial class MedicalRules
         if (colonists.Count != 0)
         {
             var living = colonists.LongCount(c => !c.Dead);
-            var baseCare = ColonistCareBase(f.Items, f.Resources, living, p);
+            var baseCare = ColonistCareBase(f.Items, f.ObservedStock(), living, p);
             foreach (var c in colonists)
             {
                 if (c.Dead) continue;

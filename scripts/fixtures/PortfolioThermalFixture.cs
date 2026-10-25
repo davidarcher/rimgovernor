@@ -117,7 +117,7 @@ public sealed partial class PawnControlFixture
     {
         if (!thermalActive) return;
         foreach (var order in batch.Orders.Where(o => !o.Release && o.Method.StartsWith("coupled-", StringComparison.Ordinal)
-            && o.Steps.Any(s => s.Job == "BuildRoof" && s.Destination is { } c && thermalMissing.Contains(new IntVec3(c.X, 0, c.Z)))))
+            && o.Steps.Any(s => s.Job == "BuildRoof" && s is CellActivityStep { Destination: var c } && thermalMissing.Contains(new IntVec3(c.X, 0, c.Z)))))
             thermalMethods.Add(order.Method);
     }
     private static void ThermalTick(Pawn ___pawn)

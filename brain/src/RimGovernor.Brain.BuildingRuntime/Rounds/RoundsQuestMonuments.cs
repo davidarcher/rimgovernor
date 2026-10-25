@@ -6,16 +6,16 @@ public sealed partial class JoinersRounds
     internal async Task<(Verdict Verdict, bool Handled)> AdmitMonumentAsync(NeedWork work, Rounds review, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
         var state = work.State;
-        var claims = reviewer.Player.Journal.ConstructionClaims(state.Snapshot, read.Projection.Identity.Tick, call);
-        var cells = reviewer.FieldProtected(state, review, read.Projection, claims, call);
+        var claims = reviewer.Player.Journal.ConstructionClaims(state.Snapshot, read.Reading.Identity.Tick, call);
+        var cells = reviewer.FieldProtected(state, review, read.Reading, claims, call);
         var protectedRects = cells.Select(c => new Rectangle(c.X, c.Z, 1, 1)).ToList();
         var stock = new Dictionary<Resource, long>();
-        foreach (var row in read.Projection.Facts.Resources)
+        foreach (var row in read.Reading.Facts.ObservedStock())
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
 
-        var choice = QuestMonumentPolicy.SelectQuestMonument(read.Projection.Facts.QuestOffers, read.Projection.Identity.Map, stock, protectedRects);
+        var choice = QuestMonumentPolicy.SelectQuestMonument(read.Reading.Facts.QuestOffers, read.Reading.Identity.Map, stock, protectedRects);
         if (choice.Quest.IsEmpty)
         {
             return (default, false);
@@ -92,8 +92,8 @@ public sealed partial class JoinersRounds
             Method = method,
             Plan = plan,
             Current = snapshot,
-            Tick = read.Projection.Identity.Tick,
-            Bounds = read.Projection.Bounds,
+            Tick = read.Reading.Identity.Tick,
+            Bounds = read.Reading.Facts.MapBounds,
             Stock = built.Stock,
             Previews = [built.Preview],
             Purpose = Purpose.Rounds,

@@ -1,8 +1,6 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using C = RimGovernor.Contracts.Wire.Common;
 using O = RimGovernor.Contracts.Wire.Observations;
 
@@ -25,8 +23,11 @@ public sealed class ContainmentCreditTests
         Captivity = [new(15, 1), new(60, 1.2), new(120, 1.5), new(240, 2)],
     };
 
-    private static ContainedEntity Entity(string id = "entity1", bool held = true) => new(id, Need,
-        new EntityEscape(MtbDays, 1, 0, 1, 1000, held), new StudyKnowledge(Knowledge, "Basic", (int)Day), held ? new EntityPlatform(new(5, 5), Now) : null);
+    private static ContainedEntity Entity(string id = "entity1", bool held = true, double combatPower = 1000) => new()
+    {
+        Observed = Row(id, held, combatPower: combatPower),
+        Platform = held ? Platform(id, 5, 5, Now) : null,
+    };
 
     private static ForecastCoupledContext Context(EquatableArray<ContainedEntity> entities, string held = "entity1", string unread = "", ContainmentCurves? curves = null) =>
         ForecastValueTests.Context(ForecastValueTests.HarmPawn(), ForecastValueTests.HarmTables(),
@@ -73,7 +74,7 @@ public sealed class ContainmentCreditTests
     {
         // #3880: a 100-point entity against 1000 defense is a fight under a 0.5 ratio; the committed table prices it for a
         // gunner and a melee fighter, and the harm term carries the escapes.
-        var small = Context([Entity() with { Escape = Entity().Escape with { CombatPower = 100 } }]);
+        var small = Context([Entity(combatPower: 100)]);
         small = small with { Harm = small.Harm with { Exposure = RaidExposure.Load() } };
         foreach (var weapon in new[] { CreepJoinerHarmTests.Rifle, CreepJoinerHarmTests.Longsword })
         {
@@ -169,11 +170,21 @@ public sealed class ContainmentCreditTests
         Assert.Equal(Rounded(Curves.Escape), Rounded(curves.Escape));
         Assert.Equal(Rounded(Curves.Study), Rounded(curves.Study));
         Assert.Equal(Rounded(Curves.Captivity), Rounded(curves.Captivity));
+        var heldRow = Row("entity1", held: true);
+        var waitingRow = Row("entity2", held: false);
+        var platform = Platform("entity1", 5, 5, Now);
         var forecast = RoundsContainmentReads.ContainmentForecastOf(
-            [Row("entity1", held: true), Row("entity2", held: false), Row("noble", entity: false), Row("entity3", held: false, capturable: false)],
-            [Platform("entity1", 5, 5, Now)], curves);
+            [heldRow, waitingRow, Row("noble", entity: false), Row("entity3", held: false, capturable: false)],
+            [platform], curves);
         Assert.Equal("", forecast.Unread);
-        Assert.Equal([Entity(), Entity("entity2", held: false)], forecast.Entities);
+        Assert.Equal(["entity1", "entity2"], forecast.Entities.Select(e => e.Id));
+        Assert.Same(heldRow, forecast.Entities[0].Observed);
+        Assert.Same(waitingRow, forecast.Entities[1].Observed);
+        Assert.Same(platform, forecast.Entities[0].Platform);
+        var anomaly = Assert.IsType<O.PawnAnomalyState.Active>(heldRow.Anomaly).Facts;
+        Assert.Same(anomaly.Held!.Escape, forecast.Entities[0].Escape);
+        Assert.Same(anomaly.Study!.Yield, forecast.Entities[0].Study);
+        Assert.Null(forecast.Entities[1].Platform);
         // A held entity whose platform row is missing is unread.
         Assert.StartsWith("entity1: ", RoundsContainmentReads.ContainmentForecastOf([Row("entity1", held: true)], [], curves).Unread);
 
@@ -187,12 +198,57 @@ public sealed class ContainmentCreditTests
     }
 
     [Fact]
+    public void AWaitingCaptureForecastDoesNotReplaceItsNativeEscapeFacts()
+    {
+        var waiting = Entity(held: false);
+        var anomaly = Assert.IsType<O.PawnAnomalyState.Active>(waiting.Observed.Anomaly).Facts;
+        var escape = waiting.Escape with { MovingFactor = 4, DaysInCaptivity = 120, ColdFactor = 2 };
+        var observed = waiting.Observed with
+        {
+            Anomaly = new O.PawnAnomalyState.Active(anomaly with { Held = anomaly.Held! with { Escape = escape } }),
+        };
+        waiting = waiting with { Observed = observed };
+        Assert.Equal(0, ForecastContainment.EscapesPerDay(waiting, Planned, Curves));
+        Assert.Equal(1 / MtbDays, ForecastContainment.EscapesPerDay(waiting, Planned, Curves, captured: true), 12);
+        Assert.Same(escape, waiting.Escape);
+        Assert.False(waiting.Escape.CanEscape);
+        Assert.Equal((4d, 120d, 2d), (waiting.Escape.MovingFactor, waiting.Escape.DaysInCaptivity, waiting.Escape.ColdFactor));
+        Assert.Null(waiting.Platform);
+    }
+
+    [Fact]
+    public void AHeldEntityRequiresItsActualOnMapHolderJoin()
+    {
+        var row = Row("entity1", held: true);
+        var platform = Platform("entity1", 5, 5, Now);
+        var offMap = platform with { Building = platform.Building with { Place = new O.EntityPlace.Unplaced() } };
+        foreach (var buildings in new O.BuildingState[][] { [], [Platform("other", 5, 5, Now)], [offMap], [platform with { Anomaly = null }] })
+        {
+            var forecast = RoundsContainmentReads.ContainmentForecastOf([row], buildings, Curves);
+            Assert.StartsWith("entity1: ", forecast.Unread);
+            Assert.Throws<RequiredFactException>(() => ForecastContainment.CellCredit(Cell, Outcome(), [], Context([], unread: forecast.Unread), Day));
+        }
+    }
+
+    [Fact]
+    public void NativeAbsenceOfStudyIsPreserved()
+    {
+        var row = Row("entity1", held: true);
+        var anomaly = Assert.IsType<O.PawnAnomalyState.Active>(row.Anomaly).Facts;
+        row = row with { Anomaly = new O.PawnAnomalyState.Active(anomaly with { Study = null }) };
+        var entity = Assert.Single(RoundsContainmentReads.ContainmentForecastOf([row], [Platform("entity1", 5, 5, Now)], Curves).Entities);
+        Assert.Same(row, entity.Observed);
+        Assert.Null(entity.Study);
+        Assert.Equal(0, ForecastContainment.StudyPerDay(entity, Planned, Context([entity]), Curves));
+    }
+
+    [Fact]
     public void APlannedCellIsPredictedAndHoldsTheEntityOnAPlatformInsideIt()
     {
         var defs = new ContainmentDefs { Holder = "HoldingPlatform", HolderFactor = 1, HolderBase = 25, FloorStrength = 0, WallHP = 300, DoorHP = 160 };
         var room = new PlannedRoom { Id = 4, Role = PlannedRole.ContainmentCell, Region = RegionRules.RectRegion(new Policy.Rectangle(4, 4, 3, 3)) };
         var floors = new FlooringFacts { Layout = new LayoutPlan { Rooms = [room], NextRoomId = 5 } };
-        var planning = new ContainmentPlanning { Defs = new ContainmentDefsRead.Read(defs), Forecast = new() { Entities = [Entity(), Entity("entity9") with { Platform = new(new(40, 40), Now) }] } };
+        var planning = new ContainmentPlanning { Defs = new ContainmentDefsRead.Read(defs), Forecast = new() { Entities = [Entity(), Entity("entity9") with { Platform = Platform("entity9", 40, 40, Now) }] } };
         Assert.Equal([new PlannedContainmentCell(4, defs.Predict(new ContainmentRoom()), "entity1")], ForecastContainment.CellsOf(planning, floors));
         Assert.Equal([new PlannedContainmentCell(4, 0, "entity1", "the Anomaly expansion is not active")],
             ForecastContainment.CellsOf(planning with { Defs = new ContainmentDefsRead.Inactive() }, floors));
@@ -200,7 +256,7 @@ public sealed class ContainmentCreditTests
             ForecastContainment.CellsOf(planning with { Defs = new ContainmentDefsRead.Unread("Wall is not among the planning definitions") }, floors));
     }
 
-    private static O.PawnState Row(string id, bool held = false, bool entity = true, bool capturable = true) => PawnFixtures.Row(id) with
+    private static O.PawnState Row(string id, bool held = false, bool entity = true, bool capturable = true, double combatPower = 1000) => PawnFixtures.Row(id) with
     {
         Anomaly = new O.PawnAnomalyState.Active(new O.PawnAnomaly
         {
@@ -210,7 +266,7 @@ public sealed class ContainmentCreditTests
             {
                 Held = held, CanBeCaptured = capturable, Mode = O.EntityContainmentModeKind.Study, Escaping = false, ExtractBioferrite = false,
                 NeedsTend = false, Bleeding = false, HarvesterAttached = false, BioferritePerDay = 0,
-                Escape = new O.EntityEscapeState { BaseMtbDays = MtbDays, MovingFactor = 1, DaysInCaptivity = 0, ColdFactor = 1, CombatPower = 1000, CanEscape = held },
+                Escape = new O.EntityEscapeState { BaseMtbDays = MtbDays, MovingFactor = 1, DaysInCaptivity = 0, ColdFactor = 1, CombatPower = combatPower, CanEscape = held },
             } : null,
             Study = entity ? new O.StudyState { CurrentlyStudiable = true, Yield = new O.StudyYieldState { Knowledge = Knowledge, Category = "Basic", FrequencyTicks = (int)Day } } : null,
         }),
@@ -219,7 +275,8 @@ public sealed class ContainmentCreditTests
 
     private static O.BuildingState Platform(string held, int x, int z, double strength) => new()
     {
-        Building = new O.EntityRef { Id = "platform", DefName = "HoldingPlatform", Label = "holding platform", Place = new O.EntityPlace.OnMap(0, new C.Cell { X = x, Z = z }) },
+        Roofed = false, RainVulnerable = false, FuelDefinitions = [], Turret = null, Conduit = O.ConduitKind.None,
+        Building = new O.EntityRef { Id = "platform", DefName = "HoldingPlatform", Label = "holding platform", Place = new O.EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = x, Z = z }) },
         Rotation = RimGovernor.Contracts.Wire.Placement.Rotation.North,
         Stuff = null,
         Faction = null,
@@ -229,7 +286,7 @@ public sealed class ContainmentCreditTests
         Service = BuildingServiceWire.NoService,
         Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
         Burning = false,
-        Occupied = new O.Rectangle { Minimum = new C.Cell { X = x, Z = z }, Maximum = new C.Cell { X = x, Z = z } },
+        Occupied = new O.Rectangle { Minimum = new RimGovernor.Brain.Domain.Cell { X = x, Z = z }, Maximum = new RimGovernor.Brain.Domain.Cell { X = x, Z = z } },
         Anomaly = new O.AnomalyBuilding { Holder = new O.EntityHolderState { ContainmentStrength = strength, Available = false, HeldPawn = new C.Ref { Id = held }, Doors = [] } },
         Door = null,
     };

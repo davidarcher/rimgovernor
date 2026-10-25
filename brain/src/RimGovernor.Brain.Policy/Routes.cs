@@ -27,21 +27,13 @@ public sealed record RoutesPolicy
         FoodForecastRules.FoodId(Door) && FoodForecastRules.FoodId(Stuff) && MaxBreaches >= 1 && MaxBreaches <= 16;
 }
 
-/// <summary>The native routes census.</summary>
-public sealed record RoutesObservation
+/// <summary>Pure validation of the native routes census.</summary>
+public static partial class RoutesRules
 {
-    /// <summary>The mobile colonists measured; an empty census with no pawns cannot declare anything unreachable.</summary>
-    public EquatableArray<string> Pawns { get; init; }
-
-    public EquatableArray<RouteFacility> Facilities { get; init; }
-
-    /// <summary>The most-travelled cells observed since the map loaded.</summary>
-    public EquatableArray<TrafficCell> Traffic { get; init; }
-
-    public void Validate()
+    public static void ValidateRoutes(RimGovernor.Contracts.Wire.Observations.RoutesFacts census)
     {
         var pawns = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var id in Pawns)
+        foreach (var id in census.PawnIds)
         {
             if (!FoodForecastRules.FoodId(id) || !pawns.Add(id))
             {
@@ -49,7 +41,7 @@ public sealed record RoutesObservation
             }
         }
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var f in Facilities)
+        foreach (var f in census.Facilities)
         {
             if (!FoodForecastRules.FoodId(f.Id) || !ids.Add(f.Id))
             {
@@ -81,7 +73,7 @@ public sealed record RoutesObservation
             }
         }
         var trafficKeys = new HashSet<(TrafficLayer, Cell)>();
-        foreach (var t in Traffic)
+        foreach (var t in census.Traffic)
         {
             if (!FoodForecastRules.FoodId(t.Terrain) || !trafficKeys.Add((t.Layer, t.Cell)) || (t.Pending is { } pending && !FoodForecastRules.FoodId(pending)))
             {
@@ -192,14 +184,14 @@ public static partial class RoutesRules
     /// game's own answer, read fresh every review. A door frame is walkable, so a facility reads reachable once its
     /// ordered door is framed; the open door Method then continues on its own and nothing holds the facility.
     /// </summary>
-    public static RoutesReview ReviewRoutes(RoutesObservation v, RoutesPolicy p)
+    public static RoutesReview ReviewRoutes(RimGovernor.Contracts.Wire.Observations.RoutesFacts v, RoutesPolicy p)
     {
         if (!p.Valid())
         {
             throw new DomainException("invalid routes policy");
         }
-        v.Validate();
-        if (v.Pawns.Count == 0)
+        ValidateRoutes(v);
+        if (v.PawnIds.Count == 0)
         {
             return new RoutesReview();
         }

@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
-using static RimGovernor.Brain.Domain.Fact;
 using static RimGovernor.Brain.Store.StorePackage;
 
 namespace RimGovernor.Brain.Store;
@@ -279,7 +278,8 @@ public sealed partial class Store
         {
             r = r with { OrdinaryTick = request.Tick };
         }
-        r = r with { MedicalCare = medical, BrewingFinished = SocialCropsRules.BrewingFinished(request.Facts.Research), EventLoot = loot };
+        r = r with { MedicalCare = medical, BrewingFinished = request.Enabled && !request.Immediate
+            ? SocialCropsRules.BrewingFinished(request.Facts.Research) : !reset && previous.BrewingFinished, EventLoot = loot };
         r = r with { Unsafe = EquatableArray.From(ActionRules.UnsafeLoot(request.Facts.EventLoot)) };
         if (!reset)
         {
@@ -309,9 +309,9 @@ public sealed partial class Store
                 }
                 foreach (var row in request.Facts.FoodStorageUpkeep.Stocks)
                 {
-                    if (wanted.TryGetValue(row.Stock.Id, out var forbid) && FoodReserveRules.ReserveFoodDefinition(row.Stock.DefName))
+                    if (wanted.TryGetValue(row.Stock.Id, out var forbid) && FoodReserveRules.ReserveFoodDefinition(new Resource(row.Stock.DefName)))
                     {
-                        reserveSupplies.Add(new ReserveSupply(row.Stock.Id, row.Stock.DefName.Value, forbid));
+                        reserveSupplies.Add(new ReserveSupply(row.Stock.Id, row.Stock.DefName, forbid));
                     }
                 }
             }
@@ -323,7 +323,7 @@ public sealed partial class Store
             {
                 r = r with
                 {
-                    LarderSupplies = EquatableArray.From([new StartingSupply { Thing = stock.Id, Definition = stock.DefName.Value, Cell = handling.Cell, Forbid = choice.Kind == "forbid" }]),
+                    LarderSupplies = EquatableArray.From([new StartingSupply { Thing = stock.Id, Definition = stock.DefName, Cell = handling.Cell, Forbid = choice.Kind == "forbid" }]),
                 };
             }
         }

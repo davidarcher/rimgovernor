@@ -21,8 +21,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                     new(i.GetProperty("X").GetInt32(), i.GetProperty("Z").GetInt32()), i.Str("Provenance"))
                     { Observed = i.GetProperty("Observed").GetBoolean(),
                         Producers = EquatableArray.From(i.GetProperty("Producers").EnumerateArray().Select(p => p.GetString()!)) })),
-                Source = t.GetProperty("Source") is var source && source.ValueKind != JsonValueKind.Null
-                    ? new(source.GetProperty("X").GetInt32(), source.GetProperty("Z").GetInt32()) : null,
+                Source = ReadCell(t.GetProperty("Source")),
                 PriorSteps = EquatableArray.From(t.GetProperty("PriorSteps").EnumerateArray().Select(ReadStep)),
                 UseUntilTick = t.GetProperty("UseUntilTick").GetInt64() }))) };
         value.Validate(); return value;
@@ -30,17 +29,24 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
     /// <summary>A task stored with its recipe's productive work ticks is a recipe task bound to that much work.</summary>
     private static SelectedActivityTask Bound(JsonElement t, SelectedActivityTask task) =>
         t.GetProperty("ProductiveWorkTicks") is { ValueKind: JsonValueKind.Number } work ? new BoundRecipeTask(task, work.GetDouble()) : task;
-    private static PawnActivityStep ReadStep(JsonElement s) => new(
+    private static PawnActivityStep ReadStep(JsonElement s) => StepForm(s, new PawnActivityStep(
         (PawnActivityKind)s.GetProperty("Kind").GetInt32(), s.Str("Target"), s.Str("WorkGiver"), s.Str("Job"),
         s.GetProperty("Count").GetInt32(), s.GetProperty("Deadline").GetInt64())
-        { Destination = s.GetProperty("Destination") is var d && d.ValueKind != JsonValueKind.Null
-            ? new Cell(d.GetProperty("X").GetInt32(), d.GetProperty("Z").GetInt32()) : null,
-          Practice = ReadPractice(s.GetProperty("Practice")), Recipe = ReadRecipe(s.GetProperty("Recipe")), NotBefore = s.GetProperty("NotBefore").GetInt64(), Container = s.Str("Container"),
+        { Practice = ReadPractice(s.GetProperty("Practice")), Recipe = ReadRecipe(s.GetProperty("Recipe")), NotBefore = s.GetProperty("NotBefore").GetInt64(), Container = s.Str("Container"),
           SupportDemand = s.Str("SupportDemand"), Medicine = s.Str("Medicine"),
           Targets = EquatableArray.From(s.GetProperty("Targets").EnumerateArray().Select(t => t.GetString()!)),
           Cells = EquatableArray.From(s.GetProperty("Cells").EnumerateArray().Select(c => new Cell(c.GetProperty("X").GetInt32(), c.GetProperty("Z").GetInt32()))),
           FullLoad = s.GetProperty("FullLoad").GetBoolean(),
-          Collect = EquatableArray.From(s.GetProperty("Collect").EnumerateArray().Select(t => t.GetString()!)) };
+          Collect = EquatableArray.From(s.GetProperty("Collect").EnumerateArray().Select(t => t.GetString()!)) });
+    private static Cell ReadCell(JsonElement e) => new(e.GetProperty("X").GetInt32(), e.GetProperty("Z").GetInt32());
+    private static PawnActivityStep StepForm(JsonElement e, PawnActivityStep step)
+    {
+        if (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach
+            || step.Kind == PawnActivityKind.Work && step.Job is "BuildRoof" or "Sow")
+            return step.At(ReadCell(e.GetProperty("Destination")));
+        if (e.TryGetProperty("Destination", out _)) throw new JsonException("A non-cell activity cannot carry a destination");
+        return step;
+    }
     private static PawnActivityPractice? ReadPractice(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Skill"), e.Str("Partner"), e.Str("PartnerTarget"), e.GetProperty("DurationTicks").GetInt32());
     private static PawnActivityRecipe? ReadRecipe(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
@@ -79,9 +85,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             }
             w.WriteEndArray();
             w.WriteStartArray("Prerequisites"); foreach (var dependency in task.Prerequisites) w.WriteStringValue(dependency); w.WriteEndArray();
-            if (task.Source is { } source)
-            { w.WriteStartObject("Source"); w.WriteNum("X", source.X); w.WriteNum("Z", source.Z); w.WriteEndObject(); }
-            else w.WriteNull("Source");
+            w.WriteStartObject("Source"); w.WriteNum("X", task.Source.X); w.WriteNum("Z", task.Source.Z); w.WriteEndObject();
             w.WritePropertyName("Step"); WriteStep(w, task.Step);
             w.WriteStartArray("PriorSteps"); foreach (var prior in task.PriorSteps) WriteStep(w, prior); w.WriteEndArray();
             w.WriteEndObject();
@@ -136,9 +140,9 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             w.WriteString("PartnerTarget", practice.PartnerTarget); w.WriteNum("DurationTicks", practice.DurationTicks); w.WriteEndObject();
         }
         else w.WriteNull("Practice");
-        if (s.Destination is { } d)
+        if (s is CellActivityStep { Destination: var d })
         { w.WriteStartObject("Destination"); w.WriteNum("X", d.X); w.WriteNum("Z", d.Z); w.WriteEndObject(); }
-        else w.WriteNull("Destination");
+
         if (s.Recipe is { } cooking)
         {
             w.WriteStartObject("Recipe"); w.WriteString("Bill", cooking.Bill); w.WriteString("Recipe", cooking.Recipe);

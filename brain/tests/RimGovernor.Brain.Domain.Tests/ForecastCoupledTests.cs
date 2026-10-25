@@ -1,10 +1,11 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Contracts.Wire.Common;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -18,7 +19,7 @@ public sealed class ForecastCoupledTests
         var facts = WorkResourceTestFacts.Create("pawn");
         facts = facts with
         {
-            Resources = [],
+            Census = facts.Census with { Resources = [] },
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with
@@ -42,7 +43,7 @@ public sealed class ForecastCoupledTests
                     {
                         Context = Context,
                         Options = [new Row("frame", "TestWall", new(1,1), "pawn", "", "", new(1,1), 0, 0,
-                    "Finish", default, default, Known(build)) { SiteApproachTicks = Known(0.0) }]
+                    "Finish", default, default, build) { SiteApproachTicks = 0.0 }]
                     },
                 },
             }
@@ -155,10 +156,10 @@ public sealed class ForecastCoupledTests
         var facts = Review(foodLevel: 1);
         facts = facts with
         {
-            Resources = [new(new("Rice"), stock)],
+            Census = facts.Census with { Resources = [new O.Quantity { DefName = "Rice", Units = stock }] },
             CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [new("Rice")] = sites * 100 } },
             BillReservations = reserved == 0 ? []
-                : [new() { Pawn = new("other-cook"), Bill = "other-bill", Items = [new(new("Rice"), reserved)] }],
+                : [BillWire.Reservation("other-bill", "other-cook", new Amount(new("Rice"), reserved))],
             ForecastObserved = facts.ForecastObserved with
             {
                 Coupled = facts.ForecastObserved.Coupled! with
@@ -168,8 +169,8 @@ public sealed class ForecastCoupledTests
                         Context = Context,
                         Options = EquatableArray.From<ConstructionActivityOption>(Enumerable.Range(0, sites).Select(i =>
                     new Row("frame" + i, "TestWall", new(1, 1), "pawn", "Rice", "stack", new(1, 1), 100, 100, "Finish",
-                        Known(0.0), Known(20.0), Known(30.0))
-                    { AvailableInput = Known((double)stock), SiteApproachTicks = Known(0.0) }.Option))
+                        0.0, 20.0, 30.0)
+                    { AvailableInput = (double)stock, SiteApproachTicks = 0.0 }.Option))
                     }
                 }
             }
@@ -326,7 +327,7 @@ public sealed class ForecastCoupledTests
         var facts = Review();
         facts = facts with
         {
-            Resources = [new(new("Rice"), 8)],
+            Census = facts.Census with { Resources = [new O.Quantity { DefName = "Rice", Units = 8 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 Coupled = facts.ForecastObserved.Coupled! with
@@ -506,21 +507,7 @@ public sealed class ForecastCoupledTests
         foreach (var rice in new[] { 100, 110 })
         {
             var facts = ConstructionReview(stock: rice);
-            GearOption Garment(string stuff) => new()
-            {
-                ID = "Shirt" + stuff,
-                Definition = new("Shirt"),
-                Stuff = new(stuff),
-                Slot = GearSlot.SkinTorso,
-                Layers = ["OnSkin"],
-                Groups = ["Torso"],
-                Source = GearSource.Bill,
-                Quality = 2,
-                Condition = 1,
-                Cold = stuff == "Rice" ? 15 : 5,
-                Cost = 10,
-                Sharp = .2
-            };
+            GearOption Garment(string stuff) => new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("Shirt" + stuff, "Shirt", stuff, GearSource.Bill)), Slot = GearSlot.SkinTorso, Layers = ["OnSkin"], Groups = ["Torso"], Cold = stuff == "Rice" ? 15 : 5, Cost = 10, Sharp = .2 };
             RecipeActivityOption Recipe(string stuff) => new("Shirt" + stuff, "pawn", "bench", "Tailor", "MakeShirt", "Shirt", stuff, "", "", new(1, 1),
                 [new(stuff == "Rice" ? "stack" : "cloth-stack",stuff,10,new(1,1),stuff == "Rice" ? rice : 10)
                     { Capacity = 100, ApproachTicks = 0.0, CarryTicks = 0.0, ReturnTicks = 0.0 }],
@@ -528,13 +515,11 @@ public sealed class ForecastCoupledTests
             { RequiredCount = 10 };
             facts = facts with
             {
-                Resources = [new(new("Rice"), rice), new(new("Cloth"), 10)],
+                Census = facts.Census with { Resources = [new O.Quantity { DefName = "Rice", Units = rice }, new O.Quantity { DefName = "Cloth", Units = 10 }] },
                 Gear = ColonyModelFixtures.NoGear() with
                 {
                     Stored = [],
-                    Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
-                    Candidates = [], Apparel = [],
-                    LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = 0, ComfortableMin = 10, ComfortableMax = 30, Options = [Garment("Rice"),Garment("Cloth")] }) }]
+                    Pawns = [new() { Observed = GearFixtures.Loadout("") with { Token = "load", Pawn = new("wearer") }, Candidates = [], Apparel = [], LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Threat = ColonyModelFixtures.NoThreat, Ambient = 0, Options = [Garment("Rice"),Garment("Cloth")], Role = GearFixtures.Role }) }]
                 },
                 ForecastObserved = facts.ForecastObserved with
                 {
@@ -569,8 +554,8 @@ public sealed class ForecastCoupledTests
         with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" };
         facts = facts with
         {
-            Resources = [new(new("Rice"), 4)],
-            WorkResources = roster.WorkResources,
+
+            Census = facts.Census with { WorkResources = roster.Census.WorkResources, Resources = [new O.Quantity { DefName = "Rice", Units = 4 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,
@@ -677,7 +662,7 @@ public sealed class ForecastCoupledTests
         var facts = Review();
         facts = facts with
         {
-            Resources = [new(new("Rice"), 10)],
+            Census = facts.Census with { Resources = [new O.Quantity { DefName = "Rice", Units = 10 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 Coupled = facts.ForecastObserved.Coupled! with

@@ -10,8 +10,8 @@ public sealed class HerdPreceptsTests
     private const string VeneratedSlaughter = "SlaughteredVeneratedAnimal";
     private const string EatMeat = "AteMeat";
 
-    private static readonly UpkeepAnimal Cow = new() { Id = new("cow"), Definition = new("Cow") };
-    private static readonly UpkeepAnimal Muffalo = new() { Id = new("muffalo"), Definition = new("Muffalo"), Herd = new HerdFacts { Venerated = true } };
+    private static readonly UpkeepAnimal Cow = AnimalFixtures.Owned("cow", "Cow");
+    private static readonly UpkeepAnimal Muffalo = AnimalFixtures.Owned("muffalo", "Muffalo", AnimalFixtures.Adult with { Venerated = true });
 
     /// <summary>An ideoligion holding one precept whose members refuse each of the events.</summary>
     private static IdeologyMode.Installed Refusing(params string[] events) => new IdeologyMode.Installed(new Ideoligion(
@@ -22,7 +22,7 @@ public sealed class HerdPreceptsTests
                 ["Precept_Refuses"] = new(events.Select(e => new PreceptEffect { Kind = PreceptEffectKind.Unwilling, HistoryEvent = e }).ToArray()),
             },
         },
-        new IdeoligionFacts { Development = IdeoDevelopment.Fixed, Precepts = [new HeldPrecept("p1", "Precept_Refuses")] }));
+        new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { Precepts = [IdeologyTestRows.Precept("p1", "Precept_Refuses")] } }));
 
     [Fact]
     public void WithoutTheExpansionNothingIsBarred()

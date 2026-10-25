@@ -62,7 +62,7 @@ namespace HomeBridge.BridgeTools
             .OrderBy(g => g.Key, System.StringComparer.Ordinal)
             .Select(g => new Obs.HumanCorpseMeat { Race = g.Key, MeatAmount = g.Sum(c => (double)c.InnerPawn.GetStatValue(StatDefOf.MeatAmount)) });
 
-        internal static Obs.ButcheringFacts Fill(Obs.ButcheringFacts row, Thing bench)
+        internal static Obs.ButcheringProduction.Supported Fill(Obs.ButcheringProduction.Supported row, Thing bench)
         {
             var map=bench.Map;
             var people=map.mapPawns.FreeColonistsSpawned;

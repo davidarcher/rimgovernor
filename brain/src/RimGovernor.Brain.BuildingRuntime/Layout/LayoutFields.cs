@@ -17,9 +17,9 @@ internal static class LayoutFieldPlanning
     public const double FieldRichFertility = 1.0;
 
     /// <summary>The plan's field cells; null with no plan or no field zones.</summary>
-    public static HashSet<Cell>? LayoutFieldCells(ColonyProjection facts)
+    public static HashSet<Cell>? LayoutFieldCells(ColonyReading facts)
     {
-        if (facts.LayoutPlan is not { } plan)
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return null;
         }
@@ -39,9 +39,9 @@ internal static class LayoutFieldPlanning
     /// within FieldBlockNeighbourRadius of that block. <paramref name="options"/> are the viable crops in
     /// preference order. The reason explains a refusal: no field blocks, or every block full.
     /// </summary>
-    public static (FieldBlockEdit? Edit, string Reason) PlanFieldBlock(ColonyProjection facts, Cell anchor, IReadOnlyList<FieldBlockOption> options, IReadOnlyList<Cell> protectedCells)
+    public static (FieldBlockEdit? Edit, string Reason) PlanFieldBlock(ColonyReading facts, Cell anchor, IReadOnlyList<FieldBlockOption> options, IReadOnlyList<Cell> protectedCells)
     {
-        if (facts.LayoutPlan is not { } plan)
+        if (facts.Facts.LayoutPlan is not { } plan)
         {
             return (null, "no layout plan");
         }
@@ -55,9 +55,9 @@ internal static class LayoutFieldPlanning
             return (null, "no field cells needed");
         }
         var blocked = new HashSet<Cell>(protectedCells);
-        var census = new Dictionary<Cell, SiteCell>(facts.Cells.Count);
+        var census = new Dictionary<Cell, SiteCell>(facts.PlanningWindow.Cells.Count);
         var rich = new HashSet<Cell>();
-        foreach (var c in facts.Cells)
+        foreach (var c in facts.PlanningWindow.Cells)
         {
             census[c.Cell] = c;
             if (c.Fertility > FieldRichFertility)
@@ -66,13 +66,13 @@ internal static class LayoutFieldPlanning
             }
         }
         var growing = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var f in facts.Farms)
+        foreach (var f in (facts.Tables.Zones ?? throw new RequiredFactException("zone census")).Zones.OfType<O.ZoneState.Growing>())
         {
             growing[f.Id] = f.Crop;
         }
         var inedible = new HashSet<string>(StringComparer.Ordinal);
         var trees = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             var edible = (d.Harvest ?? throw new RequiredFactException("planning Harvest")).Edible;
             if (!edible)
@@ -90,7 +90,7 @@ internal static class LayoutFieldPlanning
         // one cell clear of every zone of the other kind; tree zones never grow by adoption either (AdoptsZone).
         var treeZone = new HashSet<Cell>();
         var cropZone = new HashSet<Cell>();
-        foreach (var c in facts.Cells)
+        foreach (var c in facts.PlanningWindow.Cells)
         {
             if (c.ZoneId is { } id && growing.TryGetValue(id, out var crop))
             {
@@ -174,7 +174,7 @@ internal static class LayoutFieldPlanning
             var first = ConnectedPick(FreeFor(block, options[0].Crop), occupied, rich, anchor, options[0].Needed);
             if (first.Count > 0)
             {
-                var neighbours = FieldBlockNeighbours(facts.Cells, new HashSet<Cell>(first), growing);
+                var neighbours = FieldBlockNeighbours(facts.PlanningWindow.Cells, new HashSet<Cell>(first), growing);
                 foreach (var o in CropChoiceRules.BlockCropOrder(options, neighbours))
                 {
                     if (o.Needed <= 0)

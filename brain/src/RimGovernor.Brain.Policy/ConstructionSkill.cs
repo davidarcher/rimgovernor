@@ -35,7 +35,7 @@ public static class ConstructionSkillRules
             }
             foreach (var skill in skills)
             {
-                if (skill.Name == "Construction" && !skill.Disabled)
+                if (skill.DefName == "Construction" && !skill.Disabled)
                 {
                     best = Math.Max(best, skill.Level);
                     found = true;

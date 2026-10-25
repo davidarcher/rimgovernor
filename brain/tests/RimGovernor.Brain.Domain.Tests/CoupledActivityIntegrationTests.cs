@@ -4,7 +4,6 @@ using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -67,7 +66,7 @@ public sealed class CoupledActivityIntegrationTests
         var ct = TestContext.Current.CancellationToken;
         var (facts, first) = SelectObserved();
         var roster = WorkResourceTestFacts.Create("pawn", "helper");
-        facts = facts with { WorkResources = roster.WorkResources,
+        facts = facts with { Census = facts.Census with { WorkResources = roster.Census.WorkResources },
             ForecastObserved = facts.ForecastObserved with { WorkPawns = roster.ForecastObserved.WorkPawns } };
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-independent-" + Guid.NewGuid().ToString("N") + ".db"), ct);
@@ -94,7 +93,7 @@ public sealed class CoupledActivityIntegrationTests
         var next = ForecastCoupledSelection.StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100);
         Assert.NotNull(next);
         Assert.All(next.Orders, order => Assert.Equal("helper", order.Pawn));
-        Assert.DoesNotContain(next.Tasks, task => task.Step.Target == "plant-a" || task.Step.Destination == new Cell(2, 1));
+        Assert.DoesNotContain(next.Tasks, task => task.Step.Target == "plant-a" || task.Step is CellActivityStep { Destination: var destination } && destination == new Cell(2, 1));
         var secondPlan = new PlanSpec(new("second"), new(1), [DomainAction.NewPawnActivitiesAction(new("second-action"), next)]);
         TestNeed.Commit(journal, Root, new("coupled-independent"), secondPlan, ct);
         Send(journal, secondPlan, 100, ct);
@@ -114,7 +113,7 @@ public sealed class CoupledActivityIntegrationTests
         { Recipe = kind == PawnActivityKind.Recipe ? new("bill", "recipe", [new("ingredient", 2)]) { Resource = "Rice" } : null };
         var task = new SelectedActivityTask("service", "pawn", [], step, new(1, 1), 100);
         var order = new PawnActivityOrder("pawn", "coupled/pawn", "coupled", 0, 1, false,
-            [new(PawnActivityKind.Approach, "", "", "", 0, 1000) { Destination = new(1, 1) },
+            [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 1000).At(new(1, 1)),
                 new(PawnActivityKind.Hold, "", "", "", 0, 1000)]) { Task = task.Id, Preparing = true };
         var batch = new PawnActivities(1, [order]) { Tasks = [task] };
         var malformed = kind == PawnActivityKind.Eat ? step with { Target = "actual-meal", Count = 1 }
@@ -160,10 +159,10 @@ public sealed class CoupledActivityIntegrationTests
                 new ActivityOwnership(o.Pawn, o.Assignment, o.Method, o.Revision, "completed"))), unavailable, ct));
         // The ordinary observed review, not predicted harvest output, makes the two real units spendable.
         var active = Assert.Single(batch.Orders);
-        facts = facts with { Tick = new(completedAt), Resources = [new(new("Rice"), 2)],
+        facts = facts with { Tick = new(completedAt),
             CoupledAlternatives = null, CoupledWorkActive = true,
-            WorkResources = [new(active.Pawn, active.Assignment, active.Revision,
-                "completed", "", "", 0) { LocalHour = 6 }] };
+            Census = (facts.Census with { WorkResources = [new(active.Pawn, active.Assignment, active.Revision,
+                "completed", "", "", 0) { LocalHour = 6 }] }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 2 }] }};
         var refreshed = journal.ReviewRounds(new RoundsRequest { Revision = reviewed.Review.Revision, Current = Root, Tick = new(completedAt), Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Assert.False(journal.LoadPlan(plan.Id, ct).Retired); // Accepted assignment still owns unfinished graph work.
@@ -189,7 +188,7 @@ public sealed class CoupledActivityIntegrationTests
             journal.ReviewRounds(new RoundsRequest { Revision = refreshed.Review.Revision, Current = Root,
                 Tick = new(completedAt + 20), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(),
                 Facts = facts with { Tick = new(completedAt + 20), CoupledWorkActive = false,
-                    WorkResources = [new(released.Pawn, "", 0, "", "", "", 0) { LocalHour = 6 }] } }, ct);
+                    Census = facts.Census with { WorkResources = [new(released.Pawn, "", 0, "", "", "", 0) { LocalHour = 6 }] } } }, ct);
             Assert.True(journal.LoadPlan(recovered.Id, ct).Retired); // Accepted release must not become a permanent hold.
         }
         else

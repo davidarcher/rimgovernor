@@ -1,9 +1,9 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using WorkResourcePawn = RimGovernor.Contracts.Wire.Observations.WorkResourcePawn;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -34,21 +34,23 @@ internal static class WorkResourceTestFacts
 {
     internal static RoundsFacts Create(params string[] pawns) => new()
     {
-        Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
+        Census = (ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat }, WorkResources = EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 })) }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 10 }] },
+        Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } },
+        Research = ResearchTestFacts.Read(),
         Comfort = ComfortTests.NoComfortObservation,
         BasicComfort = ComfortTests.NoComfortObservation,
         MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() },
         Tick = new(100),
         AvailableNeeds = [AdminFamily.WorkAssignments, FoodRules.FoodSupplyNeed, ShelterFamily.Sleeping, ShelterFamily.SafeArea, ShelterFamily.Temperature, MilitaryFamily.Equipment, EconomyFamily.Research],
-        WorkProfiles = [new() { Id = new("artist"),
+        WorkProfiles = [new() { Observed = PawnFixtures.Row("artist") with { Biography = PawnFixtures.Row("artist").Biography with
+            { Skills = [new() { DefName = "Art", Passion = O.Passion.None, Level = 8 }] } },
             WorkSkill = new Dictionary<WorkType, string> { [WorkType.Art] = "Art" },
-            Skills = new Dictionary<string, ProfileSkill> { ["Art"] = new() { Name = "Art", Level = 8 } } }],
-        Resources = [new(new("Rice"), 10)],
+        }],
+
         Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty,
         BillReservations = [],
-        WorkResources = EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 })),
         ForecastObserved = new() { WorkPawns = new WorkPawnsRead(EquatableArray.From(pawns.Select(p => PawnFixtures.Worker(p) with
-        { Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)) }))) },
+        { Observed = PawnFixtures.Row(p) with { Settings = PawnFixtures.Row(p).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new O.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } }))) },
         WorkAdmission = new()
         {
             Buildings = [new("TestWall", "Rice", [new(new("Rice"), 6)]) { Size = new(1, 1) }],
@@ -63,7 +65,7 @@ public sealed class WorkResourcesTests
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
     private static DomainAction Delivery(string id, string pawn = "cook-builder", int count = 6) =>
         DomainAction.NewPawnActivitiesAction(new(id), new(1, [new(pawn, id, "method", 0, 1, false,
-            [new(PawnActivityKind.Deliver, "stack-" + id, "", "", count, 500) { Destination = new(pawn == "helper" ? 4 : 2, 2) }])
+            [new PawnActivityStep(PawnActivityKind.Deliver, "stack-" + id, "", "", count, 500).At(new(pawn == "helper" ? 4 : 2, 2))])
             { OutputDelivery = new("Rice", new(1, 1), new(pawn == "helper" ? 4 : 2, 2), count, 500, 3) }]));
     private static DomainAction Building(string id) => DomainAction.NewBuildingAction(new(id), new("TestWall", new(3, 3), Rotation.North, "Rice"), ConstructionTier.Survive);
     private static DomainAction Craft(string id) => DomainAction.NewProductionBillAction(new(id), new("bench", "TestRecipe", BillMode.GearBatch, 1, "Rice"));
@@ -75,14 +77,14 @@ public sealed class WorkResourcesTests
     [Fact]
     public void ProducedFoodRetainsItsPendingDeliveryShareWithoutCreatingStock()
     {
-        var step = new PawnActivityStep(PawnActivityKind.Deliver, "output", "", "", 6, 500) { Destination = new(2, 2) };
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, "output", "", "", 6, 500).At(new(2, 2));
         var task = new SelectedActivityTask("deliver", "helper", [], step, new(1, 1), 100)
         { Resource = "Rice", Inputs = [new("Rice", "harvest-output", 6, new(1, 1), "harvest") { Producers = ["harvest"] }] };
         var action = DomainAction.NewPawnActivitiesAction(new("pending-output"), new(1,
             [new("helper", "helper-assignment", "harvest-method", 0, 1, false,
                 [new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Task = "deliver", Preparing = true }]) { Tasks = [task] });
         var facts = WorkResourceTestFacts.Create("helper", "eater") with
-        { Resources = [new(new("Rice"), 7)] };
+        { Census = (WorkResourceTestFacts.Create("helper", "eater")).Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 7 }] }};
         var held = View(facts, Pending(action));
         Assert.Equal(1, held.Materials.AssessedBalances()[new("Rice")].ExactCount());
         Assert.False(WorkRules.WorkResourcesFit(held, Plan("hungry", Eat(7))));
@@ -91,7 +93,7 @@ public sealed class WorkResourcesTests
             new(PawnActivityKind.Work, "plant", "Harvest", "Harvest", 0, 500), new(1, 1), 100);
         var beforeHarvest = DomainAction.NewPawnActivitiesAction(action.Id, action.PawnActivities! with { Tasks = [producer, task] });
         Assert.Equal(7, View(facts, Pending(beforeHarvest)).Materials.AssessedBalances()[new("Rice")].ExactCount());
-        var noStock = facts with { Resources = [new(new("Rice"), 0)] };
+        var noStock = facts with { Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 0 }] }};
         Assert.True(View(noStock, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount() <= 0);
 
         static DomainAction Eat(int count)
@@ -115,15 +117,14 @@ public sealed class WorkResourcesTests
         { Inputs = [new("Rice", "shared-rice", 15, new(2, 2), "observed need target") { Observed = true }] };
         var heldAction = DomainAction.NewPawnActivitiesAction(new("future-eat-action"), new(1,
             [new("helper", "helper-assignment", "helper-method", 1, 2, false,
-                [new(PawnActivityKind.Approach, "", "", "", 0, 2000) { Destination = new(2, 2), NotBefore = 1000 },
+                [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 2000) { NotBefore = 1000 }.At(new(2, 2)),
                  new(PawnActivityKind.Hold, "", "", "", 0, 2000)]) { Task = task.Id, Preparing = true }]) { Tasks = [task] });
         var facts = WorkResourceTestFacts.Create("helper", "eater") with
         {
-            Resources = [new(new("Rice"), 19)],
-            WorkResources = [
+
+            Census = ((WorkResourceTestFacts.Create("helper", "eater")).Census with { WorkResources = [
                 new("helper", "helper-assignment", 2, "holding", "", "", 0) { LocalHour = 12 },
-                new("eater", "", 0, "", "", "", 0) { LocalHour = 12 }]
-        };
+                new("eater", "", 0, "", "", "", 0) { LocalHour = 12 }] }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 19 }] }};
         var row = Pending(heldAction) with { Progress = new() { Action = heldAction.Id, Stage = Stage.Completed,
             Attempt = new(1), Receipt = new ReceiptState.Received(Receipt.Accepted), Tick = new(99) } };
         var held = View(facts, row);
@@ -142,7 +143,7 @@ public sealed class WorkResourcesTests
     public void SelectedInputFrontierCountsBranchesButNotDownstreamHandoffs()
     {
         var delivery = new SelectedActivityTask("delivery", "helper", [],
-            new(PawnActivityKind.Deliver, "rice", "", "", 6, 500) { Destination = new(2, 2) }, new(1, 1), 100)
+            new PawnActivityStep(PawnActivityKind.Deliver, "rice", "", "", 6, 500).At(new(2, 2)), new(1, 1), 100)
         { Inputs = [new("Rice", "rice", 6, new(1, 1), "physical") { Observed = true }] };
         var consume = delivery with { Id = "consume", Inputs = [new("Rice", "delivered", 6, new(1, 1), "transfer") { Producers = ["delivery"] }] };
         var branch = delivery with { Id = "branch", Inputs = [new("Rice", "rice", 1, new(1, 1), "physical") { Observed = true }] };
@@ -153,11 +154,11 @@ public sealed class WorkResourcesTests
         Assert.Equal(3, View(facts, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount());
         Assert.Equal(3, View(facts, Pending(action), Pending(DomainAction.NewPawnActivitiesAction(new("revision"), action.PawnActivities!)))
             .Materials.AssessedBalances()[new("Rice")].ExactCount());
-        facts = facts with { WorkResources = [
-            new("helper", "assignment", 1, "started", "carried", "Rice", 4) { LocalHour = 12 }] };
+        facts = facts with { Census = facts.Census with { WorkResources = [
+            new("helper", "assignment", 1, "started", "carried", "Rice", 4) { LocalHour = 12 }] } };
         Assert.Equal(7, View(facts, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount());
-        facts = facts with { WorkResources = [
-            new("helper", "assignment", 1, "completed", "", "", 0) { LocalHour = 12 }] };
+        facts = facts with { Census = facts.Census with { WorkResources = [
+            new("helper", "assignment", 1, "completed", "", "", 0) { LocalHour = 12 }] } };
         Assert.Equal(3, View(facts, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount());
     }
 
@@ -169,8 +170,8 @@ public sealed class WorkResourcesTests
             { Recipe = new("", "shirt", [new("cloth", 6)]) { Resource = "Rice", Stuff = "Rice" } }])]));
         var facts = WorkResourceTestFacts.Create("tailor");
         Assert.Equal(4, View(facts, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount());
-        facts = facts with { WorkResources = [
-            new("tailor", "garment", 1, "started", "", "", 0) { LocalHour = 12, Unfinished = "actual-uft" }] };
+        facts = facts with { Census = facts.Census with { WorkResources = [
+            new("tailor", "garment", 1, "started", "", "", 0) { LocalHour = 12, Unfinished = "actual-uft" }] } };
         Assert.Equal(10, View(facts, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount());
         Assert.Contains("tailor", View(facts, Pending(action)).Claims.Pawns);
     }
@@ -180,13 +181,13 @@ public sealed class WorkResourcesTests
     {
         // A naked start owns no wood: the shelter and the storage room blueprints were refused materials_short, so
         // nothing was ever placed for the colony to gather toward. A blueprint spends nothing until delivery.
-        var facts = WorkResourceTestFacts.Create("cook-builder") with { Resources = [new(new("Rice"), 0)] };
+        var facts = WorkResourceTestFacts.Create("cook-builder") with { Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 0 }] }};
         Assert.Null(WorkRules.WorkResourcesRefusal(View(facts), Plan("build", Building("wall"))));
         var held = View(facts, Pending(Building("wall")));
         var other = DomainAction.NewBuildingAction(new("other"), new("TestWall", new(7, 7), Rotation.North, "Rice"), ConstructionTier.Survive);
         Assert.Null(WorkRules.WorkResourcesRefusal(held, Plan("other", other)));
         Assert.StartsWith("materials_short:Rice", WorkRules.WorkResourcesRefusal(
-            View(facts with { Resources = [new(new("Rice"), 6)] }, Pending(Building("wall"))), Plan("craft", Craft("bill"))));
+            View(facts with { Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 6 }] }}, Pending(Building("wall"))), Plan("craft", Craft("bill"))));
     }
 
     [Fact]
@@ -213,7 +214,7 @@ public sealed class WorkResourcesTests
         var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
         var view = View(facts);
         PawnActivityOrder Staged(string pawn, string target = "") => new(pawn, "m/" + pawn, "m", 0, 1, false,
-            [new(PawnActivityKind.Approach, target, "", "", 0, 500) { Destination = new(5, 5) }, new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Preparing = true };
+            [new PawnActivityStep(PawnActivityKind.Approach, target, "", "", 0, 500).At(new(5, 5)), new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Preparing = true };
         PlanSpec Batch(string id, params PawnActivityOrder[] orders) => Plan(id, DomainAction.NewPawnActivitiesAction(new(id + "-0"), new(1, orders)));
         Assert.Null(WorkRules.WorkResourcesRefusal(view, Batch("meet", Staged("cook-builder"), Staged("helper"))));
         Assert.Equal("shared_target:stack", WorkRules.WorkResourcesRefusal(view, Batch("clash", Staged("cook-builder", "stack"), Staged("helper", "stack"))));
@@ -228,12 +229,12 @@ public sealed class WorkResourcesTests
         {
             var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
             return facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns
-                .Select(p => p.Id.Value != "helper" ? p : p with { Job = new PawnJob { Def = "HaulToCell", Work = WorkType.Hauling,
-                    Target = new JobTarget.Spawned("stack", new Cell(1, 1)), Preemptible = preemptible } }))) } };
+                .Select(p => p.Id.Value != "helper" ? p : p with { Observed = (p).Observed with { Job = new O.JobEvidence { DefName = "HaulToCell", WorkTypeDefName = "Hauling",
+                    TargetA = new() { Target = new O.TargetRefTarget.EntityCase(new RimGovernor.Contracts.Wire.Common.Ref { Id = "stack" }, new O.EntityPlace.OnMap(0, new Cell(1, 1))) }, Preemptible = preemptible } } }))) } };
         }
         PlanSpec Approach(string target) => Plan("approach", DomainAction.NewPawnActivitiesAction(new("approach-0"), new(1,
             [new("cook-builder", "m/cook-builder", "m", 0, 1, false,
-                [new(PawnActivityKind.Approach, target, "", "", 0, 500) { Destination = new(5, 5) }, new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Preparing = true }])));
+                [new PawnActivityStep(PawnActivityKind.Approach, target, "", "", 0, 500).At(new(5, 5)), new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Preparing = true }])));
         var vanilla = View(Holding(preemptible: true));
         var row = vanilla.Evidence.Pawns.Single(p => p.Pawn == "helper");
         Assert.True(row.Preemptible);
@@ -265,10 +266,10 @@ public sealed class WorkResourcesTests
     {
         var action = Delivery("food");
         var facts = WorkResourceTestFacts.Create("cook-builder") with
-        { WorkResources = [new("cook-builder", "food", 1, "running", "carry", "Rice", 4) { LocalHour = 12 }] };
+        { Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { WorkResources = [new("cook-builder", "food", 1, "running", "carry", "Rice", 4) { LocalHour = 12 }] } };
         Assert.Equal(8, View(facts, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount());
-        facts = facts with { BillReservations = 
-            [new() { Pawn = new("cook-builder"), Bill = "native-bill", Items = [new(new("Rice"), 3)] }] };
+        facts = facts with { BillReservations =
+            [BillWire.Reservation("native-bill", "cook-builder", new Amount(new("Rice"), 3))] };
         var cancelled = Pending(action) with { Progress = new() { Stage = Stage.Cancelled } };
         Assert.Equal(7, View(facts, cancelled).Materials.AssessedBalances()[new("Rice")].ExactCount());
     }
@@ -278,12 +279,12 @@ public sealed class WorkResourcesTests
     {
         var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(
-            ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p.Id.Value == "cook-builder" ? p with { Job = new PawnJob { Def = "DoBill" } } : p))) } };
+            ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p.Id.Value == "cook-builder" ? p with { Observed = (p).Observed with { Job = new O.JobEvidence { DefName = "DoBill", TargetA = new() { Target = new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.NotApplicable } } } } } : p))) } };
         var view = View(facts);
         Assert.Contains("unknown_current_job_remaining", view.Capacity["cook-builder"].Findings);
         Assert.IsType<ForecastCapacityWindows.Read>(view.Capacity["helper"].Capacity.Windows);
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(
-            ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Available = false }))) } };
+            ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Observed = p.Observed with { Downed = true } }))) } };
         Assert.Equal(0, View(facts).Capacity["helper"].Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
     }
 
@@ -326,9 +327,9 @@ public sealed class WorkResourcesTests
     {
         var facts = WorkResourceTestFacts.Create("cook-builder") with
         {
-            Resources = [new(new("Rice"), 10), new(new("Steel"), 10)],
-            BillReservations = 
-                [new() { Pawn = new("player"), Bill = "player-bill", Items = [new(new("Rice"), 2)] }],
+            Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 10 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Steel", Units = 10 }] },
+            BillReservations =
+                [BillWire.Reservation("player-bill", "player", new Amount(new("Rice"), 2))],
             WorkAdmission = WorkResourceTestFacts.Create().WorkAdmission with
             { Buildings = [new("TestWall", "Rice", [new(new("Steel"), 6)]) { Size = new(1, 1) }] },
         };
@@ -348,10 +349,10 @@ public sealed class WorkResourcesTests
     [Fact]
     public void SameBenchCannotBeHiddenInsideOnePlanOrUsedThroughPlayerWork()
     {
-        var facts = WorkResourceTestFacts.Create("cook-builder") with { Resources = [new(new("Rice"), 100)] };
+        var facts = WorkResourceTestFacts.Create("cook-builder") with { Census = (WorkResourceTestFacts.Create("cook-builder")).Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 100 }] }};
         Assert.False(WorkRules.WorkResourcesFit(View(facts), Plan("double-bench", Craft("first"), Craft("second"))));
-        var busy = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns[0] with
-        { Job = new PawnJob { Def = "DoBill", Target = new JobTarget.Spawned("bench", new Cell(1, 1)) } };
+        var worker = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns[0];
+        var busy = worker with { Observed = worker.Observed with { Job = new O.JobEvidence { DefName = "DoBill", TargetA = new() { Target = new O.TargetRefTarget.EntityCase(new RimGovernor.Contracts.Wire.Common.Ref { Id = "bench" }, new O.EntityPlace.OnMap(0, new Cell(1, 1))) } } } };
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead([busy]) } };
         Assert.False(WorkRules.WorkResourcesFit(View(facts), Plan("busy-bench", Craft("first"))));
         Assert.True(WorkRules.WorkResourcesFit(View(facts), Plan("other-work", Building("wall"))));
@@ -369,8 +370,7 @@ public sealed class WorkResourcesTests
         { MaterialClaims = [new(new("Rice"), new MaterialUnits.Exact(2.0), "bill")] };
         var merged = WorkRules.MergeWorkMaterialPromises(adjusted.Concat([iteration]));
         var budget = ForecastClaims.ForecastMaterialBudgetOf([new(new("Rice"), 10)],
-            [new()
-            { Pawn = new("cook"), Bill = "bill", Items = [new(new("Rice"), 2)] }], merged, 0);
+            [BillWire.Reservation("bill", "cook", new Amount(new("Rice"), 2))], merged, 0);
         Assert.Equal(4, budget[new("Rice")].ExactCount());
         Assert.Equal(10, WorkRules.CreditCarriedBillInputs(new ProductionPromiseSet.Assessed([promise]), []).AssessedPromises()[0].MaterialClaims[0].ExactCount());
     }

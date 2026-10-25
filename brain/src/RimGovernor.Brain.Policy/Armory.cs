@@ -51,8 +51,6 @@ public sealed record ArmoryAssessment
 /// <summary>A pawn's equipped primary weapon.</summary>
 public sealed record ArmoryPrimary
 {
-    public string Definition { get; init; } = "";
-
     public bool Ranged { get; init; }
 
     public int Quality { get; init; }
@@ -95,10 +93,7 @@ public static class ArmoryRules
     /// <summary>Selects the armory tier from the raid threat and the research census a routine frame read; a frame without the census throws (D3).</summary>
     public static ArmoryAssessment AssessArmory(RoundsFacts f)
     {
-        if (f.Research is not { } research)
-        {
-            throw new RequiredFactException("research");
-        }
+        var research = f.Research;
         return AssessArmory(RaidDefense.Of(f), research);
     }
 
@@ -198,7 +193,7 @@ public static class ArmoryRules
                 var weaponClass = current.Ranged ? WeaponClass.Ranged : WeaponClass.Melee;
                 lacks = !current.Facts.Hunts();
                 floor =
-                    WeaponAssignmentRules.ScoreWeapon(p, new EquipCandidateWeapon { Definition = current.Definition, Class = weaponClass, Facts = current.Facts })
+                    WeaponAssignmentRules.ScoreWeapon(p, current.Facts, weaponClass)
                     * WeaponQualityMultiplier(current.Quality);
             }
 
@@ -266,7 +261,7 @@ public static class ArmoryRules
                 }
 
                 var weaponClass = facts.Ranged ? WeaponClass.Ranged : WeaponClass.Melee;
-                var score = WeaponAssignmentRules.ScoreWeapon(p, new EquipCandidateWeapon { Definition = def.Value, Class = weaponClass, Facts = facts });
+                var score = WeaponAssignmentRules.ScoreWeapon(p, facts, weaponClass);
                 if (score > bestScore || (score > 0 && score == bestScore && def < best))
                 {
                     best = def;

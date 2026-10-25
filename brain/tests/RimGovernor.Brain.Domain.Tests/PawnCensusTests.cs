@@ -1,6 +1,6 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using O = RimGovernor.Contracts.Wire.Observations;
@@ -13,7 +13,7 @@ public sealed class PawnCensusTests
     public void DirectColonyDecoderRefusesAnAbsentPawnCensus()
     {
         var tables = new Tables(default, default, default, []);
-        var error = Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.DecodeColony(ColonyFactsCoreTests.Snapshot(), new Identity(), tables, null));
+        var error = Assert.Throws<BridgeContractException>(() => ColonyPlanningReads.Compose(ColonyFactsCoreTests.Snapshot(), new ObservationIdentity { Context = ColonyFactsCoreTests.Snapshot().Context }, tables, null));
         Assert.Contains("pawn census", error.Message, StringComparison.Ordinal);
     }
 
@@ -97,29 +97,29 @@ public sealed class PawnCensusTests
         Assert.Same(table, tables.PawnCensus);
         Assert.Same(frame.Zones, tables.Zones);
         Assert.Equal("pawn", Assert.Single(routine.Pawns!.Pawns).Pawn.Id);
-        var projection = ColonyPawnReads.WithPawnCensus(ColonyFactsCoreTests.Projection(), ColonyFactsCoreTests.Snapshot() with { ColonistCount = 1 }, tables, catalog);
+        var projection = ColonyPawnReads.WithPawnCensus(ColonyFactsCoreTests.Reading(), ColonyFactsCoreTests.Snapshot() with { ColonistCount = 1 }, tables, catalog);
         Assert.Equal("pawn", Assert.Single(projection.Facts.MedicalPawns).Id.Value);
         Assert.Equal("pawn", Assert.Single(projection.Facts.MoodPawns).Id.Value);
-        Assert.Equal("pawn", Assert.Single(projection.Facts.RecoveryWorkers).Pawn.Value);
-        Assert.Equal("pawn", Assert.Single(projection.WorkPawns.Pawns).Id.Value);
-        Assert.Equal("pawn", Assert.Single(projection.Mechs.Mechanitors).Id.Value);
-        Assert.Empty(projection.Mechs.Mechs);
+        Assert.Same(row, Assert.Single(projection.Facts.MoodPawns).Pawn);
+        Assert.Same(row, Assert.Single(projection.Facts.MedicalPawns).Observed);
+        Assert.Equal("pawn", Assert.Single(projection.Facts.ForecastObserved.WorkPawns.Pawns).Id.Value);
+        Assert.Equal("pawn", Assert.Single(projection.Facts.Mechs.Mechanitors).Id.Value);
+        Assert.Empty(projection.Facts.Mechs.Mechs);
         Assert.Equal("pawn", Assert.Single(projection.Facts.WorkProfiles).Id.Value);
         Assert.True(projection.Facts.MedicalCareRecovered);
         Assert.Equal(critical, projection.Facts.CriticalPatients);
         Assert.Equal(0, projection.Facts.UrgentPatients);
         Assert.Equal(0, projection.Facts.Armed);
         Assert.Equal(1, projection.Facts.Unarmed);
-        Assert.Equal(projection.WorkPawns, projection.Facts.ForecastObserved.WorkPawns);
     }
     [Fact]
     public void StationMoodNamesTheAbsenceOfMoodBearingColonists()
     {
         Assert.IsType<StationMood.NoMood>(StationMood.Of([]));
-        Assert.IsType<StationMood.NoMood>(StationMood.Of([new MoodPawn { Id = new("none"), Mood = new MoodLevel.Lacks() }]));
+        Assert.IsType<StationMood.NoMood>(StationMood.Of([MoodFixtures.Pawn("none")]));
         var result = Assert.IsType<StationMood.Expected>(StationMood.Of([
-            new MoodPawn { Id = new("a"), Mood = new MoodLevel.Has(.2, .4) },
-            new MoodPawn { Id = new("b"), Mood = new MoodLevel.Has(.8, .6) }]));
+            MoodFixtures.Has("a", .2, .4),
+            MoodFixtures.Has("b", .8, .6)]));
         Assert.Equal(.5, result.Level, 10);
     }
     [Fact]
@@ -130,7 +130,7 @@ public sealed class PawnCensusTests
         var absent = MedicalRules.ReviewMedicalCare([], history);
         Assert.False(absent.Recovered());
         Assert.Equal([patient.Id], absent.Unresolved);
-        var dead = MedicalRules.ReviewMedicalCare([patient with { Dead = true }], absent);
+        var dead = MedicalRules.ReviewMedicalCare([patient with { Observed = patient.Observed with { Dead = true } }], absent);
         Assert.False(dead.Recovered());
         Assert.Equal([patient.Id], dead.Unresolved);
         var recovered = MedicalRules.ReviewMedicalCare([patient], dead);

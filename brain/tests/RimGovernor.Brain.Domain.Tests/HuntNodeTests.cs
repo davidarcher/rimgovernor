@@ -1,7 +1,7 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -23,10 +23,8 @@ public sealed class HuntNodeTests
     // A census row as the acquisition decode makes it from the race row: the meat's nutrition and the race's butchery products.
     private static AcquisitionSource Animal(AnimalRace race, int i) => new()
     {
-        Id = $"{race.Def}{i}",
-        Definition = race.Def.Value,
-        Hunt = true,
-        Food = true,
+        Observed = new() { Source = new() { Id = $"{race.Def}{i}" }, Token = $"{race.Def}{i}", Resource = race.Def.Value, Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = $"{race.Def}{i}", DefName = race.Def.Value, Label = race.Def.Value, Place = new O.EntityPlace.OnMap(1, new Cell(i, 0)) },
         NutritionYield = MeatNutrition(race),
         Products = race.Butchery,
     };
@@ -90,8 +88,14 @@ public sealed class HuntNodeTests
     public void NoHuntableAnimalsMeansNoNode()
     {
         // A pest is hunted for the trees it eats, not for food; a plant is no hunt.
-        var pest = Animal(Deer, 0) with { Id = "boomrat", Definition = "Boomrat", Food = false, NutritionYield = 0 };
-        var bush = new AcquisitionSource { Id = "berry", Definition = "Plant_Berry", Food = true, NutritionYield = 0.5 };
+        var animal = Animal(Deer, 0);
+        var pest = animal with { Observed = animal.Observed with { Source = new() { Id = "boomrat" }, Token = "boomrat", Resource = "Boomrat" }, Entity = animal.Entity with { Id = "boomrat", DefName = "Boomrat", Label = "boomrat" }, Pest = true, NutritionYield = 0 };
+        var bush = new AcquisitionSource
+        {
+            Observed = new() { Source = new() { Id = "berry" }, Token = "berry", Resource = "RawBerries", Yield = 10, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Plant(true, 1, false) },
+            Entity = new() { Id = "berry", DefName = "Plant_Berry", Label = "berry bush", Place = new O.EntityPlace.OnMap(1, new Cell(0, 0)) },
+            NutritionYield = 0.5,
+        };
         var input = Colony(pest, bush);
 
         Assert.Empty(input.Wildlife);
@@ -118,7 +122,13 @@ public sealed class HuntNodeTests
     [Fact]
     public void TheReviewFrameCarriesTheWildlifeCensusAndAnUnarmedPawnIsNoHunter()
     {
-        var projection = ColonyModelFixtures.Projection() with { Acquisition = EquatableArray.From(Herd(2)) };
+        var projection = ColonyModelFixtures.Reading() with
+        {
+            Facts = ColonyModelFixtures.Reading().Facts with
+            {
+                Acquisition = EquatableArray.From(Herd(2))
+            }
+        };
 
         var input = ColonyModelFixtures.ReadyOf(projection);
 

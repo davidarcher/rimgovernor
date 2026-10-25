@@ -1,4 +1,5 @@
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using Xunit;
 
@@ -12,7 +13,7 @@ public sealed class ControllerStateProjectionTests
 {
     private static readonly DateTimeOffset ObservedAt = new(2026, 10, 24, 12, 0, 0, TimeSpan.Zero);
 
-    private static readonly Identity World = new() { Colony = new ColonyId("colony-1"), Load = new LoadId("load-1"), Map = new MapId(3), Tick = new Tick(42) };
+    private static readonly ObservationIdentity World = new() { Context = new() { Identity = new() { ColonyId = "colony-1", LoadToken = "load-1", MapId = 3 }, Tick = 42, NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase() } };
 
     private static ControllerSnapshot Snapshot(ControllerWorld world, ControllerControl control, bool connected = true) =>
         new() { Connected = connected, Mode = "manual", World = world, Control = control };

@@ -129,10 +129,11 @@ public static class Orders
             PawnId = ritual.Pawn.Value,
             Ritual = ritual.Kind.Value,
             Verb = Domain.Wire.Name(ritual.Verb),
+            Location = new Op.RitualLocation.NotStarting(),
         };
         if (ritual.Verb == RitualVerb.Begin)
         {
-            intent = intent with { Spot = IntentActionRules.WireCell(ritual.Spot) };
+            intent = intent with { Location = new Op.RitualLocation.At(ritual.Spot) };
             foreach (var slot in ritual.Slots)
             {
                 intent = intent with

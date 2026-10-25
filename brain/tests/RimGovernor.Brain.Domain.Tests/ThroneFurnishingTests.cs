@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -64,12 +63,7 @@ public sealed class ThroneFurnishingTests
         DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
-    private static CurrentBuilding Standing(WantedPiece p) => new()
-    {
-        Id = $"{p.DefName}{p.Minimum.X}_{p.Minimum.Z}",
-        Building = new Building(p.DefName, p.Minimum, Rotation.North, ""),
-        Cells = [p.Minimum],
-    };
+    private static CurrentBuilding Standing(WantedPiece p) => ConstructionObservationFixtures.Built(new Building(p.DefName, p.Minimum, Rotation.North, ""), id: $"{p.DefName}{p.Minimum.X}_{p.Minimum.Z}", cells: [p.Minimum]);
 
     private static ThroneStep Step(IReadOnlyList<CurrentBuilding> built) =>
         ThroneRules.NextThroneStep(new LayoutPlan { Rooms = [Room()] }, RoomTestFacts.NoRooms with { Shapes = Shapes }, new GroundCensus(), built, Need, Defs, []);

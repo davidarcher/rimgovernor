@@ -94,11 +94,17 @@ internal static class CombatLabOrders
         var after = await CombatLabKit.PawnsAsync(s, "after", colonists, cancellationToken).ConfigureAwait(false);
         s.RecordWireRows("after", after.Values.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal));
         Observations.PawnState Row(int i) => after.GetValueOrDefault(colonists[i]) ?? throw new AcceptanceException($"colonist {i} not listed");
-        void Check(int i, string job, bool forced, string? thing = null, Common.Cell? cell = null)
+        void Check(int i, string job, bool forced, string? thing = null, RimGovernor.Brain.Domain.Cell? cell = null)
         {
             var p = Row(i);
+            RimGovernor.Brain.Domain.Cell? observedCell = p.Job.TargetA?.Target switch
+            {
+                Observations.TargetRefTarget.EntityCase { Place: Observations.EntityPlace.OnMap at } => at.Cell,
+                Observations.TargetRefTarget.CellCase { Value: var at } => at,
+                _ => null,
+            };
             if (CombatLabKit.Job(p) != job || p.Job.PlayerForced != forced
-                || (thing is not null && CombatLabKit.JobThing(p) != thing) || (cell is not null && p.Job.TargetACell != cell))
+                || (thing is not null && CombatLabKit.JobThing(p) != thing) || (cell is not null && observedCell != cell))
             {
                 throw new AcceptanceException($"colonist {i}: want job {job} forced {forced} target {thing ?? CombatLabKit.Show(cell)}, got {p.Job}");
             }

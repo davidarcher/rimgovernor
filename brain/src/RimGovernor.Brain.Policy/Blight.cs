@@ -4,21 +4,24 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// One native census row: a blighted plant standing in a player growing zone or on home ground.
 /// <see cref="Designated"/> is native's own record of an existing cut or harvest designation;
-/// <see cref="Eligible"/> is whether native offers the plant for a CutPlant designation.
+/// Each native census row is offered for a CutPlant designation.
 /// </summary>
 public sealed record BlightedPlant
 {
-    public string ID { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.BlightedPlantState Observed { get; init; }
 
-    public string Definition { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.EntityRef Entity { get; init; }
 
-    public Cell Cell { get; init; }
+    public string ID => Entity.Id;
 
-    public bool Designated { get; init; }
+    public string Definition => Entity.DefName;
 
-    public bool Eligible { get; init; }
+    public Cell Cell => Entity.Place is RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: var cell }
+        ? new Cell(cell.X, cell.Z)
+        : throw new RequiredFactException("blighted plant map cell");
+
+    public bool Designated => Observed.Designated;
 }
-
 public static class BlightRules
 {
     /// <summary>
@@ -38,7 +41,7 @@ public static class BlightRules
         var output = new List<BlightedPlant>();
         foreach (var plant in plants)
         {
-            if (plant.ID.Length == 0 || !plant.Eligible || plant.Designated || claimed.Contains(plant.ID))
+            if (plant.ID.Length == 0 || plant.Designated || claimed.Contains(plant.ID))
             {
                 continue;
             }

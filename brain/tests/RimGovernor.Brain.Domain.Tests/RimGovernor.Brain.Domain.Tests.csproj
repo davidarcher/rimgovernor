@@ -23,7 +23,6 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.Hediff" Alias="Hediff" />
-    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnConditions" Alias="PawnConditions" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.HediffTend" Alias="HediffTend" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.HediffImmunity" Alias="HediffImmunity" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.ImmunityGain" Alias="ImmunityGain" />
@@ -107,4 +106,40 @@
   <ItemGroup>
     <EmbeddedResource Include="Baselines/*.quality.json" LogicalName="RimGovernor.Brain.Domain.Tests.%(Filename)%(Extension)" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodPlace" Alias="FoodPlace" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodConsumer" Alias="FoodConsumer" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodLarderFacts" Alias="FoodLarder" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodStock" Alias="FoodStock" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.CorpseHandling" Alias="CorpseHandling" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodIngredientClass" Alias="FoodIngredientClass" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodForm" Alias="FoodForm" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodRot" Alias="FoodRot" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ControlledEnvironment" Alias="ControlledEnvironment" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GrowLight" Alias="GrowLight" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PlantGrower" Alias="PlantGrower" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GrowerFertility" Alias="GrowerFertility" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GrowRoom" Alias="GrowRoom" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PowerHeadroom" Alias="PowerHeadroom" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="PowerSite" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="PowerBuilding" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.TurretGun" Alias="TurretGun" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PowerNetwork" Alias="PowerNetworkFact" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.SteamGeyser" Alias="PowerGeyser" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="FuelConsumer" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FuelBurn" Alias="FuelBurn" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.BuildingState" Alias="DefenseTurretFacts" />
+  </ItemGroup>
+  <ItemGroup><Using Include="RimGovernor.Contracts.Wire.Observations.PenGrazing" Alias="PenGrazing" /></ItemGroup>
 </Project>

@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class Rounder
 {
     /// <summary>Remembers the review's royalty read for the planners' throne definitions and the defense round's calls.</summary>
-    internal void ReviewRoyalty(Observation.RoundsReading reading) => Census.RememberRoyalty(reading.Projection.Facts.Royalty);
+    internal void ReviewRoyalty(RoundsReading reading) => Census.RememberRoyalty(reading.Reading.Facts.Royalty);
 
     /// <summary>The throne definitions a planner's read names beside its own: the ladder's, from the review's royalty read.</summary>
     internal IReadOnlyList<string> RememberedThrones() =>
@@ -37,7 +37,7 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>The throne room the colony owes: a colony without Royalty owes none.</summary>
-    internal static (Pol.ThroneNeed Need, bool Owed) ThroneNeed(Observation.ColonyProjection facts)
+    internal static (Pol.ThroneNeed Need, bool Owed) ThroneNeed(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         if (facts.Facts.Royalty is not Pol.RoyaltyState.Active { Facts: var royalty })
         {
@@ -54,16 +54,16 @@ partial class RoundsSleepingUpkeepPlanner
     /// The bestowing-ceremony quests the title claim gate allows to accept now (NextTitleClaim, ClaimQuests);
     /// none without Royalty or before the layout plan and construction census are available.
     /// </summary>
-    internal static IReadOnlyList<QuestId> TitleClaimQuests(Observation.ColonyProjection facts)
+    internal static IReadOnlyList<QuestId> TitleClaimQuests(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         if (facts.Facts.Royalty is not Pol.RoyaltyState.Active { Facts: var royalty })
         {
             return [];
         }
         var sleeping = facts.Facts.Sleeping;
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         if (!pk || census is null)
         {
@@ -74,7 +74,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             Royalty = royalty,
             Sleeping = sleeping,
-            BedroomPieces = FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells),
+            BedroomPieces = FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells),
             Plan = plan!,
             Rooms = rooms!,
             Built = census.Buildings,
@@ -83,12 +83,12 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>The projection's next throne step; none before the layout plan or construction census is available.</summary>
-    internal static Pol.ThroneStep ThroneStepOf(Observation.ColonyProjection facts)
+    internal static Pol.ThroneStep ThroneStepOf(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts)
     {
         var (need, owed) = ThroneNeed(facts);
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         if (!owed || !pk || census is null)
         {
@@ -96,7 +96,7 @@ partial class RoundsSleepingUpkeepPlanner
         }
         var names = need.DefNames();
         var defs = new List<Pol.FurnitureDefinition>(names.Count);
-        foreach (var d in facts.Definitions)
+        foreach (var d in facts.Facts.Definitions)
         {
             if (names.Contains(d.Name))
             {
@@ -113,7 +113,7 @@ partial class RoundsSleepingUpkeepPlanner
         }
         // Everything stands and is assigned: keep its braziers lit.
         var lighting = facts.Facts.Upkeep.Lighting;
-        var workers = facts.WorkPawns.Pawns;
+        var workers = facts.Facts.ForecastObserved.WorkPawns.Pawns;
 
         return ThroneRules.NextThroneRefuel(plan, rooms!, need, lighting.Lamps, workers!);
     }
@@ -122,12 +122,12 @@ partial class RoundsSleepingUpkeepPlanner
     /// Adds the throne room's and the worship room's impressiveness targets (the title's, the presence demands', #3808) to
     /// the room quality targets, so the room upgrade and the beauty upgrade furnish them.
     /// </summary>
-    internal static Dictionary<string, Pol.RoomTarget>? WithRequirementTargets(Observation.ColonyProjection facts, Dictionary<string, Pol.RoomTarget>? targets)
+    internal static Dictionary<string, Pol.RoomTarget>? WithRequirementTargets(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, Dictionary<string, Pol.RoomTarget>? targets)
     {
         var (need, owed) = ThroneNeed(facts);
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         if (!pk)
         {
             return targets;
@@ -152,14 +152,14 @@ partial class RoundsSleepingUpkeepPlanner
     /// projection's own stay untouched. No requirement, no standing room or an unlisted room leaves the census
     /// as read.
     /// </summary>
-    internal static Pol.FlooringObservation WithThroneFloor(Observation.ColonyProjection facts, Pol.FlooringObservation v)
+    internal static Pol.FlooringObservation WithThroneFloor(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, Pol.FlooringObservation v)
     {
         var (need, owed) = ThroneNeed(facts);
-        if (!owed || facts.LayoutPlan is not { } plan || need.FloorTags.Count == 0)
+        if (!owed || facts.Facts.LayoutPlan is not { } plan || need.FloorTags.Count == 0)
         {
             return v;
         }
-        var rooms = facts.Rooms;
+        var rooms = facts.Facts.Upkeep.Rooms;
         var (room, ok) = plan.ThroneRoomFor(need.MinArea);
         if (!ok)
         {
@@ -190,7 +190,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// furniture the template and the plan still owe, installed from packed stock first), the assignment, the
     /// refuel. Furnishing beyond the template follows through the room upgrade.
     /// </summary>
-    internal async Task<RoundsBuildingResult> StageThroneAsync(StepArbiter arbiter, PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, Observation.RoundsReading reading, Pol.ThroneStep step, CancellationToken call, CancellationToken epoch)
+    internal async Task<RoundsBuildingResult> StageThroneAsync(StepArbiter arbiter, PackedStock stock, ControlState state, Sto.Rounds review, Sto.NeedOwner goal, RoundsReading reading, Pol.ThroneStep step, CancellationToken call, CancellationToken epoch)
     {
         switch (step.Kind)
         {

@@ -94,34 +94,13 @@ internal sealed class FrameCellGrid(PbMirror.CellGrid grid)
                     fogged++;
                     continue;
                 }
-                cells.Add(CellAt(j, new Cell(x, z)));
+                cells.Add(new P.SiteCell(grid, j));
             }
         }
         return (cells, fogged);
     }
 
-    private P.SiteCell CellAt(int j, Cell cell) =>
-        new()
-        {
-            Cell = cell,
-            Walkable = grid.Walkable[j],
-            Zone = grid.ZoneId[j] is not null,
-            Roofed = grid.Roof[j] is not null,
-            Indoors = grid.Indoors[j],
-            StorageStacks = grid.StorageStacks[j],
-            Doorway = grid.Doorway[j],
-            Fertility = grid.Fertility[j],
-            Polluted = grid.Polluted[j],
-            Glow = grid.Glow[j],
-            Roof = grid.Roof[j],
-            ZoneId = grid.ZoneId[j],
-            Room = grid.Room[j] is { } room ? new P.CellRoom.InRoom(room) : P.CellRoom.Outside,
-            Terrain = grid.Terrain[j],
-            BaseTerrain = grid.BaseTerrain[j],
-            FoundationRemoval = grid.FoundationRemoval[j],
-            StorageCapacity = grid.StorageCapacity[j],
-            Things = grid.Things[j] ?? [],
-        };
+
 }
 public sealed partial class FacadeNativeClient
 {
@@ -145,12 +124,12 @@ public sealed partial class FacadeNativeClient
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             Rectangle = new PbObservations.Rectangle
             {
-                Minimum = new PbCommon.Cell { X = rect.X, Z = rect.Z },
-                Maximum = new PbCommon.Cell { X = rect.X + rect.Width - 1, Z = rect.Z + rect.Height - 1 },
+                Minimum = new RimGovernor.Brain.Domain.Cell { X = rect.X, Z = rect.Z },
+                Maximum = new RimGovernor.Brain.Domain.Cell { X = rect.X + rect.Width - 1, Z = rect.Z + rect.Height - 1 },
             },
         };
         var observed = await Facade.GetCellsAsync(request, cancellationToken).ConfigureAwait(false);
-        return new MapBounds { Context = observed.Context, Bounds = new P.Bounds((int)observed.MapSize.Width, (int)observed.MapSize.Height) };
+        return new MapBounds { Context = observed.Context, Observed = observed.MapSize };
     }
 
     /// <summary>

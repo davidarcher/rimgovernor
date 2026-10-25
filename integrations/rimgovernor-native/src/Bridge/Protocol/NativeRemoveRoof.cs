@@ -40,7 +40,6 @@ namespace HomeBridge.BridgeTools
             var seen = new HashSet<IntVec3>();
             foreach (var c in intent.Cells)
             {
-                if (c == null) return "Remove roof cell requires x and z.";
                 var cell = new IntVec3(c.X, 0, c.Z);
                 if (!cell.InBounds(map)) return $"Cell {cell} is out of bounds.";
                 if (cell.Fogged(map)) return $"Cell {cell} is fogged.";

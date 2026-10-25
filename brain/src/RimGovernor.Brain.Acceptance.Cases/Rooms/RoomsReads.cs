@@ -58,7 +58,7 @@ internal static class RoomsReads
             return rooms;
         }
 
-        var cell = new Common.Cell { X = inside.X, Z = inside.Z };
+        var cell = new RimGovernor.Brain.Domain.Cell { X = inside.X, Z = inside.Z };
         var byCell = await ReadAsync("by-cell", new Observations.ListRoomsRequest { Region = new Observations.Rectangle { Minimum = cell, Maximum = cell } }).ConfigureAwait(false);
         if (byCell is not [{ Id: var id } room])
         {

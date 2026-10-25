@@ -1,3 +1,6 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+using Placement = RimGovernor.Contracts.Wire.Placement;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -23,11 +26,10 @@ public sealed record ConstructionClaim
 
 public sealed record CurrentBuilding
 {
-    public string Id { get; init; } = "";
-
-    public Building? Building { get; init; }
-
-    public EquatableArray<Cell> Cells { get; init; }
+    public required O.BuildingState Observed { get; init; }
+    public string Id => Observed.Building.Id;
+    public Building Building => ConstructionOwnershipRules.BuildingOf(Observed, Observed.Building.DefName);
+    public EquatableArray<Cell> Cells => EquatableArray.From(CellsRules.RectCells(Observed.Occupied));
 }
 
 /// <summary>The colony's construction census: its built, player-owned buildings, its standing sites and what they are owed.</summary>
@@ -64,28 +66,37 @@ public sealed record ConstructionSite
     /// <summary>The <see cref="Stage"/> of a blueprint: nothing delivered yet.</summary>
     public const string BlueprintStage = "blueprint";
 
-    public Building? Building { get; init; }
-
-    public string Stage { get; init; } = "";
-
-    public string Id { get; init; } = "";
+    public required O.BuildingState Observed { get; init; }
+    public O.ConstructionState.Build Construction => Observed.Construction as O.ConstructionState.Build
+        ?? throw new DomainException("construction site carries no build state");
+    public Building Building => ConstructionOwnershipRules.BuildingOf(Observed, Construction.Definition);
+    public string Stage => Observed.Status switch
+    {
+        O.BuildingStatus.Blueprint => BlueprintStage,
+        O.BuildingStatus.Frame => "frame",
+        O.BuildingStatus.Built => throw new DomainException("construction site is already built"),
+        var invalid => throw new DomainException($"undefined construction status: {invalid}"),
+    };
+    public string Id => Observed.Building.Id;
 
     /// <summary>Every material the build needs is delivered.</summary>
-    public bool ResourcesComplete { get; init; }
+    public bool ResourcesComplete => Construction.Resources.All(r => r.StillNeeded == 0);
 
     /// <summary>The built thing has quality, so the finisher's skill sets it.</summary>
-    public bool QualitySensitive { get; init; }
+    public bool QualitySensitive => Construction.QualitySensitive;
 
     /// <summary>The def's own constructionSkillPrerequisite.</summary>
-    public int NativeFinishingSkill { get; init; }
+    public int NativeFinishingSkill => Construction.NativeFinishingSkill;
 
     /// <summary>The planner-set minimum finishing skill and how many free colonists meet it; null when none is set.</summary>
-    public FinishingMinimum? Minimum { get; init; }
+    public FinishingMinimum? Minimum => Construction.Minimum;
 
     /// <summary>The native per-target tier: ungated, or gated at a tier.</summary>
-    public ConstructionGate Gate { get; init; } = new ConstructionGate.Ungated();
+    public ConstructionGate Gate => Construction.Gate;
 
-    public string FinishingBlocker { get; init; } = "";
+    public string FinishingBlocker => Minimum is { } minimum
+        ? (minimum.EligibleFinishers == 0 ? "no_qualified_builder" : "")
+        : (QualitySensitive ? "minimum_not_set" : "");
 }
 
 /// <summary>Where an applied building intent stands.</summary>
@@ -103,6 +114,18 @@ public enum BuildingWork
 
 public static class ConstructionOwnershipRules
 {
+    /// <summary>The value geometry an observed row is compared with proposed building intents.</summary>
+    public static Building BuildingOf(O.BuildingState row, string definition) => new(definition,
+        row.Building.Place is O.EntityPlace.OnMap at ? at.Cell : throw new DomainException("required construction row is unplaced"),
+        row.Rotation switch
+        {
+            Placement.Rotation.North => Rotation.North,
+            Placement.Rotation.East => Rotation.East,
+            Placement.Rotation.South => Rotation.South,
+            Placement.Rotation.West => Rotation.West,
+            var invalid => throw new DomainException($"undefined building rotation {(int)invalid}"),
+        }, row.Stuff ?? "");
+
     /// <summary>
     /// Classifies an applied building intent against the census by geometry: whatever stands with its
     /// definition, stuff, anchor and rotation is its work, whoever placed it. A match placed by someone else

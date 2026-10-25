@@ -33,7 +33,7 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
             routes.Add(new(worker.Pawn, "start", Location(worker.Location), new RouteTicks.Reachable(worker.ApproachTicks)));
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Target,
                 worker.WorkGiver, worker.Job, 0, deadline, worker.Location)
-                { SupportDemand = demand, Medicine = worker.Medicine?.Id ?? "", Recipe = surgery?.Recipe, Source = worker.Medicine?.Location };
+                { SupportDemand = demand, Medicine = worker.Medicine?.Id ?? "", Recipe = surgery?.Recipe };
         }
         foreach (var demand in read.Demands.Where(d => d.Kind is "care" or "surgery").OrderBy(d => d.Id, StringComparer.Ordinal))
         {
@@ -68,8 +68,7 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
                 {
                     options.Add(new(id, row.Pawn, row.DeliveryTicks, 0));
                     routes.Add(new(row.Pawn, "start", Location(row.Source), new RouteTicks.Reachable(row.ApproachTicks)));
-                    bindings[(id, row.Pawn)] = new(id, row.Pawn, [], PawnActivityKind.Deliver, row.Target, "", "", count, deadline, row.Source)
-                    { Resource = row.Resource, Source = row.Source, Destination = row.Destination, Capacity = row.Capacity, SupportDemand = row.Demand, Container = row.Container };
+                    bindings[(id, row.Pawn)] = new CellActivityTaskCandidate(new ActivityTaskCandidate(id, row.Pawn, [], PawnActivityKind.Deliver, row.Target, "", "", count, deadline, row.Source) { Resource = row.Resource, Source = row.Source, Capacity = row.Capacity, SupportDemand = row.Demand, Container = row.Container }, row.Destination);
                 }
                 roots.Add(new(id, []) { ActivityCompletions = [id] });
             }

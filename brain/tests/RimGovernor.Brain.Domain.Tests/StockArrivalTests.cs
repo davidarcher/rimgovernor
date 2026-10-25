@@ -132,8 +132,8 @@ public sealed class StockArrivalTests
         Ingredients = [[new Amount(new Resource("Plasteel"), 15)], [new Amount(new Resource("ComponentSpacer"), 2)]],
     };
 
-    private static StockCrafter Crafter(string pawn, int crafting, double speed, WorkType work = WorkType.Crafting) =>
-        new(pawn, 8, [work], [new SkillLevel("Crafting", crafting)], [new WorkSpeedRead("GeneralLaborSpeed", speed)]);
+    private static PawnState Crafter(string pawn, int crafting, double speed, WorkType work = WorkType.Crafting) =>
+        StockArrivalTestFacts.Crafter(pawn, crafting, speed, work);
 
     private static readonly Dictionary<Resource, long> Stock = new() { [new Resource("Plasteel")] = 100, [new Resource("ComponentSpacer")] = 5 };
 
@@ -141,7 +141,7 @@ public sealed class StockArrivalTests
     public void CraftingRunsAtTheBestEligibleCraftersSpeedAtTheBestUsableBenchUpToTheScarcestIngredient()
     {
         // 8 work hours × 2500 ticks × 1.2 × the bench's 0.9 ÷ 10 000 work: 2.16 a day; 5 spacer components pay for 2 arms.
-        StockBench[] benches = [new("FabricationBench", true, 0.9), new("FabricationBench", false, 2), new("HandTailoringBench", true, 1)];
+        BillStackRow[] benches = [StockArrivalTestFacts.Bench("FabricationBench", true, 0.9), StockArrivalTestFacts.Bench("FabricationBench", false, 2), StockArrivalTestFacts.Bench("HandTailoringBench", true, 1)];
         var crafted = StockArrivalRules.Craft([Recipe(Arm)], benches,
             [Crafter("Low", 7, 3), Crafter("Anna", 8, 1.2), Crafter("Bo", 10, 1), Crafter("Cook", 12, 5, WorkType.Cooking)], Stock);
         var source = Assert.Single(crafted.Sources);
@@ -150,7 +150,7 @@ public sealed class StockArrivalTests
         Assert.Empty(crafted.Findings);
 
         // No usable bench of the recipe: no source.
-        var none = StockArrivalRules.Craft([Recipe(Arm)], [new("FabricationBench", false, 1)], [Crafter("Anna", 8, 1.2)], Stock);
+        var none = StockArrivalRules.Craft([Recipe(Arm)], [StockArrivalTestFacts.Bench("FabricationBench", false, 1)], [Crafter("Anna", 8, 1.2)], Stock);
         Assert.Empty(none.Sources);
         Assert.Empty(none.Findings);
 
@@ -161,6 +161,19 @@ public sealed class StockArrivalTests
         Assert.Equal("work_speed:Anna:MedicineSpeed", unread.Unread);
     }
 
+    [Fact]
+    public void NativeTimetableAndEnabledWorkRowsControlCraftArrival()
+    {
+        var pawn = Crafter("Anna", 10, 1);
+        BillStackRow[] benches = [StockArrivalTestFacts.Bench("FabricationBench", true, 1)];
+        Assert.Single(StockArrivalRules.Craft([Recipe(Arm)], benches, [pawn], Stock).Sources);
+        var disabled = pawn with { Settings = pawn.Settings with { Work = new PawnWork.Works(true, [new RimGovernor.Contracts.Wire.Observations.WorkSetting { DefName = "Crafting", Priority = 1, Disabled = true }]) } };
+        Assert.Empty(StockArrivalRules.Craft([Recipe(Arm)], benches, [disabled], Stock).Sources);
+        var missingSchedule = pawn with { Settings = pawn.Settings with { Schedule = [] } };
+        Assert.Equal("stock_arrival_schedule:Anna", StockArrivalRules.Craft([Recipe(Arm)], benches, [missingSchedule], Stock).Unread);
+        Assert.Equal(24, pawn.Settings.Schedule.Count);
+        Assert.Single(StockArrivalRules.Craft([Recipe(Arm)], benches, [pawn], Stock).Sources);
+    }
     [Fact]
     public void TheMedicineCraftedIsTheBestKindASourceMakesWithTheBetterKindsBeforeIt()
     {

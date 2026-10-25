@@ -1,32 +1,30 @@
 using RimGovernor.Contracts.Wire.Common;
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
 // The single-target and census read models of the building dispatch verticals. The reads (Client.ReadX) are wire plumbing:
 // these are the shapes the planners and boundaries consume.
 
-/// <summary>One bed's medical and prisoner use and its owners.</summary>
+/// <summary>One freshly read bed, retaining its actual building row.</summary>
 public sealed record BedUseTarget
 {
     public ObservationContext? Context { get; init; }
 
-    public string Thing { get; init; } = "";
-
-    public bool Medical { get; init; }
-
-    public bool Prisoners { get; init; }
-
-    public IReadOnlyList<string> Owners { get; init; } = [];
+    public required O.BuildingState Observed { get; init; }
+    private O.BuildingControl.Bed Bed => Observed.Settings.Control as O.BuildingControl.Bed
+        ?? throw new ObservationContractException("building is not a bed");
+    public bool Medical => Bed.Medical;
+    public bool Prisoners => Bed.ForPrisoners;
 }
 
-/// <summary>What every blueprint and frame still needs, by resource def name, and how many structures were counted.</summary>
+/// <summary>What every blueprint and frame still needs, aggregated by resource def name.</summary>
 public sealed record ConstructionDeficitRead
 {
     public ObservationContext? Context { get; init; }
 
     public IReadOnlyDictionary<string, long> StillNeed { get; init; } = new Dictionary<string, long>();
 
-    public int Structures { get; init; }
 }
 
 /// <summary>The crop one plant grower is set to; empty when it has none.</summary>
@@ -34,17 +32,15 @@ public sealed record GrowerCropTarget
 {
     public ObservationContext? Context { get; init; }
 
-    public string Thing { get; init; } = "";
-
-    public string Crop { get; init; } = "";
+    public required O.BuildingState Observed { get; init; }
+    public string? Crop => Observed.Settings.Control is O.BuildingControl.Grower grower
+        ? grower.CropDefName : throw new ObservationContractException("building is not a plant grower");
 }
 
 /// <summary>Whether one storage building is present with its settings.</summary>
 public sealed record StorageBuildingTarget
 {
     public ObservationContext? Context { get; init; }
-
-    public string Thing { get; init; } = "";
 
     public bool Present { get; init; }
 }
@@ -54,23 +50,8 @@ public sealed record MapBounds
 {
     public ObservationContext? Context { get; init; }
 
-    public Policy.Bounds Bounds { get; init; }
-}
-
-/// <summary>One packed item (a minified thing) with the thing inside it.</summary>
-public sealed record PackedItem
-{
-    public string Id { get; init; } = "";
-
-    public string Inner { get; init; } = "";
-
-    public string InnerDef { get; init; } = "";
-
-    public int Quality { get; init; }
-
-    public bool QualityKnown { get; init; }
-
-    public double MarketValue { get; init; }
+    public required O.MapSize Observed { get; init; }
+    public Policy.Bounds Bounds => new(checked((int)Observed.Width), checked((int)Observed.Height));
 }
 
 /// <summary>One entity list page, its context and the rows keyed by entity id.</summary>

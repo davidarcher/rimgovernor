@@ -184,11 +184,11 @@ public sealed record IllnessSchedule
     }
 
     /// <summary>The schedule the table and the colony's disease facts give; see the type summary.</summary>
-    public static IllnessSchedule Of(DiseaseTable table, DiseaseFacts? facts)
+    public static IllnessSchedule Of(DiseaseTable table, DiseaseFacts facts)
     {
         if (facts is null)
         {
-            return Unassessed("disease_facts_unobserved") with { Unread = true };
+            throw new RequiredFactException("disease observation");
         }
 
         if (!table.Storytellers.TryGetValue(facts.Storyteller, out var teller))

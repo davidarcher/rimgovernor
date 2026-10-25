@@ -1,14 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One colonist as the ledger reads it: the observed thought rows plus the attributes immunity and expectation gating need. An expectation level off the vanilla ladder never excludes a thought; it marks the source unverified.</summary>
-public sealed record MoodLedgerPawn
-{
-    public required EquatableArray<MoodThought> Thoughts { get; init; }
-    public required EquatableArray<string> Traits { get; init; }
-    public required EquatableArray<string> Precepts { get; init; }
-    public required string Expectation { get; init; }
-}
-
 /// <summary>The mood one pawn loses per thought: negative offsets that apply to it, most negative first.</summary>
 public sealed record MoodPawnLoss
 {
@@ -59,13 +50,13 @@ public static partial class MoodRules
     private static readonly string[] MoodExpectationOrder = ["ExtremelyLow", "VeryLow", "Low", "Moderate", "High", "SkyHigh"];
 
     /// <summary>Whether the def's facts let the pawn carry the thought; Known is false when the pawn's or the def's expectation level is off the ladder.</summary>
-    private static (bool Applies, bool Known) ThoughtApplies(ThoughtFacts f, MoodLedgerPawn p)
+    private static (bool Applies, bool Known) ThoughtApplies(ThoughtFacts f, MoodPawn p)
     {
-        if (f.NullifyingTraits.Any(p.Traits.Contains) || f.NullifyingPrecepts.Any(p.Precepts.Contains))
+        if (f.NullifyingTraits.Any(name => p.Pawn.Biography.Traits.Any(t => t.DefName == name)) || p.Pawn.Settings.PolicyInputs.Ideo is RimGovernor.Contracts.Wire.Observations.PawnIdeo.Member member && f.NullifyingPrecepts.Any(member.Precepts.Contains))
         {
             return (false, true);
         }
-        if (f.RequiredTraits.Count > 0 && !f.RequiredTraits.Any(p.Traits.Contains))
+        if (f.RequiredTraits.Count > 0 && !f.RequiredTraits.Any(name => p.Pawn.Biography.Traits.Any(t => t.DefName == name)))
         {
             return (false, true);
         }
@@ -73,7 +64,7 @@ public static partial class MoodRules
         {
             return (true, true);
         }
-        var have = Array.IndexOf(MoodExpectationOrder, p.Expectation);
+        var have = Array.IndexOf(MoodExpectationOrder, p.Pawn.Social.ExpectationDefName);
         var min = Array.IndexOf(MoodExpectationOrder, f.MinExpectation);
         if (have < 0 || min < 0)
         {
@@ -87,14 +78,14 @@ public static partial class MoodRules
     /// negative offsets are loss. A def with no facts keeps its loss, unverified, and is owned only if the audit
     /// table says so; nothing is dropped or zeroed for missing facts.
     /// </summary>
-    public static MoodLedger BuildMoodLedger(IReadOnlyList<MoodLedgerPawn> pawns, IReadOnlyDictionary<string, ThoughtFacts> facts)
+    public static MoodLedger BuildMoodLedger(IReadOnlyList<MoodPawn> pawns, IReadOnlyDictionary<string, ThoughtFacts> facts)
     {
         var pawnLosses = new List<MoodPawnLoss>();
         var sources = new Dictionary<string, MoodLedgerSource>(StringComparer.Ordinal);
         var levels = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var p in pawns)
         {
-            levels[p.Expectation] = levels.GetValueOrDefault(p.Expectation) + 1;
+            levels[p.Pawn.Social.ExpectationDefName] = levels.GetValueOrDefault(p.Pawn.Social.ExpectationDefName) + 1;
             var lost = new List<MoodThought>();
             foreach (var t in p.Thoughts)
             {

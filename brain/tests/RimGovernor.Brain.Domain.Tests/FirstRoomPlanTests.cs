@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -39,7 +38,7 @@ public sealed class FirstRoomPlanTests
         {
             Catalog = f.Catalog with { Stations = stations, Climate = BedMergePriceTests.Catalog.Climate },
             Recipes = recipes,
-            OutdoorCurve = Known(EquatableArray.From(curve)),
+            OutdoorCurve = EquatableArray.From(curve),
             BedMerge = treeless ? BedMergePriceTests.MarketWood(calm) : BedMergePriceTests.Wood(calm),
             Crops = [BedMergePriceTests.Rice],
             Ledger = new LedgerView { Status = WorkRules.LedgerViewReconciled, Orders = orders ?? [] },
@@ -129,10 +128,8 @@ public sealed class FirstRoomPlanTests
     /// <summary>The catalog's knife recipe (RecipeView.CraftRecipes): no standing bench lists it.</summary>
     private static readonly GearRecipe KnifeCraft = new()
     {
-        Definition = Knife,
+        Access = new RecipeAccess.Catalog(Knife, true),
         Products = [new Resource("Knife")],
-        Available = true,
-        AvailableOn = true,
         Ingredients = EquatableArray.From([EquatableArray.From([new Amount(new Resource("Steel"), 50)])]),
         RequiredWork = [],
         WorkAmount = 3200,

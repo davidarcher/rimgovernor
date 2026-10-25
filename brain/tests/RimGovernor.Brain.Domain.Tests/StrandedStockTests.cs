@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -24,14 +23,9 @@ public sealed class StrandedStockTests
         Loot = EquatableArray.From(rows),
     };
 
-    private static LootItem Row(string thing, long headroom, params string[] acceptedBy) => new()
-    {
-        Supply = new StartingSupply { Thing = thing, Definition = "Steel", Cell = new Cell(50, 50) },
-        Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 },
-        Count = 10,
-        StorageHeadroom = headroom,
-        AcceptedBy = EquatableArray.From(acceptedBy),
-    };
+    private static LootItem Row(string thing, long headroom, params string[] acceptedBy) =>
+        LootFixtures.Stack(thing, "Steel", new Cell(50, 50), false,
+            new RimGovernor.Contracts.Wire.Observations.HaulSafety.Safe { PathLength = 0 }, 10, headroom, acceptedBy, null);
 
     [Fact]
     public void AStackOnlyTheYardAcceptsIsStrandedAtTheYardAlone()
@@ -60,17 +54,20 @@ public sealed class StrandedStockTests
     [Fact]
     public void RoomForbiddenAndUnsafeStacksAreNotStranded()
     {
+        var forbidden = Row("Thing_2", 0, "Zone_yard");
+        var unsafeStack = Row("Thing_3", 0, "Zone_yard");
         var request = Request(
             Row("Thing_1", 75, "Zone_yard"),
-            Row("Thing_2", 0, "Zone_yard") with { Forbidden = true },
-            Row("Thing_3", 0, "Zone_yard") with { Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() });
+            forbidden with { Observed = forbidden.Observed with { Forbidden = true } },
+            unsafeStack with { Observed = unsafeStack.Observed with { Safety = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() } });
         Assert.Equal(0L, StoreRules.StrandedStacks(request, Yard));
     }
 
     [Fact]
     public void AnUnreachedStackCannotBeHauledToEitherStore()
     {
-        var request = Request(Row("Thing_1", 0, "Zone_yard") with { Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached() });
+        var stack = Row("Thing_1", 0, "Zone_yard");
+        var request = Request(stack with { Observed = stack.Observed with { Safety = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unreached() } });
         Assert.Equal(0L, StoreRules.StrandedStacks(request, Yard));
         Assert.Equal(0L, StoreRules.StrandedStacks(request, Warehouse));
     }

@@ -16,16 +16,12 @@ public sealed class GearSnapshotWireTests
     {
         var graded = new O.ItemQuality.Graded(D.QualityCategory.Good);
         var plain = new O.ItemQuality.Qualityless();
-        var shirt = GearFixtures.Item("Apparel_1", graded) with { ConditionFraction = 0.5, Forced = true, Locked = true };
-        var rifle = GearFixtures.Item("Gun_1", plain) with { Biocoded = true, BiocodedTo = "Thing_Human2" };
         var loadout = GearFixtures.Loadout("Thing_Human1") with
         {
-            Equipment = GearFixtures.NoEquipment with { PrimaryId = "Gun_1", Equipped = [rifle], Apparel = [shirt], Armed = true },
             Candidates = [new O.GearCandidate { Item = GearFixtures.Item("Apparel_2", plain), Gain = 0.25 }],
             BodyPartGroups = ["Torso", "Legs"],
             LoadoutModel = GearFixtures.NoModel with
             {
-                Traits = [new O.Trait { DefName = "Nudist", Degree = 0 }],
                 Worn = [GearFixtures.Option("Apparel_1", "Apparel_TribalA", "Cloth", GearSource.Worn) with { Quality = graded, Locked = true }],
                 Options =
                 [

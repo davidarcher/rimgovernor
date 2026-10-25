@@ -69,20 +69,23 @@ public sealed partial class DefinitionCatalog
     /// AnimalProductRaw that one of its thing categories sits within (the category itself or any parent of it); none for
     /// a def in none. Milk has the fluid food type and is still an animal product by its category.
     /// </summary>
-    public P.FoodIngredientClass RawFoodClass(string name)
+    public RimGovernor.Contracts.Wire.Observations.FoodIngredientClass RawFoodClass(string name) => RawFoodClass(ThingRow(name));
+
+    /// <summary>The native ingredient class of an actual game definition, shared with the stock producer.</summary>
+    public static RimGovernor.Contracts.Wire.Observations.FoodIngredientClass RawFoodClass(ThingDef row)
     {
-        var within = CategoriesWithin(ThingRow(name));
+        var within = CategoriesWithin(row);
         if (within.Contains(CategoryMeatRaw))
         {
-            return P.FoodIngredientClass.Meat;
+            return RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Meat;
         }
 
         if (within.Contains(CategoryPlantFoodRaw))
         {
-            return P.FoodIngredientClass.Vegetable;
+            return RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Vegetable;
         }
 
-        return within.Contains(CategoryAnimalProductRaw) ? P.FoodIngredientClass.AnimalProduct : P.FoodIngredientClass.None;
+        return within.Contains(CategoryAnimalProductRaw) ? RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.AnimalProduct : RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.None;
     }
 
     /// <summary>
@@ -94,17 +97,17 @@ public sealed partial class DefinitionCatalog
     {
         var row = ThingRow(name);
         var rawClass = RawFoodClass(name);
-        if (rawClass == P.FoodIngredientClass.None && row.ingestible is { } meal && meal.foodType.HasFlag(FoodTypeFlags.Meal))
+        if (rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.None && row.ingestible is { } meal && meal.foodType.HasFlag(FoodTypeFlags.Meal))
         {
-            rawClass = P.FoodIngredientClass.Any;
+            rawClass = RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Any;
         }
 
-        if (rawClass == P.FoodIngredientClass.None)
+        if (rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.None)
         {
             return null;
         }
 
-        if (rawClass == P.FoodIngredientClass.Meat && row.ingestible?.sourceDef is { } source && ThingRow(source.defName).race?.intelligence >= Intelligence.Humanlike)
+        if (rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Meat && row.ingestible?.sourceDef is { } source && ThingRow(source.defName).race?.intelligence >= Intelligence.Humanlike)
         {
             return null;
         }
@@ -119,9 +122,9 @@ public sealed partial class DefinitionCatalog
         return new P.TradeFoodGood
         {
             Class = rawClass,
-            Prepared = rawClass == P.FoodIngredientClass.Any,
+            Prepared = rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Any,
             NonPerishable = !perishable,
-            Crop = rawClass == P.FoodIngredientClass.Vegetable,
+            Crop = rawClass == RimGovernor.Contracts.Wire.Observations.FoodIngredientClass.Vegetable,
             Nutrition = nutrition,
         };
     }
@@ -158,12 +161,6 @@ public sealed partial class DefinitionCatalog
             ? RecipeWorkAmount(butcher.defName)
             : throw new CatalogException("catalog has no flesh butchering recipe");
 
-    /// <summary>Whether a power building shorts out in rain, from its power or battery comp.</summary>
-    public bool RainVulnerable(string name) =>
-        ThingRow(name).GetCompProperties<CompProperties_Power>() is { } power
-            ? power.shortCircuitInRain
-            : throw new CatalogException($"def {name} has no power comp");
-
     /// <summary><c>ThingDef.IsMeat</c> of the def: an item in the MeatRaw category.</summary>
     public bool RawMeat(string name)
     {
@@ -176,26 +173,6 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>The item a mineable def yields when mined (its building.mineableThing), empty when the def has no row or yields nothing. A long-range scanner aimed at a mineable is aimed at that yield.</summary>
     public string MineableYield(string mineable) => FindThing(mineable)?.building?.mineableThing?.defName ?? string.Empty;
-
-    /// <summary>The burn the named def's CompProperties_Refuelable states: null for a def without the comp, so a building that cannot be refueled is not a fuel consumer.</summary>
-    public P.FuelBurn? RefuelBurn(string name)
-    {
-        var row = ThingRow(name);
-        if (row.GetCompProperties<CompProperties_Refuelable>() is not { } fuel)
-        {
-            return null;
-        }
-
-        return new P.FuelBurn
-        {
-            PerDay = fuel.fuelConsumptionRate,
-            UnitsPerItem = fuel.FuelMultiplierCurrentDifficulty,
-            UseDriven = fuel.consumeFuelOnlyWhenUsed || fuel.externalTicking,
-            InRain = fuel.fuelConsumptionPerTickInRain > 0,
-            WhenPowered = fuel.consumeFuelOnlyWhenPowered,
-            Flickable = HasComp<CompProperties_Flickable>(row),
-        };
-    }
 
     /// <summary><c>PlantProperties.IsTree</c> of def's row: a wood-harvest tag, or forceIsTree. False for a def without plant properties.</summary>
     public bool PlantIsTree(string def) =>

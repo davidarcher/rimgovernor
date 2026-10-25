@@ -198,7 +198,7 @@ public abstract record OutdoorTemperature
 public sealed partial record CombatView
 {
     /// <summary>The quest site's exit when the fight's map is a loaded quest site; null on any other map.</summary>
-    public required CombatSiteExit? SiteExit { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.ExtractionCrew? SiteExit { get; init; }
 
     public Tick Tick { get; init; }
 
@@ -1060,8 +1060,8 @@ public static partial class CombatDecideRules
         }
 
         var formed = false; // a formation this stop picks the potshot door
-        CombatWaitRules.WaitTurn(view, next);
-        CombatSiegeRules.SiegeTurn(view, next);
+        next = CombatWaitRules.WaitTurn(view, next);
+        next = CombatSiegeRules.SiegeTurn(view, next);
         if (view.Pods is { } pods && next.Pods is null)
         {
             // The arrival row may leave a later frame; the fight keeps it.
@@ -1232,8 +1232,8 @@ public static partial class CombatDecideRules
             }
         }
 
-        CombatPeelRules.Peel(view, stop, next);
-        CombatTankRules.PullBackTank(stop, next);
+        next = CombatPeelRules.Peel(view, stop, next);
+        next = CombatTankRules.PullBackTank(stop, next);
         if (!next.PodWait)
         {
             // A pods fight waiting behind closed doors engages no one.
@@ -1241,24 +1241,23 @@ public static partial class CombatDecideRules
         }
 
         next.Roles = EquatableArray.From(DropMissingTargets(view, [.. next.Roles]));
-        CombatMortarRules.FromRange(view, next);
-        CombatSiegeRules.ShipPartHitAndRun(view, next);
-        CombatSiegeRules.TribalStandoff(view, next);
-        CombatSiegeRules.SiegeHold(next);
+        next = CombatMortarRules.FromRange(view, next);
+        next = CombatSiegeRules.ShipPartHitAndRun(view, next);
+        next = CombatSiegeRules.TribalStandoff(view, next);
+        next = CombatSiegeRules.SiegeHold(next);
         CombatLureRules.Lure(view, next);
-        CombatSiegeRules.SiegeSnipe(view, next);
+        next = CombatSiegeRules.SiegeSnipe(view, next);
         CombatKiteRules.Kite(view, next);
         CombatMechRules.PikemenCharge(view, next);
         CombatExplosivesRules.ExplosivesCharge(view, next);
-        CombatSapperRules.SapperIntercept(view, next);
-        CombatSapperRules.SapperRush(view, stop, next);
+        next = CombatSapperRules.SapperIntercept(view, next);
+        next = CombatSapperRules.SapperRush(view, stop, next);
         CombatDoorRules.DoorPotshot(view, formed, next);
         CombatDoorRules.MeleeDoorTurn(view, next);
-        CombatWaitRules.Shelter(view, next);
         CombatFallbackRules.Scatter(view, next);
         var (counterMemory, stood) = CombatMortarRules.CounterBattery(view, memory.Roles, next);
         next = counterMemory;
-        CombatRocketRules.RocketClumps(view, next);
+        next = CombatRocketRules.RocketClumps(view, next);
         CombatFlankRules.Flank(view, next);
         CombatGroupsRules.GroupSquads(view, next);
         CombatMechRules.NoteEmpAdapted(view, next);
@@ -1269,6 +1268,8 @@ public static partial class CombatDecideRules
 
         // Contained raiders who will not bleed down are finished in melee.
         CombatBleedRules.FinishContained(view, next);
+        // Waiting vetoes every offensive role, including specialists and finishers selected above.
+        next = CombatWaitRules.Shelter(view, next);
         var (rescueMemory, rescue, rescueAsk) = CombatRescueRules.RescueStep(view, geometry, stop, next, orderable, state);
         next = rescueMemory;
         if (rescueAsk is not null)
@@ -1316,13 +1317,19 @@ public static partial class CombatDecideRules
 
             // Target exclusions cannot be delegated to autonomous acquisition. Stop a native hold with no
             // safe target instead of leaving it active.
-            var safetyTransition = ordinaryHolder && targetExcluded && atCell && rs.Job == "Wait_Combat";
+            var waitingAttack = next.Wait && rs.Presence is CombatPresence.Engaged { Row: var waitingRow }
+                && (waitingRow.Target != default || waitingRow.TargetMortar || rs.Job == "Wait_Combat");
+            var safetyTransition = waitingAttack || (ordinaryHolder && targetExcluded && atCell && rs.Job == "Wait_Combat");
+            if (waitingAttack && (!ok || want.Kind != CombatOrderKind.Move))
+            {
+                (want, ok) = (new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.Stop, Reason = CombatOrderReason.HoldFire }, true);
+            }
             if (safetyTransition && !ok)
             {
                 (want, ok) = (new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.Stop, Reason = CombatOrderReason.HoldFire }, true);
             }
 
-            if (next.ChokeDoor is { } chokeDoor && chokeDoor.Opener == role.Pawn)
+            if (!next.Wait && next.ChokeDoor is { } chokeDoor && chokeDoor.Opener == role.Pawn)
             {
                 (want, ok) = (new CombatOrder { Pawn = role.Pawn, Kind = CombatOrderKind.Move, Cell = chokeDoor.Cell, Reason = CombatOrderReason.Formation }, true);
             }
@@ -1361,7 +1368,7 @@ public static partial class CombatDecideRules
             next.Roles.Where(r => !(next.Rescue?.Carrying(r.Pawn) == true || next.Flank?.Waiting(r.Pawn) == true)).Select(r => r with { }).ToList(),
             orders,
             memory,
-            CombatBleedRules.OnlySpared(view, spared),
+            next.Wait || CombatBleedRules.OnlySpared(view, spared),
             suppressNativeFire
         );
         if (!geometry.Answered)
@@ -1380,18 +1387,21 @@ public static partial class CombatDecideRules
         next.CannotHit = clearedHits;
 
         // One gunner shoots a wild animal near the raiders.
-        orders = CombatAnimalsRules.EnrageWild(view, orders, next.Roles, orderable, state);
+        if (!next.Wait) orders = CombatAnimalsRules.EnrageWild(view, orders, next.Roles, orderable, state);
 
         // A defender with no other order this stop takes its combat drug.
         orders.AddRange(CombatDrugsRules.DoseOrders(view, next, orders, orderable, state));
 
         // An outmatched fight calls its held permits; a call names no drafted pawn and leaves its holder's other orders alone.
-        var (permitMemory, permitCalls) = CombatPermitRules.PermitCalls(view, next);
-        next = permitMemory;
-        orders.AddRange(permitCalls);
+        if (!next.Wait)
+        {
+            var (permitMemory, permitCalls) = CombatPermitRules.PermitCalls(view, next);
+            next = permitMemory;
+            orders.AddRange(permitCalls);
 
-        // A psycaster casts its ready combat psycast, one per caster.
-        orders.AddRange(CombatCastRules.CastCalls(view, next));
+            // A psycaster casts its ready combat psycast, one per caster.
+            orders.AddRange(CombatCastRules.CastCalls(view, next));
+        }
 
         // The rescue's orders lead; a door order names no pawn to issue.
         var lead = new List<CombatOrder>(rescue);

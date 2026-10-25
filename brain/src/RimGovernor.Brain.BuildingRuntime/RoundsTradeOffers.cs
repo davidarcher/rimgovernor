@@ -109,7 +109,7 @@ public sealed partial class RoundsTradePlanner
         {
             return;
         }
-        if (Native is not Observation.IDefinitionSource definitions)
+        if (Native is not IDefinitionSource definitions)
         {
             throw new ControlException("recordOffers: the native source serves no definitions");
         }

@@ -37,7 +37,7 @@ partial class RoundsTradePlanner
             throw new DomainException("settlement_unavailable");
         }
         var silver = facts.Silver();
-        var (reserve, rk) = Pol.TradePolicyRules.TradeSilverReserve(facts.Colonists);
+        var (reserve, rk) = Pol.TradePolicyRules.TradeSilverReserve(facts.Census.ColonistCount);
         if (!rk || silverBudget <= 0 || silverBudget > int.MaxValue || silver < reserve || silverBudget > silver - reserve)
         {
             throw new DomainException("insufficient_silver");
@@ -99,7 +99,7 @@ async
             var mass = double.MaxValue;
             foreach (var stock in supply.Stocks)
             {
-                if (stock.DefName.Value == item.Definition)
+                if (stock.DefName == item.Definition)
                 {
                     mass = Math.Min(mass, stock.UnitMass);
                 }
@@ -170,7 +170,7 @@ async
     /// Never authorizes a fresh formation after the planned phase. Lost receipts are resolved from exact native
     /// crew, and partial or conflicting crew evidence holds the mission instead of sending replacements.
     /// </summary>
-    public static (TradeMissionPhase Phase, bool Observed) TradeMissionDepartureEvidence(TradeMission m, WorldProgressionRead? read)
+    public static (TradeMissionPhase Phase, bool Observed) TradeMissionDepartureEvidence(TradeMission m, RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot? read)
     {
         if (!TradeMissionValid(m)
             || (m.Phase != TradeMissionPhase.Planned && m.Phase != TradeMissionPhase.Departing && m.Phase != TradeMissionPhase.Outbound)
@@ -219,7 +219,7 @@ async
 
 partial class RoundsTradePlanner
 {
-    internal static bool TradeMissionCurrentRead(GenerationSnapshot world, WorldProgressionRead? read)
+    internal static bool TradeMissionCurrentRead(GenerationSnapshot world, RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot? read)
     {
         if (read?.Context.Identity is not { } id)
         {
@@ -229,7 +229,7 @@ partial class RoundsTradePlanner
             && read.Context.NativeGeneration.IsAt(world.Native.Value);
     }
 
-    internal static bool TradeMissionCrewAtHome(TradeMission m, WorldProgressionRead read)
+    internal static bool TradeMissionCrewAtHome(TradeMission m, RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot read)
     {
         foreach (var caravan in read.Caravans)
         {

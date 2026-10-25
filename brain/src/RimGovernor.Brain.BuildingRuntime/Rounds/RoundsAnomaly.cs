@@ -71,7 +71,7 @@ public sealed partial class AnomalyRounds
             throw new ControlException("anomaly read: the scope is another world or older than the review");
         }
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ct).ConfigureAwait(false);
-        var f = reading.Projection.Facts;
+        var f = reading.Reading.Facts;
         Report(f, ct);
         return AnomalyFacts.From(f);
     }

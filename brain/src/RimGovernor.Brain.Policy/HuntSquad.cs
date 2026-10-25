@@ -162,5 +162,5 @@ public static class HuntSquadRules
     /// falling as the gunners per animal of the herd grow. A strong colony takes a risky herd as readily
     /// as a safe one; a weak one is steered to safer prey by the discount on the risky yield.
     /// </summary>
-    internal static double HuntWeakness(int gunners, int herd) => 1 / (1 + (Math.Max(0, gunners) / (double)Math.Max(1, herd)));
+    internal static double HuntWeakness(int gunners, long herd) => 1 / (1 + (Math.Max(0, gunners) / (double)Math.Max(1, herd)));
 }

@@ -146,7 +146,7 @@ public sealed record FlooringObservation
             foreach (var c in room.Cells)
             {
                 DomainException.Require(
-                    Terrains.ContainsKey(c.Terrain) && cells.Add(c.Cell) && !(c.Pending.Length != 0 && !FoodForecastRules.FoodId(c.Pending)),
+                    Terrains.ContainsKey(c.Terrain) && cells.Add(c.Cell) && !(c.Pending is { } pending && !FoodForecastRules.FoodId(pending)),
                     "invalid floor cell"
                 );
             }
@@ -164,11 +164,13 @@ public sealed record FlooringObservation
 
 public sealed record FloorRoom
 {
-    public string Id { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.FloorRoom Observed { get; init; }
 
-    public RoomRole Role { get; init; }
+    public string Id => Observed.Room;
 
-    public IReadOnlyList<FloorCell> Cells { get; init; } = [];
+    public RoomRole Role => Observed.Role;
+
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.FloorCell> Cells => Observed.Cells;
 
     /// <summary>
     /// When set, terrain tags every cell's floor must carry one of: the throne room's flooring requirement, read
@@ -179,16 +181,6 @@ public sealed record FloorRoom
 
 /// <summary>A room's native quality stats as Room.GetStat reports them.</summary>
 public sealed record RoomQuality(double Space, double Beauty, double Cleanliness, double Wealth, double Impressiveness);
-
-public sealed record FloorCell
-{
-    public Cell Cell { get; init; }
-
-    public string Terrain { get; init; } = "";
-
-    /// <summary>The floor already ordered on the cell (a blueprint or frame), empty when none.</summary>
-    public string Pending { get; init; } = "";
-}
 
 public sealed record FloorTerrain
 {
@@ -607,7 +599,7 @@ public static class FlooringRules
                 {
                     continue;
                 }
-                if (c.Pending.Length != 0)
+                if (c.Pending is not null)
                 {
                     pending++;
                     continue;

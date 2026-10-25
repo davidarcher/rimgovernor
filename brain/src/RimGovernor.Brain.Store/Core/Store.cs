@@ -61,8 +61,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 56 reads current work occupancy whole (#3896): the admission pawn row persists Occupied as a plain boolean.
     /// Version 57 reads medical history and pawn profiles whole (#3989): unresolved patients persist by identity, and work hours, inspiration and biotech effects/minimum ages are direct values.
     /// Version 58 reads admission evidence and recovery workers whole (#3892, #3982): material and production lifecycle states are explicit, and recovery worker rows are required.
+    /// Version 59 retains canonical native activity locations, recovery and mood rows, and full pawn profiles with skill learning and explicit Biotech state (#3790). Existing session journals are invalidated; game saves are unchanged.
     /// </summary>
-    public const int SchemaVersion = 58;
+    public const int SchemaVersion = 59;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

@@ -62,7 +62,6 @@ Host/SchedulerLoop.cs|SchedulerLoop.Run
 Host/SchedulerLoop.cs|SchedulerLoop.WaitOrWake
 HttpChannel/EndpointFile.cs|EndpointFile.Remove
 HttpChannel/HttpChannelServer.cs|HttpChannelServer.ServeAsync
-Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept
 PlayerApi/PlayerRoutes.cs|PlayerRoutes.ReadControlAsync
 Policy/DefenseTiers.cs|DefenseTiersPolicy.PlanDefenseTiers
 Policy/Hostility.cs|HostilityRules.HostilityChanges

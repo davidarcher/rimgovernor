@@ -1,5 +1,6 @@
 using D = RimGovernor.Contracts.Wire.Defs;
 using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -8,6 +9,13 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 internal static class GearFixtures
 {
+    /// <summary>A role over an actual outfit/gear row and canonical pawn, with no catalog-resolved work or traits.</summary>
+    public static GearRoleInput Role => new()
+    {
+        Observed = Loadout("") with { ApparelPolicy = PoliciesTests.EmptyOutfit },
+        Pawn = PawnFixtures.Row(""),
+    };
+
     /// <summary>A gear census of no colonist, stock or locked bill, under the fixture climate.</summary>
     public static O.GearSnapshot NoSnapshot => new() { Pawns = [], Climate = ColonyModelFixtures.Climate(), StoredApparel = [], LockedBills = [] };
 
@@ -15,7 +23,7 @@ internal static class GearFixtures
     public static readonly O.PawnEquipment NoEquipment = new() { PrimaryId = null, Equipped = [], Apparel = [], Armed = false, RangedHitFactor = 0, RangedDps = 0, MeleeDps = 0 };
 
     /// <summary>A loadout model with no traits, worn garments or options.</summary>
-    public static readonly O.GearLoadoutModel NoModel = new() { Traits = [], Worn = [], Options = [] };
+    public static readonly O.GearLoadoutModel NoModel = new() { Worn = [], Options = [] };
 
     /// <summary>One unworn, uncoded item at full condition.</summary>
     public static O.GearItem Item(string id, O.ItemQuality quality) => new()
@@ -48,10 +56,7 @@ internal static class GearFixtures
     {
         Token = "load",
         Pawn = new PawnId(pawn),
-        Equipment = NoEquipment,
         Candidates = [],
-        ComfortableMinC = 10,
-        ComfortableMaxC = 30,
         Blocked = false,
         ApparelPolicy = null,
         LoadoutModel = NoModel,

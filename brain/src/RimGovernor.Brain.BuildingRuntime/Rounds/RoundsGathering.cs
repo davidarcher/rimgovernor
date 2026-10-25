@@ -9,7 +9,7 @@ public sealed partial class Rounder
     /// </summary>
     internal static GatheringPlan GatheringPlanOf(RoundsReading reading, GenerationSnapshot snapshot)
     {
-        var facts = reading.Projection.Facts;
+        var facts = reading.Reading.Facts;
         var thought = reading.Catalog?.ThoughtFacts(GatheringRules.PartyThought)
             ?? throw new RequiredFactException(GatheringRules.PartyThought + " thought facts");
 

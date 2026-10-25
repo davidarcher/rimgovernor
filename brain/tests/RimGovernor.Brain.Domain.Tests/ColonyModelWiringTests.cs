@@ -1,9 +1,11 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+using RimGovernor.Brain.Facts;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -12,26 +14,46 @@ namespace RimGovernor.Brain.Domain.Tests;
 // of devilstrand and a bill option for the duster in devilstrand cloth.
 public sealed class ColonyModelWiringTests
 {
-    private static GearOption BillDuster() => ForecastValueTests.Duster(0.8) with
-    {
-        ID = "bill:Apparel_Duster/DevilstrandCloth", Definition = new Resource("Apparel_Duster"), Stuff = new Resource(ColonyModelFixtures.Cloth), Source = GearSource.Bill,
-    };
+    private static GearOption BillDuster() => ForecastValueTests.Duster(0.8) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(ForecastValueTests.Duster(0.8)).Origin).Value) with { Id = "bill:Apparel_Duster/DevilstrandCloth", DefName = "Apparel_Duster", Stuff = ColonyModelFixtures.Cloth, Source = GearSource.Bill }) };
 
     private static readonly string Garment = ProjectGraph.GarmentId(new Resource(ColonyModelFixtures.Cloth), GearSlot.Unset);
 
-    private static ColonyProjection Frame()
+    private static ColonyReading Frame()
     {
-        var projection = ColonyModelFixtures.Projection();
+        var projection = ColonyModelFixtures.Reading();
         var gear = projection.Facts.Gear;
         return projection with
         {
             Facts = projection.Facts with
             {
-                Gear = gear with { Climate = ColonyModelFixtures.Climate() with { Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 12, 12 }) }, Pawns = [gear.Pawns[0] with { LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Options = [BillDuster()] }) }] },
+                Gear = gear with
+                {
+                    Climate = ColonyModelFixtures.Climate() with
+                    {
+                        Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 12, 12 })
+                    },
+                    Pawns = [gear.Pawns[0] with
+                    {
+                        LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = ColonyModelFixtures.NoThreat, Options = [BillDuster()], Role = GearFixtures.Role })
+                    }
+                    ]
+                },
+                CombinedFoodSupply = projection.Facts.CombinedFoodSupply with
+                {
+                    Stocks = [projection.Facts.CombinedFoodSupply.Stocks[0] with
+                    {
+                        Nutrition = 10_000.0
+                    }
+                    ]
+                }
             },
-            // 20 cells of 6 cloth each cover the duster's 80.
-            Cells = [.. Enumerable.Range(0, 20).Select(x => SiteCellFixtures.Ground with { Cell = new Cell(x, 0), Zone = true, ZoneId = "zone1", Fertility = 0.8 })],
-            CombinedFoodSupply = projection.CombinedFoodSupply with { Stocks = [projection.CombinedFoodSupply.Stocks[0] with { Nutrition = 10_000.0 }] },
+            Window = new Held<PlanningCells>
+            {
+                Value = new PlanningCells
+                {
+                    Cells = [.. Enumerable.Range(0, 20).Select(x => SiteCellFixtures.At(new Cell(x, 0), zoneId: "zone1", fertility: 0.8))]
+                }
+            }
         };
     }
 
@@ -44,7 +66,7 @@ public sealed class ColonyModelWiringTests
     [Fact]
     public void AFrameThatLeavesTheInputUnreadyReviewsToNoRunNoBasisAndNamesTheGaps()
     {
-        var frame = ColonyFactsCoreTests.Projection();
+        var frame = ColonyFactsCoreTests.Reading() with { Window = new Held<PlanningCells> { Value = new() { Cells = [] } } };
 
         var review = RoundsColonyModel.Review(frame, Context(ForecastValueTests.RaidDay()), null);
 
@@ -79,18 +101,20 @@ public sealed class ColonyModelWiringTests
         // Anna is now a Medicine-3 doctor with vanilla's tend quality curve, and the catalog reads herbal medicine's numbers.
         var frame = Frame();
         var tend = new SkillStatCurve(ColonyValue.TendQualityStat, "Medicine", EquatableArray.From(Enumerable.Range(0, 21).Select(l => new SkillStatLevel(l, 0.2 + (0.1 * l)))), "test");
-        var anna = ((WorkPawnsRead)frame.WorkPawns).Pawns[0];
+        var anna = ((WorkPawnsRead)frame.Facts.ForecastObserved.WorkPawns).Pawns[0];
         frame = frame with
         {
-            Facts = frame.Facts with { MedicalReserve = frame.Facts.MedicalReserve with { Catalog = ItemFactsFixtureRules.CoreItemFacts() } },
-            WorkPawns = new WorkPawnsRead(EquatableArray.From(new[]
+            Facts = frame.Facts with
             {
-                anna with
+                MedicalReserve = frame.Facts.MedicalReserve with
                 {
-                    Skills = EquatableArray.From(anna.Skills.Append(new WorkSkill { Name = "Medicine", Level = 3, Learning = SkillStockTests.Mechanics(3, 0) })),
-                    SkillStatCurves = EquatableArray.From(new[] { tend }),
+                    Catalog = ItemFactsFixtureRules.CoreItemFacts()
                 },
-            })),
+                ForecastObserved = frame.Facts.ForecastObserved with
+                {
+                    WorkPawns = new WorkPawnsRead(EquatableArray.From(new[] { anna with { Observed = anna.Observed with { Biography = anna.Observed.Biography with { Skills = EquatableArray.From(anna.Skills.Append(new O.Skill { Passion = O.Passion.None, DefName = "Medicine", Level = 3, Learning = SkillStockTests.Mechanics(3, 0) })), SkillStatCurves = EquatableArray.From(new[] { tend }) } } }, }))
+                }
+            }
         };
 
         var review = RoundsColonyModel.Review(frame, Context(ForecastValueTests.RaidDay()), null);
@@ -110,8 +134,8 @@ public sealed class ColonyModelWiringTests
     public void EachReachableStuffAndSlotIsAGarmentNodeOfTheDefWithTheMostArmor()
     {
         var input = ColonyModelFixtures.ReadyOf(Frame());
-        var better = BillDuster() with { ID = "bill:Apparel_Parka/DevilstrandCloth", Definition = new Resource("Apparel_Parka"), Sharp = 0.9 };
-        var cotton = BillDuster() with { ID = "bill:Apparel_Duster/Cloth", Stuff = new Resource("Cloth"), Sharp = 0.99 };
+        var better = BillDuster() with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(BillDuster()).Origin).Value) with { Id = "bill:Apparel_Parka/DevilstrandCloth", DefName = "Apparel_Parka" }), Sharp = 0.9 };
+        var cotton = BillDuster() with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(BillDuster()).Origin).Value) with { Id = "bill:Apparel_Duster/Cloth", Stuff = "Cloth" }), Sharp = 0.99 };
         ProjectNode[] Garments(ProjectGraph graph) => [.. graph.Nodes.Where(n => n.Kind == ProjectKind.Craft)];
 
         // The parka beats the duster in the harvest's cloth, and the frame has no recipe for it; no cotton is grown or held.

@@ -13,7 +13,7 @@ public readonly record struct BillPurpose(string Value)
 
 public sealed record ProductionProduct
 {
-    public string Name { get; init; } = "";
+    public string Name => Food.Definition;
 
     /// <summary>What the product is worth as food (ProductFood).</summary>
     public required ProductFood Food { get; init; }
@@ -46,7 +46,18 @@ public abstract record ProductFood
     /// The product is no food: the game shows it no nutrition, or it is not ingestible. Part-fabrication rows carry
     /// it too, as the part and mech planners never read a product as food (as RecipeFood.NotFood).
     /// </summary>
-    public sealed record NotFood : ProductFood;
+    public abstract string Definition { get; }
+
+    public sealed record NotFood(RimGovernor.Contracts.Wire.Observations.FoodProduct Observed) : ProductFood
+    {
+        public override string Definition => Observed.DefName;
+    }
+
+    /// <summary>A catalog-only fabrication product, which is never reviewed as food.</summary>
+    public sealed record CatalogProduct(string Name) : ProductFood
+    {
+        public override string Definition => Name;
+    }
 
     /// <summary>
     /// The product is food. Kind is the food kind the game gives it; Nutrition its positive per-unit nutrition;
@@ -54,12 +65,18 @@ public abstract record ProductFood
     /// (Biotech); Storable the count protected, reachable storage accepting it can hold: stored stock plus empty
     /// stack slots.
     /// </summary>
-    public sealed record Food(FoodKind Kind, double Nutrition, bool Edible, bool Perishable, bool BabyEdible, long Storable) : ProductFood;
+    public sealed record Food(RimGovernor.Contracts.Wire.Observations.FoodProduct Observed, FoodKind Kind, double Nutrition, bool Perishable, bool BabyEdible) : ProductFood
+    {
+        public override string Definition => Observed.DefName;
+        public bool Edible => Observed.Edible;
+        public long Storable => Observed.Storable;
+    }
 }
 
 public sealed record ProductionRecipe
 {
-    public string Name { get; init; } = "";
+    public required RecipeAccess Access { get; init; }
+    public string Name => Access.Definition;
 
     /// <summary>What the recipe does by its catalog row.</summary>
     public RecipeRole Role { get; init; }
@@ -71,7 +88,7 @@ public sealed record ProductionRecipe
     public string MechKind { get; init; } = "";
 
     /// <summary>Whether the bench offers the recipe now: its own gates and the bench's both admit it.</summary>
-    public required bool Available { get; init; }
+    public bool Available => Access.ResearchReady && Access.HostReady;
 
     public IReadOnlyList<ProductionProduct> Products { get; init; } = [];
 
@@ -88,35 +105,22 @@ public sealed record ProductionRecipe
 /// </summary>
 public sealed record ExistingProductionBill
 {
-    /// <summary>The bill recipe's role by its catalog row.</summary>
+    public required RimGovernor.Contracts.Wire.Observations.BillState Observed { get; init; }
+    /// <summary>The recipe's catalog classification.</summary>
     public RecipeRole Role { get; init; }
-
-    /// <summary>The ingredient filter is the one a new bill of the recipe gets.</summary>
-    public required bool DefaultIngredients { get; init; }
-
-    /// <summary>The filter's allowed defs; a butcher bill's filter is its corpse selection, never compared as an ingredient list.</summary>
-    public required EquatableArray<string> Ingredients { get; init; }
-
-    public required bool UnrestrictedWorker { get; init; }
-
-    /// <summary>The pinned pawn, "" when unrestricted.</summary>
-    public required string Worker { get; init; }
-
-    public required BillRepeat Repeat { get; init; }
-
-    public bool Humanlike { get; init; }
-
-    public string Id { get; init; } = "";
-
-    /// <summary>Not suspended.</summary>
-    public required bool Active { get; init; }
-
-    public string Recipe { get; init; } = "";
-
-    /// <summary>The configured stock target (vanilla keeps it in every repeat mode; it binds only a TargetCount bill).</summary>
-    public required int TargetCount { get; init; }
+    /// <summary>This view is being reviewed for butcher work.</summary>
+    public bool Butcher { get; init; }
+    public bool DefaultIngredients => Observed.DefaultIngredients;
+    public EquatableArray<string> Ingredients => Observed.IngredientFilter.AllowedDefNames;
+    public bool UnrestrictedWorker => Observed.UnrestrictedWorker;
+    public string Worker => Observed.Worker ?? "";
+    public BillRepeat Repeat => ProductionRules.BillRepeatOf(Observed.RepeatMode);
+    public bool Humanlike => Butcher && Ingredients.Count > 0;
+    public string Id => Observed.Id;
+    public bool Active => !Observed.Suspended;
+    public string Recipe => Observed.Recipe;
+    public int TargetCount => Observed.TargetCount;
 }
-
 /// <summary>A bill's repeat mode: run forever, a fixed count of iterations, or until the stock reaches the target count.</summary>
 public enum BillRepeat
 {
@@ -125,6 +129,14 @@ public enum BillRepeat
     TargetCount,
 }
 
+/// <summary>The planner's recipe-purpose view over one canonical native bench.</summary>
+public abstract record ProductionUse
+{
+    private protected ProductionUse() { }
+    public sealed record Ordinary : ProductionUse;
+    public sealed record Cooking(RimGovernor.Contracts.Wire.Observations.CookingProduction.Supported Capability) : ProductionUse;
+    public sealed record Butchering(RimGovernor.Contracts.Wire.Observations.ButcheringProduction.Supported Capability) : ProductionUse;
+}
 public sealed record ProductionBench
 {
     public IReadOnlyList<HumanButcherCandidate> HumanButchers { get; init; } = [];
@@ -132,20 +144,26 @@ public sealed record ProductionBench
     /// <summary>The nutrition of the fresh humanlike corpses near a butcher bench (0 for none, and for a cooking bench).</summary>
     public double HumanCorpseNutrition { get; init; }
 
-    public string Id { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.BillStackRow Observed { get; init; }
+    public required ProductionUse Use { get; init; }
 
-    public string Definition { get; init; } = "";
-
-    /// <summary>The bench's CAS token.</summary>
-    public required string Token { get; init; }
-
-    public required bool Usable { get; init; }
-
-    public bool Butcher { get; init; }
-
-    /// <summary>The native room census identity the bench stands in; null when it stands in no room.</summary>
-    public string? Room { get; init; }
-
+    public string Id => Observed.Bench;
+    public string Definition => Observed.BenchDef;
+    public string Token => Observed.Snapshot.Token ?? throw new RequiredFactException("bench snapshot token:" + Id);
+    public bool Usable => Use switch
+    {
+        ProductionUse.Ordinary => Observed.Usable,
+        ProductionUse.Cooking cooking => cooking.Capability.Usable,
+        ProductionUse.Butchering butchering => butchering.Capability.Usable,
+        var invalid => throw new RequiredFactException("unsupported bench purpose:" + invalid.GetType().Name),
+    };
+    public bool Butcher => Use switch
+    {
+        ProductionUse.Ordinary or ProductionUse.Cooking => false,
+        ProductionUse.Butchering => true,
+        var invalid => throw new RequiredFactException("unsupported bench purpose:" + invalid.GetType().Name),
+    };
+    public string? Room => Observed.Room?.Id;
     public IReadOnlyList<ProductionRecipe> Recipes { get; init; } = [];
 
     public IReadOnlyList<ExistingProductionBill> Bills { get; init; } = [];

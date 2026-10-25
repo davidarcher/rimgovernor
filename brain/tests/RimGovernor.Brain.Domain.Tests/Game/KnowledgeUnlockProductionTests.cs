@@ -1,10 +1,8 @@
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests.Game;

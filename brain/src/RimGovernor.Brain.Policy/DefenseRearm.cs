@@ -1,28 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One standing tier turret's service state from the power census: its gun's damage per second, whether it is
-/// powered, and whether it is a refuelable turret out of fuel.
-/// </summary>
-public sealed record DefenseTurretFacts
-{
-    public string Id { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
-    /// <summary>The turret's observed damage per second.</summary>
-    public required double Dps { get; init; }
-
-    public required bool Powered { get; init; }
-
-    /// <summary>A refuelable turret with an empty barrel; false for one with fuel or one that takes none.</summary>
-    public required bool OutOfFuel { get; init; }
-
-    /// <summary>The definitions the barrel accepts (steel for the mini turret), in the census's order.</summary>
-    public EquatableArray<Resource> FuelDefinitions { get; init; }
-}
-
-/// <summary>
 /// The turret tier's observed service deficits once every tier stands. Unpowered and Empty are the deficit
 /// cells; Rearm is whether an empty barrel has fuel in stock and an available hauler to carry it.
 /// </summary>
@@ -62,7 +40,7 @@ public static class DefenseRearm
             var fueled = false;
             foreach (var d in t.FuelDefinitions)
             {
-                if (stock.TryGetValue(d, out var n) && n > 0)
+                if (stock.TryGetValue(new Resource(d), out var n) && n > 0)
                 {
                     fueled = true;
                     break;

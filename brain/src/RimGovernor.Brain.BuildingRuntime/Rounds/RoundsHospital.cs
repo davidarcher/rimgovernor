@@ -34,24 +34,24 @@ public sealed partial class RoundsHospitalPlanner
 
 partial class RoundsHospitalPlanner
 {
-    internal static HospitalRequest HospitalRequestOf(ColonyProjection facts)
+    internal static HospitalRequest HospitalRequestOf(ColonyReading facts)
     {
-        var definitions = facts.Definitions
+        var definitions = facts.Facts.Definitions
             .Select(d => new BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill })
             .ToList();
         var f = facts.Facts;
-        var doctors = LaborRules.WorkersFor(facts.WorkPawns.Pawns, WorkType.Doctor);
+        var doctors = LaborRules.WorkersFor(facts.Facts.ForecastObserved.WorkPawns.Pawns, WorkType.Doctor);
 
         return new HospitalRequest
         {
             Patients = f.MedicalPawns,
             Sleeping = f.Sleeping,
-            Rooms = facts.Rooms,
+            Rooms = facts.Facts.Upkeep.Rooms,
             Definitions = definitions,
-            Furniture = facts.Shapes.Furniture,
-            Colonists = f.Colonists,
-            BedCapacity = f.BedCapacity,
-            IndoorCapacity = f.IndoorCapacity,
+            Furniture = facts.Facts.Shapes.Furniture,
+            Colonists = f.Census.ColonistCount,
+            BedCapacity = f.Census.BedCapacity,
+            IndoorCapacity = f.Census.IndoorSleepingCapacity,
             Doctors = doctors,
             Surgical = SurgeryRules.SurgeryBedShortPatients(f.MedicalPawns),
             MinBeds = f.GoalBuild.HospitalBeds,
@@ -61,7 +61,7 @@ partial class RoundsHospitalPlanner
 
 public sealed partial class RoundsBuildingPlanner
 {
-    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectHospital(ColonyProjection facts)
+    internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectHospital(ColonyReading facts)
     {
         var choice = HospitalRules.SelectHospitalBed(RoundsHospitalPlanner.HospitalRequestOf(facts));
         switch (choice.Method)
@@ -81,7 +81,7 @@ case HospitalMethod.NoDemand:
         resolved.Definition = choice.Definition;
         resolved.Environment = PlacementEnvironment.Indoors;
         resolved.Facility = facility;
-        resolved.Stuff = facts.BuildStuff(resolved.Definition);
+        resolved.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), resolved.Definition);
         return (resolved, default);
     }
 }
@@ -110,14 +110,14 @@ public sealed partial class RoundsHospitalPlanner
 
         var started = Reviewer.Clock.Now();
         var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
-        var expected = DecodeReads.DecodeIdentity(identity);
+        var expected = new ObservationIdentity { Context = identity.Context, Paused = identity.Paused };
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException("step: boundary moved");
         }
 
         var reading = await Reviewer.ObserveOwnedAsync((IRoundsSource)Native, expected, call).ConfigureAwait(false);
-        var facts = reading.Projection;
+        var facts = reading.Reading;
         PlannerSnapshot.RecordStepRead("hospital", MedicalRules.MedicalCareNeed.FilingKey, state.Snapshot, facts);
         var choice = HospitalRules.SelectHospitalBed(HospitalRequestOf(facts));
         switch (choice.Method)

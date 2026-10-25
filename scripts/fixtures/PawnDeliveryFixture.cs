@@ -83,8 +83,7 @@ namespace HomeBridge.BridgeTools
             }
             var cell = revised ? revisedDeliveryCell : deliveryCell;
             var order = new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", revised ? 2 : 1, revised ? 3 : 2, false,
-                new[] { new PawnActivityStep(PawnActivityKind.Deliver, product.GetUniqueLoadID(), "", "", 1, deadline)
-                    { Destination = new Cell(cell.x, cell.z) } });
+                new[] { new PawnActivityStep(PawnActivityKind.Deliver, product.GetUniqueLoadID(), "", "", 1, deadline).At(new Cell(cell.x, cell.z)) });
             var batch = new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value, new[] { order });
             NativePawnActivities.Apply(batch, Context());
             NativePawnActivities.Apply(batch, Context());

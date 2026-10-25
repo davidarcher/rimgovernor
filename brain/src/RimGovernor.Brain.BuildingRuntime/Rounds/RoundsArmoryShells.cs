@@ -29,7 +29,7 @@ internal static class RoundsArmoryShells
         return catalog.MortarShells(CombatMortarRules.MortarSafeRadius);
     }
 
-    internal static async Task<IReadOnlyList<Amount>> ShellTargetsAsync(object native, StoreJournal journal, GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    internal static async Task<IReadOnlyList<Amount>> ShellTargetsAsync(object native, StoreJournal journal, GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
     {
         var mortars = MortarsBuilt(journal, snapshot, ct);
         var shells = await LoadMortarShellsAsync(native, snapshot, ct).ConfigureAwait(false);

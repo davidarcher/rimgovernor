@@ -10,6 +10,13 @@ Upkeep uses the existing ColonyPlan, resource admission and Hands executor.
 every census list is total and a read native cannot make fails the observation. Only the routes
 section stays nullable (#3782). An item's rot, a bed's quality, a person's royal standing and an
 animal's roping are named states.
+The sleeping policy view retains the actual native person and bed census rows, joined to the
+canonical pawn and building rows. Bed ownership and temperature comfort are read from that
+pawn row. Building material and full-footprint roof coverage are read from that
+building row, not repeated in the bed census. Room-quality views retain the actual room row;
+the catalog supplies compiler-checked native stat names and policy reads its quality from that
+row's stats. Only catalog requirements and the derived colonist-bed membership accompany these
+observations. A pawn with no owned bed retains the native null relation.
 The repair structure census includes only native definitions with `useHitPoints`, so
 non-damageable markers such as sleeping spots are never repair targets.
 
@@ -693,3 +700,22 @@ rotten corpses are excluded.
 recorded snapshot.
 
 Lighting, flooring and routes are required censuses in every routine frame. Both wire decoding and direct colony decoding refuse an absent section; planner reads also fail when a projection omitted one. An empty measured census is valid. Lighting and flooring reviews therefore carry deficits directly without an unread flag or method.
+
+Each lighting fixture retains its native lamp census row and canonical building row.
+Identity, placement and service state are read from those rows; only the catalog glow
+radius is joined metadata. Fuel, repair and power deferrals therefore use the same
+building evidence as the other upkeep families.
+
+The repair census adds only Home footprint coverage to a building identity. Repair
+policy retains that row and the canonical placed building, whose tracked hit points,
+definition and material supply the physical evidence. A missing or non-damageable
+joined building fails the read.
+
+Dispatch-time bed and grower checks retain the freshly read native building row
+with its observation context. They preserve fresh-read guards and native null
+crop absence; a building of the wrong control kind fails explicitly.
+
+Packed furniture reads retain the actual stock item and its packed-building
+relation through installation and sculpture selection. Quality stays native
+`Rated` or `Unrated`; the sculpture ranking places unrated pieces below rated
+pieces without storing a second quality-known flag.

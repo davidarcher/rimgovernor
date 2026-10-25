@@ -46,7 +46,7 @@ public sealed record BedMergePrice
     public required BedMergeFacts Facts { get; init; }
 
     /// <summary>The seasonal outdoor curve; the colony projection's read to harden (#3790).</summary>
-    public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
+    public EquatableArray<double> OutdoorCurve { get => ClimateRules.RequireOutdoorCurve(field); init; }
 
     /// <summary>A colonist's work-day (LayoutLightRules.StationWorkDayOf); a day with no price fails the heat it prices.</summary>
     public required StationWorkDay WorkDay { get; init; }
@@ -408,10 +408,7 @@ internal sealed partial class Clusterer
     private double HeatPerDay(int area, BedMergePrice price)
     {
         var m = _in.Catalog.Climate;
-        if (!price.OutdoorCurve.TryGetValue(out var curve))
-        {
-            throw new RequiredFactException("outdoor_curve");
-        }
+        var curve = price.OutdoorCurve;
         if (price.WorkDay is not StationWorkDay.Priced day)
         {
             throw new RequiredFactException("work_day");

@@ -151,7 +151,7 @@ public sealed record ModelPawn
 
     public EquatableArray<ModelNeed> Needs { get; init; }
 
-    public required EquatableArray<WorkSkill> Skills { get; init; }
+    public required EquatableArray<RimGovernor.Contracts.Wire.Observations.Skill> Skills { get; init; }
 
     /// <summary>The five capacities a pawn-day is counted in (#3519).</summary>
     public required double Consciousness { get; init; }
@@ -198,7 +198,7 @@ public sealed record ColonyModelInput
     public required GearClimate Climate { get; init; }
 
     /// <summary>The tile's growing days, the days remaining and until, and the non-growing stretch.</summary>
-    public required Calendar Calendar { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.FoodClimate Calendar { get; init; }
 
     /// <summary>Standing growing zones and planned fields with their cells' fertility.</summary>
     public required EquatableArray<ModelField> Land { get; init; }
@@ -396,7 +396,7 @@ public sealed record ColonyModelInput
                 }
             }
 
-            if (pawn.Skills.Any(s => s.Name.Length == 0 || s.Level < 0))
+            if (pawn.Skills.Any(s => s.DefName.Length == 0 || s.Level < 0))
             {
                 missing.Add("skills");
             }

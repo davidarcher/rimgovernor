@@ -7,9 +7,7 @@ internal sealed record ActivityTaskTransition(PawnActivities? Batch, bool Releas
 internal static class CoordinatedActivityBinding
 {
     private static PawnActivityStep[] PreparationSteps(SelectedActivityTask task) =>
-        [new(PawnActivityKind.Approach, "", "", "", 0, task.Step.Deadline)
-            { Destination = task.Step.Kind == PawnActivityKind.Supply ? task.Source ?? task.Location : task.Location,
-                NotBefore = task.DepartTick },
+        [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, task.Step.Deadline) { NotBefore = task.DepartTick }.At(task.Step.Kind == PawnActivityKind.Supply ? task.Source : task.Location),
          new(PawnActivityKind.Hold, "", "", "", 0, task.Step.Deadline)];
     /// <summary>The steps the order runs before the task's own (#3617): a roof-holder's Work/RemoveRoof cell set step over the
     /// roofed cells it leaves unsupported (<see cref="ActivityTaskCandidate.RoofCells"/>), through the RemoveRoofs giver, as
@@ -100,10 +98,10 @@ internal static class CoordinatedActivityBinding
         {
             var task = bindings[(a.Activity, a.Pawn)];
             return Bound(a, task, new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
-                new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
+                Step(task, new PawnActivityStep(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
                     task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
-                    { Practice = task.Practice, Destination = task.Destination, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
-                        Targets = task.Targets, Cells = task.Cells, FullLoad = task.FullLoad, Collect = task.Collect, Recipe = task.Recipe },
+                    { Practice = task.Practice, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
+                        Targets = task.Targets, Cells = task.Cells, FullLoad = task.FullLoad, Collect = task.Collect, Recipe = task.Recipe }),
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
                         Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand,
@@ -121,7 +119,7 @@ internal static class CoordinatedActivityBinding
             var steps = preparing ? PreparationSteps(task) : [.. task.PriorSteps, own];
             return new PawnActivityOrder(task.Pawn, method + "/" + task.Pawn, method, 0, 1, false, steps)
             { Task = task.Id, Preparing = preparing, OutputDelivery = !preparing && task.Resource.Length != 0 && task.Step.Count > 0
-                ? new(task.Resource, task.Source ?? task.Location, task.Step.Destination ?? task.Location, task.Step.Count, task.Step.Deadline, task.AttemptsLeft) : null };
+                ? new(task.Resource, task.Source, task.Step is CellActivityStep cell ? cell.Destination : task.Location, task.Step.Count, task.Step.Deadline, task.AttemptsLeft) : null };
         }).ToArray();
         return new(authority, orders) { Tasks = EquatableArray.From(selected) };
     }
@@ -130,6 +128,9 @@ internal static class CoordinatedActivityBinding
     /// native binding checks a recipe step's learning-dependent duration; support work keeps its own bound.</summary>
     private static SelectedActivityTask Bound(ForecastActivityAllocation allocation, ActivityTaskCandidate candidate, SelectedActivityTask task) =>
         allocation.Learning is null || candidate.Kind != PawnActivityKind.Recipe ? task : new BoundRecipeTask(task, allocation.WorkTicks);
+
+    private static PawnActivityStep Step(ActivityTaskCandidate task, PawnActivityStep step) =>
+        task is CellActivityTaskCandidate cell ? step.At(cell.Destination) : step;
 
     internal static ActivityTaskTransition Continue(PawnActivities batch, ActivityTaskRead read,
         IReadOnlyDictionary<string, ActivityOwnership> rows, long tick)
@@ -233,8 +234,8 @@ internal static class CoordinatedActivityBinding
                 remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Count = Math.Min(next.Step.Count, supply.RemainingCount) } };
             orders.Add(order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1, Release = false,
                 Task = next.Id, Preparing = false, Steps = [.. next.PriorSteps, binding.Step],
-                OutputDelivery = next.Resource.Length == 0 || binding.Step.Count <= 0 ? null : new(next.Resource, next.Source ?? next.Location,
-                    binding.Step.Destination ?? next.Location, binding.Step.Count, binding.Step.Deadline, next.AttemptsLeft) });
+                OutputDelivery = next.Resource.Length == 0 || binding.Step.Count <= 0 ? null : new(next.Resource, next.Source,
+                    binding.Step is CellActivityStep cell ? cell.Destination : next.Location, binding.Step.Count, binding.Step.Deadline, next.AttemptsLeft) });
             changed = true;
         }
         if (!changed) return new(null, false);

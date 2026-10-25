@@ -5,7 +5,7 @@ public static partial class ForecastCoupled
     internal sealed partial class CoupledSearchCache
     {
         private readonly Dictionary<string, ForecastTerminalLot> census = new(StringComparer.Ordinal);
-        private FoodSupply food = new() { Larder = new() };
+        private FoodSupply food = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } };
         private ItemFacts items = new();
         private FoodConsumer[] otherConsumers = [];
         private double consumedUntil;
@@ -46,7 +46,7 @@ public static partial class ForecastCoupled
         private void InitializeCensus(ColonyForecastRequest request)
         {
             census.Clear(); outsidePhysical.Clear(); food = request.Facts.Food; items = request.Facts.Items; consumedUntil = 0;
-            var physical = request.Facts.ResourceThings.ToHashSet(StringComparer.Ordinal);
+            var physical = request.Facts.Census.ResourceThings.ToHashSet(StringComparer.Ordinal);
             // A consumer whose nutrition rate is not a finite non-negative number cannot be drawn against; the outcome is refused.
             foreach (var consumer in food.Consumers)
                 if (!double.IsFinite(consumer.NutritionPerDay) || consumer.NutritionPerDay < 0) Refuse("food_consumer_rate_unread", consumer.Id.Value);
@@ -58,11 +58,11 @@ public static partial class ForecastCoupled
                 var fresh = row.Rot is FoodRot.Rots { Ticks: var rot } ? (double)rot : double.PositiveInfinity;
                 var nutrition = row.Count > 0 ? row.Nutrition / row.Count : 0d;
                 var barred = food.Barred.Any(s => s.Id == row.Id);
-                census[row.Id] = new(row.Id, row.DefName, count, fresh,
+                census[row.Id] = new(row.Id, new Resource(row.DefName), count, fresh,
                     !barred && ForecastStockScope.Eligible(row, food) ? FoodEligibility.Eligible : FoodEligibility.Ineligible, nutrition,
                     EquatableArray.From(row.Eaters.Where(e => (row.Holder.IsEmpty || row.Holder == e)
                         && (!(row.IsHumanMeat || row.IsHumanlike) || food.Consumers.Any(c => c.Id == e && c.HumanMeatAcceptable)))), false);
-                Include(row.Id, row.DefName, count, fresh);
+                Include(row.Id, new Resource(row.DefName), count, fresh);
                 if (!physical.Contains(row.Id)) outsidePhysical.Add(row.Id);
             }
             foreach (var row in request.Facts.Medicine.Items)
@@ -71,8 +71,8 @@ public static partial class ForecastCoupled
                     if (row.Rot is RimGovernor.Contracts.Wire.Observations.ItemRot.Never) fresh = double.PositiveInfinity;
                     else if (row.Rot is RimGovernor.Contracts.Wire.Observations.ItemRot.Rotting rot) fresh = rot.Ticks;
                     else throw new DomainException("invalid medicine rot state");
-                    census[row.Id] = new(row.Id, row.Definition, row.Count, fresh, FoodEligibility.Ineligible, 0d, [], !row.Forbidden && physical?.Contains(row.Id) == true);
-                    Include(row.Id, row.Definition, row.Count, fresh);
+                    census[row.Id] = new(row.Id, new Resource(row.Definition), row.Count, fresh, FoodEligibility.Ineligible, 0d, [], !row.Forbidden && physical?.Contains(row.Id) == true);
+                    Include(row.Id, new Resource(row.Definition), row.Count, fresh);
                     if (physical is null || !physical.Contains(row.Id)) outsidePhysical.Add(row.Id);
                 }
             void Include(string id, Resource resource, double count, double fresh)

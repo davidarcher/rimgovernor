@@ -2,19 +2,36 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed record CropSeason
 {
-    public Calendar Calendar { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.FoodClimate Calendar { get; init; }
     public EquatableArray<DisasterCondition> Conditions { get; init; }
 }
 
 /// <summary>Whole visible zone exposure from the native zone census, independent of the planning window.</summary>
-public sealed record FieldExposure
+public abstract record FieldExposure
 {
-    public long ZoneCells { get; init; }
-    public long UnroofedCells { get; init; }
-    public long Planted { get; init; }
-    public long Blighted { get; init; }
-}
+    private FieldExposure() { }
+    public abstract long ZoneCells { get; }
+    public abstract long UnroofedCells { get; }
+    public abstract long Planted { get; }
+    public abstract long Blighted { get; }
 
+    public sealed record FromZone(RimGovernor.Contracts.Wire.Observations.ZoneState.Growing Observed) : FieldExposure
+    {
+        public override long ZoneCells => Observed.ZoneCells;
+        public override long UnroofedCells => Observed.UnroofedCells;
+        public override long Planted => Observed.PlantedCells;
+        public override long Blighted => Observed.BlightedPlants;
+    }
+
+    /// <summary>A proposed open field has its planned cells and no planted or blighted crop.</summary>
+    public sealed record PlannedOpen(long Cells) : FieldExposure
+    {
+        public override long ZoneCells => Cells;
+        public override long UnroofedCells => Cells;
+        public override long Planted => 0;
+        public override long Blighted => 0;
+    }
+}
 public static class CropRiskRules
 {
     public static double CropPauseDays(EquatableArray<DisasterCondition> conditions)
@@ -37,7 +54,7 @@ public static class CropRiskRules
 
     public static double BlightRisk(FieldExposure e) => Share(e.Blighted, e.Planted);
 
-    public static double FrostRisk(double lead, Calendar calendar, FieldExposure e)
+    public static double FrostRisk(double lead, RimGovernor.Contracts.Wire.Observations.FoodClimate calendar, FieldExposure e)
     {
         if (!calendar.Valid() || !double.IsFinite(lead) || lead < 0) throw new RequiredFactException("field harvest timing");
         return lead <= calendar.GrowingDaysRemaining ? 0 : Share(e.UnroofedCells, e.ZoneCells) * Math.Min(1, calendar.NonGrowingDays / lead);

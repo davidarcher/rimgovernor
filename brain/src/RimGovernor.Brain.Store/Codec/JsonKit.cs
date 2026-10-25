@@ -11,8 +11,9 @@ public sealed class StoreCorruptException(string message) : Exception(message);
 /// <summary>
 /// One record type's JSON shape, written and read by hand with fixed field names, so renaming a C#
 /// property never changes the saved shape. The brain is reloadable, so nothing here goes through the
-/// reflection-based <c>JsonSerializer</c> (its static caches pin a collectible load context): only the raw
-/// <see cref="Utf8JsonWriter"/> and <see cref="JsonElement"/> are used.
+/// reflection-based <c>JsonSerializer</c> (its static caches pin a collectible load context): handwritten codecs use raw
+/// <see cref="Utf8JsonWriter"/> and <see cref="JsonElement"/>. Canonical native records use their explicit
+/// source-generated contract metadata without reflection.
 /// </summary>
 public interface ICodec<T>
 {
@@ -29,7 +30,7 @@ public interface IBoxedCodec
 
 /// <summary>
 /// The registry of every codec. Each domain record registers explicitly in <see cref="CodecRegistry"/>; the
-/// closed generic shapes (enums, <see cref="Fact{T}"/>, <see cref="EquatableArray{T}"/>) are derived from the
+/// closed generic shapes (enums, <see cref="EquatableArray{T}"/>) are derived from the
 /// codec of their element.
 /// </summary>
 public sealed class Codecs
@@ -103,7 +104,6 @@ public sealed class Codecs
             var definition = type.GetGenericTypeDefinition();
             var codec = definition switch
             {
-                _ when definition == typeof(Fact<>) => typeof(FactCodec<>),
                 _ when definition == typeof(EquatableArray<>) => typeof(ArrayCodec<>),
                 _ when definition == typeof(List<>) => typeof(ListCodec<>),
                 _ when definition == typeof(IReadOnlyList<>) => typeof(ReadOnlyListCodec<>),
@@ -323,46 +323,6 @@ public static class JsonFields
         e.TryGetProperty(name, out var field) && (field.ValueKind is JsonValueKind.True or JsonValueKind.False) && field.GetBoolean();
 
     public static bool Has(this JsonElement e, string name) => e.TryGetProperty(name, out var field) && field.ValueKind != JsonValueKind.Null;
-}
-
-/// <summary>
-/// A <see cref="Fact{T}"/> persists as JSON null when unknown and as the value when known. A known absence (a
-/// Fact of a nullable record that is known to have none, as a pawn who is no mechanitor) persists as {"none":true}.
-/// </summary>
-public sealed class FactCodec<T> : ICodec<Fact<T>>
-{
-    private const string None = "none";
-
-    public Fact<T> Decode(JsonElement e, Codecs codecs)
-    {
-        if (e.ValueKind == JsonValueKind.Null)
-        {
-            return default;
-        }
-        if (!typeof(T).IsValueType && e.ValueKind == JsonValueKind.Object && e.TryGetProperty(None, out var none) && none.ValueKind == JsonValueKind.True)
-        {
-            return Fact.Known<T>(default!);
-        }
-        return Fact.Known(codecs.Read<T>(e));
-    }
-
-    public void Encode(Utf8JsonWriter w, Fact<T> value, Codecs codecs)
-    {
-        if (!value.TryGetValue(out var known))
-        {
-            w.WriteNullValue();
-        }
-        else if (known is null)
-        {
-            w.WriteStartObject();
-            w.WriteBoolean(None, true);
-            w.WriteEndObject();
-        }
-        else
-        {
-            codecs.Write(w, known);
-        }
-    }
 }
 
 /// <summary>An <see cref="EquatableArray{T}"/> persists as a JSON array.</summary>

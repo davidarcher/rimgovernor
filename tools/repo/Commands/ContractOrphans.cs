@@ -60,11 +60,13 @@ internal static class ContractOrphans
     /// A member under one of <paramref name="IntentNamespaces"/> (sub-namespaces of the target, such as <c>Operations</c>) is a
     /// brain-to-native intent record: the native side reads it, and may construct its own copy to compare against, so
     /// "written by the native side, never read by the brain" applies only to the rest, the native-to-brain observations.
+    /// <paramref name="IntentRecords"/> applies that direction to the whole target assembly when orders have their own project.
     /// </summary>
-    internal sealed record Target(string Name, string Namespace, bool RecordsOnly, bool ReferenceIsUse = false, IReadOnlyList<string>? IntentNamespaces = null)
+    internal sealed record Target(string Name, string Namespace, bool RecordsOnly, bool ReferenceIsUse = false,
+        IReadOnlyList<string>? IntentNamespaces = null, bool IntentRecords = false)
     {
         public bool IsIntent(string member) =>
-            IntentNamespaces?.Any(n => member.StartsWith(n + ".", StringComparison.Ordinal)) == true;
+            IntentRecords || IntentNamespaces?.Any(n => member.StartsWith(n + ".", StringComparison.Ordinal)) == true;
     }
 
     /// <summary>How the brain and the native side use one member.</summary>
@@ -222,8 +224,17 @@ internal static class ContractOrphans
                 {
                     var method = md.GetMethodDefinition(m);
                     var key = names.MethodDef(m);
-                    if (IsPlumbing(md, names, handle, method) || method.RelativeVirtualAddress == 0)
+                    if (IsPlumbing(md, names, handle, method))
                     {
+                        continue;
+                    }
+                    // An abstract accessor still names a real property read by its callers.
+                    if (method.RelativeVirtualAddress == 0)
+                    {
+                        if (accessorMembers.TryGetValue(m, out var abstractAccessor))
+                        {
+                            bodies[key] = new Body([abstractAccessor], []);
+                        }
                         continue;
                     }
                     if ((method.Attributes & MethodAttributes.Virtual) != 0 || md.GetString(method.Name) == ".cctor")

@@ -5,12 +5,12 @@ public sealed partial class JoinersRounds
     /// <summary>Works a quest site on the current map: survey relief, mining, help, recruiting or the return trip.</summary>
     internal (Verdict Verdict, bool Handled) AdmitSiteWork(NeedWork work, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
-        var f = read.Projection.Facts;
+        var f = read.Reading.Facts;
         var offers = f.QuestOffers;
         var sites = f.QuestSites.OrderBy(s => s.Id, StringComparer.Ordinal).ToList();
         foreach (var site in sites)
         {
-            if (site.Place is not PbObservations.SitePlace.Loaded loaded || loaded.Map.Id != read.Projection.Identity.Map)
+            if (site.Place is not PbObservations.SitePlace.Loaded loaded || loaded.Map.Id != read.Reading.Identity.Map)
             {
                 continue;
             }

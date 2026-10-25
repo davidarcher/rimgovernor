@@ -209,15 +209,15 @@ internal sealed partial class Tiler
     internal void ChooseVents()
     {
         var m = In.Catalog.Climate;
-        var known = In.OutdoorCurve.TryGetValue(out var curve);
-        if (!known || !m.HasLiving() || !QuestCapacityForecast.FinitePositive(In.SteelValue))
+        var curve = In.OutdoorCurve;
+        if (!m.HasLiving() || !QuestCapacityForecast.FinitePositive(In.SteelValue))
         {
             Note(-1, -1, LayoutTileRules.TileUnsatisfied, LayoutTileVentRules.ReasonTileVentClimateUnknown);
             return;
         }
         var available = In.VentAvailable;
         var ventW = ClimateRules.BuildW(SiteRules.DefaultSiteTypeWeights(), m.Build.Vent, In.SteelValue);
-        var p = new VentPricer(this, m, curve!);
+        var p = new VentPricer(this, m, curve);
         var used = new HashSet<Cell>();
         for (var i = 0; i < Rooms.Count; i++)
         {

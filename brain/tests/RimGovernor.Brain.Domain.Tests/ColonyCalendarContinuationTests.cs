@@ -1,21 +1,38 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Contracts.Wire;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ColonyCalendarContinuationTests
 {
+    [Fact]
+    public void TheReviewFramePassesItsNativeClimateDirectlyIntoTheModel()
+    {
+        var reading = ColonyModelFixtures.Reading();
+        var input = ColonyModelFixtures.ReadyOf(reading);
+
+        Assert.Same(reading.Snapshot.FoodClimate, reading.Facts.Calendar);
+        Assert.Same(reading.Snapshot.FoodClimate, input.Calendar);
+    }
+
     private static ColonyModelInput Input(bool[] year, double nutrition) => ColonyModelFixtures.Devilstrand() with
     {
-        Calendar = new Calendar { DayOfYear = 58, GrowingYear = EquatableArray.From(year) },
+        Calendar = new O.FoodClimate
+        {
+            DayOfYear = 58, Season = "Winter", GrowingYear = EquatableArray.From(year),
+            GrowingDays = year.Count(day => day), GrowingDaysRemaining = year.TakeWhile(day => day).Count(),
+            GrowingDaysUntil = year.TakeWhile(day => !day).Count(),
+            NonGrowingDays = year.SkipWhile(day => day).TakeWhile(day => !day).Count(),
+            SowingNow = year.Length > 0 && year[0],
+        },
         Climate = ColonyModelFixtures.Climate() with { CurrentTwelfth = 11, TicksToNextTwelfth = 2 * GameTime.TicksPerDay },
         Pawns = EquatableArray.From(new[] { new ModelPawn
         {
             Pawn = "Anna", Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = 1d / GameTime.TicksPerDay, Gain = 0, Threshold = .3, Service = new ModelService.NoneObserved() } }),
-            Skills = EquatableArray.From<WorkSkill>([]),
+            Skills = EquatableArray.From<O.Skill>([]),
             Consciousness = 1.0,
             Moving = 1.0,
             Manipulation = 1.0,
@@ -119,9 +136,9 @@ public sealed class ColonyCalendarContinuationTests
             GrowingDaysUntil = 0, NonGrowingDays = 10, DayOfYear = 58, SowingNow = true, Season = "Winter",
         };
         var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.FoodClimate>(WireJson.Serialize(wire));
-        var calendar = ColonyProductionReads.ColonyCalendar(decoded);
-        Assert.Equal(year, calendar.GrowingYear);
-        var input = Input(year, 25) with { Calendar = calendar };
+        Assert.Equal(year, decoded.GrowingYear);
+        var input = Input(year, 25) with { Calendar = decoded };
+        Assert.Same(decoded, input.Calendar);
         var policy = Policy(1);
         var whole = ColonyModel.Run(input, Cycles(), policy);
         var resumed = ColonyModel.Run(input, ColonyModelState.Observed(input, policy) with { Day = 20 }, Cycles(), policy);

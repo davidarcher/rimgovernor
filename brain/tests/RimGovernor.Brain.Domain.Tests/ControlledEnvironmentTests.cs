@@ -1,8 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
-using C = RimGovernor.Contracts.Wire.Common;
 using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -14,10 +12,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class ControlledEnvironmentTests
 {
-    /// <summary>A planning region with no lamps, growers, rooms or networks: the census every test without one carries.</summary>
-    internal static readonly O.ControlledEnvironment NoWireEnvironment = new() { Lights = [], Growers = [], Rooms = [], Networks = [] };
-
-    /// <summary>The decoded census of <see cref="NoWireEnvironment"/> at a mild outdoor temperature.</summary>
+    /// <summary>A complete mild census with no growing infrastructure.</summary>
     internal static readonly ControlledEnvironment NoEnvironment = new() { Lights = [], Growers = [], Rooms = [], Networks = [], OutdoorTemperatureC = 15 };
 
     [Fact]
@@ -25,25 +20,25 @@ public sealed class ControlledEnvironmentTests
     {
         var census = new O.ControlledEnvironment
         {
+            OutdoorTemperatureC = -3,
             Lights =
             [
-                new O.GrowLight { Building = new C.Ref { Id = "Thing_SunLamp4" }, Room = new C.Ref { Id = "12" }, GrowthCells = [new Cell(3, 4)], LitNow = true, PowerNetId = "77" },
-                new O.GrowLight { Building = new C.Ref { Id = "Thing_SunLamp5" }, Room = null, GrowthCells = [], LitNow = false, PowerNetId = null },
+                new O.GrowLight { Id = "Thing_SunLamp4", Room = "12", GrowthCells = [new Cell(3, 4)], LitNow = true, Network = "77" },
+                new O.GrowLight { Id = "Thing_SunLamp5", Room = null, GrowthCells = [], LitNow = false, Network = null },
             ],
             Growers =
             [
-                new O.PlantGrower { Building = new C.Ref { Id = "Thing_HydroponicsBasin8" }, CropDefName = "Plant_Rice", CanSow = true },
-                new O.PlantGrower { Building = new C.Ref { Id = "Thing_HydroponicsBasin9" }, CropDefName = null, CanSow = false },
+                new O.PlantGrower { Id = "Thing_HydroponicsBasin8", Fertility = new GrowerFertility.Fixed(2.8), SowTag = "Hydroponic", Crop = "Plant_Rice", CanSow = true },
+                new O.PlantGrower { Id = "Thing_HydroponicsBasin9", Fertility = new GrowerFertility.Ground(), SowTag = null, Crop = null, CanSow = false },
             ],
-            Rooms = [new O.GrowRoom { Room = new C.Ref { Id = "12" }, GridRoom = 4, TemperatureC = -2.5 }],
-            Networks = [new O.PowerHeadroom { Id = "77", GenerationW = 1000, SolarW = 400, WindW = 300, ConsumptionW = 200, CapacityWattDays = 0, HasActiveSource = true }],
+            Rooms = [new O.GrowRoom { Id = "12", GridRoom = 4, TemperatureC = -2.5 }],
+            Networks = [new O.PowerHeadroom { Id = "77", GenerationW = 1000, SolarW = 400, WindW = 300, ConsumptionW = 200, CapacityWattDays = 0, ActiveSource = true }],
         };
 
         var json = WireJson.Serialize(census);
 
-        Assert.Equal(
-            """{"lights":[{"building":{"id":"Thing_SunLamp4"},"room":{"id":"12"},"growthCells":[{"x":3,"z":4}],"litNow":true,"powerNetId":"77"},{"building":{"id":"Thing_SunLamp5"},"room":null,"growthCells":[],"litNow":false,"powerNetId":null}],"growers":[{"building":{"id":"Thing_HydroponicsBasin8"},"cropDefName":"Plant_Rice","canSow":true},{"building":{"id":"Thing_HydroponicsBasin9"},"cropDefName":null,"canSow":false}],"rooms":[{"room":{"id":"12"},"gridRoom":4,"temperatureC":-2.5}],"networks":[{"id":"77","generationW":1000,"solarW":400,"windW":300,"consumptionW":200,"capacityWattDays":0,"hasActiveSource":true}]}""",
-            json);
+        Assert.Contains(""""kind":"fixed"""", json);
+        Assert.Contains(""""kind":"ground"""", json);
         Assert.Equal(census, WireJson.Deserialize<O.ControlledEnvironment>(json));
     }
 

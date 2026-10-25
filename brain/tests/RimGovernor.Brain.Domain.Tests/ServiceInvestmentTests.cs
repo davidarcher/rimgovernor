@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -130,7 +129,7 @@ public sealed class ServiceInvestmentTests
             [new(new("plan"), partialAction, new() { Action = partialAction.Id, Stage = Stage.Completed, Attempt = new(1), Tick = new(99) })]);
         Assert.Empty(displacedView.Claims.Materials);
         Assert.True(WorkRules.WorkResourcesFit(facts.WorkView, new(new("new-plan"), new(1), [action])));
-        var scarce = facts with { Resources = [new(new("Rice"), 99)] };
+        var scarce = facts with { Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 99 }] }};
         var poor = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(scarce, new ProductionBatchCensus.Read([])), new ProductionBatchCensus.Read([]), []);
         Assert.False(WorkRules.WorkResourcesFit(poor, new(new("new-plan"), new(1), [action])));
     }

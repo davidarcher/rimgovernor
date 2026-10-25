@@ -270,7 +270,7 @@ internal static class NativeSupportActivities
     {
         if (step.SupportDemand.Length == 0) return int.MaxValue;
         var bench = RefIndex.Thing<Building_WorkTable>(map, step.Container);
-        if (bench == null || !bench.Spawned || step.Destination is not { } destination) return 0;
+        if (bench == null || !bench.Spawned || step is not CellActivityStep { Destination: var destination }) return 0;
         var bill = bench.BillStack.Bills.OfType<Bill_Production>().FirstOrDefault(b => "bill:" + b.GetUniqueLoadID() + ":" + resource.defName == step.SupportDemand);
         if (bill == null || !bill.ShouldDoNow() || !bill.IsFixedOrAllowedIngredient(resource) || !bill.recipe.ingredients.All(i => i.filter.Allows(resource))) return 0;
         return Math.Max(0, Required(bill, resource) - Staged(map, new(destination.X, 0, destination.Z), resource));

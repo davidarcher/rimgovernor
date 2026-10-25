@@ -142,16 +142,16 @@ public static class AcquisitionCatalogRules
     /// </summary>
     public static IReadOnlyList<SupplyCandidate> AcquisitionSourceCandidates(
         Resource resource,
-        IEnumerable<AcquisitionSource> sources,
+        IEnumerable<(AcquisitionSource Source, double Yield)> sources,
         Cell home,
         YieldStorage headroom
     )
     {
         var output = new List<SupplyCandidate>();
-        foreach (var s in sources)
+        foreach (var (s, yield) in sources)
         {
-            var units = (long)Math.Round(s.Yield, MidpointRounding.AwayFromZero);
-            if (new Resource(s.Resource) != resource || units <= 0)
+            var units = (long)Math.Round(yield, MidpointRounding.AwayFromZero);
+            if (units <= 0)
             {
                 continue;
             }

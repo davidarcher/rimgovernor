@@ -1,10 +1,5 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
-
-/// <summary>
-/// A player animal the game walks off the map (#3812, AnimalUpkeepObservation.Roamers): its census id, race def, the game's
-/// RoamMtbDays, its MarketValue stat and whether it can reach the map edge now (the gate of MentalStateWorker_Roaming.CanRoamNow).
-/// </summary>
-public sealed record PenRoamer(string Id, string Race, double RoamMtbDays, double MarketValue, bool ReachesMapEdge);
 
 /// <summary>
 /// The Pen credit (#3812, epic #3650 P1): the roaming losses a planned pen stops. A roamer that can reach the map edge starts
@@ -24,12 +19,16 @@ internal static class ForecastPens
         if (context.PenHerds.Where(p => p.Value == herd).Min(p => p.Key) != room.Room) return [];
         var roamers = context.Roamers ?? throw new RequiredFactException("animal census");
         var penned = context.PenHerds.Values.Where(h => h.Length != 0).ToHashSet(StringComparer.Ordinal);
-        return [.. roamers.Where(r => r.ReachesMapEdge && (herd.Length != 0 ? r.Race == herd : !penned.Contains(r.Race)))
+        return [.. roamers.Select(a => (Id: a.Pawn.Value, Roam: RoamOf(a)))
+            .Where(r => r.Roam.ReachesMapEdge && (herd.Length != 0 ? r.Roam.Race == herd : !penned.Contains(r.Roam.Race)))
             .OrderBy(r => r.Id, StringComparer.Ordinal)
-            .Select(r => new RoomGain(r.Id, "", LossPerDay(r)))];
+            .Select(r => new RoomGain(r.Id, "", LossPerDay(r.Roam)))];
     }
 
+    private static O.AnimalRoam RoamOf(O.ColonyAnimal animal) => animal.Roping is O.AnimalRoping.Roped roped
+        ? roped.Roam : throw new RequiredFactException("roped animal census");
+
     /// <summary>The capability-days a day a roamer's walking off the map costs: its value over its RoamMtbDays.</summary>
-    internal static double LossPerDay(PenRoamer roamer) =>
-        roamer.MarketValue / SilverGapRules.ValuePerWorkTick / GameTime.TicksPerDay / roamer.RoamMtbDays;
+    internal static double LossPerDay(O.AnimalRoam roamer) =>
+        roamer.MarketValue / SilverGapRules.ValuePerWorkTick / GameTime.TicksPerDay / roamer.MtbDays;
 }

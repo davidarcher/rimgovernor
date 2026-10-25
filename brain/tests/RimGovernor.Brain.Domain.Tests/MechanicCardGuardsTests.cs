@@ -1,3 +1,5 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Tools.Commands.ThoughtAudit;
 using Xunit;
@@ -12,7 +14,7 @@ public sealed class MechanicCardGuardsTests
     private static readonly CardPawnFacts Plain = new() { Traits = ["Kind"], Hediffs = [], IdeologyActive = false, Precepts = [] };
 
     private static GearOption[] Wearing(int tainted) =>
-        [.. Enumerable.Range(0, tainted).Select(i => new GearOption { ID = "t" + i, Tainted = true }), new GearOption { ID = "clean" }];
+        [.. Enumerable.Range(0, tainted).Select(i => new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("t" + i, "", "", GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful), Tainted = true }) }), new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("clean", "", "", GearSource.Worn) with { Condition = 0, Quality = new O.ItemQuality.Graded(D.QualityCategory.Awful) }) }];
 
     private static CardOffset Offset(int tainted, CardPawnFacts? pawn = null, IReadOnlyList<CardItemBinding>? bindings = null) =>
         MechanicCardGuards.CardStageOffset(Tainted, pawn ?? Plain, Wearing(tainted), bindings);

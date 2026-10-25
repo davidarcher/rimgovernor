@@ -1,4 +1,5 @@
 using System.Globalization;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
@@ -18,7 +19,7 @@ internal sealed class DeepDrillPlacement
 internal sealed class DeepDrillReading
 {
     public FacadeNativeClient Native = null!;
-    public ColonyProjection F = null!;
+    public ColonyReading F = null!;
     public List<PbObservations.DeepResourceLump> Sites = [];
     public bool Built;
     public List<DeepDrillPlacement> Placeable = [];
@@ -41,9 +42,9 @@ internal sealed class DeepDrillReading
 public sealed partial class RoundsResourcePlanner
 {
     /// <summary>Deconstructs the first exhausted, undesignated deep drill that has no method yet.</summary>
-    internal (RoundsResourceResult Result, bool Handled) RemoveExhaustedDrill(ControlState state, NeedOwner goal, ColonyProjection f, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    internal (RoundsResourceResult Result, bool Handled) RemoveExhaustedDrill(ControlState state, NeedOwner goal, ColonyReading f, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
-        var deep = f.DeepResources;
+        var deep = f.Snapshot.DeepResources;
         var history = reviewer.Player.Journal.OwnerMethodHistory(goal, call);
         foreach (var drill in ExhaustedDrills(deep))
         {
@@ -99,7 +100,7 @@ public sealed partial class RoundsResourcePlanner
         Identity expected;
         try
         {
-            expected = DecodeReads.DecodeIdentity(id);
+            expected = new ObservationIdentity { Context = id.Context, Paused = id.Paused };
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -110,7 +111,7 @@ public sealed partial class RoundsResourcePlanner
             throw new ControlException("deepDrillReading: err != nil || !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
         var reading = await reviewer.ObserveColonyAsync(deepNative, expected, ["DeepDrill"], call).ConfigureAwait(false);
-        var f = reading.Projection;
+        var f = reading;
         var research = (await deepNative.ReadResearchAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false));
         try
         {
@@ -124,12 +125,8 @@ public sealed partial class RoundsResourcePlanner
         {
             throw new ControlException("deepDrillReading: err != nil || !roundsCachedFresh(bridge.FactResearch, domain.Tick(research.Context.GetTick()), f.Identity");
         }
-        var finishedNames = new List<ResearchProjectId>();
-        foreach (var name in research.Finished)
-        {
-            finishedNames.Add(new ResearchProjectId(name));
-        }
-        f = f with { Facts = f.Facts with { Research = new ResearchFacts { Finished = [.. finishedNames] } } };
+        var catalog = await deepNative.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
+        f = f with { Facts = f.Facts with { Research = RoundsFrameReads.FrameResearch(research, catalog) } };
         PlannerSnapshot.RecordStepRead("deepdrill", EconomyFamily.Resource.FilingKey, state.Snapshot, f);
         var output = new DeepDrillReading { Native = deepNative, F = f };
         output.Sites = DeepDrillSites(f, review.ResourceRunwayState(), items);
@@ -158,7 +155,7 @@ public sealed partial class RoundsResourcePlanner
                 return output;
             }
         }
-        var center = f.Center() ?? throw new RequiredFactException("layout center for deep drilling");
+        var center = f.Facts.LayoutPlan?.Center() ?? throw new RequiredFactException("layout center for deep drilling");
         foreach (var site in output.Sites)
         {
             var distance = Math.Sqrt(Math.Pow(site.Centre.X - center.X, 2) + Math.Pow(site.Centre.Z - center.Z, 2));
@@ -171,7 +168,7 @@ public sealed partial class RoundsResourcePlanner
         return output;
     }
 
-    internal static async Task<(DeepDrillPlacement? Placement, bool Ok)> ReadDeepDrillPlacementAsync(FacadeNativeClient native, ControlState state, ColonyProjection f, PbObservations.DeepResourceLump site, double distance, CancellationToken call)
+    internal static async Task<(DeepDrillPlacement? Placement, bool Ok)> ReadDeepDrillPlacementAsync(FacadeNativeClient native, ControlState state, ColonyReading f, PbObservations.DeepResourceLump site, double distance, CancellationToken call)
     {
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
@@ -179,7 +176,7 @@ public sealed partial class RoundsResourcePlanner
         var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTierRules.PlannerTier(EconomyFamily.Resource.FilingKey, Pol.Phase.None));
         var preview = (await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false));
         var p = preview.Preview;
-        if (!p.CanPlace || !p.SafeToPlace || PreviewRules.WatchUnreachable(p) || !DeepDrillFootprint(f.Cells, p.Footprint, site.Centre))
+        if (!p.CanPlace || !p.SafeToPlace || PreviewRules.WatchUnreachable(p) || !DeepDrillFootprint(f.PlanningWindow.Cells, p.Footprint, site.Centre))
         {
             return (null, false);
         }
@@ -250,7 +247,7 @@ public sealed partial class RoundsResourcePlanner
                 Plan = place.Plan,
                 Current = place.Snapshot,
                 Tick = drill.F.Identity.Tick,
-                Bounds = drill.F.Bounds,
+                Bounds = drill.F.Facts.MapBounds,
                 Stock = place.Preview.Stock,
                 Previews = [place.Preview.Preview],
                 Purpose = Pol.Purpose.Rounds,
@@ -268,11 +265,11 @@ public sealed partial class RoundsResourcePlanner
 partial class RoundsResourcePlanner
 {
     /// <summary>The deep resource lumps of the needed resources, nearest the colony centre first; empty without a scanner, the research or the drill.</summary>
-    internal static List<PbObservations.DeepResourceLump> DeepDrillSites(ColonyProjection f, IReadOnlyList<ResourceRunway> runways, ItemFacts items)
+    internal static List<PbObservations.DeepResourceLump> DeepDrillSites(ColonyReading f, IReadOnlyList<ResourceRunway> runways, ItemFacts items)
     {
-        var deep = f.DeepResources;
-        var available = f.DefinitionAvailable("DeepDrill");
-        if (f.Center() is not { } center || ResearchRules.ResearchGate(["DeepDrilling", "GroundPenetratingScanner"], f.Facts.Research) != "" || !available)
+        var deep = f.Snapshot.DeepResources;
+        var available = ColonyPlanningRules.DefinitionAvailable(f.Facts, "DeepDrill");
+        if (f.Facts.LayoutPlan?.Center() is not { } center || ResearchRules.ResearchGate(["DeepDrilling", "GroundPenetratingScanner"], f.Facts.Research) != "" || !available)
         {
             return [];
         }

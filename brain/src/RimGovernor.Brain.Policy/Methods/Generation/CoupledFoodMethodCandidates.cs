@@ -114,9 +114,8 @@ internal static class FoodMethodCandidates
                             double? ticks = trips == 1 ? row.SupplyTicks
                                 : back?.Ticks is RouteTicks.Reachable(var walk) ? trips * row.SupplyTicks + (trips - 1) * walk : null;
                             if (row.CanSupply && row.CarryingCapacity > 0 && ticks is { } carry) Option(supply, row.Pawn, carry);
-                            bindings[(supply, row.Pawn)] = new(supply, row.Pawn, [], PawnActivityKind.Deliver,
-                                row.RequiresHarvest ? "observed-output" : row.Source, "", "", quantity, deadline, row.SourceCell)
-                            { Resource = row.Ingredient, Source = row.SourceCell, Destination = row.BenchCell, Capacity = row.CarryingCapacity };
+                            bindings[(supply, row.Pawn)] = new CellActivityTaskCandidate(new ActivityTaskCandidate(supply, row.Pawn, [], PawnActivityKind.Deliver,
+                                row.RequiresHarvest ? "observed-output" : row.Source, "", "", quantity, deadline, row.SourceCell) { Resource = row.Ingredient, Source = row.SourceCell, Capacity = row.CarryingCapacity }, row.BenchCell);
                         }
                     }
                 }
@@ -140,8 +139,7 @@ internal static class FoodMethodCandidates
                           FoodPoisonChance = cooking.FoodPoisonChance };
                     }
                     if (row.Delivery is FoodDelivery.Carried(var carried)) Option(deliver, row.Pawn, carried);
-                    bindings[(deliver, row.Pawn)] = new(deliver, row.Pawn, [], PawnActivityKind.Deliver, "observed-output", "", "", row.ProductCount, deadline, row.BenchCell)
-                    { Resource = row.Product, Source = row.BenchCell, Destination = row.Destination };
+                    bindings[(deliver, row.Pawn)] = new CellActivityTaskCandidate(new ActivityTaskCandidate(deliver, row.Pawn, [], PawnActivityKind.Deliver, "observed-output", "", "", row.ProductCount, deadline, row.BenchCell) { Resource = row.Product, Source = row.BenchCell }, row.Destination);
                 }
                 compositionNeeds[deliver] = products.Select((product, index) => new ForecastCompositionRequirement("product/" + index,
                     product.Resource, Units(product.Units), Location(first.BenchCell), ForecastRequirementKind.Consumed,
@@ -161,8 +159,7 @@ internal static class FoodMethodCandidates
             foreach (var row in group.GroupBy(o => o.Pawn).Select(g => g.First()).Where(o => o.Count >= count))
             {
                 Option(id, row.Pawn, row.DeliveryTicks);
-                bindings[(id, row.Pawn)] = new(id, row.Pawn, [harvest], PawnActivityKind.Deliver, "observed-output", "", "", count, deadline, row.Origin)
-                { Resource = row.Resource, Source = row.Origin, Destination = row.Destination };
+                bindings[(id, row.Pawn)] = new CellActivityTaskCandidate(new ActivityTaskCandidate(id, row.Pawn, [harvest], PawnActivityKind.Deliver, "observed-output", "", "", count, deadline, row.Origin) { Resource = row.Resource, Source = row.Origin }, row.Destination);
             }
             compositionNeeds[id] = [new("source", new(first.Resource), count, Location(first.Origin), ForecastRequirementKind.Consumed,
                 [YieldId(harvest, new(first.Resource))], 0, horizon)];

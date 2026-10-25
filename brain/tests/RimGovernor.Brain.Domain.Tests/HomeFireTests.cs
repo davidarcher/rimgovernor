@@ -1,7 +1,7 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,13 +20,9 @@ public sealed class HomeFireTests
     public void WorkAssignmentsPinFirefighterForEveryCapablePawn()
     {
         WorkPawn Pawn(string id, bool pyromaniac) => PawnFixtures.Worker(id) with
-        {
-            Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)),
-            Skills = [new() { Name = "Construction", Level = 8 }],
-            Work = new PawnWorkTable.Works(true, [
-                new() { Work = WorkType.Firefighter, Order = 1, Priority = 0, Disabled = pyromaniac },
-                new() { Work = WorkType.Construction, Skill = "Construction", Order = 5, Priority = 3 }]),
-        };
+        { Work = PawnFixtures.WorkTable(true, [
+                new() { Observed = new O.WorkSetting { DefName = "Firefighter", Priority = 0, Disabled = pyromaniac }, Order = 1 },
+                new() { Observed = new O.WorkSetting { DefName = "Construction", Priority = 3, Disabled = false }, Skill = "Construction", Order = 5 }]), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [new() { Passion = O.Passion.None, DefName = "Construction", Level = 8 }] }, Settings = PawnFixtures.Row(id).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new O.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } };
         var decision = WorkRules.PlanWork([Pawn("a", false), Pawn("b", false), Pawn("pyro", true)], [], new());
         int Firefighter(string pawn) => decision.Assignments.Single(a => a.Pawn.Value == pawn).Priorities.SingleOrDefault(p => p.Work == WorkType.Firefighter)?.Priority ?? 0;
         Assert.Equal(1, Firefighter("a"));

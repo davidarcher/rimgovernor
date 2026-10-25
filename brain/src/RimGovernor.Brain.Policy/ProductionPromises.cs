@@ -1,3 +1,5 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>A journal-owned fixed batch, before the current definition catalog prices it (<see cref="BatchPricing"/>).</summary>
@@ -20,11 +22,16 @@ public abstract record BatchPricing(ProductionBatch Batch)
 /// Current native bill lifecycle; disappearance is evidence only in a complete census. RepeatCount is the iterations
 /// left, which bind only a Count bill.
 /// </summary>
-public sealed record ProductionBatchState(string Id, bool Unchanged, BillRepeat Repeat, int RepeatCount,
-    bool Suspended, bool Finished, ProductionUnfinishedWork UnfinishedWork);
-
-/// <summary>One initialized, bound iteration. Empty Item is observed absence; embedded inputs are never free stock.</summary>
-public sealed record ProductionUnfinishedWork(string Item, EquatableArray<Amount> Ingredients);
+public sealed record ProductionBatchState(O.BillState Observed)
+{
+    public string Id => Observed.Id;
+    public bool Unchanged => Observed.ManagedUnchanged;
+    public BillRepeat Repeat => ProductionRules.BillRepeatOf(Observed.RepeatMode);
+    public int RepeatCount => Observed.RepeatCount;
+    public bool Suspended => Observed.Suspended;
+    public bool Finished => Observed.Finished;
+    public O.BillUnfinishedWork UnfinishedWork => Observed.UnfinishedWork;
+}
 
 public static partial class ProductionRules
 {
@@ -62,8 +69,8 @@ public static partial class ProductionRules
             )
                 continue;
             int? remaining = order.Target;
-            ProductionUnfinishedWork? unfinishedWork = unplaced
-                ? new ProductionUnfinishedWork("", default)
+            O.BillUnfinishedWork? unfinishedWork = unplaced
+                ? new O.BillUnfinishedWork.None()
                 : null;
             var link = unplaced ? "" : progress.Bill ?? "";
             if (!unplaced)
@@ -90,17 +97,17 @@ public static partial class ProductionRules
             if (batch.UsesUnfinishedItem)
             {
                 if (unfinishedWork is not { } work) remaining = default;
-                else if (work.Item.Length != 0)
+                else if (work is O.BillUnfinishedWork.Bound bound)
                 {
-                    if (!unfinishedItems.Add(work.Item)) throw new DomainException("unfinished item linked to multiple production promises");
-                    if (work.Ingredients.Any(a => !AdmissionRules.ValidResource(a.Resource) || a.Count <= 0)
-                        || work.Ingredients.Select(a => a.Resource).Distinct().Count() != work.Ingredients.Count)
+                    if (string.IsNullOrWhiteSpace(bound.Item)) throw new DomainException("unfinished item without identity");
+                    if (!unfinishedItems.Add(bound.Item)) throw new DomainException("unfinished item linked to multiple production promises");
+                    if (bound.Ingredients.Any(a => !AdmissionRules.ValidResource(new Resource(a.DefName)) || a.Units <= 0)
+                        || bound.Ingredients.Select(a => a.DefName).Distinct().Count() != bound.Ingredients.Count)
                         throw new DomainException("invalid embedded ingredients");
                     // Native creates an initialized unfinished item only after collecting the whole iteration.
                     // Credit the iteration, not its units: alternate stuff cannot discount later iterations.
                     remaining = remaining is { } count && count > 0 ? count - 1 : null;
                 }
-                else if (work.Ingredients.Count != 0) throw new DomainException("embedded ingredients without an unfinished item");
             }
             var amounts = new Dictionary<Resource, MaterialUnits>();
             foreach (var slot in batch.Slots)

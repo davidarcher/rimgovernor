@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -47,8 +46,8 @@ public sealed class MaterialChoiceTests
                 StuffBeauty = new Dictionary<Resource, double> { [Metal] = 1, [Timber] = 1 },
                 StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Metal] = ["Stuff"], [Timber] = ["Stuff"] },
                 AcceptedStuff = new Dictionary<Resource, IReadOnlyList<string>> { [new("Sculpture")] = ["Stuff"] } } };
-        var bench = new ProductionBench { Id = "bench-a", Usable = true, Token = "token",
-            Recipes = [new() { Name = "FlexibleRecipe", Role = RecipeRole.Sculpture, Available = true, Food = new RecipeFood.NotFood() }] };
+        var bench = ProductionBenchFixtures.Ordinary("bench-a", "ArtBench", "token", true) with {
+            Recipes = [new() { Access = ProductionBenchFixtures.Recipe("FlexibleRecipe"), Role = RecipeRole.Sculpture, Food = new RecipeFood.NotFood() }] };
         var bill = Assert.Single(ArtRules.SelectArtBills([bench], 1L, [new RimGovernor.Brain.Domain.PawnId("artist")], demand));
         Assert.Equal(new[] { Metal.Value, Timber.Value }, bill.Ingredients);
         var declared = Flexible with { Spec = Flexible.Spec with { Ingredients = EquatableArray.From(bill.Ingredients), Worker = bill.Worker } };
@@ -146,12 +145,13 @@ public sealed class MaterialChoiceTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-material-options-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var world = new GenerationSnapshot(new ColonyId("colony"), new MapId(1), new LoadId("load"), new PlanId("review"), new PlanRevision(1), default);
         var facts = new RoundsFacts { Tick = new Tick(100),
-            MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() },
+            MedicalReserve = new() { Catalog = ItemFactsFixtureRules.CoreItemFacts() }, Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } },
+            Research = ResearchTestFacts.Read(),
             Comfort = ComfortTests.NoComfortObservation,
             BasicComfort = ComfortTests.NoComfortObservation,
             ForecastObserved = new() { WorkPawns = new WorkPawnsRead(default(EquatableArray<WorkPawn>)) },
-            WorkResources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>),
-            Resources = [new(Metal, 10), new(Timber, 10)],
+            Census = (ColonyFactsCoreTests.Snapshot() with { WorkResources = default(EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>) }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Metal.Value, Units = 10 }, new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = Timber.Value, Units = 10 }] },
+
             Gear = ColonyModelFixtures.NoGear(), CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
             BillReservations = [],
             WorkAdmission = new() { Recipes = View().Recipes, Bills = default(EquatableArray<ProductionBatchState>) } };

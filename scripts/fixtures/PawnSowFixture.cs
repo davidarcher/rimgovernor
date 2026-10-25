@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
             var row = NativeSowingActivities.Read(worker!.Map).Workers.SingleOrDefault(w => w.Pawn == worker.GetUniqueLoadID() && w.Zone == sowZone)
                 ?? throw new InvalidOperationException("No native sowable cells observed for the prepared sower and zone.");
             if (row.Cells.Count <= count) throw new InvalidOperationException($"The zone offers {row.Cells.Count} cells; the case needs more than {count}.");
-            var step = new PawnActivityStep(PawnActivityKind.Work, sowZone, row.WorkGiver, "Sow", count, deadline) { Destination = row.Cells[0] };
+            var step = new PawnActivityStep(PawnActivityKind.Work, sowZone, row.WorkGiver, "Sow", count, deadline).At(row.Cells[0]);
             var batch = new PawnActivities(((RimGovernor.Contracts.Wire.Common.ObservedGeneration.AtCase)Context().NativeGeneration).Value,
                 new[] { new PawnActivityOrder(worker.GetUniqueLoadID(), "sow-block", "sow-method", 0, 1, false, new[] { step }) });
             var invalid = NativePawnActivities.Validate(batch, Context());

@@ -1,8 +1,9 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -83,7 +84,7 @@ public sealed class ForecastValueTests
         Layers = ["OnSkin", "Middle", "Shell"],
     };
 
-    internal static GearOption Duster(double sharp) => new() { ID = "duster" + sharp, Quality = 2, Condition = 1, Sharp = sharp, Layers = ["Shell"], Groups = ["Torso"] };
+    internal static GearOption Duster(double sharp) => new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("duster" + sharp, "", "", GearSource.Worn)), Sharp = sharp, Layers = ["Shell"], Groups = ["Torso"] };
 
     internal static EquatableArray<GearOption> Cloth => [Duster(0.3)];
 
@@ -121,7 +122,7 @@ public sealed class ForecastValueTests
     internal static WorkResourceView Resources()
     {
         var facts = WorkResourceTestFacts.Create("pawn") with
-        { Resources = [] };
+        { Census = (WorkResourceTestFacts.Create("pawn")).Census with { Resources = [] }};
         return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, new ProductionBatchCensus.Read([])),
             new ProductionBatchCensus.Read([]), []);
     }
@@ -565,7 +566,7 @@ public sealed class ForecastValueTests
     {
         // #3816 acceptance: a flak vest crafted over the cloth duster adds its armor to the torso; the harm term prices the
         // expected damage it saves from its delivery, and nothing else credits it.
-        var vest = Duster(0.8) with { ID = "flakvest", Definition = new("Apparel_FlakVest"), Slot = GearSlot.MiddleTorso, Layers = ["Middle"] };
+        var vest = Duster(0.8) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Duster(0.8)).Origin).Value) with { Id = "flakvest", DefName = "Apparel_FlakVest" }), Slot = GearSlot.MiddleTorso, Layers = ["Middle"] };
         var craft = new ForecastCommitment("craft", default) { ActivityCompletions = ["deliver"], OutfitChanges = [new("pawn", [vest]) { Overlay = true }] };
         var vested = ForecastValue.Of(Outcome(Calm()) with { OutfitTicks = [new("craft", 0d)] }, HarmContext(Cloth), Day, Outcome(Calm()), [craft]);
         var cloth = Harmed(Cloth);
@@ -581,7 +582,7 @@ public sealed class ForecastValueTests
     public void AnOverlayReplacesOnlyTheItemsItConflictsWith()
     {
         // A swap to devilstrand pants at the start keeps them under the duster crafted later: one outfit holds both changes.
-        var pants = new GearOption { ID = "pants", Quality = 2, Condition = 1, Sharp = 0.5, Slot = GearSlot.SkinLegs, Layers = ["OnSkin"], Groups = ["Legs"] };
+        var pants = new GearOption { Origin = new GearOptionOrigin.Observed(GearFixtures.Option("pants", "", "", GearSource.Worn)), Sharp = 0.5, Slot = GearSlot.SkinLegs, Layers = ["OnSkin"], Groups = ["Legs"] };
         var duster = Duster(0.8) with { Slot = GearSlot.Outer };
         var worn = EquatableArray.From([Duster(0.3) with { Slot = GearSlot.Outer }]);
         var swap = new ForecastCommitment("swap", default) { OutfitChanges = [new("pawn", [.. worn, pants])] };
@@ -617,7 +618,7 @@ public sealed class ForecastValueTests
     public void AnUnobservedInputNamesItsOwnFinding()
     {
         Assert.Contains("defense_capacity_nonpositive", Harmed(Cloth, RaidDay() with { Raid = new HarmInputs().Raid }).Findings);
-        Assert.Contains("defense_capacity_nonpositive", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts { RaidPoints = 1000d }).Raid }).Findings);
+        Assert.Contains("defense_capacity_nonpositive", Harmed(Cloth, RaidDay() with { Raid = HarmInputs.Of(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { RaidPoints = 1000d } } } }).Raid }).Findings);
         Assert.Contains("threat_schedule_unknown", Harmed(Cloth, RaidDay() with { Schedule = new() }).Findings);
         Assert.Contains("raid_composition_unknown", Harmed(Cloth, RaidDay() with { Composition = new RaidComposition.Uncomposed() }).Findings);
         var noOutfit = ForecastValue.Of(Outcome(Calm()), Context(HarmPawn(), HarmTables(), RaidDay()), Day, Outcome(Calm()));
@@ -672,8 +673,7 @@ public sealed class ForecastValueTests
         Assert.Null(without.HarmDetail!.Illness);
         Assert.Contains(IllnessForecast.Unmodelled, without.Findings);
         Assert.Contains("disease_storyteller_unknown:Cassandra", without.Findings);
-        // Unread disease facts throw a required fact instead.
-        Assert.Throws<RequiredFactException>(() => Value(IllnessSchedule.Of(new DiseaseTable(), null)));
+        Assert.Throws<RequiredFactException>(() => IllnessSchedule.Of(new DiseaseTable(), null!));
         Assert.Equal(without.Harm.Loss(), without.HarmDetail.RaidLoss, 9);
         Assert.Equal(without.HarmDetail.RaidLoss, with.HarmDetail!.RaidLoss, 9);
         var term = with.HarmDetail.Illness;

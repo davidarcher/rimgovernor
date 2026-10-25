@@ -10,9 +10,11 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record KnowledgeSlot
 {
-    public string Category { get; init; } = "";
+    public required RimGovernor.Contracts.Wire.Observations.ResearchSlot Observed { get; init; }
 
-    public ResearchProjectId Current { get; init; }
+    public string Category => Observed.Category;
+
+    public ResearchProjectId Current => new(Observed.CurrentProject);
 
     /// <summary>The category's KnowledgeCategoryDef.overflowCategory from the definition catalog; empty when it has none.</summary>
     public string Overflow { get; init; } = "";

@@ -70,5 +70,5 @@ public sealed partial class FacadeNativeClient
         return Facade.ReadSpatialAccessAsync(request, cancellationToken);
     }
 
-    private static PbCommon.Cell DefenseWireCell(DomainCell cell) => new() { X = cell.X, Z = cell.Z };
+    private static RimGovernor.Brain.Domain.Cell DefenseWireCell(DomainCell cell) => new() { X = cell.X, Z = cell.Z };
 }

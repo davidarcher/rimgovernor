@@ -111,7 +111,7 @@ public sealed partial class LayoutRounds
         {
             var claims = journal.ConstructionClaims(scope.World, expected.Tick, ct);
             var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
-            var f = read.Projection.Facts;
+            var f = read.Reading.Facts;
             if (_needs.HomeCoverage)
             {
                 facts = facts with { HomeCoverage = HomeAreaRules.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage) };
@@ -126,13 +126,13 @@ public sealed partial class LayoutRounds
             var rooms = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, [ClimateRules.ClimateDefs().VentDef], ct).ConfigureAwait(false);
             if (_needs.ClimateEnvelope)
             {
-                var (owed, known) = EnvelopeWork(rooms.Projection);
+                var (owed, known) = EnvelopeWork(rooms.Reading);
                 facts = facts with { ClimateEnvelope = known ? owed : throw new RequiredFactException("climate envelope") };
             }
             if (_needs.Routes)
             {
-                var projection = rooms.Projection;
-                facts = facts with { Routes = LayoutFamily.RoutesStandingOf(projection.Facts.Upkeep.Routes, projection.Rooms, _reviewer.Policy) };
+                var projection = rooms.Reading;
+                facts = facts with { Routes = LayoutFamily.RoutesStandingOf(projection.Facts.Upkeep.Routes, projection.Facts.Upkeep.Rooms, _reviewer.Policy) };
             }
         }
         if (_firebreak is not null)

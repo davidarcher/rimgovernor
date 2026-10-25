@@ -27,9 +27,9 @@ public sealed partial class FacadeNativeClient
         }
 
         /// <summary>A present cell with non-negative coordinates.</summary>
-        internal static void ValidCell(PbCommon.Cell? cell)
+        internal static void ValidCell(RimGovernor.Brain.Domain.Cell cell)
         {
-            if (cell is null || cell.X < 0 || cell.Z < 0)
+            if (cell.X < 0 || cell.Z < 0)
             {
                 throw BridgeContractException.Contract("cell presence/coordinates");
             }

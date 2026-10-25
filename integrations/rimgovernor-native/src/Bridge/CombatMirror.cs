@@ -152,7 +152,7 @@ namespace HomeBridge.BridgeTools
                 }
                 _active = true;
                 Record(Mirror.CombatLogKind.HostileArrived, null, pawns[0], null, "pods", row =>
-                    row with { Pods = new Mirror.PodLanding { OpenTick = open, LandingCells = [.. cells.Select(c => new Common.Cell { X = c.x, Z = c.z })] } });
+                    row with { Pods = new Mirror.PodLanding { OpenTick = open, LandingCells = [.. cells.Select(c => new RimGovernor.Brain.Domain.Cell { X = c.x, Z = c.z })] } });
             }
             catch { } // Harmony hook inside vanilla code, outside any tool call: a throw would reach the game (not probed in #1887)
         }
@@ -293,7 +293,7 @@ namespace HomeBridge.BridgeTools
             {
                 Id = new RimGovernor.Brain.Domain.PawnId(LoadId(pawn)),
                 Side = side,
-                Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z },
+                Cell = new RimGovernor.Brain.Domain.Cell { X = pawn.Position.x, Z = pawn.Position.z },
                 Downed = pawn.Downed,
                 Dead = pawn.Dead,
                 Draft = pawn.drafter != null && pawn.drafter.Drafted

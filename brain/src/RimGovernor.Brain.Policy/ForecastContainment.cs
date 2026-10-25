@@ -1,3 +1,5 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 // The containment cell credit and the escape term (#3811, epic #3650 P1/P7). Confirmed with ilspycmd on Assembly-CSharp.dll:
@@ -12,27 +14,30 @@ namespace RimGovernor.Brain.Policy;
 //   per Props.frequencyTicks (CurrentlyStudiable) and StudyManager.StudyAnomaly gives its points to the comp's
 //   KnowledgeCategory, which #3843 prices per point.
 
-/// <summary>
-/// An entity's escape facts as native reads them (#3811), for an entity with a CompHoldingPlatformTarget: the comp's
-/// baseEscapeIntervalMtbDays; the movement factor 1 / Clamp(Moving, 0.01, 1); the days it has been held
-/// (mindState.entityTicksInCaptivity); the cold factor ColdEscapeFactorCurve gives it where it stands (1 for an entity
-/// without the cold bonus); its kind's combatPower, the strength of the fight an escape starts; and
-/// ContainmentUtility.CanParticipateInEscape (held, not downed, a positive base MTB).
-/// </summary>
-public sealed record EntityEscape(double BaseMtbDays, double MovingFactor, double DaysInCaptivity, double ColdFactor, double CombatPower, bool CanEscape);
+/// <summary>A held or capturable entity joined to its actual holding building; native observations retain their canonical owners.</summary>
+public sealed record ContainedEntity
+{
+    public required O.PawnState Observed { get; init; }
 
-/// <summary>An entity's study facts as native reads them (#3811): CompStudiable.AnomalyKnowledge, its KnowledgeCategory def ("" none) and Props.frequencyTicks.</summary>
-public sealed record StudyKnowledge(double Knowledge, string Category, int FrequencyTicks);
+    public O.BuildingState? Platform { get; init; }
 
-/// <summary>The platform an entity is held on (#3811): its cell and its CompEntityHolder.ContainmentStrength now.</summary>
-public sealed record EntityPlatform(Cell Cell, double Strength);
+    private O.PawnAnomaly Anomaly => Observed.Anomaly is O.PawnAnomalyState.Active active
+        ? active.Facts : throw new RequiredFactException("contained entity anomaly facts");
 
-/// <summary>
-/// A living entity the colony holds on a platform, or one the game lets it capture that no platform holds yet (#3811): its
-/// id, MinimumContainmentStrength, escape facts, study facts (null for one that gives no knowledge) and platform (null while
-/// it waits for capture).
-/// </summary>
-public sealed record ContainedEntity(string Id, double Need, EntityEscape Escape, StudyKnowledge? Study, EntityPlatform? Platform);
+    public string Id => Observed.Pawn.Id;
+
+    public double Need => Anomaly.MinContainmentStrength;
+
+    public O.EntityEscapeState Escape => Anomaly.Held?.Escape ?? throw new RequiredFactException("contained entity held facts");
+
+    public O.StudyYieldState? Study => Anomaly.Study?.Yield;
+
+    public double PlatformStrength => Platform?.Anomaly?.Holder.ContainmentStrength
+        ?? throw new RequiredFactException("contained entity platform strength");
+
+    public Cell PlatformCell => Platform?.Building.Place is O.EntityPlace.OnMap onMap ? onMap.Cell
+        : throw new RequiredFactException("contained entity platform cell");
+}
 
 /// <summary>
 /// The game's containment curves (#3811), the private statics of Verse.ContainmentUtility the catalog reads by name:
@@ -120,17 +125,16 @@ public static class ForecastContainment
         var curves = Curves(context);
         double Loss() => ForecastValue.EscapeLoss(outcome, context, horizon, entity.Escape.CombatPower);
         double gain;
-        if (entity.Platform is { } platform)
+        if (entity.Platform is not null)
         {
-            var escapes = EscapesPerDay(entity, platform.Strength, curves) - EscapesPerDay(entity, cell.Strength, curves);
+            var escapes = EscapesPerDay(entity, entity.PlatformStrength, curves) - EscapesPerDay(entity, cell.Strength, curves);
             gain = (escapes == 0 ? 0 : escapes * Loss())
-                + StudyPerDay(entity, cell.Strength, context, curves) - StudyPerDay(entity, platform.Strength, context, curves);
+                + StudyPerDay(entity, cell.Strength, context, curves) - StudyPerDay(entity, entity.PlatformStrength, context, curves);
         }
         else
         {
-            var waiting = Captured(entity);
-            var escapes = EscapesPerDay(waiting, cell.Strength, curves);
-            gain = StudyPerDay(waiting, cell.Strength, context, curves) - (escapes == 0 ? 0 : escapes * Loss());
+            var escapes = EscapesPerDay(entity, cell.Strength, curves, captured: true);
+            gain = StudyPerDay(entity, cell.Strength, context, curves) - (escapes == 0 ? 0 : escapes * Loss());
         }
         return gain == 0 ? [] : [new(entity.Id, "", gain)];
     }
@@ -151,14 +155,15 @@ public static class ForecastContainment
 
     /// <summary>
     /// The escapes a day of <paramref name="entity"/> held at <paramref name="strength"/>: 1 / its InitiateEscapeMtbDays (see the
-    /// file header); none for one that cannot escape.
+    /// file header); none for one that cannot escape. A <paramref name="captured"/> forecast assumes healed movement,
+    /// zero days in captivity and no cold bonus, without changing the entity's observed escape facts.
     /// </summary>
-    public static double EscapesPerDay(ContainedEntity entity, double strength, ContainmentCurves curves)
+    public static double EscapesPerDay(ContainedEntity entity, double strength, ContainmentCurves curves, bool captured = false)
     {
         var e = entity.Escape;
-        if (!e.CanEscape || !(e.BaseMtbDays > 0)) return 0;
-        var mtb = e.BaseMtbDays * e.MovingFactor * LayoutFilthRules.EvaluateCurve(curves.Captivity, e.DaysInCaptivity)
-            * LayoutFilthRules.EvaluateCurve(curves.Escape, strength - entity.Need) * e.ColdFactor;
+        if ((!captured && !e.CanEscape) || !(e.BaseMtbDays > 0)) return 0;
+        var mtb = e.BaseMtbDays * (captured ? 1 : e.MovingFactor) * LayoutFilthRules.EvaluateCurve(curves.Captivity, captured ? 0 : e.DaysInCaptivity)
+            * LayoutFilthRules.EvaluateCurve(curves.Escape, strength - entity.Need) * (captured ? 1 : e.ColdFactor);
         return mtb > 0 ? 1 / mtb : throw new DomainException(FormattableString.Invariant($"entity {entity.Id} has an escape MTB of {mtb} days"));
     }
 
@@ -174,10 +179,6 @@ public static class ForecastContainment
         var perStudy = study.Knowledge * LayoutFilthRules.EvaluateCurve(curves.Study, strength - entity.Need) / StudiesPerKnowledge;
         return perStudy * GameTime.TicksPerDay / study.FrequencyTicks * price;
     }
-
-    /// <summary>A waiting entity as the cell would hold it: healed, new to captivity, no cold bonus, able to escape when its base MTB allows.</summary>
-    internal static ContainedEntity Captured(ContainedEntity entity) =>
-        entity with { Escape = entity.Escape with { MovingFactor = 1, DaysInCaptivity = 0, ColdFactor = 1, CanEscape = entity.Escape.BaseMtbDays > 0 } };
 
     /// <summary>The colony's held and waiting entities, raised as a required fact when native could not read them.</summary>
     internal static EquatableArray<ContainedEntity> EntitiesOf(ContainmentForecast forecast) =>
@@ -223,7 +224,7 @@ public static class ForecastContainment
         foreach (var room in ContainmentCellRules.PlannedCells(floors).Where(r => r.Id > 0).DistinctBy(r => r.Id).OrderBy(r => r.Id))
         {
             var cells = room.Region.Cells().ToHashSet();
-            var held = containment.Forecast.Entities.Where(e => e.Platform is { } p && cells.Contains(p.Cell)).Select(e => e.Id).Order(StringComparer.Ordinal).FirstOrDefault() ?? "";
+            var held = containment.Forecast.Entities.Where(e => e.Platform is not null && cells.Contains(e.PlatformCell)).Select(e => e.Id).Order(StringComparer.Ordinal).FirstOrDefault() ?? "";
             var (strength, reason) = ContainmentCellRules.PlannedCellStrength(containment, floors, room);
             output.Add(new(room.Id, strength, held, reason));
         }

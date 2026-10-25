@@ -110,8 +110,8 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
             return [];
         }
         var supply = larder.Kind == "allow"
-            ? new SupplyAllow(stock.Id, stock.DefName.Value, handling.Cell)
-            : SupplyAllow.NewSupplyForbid(stock.Id, stock.DefName.Value, handling.Cell);
+            ? new SupplyAllow(stock.Id, stock.DefName, handling.Cell)
+            : SupplyAllow.NewSupplyForbid(stock.Id, stock.DefName, handling.Cell);
         return [new NeedMethod(FoodStoresRules.FoodStorageNeed, new MethodId($"corpse-larder-{larder.Kind}-{stock.Id}"), $"larder corpse to {larder.Kind}", id => Plan(id, [supply]))];
     }
 

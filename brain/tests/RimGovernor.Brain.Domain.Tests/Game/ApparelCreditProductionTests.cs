@@ -1,11 +1,9 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using RimWorld;
 using Verse;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using C = RimGovernor.Contracts.Wire.Common;
 using D = RimGovernor.Contracts.Wire.Defs;
 using O = RimGovernor.Contracts.Wire.Observations;
@@ -69,11 +67,11 @@ public sealed class ApparelCreditProductionTests
         };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = new HashSet<string>() };
         var model = ColonyGearReads.GearLoadoutModelFacts(defs, new Tables(default, default, Things.Of([]), []), 20, row,
-            new RimGovernor.Brain.Policy.ApparelPolicyState(), ColonyModelFixtures.NoThreat, new StuffArrival(new Dictionary<Resource, long> { [new("Cloth")] = 100 }, []));
+            new RimGovernor.Brain.Policy.ApparelPolicyState() { Observed = PoliciesTests.EmptyOutfit, Role = GearFixtures.Role }, ColonyModelFixtures.NoThreat, new StuffArrival(new Dictionary<Resource, long> { [new("Cloth")] = 100 }, []));
         return ColonyModelFixtures.NoGear() with
         {
             Stored = [],
-            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "load", Candidates = [], Apparel = [], LoadoutModel = model }],
+            Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "load", Pawn = new("pawn") }, Candidates = [], Apparel = [], LoadoutModel = model }],
         };
     }
 

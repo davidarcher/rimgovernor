@@ -25,33 +25,40 @@ internal static class EmergencyFixtures
     public static O.PawnState Placed(string id, int x = 0, int z = 0)
     {
         var row = PawnFixtures.Row(id);
-        return row with { Pawn = row.Pawn with { Place = new O.EntityPlace.OnMap(1, new C.Cell { X = x, Z = z }) } };
+        return row with { Pawn = row.Pawn with { Place = new O.EntityPlace.OnMap(1, new RimGovernor.Brain.Domain.Cell { X = x, Z = z }) } };
     }
 
     /// <summary>A live, standing, healthy, fed colonist out of bed at (10, 10) in no mental state.</summary>
-    public static EmergencyPawn Colonist(string id) => new()
+    public static EmergencyPawn Colonist(string id)
     {
-        Id = new PawnId(id),
-        Dead = false,
+        var row = Placed(id, 10, 10);
+        return new() { Observed = row with { Needs = row.Needs with { Food = new O.FoodNeed.Has(1, RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) } } };
+    }
+
+    /// <summary>A live, standing, discovered, engaging humanlike threat at (20, 20), 12 cells from a colonist.</summary>
+    public static EmergencyThreat Threat(string id, ThreatKind kind = ThreatKind.Hostile) =>
+        new EmergencyThreat.PawnThreat(Placed(id, 20, 20), ThreatPawn(id), kind);
+
+    public static O.ThreatPawn ThreatPawn(string id) => new()
+    {
+        Pawn = new C.Ref { Id = id },
+        Ours = false,
+        Passive = false,
+        NearestColonist = new O.ColonistDistance.Nearest(12),
+        FactionHostile = true,
+        PrisonBreak = false,
+        PredatorHunt = false,
+        Predator = false,
         Downed = false,
-        Bleeding = false,
-        NeedsTend = false,
-        InBed = false,
-        Position = new Cell(10, 10),
-        Food = new O.FoodNeed.Has(1, RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed),
     };
 
-    /// <summary>A live, standing, discovered, engaging humanlike threat of the kind at (20, 20), 12 cells from a colonist.</summary>
-    public static EmergencyThreat Threat(string id, ThreatKind kind = ThreatKind.Hostile) => new()
+    public static O.ThreatBuilding ThreatBuilding(string id) => new()
     {
-        Id = new PawnId(id),
-        Kind = kind,
-        Dead = false,
-        Downed = false,
-        Animal = false,
-        Fogged = false,
+        Building = new O.EntityRef { Id = id, DefName = "Hive", Label = id, Place = new O.EntityPlace.OnMap(1, new(20, 20)) },
+        Snapshot = "building-token",
+        NearestColonist = new O.ColonistDistance.Nearest(12),
         Passive = false,
-        Distance = new O.ColonistDistance.Nearest(12),
-        Position = new Cell(20, 20),
+        Fogged = false,
+        Occupied = new O.Rectangle { Minimum = new(20, 20), Maximum = new(21, 21) },
     };
 }

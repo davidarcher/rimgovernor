@@ -18,7 +18,7 @@ public sealed partial class FacadeNativeClient
         {
             throw BridgeContractException.Contract("invalid excavation site request");
         }
-        var requested = new List<PbCommon.Cell>(cells.Count);
+        var requested = new List<RimGovernor.Brain.Domain.Cell>(cells.Count);
         var seen = new HashSet<Cell>();
         foreach (var cell in cells)
         {
@@ -26,12 +26,12 @@ public sealed partial class FacadeNativeClient
             {
                 throw BridgeContractException.Contract("invalid excavation site request");
             }
-            requested.Add(new PbCommon.Cell { X = cell.X, Z = cell.Z });
+            requested.Add(new RimGovernor.Brain.Domain.Cell { X = cell.X, Z = cell.Z });
         }
         var request = new PbObservations.ExcavationSiteRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-            AccessCell = new PbCommon.Cell { X = access.X, Z = access.Z },
+            AccessCell = new RimGovernor.Brain.Domain.Cell { X = access.X, Z = access.Z },
             Cells = [.. requested],
         };
         var site = await Facade.ReadExcavationSiteAsync(request, cancellationToken).ConfigureAwait(false);
@@ -57,7 +57,7 @@ public sealed partial class FacadeNativeClient
     internal async Task<PbObservations.ClearanceTargetsSnapshot> ReadClearanceAsync(Identity expected, bool includeSalvage, IReadOnlyList<Rectangle> ground, CancellationToken cancellationToken)
     {
         expected.Validate();
-        if (!ColonyReads.SameColonyContext(expected, expected))
+        if (!ColonyContexts.SameColonyContext(expected, expected))
         {
             throw new ObservationContractException("expected identity lacks a native generation");
         }
@@ -66,8 +66,8 @@ public sealed partial class FacadeNativeClient
         {
             var rect = new PbObservations.Rectangle
             {
-                Minimum = new PbCommon.Cell { X = g.X, Z = g.Z },
-                Maximum = new PbCommon.Cell { X = g.X + g.Width - 1, Z = g.Z + g.Height - 1 },
+                Minimum = new RimGovernor.Brain.Domain.Cell { X = g.X, Z = g.Z },
+                Maximum = new RimGovernor.Brain.Domain.Cell { X = g.X + g.Width - 1, Z = g.Z + g.Height - 1 },
             };
             if (!PlacementChecks.RectangleValid(rect, 4096))
             {
@@ -86,7 +86,7 @@ public sealed partial class FacadeNativeClient
             PlannedGround = [.. planned],
         };
         var census = await Facade.ReadClearanceTargetsAsync(request, cancellationToken).ConfigureAwait(false);
-        if (!ColonyReads.SameColonyContext(DecodeReads.ContextIdentity(census.Context), expected))
+        if (!ColonyContexts.SameColonyContext(new ObservationIdentity { Context = census.Context }, expected))
         {
             throw new ObservationChangedException();
         }

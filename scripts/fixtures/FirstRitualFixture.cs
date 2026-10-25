@@ -213,7 +213,7 @@ namespace HomeBridge.BridgeTools
                     if(assignments==null || (Traverse.Create(dialog).Method("BlockingIssues").GetValue<IEnumerable<string>>()?.Any() ?? false)) continue;
                     var intent=new RimGovernor.Contracts.Wire.Operations.RitualIntent {
                         PawnId=organizer.GetUniqueLoadID(), Ritual=ritual.GetUniqueLoadID(), Verb="begin",
-                        Spot=new() {X=building.Position.x,Z=building.Position.z},
+                        Location=new RimGovernor.Contracts.Wire.Operations.RitualLocation.At(new RimGovernor.Brain.Domain.Cell(building.Position.x,building.Position.z)),
                         Roles=[.. ritual.behavior.def.roles.Select(role=>new RimGovernor.Contracts.Wire.Operations.RitualRoleAssignment {
                             Slot=role.id, PawnIds=[.. assignments.AssignedPawns(role).Select(p=>p.GetUniqueLoadID())] })],
                         SpectatorPawnIds=[.. assignments.AllCandidatePawns.Where(assignments.PawnSpectating).Select(p=>p.GetUniqueLoadID())] };

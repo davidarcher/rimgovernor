@@ -1,5 +1,6 @@
+using RimGovernor.Brain.Facts;
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using RimGovernor.Contracts.Wire.Observations;
@@ -22,7 +23,7 @@ public sealed class ColonyFactsCoreTests
         Gear = GearFixtures.NoSnapshot,
         Crops = [],
         FoodClimate = new FoodClimate { GrowingYear = [], GrowingDays = 0, GrowingDaysRemaining = 0, SowingNow = false, GrowingDaysUntil = 60, Season = "Winter", DayOfYear = 0, NonGrowingDays = 60 },
-        ControlledEnvironment = ControlledEnvironmentTests.NoWireEnvironment,
+        ControlledEnvironment = ControlledEnvironmentTests.NoEnvironment,
         Resources = [],
         Context = context ?? new C.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 },
         ResourceThings = [],
@@ -39,10 +40,10 @@ public sealed class ColonyFactsCoreTests
         IndoorSleepingCapacity = 0,
         SleepingTemperature = new SleepingTemperature.NoIndoorBed(),
         OutdoorTemperatureC = 0,
-        FoodSupply = new() { Larder = new() },
-        Forecast = new() { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new() { Larder = new() }, Patients = [] },
+        FoodSupply = new() { Consumers = [], Stocks = [], Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } },
+        Forecast = new() { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new() { Consumers = [], Stocks = [], Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, Patients = [] },
         Upkeep = UpkeepFactsTests.NoUpkeep,
-        Development = new() { Outcome = new() { ShortCircuit = new ObservedShortCircuit.NoneSeen() } },
+        Development = new() { Outcome = new() { Networks = [], Geysers = [], ShortCircuit = new ObservedShortCircuit.NoneSeen() } },
         Recovery = new() { Restrictions = [], Buildings = [] },
         Waste = new() { Items = [] },
         Blight = new() { Plants = [] },
@@ -59,37 +60,32 @@ public sealed class ColonyFactsCoreTests
         DeliveryLedger = DeliveryLedgerTests.NoDeliveries,
         HuntCensus = new() { Hunters = [] },
         Acquisition = [],
-        Cooking = [],
-        Butchering = [],
-    };
-
-    /// <summary>A projection with its total core set: the given identity, an empty map, no workers, no deliveries and nothing pending.</summary>
-    internal static ColonyProjection Projection(Identity? identity = null) => new()
-    {
-        Rooms = RoomTestFacts.NoRooms,
-        Identity = identity ?? new Identity(),
-        Facts = new() { CurrentConstruction = CurrentConstruction.Empty, Gear = ColonyModelFixtures.NoGear() },
-        Bounds = default,
-        PlayerTechLevel = Defs.TechLevel.Neolithic,
-        Workers = 0,
-        Threat = QuietThreat,
-        DeliveryLedger = DeliveryLedgerTests.NoDeliveries,
-        PendingFoodNutrition = 0,
         ProductionBenches = [],
-        CookingBenches = [],
-        ButcheringBenches = [],
-        FoodSupply = new FoodSupply { Larder = new() },
-        CombinedFoodSupply = new FoodSupply { Larder = new() },
-        PendingHunts = 0,
-        DeepResources = DeepResourcesTests.NoDeepResources,
-        Policies = PoliciesTests.NoPolicies,
-        Books = [],
-        Foods = [],
-        FoodEaters = [],
-        RoyaltySection = RoyaltySectionTests.NoRoyalty,
-        BiotechSection = BiotechSectionTests.NoBiotech,
     };
 
+    /// <summary>A canonical reading of an empty frame with the reviewed inputs its tests use.</summary>
+    internal static ColonyReading Reading(ObservationIdentity? identity = null)
+    {
+        var snapshot = Snapshot(identity?.Context);
+        return new()
+        {
+            Tables = new(default, default, default, []) { Zones = new() { Context = snapshot.Context, Zones = [] } },
+            Identity = identity ?? new ObservationIdentity { Context = snapshot.Context },
+            Facts = new()
+            {
+                Census = snapshot,
+                Research = ResearchTestFacts.Read(),
+                MedicalReserve = new() { Census = snapshot },
+                CurrentConstruction = CurrentConstruction.Empty,
+                Gear = ColonyModelFixtures.NoGear(),
+                Upkeep = new() { Rooms = RoomTestFacts.NoRooms, Routes = new() { PawnIds = [], Facilities = [], Traffic = [], TrafficSamples = 0 } },
+                MapBounds = default,
+                Books = [], Foods = [], FoodEaters = [],
+                FoodSupply = new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } },
+                CombinedFoodSupply = new FoodSupply { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } },
+            },
+        };
+    }
     /// <summary>A threat read of a colony with no wealth, no raid points, no hostile faction and no raid on the map.</summary>
     internal static ThreatFacts QuietThreat { get; } = new()
     {
@@ -102,6 +98,8 @@ public sealed class ColonyFactsCoreTests
         DaysPassed = 0,
         HostileFactions = [],
         Raids = [],
+        Disease = new() { Storyteller = "Cassandra", Biome = "TemperateForest", RandomDiseases = false, IntervalFactor = 1, DaysSinceSettle = 0, Candidates = 0, FreeColonists = 0, Incidents = [] },
+        Trade = new() { Danger = StoryDangerLevel.None, PopulationIntent = 0, AllyFraction = 0, FullAllyFraction = 0, DaysSinceSettle = 0, CommsConsole = false, TradeBeacon = false, BeaconSilver = 0, Negotiator = false, NegotiatorPriceImprovement = 0, PriceFactorLoss = 0, Incidents = [] },
     };
 
     [Fact]
@@ -112,6 +110,12 @@ public sealed class ColonyFactsCoreTests
         Assert.Throws<System.Text.Json.JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(json.ToJsonString()));
     }
 
+    [Fact]
+    public void ReviewedCalendarRetainsTheNativeCensusInstance()
+    {
+        var reading = Reading();
+        Assert.Same(reading.Snapshot.FoodClimate, reading.Facts.Calendar);
+    }
     [Fact]
     public void HardenedReadRoundTripsExactly()
     {
@@ -147,44 +151,69 @@ public sealed class ColonyFactsCoreTests
     }
 
     [Fact]
-    public void MissingClimateFailsTheDecoder()
+    public void MissingClimateFailsComposition()
     {
         var read = Snapshot() with { FoodClimate = null! };
-        Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.DecodeColony(read, new Identity(), default!, null));
+        Assert.Throws<BridgeContractException>(() => ColonyPlanningReads.Compose(read, new ObservationIdentity { Context = Snapshot().Context }, default!, null));
     }
 
     [Fact]
-    public void MissingEnvironmentFailsTheDecoderEvenWithoutPlanning()
+    public void MissingEnvironmentFailsCompositionEvenWithoutPlanning()
     {
         var read = Snapshot() with { ControlledEnvironment = null! };
-        Assert.Throws<BridgeContractException>(() => ColonyDecodeReads.DecodeColony(read, new Identity(), default!, null));
+        Assert.Throws<BridgeContractException>(() => ColonyPlanningReads.Compose(read, new ObservationIdentity { Context = Snapshot().Context }, default!, null));
     }
 
     [Fact]
     public void InvalidClimateCannotBecomeAnUnknownCalendar()
     {
         var climate = Snapshot().FoodClimate with { GrowingDaysRemaining = double.NaN };
-        Assert.Throws<BridgeContractException>(() => ColonyProductionReads.ColonyCalendar(climate));
+        Assert.False(climate.Valid());
+        var snapshot = Snapshot() with { FoodClimate = climate };
+        Assert.Throws<BridgeContractException>(() => ColonyPlanningReads.Compose(snapshot, new ObservationIdentity { Context = snapshot.Context }, Reading().Tables, null));
     }
 
     [Fact]
+    public void CropSelectionReadsTheCurrentNativeCensusAndDerivedDarkness()
+    {
+        var census = Snapshot() with
+        {
+            Biome = "native-biome",
+            FoodClimate = Snapshot().FoodClimate with { SowingNow = true, GrowingDaysRemaining = 17 },
+        };
+        var facts = Reading().Facts with { Census = census, OutdoorsDark = false };
+        var climate = facts.CropClimate;
+        Assert.Same(census, climate.Census);
+        Assert.True(climate.SowingOutdoors());
+        Assert.Equal(17, climate.DaysRemaining);
+        Assert.Equal(census.Biome, climate.Biome);
+        Assert.Same(census.FoodClimate, new FieldRequest { Climate = climate }.Calendar);
+        Assert.False((facts with { OutdoorsDark = true }).CropClimate.SowingOutdoors());
+        Assert.False((facts with { Census = census with { FoodClimate = census.FoodClimate with { SowingNow = false } } }).CropClimate.SowingOutdoors());
+        Assert.Throws<RequiredFactException>(() => new FieldRequest().Climate);
+        Assert.Throws<RequiredFactException>(() => new ResourceFieldRequest().Climate);
+    }
+    [Fact]
     public void MissingZoneCensusFailsInsteadOfCertifyingEmptyFields()
     {
-        Assert.Throws<BridgeContractException>(() => ZonesReads.ApplyZones(Projection(), null));
+        Assert.Throws<BridgeContractException>(() => ColonyZonesReads.ApplyZones(Reading(), null));
     }
 
     [Fact]
     public void ZoneSnapshotFillsBothTotalCropArrays()
     {
         var context = Snapshot().Context with { NativeGeneration = new C.ObservedGeneration.AtCase(7) };
-        var expected = DecodeReads.ContextIdentity(context);
+        var expected = new ObservationIdentity { Context = context };
         var read = new ZonesSnapshot
         {
             Context = context,
             Zones = [ZoneFixtures.Growing("field", "Plant_Rice", usableCells: 12, edible: true)],
         };
-        var projection = ZonesReads.ApplyZones(Projection(expected) with
+        var initial = Reading(expected);
+        var reading = ColonyZonesReads.ApplyZones(initial with
         {
+            Facts = initial.Facts with
+            {
             Definitions =
             [
                 new PlanningDefinition
@@ -195,11 +224,12 @@ public sealed class ColonyFactsCoreTests
                     Diet = new PlanningDiet { NutritionDemandPerDay = 1.6, DietAllowed = true },
                 },
             ],
+            },
         }, read);
 
-        Assert.Same(read, projection.Zones!.Value);
-        Assert.Single(projection.FieldCrops);
-        Assert.Equal(12L, Assert.Single(projection.FieldCapacityCrops).GrowingCells);
+        Assert.Same(read, Assert.IsType<Held<ZonesSnapshot>>(reading.Zones).Value);
+        Assert.Single(reading.Facts.FieldCrops);
+        Assert.Equal(12L, Assert.Single(reading.Facts.FieldCapacityCrops).GrowingCells);
     }
 
     [Fact]

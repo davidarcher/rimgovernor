@@ -126,6 +126,13 @@ namespace HomeBridge.BridgeTools
             return new Obs.BuildingState
             {
                 Building = Head(thing),
+                Roofed = rectangle.Cells.All(cell => cell.Roofed(thing.Map)),
+                RainVulnerable = thing.def.GetCompProperties<CompProperties_Power>()?.shortCircuitInRain ?? false,
+                FuelDefinitions = [.. (thing.def.GetCompProperties<CompProperties_Refuelable>() is { } refuelable ? refuelable.fuelFilter.AllowedThingDefs.Select(def => def.defName).OrderBy(name => name, StringComparer.Ordinal) : Enumerable.Empty<string>())],
+                Turret = thing is Building nativeBuilding && NativeDefenseStats.TurretDps(nativeBuilding) is { } dps ? new Obs.TurretGun(Nonnegative(dps)) : null,
+                Conduit = thing.def.thingClass == typeof(Building) && thing.def.GetCompProperties<CompProperties_Power>()?.compClass == typeof(CompPowerTransmitter)
+                    ? thing.def == ThingDefOf.PowerConduit ? Obs.ConduitKind.Exposed : Obs.ConduitKind.Protected
+                    : Obs.ConduitKind.None,
                 Rotation = Rotation(thing.Rotation),
                 Stuff = stuff == null ? null : Id(stuff.defName),
                 Faction = thing.Faction == null ? null : NativeRef.Of(Id(thing.Faction.GetUniqueLoadID())),
@@ -159,7 +166,11 @@ namespace HomeBridge.BridgeTools
             Power = Power(thing),
             SwitchedOn = thing.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true,
             Fuel = thing.TryGetComp<CompRefuelable>() is { } fuel
-                ? new Obs.BuildingFuel.Refuelable { Fuel = Nonnegative(fuel.Fuel), TargetFuel = Nonnegative(fuel.TargetFuelLevel), OutOfFuel = !fuel.HasFuel }
+                ? new Obs.BuildingFuel.Refuelable { Burn = new Obs.FuelBurn {
+                    PerDay = Nonnegative(fuel.Props.fuelConsumptionRate), UnitsPerItem = Nonnegative(fuel.Props.FuelMultiplierCurrentDifficulty),
+                    UseDriven = fuel.Props.consumeFuelOnlyWhenUsed || fuel.Props.externalTicking,
+                    InRain = fuel.Props.fuelConsumptionPerTickInRain > 0,
+                    WhenPowered = fuel.Props.consumeFuelOnlyWhenPowered, Flickable = thing.TryGetComp<CompFlickable>() != null }, Fuel = Nonnegative(fuel.Fuel), TargetFuel = Nonnegative(fuel.TargetFuelLevel), OutOfFuel = !fuel.HasFuel }
                 : new Obs.BuildingFuel.NotRefuelable(),
             BrokenDown = thing.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false,
             Wind = thing.TryGetComp<CompPowerPlantWind>() != null
@@ -175,13 +186,13 @@ namespace HomeBridge.BridgeTools
                 {
                     PowerOn = power.PowerOn,
                     OutputW = Finite(power.PowerOutput) ? power.PowerOutput : throw new InvalidOperationException("Invalid power output."),
-                    Producer = power.Props.PowerConsumption < 0f,
+                    RatedW = Finite(power.Props.PowerConsumption) ? -power.Props.PowerConsumption : throw new InvalidOperationException("Invalid rated power."),
                     Network = power.PowerNet is { } net ? NetId(net) : null,
                 };
             }
             if (thing.TryGetComp<CompPowerBattery>() is { } battery)
             {
-                return new Obs.BuildingPower.Battery { Network = battery.PowerNet is { } net ? NetId(net) : null };
+                return new Obs.BuildingPower.Battery { StorageWD = Nonnegative(battery.Props.storedEnergyMax), Network = battery.PowerNet is { } net ? NetId(net) : null };
             }
             return new Obs.BuildingPower.NoPower();
         }
@@ -214,7 +225,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool Identifiers(IEnumerable<string> values) => values.Count() <= 256
             && values.All(ProtoBoundary.IsIdentifier) && values.Distinct(StringComparer.Ordinal).Count() == values.Count();
-        private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
+        private static RimGovernor.Brain.Domain.Cell Cell(IntVec3 cell) => new RimGovernor.Brain.Domain.Cell { X = cell.x, Z = cell.z };
         private static Obs.BuildingStatus Status(Thing thing) => thing is Blueprint ? Obs.BuildingStatus.Blueprint : thing is Frame ? Obs.BuildingStatus.Frame : Obs.BuildingStatus.Built;
         private static Thing InstallTarget(Blueprint_Install install)
         {

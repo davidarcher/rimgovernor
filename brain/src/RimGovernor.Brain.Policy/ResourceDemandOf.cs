@@ -43,7 +43,7 @@ public static partial class ResourceRules
         var clothing = f.ClothingRunway();
         var works = ConstructionDemandRules.ConstructionDemandOf(f, p, l);
         var holds = ProductionRules.ProductionMaterialHoldsOf(f.ProductionPromises, f.BillReservations);
-        var material = ProductionRules.SharedMaterialBudgetOf(f.Resources, f.CurrentConstruction.Deficit, holds);
+        var material = ProductionRules.SharedMaterialBudgetOf(f.ObservedStock(), f.CurrentConstruction.Deficit, holds);
         if (holds is MaterialAvailability.Assessed(var held))
         {
             works = new Dictionary<Resource, long>(works);
@@ -59,7 +59,7 @@ public static partial class ResourceRules
         }
         IReadOnlyDictionary<Resource, long>[] sources =
         [
-            BillDemandRules.OpenBillDemand(f.OpenBills, new StockReader { Resources = f.Resources, Wood = f.Wood }),
+            BillDemandRules.OpenBillDemand(f.OpenBills, new StockReader { Resources = f.ObservedStock(), Wood = f.WoodStock() }),
             clothing.Needs,
             f.FuelRunway().Needs,
             f.AnimalFeedRunway().Needs,

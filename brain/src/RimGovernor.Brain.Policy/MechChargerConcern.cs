@@ -26,7 +26,7 @@ public static partial class MechRules
     /// (MechChargerOwed); the common colony decoder supplies the fleet even when it is empty.
     /// </summary>
     public static bool MechChargerOwed(MechFleet fleet, RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech) =>
-        MechChargerOwed(fleet.Mechanitors.Count, MechChargersOf(biotech));
+        MechChargerOwed(fleet.Mechanitors.Count, biotech.Chargers);
 
     /// <summary>
     /// Ranks every width x height footprint lying wholly on known free ground (walkable, unoccupied, covered by no

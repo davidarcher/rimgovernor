@@ -2,7 +2,6 @@ using System.Diagnostics;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -27,10 +26,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
 
     private static readonly string[] Wearers = ["Anna", "Bo", "Cy", "Di"];
 
-    private static GearOption BillDuster() => ForecastValueTests.Duster(0.8) with
-    {
-        ID = "bill/duster", Definition = new Resource("Apparel_Duster"), Stuff = new Resource(ColonyModelFixtures.Cloth), Source = GearSource.Bill,
-    };
+    private static GearOption BillDuster() => ForecastValueTests.Duster(0.8) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(ForecastValueTests.Duster(0.8)).Origin).Value) with { Id = "bill/duster", DefName = "Apparel_Duster", Stuff = ColonyModelFixtures.Cloth, Source = GearSource.Bill }) };
 
     private static ForecastCoupledContext Context(HarmInputs? harm = null, int wearers = 2)
     {

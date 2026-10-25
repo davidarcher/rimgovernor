@@ -105,7 +105,7 @@ internal static class CombatLabMirror
         // The timing: every staged pawn as a target (the read does not care which side a target is on) against the
         // cells cap of cells around the line.
         var targets = hostiles.Concat(colonists).ToList();
-        var cells = new List<Common.Cell>();
+        var cells = new List<RimGovernor.Brain.Domain.Cell>();
         for (var dz = 0; cells.Count < CombatGeometryContract.MaxCells; dz++)
         {
             for (var dx = -8; dx < 8 && cells.Count < CombatGeometryContract.MaxCells; dx++)
@@ -239,5 +239,5 @@ internal static class CombatLabMirror
         }
     }
 
-    private static Common.Cell Offset(Common.Cell c, int dx, int dz) => new() { X = c.X + dx, Z = c.Z + dz };
+    private static RimGovernor.Brain.Domain.Cell Offset(RimGovernor.Brain.Domain.Cell c, int dx, int dz) => new() { X = c.X + dx, Z = c.Z + dz };
 }

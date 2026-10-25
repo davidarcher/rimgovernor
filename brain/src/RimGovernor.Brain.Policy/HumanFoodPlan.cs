@@ -43,16 +43,16 @@ public static class HumanFoodPlanRules
             {
                 continue;
             }
-            if (stock.Corpse)
+            if (stock.IsCorpse())
             {
                 if (stock.Forbidden)
                 {
                     continue;
                 }
             }
-            if (stock.IsHumanlike || (stock.IsHumanMeat && (stock.RawMeat || stock.Reserve)))
+            if (stock.IsHumanlike || (stock.IsHumanMeat && (stock.RawMeat || supply.IsReserved(stock))))
             {
-                if (!stock.Reserve)
+                if (!supply.IsReserved(stock))
                 {
                     nutrition += n;
                 }
@@ -63,7 +63,7 @@ public static class HumanFoodPlanRules
                 continue;
             }
             baselineStocks.Add(stock);
-            if (stock.Vegetable && !stock.Reserve)
+            if (stock.Vegetable && !supply.IsReserved(stock))
             {
                 vegetables += n;
             }
@@ -180,13 +180,13 @@ public static class HumanFoodPlanRules
         foreach (var s in supply.Stocks)
         {
             var n = s.Nutrition;
-            if (!s.Holder.IsEmpty || n <= 0 || s.Corpse || s.Reserve)
+            if (!s.Holder.IsEmpty || n <= 0 || s.IsCorpse() || supply.IsReserved(s))
             {
                 continue;
             }
             if ((s.IsHumanMeat && s.RawMeat) || s.Vegetable)
             {
-                defs.Add(s.DefName.Value);
+                defs.Add(s.DefName);
                 meat = meat || s.IsHumanMeat;
                 veg = veg || s.Vegetable;
             }
@@ -249,18 +249,18 @@ public static class HumanFoodPlanRules
         foreach (var s in supply.Stocks)
         {
             var n = s.Nutrition;
-            if (!s.Holder.IsEmpty || s.Corpse || s.Reserve)
+            if (!s.Holder.IsEmpty || s.IsCorpse() || supply.IsReserved(s))
             {
                 continue;
             }
             if (s.IsHumanMeat && s.RawMeat)
             {
-                defs.Add(s.DefName.Value);
+                defs.Add(s.DefName);
                 raw += n;
             }
             else if (s.Vegetable)
             {
-                defs.Add(s.DefName.Value);
+                defs.Add(s.DefName);
                 veg += n;
             }
         }

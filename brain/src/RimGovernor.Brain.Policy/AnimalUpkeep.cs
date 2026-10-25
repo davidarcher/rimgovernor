@@ -1,112 +1,49 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
 
 namespace RimGovernor.Brain.Policy;
 
 
+/// <summary>A native animal and its catalog- and policy-derived herd inputs.</summary>
 public sealed record UpkeepAnimal
 {
-    /// <summary>The race row's flag (AnimalRace.Pest): a wild animal military/pests hunts for what it destroys.</summary>
+    public required O.PawnState Pawn { get; init; }
+
+    /// <summary>The owned herd membership; absent for a wild animal.</summary>
+    public O.ColonyAnimal? Colony { get; init; }
+    public O.AnimalState State => Pawn.AnimalState is O.PawnAnimalState.Animal animal
+        ? animal.State : throw new RequiredFactException("upkeep animal state");
+    public PawnId Id => new(Pawn.Pawn.Id ?? throw new RequiredFactException("upkeep animal id"));
+    public Resource Definition => new(Pawn.Pawn.DefName ?? throw new RequiredFactException("upkeep animal race"));
+    public string Label => Pawn.Pawn.Label ?? "";
+    public Sex Gender => State.Gender;
+    public bool SupportsAreas => State.SupportsAllowedAreas;
+    public string AllowedArea => Pawn.Settings.AllowedAreaId ?? "";
+    public bool RequiresPen => Colony?.Roping is O.AnimalRoping.Roped;
+    public bool Contained => State.PenId is not null;
+    public string Pen => State.PenId ?? "";
+    public string SuitablePen => Colony?.Roping is O.AnimalRoping.Roped roped ? roped.SuitablePen ?? "" : "";
+    public bool Release => State.Release;
+    public bool Slaughter => State.Slaughter;
+    public bool SafeToRelease => State.SafeToRelease;
+    public EquatableArray<O.TrainingEntry> Training => State.Training;
+    public bool Tameable => State.Tameable;
+    public bool Tame => State.Tame;
+    public string Care => Pawn.Settings.Care is O.PawnCare.Configured care ? Domain.Wire.Name(WorkRules.MedicalCareOf(care.MedicalCare)) : "";
+    public bool Bonded => State.Bonded;
+    public EquatableArray<string> BondedPawns => State.BondedPawnIds;
+    public string Master => State.MasterId;
+    public bool Sterilized => State.Sterilized;
+    public bool SterilizeQueued => State.SterilizeQueued;
+    public bool FollowDrafted => State.FollowDrafted;
+    public bool FollowFieldwork => State.FollowFieldwork;
+    public bool Obedient => State.Obedient;
+    public EquatableArray<Hediff> Conditions => Pawn.Health.Hediffs;
+    public bool LifeThreatening => Pawn.Health.LifeThreatening;
     public bool Pest { get; init; }
-
-    /// <summary>Whether native lets this animal carry an allowed area at all.</summary>
-    public bool SupportsAreas { get; init; }
-
-    /// <summary>The allowed area the animal is restricted to; "" when unrestricted.</summary>
-    public string AllowedArea { get; init; } = "";
-
-    public PawnId Id { get; init; }
-
-    public Resource Definition { get; init; }
-
-    /// <summary>The native display name; empty when the census omits it.</summary>
-    public string Label { get; init; } = "";
-
-    /// <summary>The game Gender.</summary>
-    public Sex Gender { get; init; }
-
-    public bool RequiresPen { get; init; }
-
-    /// <summary>A rope-managed animal standing in a pen; false for any other animal.</summary>
-    public bool Contained { get; init; }
-
-    /// <summary>A standing release-to-wild designation.</summary>
-    public bool Release { get; init; }
-
-    /// <summary>A standing slaughter designation.</summary>
-    public bool Slaughter { get; init; }
-
-    /// <summary>The pen holding a rope-managed animal; "" when it is in none.</summary>
-    public string Pen { get; init; } = "";
-
-    /// <summary>The pen native would rope a roped animal to; "" when there is none.</summary>
-    public string SuitablePen { get; init; } = "";
-
-    /// <summary>
-    /// the animals family's husbandry facts straight from the same generic census read that already decodes
-    /// Containment/feed facts; SafeToSlaughter decides.
-    /// </summary>
-    public SlaughterFacts SlaughterFacts { get; init; } = new();
-
-    /// <summary>Native's Designator_ReleaseAnimalToWild acceptance; ReleaseAllowed adds the exclusions policy owns.</summary>
-    public bool SafeToRelease { get; init; }
-
-    public EquatableArray<HusbandryTrainable> Training { get; init; }
-
-    /// <summary>Only populated for the wild census (AnimalUpkeepObservation.WildAnimals): native tame eligibility.</summary>
-    public bool Tameable { get; init; }
-
-    /// <summary>Only populated for the wild census: a standing tame designation.</summary>
-    public bool Tame { get; init; }
-
-    /// <summary>The Animals level taming the wild animal needs (native's TrainableUtility.MinimumHandlingSkill); TamerFor answers whether the roster has it.</summary>
     public int MinimumHandlingSkill { get; init; }
-
-    /// <summary>The sizing facts the herd Need culls and tames by.</summary>
     public HerdFacts Herd { get; init; } = new();
-
-    /// <summary>Care cap input: MedicalCareCategory name; "" for an animal without care settings.</summary>
-    public string Care { get; init; } = "";
-
-    /// <summary>Care cap input: a bond to a living pawn.</summary>
-    public bool Bonded { get; init; }
-
-    /// <summary>The living humanlike pawns the animal has a Bond relation with (any status); a companion's master is one on the roster.</summary>
-    public EquatableArray<string> BondedPawns { get; init; }
-
-    /// <summary>The colonist id mastering the animal ("" unassigned).</summary>
-    public string Master { get; init; } = "";
-
-    /// <summary>The Sterilized hediff.</summary>
-    public bool Sterilized { get; init; }
-
-    /// <summary>A sterilize surgery bill waiting on the animal.</summary>
-    public bool SterilizeQueued { get; init; }
-
-    public bool FollowDrafted { get; init; }
-
-    public bool FollowFieldwork { get; init; }
-
-    /// <summary>Learned Obedience, which native requires to master or follow.</summary>
-    public bool Obedient { get; init; }
-
-    /// <summary>The animal's hediffs, none filtered: the medical care cap's and the ward's input.</summary>
-    public EquatableArray<Hediff> Conditions { get; init; } = [];
-
-    public bool LifeThreatening { get; init; }
 }
-
-/// <summary>One trainable definition's recursive-training eligibility for one animal, ported from AnimalState.TrainingEntry.</summary>
-public sealed record HusbandryTrainable
-{
-    public string Def { get; init; } = "";
-
-    public bool Available { get; init; }
-
-    public bool Learned { get; init; }
-
-    public bool Wanted { get; init; }
-}
-
 public sealed record AnimalUpkeepObservation
 {
 
@@ -121,9 +58,9 @@ public sealed record AnimalUpkeepObservation
 
     /// <summary>The player's roaming animals (the census rows' Roam, #3812), which a planned pen keeps; a colony without one has
     /// none. Null when native could not read the census, which a pen credit raises as a required fact.</summary>
-    public IReadOnlyList<PenRoamer>? Roamers { get; init; }
+    public IReadOnlyList<O.ColonyAnimal>? Roamers { get; init; }
 
-    public FoodSupply Food { get; init; } = new() { Larder = new() };
+    public FoodSupply Food { get; init; } = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } };
 
     public EquatableArray<Resource> DirectedHerds { get; init; }
 }

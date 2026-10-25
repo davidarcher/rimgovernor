@@ -1,8 +1,8 @@
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -32,11 +32,17 @@ public sealed class RetiredWallsTests
 
     private static RoomObservation Rooms() => RoomFixtures.Census((RoomFixtures.State("hut"), PlannedRules.RectCells(new Rectangle(Hut.X + 1, Hut.Z + 1, 3, 3))));
 
-    private static ColonyProjection Colony(RoomObservation rooms) => ColonyFactsCoreTests.Projection() with
+    private static ColonyReading Colony(RoomObservation rooms) => ColonyFactsCoreTests.Reading() with
     {
-        LayoutPlan = Plan,
-        Rooms = rooms,
-        Facts = new() { CurrentConstruction = CurrentConstruction.Empty },
+        Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+            CurrentConstruction = CurrentConstruction.Empty,
+            LayoutPlan = Plan,
+            Upkeep = new UpkeepObservation
+            {
+                Rooms = rooms
+            }
+        }
     };
 
     [Fact]

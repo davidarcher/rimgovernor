@@ -3,7 +3,6 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -28,20 +27,20 @@ public sealed class AdminFamilyTests
     };
 
     [Fact]
-    public void CreepJoinersIsMetUnmetOrUnknownByTheWorkOwed()
+    public void CreepJoinersIsMetOrUnmetByTheCompleteWorkRead()
     {
-        var met = Derive(new CreepJoinerWork { Owed = Known(false) });
+        var met = Derive(new CreepJoinerWork { Owed = false });
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit, met.Tier));
         Assert.Equal("admin/creep-joiners", met.Id.Value);
 
-        var unmet = Derive(new CreepJoinerWork { Owed = Known(true), Inspections = Inspect("a", "b"), Isolation = [new IsolationMove(new("c"), "Area_1")] });
+        var unmet = Derive(new CreepJoinerWork { Owed = true, Inspections = Inspect("a", "b"), Isolation = [new IsolationMove(new("c"), "Area_1")] });
         Assert.Equal((Satisfaction.Unmet, 3.0), (unmet.Satisfaction, unmet.Deficit));
 
         // A record change alone (an ended bill) is owed work with no order.
-        var recorded = Derive(new CreepJoinerWork { Owed = Known(true) });
+        var recorded = Derive(new CreepJoinerWork { Owed = true });
         Assert.Equal((Satisfaction.Unmet, 0.0), (recorded.Satisfaction, recorded.Deficit));
 
-        Assert.Equal("creepjoiner work", Assert.Throws<RequiredFactException>(() => Derive(new CreepJoinerWork())).Fact);
+        Assert.Equal("creepjoiner work", Assert.Throws<RequiredFactException>(() => new AdminFamily().Derive(new AdminFacts())).Fact);
         Assert.Empty(new AdminFamily(creepJoiners: false).Derive(new AdminFacts()));
     }
 
@@ -62,19 +61,32 @@ public sealed class AdminFamilyTests
     }
 
     [Fact]
-    public void BurialIsMetUnmetOrUnknownByTheStepOwed()
+    public void InvalidReviewStatesCannotCertifyAdminNeeds()
+    {
+        var invalid = (AdminWorkReview)int.MaxValue;
+        var burial = new AdminFamily(new AdminNeeds { Burial = true });
+        var stockpiles = new AdminFamily(new AdminNeeds { Stockpiles = true });
+        Assert.Throws<ArgumentOutOfRangeException>(() => burial.Derive(new AdminFacts { Burial = invalid }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => stockpiles.Derive(new AdminFacts { Stockpiles = invalid }));
+        Assert.Throws<ArgumentOutOfRangeException>(() => AdminFamily.WorkLedgerNeed((LedgerDiff)int.MaxValue));
+        Assert.Throws<ArgumentOutOfRangeException>(() => AdminFamily.WorkAssignmentsNeed((WorkAssignmentsReview)int.MaxValue));
+        Assert.Empty(new AdminFamily(new AdminNeeds()).Derive(new AdminFacts()));
+    }
+
+    [Fact]
+    public void BurialRequiresTheComposedStepRead()
     {
         Need Burial(AdminFacts facts) => Assert.Single(new AdminFamily(new AdminNeeds { Burial = true }).Derive(facts));
 
-        Assert.Equal((Satisfaction.Met, 0.0, "admin/burial"), (Burial(new AdminFacts { Burial = Known(false) }).Satisfaction, Burial(new AdminFacts { Burial = Known(false) }).Deficit, AdminFamily.Burial.Value));
-        var unmet = Burial(new AdminFacts { Burial = Known(true) });
+        Assert.Equal((Satisfaction.Met, 0.0, "admin/burial"), (Burial(new AdminFacts { Burial = AdminWorkReview.Settled }).Satisfaction, Burial(new AdminFacts { Burial = AdminWorkReview.Settled }).Deficit, AdminFamily.Burial.Value));
+        var unmet = Burial(new AdminFacts { Burial = AdminWorkReview.Owed });
         Assert.Equal((Satisfaction.Unmet, 1.0, NeedTier.Wellbeing), (unmet.Satisfaction, unmet.Deficit, unmet.Tier));
-        Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Burial(new AdminFacts { Burial = Unknown<bool>() })).Fact);
+        Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Burial(new AdminFacts { Burial = AdminWorkReview.NotComposed })).Fact);
         Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Burial(new AdminFacts())).Fact);
         // Only the composed Needs are derived, and any one unread raises for the family.
-        var both = new AdminFacts { SupplySafety = [], Burial = Known(false) };
+        var both = new AdminFacts { SupplySafety = [], Burial = AdminWorkReview.Settled };
         Assert.Equal([AdminFamily.SupplySafety, AdminFamily.Burial], Composed.Derive(both).Select(n => n.Id));
-        Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Composed.Derive(both with { Burial = null })).Fact);
+        Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Composed.Derive(both with { Burial = AdminWorkReview.NotComposed })).Fact);
     }
 
     private static PlanSpec Forbid(params StartingSupply[] stacks)
@@ -89,7 +101,7 @@ public sealed class AdminFamilyTests
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-admin-supply-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        LootItem Unsafe(StartingSupply s) => new() { Supply = s with { Forbid = false }, Forbidden = false, Haul = new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe() };
+        LootItem Unsafe(StartingSupply s) => LootFixtures.Stack(s.Thing, s.Definition, s.Cell, false, new RimGovernor.Contracts.Wire.Observations.HaulSafety.Unsafe(), 0, 0, [], null);
         var stacks = new[] { Stack("s1", 1, true), Stack("s2", 2, true), Stack("s3", 3, true) };
         var facts = WorkResourceTestFacts.Create("a", "b", "c") with { EventLoot = EquatableArray.From(stacks.Select(Unsafe)) };
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
@@ -131,12 +143,12 @@ public sealed class AdminFamilyTests
         var stockpiles = new AdminFamily(new AdminNeeds { Stockpiles = true });
         Need Stores(AdminFacts facts) => Assert.Single(stockpiles.Derive(facts));
 
-        var met = Stores(new AdminFacts { Stockpiles = Known(false) });
+        var met = Stores(new AdminFacts { Stockpiles = AdminWorkReview.Settled });
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing, "admin/stockpiles"), (met.Satisfaction, met.Deficit, met.Tier, met.Id.Value));
-        var unmet = Stores(new AdminFacts { Stockpiles = Known(true) });
+        var unmet = Stores(new AdminFacts { Stockpiles = AdminWorkReview.Owed });
         Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit));
         // A world the review has not planned (or a review missing a fact) is Unknown, never met.
-        Assert.Equal("stockpile review", Assert.Throws<RequiredFactException>(() => Stores(new AdminFacts { Stockpiles = Unknown<bool>() })).Fact);
+        Assert.Equal("stockpile review", Assert.Throws<RequiredFactException>(() => Stores(new AdminFacts { Stockpiles = AdminWorkReview.NotComposed })).Fact);
         Assert.Equal("stockpile review", Assert.Throws<RequiredFactException>(() => Stores(new AdminFacts())).Fact);
     }
 
@@ -209,10 +221,10 @@ public sealed class AdminFamilyTests
     public void AWeaponDropIsHeldAsAnUnsupportedForecast()
     {
         var need = new Need { Id = AdminFamily.CreepJoiners, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet };
-        var drops = new AdminFacts { CreepJoiners = new CreepJoinerWork { Owed = Known(true), Drops = [new WeaponDrop(new("a"))] } };
+        var drops = new AdminFacts { CreepJoiners = new CreepJoinerWork { Owed = true, Drops = [new WeaponDrop(new("a"))] } };
         var held = Assert.Single(new AdminFamily().Propose([need], drops));
         Assert.Equal(AdminFamily.UnsupportedDisarm, held.Hold!.Subject);
-        Assert.Empty(new AdminFamily().Propose([need], new AdminFacts { CreepJoiners = new CreepJoinerWork { Owed = Known(true), Inspections = Inspect("a") } }));
+        Assert.Empty(new AdminFamily().Propose([need], new AdminFacts { CreepJoiners = new CreepJoinerWork { Owed = true, Inspections = Inspect("a") } }));
     }
 
     private sealed class Colony : IDisposable
@@ -253,7 +265,7 @@ public sealed class AdminFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
-        colony.Work = new CreepJoinerWork { Owed = Known(true), Isolation = [new IsolationMove(new("a"), "Area_1")], Inspections = Inspect("b") };
+        colony.Work = new CreepJoinerWork { Owed = true, Isolation = [new IsolationMove(new("a"), "Area_1")], Inspections = Inspect("b") };
         var run = colony.Run();
 
         Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
@@ -282,7 +294,7 @@ public sealed class AdminFamilyTests
             new PlanSpec(plan, new PlanRevision(1), [DomainAction.NewSurgeryAction(new(plan.Value + "-0"), new Surgery(new("b"), Inspection, SurgeryConstants.NoSurgeryPart, false))]), ct);
         Assert.Equal(ClaimOutcome.Admitted, held.Outcome);
 
-        colony.Work = new CreepJoinerWork { Owed = Known(true), Inspections = Inspect("b") };
+        colony.Work = new CreepJoinerWork { Owed = true, Inspections = Inspect("b") };
         var verdict = Colony.Report(colony.Run());
         Assert.True(verdict.Is(Cause.Claim));
         Assert.Equal($"surgery/b/{Inspection}/-1", verdict.Refusal.Subject);
@@ -303,7 +315,7 @@ public sealed class AdminFamilyTests
         {
             Record = new CreepJoinerRecord { Inspections = new Dictionary<PawnId, InspectionStage> { [new("b")] = InspectionStage.Ordered, [new("c")] = InspectionStage.Done } },
         };
-        colony.Work = new CreepJoinerWork { Owed = Known(true), Inspections = inspections };
+        colony.Work = new CreepJoinerWork { Owed = true, Inspections = inspections };
         Assert.Equal(Verdict.WaitFor(Cause.MethodUsed, "creepjoiner_order_recorded"), Colony.Report(colony.Run(arbiter)));
         Assert.Equal(new Dictionary<PawnId, InspectionStage> { [new("c")] = InspectionStage.Done }, colony.Record().Inspections);
     }

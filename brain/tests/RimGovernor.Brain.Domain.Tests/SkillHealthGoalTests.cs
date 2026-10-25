@@ -1,6 +1,6 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -15,14 +15,10 @@ public sealed class SkillHealthGoalTests
         new() { Id = 1, Kind = kind, Target = pawn, Qualifier = qualifier, Count = count };
 
     private static WorkPawn Pawn(string id, int cooking, int building, bool cookingDisabled = false) => PawnFixtures.Worker(id) with
-    {
-        Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)),
-        Skills = [
-            new() { Name = "Cooking", Level = cooking, Disabled = cookingDisabled }, new() { Name = "Construction", Level = building }],
-        Work = new PawnWorkTable.Works(true, [
-            new() { Work = WorkType.Cooking, Skill = "Cooking", Order = 10, Priority = 3 },
-            new() { Work = WorkType.Construction, Skill = "Construction", Order = 5, Priority = 3 }]),
-    };
+    { Work = PawnFixtures.WorkTable(true, [
+            new() { Observed = new O.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 10 },
+            new() { Observed = new O.WorkSetting { DefName = "Construction", Priority = 3, Disabled = false }, Skill = "Construction", Order = 5 }]), Observed = PawnFixtures.Row(id) with { Biography = PawnFixtures.Row(id).Biography with { Skills = [
+            new() { Passion = O.Passion.None, DefName = "Cooking", Level = cooking, Disabled = cookingDisabled }, new() { Passion = O.Passion.None, DefName = "Construction", Level = building }] }, Settings = PawnFixtures.Row(id).Settings with { Schedule = EquatableArray.From((EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))).Select((assignment, hour) => new O.TimetableSlot { Hour = (uint)hour, AssignmentDefName = assignment })) } } };
 
     private static GoalsFacts SkillFacts(GoalRecord goal, params WorkPawn[] pawns) =>
         new() { Goals = [goal], Pawns = new WorkPawnsRead(EquatableArray.From(pawns)) };
@@ -54,7 +50,7 @@ public sealed class SkillHealthGoalTests
         Assert.NotEqual(1, Priority(plain, "trainee", WorkType.Cooking));
 
         var goal = Goal(GoalKind.Skill, "trainee", "Cooking", 10);
-        var facts = GoalRules.Stamp(new RoundsFacts { Wealth = new(0, 0) }, GoalRules.DemandOf(SkillFacts(goal, chef, trainee)));
+        var facts = GoalRules.Stamp(new RoundsFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat } } }, GoalRules.DemandOf(SkillFacts(goal, chef, trainee)));
         Assert.Equal([new SkillGoal(new PawnId("trainee"), "Cooking")], facts.GoalTraining.Items);
         var trained = WorkRules.PlanWork([chef, trainee], [], new() { Training = facts.GoalTraining.Items });
         Assert.Equal(1, Priority(trained, "chef", WorkType.Cooking));
@@ -68,7 +64,7 @@ public sealed class SkillHealthGoalTests
     [Fact]
     public void ALearnerWithoutAPassionIsAllowedTextbooks()
     {
-        var pawn = Pawn("trainee", 6, 18) with { PolicyInputs = PawnFixtures.Inputs(readingPolicyId: "rp1") };
+        var pawn = Pawn("trainee", 6, 18) with { Observed = (Pawn("trainee", 6, 18)).Observed with { Settings = (Pawn("trainee", 6, 18)).Observed.Settings with { PolicyInputs = PawnFixtures.Inputs(readingPolicyId: "rp1") } } };
         OwnedName[] names = [new() { PawnId = pawn.Id, ShortName = "Tess", ThingId = 1 }];
         ReadingPolicyEntry[] policies = [new() { Id = "rp1", Label = "Tess", Allowed = ["Novel"] }];
         Book[] books = [new("Novel", BookKind.Novel), new("Textbook", BookKind.Textbook)];
@@ -87,7 +83,7 @@ public sealed class SkillHealthGoalTests
     private static CarePawn Patient(bool stocked, params string[] hediffs) =>
         CareFixtures.Patient("colonist", hediffs.Select(CareFixtures.Condition), [Install(stocked)]);
 
-    private static readonly SleepingObservation Hospital = new() { Beds = [new SleepingBed { Id = "bed", Humanlike = true, Medical = true }] };
+    private static readonly SleepingObservation Hospital = new() { Beds = [new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "bed", medical: true), Building = SleepingNativeFixtures.Building(id: "bed"), Humanlike = true }] };
 
     private static GoalsFacts HealthFacts(GoalRecord goal, CarePawn patient, bool bed = true) => new()
     {

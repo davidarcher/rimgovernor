@@ -8,12 +8,12 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal sealed class PackedStock(object native, PbCommon.Identity identity)
 {
     private readonly FacadeNativeClient? _source = native as FacadeNativeClient;
-    private readonly Dictionary<string, IReadOnlyList<PackedItem>> _read = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, IReadOnlyList<PbObservations.StockItem>> _read = new(StringComparer.Ordinal);
     // Packed things Install handed out this pass.
     private readonly Dictionary<string, bool> _claimed = new(StringComparer.Ordinal);
 
     /// <summary>The packed items of one packed definition; null when the source cannot read stock.</summary>
-    public async Task<IReadOnlyList<PackedItem>?> ItemsAsync(string packedDef, CancellationToken ct)
+    public async Task<IReadOnlyList<PbObservations.StockItem>?> ItemsAsync(string packedDef, CancellationToken ct)
     {
         if (_source is null)
         {
@@ -37,19 +37,20 @@ internal sealed class PackedStock(object native, PbCommon.Identity identity)
         var items = await ItemsAsync(packedDef, ct).ConfigureAwait(false) ?? [];
         foreach (var item in items)
         {
-            if (item.InnerDef != def || (_claimed.TryGetValue(item.Inner, out var taken) && taken))
+            var packed = item.Packed ?? throw new ObservationContractException("packed stock lacks its building");
+            if (packed.DefName != def || (_claimed.TryGetValue(packed.Id, out var taken) && taken))
             {
                 continue;
             }
             try
             {
-                var move = new MoveBuilding(item.Inner, def, anchor, rot);
-                _claimed[item.Inner] = true;
+                var move = new MoveBuilding(packed.Id, def, anchor, rot);
+                _claimed[packed.Id] = true;
                 return move;
             }
             catch (DomainException)
             {
-                _claimed[item.Inner] = false;
+                _claimed[packed.Id] = false;
                 throw;
             }
         }

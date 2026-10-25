@@ -88,7 +88,7 @@ public static class Boundary
     /// Writes one combat_order decision row per order result: applied (reason empty,
     /// attrs job) or refused (reason the refusal).
     /// </summary>
-    private static void RecordCombatOrder(CombatOrderResult res) =>
+    private static void RecordCombatOrder(CombatResult res) =>
         Tel.Decide(new Decision
         {
             Kind = TelemetryKinds.CombatOrderKind,
@@ -256,7 +256,7 @@ public static class Boundary
                     foreach (var r in CombatCalls.CombatOrderResults(appliedReceipt))
                     {
                         RecordCombatOrder(r);
-                        output[i].Combat.Add(new CombatResult { Index = r.Index, PawnId = r.PawnId, Applied = r.Applied, Refusal = r.Refusal, JobDef = r.JobDef });
+                        output[i].Combat.Add(r);
                     }
                 }
                 if (placements[i].Action.Kind == ActionKind.ZoneCreate)
@@ -270,11 +270,7 @@ public static class Boundary
                             var cells = new List<Cell>();
                             foreach (var c in row.Cells)
                             {
-                                if (c is null)
-                                {
-                                    throw new EvidenceException();
-                                }
-                                cells.Add(new Cell(c.X, c.Z));
+                                cells.Add(c);
                             }
                             output[i].Stockpiles.Add(new Domain.CreatedZone(row.ZoneId ?? "", cells));
                         }

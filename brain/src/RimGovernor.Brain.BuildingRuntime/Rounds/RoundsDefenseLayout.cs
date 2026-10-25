@@ -64,17 +64,16 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     /// <summary>Whether a defense may build <paramref name="name"/>: read available with its research finished; an unread fact is no option.</summary>
     internal static bool DefenseDefinitionAvailable(RoundsReading read, string name) =>
-        DefinitionReadinessOf(read.Projection, name) == DefinitionReadiness.Available;
+        DefinitionReadinessOf(read.Reading, name) == DefinitionReadiness.Available;
 
     /// <summary>
     /// What the facts say of building <paramref name="name"/> now (#3819): Blocked when its definition is read unavailable
-    /// or its research is read with a prerequisite unfinished; Unread when the census does not describe it, its Available
-    /// is unread, or it has prerequisites and research is unread; else Available.
+    /// or its research is read with a prerequisite unfinished; Unread when the census does not describe it; else Available.
     /// </summary>
-    internal static DefinitionReadiness DefinitionReadinessOf(ColonyProjection projection, string name)
+    internal static DefinitionReadiness DefinitionReadinessOf(ColonyReading projection, string name)
     {
         var research = projection.Facts.Research;
-        foreach (var d in projection.Definitions)
+        foreach (var d in projection.Facts.Definitions)
         {
             if (d.Name != name)
             {
@@ -85,13 +84,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 return DefinitionReadiness.Blocked;
             }
-            if (d.Research.Count > 0 && research is null)
-            {
-                return DefinitionReadiness.Unread;
-            }
             foreach (var prerequisite in d.Research)
             {
-                if (!research!.Finished.Contains(new ResearchProjectId(prerequisite)))
+                if (!research.Finished.Contains(new ResearchProjectId(prerequisite)))
                 {
                     return DefinitionReadiness.Blocked;
                 }
@@ -101,7 +96,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return DefinitionReadiness.Unread;
     }
 
-    internal static bool DefenseRoamerOwned(ColonyProjection projection)
+    internal static bool DefenseRoamerOwned(ColonyReading projection)
     {
         foreach (var a in projection.Facts.AnimalUpkeep.Animals)
         {
@@ -253,7 +248,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             // from its nodes (#3584).
             if (!LayoutPlan.SamePlan(cut.Plan, sited))
             {
-                p.Journal.RecordLayoutPlan(state.Snapshot, read.Projection.Identity.Tick, sited, call);
+                p.Journal.RecordLayoutPlan(state.Snapshot, read.Reading.Identity.Tick, sited, call);
                 cut.Plan = sited;
             }
             verification.Set(world, new DefenseVerified());
@@ -272,7 +267,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             verification.Update(world, v => v with { Complete = false });
         }
         SettleTierCensus(record, census, call);
-        var tick = read.Projection.Identity.Tick;
+        var tick = read.Reading.Identity.Tick;
         pipe.Settle(census);
         if (!pipe.Piped() && definitions.Length > 0 && stored && siteDue)
         {
@@ -290,7 +285,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             return retierResult;
         }
-        var order = DefenseTierSequence(record, DefenseRoamerOwned(read.Projection));
+        var order = DefenseTierSequence(record, DefenseRoamerOwned(read.Reading));
         RoundsDefenseLayoutResult? admitted = null;
         foreach (var name in order)
         {
@@ -332,14 +327,14 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             if (LayoutDefenseRules.IsPerimeterTier(name) && DefenseNeedsStone(buildings))
             {
-                var (stuff, sok) = DefensePerimeterStone(read.Projection, buildings);
+                var (stuff, sok) = DefensePerimeterStone(read.Reading, buildings);
                 if (!sok)
                 {
                     if (pipe.Piped())
                     {
                         break;
                     }
-                    var gate = ResearchRules.ResearchGate([FacilityUpkeepRules.StoneShellResearch], read.Projection.Facts.Research);
+                    var gate = ResearchRules.ResearchGate([FacilityUpkeepRules.StoneShellResearch], read.Reading.Facts.Research);
                     if (gate != "")
                     {
                         return new RoundsDefenseLayoutResult { Verdict = ResearchWait(gate), Tier = name.Value };
@@ -386,8 +381,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
             return new RoundsDefenseLayoutResult { Verdict = BuildingReasonExistingWork };
         }
         verification.Update(world, v => v with { Complete = true, Tick = tick, Combat = combat });
-        var workers = read.Projection.WorkPawns.Pawns;
-        var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, read.Projection.Resources, DisasterRules.PowerOutageHold(read.Projection.Facts.DisasterConditions));
+        var workers = read.Reading.Facts.ForecastObserved.WorkPawns.Pawns;
+        var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, ResourceStockRules.Count(read.Reading.Snapshot.Resources), DisasterRules.PowerOutageHold(read.Reading.Facts.DisasterConditions));
         if (upkeep.Rearm)
         {
             return Rearm();
@@ -432,15 +427,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 {
                     continue;
                 }
-                output.Add(new DefenseTurretFacts
-                {
-                    Id = site.Id,
-                    Cell = b.Cell,
-                    Dps = gun.Dps,
-                    Powered = site.Powered,
-                    OutOfFuel = site.Unfueled,
-                    FuelDefinitions = [.. site.FuelDefinitions.Select(d => new Resource(d))],
-                });
+                output.Add(site);
             }
         }
         return output;
@@ -451,17 +438,17 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static DefenseRequest DefenseMortarRequest(RoundsReading read)
     {
-        var projection = read.Projection;
+        var projection = read.Reading;
         var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
         var mortar = new DefenseMortarRequest
         {
             Definition = DefenseMortarDefinition,
-            Stock = projection.Resources,
-            Max = DefenseMortarsPolicy.MortarBudget(RaidDefense.Of(projection.Facts), projection.DefenseTurrets),
+            Stock = ResourceStockRules.Count(projection.Snapshot.Resources),
+            Max = DefenseMortarsPolicy.MortarBudget(RaidDefense.Of(projection.Facts), projection.Facts.EssentialInputs.Power.Buildings.Where(b => b.Turret is not null).ToArray()),
             Available = DefenseDefinitionAvailable(read, DefenseMortarDefinition),
         };
-        foreach (var d in projection.Definitions)
+        foreach (var d in projection.Facts.Definitions)
         {
             if (d.Name != DefenseMortarDefinition)
             {
@@ -477,11 +464,11 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return request with { Mortar = mortar, UnitCosts = unitCosts };
     }
 
-    internal static (StuffPrice Price, bool Ok) DefenseUnitPrice(ColonyProjection projection, PlanningDefinition d)
+    internal static (StuffPrice Price, bool Ok) DefenseUnitPrice(ColonyReading projection, PlanningDefinition d)
     {
         try
         {
-            return (d.StuffChoice(StuffCriterion.MaxHitPointsPerCost, projection.Resources), true);
+            return (d.StuffChoice(StuffCriterion.MaxHitPointsPerCost, ResourceStockRules.Count(projection.Snapshot.Resources)), true);
         }
         catch (DomainException)
         {
@@ -496,12 +483,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
     /// </summary>
     internal static DefenseRequest DefenseTurretRequest(RoundsReading read)
     {
-        var projection = read.Projection;
+        var projection = read.Reading;
         var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
-        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = DefenseBudget.TurretBudget(RaidDefense.Of(projection.Facts), projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets) };
+        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = ResourceStockRules.Count(projection.Snapshot.Resources), Max = DefenseBudget.TurretBudget(RaidDefense.Of(projection.Facts), projection.Facts.EssentialInputs.Power.Buildings.Where(b => b.Turret is not null).ToArray(), projection.Facts.GoalBuild.Turrets) };
         var drawRead = false;
-        foreach (var d in projection.Definitions)
+        foreach (var d in projection.Facts.Definitions)
         {
             if (d.Name != turret.Definition && d.Name != DefenseConduitDefinition)
             {
@@ -533,7 +520,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         var best = "";
         var spare = 0.0;
-        var topology = projection.PowerPlanning;
+        var topology = projection.Facts.EssentialInputs.Power;
         foreach (var net in topology.Networks)
         {
             if (net.GenerationW > 0 && (best == "" || net.GenerationW - net.ConsumptionW > spare))

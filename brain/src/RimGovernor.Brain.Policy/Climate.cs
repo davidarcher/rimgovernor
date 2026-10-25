@@ -415,6 +415,16 @@ public sealed record GroupClimate
 
 public static class ClimateRules
 {
+    /// <summary>A layout climate is the twelve observed finite seasonal means; missing or malformed inputs cannot certify a temperate map.</summary>
+    public static EquatableArray<double> RequireOutdoorCurve(EquatableArray<double> curve)
+    {
+        if (curve.Count != 12 || curve.Any(t => !double.IsFinite(t)))
+        {
+            throw new RequiredFactException("outdoor_curve");
+        }
+        return curve;
+    }
+
     private static readonly ClimateTable _climateTable = new()
     {
         VentDef = "Vent",
@@ -665,14 +675,18 @@ public static class ClimateRules
 
     /// <summary>
     /// The climate answer beside a cold group's cooling station: null for a group that does not require
-    /// cold, or while the curve, the full-rot temperature, the model or steel's value is unknown. The band is
+    /// cold, or while the full-rot temperature, the model or steel's value cannot be priced. The observed curve is required. The band is
     /// everything under the full-rot temperature (slows rot; it does not stop it).
     /// </summary>
     internal static GroupClimate? GroupClimateOf(StationFacts f, RoomGroup g)
     {
-        var known = f.OutdoorCurve.TryGetValue(out var curve);
+        if (!g.Requires.Contains(EnvRequirement.Cold))
+        {
+            return null;
+        }
+        var curve = f.OutdoorCurve;
         var m = f.Catalog.Climate;
-        if (!known || f.FullRotRateC <= 0 || !g.Requires.Contains(EnvRequirement.Cold) || !m.Valid())
+        if (f.FullRotRateC <= 0 || !m.Valid())
         {
             return null;
         }
@@ -687,7 +701,7 @@ public static class ClimateRules
                 m,
                 SiteRules.DefaultSiteTypeWeights(),
                 steel,
-                curve!,
+                curve,
                 new ClimateRoom
                 {
                     Cells = g.Area,

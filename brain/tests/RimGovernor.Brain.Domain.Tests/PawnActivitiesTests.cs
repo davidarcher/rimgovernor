@@ -6,9 +6,57 @@ using Xunit;
 namespace RimGovernor.Brain.Domain.Tests;
 public sealed class PawnActivitiesTests
 {
+    [Fact]
+    public void CellStepsAndExactSourcesSurviveJournalAndNativeWire()
+    {
+        var source = new Cell(4, 5);
+        var site = new Cell(20, 21);
+        var delivery = new PawnActivityStep(PawnActivityKind.Deliver, "steel", "", "", 3, 500).At(site);
+        var hold = new PawnActivityStep(PawnActivityKind.Hold, "", "", "", 0, 500);
+        var task = new SelectedActivityTask("delivery", "pawn", [], delivery, source, 0);
+        var batch = new PawnActivities(1, [new("pawn", "assignment", "method", 0, 1, false, [delivery, hold])]) { Tasks = [task] };
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, batch);
+        using var doc = JsonDocument.Parse(stream.ToArray());
+        var steps = doc.RootElement.GetProperty("Orders")[0].GetProperty("Steps");
+        Assert.Equal(20, steps[0].GetProperty("Destination").GetProperty("X").GetInt32());
+        Assert.False(steps[1].TryGetProperty("Destination", out _));
+        Assert.Equal(4, doc.RootElement.GetProperty("Tasks")[0].GetProperty("Source").GetProperty("X").GetInt32());
+        var stored = Codecs.Default.Read<PawnActivities>(doc.RootElement);
+        Assert.Equal(source, Assert.Single(stored.Tasks).Source);
+        Assert.Equal(site, Assert.IsType<CellActivityStep>(stored.Orders[0].Steps[0]).Destination);
+        Assert.IsType<PawnActivityStep>(stored.Orders[0].Steps[1]);
+        var request = new RimGovernor.Contracts.Wire.Observations.ActivityTaskRequest(ConstructionFixtures.Context().Identity, stored);
+        var wire = RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ActivityTaskRequest>(
+            RimGovernor.Contracts.Wire.WireJson.Serialize(request));
+        Assert.Equal(source, Assert.Single(wire.Batch.Tasks).Source);
+        Assert.Equal(delivery, Assert.IsType<CellActivityStep>(wire.Batch.Orders[0].Steps[0]));
+        Assert.IsType<PawnActivityStep>(wire.Batch.Orders[0].Steps[1]);
+        Assert.False(PawnActivities.SameOrder(batch.Orders[0], batch.Orders[0] with { Steps = [delivery.At(new(22, 23)), hold] }));
+        var malformed = System.Text.Json.Nodes.JsonNode.Parse(stream.ToArray())!;
+        malformed["Orders"]![0]!["Steps"]![1]!["Destination"] = new System.Text.Json.Nodes.JsonObject { ["X"] = source.X, ["Z"] = source.Z };
+        using var invalid = JsonDocument.Parse(malformed.ToJsonString());
+        Assert.Throws<JsonException>(() => Codecs.Default.Read<PawnActivities>(invalid.RootElement));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void NativeWireRejectsMissingExactActivityCells(bool removeSource)
+    {
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, "steel", "", "", 3, 500).At(new(20, 21));
+        var task = new SelectedActivityTask("delivery", "pawn", [], step, new(4, 5), 0);
+        var batch = new PawnActivities(1, [new("pawn", "assignment", "method", 0, 1, false, [step])]) { Tasks = [task] };
+        var request = new RimGovernor.Contracts.Wire.Observations.ActivityTaskRequest(ConstructionFixtures.Context().Identity, batch);
+        var json = System.Text.Json.Nodes.JsonNode.Parse(RimGovernor.Contracts.Wire.WireJson.Serialize(request))!;
+        var target = removeSource ? json["batch"]!["tasks"]![0]! : json["batch"]!["orders"]![0]!["steps"]![0]!;
+        Assert.True(target.AsObject().Remove(removeSource ? "source" : "destination"));
+        Assert.Throws<JsonException>(() => RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ActivityTaskRequest>(json.ToJsonString()));
+    }
+
     private static PawnActivities Batch() => new(1, [new("pawn", "assignment", "method", 0, 1, false,
         [new(PawnActivityKind.Hold, "", "", "", 0, 1234), new(PawnActivityKind.Eat, "meal", "", "", 1, 2345),
-         new(PawnActivityKind.Deliver, "harvest", "", "", 3, 3456) { Destination = new Cell(12, 34) },
+         new PawnActivityStep(PawnActivityKind.Deliver, "harvest", "", "", 3, 3456).At(new Cell(12, 34)),
          new(PawnActivityKind.Recipe, "bench", "cooking", "", 0, 4567)
          { Recipe = new("bill", "recipe", [new("stack-a", 4), new("stack-b", 6)]) }])]);
     [Fact]
@@ -51,7 +99,7 @@ public sealed class PawnActivitiesTests
         void Refused(PawnActivityStep prior) => Assert.Throws<DomainException>(() => (batch with { Tasks = [task with { PriorSteps = [prior] }] }).Validate());
         Refused(roof with { Count = 1 });
         Refused(roof with { Deadline = 0 });
-        Refused(roof with { Kind = PawnActivityKind.Deliver, Destination = new Cell(1, 1) });
+        Refused((roof with { Kind = PawnActivityKind.Deliver }).At(new Cell(1, 1)));
     }
     /// <summary>#3613: a set step repeats one Work over its Targets (or Cells); Count is the set's size, the store codec
     /// keeps the set, and SameOrder tells orders apart by it.</summary>
@@ -81,7 +129,7 @@ public sealed class PawnActivitiesTests
         void Refused(PawnActivityStep step) => Assert.Throws<DomainException>(() => (batch with { Orders = [order with { Steps = [step] }] }).Validate());
         Refused(cut with { Count = 2 });
         Refused(cut with { Targets = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2"] });
-        Refused(cut with { Kind = PawnActivityKind.Deliver, Destination = new Cell(1, 1) });
+        Refused((cut with { Kind = PawnActivityKind.Deliver }).At(new Cell(1, 1)));
         Refused(cut with { Cells = [new(1, 1)], Count = 4 });
         Refused(floor with { Cells = [new(-1, 2), new(3, 4)] });
         Refused(cut with { Targets = ["", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"] });
@@ -112,8 +160,8 @@ public sealed class PawnActivitiesTests
         var delivery = b.Orders[0].Steps[2];
         void Refused(PawnActivityStep step) => Assert.Throws<DomainException>(() =>
             (b with { Orders = [b.Orders[0] with { Steps = [step] }] }).Validate());
-        Refused(delivery with { Destination = null });
-        Refused(delivery with { Destination = new Cell(-1, 0) });
+        Refused(new PawnActivityStep(delivery.Kind, delivery.Target, delivery.WorkGiver, delivery.Job, delivery.Count, delivery.Deadline));
+        Refused(delivery.At(new Cell(-1, 0)));
         Refused(delivery with { Count = 0 });
         Refused(delivery with { Target = "" });
         Refused(delivery with { WorkGiver = "choose-storage" });

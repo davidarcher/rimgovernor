@@ -1,8 +1,8 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class CapabilityMaintenanceTests
@@ -19,7 +19,7 @@ public sealed class CapabilityMaintenanceTests
     };
     internal static Ideoligion Ideology(params string[] holders) => new(new() { Roles = new Dictionary<string, RoleDef>
     { ["soldier"] = new(2, [new([new("Shooting", 1), new("Melee", 1)])]) } },
-        new() { Development = RimGovernor.Brain.Policy.IdeoDevelopment.Fixed, Roles = [new("role", "soldier", true, holders.Select(h => new PawnId(h)).ToArray())] });
+        new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { Roles = [IdeologyTestRows.Role("role", "soldier", true, holders.Select(h => new PawnId(h)).ToArray())] } });
 
     [Fact]
     public void OnlyAssignedActiveRequirementsAuthorizeMaintenanceAndPreserveOr()
@@ -28,7 +28,7 @@ public sealed class CapabilityMaintenanceTests
         var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.Installed(Ideology("pawn"))));
         Assert.Equal(2, requirement.Alternatives.Count);
         Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.NotInstalled()));
-        var inactive = Ideology("pawn") with { Facts = new() { Development = RimGovernor.Brain.Policy.IdeoDevelopment.Fixed, Roles = [new("role", "soldier", false, [new("pawn")])] } };
+        var inactive = Ideology("pawn") with { Facts = new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { Roles = [IdeologyTestRows.Role("role", "soldier", false, [new("pawn")])] } } };
         Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.Installed(inactive)));
     }
 
@@ -36,9 +36,9 @@ public sealed class CapabilityMaintenanceTests
     public void NormalWorkSuppressesPracticeAndUnknownOrBranchDoesNotProveFailure()
     {
         var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(new IdeologyMode.Installed(Ideology("pawn"))));
-        WorkSkill[] skills = [new() { Name = "Shooting", Level = 1, Learning = Learning() }, new() { Name = "Melee", Disabled = true }];
+        O.Skill[] skills = [new() { DefName = "Shooting", Passion = O.Passion.None, Level = 1, Learning = Learning() }, new() { DefName = "Melee", Passion = O.Passion.None, Disabled = true }];
         var completed = new Dictionary<string, bool> { ["work"] = true };
-        ForecastMaintenanceConsequence Forecast(EquatableArray<WorkSkill> observed, ForecastActivityPlan plan)
+        ForecastMaintenanceConsequence Forecast(EquatableArray<O.Skill> observed, ForecastActivityPlan plan)
             => ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, observed)], [], plan, completed, 200)[0];
         Assert.True(Assert.IsType<ForecastMaintenanceGap.Projected>(Forecast(EquatableArray.From(skills), new([], 0, 0)).MissingXp).Xp > 0);
         var projection = ForecastSkillTests.Projected(ForecastSkillPolicy.ForecastSkill(Learning(), [], 0));
@@ -57,7 +57,7 @@ public sealed class CapabilityMaintenanceTests
         var skill = melee ? "Melee" : "Shooting";
         var requirement = new RoleDef(1,[new([new(skill, 1)])]);
         var ideology = Ideology("pawn") with { Defs = new() { Roles = new Dictionary<string, RoleDef> { ["soldier"] = requirement } } };
-        var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Skills = [new() { Name = skill, Level = 1, Learning = Learning() }] }).ToArray();
+        var roster = ((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns.Select(p => p with { Observed = p.Observed with { Biography = p.Observed.Biography with { Skills = [new() { Passion = O.Passion.None, DefName = skill, Level = 1, Learning = Learning() }] } } }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, skill, "target/" + i, new(i + 1, 1),
             melee ? "RimGovernor_Spar" : "RimGovernor_TrainRange", melee ? "RimGovernor_Spar" : "RimGovernor_TrainShooting",
             0d, 100d, Learning()) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
@@ -93,7 +93,7 @@ public sealed class CapabilityMaintenanceTests
         var absent = ConstructionFixtures.NoTasks();
         Assert.Equal(ActivityNeed.Owed, ForecastServiceInvestments.ReviewServiceActivityNeed(batch, ActivityNeed.Owed, absent));
         var satisfied = facts with { ForecastObserved = facts.ForecastObserved with
-        { WorkPawns = new WorkPawnsRead(EquatableArray.From(roster.Select(p => p with { Skills = [new() { Name = skill, Level = 1, Learning = Learning() with { Xp = 100d } }] }))) } };
+        { WorkPawns = new WorkPawnsRead(EquatableArray.From(roster.Select(p => p with { Observed = p.Observed with { Biography = p.Observed.Biography with { Skills = [new() { Passion = O.Passion.None, DefName = skill, Level = 1, Learning = Learning() with { Xp = 100d } }] } } }))) } };
         var recovered = ForecastCoupledCandidates.GenerateCoupledActivities(satisfied, 300)!;
         Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = recovered.Context }, recovered).Selection.Selected);
     }

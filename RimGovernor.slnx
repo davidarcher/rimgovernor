@@ -15,7 +15,6 @@
     <Project Path="brain/src/RimGovernor.Brain.Executor/RimGovernor.Brain.Executor.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Host/RimGovernor.Brain.Host.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.HttpChannel/RimGovernor.Brain.HttpChannel.csproj" />
-    <Project Path="brain/src/RimGovernor.Brain.Observation/RimGovernor.Brain.Observation.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.PlayerApi/RimGovernor.Brain.PlayerApi.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.Policy/RimGovernor.Brain.Policy.csproj" />
     <Project Path="brain/src/RimGovernor.Brain.RemoteAccept/RimGovernor.Brain.RemoteAccept.csproj" />

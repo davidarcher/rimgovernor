@@ -108,7 +108,7 @@ public static class ArtOrdersRules
                     continue;
                 }
 
-                rows.Add(new ProductionRecipe { Name = recipe.Definition, Role = recipe.Role, Food = new RecipeFood.NotFood(), Available = recipe.Available && recipe.AvailableOn });
+                rows.Add(new ProductionRecipe { Access = recipe.Access, Role = recipe.Role, Food = new RecipeFood.NotFood() });
             }
 
             if (rows.Count == 0)
@@ -116,13 +116,12 @@ public static class ArtOrdersRules
                 continue;
             }
 
-            var existing = read.Bills.Select(bill => bill.Existing);
+            var existing = read.Bills.Where(bill => !bill.Spent).Select(bill => bill.Existing);
             output.Add(
                 new ProductionBench
                 {
-                    Id = read.Id,
-                    Token = read.Id,
-                    Usable = true,
+                    Observed = read.Observed,
+                    Use = new ProductionUse.Ordinary(),
                     Recipes = EquatableArray.From(rows),
                     Bills = EquatableArray.From(existing),
                 }

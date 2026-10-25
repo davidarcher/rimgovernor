@@ -94,7 +94,10 @@ public sealed record Psycast
 }
 
 /// <summary>A psycast a pawn knows: its def row and the ticks left of its cooldown at the read.</summary>
-public sealed record KnownPsycast(Psycast Psycast, int CooldownRemaining);
+public sealed record KnownPsycast(Psycast Psycast, RimGovernor.Contracts.Wire.Observations.PawnPsycast Observed)
+{
+    public int CooldownRemaining => Observed.CooldownRemainingTicks;
+}
 
 /// <summary>
 /// The stock of one neuroformer def: the psylink neuroformer or a psycast neurotrainer. Held counts
@@ -102,9 +105,11 @@ public sealed record KnownPsycast(Psycast Psycast, int CooldownRemaining);
 /// </summary>
 public sealed record Neuroformer
 {
-    public required int Held { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.NeuroformerStock Observed { get; init; }
 
-    public required bool Craftable { get; init; }
+    public int Held => Observed.Held;
+
+    public bool Craftable => Observed.Craftable;
 
     public required bool Tradeable { get; init; }
 }

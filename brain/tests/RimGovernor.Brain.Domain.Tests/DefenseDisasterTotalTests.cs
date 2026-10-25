@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
@@ -22,13 +23,13 @@ public sealed class DefenseDisasterTotalTests
         var facts = new RoundsFacts
         {
             Hostiles = new HostileCensus.Quiet(),
-            SleepingTemperature = new SleepingTemperature.NoIndoorBed(),
-            DisasterConditions = [new DisasterCondition { Definition = DisasterRules.ConditionColdSnap, Duration = new ConditionDuration.Permanent() }],
+            Census = ColonyFactsCoreTests.Snapshot() with { SleepingTemperature = new SleepingTemperature.NoIndoorBed() },
+            DisasterConditions = [new DisasterCondition { Observed = new EnvironmentCondition { Id = "cold-snap", DefName = DisasterRules.ConditionColdSnap, Duration = new ConditionDuration.Permanent() } }],
         };
         Assert.Equal(ShelterTrigger.NoIndoorBed, ShelterRules.ShelterTriggerOf(facts));
         Assert.Equal(DisasterServiceStatus.Deficit, RoundsRules.DisasterServiceFacts(facts, RoundsRules.DefaultRoundsPolicy())[DisasterService.Temperature]);
         Assert.Equal(DisasterServiceStatus.AwaitingFoodPlan, RoundsRules.DisasterServiceFacts(facts, RoundsRules.DefaultRoundsPolicy())[DisasterService.Food]);
-        Assert.Equal(ShelterTrigger.Temperature, ShelterRules.ShelterTriggerOf(facts with { SleepingTemperature = new SleepingTemperature.Indoor(15, 25), OutdoorTemperature = -30 }));
+        Assert.Equal(ShelterTrigger.Temperature, ShelterRules.ShelterTriggerOf(facts with { Census = facts.Census with { SleepingTemperature = new SleepingTemperature.Indoor(15, 25), OutdoorTemperatureC = -30 } }));
         Assert.Equal(ShelterTrigger.None, ShelterRules.ShelterTriggerOf(facts with { DisasterConditions = [] }));
         Assert.Equal(ShelterTrigger.AwaitingEmergency, ShelterRules.ShelterTriggerOf(facts with { DisasterConditions = [], Hostiles = new HostileCensus.AwaitingEmergency() }));
     }
@@ -44,7 +45,8 @@ public sealed class DefenseDisasterTotalTests
     [Fact]
     public void HuntingAdmissionUsesZeroOrTheObservedIntegerBudget()
     {
-        var prey = new AcquisitionSource { Id = "prey", Token = "prey", Resource = "Meat_Deer", Cell = new(1, 1), Hunt = true, Food = true, Yield = 1, NutritionYield = 2 };
+        var prey = new AcquisitionSource { Observed = new() { Source = new() { Id = "prey" }, Token = "prey", Resource = "Meat_Deer", Yield = 1, Designation = new O.AcquisitionDesignation.Open(), Taken = false, Kind = new O.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
+        Entity = new() { Id = "prey", DefName = "Deer", Label = "Deer", Place = new O.EntityPlace.OnMap(1, new Cell(1, 1)) }, NutritionYield = 2 };
         var held = new Dictionary<string, bool>();
         Assert.Empty(AcquisitionRules.SelectAcquisition([prey], 2, 0, true, held, 0));
         Assert.Equal(prey, Assert.Single(AcquisitionRules.SelectAcquisition([prey], 2, 0, true, held, 1)));

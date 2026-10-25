@@ -3,15 +3,14 @@ using Sex = RimGovernor.Contracts.Wire.Defs.Gender;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The per-animal facts the herd Need sizes and culls by. The census fills age, life expectancy, sickness,
-/// adulthood, veneration and tame danger natively, and Feed from the race and life stage; MeatNutrition merges in
+/// The catalog and policy inputs the herd Need sizes and culls by. Native age, sickness, adulthood,
+/// veneration and life stages remain on UpkeepAnimal.State. Feed uses race and life stage; MeatNutrition merges in
 /// from the colony food channels by animal ID; SlaughterBarred and EatingBarred merge in from the ideoligion
 /// (<see cref="HerdPreceptsRules.ApplyHerdPrecepts"/>). A barred slaughter leaves removal, sale and slaughter to a
 /// release, a barred meal food slaughter.
 /// </summary>
 public sealed record HerdFacts
 {
-    public double AgeYears { get; init; }
     public double LifeExpectancy { get; init; }
     public double ManhunterOnTameFail { get; init; }
 
@@ -20,22 +19,10 @@ public sealed record HerdFacts
 
     public AnimalFeed Feed { get; init; } = new AnimalFeed.NoPlants();
 
-    public bool Sick { get; init; }
-    public bool Adult { get; init; }
     public bool SlaughterBarred { get; init; }
     public bool EatingBarred { get; init; }
-    public bool Venerated { get; init; }
 
     public bool Predator { get; init; }
-
-    /// <summary>The pregnancy and, while gestating, the game ticks until the birth.</summary>
-    public AnimalPregnancy Pregnancy { get; init; } = new AnimalPregnancy.NotPregnant();
-
-    /// <summary>When the next life stage begins: in ticks, never in the last stage or while the animal does not age.</summary>
-    public AnimalNextLifeStage NextLifeStage { get; init; } = new AnimalNextLifeStage.LastStage();
-
-    /// <summary>The index of the animal's current life stage in the race's LifeStages.</summary>
-    public int LifeStageIndex { get; init; }
 
     /// <summary>Whether slaughter or eating the animal is barred by the player ideo.</summary>
     internal bool FoodBarred() => SlaughterBarred || EatingBarred;
@@ -105,10 +92,10 @@ public static class HerdSurplusRules
     internal static bool HerdOld(UpkeepAnimal a)
     {
         var life = a.Herd.LifeExpectancy;
-        return life > 0 && a.Herd.AgeYears > HerdOldFraction * life;
+        return life > 0 && a.State.AgeYears > HerdOldFraction * life;
     }
 
-    internal static bool HerdJuvenile(UpkeepAnimal a) => !a.Herd.Adult;
+    internal static bool HerdJuvenile(UpkeepAnimal a) => !a.State.Adult;
 
     /// <summary>A predator, or a race whose failed tame turns manhunter at least HerdTameDanger of the time. Such a race is never tamed.</summary>
     internal static bool HerdDangerous(UpkeepAnimal a) => a.Herd.Predator || a.Herd.ManhunterOnTameFail >= HerdTameDanger;
@@ -141,7 +128,7 @@ public static class HerdSurplusRules
     {
         foreach (var t in a.Training)
         {
-            if (t.Learned && HerdTrainables.Contains(t.Def))
+            if (t.Learned && HerdTrainables.Contains(t.DefName))
             {
                 return true;
             }
@@ -178,7 +165,7 @@ public static class HerdSurplusRules
 
     private static int HerdTier(UpkeepAnimal a)
     {
-        var sick = a.Herd.Sick;
+        var sick = a.State.Sick;
         if (HerdOld(a) || sick)
         {
             return 0;

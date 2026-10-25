@@ -96,7 +96,7 @@ public sealed partial class AdminRounds
         if (_needs.CreepJoiners)
         {
             var record = await journal.LoadCreepJoinersAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
-            facts = facts with { CreepJoiners = RoundsCreepJoiner.CreepJoinerWorkOf(reading.Projection, reading.Frame, reading.Catalog, record) };
+            facts = facts with { CreepJoiners = RoundsCreepJoiner.CreepJoinerWorkOf(reading.Reading, reading.Frame, reading.Catalog, record) };
         }
         if (_needs.SupplySafety)
         {
@@ -107,7 +107,7 @@ public sealed partial class AdminRounds
         }
         if (_needs.Burial)
         {
-            facts = facts with { Burial = RoundsBurialFacts.BurialOwed(reading.Projection) };
+            facts = facts with { Burial = RoundsBurialFacts.BurialOwed(reading.Reading) ? AdminWorkReview.Owed : AdminWorkReview.Settled };
         }
         if (_needs.WorkLedger)
         {
@@ -116,7 +116,7 @@ public sealed partial class AdminRounds
         if (_needs.Stockpiles)
         {
             // Whether the review's stockpile proposal is active in this world; unknown until it reviewed this world.
-            facts = facts with { Stockpiles = _reviewer.Stockpiles.Active(scope.World) };
+            facts = facts with { Stockpiles = _reviewer.Stockpiles.Active(scope.World) ? AdminWorkReview.Owed : AdminWorkReview.Settled };
         }
         if (_needs.WorkAssignments)
         {

@@ -41,26 +41,26 @@ public static partial class TechTierRules
     /// A faction floor satisfies every tier at or below it, so an Industrial faction stands at Industrial
     /// without Electricity in its finished list.
     ///
-    /// Unknown research or an Undefined faction level (no colony facts read yet) is an unknown fact; the tier
-    /// never advances on unknown inputs, and consumers treat unknown as Camp.
+    /// Finished research is a total census. An Undefined faction level is a boundary failure; the tier
+    /// is never inferred from missing colony facts.
     /// </summary>
-    public static Fact<TechTier> SelectTechTier(Fact<EquatableArray<ResearchProjectId>> finished, TechLevel factionLevel) =>
+    public static TechTier SelectTechTier(IReadOnlyList<ResearchProjectId> finished, TechLevel factionLevel) =>
         TechTierOf(finished, factionLevel).Tier;
 
     /// <summary>
     /// Names the condition that satisfied the selected tier (a research project, or "faction &lt;level&gt;" for
-    /// a floor); empty for Camp or an unknown tier.
+    /// a floor); empty for Camp.
     /// </summary>
-    public static string TechTierEvidence(Fact<EquatableArray<ResearchProjectId>> finished, TechLevel factionLevel) =>
+    public static string TechTierEvidence(IReadOnlyList<ResearchProjectId> finished, TechLevel factionLevel) =>
         TechTierOf(finished, factionLevel).Evidence;
 
-    private static (Fact<TechTier> Tier, string Evidence) TechTierOf(Fact<EquatableArray<ResearchProjectId>> finished, TechLevel level)
+    private static (TechTier Tier, string Evidence) TechTierOf(IReadOnlyList<ResearchProjectId> finished, TechLevel level)
     {
-        if (!finished.TryGetValue(out var projects) || level == TechLevel.Undefined)
+        if (level == TechLevel.Undefined)
         {
-            return (Unknown<TechTier>(), "");
+            throw new RequiredFactException("player faction tech level");
         }
-        var done = new HashSet<ResearchProjectId>(projects);
+        var done = new HashSet<ResearchProjectId>(finished);
         // The floor: the tier the faction level satisfies outright.
         var tier = TechTier.Camp;
         var evidence = "";
@@ -100,6 +100,6 @@ public static partial class TechTierRules
             tier = next;
             evidence = raised;
         }
-        return (Known(tier), evidence);
+        return (tier, evidence);
     }
 }

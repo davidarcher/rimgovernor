@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.HttpChannel;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using Xunit;
 using PbCommon = RimGovernor.Contracts.Wire.Common;

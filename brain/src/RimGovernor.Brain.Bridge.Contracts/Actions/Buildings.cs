@@ -37,13 +37,12 @@ public static class BuildingsRules
     }
 
     /// <summary>A present, non-negative cell with no fields the schema lacks.</summary>
-    internal static void MovementCell(Cell? cell)
+    internal static void MovementCell(Cell cell)
     {
-        if (cell is null || cell.X < 0 || cell.Z < 0)
+        if (cell.X < 0 || cell.Z < 0)
         {
             throw BridgeContractException.Contract("movement destination missing or invalid");
         }
-        FactHelpers.BuildingUnknown(cell);
     }
 
     /// <summary>The Actions/Apply remove_foundation arm of one foundation_removal.</summary>
@@ -51,7 +50,7 @@ public static class BuildingsRules
     {
         var f = action.FoundationRemoval ?? throw BridgeContractException.Contract("not a foundation removal action");
         WireValidation.ValidId(f.Definition);
-        return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.RemoveFoundation, Cell = IntentActionRules.WireCell(f.Cell), ExpectedDef = f.Definition, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard });
+        return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.RemoveFoundation, Location = new Op.DesignationLocation.At(IntentActionRules.WireCell(f.Cell)), ExpectedDef = f.Definition, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard });
     }
 
     /// <summary>The Actions/Apply remove_floor arm of one floor_removal.</summary>
@@ -118,7 +117,7 @@ public static class BuildingsRules
         }
         return new Op.Action
         {
-            Intent = new Op.RelocateIntent { ThingId = m.Thing, Destination = IntentActionRules.WireCell(m.Cell), Mode = uninstall ? new Op.RelocationMode.Uninstall() : new Op.RelocationMode.Move(rotation) },
+            Intent = new Op.RelocateIntent { ThingId = m.Thing, Mode = uninstall ? new Op.RelocationMode.Uninstall() : new Op.RelocationMode.Move(rotation, m.Cell) },
         };
     }
 
@@ -185,9 +184,9 @@ public static class BuildingsRules
         var v = action.Deconstruction ?? throw BridgeContractException.Contract("not a deconstruction action");
         if (v.CancelsBlueprint)
         {
-            return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.Cancel, Target = IntentActionRules.NewRef(v.Target), ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard });
+            return Designate(new Op.DesignateIntent { Location = new Op.DesignationLocation.ByTarget(), Designation = Op.ThingDesignation.Cancel, Target = IntentActionRules.NewRef(v.Target), ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard });
         }
-        var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Target = IntentActionRules.NewRef(v.Target), Guard = Op.DesignationGuard.Enclosure, ReplaceWithWall = false, Withdraw = false };
+        var intent = new Op.DesignateIntent { Location = new Op.DesignationLocation.ByTarget(), Designation = Op.ThingDesignation.Deconstruct, Target = IntentActionRules.NewRef(v.Target), Guard = Op.DesignationGuard.Enclosure, ReplaceWithWall = false, Withdraw = false };
         if (v.ReplacesWithWall)
         {
             intent = intent with { ReplaceWithWall = true };
@@ -203,7 +202,7 @@ public static class BuildingsRules
     internal static Op.Action ExcavateAction(DomainAction action)
     {
         var v = action.Excavation ?? throw BridgeContractException.Contract("not an excavation action");
-        return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.Mine, Cell = IntentActionRules.WireCell(v.Cell), ExpectedDef = v.Definition, Guard = Op.DesignationGuard.MineSafety, ReplaceWithWall = false, Withdraw = false });
+        return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.Mine, Location = new Op.DesignationLocation.At(IntentActionRules.WireCell(v.Cell)), ExpectedDef = v.Definition, Guard = Op.DesignationGuard.MineSafety, ReplaceWithWall = false, Withdraw = false });
     }
 
     /// <summary>
@@ -214,7 +213,7 @@ public static class BuildingsRules
     internal static Op.Action WallRemovalAction(DomainAction action)
     {
         var w = action.WallRemoval ?? throw BridgeContractException.Contract("not a wall removal action");
-        var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Cell = IntentActionRules.WireCell(w.Cell), Guard = Op.DesignationGuard.WallUpgrade, ReplaceWithWall = false, Withdraw = false };
+        var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Location = new Op.DesignationLocation.At(IntentActionRules.WireCell(w.Cell)), Guard = Op.DesignationGuard.WallUpgrade, ReplaceWithWall = false, Withdraw = false };
         if (w.Original.Length != 0)
         {
             intent = intent with { Target = IntentActionRules.NewRef(w.Original) };
@@ -232,13 +231,13 @@ public static class BuildingsRules
         var v = action.CoverClearance ?? throw BridgeContractException.Contract("not a cover clearance action");
         var intent = v.Designation switch
         {
-            CoverClearanceDesignation.Mine => new Op.DesignateIntent { Designation = Op.ThingDesignation.Mine, Guard = Op.DesignationGuard.MineSafety, ReplaceWithWall = false, Withdraw = false },
-            CoverClearanceDesignation.CutPlant => new Op.DesignateIntent { Designation = Op.ThingDesignation.CutPlant, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard },
-            CoverClearanceDesignation.Haul => new Op.DesignateIntent { Designation = Op.ThingDesignation.Haul, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard },
-            CoverClearanceDesignation.Deconstruct => new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Guard = Op.DesignationGuard.Enclosure, ReplaceWithWall = false, Withdraw = false },
+            CoverClearanceDesignation.Mine => new Op.DesignateIntent { Location = new Op.DesignationLocation.ByTarget(), Designation = Op.ThingDesignation.Mine, Guard = Op.DesignationGuard.MineSafety, ReplaceWithWall = false, Withdraw = false },
+            CoverClearanceDesignation.CutPlant => new Op.DesignateIntent { Location = new Op.DesignationLocation.ByTarget(), Designation = Op.ThingDesignation.CutPlant, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard },
+            CoverClearanceDesignation.Haul => new Op.DesignateIntent { Location = new Op.DesignationLocation.ByTarget(), Designation = Op.ThingDesignation.Haul, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard },
+            CoverClearanceDesignation.Deconstruct => new Op.DesignateIntent { Location = new Op.DesignationLocation.ByTarget(), Designation = Op.ThingDesignation.Deconstruct, Guard = Op.DesignationGuard.Enclosure, ReplaceWithWall = false, Withdraw = false },
             var invalid => throw BridgeContractException.Contract($"cover clearance target invalid: {invalid}"),
         };
-        intent = intent with { Target = IntentActionRules.NewRef(v.Thing), Cell = IntentActionRules.WireCell(v.Cell) };
+        intent = intent with { Target = IntentActionRules.NewRef(v.Thing), Location = new Op.DesignationLocation.At(v.Cell) };
         return Designate(intent);
     }
 
@@ -254,7 +253,7 @@ public static class BuildingsRules
             {
                 Designation = Op.ThingDesignation.Haul,
                 Target = IntentActionRules.NewRef(v.Thing),
-                Cell = IntentActionRules.WireCell(v.Cell),
+                Location = new Op.DesignationLocation.At(IntentActionRules.WireCell(v.Cell)),
                 Guard = Op.DesignationGuard.Wastepack,
                 ExpectedDef = v.Definition, ReplaceWithWall = false, Withdraw = false }
         );
@@ -264,7 +263,7 @@ public static class BuildingsRules
     internal static Op.Action CutPlantAction(DomainAction action)
     {
         var v = action.CutPlant ?? throw BridgeContractException.Contract("not a cut plant action");
-        return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Plant, Designation = Op.ThingDesignation.CutPlant, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard } };
+        return new Op.Action { Intent = new Op.DesignateIntent { Location = new Op.DesignationLocation.ByTarget(), ThingId = v.Plant, Designation = Op.ThingDesignation.CutPlant, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard } };
     }
 
     /// <summary>
@@ -275,7 +274,7 @@ public static class BuildingsRules
     {
         var v = action.SupplyAllow ?? throw BridgeContractException.Contract("not a supply action");
         var designation = v.Forbidden ? Op.ThingDesignation.Forbid : Op.ThingDesignation.Allow;
-        return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Thing, Designation = designation, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard } };
+        return new Op.Action { Intent = new Op.DesignateIntent { Location = new Op.DesignationLocation.ByTarget(), ThingId = v.Thing, Designation = designation, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard } };
     }
 
     /// <summary>
@@ -285,7 +284,7 @@ public static class BuildingsRules
     internal static Op.Action StripAction(DomainAction action)
     {
         var v = action.Strip ?? throw BridgeContractException.Contract("not a strip action");
-        return new Op.Action { Intent = new Op.DesignateIntent { ThingId = v.Target, Designation = Op.ThingDesignation.Strip, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard } };
+        return new Op.Action { Intent = new Op.DesignateIntent { Location = new Op.DesignationLocation.ByTarget(), ThingId = v.Target, Designation = Op.ThingDesignation.Strip, ReplaceWithWall = false, Withdraw = false, Guard = Op.DesignationGuard.NoGuard } };
     }
 
     /// <summary>
@@ -314,7 +313,7 @@ public static class BuildingsRules
         {
             Designation = designation,
             Target = IntentActionRules.NewRef(acquisition.Thing),
-            Cell = IntentActionRules.WireCell(acquisition.Cell),
+            Location = new Op.DesignationLocation.At(IntentActionRules.WireCell(acquisition.Cell)),
             Guard = Op.DesignationGuard.Acquisition,
             ExpectedDef = acquisition.Definition, ReplaceWithWall = false, Withdraw = false };
         if (withdraw)

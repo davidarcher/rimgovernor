@@ -19,11 +19,6 @@ public static class TraderParticipant
     public static string Key(this Trader t) => t.Participant().Key();
 }
 
-/// <summary>
-/// The colony wealth native's WealthWatcher reports: the market value held as items, and the total. Items count in full toward storyteller wealth where buildings count half, which is why the
-/// surplus rule keys on the item share.
-/// </summary>
-public sealed record WealthFacts(double Items, double Total);
 
 /// <summary>
 /// What the review measured worth trading for: the medicine units medical/reserves wants, the components
@@ -165,7 +160,7 @@ public static partial class TradePolicyRules
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
         TradeRetention retainedFact,
-        WealthFacts wealth
+        RimGovernor.Contracts.Wire.Observations.ThreatFacts wealth
     )
     {
         var facts = wealth ?? throw new RequiredFactException("wealth");
@@ -174,7 +169,7 @@ public static partial class TradePolicyRules
         {
             return [];
         }
-        if (!Finite(facts!.Items) || !Finite(facts.Total) || facts.Total <= 0 || facts.Items < 0 || facts.Items / facts.Total <= TradeItemWealthShare)
+        if (!Finite(facts.WealthItems) || !Finite(facts.WealthTotal) || facts.WealthTotal <= 0 || facts.WealthItems < 0 || facts.WealthItems / facts.WealthTotal <= TradeItemWealthShare)
         {
             return [];
         }
@@ -225,7 +220,7 @@ public static partial class TradePolicyRules
         EquatableArray<Amount> resources,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
-        WealthFacts wealth,
+        RimGovernor.Contracts.Wire.Observations.ThreatFacts wealth,
         TradeRetention retained,
         TradeFoodContext food
     )

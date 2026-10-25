@@ -55,7 +55,7 @@ public sealed class MilitaryRounds
         {
             _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source };
         }
-        if (workshop && reviewer.Native is FacadeNativeClient and Observation.IRoundsSource)
+        if (workshop && reviewer.Native is FacadeNativeClient and IRoundsSource)
         {
             _workshop = RoundsBuildingPlanner.NewRoundsGearWorkshopPlanner(reviewer, (IRoundsBuildingSource)reviewer.Native);
         }
@@ -105,14 +105,14 @@ public sealed class MilitaryRounds
                     ? await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, TrainingDefinitions, call).ConfigureAwait(false)
                     : await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
             }
-            var f = reading.Projection.Facts;
+            var f = reading.Reading.Facts;
             var emergency = EmergencySnapshot.New(scope.World, expected.Tick, reading.Emergency);
             if (_equipment)
             {
                 // The shell review, as the review derives it.
                 using var armory = Tel.Phase("military.armory");
-                var shells = await RoundsArmoryShells.ShellTargetsAsync(_reviewer.Native, _reviewer.Player.Journal, scope.World, reading.Projection, call).ConfigureAwait(false);
-                f = f with { ShellsShort = ArmoryShellsRules.ShellsShort(shells, reading.Projection.Resources) };
+                var shells = await RoundsArmoryShells.ShellTargetsAsync(_reviewer.Native, _reviewer.Player.Journal, scope.World, reading.Reading, call).ConfigureAwait(false);
+                f = f with { ShellsShort = ArmoryShellsRules.ShellsShort(shells, ResourceStockRules.Count(reading.Reading.Snapshot.Resources)) };
             }
             facts = MilitaryFacts.From(f with { Hostiles = EmergencyNeedsRules.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles });
         }
@@ -165,7 +165,7 @@ public sealed class MilitaryRounds
     private async Task<MilitaryFacts> PestFactsAsync(GenerationSnapshot world, RoundsReview review, MilitaryFacts facts, CancellationToken call)
     {
         var journal = _reviewer.Player.Journal;
-        ColonyProjection projection;
+        ColonyReading projection;
         using (Tel.Phase("military.pests.projection"))
         {
             (_, projection) = await _reviewer.AcquisitionReadingAsync(world, review, call).ConfigureAwait(false);
@@ -191,12 +191,12 @@ public sealed class MilitaryRounds
         }
         // A designated or undispatched pest row is held: it is not planned again.
         var held = new Dictionary<string, bool>(StringComparer.Ordinal);
-        _ = RoundsAcquisitionPlanner.HoldWorked(projection.Acquisition, undispatched, held);
+        _ = RoundsAcquisitionPlanner.HoldWorked(projection.Facts.Acquisition, undispatched, held);
         var (slots, noHunter) = RoundsResourcePlanner.HuntSlots(projection);
         IReadOnlyList<AcquisitionSource> selected;
         try
         {
-            selected = PestRules.SelectPestAcquisition(projection.Acquisition, pests, held, slots);
+            selected = PestRules.SelectPestAcquisition(projection.Facts.Acquisition, pests, held, slots);
         }
         catch (DomainException)
         {
@@ -329,7 +329,7 @@ public sealed class MilitaryRounds
             throw new ControlException("training work: the native boundary moved");
         }
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, TrainingDefinitions, call).ConfigureAwait(false);
-        if (reading.Projection.LayoutPlan is not { } layout)
+        if (reading.Reading.Facts.LayoutPlan is not { } layout)
         {
             return FieldUnavailable("layout_plan");
         }
@@ -370,7 +370,7 @@ public sealed class MilitaryRounds
 
     /// <summary>The range's stands (for every Shooting trainee, #3846) and the ring's markers (one per Melee trainee, #3813: none
     /// under two, who have nobody to spar with) the review wants, read from the projection's work pawns; they raise <see cref="RequiredFactException"/> while unread.</summary>
-    internal static (int Stands, int Rings) TrainingDemand(Observation.ColonyProjection facts)
+    internal static (int Stands, int Rings) TrainingDemand(Bridge.Contracts.ColonyReading facts)
     {
         var review = TrainingRules.ReviewTraining(facts.Facts);
         return (review.ShootingTrainees > 0 ? LayoutRangeRules.RangeStandsFor(review.ShootingTrainees) : 0,

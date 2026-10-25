@@ -707,11 +707,14 @@ internal sealed class DisasterConditionConverter : ObjectCodec<DisasterCondition
     protected override DisasterCondition Read(JsonElement e, Codecs o) =>
         new()
         {
-            Id = e.Str("Id"),
-            Definition = e.Str("Definition"),
-            Duration = e.Bool("Permanent")
-                ? new RimGovernor.Contracts.Wire.Observations.ConditionDuration.Permanent()
-                : new RimGovernor.Contracts.Wire.Observations.ConditionDuration.Timed { Ticks = e.I64("TicksLeft") },
+            Observed = new RimGovernor.Contracts.Wire.Observations.EnvironmentCondition
+            {
+                Id = e.Str("Id"),
+                DefName = e.Str("Definition"),
+                Duration = e.Bool("Permanent")
+                    ? new RimGovernor.Contracts.Wire.Observations.ConditionDuration.Permanent()
+                    : new RimGovernor.Contracts.Wire.Observations.ConditionDuration.Timed { Ticks = e.I64("TicksLeft") },
+            },
             DisablesPower = e.Bool("DisablesPower"),
         };
 
@@ -1096,24 +1099,6 @@ internal sealed class MedicalCareHistoryConverter : ObjectCodec<MedicalCareHisto
     }
 }
 
-internal sealed class MentalStateConverter : ObjectCodec<MentalState>
-{
-    protected override MentalState Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            DefName = e.Str("DefName"),
-            IsAggro = e.Bool("IsAggro"),
-            TicksInState = e.I32("TicksInState"),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, MentalState v, Codecs o)
-    {
-        w.WriteString("DefName", v.DefName);
-        w.WriteBoolean("IsAggro", v.IsAggro);
-        w.WriteNum("TicksInState", v.TicksInState);
-    }
-}
-
 internal sealed class MoodCauseConverter : ObjectCodec<MoodCause>
 {
     protected override MoodCause Read(JsonElement e, Codecs o) =>
@@ -1149,44 +1134,21 @@ internal sealed class MoodPawnConverter : ObjectCodec<MoodPawn>
     protected override MoodPawn Read(JsonElement e, Codecs o) =>
         new()
         {
-            Break = e.GetOr<MentalState?>("Break", null, o),
-            HighExpectations = e.Bool("HighExpectations"),
-            Id = e.Get<RimGovernor.Brain.Domain.PawnId>("Id", o),
-            Mood = e.Get<MoodLevel>("Mood", o),
-            Threshold = e.Dbl("Threshold"),
-            Food = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Food", o),
-            Rest = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Rest", o),
-            Joy = e.Get<RimGovernor.Contracts.Wire.Observations.NeedLevel>("Joy", o),
-            Mental = e.Bool("Mental"),
-            Dead = e.Bool("Dead"),
-            Downed = e.Bool("Downed"),
-            Drafted = e.Bool("Drafted"),
-            PlayerForced = e.Bool("PlayerForced"),
+            Pawn = e.Get<RimGovernor.Contracts.Wire.Observations.PawnState>("Pawn", o),
+            Forecast = e.GetNullableRef<RimGovernor.Contracts.Wire.Observations.PatientForecast>("Forecast", o),
             Thoughts = e.Get<EquatableArray<MoodThought>>("Thoughts", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, MoodPawn v, Codecs o)
     {
-        if (v.Break is { } brk)
+        w.Put("Pawn", v.Pawn, o);
+        if (v.Forecast is { } forecast)
         {
-            w.Put("Break", brk, o);
+            w.Put("Forecast", forecast, o);
         }
-        w.WriteBoolean("HighExpectations", v.HighExpectations);
-        w.Put("Id", v.Id, o);
-        w.Put("Mood", v.Mood, o);
-        w.WriteNum("Threshold", v.Threshold);
-        w.Put("Food", v.Food, o);
-        w.Put("Rest", v.Rest, o);
-        w.Put("Joy", v.Joy, o);
-        w.WriteBoolean("Mental", v.Mental);
-        w.WriteBoolean("Dead", v.Dead);
-        w.WriteBoolean("Downed", v.Downed);
-        w.WriteBoolean("Drafted", v.Drafted);
-        w.WriteBoolean("PlayerForced", v.PlayerForced);
         w.Put("Thoughts", v.Thoughts, o);
     }
 }
-
 /// <summary>A pawn's need level as a persisted state: <c>has</c> with its level, or <c>lacks</c> (#3768).</summary>
 internal sealed class NeedLevelConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.NeedLevel>
 {
@@ -1212,36 +1174,6 @@ internal sealed class NeedLevelConverter : ObjectCodec<RimGovernor.Contracts.Wir
         else
         {
             throw new JsonException($"unknown need level {v.GetType().Name}");
-        }
-    }
-}
-
-/// <summary>A colonist's mood as a persisted state: <c>has</c> with its level and target, or <c>lacks</c> (#3897).</summary>
-internal sealed class MoodLevelConverter : ObjectCodec<MoodLevel>
-{
-    protected override MoodLevel Read(JsonElement e, Codecs o) =>
-        e.Str("Kind") switch
-        {
-            "has" => new MoodLevel.Has(e.Dbl("Level"), e.Dbl("Target")),
-            "lacks" => new MoodLevel.Lacks(),
-            var kind => throw new JsonException($"unknown mood level {kind}"),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, MoodLevel v, Codecs o)
-    {
-        if (v is MoodLevel.Has has)
-        {
-            w.WriteString("Kind", "has");
-            w.WriteNum("Level", has.Level);
-            w.WriteNum("Target", has.Target);
-        }
-        else if (v is MoodLevel.Lacks)
-        {
-            w.WriteString("Kind", "lacks");
-        }
-        else
-        {
-            throw new JsonException($"unknown mood level {v.GetType().Name}");
         }
     }
 }
@@ -1364,13 +1296,16 @@ internal sealed class PawnBiotechConverter : ObjectCodec<PawnBiotech>
     protected override PawnBiotech Read(JsonElement e, Codecs o) =>
         new()
         {
-            DevelopmentalStage = e.Get<RimGovernor.Contracts.Wire.Defs.DevelopmentalStage>("DevelopmentalStage", o),
-            Genes = e.Get<EquatableArray<PawnGene>>("Genes", o),
+            Observed = new()
+            {
+                DevelopmentalStage = e.Get<RimGovernor.Contracts.Wire.Defs.DevelopmentalStage>("DevelopmentalStage", o),
+                Genes = e.Get<EquatableArray<RimGovernor.Contracts.Wire.Observations.PawnGene>>("Genes", o),
+                Mechanitor = Absent(e, "Mechanitor") ? null : e.Get<RimGovernor.Contracts.Wire.Observations.PawnMechanitor>("Mechanitor", o),
+                Mech = Absent(e, "Mech") ? null : e.Get<RimGovernor.Contracts.Wire.Observations.PawnMech>("Mech", o),
+                Deathrest = Absent(e, "Deathrest") ? null : e.Get<RimGovernor.Contracts.Wire.Observations.PawnDeathrest>("Deathrest", o),
+            },
             Effects = e.Get<GeneEffects>("Effects", o),
             WorkMinAges = e.Get<IReadOnlyDictionary<WorkType, int>>("WorkMinAges", o),
-            Mechanitor = Absent(e, "Mechanitor") ? null : e.Get<PawnMechanitor>("Mechanitor", o),
-            Mech = Absent(e, "Mech") ? null : e.Get<PawnMech>("Mech", o),
-            Deathrest = Absent(e, "Deathrest") ? null : e.Get<PawnDeathrest>("Deathrest", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnBiotech v, Codecs o)
@@ -1402,62 +1337,62 @@ internal sealed class PawnBiotechConverter : ObjectCodec<PawnBiotech>
     }
 }
 
-internal sealed class PawnDeathrestConverter : ObjectCodec<PawnDeathrest>
+internal sealed class PawnDeathrestConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.PawnDeathrest>
 {
-    protected override PawnDeathrest Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Contracts.Wire.Observations.PawnDeathrest Read(JsonElement e, Codecs o) =>
         new()
         {
             Deathresting = e.Bool("Deathresting"),
             Capacity = e.I32("Capacity"),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, PawnDeathrest v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.PawnDeathrest v, Codecs o)
     {
         w.WriteBoolean("Deathresting", v.Deathresting);
         w.WriteNum("Capacity", v.Capacity);
     }
 }
 
-internal sealed class PawnGeneConverter : ObjectCodec<PawnGene>
+internal sealed class PawnGeneConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.PawnGene>
 {
-    protected override PawnGene Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Contracts.Wire.Observations.PawnGene Read(JsonElement e, Codecs o) =>
         new()
         {
-            Name = e.Str("Name"),
+            DefName = e.Str("Name"),
             Active = e.Bool("Active"),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, PawnGene v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.PawnGene v, Codecs o)
     {
-        w.WriteString("Name", v.Name);
+        w.WriteString("Name", v.DefName);
         w.WriteBoolean("Active", v.Active);
     }
 }
 
-internal sealed class PawnMechConverter : ObjectCodec<PawnMech>
+internal sealed class PawnMechConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.PawnMech>
 {
-    protected override PawnMech Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Contracts.Wire.Observations.PawnMech Read(JsonElement e, Codecs o) =>
         new()
         {
-            Overseer = e.Str("Overseer"),
+            Overseer = e.Str("Overseer") is { Length: > 0 } id ? new() { Id = id } : null,
             WorkMode = e.GetProperty("WorkMode") is { ValueKind: JsonValueKind.String } mode ? mode.GetString() : null,
             Energy = e.GetProperty("Energy") is { ValueKind: JsonValueKind.Number } energy
-                ? new MechEnergy.Level(energy.GetDouble())
-                : new MechEnergy.NoEnergyNeed(),
+                ? new RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.Level { Fraction = energy.GetDouble() }
+                : new RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.NoEnergyNeed(),
             Group = e.GetProperty("Group") is { ValueKind: JsonValueKind.Object } g
-                ? new PawnMechGroup(g.I32("Index"), g.Dbl("RechargeBelow"), g.Dbl("RechargeAbove"))
+                ? new RimGovernor.Contracts.Wire.Observations.PawnMechGroup { Index = g.I32("Index"), RechargeBelow = g.Dbl("RechargeBelow"), RechargeAbove = g.Dbl("RechargeAbove") }
                 : null,
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, PawnMech v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.PawnMech v, Codecs o)
     {
-        w.WriteString("Overseer", v.Overseer);
+        w.WriteString("Overseer", v.Overseer?.Id ?? "");
         w.WriteString("WorkMode", v.WorkMode);
-        if (v.Energy is MechEnergy.Level level)
+        if (v.Energy is RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.Level level)
         {
             w.WriteNum("Energy", level.Fraction);
         }
-        else if (v.Energy is MechEnergy.NoEnergyNeed)
+        else if (v.Energy is RimGovernor.Contracts.Wire.Observations.PawnMechEnergy.NoEnergyNeed)
         {
             w.WriteNull("Energy");
         }
@@ -1480,25 +1415,25 @@ internal sealed class PawnMechConverter : ObjectCodec<PawnMech>
     }
 }
 
-internal sealed class PawnMechanitorConverter : ObjectCodec<PawnMechanitor>
+internal sealed class PawnMechanitorConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.PawnMechanitor>
 {
-    protected override PawnMechanitor Read(JsonElement e, Codecs o) =>
+    protected override RimGovernor.Contracts.Wire.Observations.PawnMechanitor Read(JsonElement e, Codecs o) =>
         new()
         {
             UsedBandwidth = e.I32("UsedBandwidth"),
             TotalBandwidth = e.I32("TotalBandwidth"),
-            GestationBandwidth = e.I32("GestationBandwidth"),
+            UsedBandwidthFromGestation = e.I32("GestationBandwidth"),
             ControlGroups = e.I32("ControlGroups"),
-            ControlledMechs = e.Get<IReadOnlyList<string>>("ControlledMechs", o),
+            ControlledMechs = EquatableArray.From(e.Get<IReadOnlyList<string>>("ControlledMechs", o).Select(id => new RimGovernor.Contracts.Wire.Common.Ref { Id = id })),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, PawnMechanitor v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.PawnMechanitor v, Codecs o)
     {
         w.WriteNum("UsedBandwidth", v.UsedBandwidth);
         w.WriteNum("TotalBandwidth", v.TotalBandwidth);
-        w.WriteNum("GestationBandwidth", v.GestationBandwidth);
+        w.WriteNum("GestationBandwidth", v.UsedBandwidthFromGestation);
         w.WriteNum("ControlGroups", v.ControlGroups);
-        w.Put("ControlledMechs", v.ControlledMechs, o);
+        w.Put<IReadOnlyList<string>>("ControlledMechs", v.ControlledMechs.Select(reference => reference.Id ?? throw new StoreCorruptException("controlled mech id is null")).ToArray(), o);
     }
 }
 
@@ -1507,40 +1442,28 @@ internal sealed class PawnProfileConverter : ObjectCodec<PawnProfile>
     protected override PawnProfile Read(JsonElement e, Codecs o) =>
         new()
         {
-            Id = e.Get<RimGovernor.Brain.Domain.PawnId>("Id", o),
-            Skills = e.Get<IReadOnlyDictionary<string, ProfileSkill>>("Skills", o),
+            Observed = e.Get<RimGovernor.Contracts.Wire.Observations.PawnState>("Observed", o),
             Traits = e.Get<IReadOnlyList<PawnTrait>>("Traits", o),
             Effects = e.Get<TraitEffects>("Effects", o),
-            Incapable = e.Get<IReadOnlyDictionary<WorkType, bool>>("Incapable", o),
             WorkSkill = e.Get<IReadOnlyDictionary<WorkType, string>>("WorkSkill", o),
-            Age = e.Dbl("Age"),
-            Child = e.Bool("Child"),
             Biotech = e.Get<PawnBiotechStatus>("Biotech", o),
             Genes = e.Get<GeneEffects>("Genes", o),
             WorkMinAge = e.Get<IReadOnlyDictionary<WorkType, int>>("WorkMinAge", o),
             Ranged = e.Bool("Ranged"),
             Hunts = e.Bool("Hunts"),
-            Inspiration = e.Str("Inspiration"),
-            WorkHours = e.I32("WorkHours"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnProfile v, Codecs o)
     {
-        w.Put("Id", v.Id, o);
-        w.Put("Skills", v.Skills, o);
+        w.Put("Observed", v.Observed, o);
         w.Put("Traits", v.Traits, o);
         w.Put("Effects", v.Effects, o);
-        w.Put("Incapable", v.Incapable, o);
         w.Put("WorkSkill", v.WorkSkill, o);
-        w.WriteNum("Age", v.Age);
-        w.WriteBoolean("Child", v.Child);
         w.Put("Biotech", v.Biotech, o);
         w.Put("Genes", v.Genes, o);
         w.Put("WorkMinAge", v.WorkMinAge, o);
         w.WriteBoolean("Ranged", v.Ranged);
         w.WriteBoolean("Hunts", v.Hunts);
-        w.Put("Inspiration", v.Inspiration, o);
-        w.Put("WorkHours", v.WorkHours, o);
     }
 }
 
@@ -1549,8 +1472,7 @@ internal sealed class PawnTraitConverter : ObjectCodec<PawnTrait>
     protected override PawnTrait Read(JsonElement e, Codecs o) =>
         new()
         {
-            Name = e.Str("Name"),
-            Degree = e.I32("Degree"),
+            Observed = new() { DefName = e.Str("Name"), Degree = e.I32("Degree") },
             Effects = e.Get<TraitEffects>("Effects", o),
         };
 
@@ -1798,28 +1720,6 @@ internal sealed class ProductionLadderRecordConverter : ObjectCodec<ProductionLa
         w.WriteString("Recipe", v.Recipe);
         w.Put("Research", v.Research, o);
         w.Put("Concern", v.Concern, o);
-    }
-}
-
-internal sealed class ProfileSkillConverter : ObjectCodec<ProfileSkill>
-{
-    protected override ProfileSkill Read(JsonElement e, Codecs o) =>
-        new()
-        {
-            Name = e.Str("Name"),
-            Level = e.I32("Level"),
-            Stored = e.I32("Stored"),
-            Passion = e.Str("Passion"),
-            Disabled = e.Bool("Disabled"),
-        };
-
-    protected override void WriteFields(Utf8JsonWriter w, ProfileSkill v, Codecs o)
-    {
-        w.WriteString("Name", v.Name);
-        w.WriteNum("Level", v.Level);
-        w.WriteNum("Stored", v.Stored);
-        w.WriteString("Passion", v.Passion);
-        w.WriteBoolean("Disabled", v.Disabled);
     }
 }
 
@@ -2752,4 +2652,3 @@ internal sealed class WorldConverter : ObjectCodec<World>
         w.Put("Map", v.Map, o);
     }
 }
-

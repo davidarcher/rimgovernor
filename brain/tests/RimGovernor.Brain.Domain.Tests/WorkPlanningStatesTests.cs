@@ -1,10 +1,8 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using C = RimGovernor.Contracts.Wire.Common;
 using O = RimGovernor.Contracts.Wire.Observations;
 using Ops = RimGovernor.Contracts.Wire.Operations;
@@ -32,6 +30,33 @@ public sealed class WorkPlanningStatesTests
         DefStatTable.Empty, new CatalogDerived("Silver", "Wort", 10f));
 
     private static WorkPawn Lift(O.PawnState row) => RoundsWorkReads.WorkPawnRow(row, Catalog, Things.Of());
+
+    [Fact]
+    public void WorkPawnRetainsTheNativePawnAndItsSkillEvidence()
+    {
+        var skill = new O.Skill { DefName = "Construction", Level = 9, StoredLevel = 7, Passion = O.Passion.Major,
+            Learning = SkillStockTests.Mechanics(7, 12) };
+        var original = PawnFixtures.Row("builder");
+        var row = original with { Biography = original.Biography with { Skills = [skill], BiologicalAgeYears = 41 },
+            Health = original.Health with { SummaryFraction = .6, BloodLoss = .2 },
+            Needs = original.Needs with { Mood = new O.NeedLevel.Has(.4), BreakThresholdMinor = .25 } };
+
+        var pawn = Lift(row);
+
+        Assert.Same(row, pawn.Observed);
+        Assert.Same(skill, Assert.Single(pawn.Skills));
+        Assert.Same(skill.Learning, Assert.Single(pawn.Skills).Learning);
+        Assert.Equal(41, pawn.Age);
+        Assert.Equal(.6, pawn.Health);
+        Assert.Equal(.2, pawn.BloodLoss);
+        Assert.Same(row.Needs.Mood, pawn.Mood);
+        Assert.Equal(.25, pawn.BreakThreshold);
+        var changed = pawn with { Observed = row with { Downed = true, Biography = row.Biography with { Skills = [] } } };
+        Assert.False(changed.Available);
+        Assert.Empty(changed.Skills);
+        Assert.True(pawn.Available);
+        Assert.Same(skill, Assert.Single(pawn.Skills));
+    }
 
     private static O.PawnState WithWork(O.PawnWork work)
     {
@@ -73,11 +98,14 @@ public sealed class WorkPlanningStatesTests
 
         // Another mod's work type has no planner meaning and nothing to write back.
         var modded = Lift(WithWork(new O.PawnWork.Works(false, [new O.WorkSetting { DefName = "ModdedWork", Priority = 2, Disabled = false }])));
-        Assert.Equal(new PawnWorkTable.Works(false, []), modded.Work);
+        var moddedWork = Assert.IsType<PawnWorkTable.Works>(modded.Work);
+        Assert.False(moddedWork.Manual);
+        Assert.Empty(moddedWork.Rows);
+        Assert.Equal("ModdedWork", Assert.Single(moddedWork.Observed.Rows).DefName);
 
         // Neither is planned; the working pawn beside them still is.
-        var worker = PawnFixtures.Worker("worker") with { Work = new PawnWorkTable.Works(true, [new() { Work = WorkType.Cooking, Skill = "Cooking", Order = 1, Priority = 3 }]) };
-        var decision = WorkRules.PlanWork([never with { Id = new("never") }, fresh with { Id = new("fresh") }, worker], [], new());
+        var worker = PawnFixtures.Worker("worker") with { Work = PawnFixtures.WorkTable(true, [new() { Observed = new O.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 1 }]) };
+        var decision = WorkRules.PlanWork([never with { Observed = never.Observed with { Pawn = never.Observed.Pawn with { Id = "never" } } }, fresh with { Observed = fresh.Observed with { Pawn = fresh.Observed.Pawn with { Id = "fresh" } } }, worker], [], new());
         Assert.Equal(WorkDecisionState.Planned, decision.State);
         Assert.Equal([worker.Id], decision.Assignments.Select(a => a.Pawn));
     }
@@ -85,13 +113,13 @@ public sealed class WorkPlanningStatesTests
     [Fact]
     public void ACheckboxModeReadbackOrTruncatedClaimsLeaveTheWorkUnplanned()
     {
-        var checkbox = PawnFixtures.Worker("pawn") with { Work = new PawnWorkTable.Works(false, [new() { Work = WorkType.Cooking, Skill = "Cooking", Order = 1, Priority = 3 }]) };
+        var checkbox = PawnFixtures.Worker("pawn") with { Work = PawnFixtures.WorkTable(false, [new() { Observed = new O.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 1 }]) };
         var waiting = WorkRules.PlanWork([checkbox], [], new());
         Assert.Equal(WorkDecisionState.CheckboxMode, waiting.State);
         Assert.False(waiting.Planned);
         Assert.Empty(waiting.Assignments);
 
-        var truncated = WorkRules.PlanWork([checkbox with { Work = new PawnWorkTable.Works(true, []) }], [], new() { WorkClaimsTruncated = true });
+        var truncated = WorkRules.PlanWork([checkbox with { Work = PawnFixtures.WorkTable(true, []) }], [], new() { WorkClaimsTruncated = true });
         Assert.Equal(WorkDecisionState.ClaimsTruncated, truncated.State);
         Assert.False(truncated.Planned);
     }
@@ -103,22 +131,22 @@ public sealed class WorkPlanningStatesTests
         var thing = new C.Ref { Id = "Thing_Steel1" };
 
         Assert.Equal(new JobTarget.None(), Job(new O.JobEvidence()).Target);
-        var spawned = Job(new O.JobEvidence { DefName = "HaulToCell", TargetA = new() { Target = thing }, TargetACell = new C.Cell { X = 3, Z = 4 } }).Target;
+        var spawned = Job(new O.JobEvidence { DefName = "HaulToCell", TargetA = new() { Target = new O.TargetRefTarget.EntityCase(thing, new O.EntityPlace.OnMap(0, new Cell(3, 4))) } }).Target;
         Assert.Equal(new JobTarget.Spawned("Thing_Steel1", new Cell(3, 4)), spawned);
         Assert.True(spawned.CellOf(out var at));
         Assert.Equal(new Cell(3, 4), at);
-        var held = Job(new O.JobEvidence { DefName = "Ingest", TargetA = new() { Target = thing } }).Target;
+        var held = Job(new O.JobEvidence { DefName = "Ingest", TargetA = new() { Target = new O.TargetRefTarget.EntityCase(thing, new O.EntityPlace.Unplaced()) } }).Target;
         Assert.Equal(new JobTarget.Held("Thing_Steel1"), held);
         Assert.Equal("Thing_Steel1", held.Thing);
         Assert.False(held.CellOf(out _));
-        var ground = Job(new O.JobEvidence { DefName = "Goto", TargetA = new() { Target = new C.Cell { X = 7, Z = 8 } } }).Target;
+        var ground = Job(new O.JobEvidence { DefName = "Goto", TargetA = new() { Target = new RimGovernor.Brain.Domain.Cell { X = 7, Z = 8 } } }).Target;
         Assert.Equal(new JobTarget.Ground(new Cell(7, 8)), ground);
         Assert.Equal("", ground.Thing);
         Assert.Equal(new JobTarget.None(), Job(new O.JobEvidence { DefName = "Wait", TargetA = new() { Target = new C.Unavailable { Reason = C.UnavailableReason.NotLoaded } } }).Target);
 
         // Native writes targetA on every job.
-        Assert.Throws<DomainException>(() => Job(new O.JobEvidence { DefName = "Wait" }));
-        Assert.Throws<DomainException>(() => Job(new O.JobEvidence { DefName = "Wait", TargetA = new() }));
+        Assert.Throws<RequiredFactException>(() => Job(new O.JobEvidence { DefName = "Wait" }).Target);
+        Assert.Throws<RequiredFactException>(() => Job(new O.JobEvidence { DefName = "Wait", TargetA = new() }).Target);
     }
 
     [Fact]
@@ -162,8 +190,13 @@ public sealed class WorkPlanningStatesTests
         // A pawn without care settings has no hostility row: it has no response to change.
         var pawn = PawnFixtures.Worker("pawn");
         Assert.Null(pawn.HostilityPawn());
-        var flees = pawn with { Care = new O.PawnCare.Configured(Ops.MedicalCare.Best, false, Ops.HostilityResponse.Flee) };
+        var flees = pawn with { Observed = pawn.Observed with { Settings = pawn.Observed.Settings with { Care = new O.PawnCare.Configured(Ops.MedicalCare.Best, false, Ops.HostilityResponse.Flee) } } };
         Assert.Equal(HostilityResponse.Flee, flees.HostilityPawn()!.Current);
+        Assert.Same(flees, flees.HostilityPawn()!.Pawn);
+        Assert.Same(flees.Observed.Job, flees.HostilityPawn()!.Job.Observed);
+        Assert.Equal(HostilityResponse.Attack, HostilityRules.DefaultHostility(flees.HostilityPawn()!));
+        var injured = flees with { Observed = flees.Observed with { Health = flees.Observed.Health with { SummaryFraction = .3 } } };
+        Assert.Equal(HostilityResponse.Flee, HostilityRules.DefaultHostility(injured.HostilityPawn()!));
     }
 
     [Fact]

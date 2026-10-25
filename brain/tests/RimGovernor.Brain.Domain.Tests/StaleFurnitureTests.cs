@@ -1,3 +1,4 @@
+using WasteItem = RimGovernor.Contracts.Wire.Observations.WasteItem;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -203,12 +204,7 @@ public sealed class StaleFurnitureTests
     public void AStandingPenMarkerIsListedWhereItStandsAndIsNotStale()
     {
         var pen = Room(PlannedRole.Pen);
-        var marker = new CurrentBuilding
-        {
-            Id = "marker",
-            Building = new Building(HerdPenRules.PenMarkerDefinition, new Cell(12, 12), Rotation.North, ""),
-            Cells = [new Cell(12, 12)],
-        };
+        var marker = ConstructionObservationFixtures.Built(new Building(HerdPenRules.PenMarkerDefinition, new Cell(12, 12), Rotation.North, ""), id: "marker", cells: [new Cell(12, 12)]);
         var (piece, ok) = HerdPenRules.PenMarkerPiece(pen, new InteriorPieceDef(HerdPenRules.PenMarkerDefinition, new Cell(1, 1), RoomRole.None, new InteractionCell.None()), [marker], new HashSet<Cell>());
         Assert.True(ok);
         var rows = new[] { Row("marker", HerdPenRules.PenMarkerDefinition, new Cell(12, 12)), Row("stray", Stray, new Cell(13, 13)) };
@@ -231,12 +227,7 @@ public sealed class StaleFurnitureTests
         Assert.Equal(["p1"], OwnerRemovals(room, rows, template, Carried()));
     }
 
-    private static CurrentBuilding Built(string def, int x, int z, int width = 1, int height = 1) => new()
-    {
-        Id = $"{def}{x}_{z}",
-        Building = new Building(def, new Cell(x, z), Rotation.North, ""),
-        Cells = [.. Enumerable.Range(0, width).SelectMany(dx => Enumerable.Range(0, height).Select(dz => new Cell(x + dx, z + dz)))],
-    };
+    private static CurrentBuilding Built(string def, int x, int z, int width = 1, int height = 1) => ConstructionObservationFixtures.Built(new Building(def, new Cell(x, z), Rotation.North, ""), id: $"{def}{x}_{z}", cells: [.. Enumerable.Range(0, width).SelectMany(dx => Enumerable.Range(0, height).Select(dz => new Cell(x + dx, z + dz)))]);
 
     private static List<ClearanceTarget> RowsOf(params CurrentBuilding[] standing) =>
         [.. standing.Select(b => Row(b.Id, b.Building!.Definition, b.Cells[0], b.Cells[^1]))];
@@ -303,7 +294,7 @@ public sealed class StaleFurnitureTests
             Furniture = new RoomFurniture { Sarcophagus = "Sarcophagus" },
         };
         var standing = new[] { Built("Sarcophagus", 10, 10, 1, 2), Built("Sarcophagus", 12, 10, 1, 2) };
-        var step = TombRules.NextTombStep(new LayoutPlan { Rooms = [tomb], NextRoomId = 2 }, Enumerable.Repeat(new WasteItem { CorpseOf = CorpseOf.Colonist }, 3).ToArray(), standing, shapes, true);
+        var step = TombRules.NextTombStep(new LayoutPlan { Rooms = [tomb], NextRoomId = 2 }, Enumerable.Repeat(new WasteItem { Thing = new() { Id = "corpse" }, CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Colonist, Grave = null }, 3).ToArray(), standing, shapes, true);
         Assert.Equal(TombStepKind.Reconcile, step.Kind);
         Assert.Equal(3, step.Template.Count(p => p.DefName == "Sarcophagus"));
         Assert.Empty(OwnerRemovals(tomb, RowsOf(standing), [.. step.Template], NothingCarried));

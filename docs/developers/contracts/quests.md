@@ -6,6 +6,11 @@ The world-progression census carries typed objectives, reward choices, eligible
 accepters and offer expiry. Missing objective values remain unknown. Royal favor
 outside a choice part applies independently of the chosen reward index.
 
+Expedition trips retain their actual world caravan or home-map assembly rows.
+World position, course and return routes are read from that caravan; crew IDs are
+derived from its complete pawn rows. Assemblies on other maps do not enter the
+home colony's expedition planning.
+
 World site rows are total; the native producer throws on anything it cannot
 read. A site is pending, spawned or destroyed, and its place is unplaced, on a
 tile (layer and tile), or loaded with its site map. Only a loaded map carries the
@@ -101,7 +106,11 @@ neutral refugees and secures hostile ones; housed patients use the ordinary tend
 job, and held prospects use the existing recruitment policy. Ghoul pods retain
 their threat treatment. A native PlayerTended event completes the charity quest.
 
-All quest facts are derived observations. No quest-specific store is added.
+Quest staffing retains each native `QuestWorker` row. Departure policy adds only
+derived defense points; deadline capacity reads that same worker's observed rates.
+Combat retreats retain the actual loaded site's `ExtractionCrew`, including its
+native exit cells. No able crew means no extraction. These views are rebuilt for
+each observation; no quest-specific store is added.
 
 World sites retain exact quest associations, lifecycle state, place and loaded map.
 An unbounded threat budget refuses admission. Surface expeditions use native route

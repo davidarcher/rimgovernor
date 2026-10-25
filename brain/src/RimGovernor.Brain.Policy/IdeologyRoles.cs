@@ -38,7 +38,7 @@ public static class IdeologyRolesRules
     /// of that requirement. Ok is false when the pawn fails a skill requirement (no listed skill is enabled
     /// and at the minimum). Requirements without skills are the game's to judge when the assignment applies.
     /// </summary>
-    internal static (int Score, bool Ok) RoleFit(RoleDef def, IReadOnlyList<WorkSkill> skills)
+    internal static (int Score, bool Ok) RoleFit(RoleDef def, IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Skill> skills)
     {
         var score = 0;
         foreach (var requirement in def.Requirements)
@@ -53,7 +53,7 @@ public static class IdeologyRolesRules
             {
                 foreach (var s in skills)
                 {
-                    if (s.Name == need.Skill && !s.Disabled && s.Level >= need.MinLevel)
+                    if (s.DefName == need.Skill && !s.Disabled && s.Level >= need.MinLevel)
                     {
                         met = true;
                         best = Math.Max(best, s.Level);
@@ -160,7 +160,7 @@ public static class IdeologyRolesRules
     /// </summary>
     public static EquatableArray<RoleAssignment> RoleAssignments(Ideoligion ideo, EquatableArray<WorkPawn> rows, WorkCommitments selected)
     {
-        var pool = new List<(PawnId Id, IReadOnlyList<WorkSkill> Skills, double Certainty, HashSet<WorkType>? Work)>();
+        var pool = new List<(PawnId Id, IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Skill> Skills, double Certainty, HashSet<WorkType>? Work)>();
         foreach (var row in rows)
         {
             if (row.Available && row.PolicyInputs.Ideo is PawnIdeo.Member { Role: null } member && member.IdeoId == ideo.Facts.IdeoId)
@@ -182,11 +182,11 @@ public static class IdeologyRolesRules
         var taken = new HashSet<PawnId>();
         foreach (var role in roles)
         {
-            if (!ideo.Defs.Roles.TryGetValue(role.Def, out var def) || !role.Active || role.Pawns.Count >= def.MaxCount)
+            if (!ideo.Defs.Roles.TryGetValue(role.DefName, out var def) || !role.Active || role.Pawns.Count >= def.MaxCount)
             {
                 continue;
             }
-            (PawnId Id, IReadOnlyList<WorkSkill> Skills, double Certainty, HashSet<WorkType>? Work) best = default;
+            (PawnId Id, IReadOnlyList<RimGovernor.Contracts.Wire.Observations.Skill> Skills, double Certainty, HashSet<WorkType>? Work) best = default;
             var bestScore = 0;
             var found = false;
             foreach (var c in pool)
@@ -210,7 +210,7 @@ public static class IdeologyRolesRules
             if (found)
             {
                 taken.Add(best.Id);
-                output.Add(new RoleAssignment(best.Id, role.Id, role.Def));
+                output.Add(new RoleAssignment(best.Id, role.Id, role.DefName));
             }
         }
         return EquatableArray.From(output);

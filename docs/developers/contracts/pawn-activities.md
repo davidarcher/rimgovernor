@@ -6,6 +6,18 @@ windows and remaining obligations. It has no separate scheduler or workflow stor
 Food acquisition and material delivery/building use the same ColonyForecast search,
 binding, journal continuation and native ownership contract.
 
+Exact cell assignments use `CellActivityStep`, which carries a required canonical
+`Cell` destination. Deliver, Approach, BuildRoof and Sow require that form; other
+steps cannot carry a destination. The candidate form follows the same distinction,
+and binding, continuation, native execution and claim projection retain it. The
+journal derives the form from the existing kind and job and stores a destination
+only for cell steps. Native wire JSON preserves the concrete step type.
+
+Every selected task carries its exact source/approach location. It is the task's
+location for stationary work and ordinary delivery; construction Supply names the
+source stack separately from its site location. Preparation and continuation read
+that source directly, without substituting a destination or a missing observation.
+
 [Evaluated support work](support-work.md) uses these same contracts for
 care, surgery and demand-driven delivery. It replaces native automatic
 refill withholding and global chunk hauling. Supported voluntary needs

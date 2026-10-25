@@ -50,7 +50,7 @@ public sealed partial class RoundsSurgeryPlanner
         {
             return new RoundsSurgeryResult { Verdict = BuildingReasonNoReview };
         }
-        Observation.Identity expected;
+        ObservationIdentity expected;
         try
         {
             expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
@@ -78,8 +78,8 @@ public sealed partial class RoundsSurgeryPlanner
             }
         }
 
-        var surgery = read.Projection.SurgeryContext();
-        var selection = SurgeryRules.SelectSurgery(read.Projection.Facts.MedicalPawns, inFlight.Keys.ToHashSet(), surgery);
+        var surgery = ColonyPlanningRules.SurgeryContext(read.Reading.Facts);
+        var selection = SurgeryRules.SelectSurgery(read.Reading.Facts.MedicalPawns, inFlight.Keys.ToHashSet(), surgery);
         var result = new RoundsSurgeryResult { Wants = selection.Wants };
         var queue = new List<Pol.SurgeryChoice>();
         foreach (var choice in selection.Queue)
@@ -92,18 +92,18 @@ public sealed partial class RoundsSurgeryPlanner
         // Organ harvest: at most one, from a prisoner the colony would not recruit, for a colonist's part-short
         // organ or a silver runway deficit, when its gain outweighs the mood and goodwill cost.
         var stock = new Dictionary<Pol.Resource, long>();
-        foreach (var row in read.Projection.Facts.Resources)
+        foreach (var row in read.Reading.Facts.ObservedStock())
         {
             stock[row.Resource] = stock.GetValueOrDefault(row.Resource) + row.Count;
         }
-        var shortfall = SilverGapRules.RoundsSilverShort(read.Projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve);
-        var needs = OrganHarvestRules.OrganNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, shortfall, stock, read.Projection.Facts.Recipes);
-        var harvest = OrganHarvestRules.SelectOrganHarvest(read.Projection.Facts.Population, needs, inFlight);
+        var shortfall = SilverGapRules.RoundsSilverShort(read.Reading.Facts, _reviewer.Policy, review.Latches.MedicalReserve);
+        var needs = OrganHarvestRules.OrganNeeds(read.Reading.Facts.MedicalPawns, selection.Wants, shortfall, stock, read.Reading.Facts.Recipes);
+        var harvest = OrganHarvestRules.SelectOrganHarvest(read.Reading.Facts.Population, needs, inFlight);
         if (harvest is null)
         {
             // Artificial part recovery: the same one-at-a-time slot.
-            var parts = OrganHarvestRules.PartRecoveryNeeds(read.Projection.Facts.MedicalPawns, selection.Wants, read.Projection.Facts.Recipes);
-            harvest = OrganHarvestRules.SelectPartRecovery(read.Projection.Facts.Population, parts, inFlight, read.Projection.Facts.Recipes);
+            var parts = OrganHarvestRules.PartRecoveryNeeds(read.Reading.Facts.MedicalPawns, selection.Wants, read.Reading.Facts.Recipes);
+            harvest = OrganHarvestRules.SelectPartRecovery(read.Reading.Facts.Population, parts, inFlight, read.Reading.Facts.Recipes);
         }
         // Prisoners stay on herbal: a cut only better medicine could serve is refused; the review asks for herbal instead.
         var harvesting = harvest is not null && arbiter.TryClaim([harvest.Prisoner]);

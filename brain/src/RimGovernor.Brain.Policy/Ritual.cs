@@ -1,12 +1,6 @@
+using O = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
-
-/// <summary>A finished building a ritual may be held at: its ThingDef.</summary>
-public sealed record RitualSite
-{
-    public string Id { get; init; } = "";
-
-    public string Def { get; init; } = "";
-}
 
 /// <summary>The pawns that fill one role slot of a ritual's behavior, by the catalog's slot id, in priority order.</summary>
 public sealed record RitualSlotFill
@@ -56,7 +50,7 @@ public static partial class RitualRules
     /// penalty must be off and the pattern's own cooldown (the minimum of its free start interval, in days)
     /// must have passed since the raw lastFinishedTick.
     /// </summary>
-    internal static bool RitualDue(RitualDef def, HeldRitual held, Tick tick)
+    internal static bool RitualDue(RitualDef def, O.IdeoRitual held, Tick tick)
     {
         if (held.Running)
         {
@@ -85,7 +79,7 @@ public static partial class RitualRules
     /// catalog lacks, or that names no required building, is not planned: nothing says where to hold it.
     /// </summary>
     public static EquatableArray<RitualPlan> PlanRituals(
-        Ideoligion ideo, EquatableArray<WorkPawn> rows, EquatableArray<RitualSite> sites, Tick tick, bool calm)
+        Ideoligion ideo, EquatableArray<WorkPawn> rows, EquatableArray<O.BuildingState> sites, Tick tick, bool calm)
     {
         var output = new List<RitualPlan>();
         if (!calm)
@@ -110,7 +104,8 @@ public static partial class RitualRules
             {
                 continue;
             }
-            var at = sites.Where(site => def.RequiredBuildings.Contains(site.Def)).OrderBy(site => site.Id, StringComparer.Ordinal).ToList();
+            var at = sites.Where(site => site.Status == O.BuildingStatus.Built && def.RequiredBuildings.Contains(site.Building.DefName))
+                .OrderBy(site => site.Building.Id, StringComparer.Ordinal).ToList();
             if (at.Count == 0)
             {
                 continue;
@@ -125,7 +120,7 @@ public static partial class RitualRules
                 {
                     foreach (var role in ideo.Facts.Roles)
                     {
-                        if (role.Def != slot.Precept || !role.Active)
+                        if (role.DefName != slot.Precept || !role.Active)
                         {
                             continue;
                         }

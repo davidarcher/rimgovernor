@@ -31,7 +31,7 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Deconstructs one standing building through an excavation-style admission, once per building.</summary>
     internal async Task<RoundsBuildingResult> RetireBuildingAsync(ControlState state, RoundsReview review, NeedOwner goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason, CancellationToken call, CancellationToken epoch)
     {
-        if (reading.Projection.Facts.Preferences.Protects(id))
+        if (reading.Facts.Preferences.Protects(id))
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Cause.MethodUsed, "protected_thing") };
         }
@@ -65,18 +65,18 @@ public sealed partial class RoundsBuildingPlanner
             Target = id,
             Attrs = new Dictionary<string, object?> { ["family"] = "building", ["owner"] = goal.OwnerKey, ["x"] = cell.X, ["z"] = cell.Z },
         });
-        var facts = reading.Projection;
-        return await AdmitExcavationAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts, Read = reading }, snapshot, method, spec, null, new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick }, Check, call, epoch).ConfigureAwait(false);
+        var facts = reading;
+        return await AdmitExcavationAsync(new ExcavationStep { State = state, Review = review, Owner = goal, Facts = facts }, snapshot, method, spec, null, new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick }, Check, call, epoch).ConfigureAwait(false);
     }
 }
 
 partial class RoundsBuildingPlanner
 {
     /// <summary>The standing campfire the colony no longer needs once a usable stove stands in a kitchen, excluding the heat campfires.</summary>
-    internal static (CurrentBuilding Building, bool Retire) CampfireRetirement(ColonyProjection facts, IReadOnlyList<ConstructionClaim> claims)
+    internal static (CurrentBuilding Building, bool Retire) CampfireRetirement(ColonyReading facts, IReadOnlyList<ConstructionClaim> claims)
     {
-        var benches = facts.CookingBenches;
-        var rooms = facts.Rooms;
+        var benches = facts.Facts.EssentialInputs.Benches.Where(b => !b.Butcher).ToArray();
+        var rooms = facts.Facts.Upkeep.Rooms;
         var census = facts.Facts.CurrentConstruction;
         if (census is null)
         {
@@ -126,10 +126,10 @@ partial class RoundsBuildingPlanner
         return heat;
     }
 
-    internal static List<HeatCampfire> HeatCampfires(ColonyProjection facts)
+    internal static List<HeatCampfire> HeatCampfires(ColonyReading facts)
     {
         var claims = facts.Facts.ConstructionClaims;
-        var benches = facts.CookingBenches;
+        var benches = facts.Facts.EssentialInputs.Benches.Where(b => !b.Butcher).ToArray();
         var census = facts.Facts.CurrentConstruction;
         var heat = HeatCampfireCells(claims);
         if (census is null || heat.Count == 0)
@@ -148,7 +148,7 @@ partial class RoundsBuildingPlanner
                 if (b.Id == bench.Id && b.Cells.Count > 0 && heat.Contains(b.Cells[0]))
                 {
                     // A campfire whose native room or auto-refuel toggle was not read owes no switch.
-                    if (HeatCampfire.Of(bench.Id, bench.Room, bench.AutoRefuel) is { } campfire)
+                    if (HeatCampfire.Of(bench.Id, bench.Room, bench.Observed.AutoRefuel) is { } campfire)
                     {
                         output.Add(campfire);
                     }
@@ -159,10 +159,10 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>Whether a heat campfire owes its refuel switch or an unheated sleeping room sits cold; false while the room census is unread.</summary>
-    internal static bool TemperatureOwed(ColonyProjection facts) =>
-        TemperatureMethodRules.TemperatureOwed(facts.Rooms, facts.Facts.Sleeping, HeatCampfires(facts));
+    internal static bool TemperatureOwed(ColonyReading facts) =>
+        TemperatureMethodRules.TemperatureOwed(facts.Facts.Upkeep.Rooms, facts.Facts.Sleeping, HeatCampfires(facts));
 
-    internal static bool CampfireRetireOwed(ColonyProjection facts)
+    internal static bool CampfireRetireOwed(ColonyReading facts)
     {
         var claims = facts.Facts.ConstructionClaims;
         return CampfireRetirement(facts, claims).Retire;

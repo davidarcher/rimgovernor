@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Store;
 

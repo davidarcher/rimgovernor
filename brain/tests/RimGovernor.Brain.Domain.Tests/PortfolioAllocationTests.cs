@@ -9,7 +9,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -27,8 +26,7 @@ public sealed class PortfolioAllocationTests
     internal static readonly int[] Traversals = [4096, 16384, ForecastSearchBudget.DefaultTraversal];
     private static readonly JsonSerializerOptions Json = new()
     {
-        WriteIndented = true,
-        Converters = { new FactJsonConverter<double>(), new FactJsonConverter<int>(), new FactJsonConverter<bool>() }
+        WriteIndented = true
     };
 
     internal static RoundsFacts LargerFacts()
@@ -41,8 +39,8 @@ public sealed class PortfolioAllocationTests
         var experienced = read.FoodConversions.Single(c => c.Pawn == "helper");
         facts = facts with
         {
-            Resources = [new(new("Rice"), 16)],
-            WorkResources = roster.WorkResources,
+
+            Census = (facts.Census with { WorkResources = roster.Census.WorkResources }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 16 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,

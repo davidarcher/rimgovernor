@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -50,10 +49,10 @@ public sealed class IdeoligionGoalReformTests
 
     private static int? GoalOf(DesignChoice choice) => choice.Serves is ReformServes.Goal goal ? goal.Id : null;
 
-    private static IdeoDevelopment Points(int have = 40, int cost = 30, bool fluid = true) =>
-        new IdeoDevelopment(fluid, fluid && have >= cost, 2, have, cost);
+    private static RimGovernor.Contracts.Wire.Observations.IdeoDevelopment Points(int have = 40, int cost = 30, bool fluid = true) =>
+        fluid ? new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fluid(have >= cost, have, 2, cost) : new RimGovernor.Contracts.Wire.Observations.IdeoDevelopment.Fixed();
 
-    private static DesignChoice Choose(IdeoligionDesign current, IReadOnlyList<IdeoGoalTarget> targets, IdeoDevelopment? development = null, DesignOptions? options = null) =>
+    private static DesignChoice Choose(IdeoligionDesign current, IReadOnlyList<IdeoGoalTarget> targets, RimGovernor.Contracts.Wire.Observations.IdeoDevelopment? development = null, DesignOptions? options = null) =>
         IdeoligionDesignRules.ChooseIdeoligionReform(options ?? Options(), current, development ?? Points(), true, NoBelievers, targets);
 
     [Fact]
@@ -157,7 +156,7 @@ public sealed class IdeoligionGoalReformTests
         Assert.Equal("development_points:12/30", Assert.Single(new IdeologyFamily().Propose([need], facts)).Hold!.Subject);
     }
 
-    private static GoalsFacts GoalFacts(GoalRecord goal, IdeoDevelopment development, DesignChoice? reform, params string[] memes) => new()
+    private static GoalsFacts GoalFacts(GoalRecord goal, RimGovernor.Contracts.Wire.Observations.IdeoDevelopment development, DesignChoice? reform, params string[] memes) => new()
     {
         Goals = [goal],
         Ideology = new IdeologyMode.Installed(new Ideoligion(
@@ -166,7 +165,7 @@ public sealed class IdeoligionGoalReformTests
                 Precepts = new Dictionary<string, PreceptDef> { [Naked] = new([]) },
                 Memes = new Dictionary<string, MemeDef> { [Nudism] = new([], []) },
             },
-            new IdeoligionFacts { Memes = memes, Development = development })),
+            new IdeoligionFacts { Observed = IdeologyReadsTests.NoPrecepts with { Memes = [.. memes], Development = development } })),
         Reform = reform,
         ReformGoal = ReformFocus.Of(1),
     };
@@ -205,7 +204,7 @@ public sealed class IdeoligionGoalReformTests
         var animal = new GoalRecord { Id = 1, Kind = GoalKind.VeneratedAnimal, Target = "Muffalo" };
         var facts = GoalFacts(animal, Points(), default);
         var primary = ((IdeologyMode.Installed)facts.Ideology).Primary;
-        var held = facts with { Ideology = new IdeologyMode.Installed(primary with { Facts = primary.Facts with { VeneratedAnimals = ["Muffalo"] } }) };
+        var held = facts with { Ideology = new IdeologyMode.Installed(primary with { Facts = primary.Facts with { Observed = primary.Facts.Observed with { VeneratedAnimals = ["Muffalo"] } } }) };
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(animal, held).State);
     }
 

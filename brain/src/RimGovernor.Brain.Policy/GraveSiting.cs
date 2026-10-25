@@ -19,7 +19,7 @@ public sealed record GraveSiteInput
 
     public LayoutPlan Plan { get; init; } = new();
 
-    /// <summary>The cells colonists were seen walking (RoutesObservation.Traffic); empty while unread.</summary>
+    /// <summary>The native routes census cells on which colonist traffic was observed.</summary>
     public IReadOnlyList<Cell> Traffic { get; init; } = [];
 }
 

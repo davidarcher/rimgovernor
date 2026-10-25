@@ -46,8 +46,8 @@ internal static class CombatLabMortar
         var mortar = lab.Cell(0, -15);
         var chunk = lab.Cell(-3, -9);
         var target = lab.Cell(0, 20);
-        static Operations.CombatOrderOrder.MortarFireCase Fire(Common.Cell mortar, Common.Cell? target) =>
-            new(new Operations.CombatMortarFire { Mortar = mortar, Target = target });
+        static Operations.CombatOrderOrder.MortarFireCase Fire(RimGovernor.Brain.Domain.Cell mortar, RimGovernor.Brain.Domain.Cell? target) =>
+            new(new Operations.CombatMortarFire { Mortar = mortar, Aim = target is {} at ? new Operations.MortarAim.At(at) : new Operations.MortarAim.Cleared() });
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         await CombatLabKit.DraftAsync(s, colonists, cancellationToken).ConfigureAwait(false);

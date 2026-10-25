@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>production/apparel-policy</c>: the ApparelPolicyIntent's native filter write. The pawn starts on a player outfit
 /// wearing a forced, locked shirt (test/gear_fixture, which the primitives cannot express); each write reuses that
 /// outfit as the pawn's own, labelled with its short name (#1302), with the requested filter, and clears forcing and
-/// locks; a repeat applies again; and a player's tainted edit is overridden. The colony-facts gear read shows each
+/// locks; a repeat applies again; and a player's tainted edit is overridden. The gear and pawn census reads show each
 /// result.
 /// </summary>
 internal static class ProductionApparelPolicy
@@ -31,7 +31,7 @@ internal static class ProductionApparelPolicy
         Scope = "The ApparelPolicyIntent on operations_apply writes the native outfit: the pawn's player outfit is reused, "
             + "labelled with its short name (#1302), with the requested defs, hit-point and quality bounds and tainted "
             + "apparel excluded, its forced and locked apparel released; the same write applies again, and a player's tainted "
-            + "edit is overridden. Read back through the colony-facts gear section.",
+            + "edit is overridden. Read policy through colony-facts gear and physical equipment through the pawn census.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Ops = [Tool],
@@ -42,19 +42,24 @@ internal static class ProductionApparelPolicy
     {
         var subject = await s.FixtureAsync("policy-setup", Gear, "policy_setup", cancellationToken).ConfigureAwait(false);
 
-        async Task<Observations.GearLoadout> ReadAsync(string label)
+        async Task<(Observations.GearLoadout Gear, Observations.PawnEquipment Equipment)> ReadAsync(string label)
         {
             var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
             var gear = facts.Gear;
-            return gear.Pawns.FirstOrDefault(p => p.Pawn.Value == subject.Pawn) ?? throw new AcceptanceException($"{label}: no gear row for {subject.Pawn}");
+            var loadout = gear.Pawns.FirstOrDefault(p => p.Pawn.Value == subject.Pawn) ?? throw new AcceptanceException($"{label}: no gear row for {subject.Pawn}");
+            var pawns = await s.CallAsync(label + "-pawn", NativeOps.ListPawns,
+                new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [subject.Pawn] } }, cancellationToken).ConfigureAwait(false);
+            var pawn = pawns.Pawns.FirstOrDefault(p => p.Pawn.Id == subject.Pawn)
+                ?? throw new AcceptanceException($"{label}: no pawn row for {subject.Pawn}");
+            return (loadout, pawn.Equipment);
         }
 
         var setup = await ReadAsync("setup").ConfigureAwait(false);
-        s.RecordWire("setup", setup.ApparelPolicy);
-        var outfit = setup.ApparelPolicy?.PolicyId;
+        s.RecordWire("setup", setup.Gear.ApparelPolicy);
+        var outfit = setup.Gear.ApparelPolicy?.PolicyId;
         if (outfit is null || !setup.Equipment.Apparel.Any(a => a is { Forced: true, Locked: true }))
         {
-            throw new AcceptanceException($"setup: want a player outfit and a forced, locked shirt, got {setup.ApparelPolicy} / {setup.Equipment}");
+            throw new AcceptanceException($"setup: want a player outfit and a forced, locked shirt, got {setup.Gear.ApparelPolicy} / {setup.Equipment}");
         }
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
@@ -87,8 +92,8 @@ internal static class ProductionApparelPolicy
             }
 
             var after = await ReadAsync(label + "-read").ConfigureAwait(false);
-            s.RecordWire(label, after.ApparelPolicy);
-            var policy = after.ApparelPolicy;
+            s.RecordWire(label, after.Gear.ApparelPolicy);
+            var policy = after.Gear.ApparelPolicy;
             var problems = new List<string>();
             if (policy?.PolicyId != outfit)
             {
@@ -133,9 +138,9 @@ internal static class ProductionApparelPolicy
         // A player edit on the pawn's own outfit is overridden on the next write.
         _ = await s.FixtureAsync("policy-edit", Gear, "policy_edit", cancellationToken).ConfigureAwait(false);
         var edited = await ReadAsync("player-edit").ConfigureAwait(false);
-        if (edited.ApparelPolicy?.ExcludesTainted != false)
+        if (edited.Gear.ApparelPolicy?.ExcludesTainted != false)
         {
-            throw new AcceptanceException($"player-edit: the tainted edit did not land: {edited.ApparelPolicy}");
+            throw new AcceptanceException($"player-edit: the tainted edit did not land: {edited.Gear.ApparelPolicy}");
         }
 
         await WriteAsync("apparel-repair-player-edit", .51f, ["Apparel_Pants"]).ConfigureAwait(false);

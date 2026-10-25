@@ -1,3 +1,4 @@
+
 namespace RimGovernor.Brain.Policy;
 
 // Hostility response: the bot owns every colonist's Assign-tab hostility response. Attack is the default for anyone
@@ -9,22 +10,23 @@ namespace RimGovernor.Brain.Policy;
 // writes it back.
 
 /// <summary>One colonist's hostility inputs.</summary>
-public sealed record HostilityPawn
+public sealed record HostilityPawn(WorkPawn Pawn)
 {
-    public required PawnId ID { get; init; }
+    public PawnId ID => Pawn.Id;
 
     /// <summary>The pawn's configured hostility response. A pawn without care settings has no row.</summary>
-    public required HostilityResponse Current { get; init; }
+    public HostilityResponse Current => Pawn.Care is PawnCare.Configured care
+        ? WorkRules.HostilityOf(care.HostilityResponse) : throw new DomainException("hostility pawn lacks care settings");
 
-    public required bool ViolenceCapable { get; init; }
-    public required double Age { get; init; }
-    public required double BloodLoss { get; init; }
+    public bool ViolenceCapable => Pawn.ViolenceCapable;
+    public double Age => Pawn.Age;
+    public double BloodLoss => Pawn.BloodLoss;
 
     /// <summary>The BloodLoss severity from which a pawn flees, from the catalog.</summary>
-    public required double SeriousBloodLoss { get; init; }
+    public double SeriousBloodLoss => Pawn.SeriousBloodLoss;
 
-    public required double Health { get; init; }
-    public required PawnJob Job { get; init; }
+    public double Health => Pawn.Health;
+    public PawnJob Job => Pawn.Job;
 }
 
 public static class HostilityRules

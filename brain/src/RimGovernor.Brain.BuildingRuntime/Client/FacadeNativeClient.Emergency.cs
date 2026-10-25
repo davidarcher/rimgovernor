@@ -1,10 +1,8 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using DomainCell = RimGovernor.Brain.Domain.Cell;
 using PolicyEmergencyFacts = RimGovernor.Brain.Policy.EmergencyFacts;
 using PolicyEmergencyPawn = RimGovernor.Brain.Policy.EmergencyPawn;
 using PolicyEmergencyThreat = RimGovernor.Brain.Policy.EmergencyThreat;
-using PolicyMentalState = RimGovernor.Brain.Policy.MentalState;
 using PolicyThreatKind = RimGovernor.Brain.Policy.ThreatKind;
 
 namespace RimGovernor.Brain.BuildingRuntime;
@@ -50,7 +48,7 @@ public sealed partial class FacadeNativeClient
             {
                 if (EmergencyPawn(reference, pawns, unseen) is { } pawn)
                 {
-                    colonists.Add(pawn.Pawn);
+                    colonists.Add(pawn);
                 }
                 else
                 {
@@ -62,7 +60,7 @@ public sealed partial class FacadeNativeClient
             {
                 if (EmergencyPawn(patient.Pawn, pawns, unseen) is { } pawn)
                 {
-                    patients.Add(new(pawn.Pawn, patient.Group, patient.Rescue, patient.Tend));
+                    patients.Add(new(pawn, patient.Group, patient.Rescue, patient.Tend));
                 }
             }
             // The native's threat fact rows are classified; the threats are listed kind by kind in ThreatKind order,
@@ -75,21 +73,10 @@ public sealed partial class FacadeNativeClient
                 {
                     continue;
                 }
-                var (pawn, state) = seen;
+                var state = seen.Observed;
                 foreach (var kind in kinds)
                 {
-                    var threat = new PolicyEmergencyThreat
-                    {
-                        Id = pawn.Id,
-                        Kind = kind,
-                        Dead = pawn.Dead,
-                        Downed = pawn.Downed,
-                        Animal = state.Animal,
-                        Fogged = state.Fogged,
-                        Distance = row.NearestColonist,
-                        Passive = kind == PolicyThreatKind.Hostile && row.Passive,
-                        Position = pawn.Position,
-                    };
+                    var threat = new PolicyEmergencyThreat.PawnThreat(state, row, kind);
                     if (!byKind.TryGetValue(kind, out var list))
                     {
                         byKind[kind] = list = [];
@@ -118,26 +105,14 @@ public sealed partial class FacadeNativeClient
         /// Reads one census reference's facts from its table row (returned too); a reference without a map row is
         /// listed in <paramref name="unseen"/> and yields null.
         /// </summary>
-        private static (PolicyEmergencyPawn Pawn, PbObservations.PawnState State)? EmergencyPawn(PbCommon.Ref reference, Pawns pawns, List<PawnId> unseen)
+        private static PolicyEmergencyPawn? EmergencyPawn(PbCommon.Ref reference, Pawns pawns, List<PawnId> unseen)
         {
-            if (!pawns.TryRow(reference, out var row) || row.Pawn.Place is not O.EntityPlace.OnMap { Cell: var at })
+            if (!pawns.TryRow(reference, out var row) || row.Pawn.Place is not O.EntityPlace.OnMap)
             {
                 unseen.Add(new PawnId(reference.Id ?? ""));
                 return null;
             }
-            var pawn = new PolicyEmergencyPawn
-            {
-                Id = new PawnId(row.Pawn.Id ?? ""),
-                Dead = row.Dead,
-                Downed = row.Downed,
-                InBed = row.InBed,
-                Bleeding = row.Health.Bleeding,
-                NeedsTend = row.Health.NeedsTend,
-                Position = new DomainCell(at.X, at.Z),
-                Food = row.Needs.Food,
-                MentalState = row.MentalState is { } m ? new PolicyMentalState { DefName = m.DefName, IsAggro = m.IsAggro, TicksInState = m.Ticks } : null,
-            };
-            return (pawn, row);
+            return new PolicyEmergencyPawn { Observed = row };
         }
 
         /// <summary>
@@ -145,27 +120,13 @@ public sealed partial class FacadeNativeClient
         /// (not dead) and never downed; the attack order sends its CAS token back as the target precondition and its
         /// occupied rect is the ranged target.
         /// </summary>
-        private static PolicyEmergencyThreat EmergencyBuilding(PbObservations.ThreatBuilding row)
+        private static PolicyEmergencyThreat.BuildingThreat EmergencyBuilding(PbObservations.ThreatBuilding row)
         {
-            if (row.Building.Place is not O.EntityPlace.OnMap { Cell: var at })
+            if (row.Building.Place is not O.EntityPlace.OnMap)
             {
                 throw new BridgeContractException($"status hostile building {row.Building.Id} is unplaced");
             }
-            return new PolicyEmergencyThreat
-            {
-                Id = new PawnId(row.Building.Id),
-                Kind = PolicyThreatKind.HostileBuilding,
-                Dead = false,
-                Downed = false,
-                Animal = false,
-                Fogged = row.Fogged,
-                Distance = row.NearestColonist,
-                SnapshotToken = row.Snapshot,
-                Definition = row.Building.DefName,
-                Cells = CellsRules.RectCells(row.Occupied),
-                Passive = row.Passive,
-                Position = new DomainCell(at.X, at.Z),
-            };
+            return new PolicyEmergencyThreat.BuildingThreat(row);
         }
 
         /// <summary>

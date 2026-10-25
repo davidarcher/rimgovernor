@@ -147,8 +147,8 @@ public static partial class ShelterRules
                 weather = true;
             }
         }
-        if (weather && f.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.Indoor indoor &&
-            (f.OutdoorTemperature < indoor.MinC || f.OutdoorTemperature > indoor.MaxC))
+        if (weather && f.Census.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.Indoor indoor &&
+            (f.Census.OutdoorTemperatureC < indoor.MinC || f.Census.OutdoorTemperatureC > indoor.MaxC))
         {
             return ShelterTrigger.Temperature;
         }
@@ -157,7 +157,7 @@ public static partial class ShelterRules
             return ShelterTrigger.Threat;
         }
         if (f.Hostiles is HostileCensus.AwaitingEmergency) return ShelterTrigger.AwaitingEmergency;
-        if (f.Hostiles is HostileCensus.Quiet && weather && f.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.NoIndoorBed) return ShelterTrigger.NoIndoorBed;
+        if (f.Hostiles is HostileCensus.Quiet && weather && f.Census.SleepingTemperature is RimGovernor.Contracts.Wire.Observations.SleepingTemperature.NoIndoorBed) return ShelterTrigger.NoIndoorBed;
         if (f.Hostiles is HostileCensus.Quiet or HostileCensus.Active) return ShelterTrigger.None;
         throw new DomainException("unrecognized hostile census");
     }
@@ -227,19 +227,19 @@ public static partial class ShelterRules
         }
 
         var safety = f.RecoverySafety;
-        foreach (var worker in f.RecoveryWorkers)
+        foreach (var worker in f.MoodPawns)
         {
                 if (worker.Dead || worker.Downed || worker.Drafted || worker.Mental)
                 {
                     continue;
                 }
                 // A threat shelters only pawns known outside the draft set.
-                var shelter = trigger != ShelterTrigger.None && (trigger != ShelterTrigger.Threat || !combatants.Contains(worker.Pawn));
+                var shelter = trigger != ShelterTrigger.None && (trigger != ShelterTrigger.Threat || !combatants.Contains(worker.Id));
                 foreach (var restriction in safety.Restrictions)
                 {
-                    if (restriction.Pawn == worker.Pawn)
+                    if (restriction.Pawn.Id == worker.Id.Value)
                     {
-                        Add(worker.Pawn, false, shelter, restriction.Area);
+                        Add(worker.Id, false, shelter, restriction.AreaId ?? "");
                         break;
                     }
                 }
@@ -266,7 +266,7 @@ public static partial class ShelterRules
         var trigger = ShelterTriggerOf(f);
         var safe = f.ShelterArea;
         var safety = f.RecoverySafety;
-        var workers = f.RecoveryWorkers;
+        var workers = f.MoodPawns;
         if (trigger != ShelterTrigger.Threat || string.IsNullOrEmpty(safe))
         {
             return false;
@@ -281,9 +281,9 @@ public static partial class ShelterRules
             var inside = false;
             foreach (var restriction in safety.Restrictions)
             {
-                if (restriction.Pawn == worker.Pawn)
+                if (restriction.Pawn.Id == worker.Id.Value)
                 {
-                    inside = restriction.Area == safe;
+                    inside = restriction.AreaId == safe;
                     break;
                 }
             }

@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 
@@ -98,29 +99,18 @@ public enum WorkType
     Unrecognized,
 }
 
-public sealed record WorkSkill
-{
-    public RimGovernor.Contracts.Wire.Observations.SkillLearning? Learning { get; init; }
-
-    public string Name { get; init; } = "";
-
-    public int Level { get; init; }
-
-    public string Passion { get; init; } = "";
-
-    public bool Disabled { get; init; }
-
-    /// <summary>The native stored level beneath aptitude offsets; zero when the read did not carry it.</summary>
-    public int Stored { get; init; }
-}
-
 public sealed record WorkPriority
 {
-    public WorkType Work { get; init; }
+    public required O.WorkSetting Observed { get; init; }
+    public WorkType Work => WorkRules.WorkTypeOf(Observed.DefName);
+    public int Priority => Observed.Priority;
+    public bool Disabled => Observed.Disabled;
 
-    public int Priority { get; init; }
-
-    public bool Disabled { get; init; }
+    /// <summary>A proposed work setting before it is written to the game.</summary>
+    public static WorkPriority Planned(WorkType work, int priority, bool disabled = false) => new()
+    {
+        Observed = new() { DefName = Wire.Name(work), Priority = priority, Disabled = disabled },
+    };
 
     /// <summary>The work type's first relevant skill ("" for unskilled work), read from the WorkTypeDef when the row is read; empty on a row the planner writes back.</summary>
     public string Skill { get; init; } = "";
@@ -145,7 +135,10 @@ public abstract record PawnWorkTable
 
     public sealed record Uninitialized : PawnWorkTable;
 
-    public sealed record Works(bool Manual, EquatableArray<WorkPriority> Rows) : PawnWorkTable;
+    public sealed record Works(O.PawnWork.Works Observed, EquatableArray<WorkPriority> Rows) : PawnWorkTable
+    {
+        public bool Manual => Observed.ManualPriorities;
+    }
 
     /// <summary>The rows of a working pawn with an initialized tracker; none otherwise.</summary>
     public EquatableArray<WorkPriority> Priorities() => this is Works works ? works.Rows : [];
@@ -166,109 +159,45 @@ public abstract record PawnBiotechStatus
 /// <summary>
 /// Every free colonist from a complete native pawn census. Missing or contradictory native data fails decoding.
 /// </summary>
-public sealed record WorkPawnsRead(EquatableArray<WorkPawn> Pawns)
-{
-}
+public sealed record WorkPawnsRead(EquatableArray<WorkPawn> Pawns);
 
 public sealed record WorkPawn
 {
-    public required PawnId Id { get; init; }
-
-    /// <summary>Native finishing work capability, independent of draft, temporary mental state, schedule or current job.</summary>
-    public required bool ConstructionAble { get; init; }
-
-    /// <summary>Alive, standing, undrafted, in no mental state and not deathresting.</summary>
-    public required bool Available { get; init; }
-
+    public required RimGovernor.Contracts.Wire.Observations.PawnState Observed { get; init; }
+    public PawnId Id => new(Observed.Pawn.Id ?? throw new RequiredFactException("work pawn id"));
+    public bool ConstructionAble => Observed.ConstructionCapable;
+    public bool Available => !Observed.Dead && !Observed.Downed && !Observed.Drafted && Observed.MentalState is null
+        && !(Biotech is PawnBiotechStatus.Active { Facts: var facts } && facts.IsDeathresting());
     public required PawnWorkTable Work { get; init; }
-
-    /// <summary>Whether the game ever gives the pawn work.</summary>
     public bool Applies => Work is not PawnWorkTable.NeverWorks;
-
-    /// <summary>Whether the primary weapon is ranged; false for an unarmed pawn.</summary>
     public required bool Ranged { get; init; }
-
-    /// <summary>Whether the primary weapon hunts; false for an unarmed pawn.</summary>
     public required bool Hunts { get; init; }
-
-    public required EquatableArray<WorkSkill> Skills { get; init; }
-
-    /// <summary>The biography's native stat values at each stored skill level (#3633); empty when the read carried none.</summary>
-    public required EquatableArray<RimGovernor.Contracts.Wire.Observations.SkillStatCurve> SkillStatCurves { get; init; }
-
-    /// <summary>The biography's work speed stats now (PawnBiography.WorkSpeeds, #3868); empty when the read carried none.</summary>
-    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkSpeedRead> WorkSpeeds { get; init; }
-
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.Skill> Skills => Observed.Biography.Skills;
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.SkillStatCurve> SkillStatCurves => Observed.Biography.SkillStatCurves;
+    public EquatableArray<RimGovernor.Contracts.Wire.Observations.WorkSpeedRead> WorkSpeeds => Observed.Biography.WorkSpeeds;
     public required EquatableArray<PawnTrait> Traits { get; init; }
-
-    /// <summary>The backstory-incapable work types.</summary>
-    public required EquatableArray<WorkType> Incapable { get; init; }
-
-    public required double Age { get; init; }
-
-    /// <summary>The current timetable, one TimeAssignmentDef per hour (hour 0 first).</summary>
-    public required EquatableArray<string> Schedule { get; init; }
-
-    /// <summary>Whether the pawn eats under a food policy (respects one, has a food need, past babyhood).</summary>
-    public required bool FoodPolicyRespected { get; init; }
-
-    /// <summary>The care policy from the player settings, <see cref="PawnCare.None"/> without them.</summary>
-    public required PawnCare Care { get; init; }
-
-    /// <summary>The per-pawn policy planner inputs.</summary>
-    public required PawnPolicyInputs PolicyInputs { get; init; }
-
-    /// <summary>The native body stats block (temperatures, move speed, hypothermia severity).</summary>
-    public required PawnBodyStats Body { get; init; }
-
-    /// <summary>The pawn's current job.</summary>
-    public required PawnJob Job { get; init; }
-
-    /// <summary>The current InspirationDef defName; "" is no inspiration.</summary>
-    public required string Inspiration { get; init; }
-
+    public EquatableArray<WorkType> Incapable => EquatableArray.From(Observed.Biography.IncapableWorkTypes.Select(WorkRules.WorkTypeOf));
+    public double Age => Observed.Biography.BiologicalAgeYears;
+    public EquatableArray<string> Schedule => EquatableArray.From(Observed.Settings.Schedule.Select(slot => slot.AssignmentDefName));
+    public bool FoodPolicyRespected => Observed.Settings.FoodPolicyRespected;
+    public PawnCare Care => Observed.Settings.Care;
+    public PawnPolicyInputs PolicyInputs => Observed.Settings.PolicyInputs;
+    public PawnBodyStats Body => Observed.Settings.Body;
+    public PawnJob Job => new() { Observed = Observed.Job };
     public required PawnBiotechStatus Biotech { get; init; }
-
-    /// <summary>Violence from the disabled work tags.</summary>
-    public required bool ViolenceCapable { get; init; }
-
-    public required double BloodLoss { get; init; }
-
-    /// <summary>The catalog's serious BloodLoss severity.</summary>
+    public bool ViolenceCapable => !Observed.Biography.DisabledWorkTags.Contains("Violent");
+    public double BloodLoss => Observed.Health.BloodLoss;
     public required double SeriousBloodLoss { get; init; }
-
-    public required double Health { get; init; }
-
-    /// <summary>Need levels from the pawn needs block; Lacks for a pawn without the need.</summary>
-    public required NeedLevel Rest { get; init; }
-
-    public required NeedLevel Mood { get; init; }
-
-    /// <summary>The food need with its hunger category; Lacks for a pawn without one.</summary>
-    public required FoodNeed Food { get; init; }
-
-    /// <summary>The minor mental break threshold from the needs block.</summary>
-    public required double BreakThreshold { get; init; }
-
-    /// <summary>The social block's expectations pressure (mood tier).</summary>
-    public required bool HighExpectations { get; init; }
-
-    /// <summary>The psylink level; 0 without a psylink.</summary>
-    public required int PsylinkLevel { get; init; }
-
+    public double Health => Observed.Health.SummaryFraction;
+    public NeedLevel Rest => Observed.Needs.Rest;
+    public NeedLevel Mood => Observed.Needs.Mood;
+    public FoodNeed Food => Observed.Needs.Food;
+    public double BreakThreshold => Observed.Needs.BreakThresholdMinor;
+    public bool HighExpectations => Observed.Social.HighExpectations;
+    public int PsylinkLevel => Observed.Needs.PsylinkLevel;
     /// <summary>The pawn's hostility inputs; null for a pawn without care settings, which has no configurable response.</summary>
     public HostilityPawn? HostilityPawn() =>
-        Care is not PawnCare.Configured care ? null : new()
-        {
-            ID = Id,
-            Current = WorkRules.HostilityOf(care.HostilityResponse),
-            ViolenceCapable = ViolenceCapable,
-            Age = Age,
-            BloodLoss = BloodLoss,
-            SeriousBloodLoss = SeriousBloodLoss,
-            Health = Health,
-            Job = Job,
-        };
+        Care is not PawnCare.Configured ? null : new(this);
 }
 
 /// <summary>
@@ -307,16 +236,24 @@ public abstract record JobTarget
 /// </summary>
 public sealed record PawnJob
 {
-    public string Def { get; init; } = "";
+    public required O.JobEvidence Observed { get; init; }
+    public string Def => Observed.DefName ?? "";
+    public WorkType Work => WorkRules.WorkTypeOf(Observed.WorkTypeDefName);
+    public bool Preemptible => Observed.Preemptible;
+    public JobTarget Target => Observed.DefName is null ? new JobTarget.None() : TargetOf(Observed);
 
-    public WorkType Work { get; init; }
-
-    /// <summary>The thing or cell the job works; <see cref="JobTarget.None"/> for no job or a job with no target.</summary>
-    public JobTarget Target { get; init; } = new JobTarget.None();
-
-    /// <summary>Vanilla job selection on a controlled pawn with no committed coupled order (#3670): any coupled order may
-    /// replace it, so occupancy reads the pawn as free while target claims still see what it holds.</summary>
-    public bool Preemptible { get; init; }
+    private static JobTarget TargetOf(O.JobEvidence job)
+    {
+        var target = job.TargetA?.Target ?? throw new RequiredFactException($"job {job.DefName}: targetA");
+        return target switch
+        {
+            O.TargetRefTarget.EntityCase { Value.Id: { Length: > 0 } id, Place: O.EntityPlace.OnMap at } => new JobTarget.Spawned(id, at.Cell),
+            O.TargetRefTarget.EntityCase { Value.Id: { Length: > 0 } id, Place: O.EntityPlace.Unplaced } => new JobTarget.Held(id),
+            O.TargetRefTarget.CellCase cell => new JobTarget.Ground(cell.Value),
+            O.TargetRefTarget.UnavailableCase => new JobTarget.None(),
+            var invalid => throw new RequiredFactException($"job {job.DefName}: invalid targetA {invalid}"),
+        };
+    }
 }
 
 public sealed record WorkRequirement
@@ -584,11 +521,11 @@ public static partial class WorkRules
             var names = new HashSet<string>();
             foreach (var s in pawn.Skills)
             {
-                if (!AdmissionRules.ValidResource(new Resource(s.Name)) || s.Level < 0 || s.Level > 1000)
+                if (!AdmissionRules.ValidResource(new Resource(s.DefName)) || s.Level < 0 || s.Level > 1000)
                 {
                     throw new DomainException("invalid work skill");
                 }
-                if (!names.Add(s.Name))
+                if (!names.Add(s.DefName))
                 {
                     throw new DomainException("duplicate work skill");
                 }
@@ -971,7 +908,7 @@ public static partial class WorkRules
                         priority = 1;
                     }
                 }
-                priorities.Add(new WorkPriority { Work = name, Priority = priority });
+                priorities.Add(WorkPriority.Planned(name, priority));
                 matches = matches && observed.Priority == priority;
             }
             priorities.Sort((a, b) => string.CompareOrdinal(Wire.Name(a.Work), Wire.Name(b.Work)));

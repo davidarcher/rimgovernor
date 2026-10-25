@@ -1,8 +1,8 @@
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -37,12 +37,7 @@ public sealed class WorkChairTests
 
     private static readonly Dictionary<string, string> Chosen = new() { [Bench] = Chair };
 
-    private static CurrentBuilding Standing(string def, Cell cell, Rotation rot, params Cell[] cells) => new()
-    {
-        Id = $"{def}{cell.X}_{cell.Z}",
-        Building = new Building(def, cell, rot, ""),
-        Cells = [.. cells.Length > 0 ? cells : [cell]],
-    };
+    private static CurrentBuilding Standing(string def, Cell cell, Rotation rot, params Cell[] cells) => ConstructionObservationFixtures.Built(new Building(def, cell, rot, ""), id: $"{def}{cell.X}_{cell.Z}", cells: [.. cells.Length > 0 ? cells : [cell]]);
 
     private static readonly CurrentBuilding BenchNorth = Standing(Bench, new Cell(12, 12), Rotation.North, new(11, 12), new(12, 12), new(13, 12));
 
@@ -72,7 +67,7 @@ public sealed class WorkChairTests
         var blueprint = CurrentConstruction.Empty with
         {
             Buildings = [BenchNorth],
-            Sites = [new ConstructionSite { Building = new Building(Chair, new Cell(12, 11), Rotation.North, ""), Stage = "blueprint" }],
+            Sites = [ConstructionObservationFixtures.Site(new Building(Chair, new Cell(12, 11), Rotation.North, ""), stage: "blueprint")],
         };
         Assert.Empty(Owed(Workshop(Chosen), blueprint));
 
@@ -80,10 +75,28 @@ public sealed class WorkChairTests
         Assert.Empty(Owed(Workshop(Chosen), Census(Standing(Bench, new Cell(30, 30), Rotation.North, new(29, 30), new(30, 30), new(31, 30)))));
     }
 
-    private static ColonyProjection Projection(PlannedRoom room, CurrentConstruction? census)
+    private static ColonyReading Projection(PlannedRoom room, CurrentConstruction? census)
     {
-        var projection = ColonyFactsCoreTests.Projection() with { LayoutPlan = new LayoutPlan { Rooms = [room], NextRoomId = 2 }, Shapes = Shapes };
-        return projection with { Facts = projection.Facts with { CurrentConstruction = census!, Colonists = 1L } };
+        var projection = ColonyFactsCoreTests.Reading() with
+        {
+            Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+                LayoutPlan = new LayoutPlan
+                {
+                    Rooms = [room],
+                    NextRoomId = 2
+                },
+                Shapes = Shapes
+            }
+        };
+        return projection with
+        {
+            Facts = projection.Facts with
+            {
+                CurrentConstruction = census!,
+                Census = projection.Facts.Census with { ColonistCount = 1 }
+            }
+        };
     }
 
     private static RoundsBuildingPlanner Planner() => new() { Concern = RoomsFamily.WorkChairs.FilingKey, Need = RoomsFamily.WorkChairs, Phase = Phase.ComfortWorkChair };
@@ -94,7 +107,7 @@ public sealed class WorkChairTests
         var facts = Projection(Workshop(Chosen), Census(BenchNorth));
         var (resolved, reason) = Planner().SelectWorkChair(facts);
         Assert.True(reason.IsZero, reason.ToString());
-        Assert.Equal((Chair, facts.BuildStuff(Chair)), (resolved!.Definition, resolved.Stuff));
+        Assert.Equal((Chair, ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), Chair)), (resolved!.Definition, resolved.Stuff));
         Assert.Equal([new Cell(12, 11)], resolved.Cells);
         Assert.Equal([new Cell(12, 11)], resolved.Adjacent);
         var (count, method, selection) = resolved.Selection(facts);

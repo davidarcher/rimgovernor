@@ -176,18 +176,17 @@ public sealed class SupplyCandidateTests
     [Fact]
     public void AFishingGroundWithNoFisherIsUnpricedAndWithoutResearchProgressUnscheduled()
     {
-        var region = new FishingRegion
+        var region = new FishingRegionReview
         {
-            Id = "lake",
-            Source = "fishing:lake",
-            Population = 400,
-            MaxPopulation = 400,
-            NutritionPerFish = 0.05,
+            Observed = new()
+            {
+                Root = new(1, 2), Population = 400, MaxPopulation = 400, NutritionPerFish = 0.05,
+                Reachable = true, Frozen = false, Zoned = false, NearestDistanceSquared = 25,
+                Cells = [], Zones = [], YieldCurveValue = 1,
+            },
             Reachable = true,
-            DistanceSquared = 25,
             Crew = new FishingCrew.NoFisher(),
         };
-
         var c = Assert.Single(FishingRules.FishingChannels(new FishingRequest { Regions = [region], Research = new FishingResearch.NoProgress() }));
 
         Assert.Equal(new YieldSupply.Unpriced(), c.Yields[0].Supply);

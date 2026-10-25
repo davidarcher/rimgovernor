@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -61,7 +60,7 @@ public sealed class ActivityNeedBoundaryTests
     {
         var service = new SelectedActivityTask("service", "pawn", [], new(kind, "target", "", "", kind == PawnActivityKind.Eat ? 1 : 0, 5000), new(3, 4), depart);
         return new(1, [new("pawn", "method/pawn", "method", 0, 1, false,
-            [new(PawnActivityKind.Approach, "", "", "", 0, 5000) { Destination = service.Location, NotBefore = depart },
+            [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 5000) { NotBefore = depart }.At(service.Location),
              new(PawnActivityKind.Hold, "", "", "", 0, 5000)]) { Task = service.Id, Preparing = true }]) { Tasks = [service] };
     }
 
@@ -94,7 +93,7 @@ public sealed class ActivityNeedBoundaryTests
         var play = new SelectedActivityTask("play", "pawn", [], new(PawnActivityKind.Recreation, "pin", "", "", 0, 5000), new(1, 1), 0);
         var harvest = new SelectedActivityTask("harvest", "pawn", [], new(PawnActivityKind.Work, "crop", "Harvest", "Harvest", 0, 5000), new(2, 2), 100);
         var haul = new SelectedActivityTask("haul", "pawn", [harvest.Id],
-            new(PawnActivityKind.Deliver, "crop", "", "", 8, 5000) { Destination = new(4, 4) }, new(2, 2), 150) { Resource = "Rice", Source = new(2, 2) };
+            new PawnActivityStep(PawnActivityKind.Deliver, "crop", "", "", 8, 5000).At(new(4, 4)), new(2, 2), 150) { Resource = "Rice", Source = new(2, 2) };
         var eat = new SelectedActivityTask("eat", "pawn", [haul.Id], new(PawnActivityKind.Eat, "observed-output", "", "", 8, 5000), new(4, 4), 200)
             { Resource = "Rice", Source = new(4, 4) };
         var batch = new PawnActivities(1, [new("pawn", "method/pawn", "method", 0, 1, false, [play.Step]) { Task = play.Id }])
@@ -155,7 +154,7 @@ public sealed class ActivityNeedBoundaryTests
     {
         // #3167: development-reassignment held both eaters ~9000 ticks for the cook's meals, owned and unreviewable.
         var cook = new SelectedActivityTask("cook", "cook", [], new(PawnActivityKind.Recipe, "stove", "", "", 0, 9000), new(2, 2), 0);
-        var haul = new SelectedActivityTask("haul", "pawn", [], new(PawnActivityKind.Deliver, "rice", "", "", 8, 9000) { Destination = new(2, 2) }, new(1, 1), 0);
+        var haul = new SelectedActivityTask("haul", "pawn", [], new PawnActivityStep(PawnActivityKind.Deliver, "rice", "", "", 8, 9000).At(new(2, 2)), new(1, 1), 0);
         var eat = new SelectedActivityTask("eat", "pawn", [cook.Id], new(PawnActivityKind.Eat, "observed-output", "", "", 1, 9000), new(3, 3), eatDepart);
         var batch = new PawnActivities(1, [new("cook", "method/cook", "method", 0, 1, false, [cook.Step]) { Task = cook.Id },
             new("pawn", "method/pawn", "method", 0, 1, false, [haul.Step]) { Task = haul.Id }]) { Tasks = [cook, haul, eat] };

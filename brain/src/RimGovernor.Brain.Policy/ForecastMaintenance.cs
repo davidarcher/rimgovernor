@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>A generated practice session (#3341): its task and the native mechanics of the pawn practising there.</summary>
 public sealed record ForecastPracticeTask(string Task, PracticeWorker Worker);
-public sealed record ForecastMaintenanceRequirement(AssignedCapability Requirement, EquatableArray<WorkSkill> Skills);
+public sealed record ForecastMaintenanceRequirement(AssignedCapability Requirement, EquatableArray<RimGovernor.Contracts.Wire.Observations.Skill> Skills);
 public sealed record ForecastMaintenanceConsequence(string Requirement, ForecastMaintenanceGap MissingXp, EquatableArray<string> Findings);
 
 /// <summary>The XP an assigned capability still lacks at the plan's end: projected (0 when a branch is met), or unprojectable
@@ -32,7 +32,7 @@ public static class ForecastMaintenancePolicy
             var gaps = new List<double>(); var unknown = false; var findings = new SortedSet<string>(StringComparer.Ordinal);
             foreach (var alternative in requirement.Requirement.Alternatives)
             {
-                var skill = requirement.Skills.FirstOrDefault(s => s.Name == alternative.Skill);
+                var skill = requirement.Skills.FirstOrDefault(s => s.DefName == alternative.Skill);
                 if (skill?.Disabled == true) continue;
                 if (skill?.Learning is not { } learning)
                 { unknown = true; findings.Add("maintenance_learning_unread:" + alternative.Skill); continue; }

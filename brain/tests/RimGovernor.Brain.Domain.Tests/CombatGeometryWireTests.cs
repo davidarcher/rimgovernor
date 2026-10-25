@@ -13,7 +13,7 @@ public sealed class CombatGeometryWireTests
 
     private static M.CombatGeometryCell Scored(int x, int z, bool lineOfFire) => new()
     {
-        Cell = new C.Cell { X = x, Z = z },
+        Cell = new RimGovernor.Brain.Domain.Cell { X = x, Z = z },
         Lines = [new M.CombatSightLine { HostileId = new PawnId("Thing_Raider1"), Cover = 0.5, LineOfFire = lineOfFire, ColonistInPath = false, HostileCover = 0.25 }],
         Standable = true,
         HostileLineOfFire = lineOfFire,
@@ -31,10 +31,10 @@ public sealed class CombatGeometryWireTests
 
     private static M.CombatGeometryPropose? Role(string role) => role switch
     {
-        "cover" => new M.CombatGeometryPropose.CoverBehindLine { Line = [new C.Cell { X = 1, Z = 2 }] },
-        "choke" => new M.CombatGeometryPropose.AdjacentToChoke { Choke = new C.Cell { X = 4, Z = 4 }, OurSide = new C.Cell { X = 4, Z = 1 } },
-        "firing" => new M.CombatGeometryPropose.FiringCells { Targets = [new C.Cell { X = 9, Z = 9 }], From = new C.Cell { X = 3, Z = 3 }, Radius = 12 },
-        "rescue" => new M.CombatGeometryPropose.RescuePath { Pawn = new PawnId("Thing_Human1"), To = new C.Cell { X = 7, Z = 7 } },
+        "cover" => new M.CombatGeometryPropose.CoverBehindLine { Line = [new RimGovernor.Brain.Domain.Cell { X = 1, Z = 2 }] },
+        "choke" => new M.CombatGeometryPropose.AdjacentToChoke { Choke = new RimGovernor.Brain.Domain.Cell { X = 4, Z = 4 }, OurSide = new RimGovernor.Brain.Domain.Cell { X = 4, Z = 1 } },
+        "firing" => new M.CombatGeometryPropose.FiringCells { Targets = [new RimGovernor.Brain.Domain.Cell { X = 9, Z = 9 }], From = new RimGovernor.Brain.Domain.Cell { X = 3, Z = 3 }, Radius = 12 },
+        "rescue" => new M.CombatGeometryPropose.RescuePath { Pawn = new PawnId("Thing_Human1"), To = new RimGovernor.Brain.Domain.Cell { X = 7, Z = 7 } },
         _ => null,
     };
 

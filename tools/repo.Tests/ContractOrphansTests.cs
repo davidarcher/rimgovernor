@@ -27,6 +27,28 @@ public sealed class ContractOrphansTests : IDisposable
         }
         """;
 
+    [Fact]
+    public void ACalledAbstractGetterIsLiveWithoutHidingAnUnreadSibling()
+    {
+        var policy = Compile("RimGovernor.Brain.Policy", """
+            namespace RimGovernor.Brain.Policy;
+            public abstract record NativeView
+            {
+                public abstract int Value { get; }
+                public int Spare { get; init; }
+            }
+            """);
+        var runtime = Compile("RimGovernor.Brain.BuildingRuntime", """
+            using RimGovernor.Brain.Policy;
+            public static class Reader
+            {
+                public static int Read(NativeView view) => view.Value;
+            }
+            """, policy);
+
+        var orphans = ContractOrphans.Find(ContractOrphans.PolicyRecords, policy, [runtime], [], out _);
+        Assert.Equal([("Policy|NativeView.Spare", "not referenced outside its declaration")], orphans);
+    }
     private readonly string dir = Directory.CreateTempSubdirectory("contract-orphans-").FullName;
 
     public void Dispose() => Directory.Delete(dir, recursive: true);
@@ -283,6 +305,42 @@ public sealed class ContractOrphansTests : IDisposable
                 ("Fixtures|StageSpec.Seed", "not referenced outside its declaration"),
             ],
             orphans);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SplitContractAssembliesKeepTheirReadDirection(bool orders)
+    {
+        var project = orders ? "GameOrders" : "GameFacts";
+        var ns = "RimGovernor.Brain." + project;
+        var contracts = Compile(ns, $$"""
+            namespace {{ns}};
+            public sealed record Entry(int Value, int Spare);
+            """);
+        var brain = Compile("RimGovernor.Brain.Policy", $$"""
+            using {{ns}};
+            public static class Planner { public static int Observe(Entry entry) => 0; }
+            """, contracts);
+        var native = Compile("RimGovernor.Bridge", $$"""
+            using {{ns}};
+            public static class Native
+            {
+                public static Entry Read() => new(3, 4);
+                public static int Apply(Entry entry) => entry.Value;
+            }
+            """, contracts);
+
+        var target = new ContractOrphans.Target(project, ns, RecordsOnly: false, IntentRecords: orders);
+        var orphans = ContractOrphans.Find(target, contracts, [brain], [native], out var checkedCount);
+
+        Assert.Equal(2, checkedCount);
+        // Native reads Value in both assemblies. A fact it also writes still needs a brain reader;
+        // an order it constructs for comparison only needs its native reader. Spare is never read.
+        Assert.Equal(orders
+            ? [(project + "|Entry.Spare", "written, never read")]
+            : new[] { (project + "|Entry.Spare", "written by the native side, never read by the brain"),
+                (project + "|Entry.Value", "written by the native side, never read by the brain") }, orphans);
     }
 
     private IReadOnlyList<string> Find(string brain, string native, out int checkedCount)

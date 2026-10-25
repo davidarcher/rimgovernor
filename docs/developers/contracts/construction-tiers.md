@@ -1,5 +1,11 @@
 # Construction tiers
 
+The current construction census retains each canonical native building row. Built
+geometry is derived from that row for comparison with building intents; blueprint
+and frame views read their actual construction state, material deficits, finishing
+minimum and gate. Installation blueprints are a distinct native case and are not
+construction sites. Missing placement or required build state fails the read.
+
 [Contracts](README.md) · Epic #2510. Tier is a per-target integer that native
 remembers while a building is unfinished. This page covers the field and its
 lifecycle (#2522), which builds carry which tier (#2524) and the native

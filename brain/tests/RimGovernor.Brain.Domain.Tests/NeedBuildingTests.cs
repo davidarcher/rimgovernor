@@ -1,11 +1,10 @@
 using System.Reflection;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -44,7 +43,7 @@ public sealed class NeedBuildingTests
             var snapshot = (GenerationSnapshot)args[1]!;
             var preview = new BuildingPreview
             {
-                Preview = new Preview { Action = action, Snapshot = snapshot, CanPlace = true, SafeToPlace = true, MadeFromStuff = false, WatchCells = WatchAccess.NotWatched, Wind = new BuildingWind.NotWindTurbine(), Footprint = [action.Building!.Cell], Costs = [], Blockers = [] },
+                Preview = new Preview { Action = action, Snapshot = snapshot, CanPlace = true, SafeToPlace = true, Source = PreviewTestFacts.Source(action.Building!.Cell), Footprint = [action.Building!.Cell], Costs = [] },
                 Stock = new StockObservation { Snapshot = snapshot, Tick = new(100) },
             };
             return Task.FromResult(preview);
@@ -168,7 +167,7 @@ public sealed class NeedBuildingTests
         {
             var ct = TestContext.Current.CancellationToken;
             var built = plans.SelectMany(p => Journal.LoadPlan(p, ct).Progress).Where(p => p.Action.Building is not null)
-                .Select((p, i) => new CurrentBuilding { Id = "b" + i, Building = p.Action.Building });
+                .Select((p, i) => ConstructionObservationFixtures.Built(p.Action.Building!, id: "b" + i));
             return CurrentConstruction.Empty with { Buildings = [.. built] };
         }
 
@@ -239,8 +238,8 @@ public sealed class NeedBuildingTests
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
         facts = facts with
         {
-            Resources = [new(new("WoodLog"), 1000)],
-            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = 1.0,
+
+            Census = (facts.Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "WoodLog", Units = 1000 }] },   FieldCoverage = 1.0,
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = [
@@ -263,25 +262,35 @@ public sealed class NeedBuildingTests
         {
             Emergency = new(),
             Frame = new(),
-            Reading = new ColonyReading
-            {
-                Projection = ColonyFactsCoreTests.Projection() with
+            Reading = ColonyFactsCoreTests.Reading(new()
                 {
-                    Identity = new() { Tick = new(100) },
-                    Bounds = new(50, 50),
-                    Definitions =
-                    [
-                        new PlanningDefinition { Name = ContainmentCellRules.ShellWallDefinition, Available = true},
-                        new PlanningDefinition { Name = ContainmentCellRules.ShellDoorDefinition, Available = true},
-                    ],
-                },
+                    Context = ColonyFactsCoreTests.Snapshot().Context with
+                    {
+                        Tick = 100
+                    }
+                }) with
+            {
+
+                Facts = ColonyFactsCoreTests.Reading().Facts with
+                {
+                    MapBounds = new(50, 50),
+                    Definitions = [new PlanningDefinition
+                    {
+                        Name = ContainmentCellRules.ShellWallDefinition,
+                        Available = true
+                    }, new PlanningDefinition
+                    {
+                        Name = ContainmentCellRules.ShellDoorDefinition,
+                        Available = true
+                    }, ]
+                }
             },
         };
         Colony? colony = null;
         var runner = new FamilyRunner<bool>(family ?? new RoomsFamily(), (_, _) => Task.FromResult(colony!.Overlap), null, async (work, _, call) =>
         {
             var review = await journal.LoadRoundsAsync(call);
-            var read = reading with { Reading = reading.Reading with { Projection = reading.Reading.Projection with { Facts = reading.Reading.Projection.Facts with { CurrentConstruction = colony!.Census } } } };
+            var read = reading with { Reading = reading.Reading with { Facts = reading.Reading.Facts with { CurrentConstruction = colony!.Census } } };
             if (work.Need.Id == FoodStoresRules.RefrigerationNeed || work.Need.Id == EconomyFamily.Research)
             {
                 // The cooler step's and the bench step's admission (RefrigerationStepAsync, the building step): one
@@ -289,20 +298,20 @@ public sealed class NeedBuildingTests
                 // planner's once-check over the read's census.
                 var cooler = work.Need.Id == FoodStoresRules.RefrigerationNeed;
                 var method = new MethodId(cooler ? "refrigeration-cooler-20-20" : "laboratory-SimpleResearchBench");
-                if (!planner.MethodOnce(work.Owner, method, call, read.Reading.Projection.Facts.CurrentConstruction))
+                if (!planner.MethodOnce(work.Owner, method, call, read.Reading.Facts.CurrentConstruction))
                 {
                     return Verdict.WaitFor(Cause.MethodUsed, "sleeping_method");
                 }
                 var snapshot = World with { Plan = PlanIds.MintPlanId(), Revision = new(1) };
                 var building = cooler ? new Building("Cooler", new(20, 20), Rotation.North, "") : new Building("SimpleResearchBench", new(30, 30), Rotation.North, "WoodLog");
                 var action = DomainAction.NewBuildingAction(new ActionId(snapshot.Plan.Value + "-0"), building, ConstructionTierRules.PlannerTier(work.Need.Id.FilingKey, Phase.None));
-                var preview = new Preview { Action = action, Snapshot = snapshot, CanPlace = true, SafeToPlace = true, MadeFromStuff = false, WatchCells = WatchAccess.NotWatched, Wind = new BuildingWind.NotWindTurbine(), Footprint = [action.Building!.Cell], Costs = [], Blockers = [] };
+                var preview = new Preview { Action = action, Snapshot = snapshot, CanPlace = true, SafeToPlace = true, Source = PreviewTestFacts.Source(action.Building!.Cell), Footprint = [action.Building!.Cell], Costs = [] };
                 var admitted = await planner.AdmitPreviewsAsync(new RoundsAdmission
                 {
                     State = work.State,
                     Review = review,
                     Owner = work.Owner,
-                    Facts = read.Reading.Projection,
+                    Facts = read.Reading,
                     Method = method,
                     Snapshot = snapshot,
                     Selected = [preview],
@@ -454,8 +463,8 @@ public sealed class NeedBuildingTests
         Assert.True(BuildingWorkRules.PlanProductGone(applied, Colony.Empty));
         Assert.Throws<RequiredFactException>(() => BuildingWorkRules.PlanProductGone(applied, default));
         // One piece standing, built or as a site, keeps the product standing.
-        Assert.False(BuildingWorkRules.PlanProductGone(applied, CurrentConstruction.Empty with { Buildings = [new CurrentBuilding { Id = "w", Building = wall }] }));
-        Assert.False(BuildingWorkRules.PlanProductGone(applied, CurrentConstruction.Empty with { Sites = [new ConstructionSite { Building = door }] }));
+        Assert.False(BuildingWorkRules.PlanProductGone(applied, CurrentConstruction.Empty with { Buildings = [ConstructionObservationFixtures.Built(wall, id: "w")] }));
+        Assert.False(BuildingWorkRules.PlanProductGone(applied, CurrentConstruction.Empty with { Sites = [ConstructionObservationFixtures.Site(door)] }));
         // A plan that applied nothing built nothing to lose.
         Assert.False(BuildingWorkRules.PlanProductGone([new Progress(spec, new("p-0")).Cancel(), new Progress(spec, new("p-1"))], Colony.Empty));
     }
@@ -470,7 +479,7 @@ public sealed class NeedBuildingTests
         colony.Apply(ring.Plan);
 
         // Its blueprints and frames still stand: the wave is unfinished, not gone.
-        var sites = colony.Journal.LoadPlan(ring.Plan, ct).Progress.Select(p => new ConstructionSite { Building = p.Action.Building, Stage = "blueprint" });
+        var sites = colony.Journal.LoadPlan(ring.Plan, ct).Progress.Select(p => ConstructionObservationFixtures.Site(p.Action.Building!, stage: "blueprint"));
         colony.Census = CurrentConstruction.Empty with { Sites = [.. sites] };
         Assert.DoesNotContain((await colony.RunAsync()).Methods, m => m.Method == ring.Method);
 

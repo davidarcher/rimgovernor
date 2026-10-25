@@ -6,6 +6,18 @@ Control, clock and transport contracts the launcher and other clients rely on. T
 player surface ([launcher](../architecture/launcher.md)); [the player API](player-api.md)
 lists the routes the in-process host offers.
 
+## Observation scope
+
+The brain's observation identity retains the native `ObservationContext` reference;
+typed colony, load, map and tick accessors read that context directly. Pause state
+comes from the lifecycle reply. Generation is `Unclaimed` before the first authority
+grant or `At` an allocated generation; an unclaimed generation cannot confirm a
+planner boundary. Missing context or generation, malformed IDs, negative map/tick
+values and generation zero fail the read.
+
+A lifecycle reading carries this identity and its measured start/end timestamps.
+The host checks that interval for freshness and reads pause from the same identity.
+
 ## Clock speed and the one ceiling
 
 How the clock is owned and held is in the [control loop](../architecture/control-loop.md#execute-under-supervision)
@@ -97,15 +109,25 @@ the option.
   JSON without one does not decode. Measured values are plain (`long`, `double`, `string`); a nullable reference
   is allowed only for a real relation (a pawn's equipped weapon). Domain types replace wire shapes: `Tick`,
   `PawnId` and `Cell`, written as a bare number, a bare id string and `{x,z}`.
-- **Enums.** One enum per concept, declared in Contracts (or in Domain when a Domain record already carries it, as with `StockpilePriority`, `FilterBase` and `Quality`) and used by Policy and native alike, with no `Unknown`,
-  `Unspecified` or `None` member and wire names in snake_case (`animal_product`), so `Wire.Name` gives the same
-  string Policy keys on.
+- **Enums.** One enum per concept, declared in Contracts (or in Domain when a Domain record already carries it, as with `StockpilePriority`, `FilterBase` and `Quality`) and used by Policy and native alike, with no `Unknown`
+  or `Unspecified` member. A genuine native state such as `Passion.None` remains explicit. `Wire.Name` uses the
+  declared wire name when present and otherwise derives snake_case; removing a redundant attribute must preserve
+  that serialized value.
 - **A read that cannot be produced throws.** The native producer returns the whole record or throws; it never
   returns a partial or empty one. A throw inside the colony facts read fails that read
   (`NativeColonyObservationTools.Read`); there is no per-section "absent" wrapper.
 - **The container holds the record.** `ColonyFactsSnapshot` carries the section as a `required` member of the
-  record's type, and the brain's projection (`ColonyProjection`) holds its core (identity, bounds, tech level,
-  workers, pending values, delivery ledger) as `required` members. A state that may legitimately be missing is a
+  record's type. `ColonyReading` retains that snapshot, its canonical tables and observation identity; readers
+  access those native records directly. Derived planning inputs belong to the existing `RoundsFacts` review,
+  and geometry planning requires the reading's observed planning window. The review retains the native `ThreatFacts`
+  census through its canonical `ColonyFactsSnapshot` reference. Population, beds, temperature and work-resource
+  inputs come from that same snapshot; raid points, wealth, factions, storyteller, disease and trader inputs
+  come from its native threat section. The review stores no second scalar census. Economy, forecast and medicine
+  inputs retain that same census for observed stock, physical resource ids and population. Pure stock queries
+  convert native quantity rows for a policy calculation; proposed inventory changes and material budgets
+  remain separate derived inputs.
+  Every threat census includes both disease and trader reads; a missing read fails instead of becoming a forecast finding.
+  A state that may legitimately be missing is a
   named case: the sleeping range is `Indoor` or
   `NoIndoorBed`; a pawn's need is `NeedLevel.Has(level)` or `Lacks` (an animal has no joy), and its food need
   `FoodNeed.Has(level, hunger)` or `Lacks` ([rule 9](../architecture/rules.md#review-items)).

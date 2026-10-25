@@ -36,7 +36,7 @@ public sealed class MapMaterialsTests
         {
             Def = def, Category = P.ThingCategory.Building, Faction = faction, Flags = P.ThingMarks.Edifice | P.ThingMarks.Deconstructible, Building = new(),
         };
-        P.SiteCell Cell(int x, params P.Thing[] things) => SiteCellFixtures.At(new(x, 0)) with { Things = things };
+        P.SiteCell Cell(int x, params P.Thing[] things) => SiteCellFixtures.At(new(x, 0), things: things);
 
         var sources = catalog.RingStuffSourcesOf(
         [

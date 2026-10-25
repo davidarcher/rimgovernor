@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -51,7 +50,7 @@ public sealed class ForecastIncumbentPreparationTests
         var needs = facts.ForecastObserved.Needs!;
         facts = facts with
         {
-            WorkView = view, WorkClaims = view.Claims, WorkResources = native,
+            WorkView = view, WorkClaims = view.Claims, Census = facts.Census with { WorkResources = native },
             ForecastObserved = facts.ForecastObserved with { Needs = needs with { Pawns = [needs.Pawns[0] with
             {
                 Location = new(1, 1),
@@ -188,7 +187,7 @@ public sealed class ForecastIncumbentPreparationTests
         var step = new PawnActivityStep(PawnActivityKind.Sleep, "bed", "", "", 0, 300);
         var task = new SelectedActivityTask("future-rest", "pawn", [], step, new(2, 2), 250);
         var order = batch.Orders[0] with { Task = task.Id, Preparing = true, Steps =
-            [new(PawnActivityKind.Approach, "", "", "", 0, 300) { Destination = task.Location, NotBefore = 250 },
+            [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 300) { NotBefore = 250 }.At(task.Location),
              new(PawnActivityKind.Hold, "", "", "", 0, 300)] };
         batch = batch with { Tasks = [task], Orders = tombstone
             ? [order, new("helper", "old-helper", "joy-method", 1, 2, true, [])] : [order] };
@@ -206,7 +205,7 @@ public sealed class ForecastIncumbentPreparationTests
             Targets = [NeedsFixtures.Service("bed", "rest", 10d, .001) with
                 { Location = task.Location }]
         };
-        return (facts with { WorkView = view, WorkClaims = view.Claims, WorkResources = evidence.WorkResources,
+        return (facts with { WorkView = view, WorkClaims = view.Claims, Census = facts.Census with { WorkResources = evidence.WorkResources },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs! with { Pawns = [pawn] } } }, new([row]));
     }
 
@@ -268,7 +267,7 @@ public sealed class ForecastIncumbentPreparationTests
         var recipe = new PawnActivityRecipe("bill/CookRice", "CookRice", [new("observed-output", 4)]);
         var task = new SelectedActivityTask("cook-task", "pawn", [], new(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000) { Recipe = recipe }, new(2, 1), 400);
         var order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 0, 1, false,
-            [new(PawnActivityKind.Approach, "", "", "", 0, 2000) { Destination = task.Location, NotBefore = 400 }, new(PawnActivityKind.Hold, "", "", "", 0, 2000)])
+            [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 2000) { NotBefore = 400 }.At(task.Location), new(PawnActivityKind.Hold, "", "", "", 0, 2000)])
             { Task = task.Id, Preparing = true };
         List<SelectedActivityTask> tasks = [task];
         if (finished)
@@ -307,7 +306,7 @@ public sealed class ForecastIncumbentPreparationTests
         if (busy.Length != 0) native.Add(new("busy", "busy-assignment", 1, "started", "", "", 0) { LocalHour = 12, Bill = busy == "shares" ? recipe.Bill : "bill/Other" });
         var evidence = facts.WorkView.Evidence with { WorkResources = EquatableArray.From(native) };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, rows);
-        return (facts with { WorkView = view, WorkClaims = view.Claims, WorkResources = evidence.WorkResources }, new(EquatableArray.From(rows)));
+        return (facts with { WorkView = view, WorkClaims = view.Claims, Census = facts.Census with { WorkResources = evidence.WorkResources } }, new(EquatableArray.From(rows)));
     }
 
     [Fact]

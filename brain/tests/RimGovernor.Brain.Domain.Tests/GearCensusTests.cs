@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using O = RimGovernor.Contracts.Wire.Observations;
@@ -24,7 +24,7 @@ public sealed class GearCensusTests
         };
         var gear = ColonyModelFixtures.NoGear() with
         {
-            Pawns = [new GearPawn { Pawn = new("pawn"), Policy = new(), LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = new RaidThreat.Uncomposed() }) }],
+            Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("pawn") }, Policy = new() { Observed = PoliciesTests.EmptyOutfit, Role = GearFixtures.Role }, LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 0, ComfortableMaxC = 0 }, Threat = new RaidThreat.Uncomposed(), Role = GearFixtures.Role }) }],
         };
         var pawns = new O.PawnSnapshot { Context = ColonyFactsCoreTests.Snapshot().Context, Pawns = [row] };
 
@@ -39,7 +39,7 @@ public sealed class GearCensusTests
     {
         var gear = ColonyModelFixtures.NoGear() with
         {
-            Pawns = [new GearPawn { Pawn = new("missing"), LoadoutModel = new GearModel.NoOutfit() }],
+            Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "", Pawn = new("missing") }, LoadoutModel = new GearModel.NoOutfit() }],
         };
         Assert.Throws<BridgeContractException>(() => ColonyGearReads.StampGearCreepjoiners(gear, null, new()));
         var pawns = new O.PawnSnapshot { Context = ColonyFactsCoreTests.Snapshot().Context, Pawns = [] };

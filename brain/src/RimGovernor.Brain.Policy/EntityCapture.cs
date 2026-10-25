@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
@@ -8,53 +9,32 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record CapturableEntity
 {
-    public required Domain.PawnId Pawn { get; init; }
+    public required O.PawnState Observed { get; init; }
+
+    private O.PawnAnomaly Anomaly => Observed.Anomaly is O.PawnAnomalyState.Active active
+        ? active.Facts : throw new RequiredFactException("capturable entity anomaly facts");
+
+    public Domain.PawnId Pawn => new(Observed.Pawn.Id);
 
     /// <summary>The pawn row's.</summary>
-    public required bool Dead { get; init; }
+    public bool Dead => Observed.Dead;
 
     /// <summary>The pawn row's.</summary>
-    public required bool Downed { get; init; }
+    public bool Downed => Observed.Downed;
 
     /// <summary>MinimumContainmentStrength.</summary>
-    public required double Need { get; init; }
+    public double Need => Anomaly.MinContainmentStrength;
 
     /// <summary>CompStudiable.CurrentlyStudiable; false for an entity with no study block.</summary>
-    public required bool CurrentlyStudiable { get; init; }
+    public bool CurrentlyStudiable => Anomaly.Study is { CurrentlyStudiable: true };
 
-    public required PlatformTarget? Target { get; init; }
+    public O.HeldState? Target => Anomaly.Held;
 
     /// <summary>The holding-platform target's CompHoldingPlatformTarget.CanBeCaptured; false without a target block.</summary>
     public bool CanBeCaptured => Target is { CanBeCaptured: true };
 
     /// <summary>The holding-platform target's CurrentlyHeldOnPlatform; false without a target block.</summary>
     public bool Held => Target is { Held: true };
-}
-
-/// <summary>
-/// An entity's holding-platform target: whether the game lets the colony capture it and whether a platform holds
-/// it, the held entity's health (needs tend, bleeding), its escape flag and its containment mode and bioferrite
-/// harvest facts.
-/// </summary>
-public sealed record PlatformTarget
-{
-    public required bool CanBeCaptured { get; init; }
-
-    public required bool Held { get; init; }
-
-    public required bool NeedsTend { get; init; }
-
-    public required bool Bleeding { get; init; }
-
-    public required bool Escaping { get; init; }
-
-    public required EntityContainmentModeKind Mode { get; init; }
-
-    public required bool ExtractBioferrite { get; init; }
-
-    public required bool HarvesterAttached { get; init; }
-
-    public required double BioferritePerDay { get; init; }
 }
 
 /// <summary>What the rule does with one downed entity.</summary>
@@ -136,9 +116,9 @@ public static class EntityCaptureRules
         var found = false;
         foreach (var h in p.Holders)
         {
-            if (h.Available && (!found || h.Strength > best))
+            if (h.Available && (!found || h.ContainmentStrength > best))
             {
-                best = h.Strength;
+                best = h.ContainmentStrength;
                 found = true;
             }
         }

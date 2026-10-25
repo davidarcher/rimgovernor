@@ -64,9 +64,9 @@ internal static class ControlHaul
         var site = staged.Site ?? throw new AcceptanceException("the haul stage found no site");
         var destination = new Cell(site.X + store.X, site.Z + store.Z);
         var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent { Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "designate", new Operations.DesignateIntent { Location = new Operations.DesignationLocation.ByTarget(), Designation = Operations.ThingDesignation.Haul, Target = new() { Id = stack }, ReplaceWithWall = false, Withdraw = false, Guard = Operations.DesignationGuard.NoGuard }, cancellationToken).ConfigureAwait(false);
 
-        var step = new PawnActivityStep(PawnActivityKind.Deliver, stack, "", "", Count, int.MaxValue) { Destination = destination };
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, stack, "", "", Count, int.MaxValue).At(destination);
         var batch = new PawnActivities(generation, [new PawnActivityOrder(worker, TaskId, TaskId, 0, 1, false, [step]) { Task = TaskId }])
         {
             Tasks = [new SelectedActivityTask(TaskId, worker, [], step, new Cell(origin.X, origin.Z), 0)],

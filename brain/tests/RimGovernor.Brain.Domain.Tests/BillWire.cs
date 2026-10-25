@@ -9,6 +9,9 @@ internal static class BillWire
 {
     internal static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
 
+    internal static RimGovernor.Brain.Policy.IngredientReservation Reservation(string bill, string pawn, params RimGovernor.Brain.Policy.Amount[] items) => new()
+    { Bill = bill, Observed = new O.IngredientReservation { PawnId = pawn, Items = RimGovernor.Brain.Domain.EquatableArray.From(items.Select(a => new O.Quantity { DefName = a.Resource.Value, Units = a.Count })) } };
+
     internal static O.BillState Bill(string id) => new()
     {
         Id = id,
@@ -29,6 +32,6 @@ internal static class BillWire
     internal static O.BillsSnapshot Census(params O.BillState[] bills) => new()
     {
         Context = Context,
-        Benches = [new O.BillStackRow { Snapshot = new O.SnapshotRef { Context = Context, EntityId = "Thing_Campfire1", Token = "t" }, Bench = "Thing_Campfire1", BenchDef = "Campfire", Usable = true, WorkSpeed = 1, Bills = [.. bills] }],
+        Benches = [new O.BillStackRow { Snapshot = new O.SnapshotRef { Context = Context, EntityId = "Thing_Campfire1", Token = "t" }, Bench = "Thing_Campfire1", BenchDef = "Campfire", Usable = true, WorkSpeed = 1, AutoRefuel = new O.BenchAutoRefuel.NotRefuelable(), Bills = [.. bills] }],
     };
 }

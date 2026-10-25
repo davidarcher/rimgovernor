@@ -57,7 +57,7 @@ public sealed class CoupledReadWireTests
     [Fact]
     public void TheForecastReadRequiresItsCoupledRead()
     {
-        var forecast = new ForecastFacts { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new() { Larder = new() }, Patients = [new() { PawnId = "p", MoodTarget = .5 }] };
+        var forecast = new ForecastFacts { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new() { Consumers = [], Stocks = [], Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, Patients = [new() { PawnId = "p", MoodTarget = .5 }] };
         var json = WireJson.Serialize(forecast);
         var back = WireJson.Deserialize<ForecastFacts>(json);
         Assert.Equal(forecast.Patients, back.Patients);

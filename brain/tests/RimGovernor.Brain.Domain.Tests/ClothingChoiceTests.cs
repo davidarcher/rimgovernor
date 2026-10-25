@@ -1,3 +1,5 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Bridge.Contracts;
@@ -5,41 +7,22 @@ using RimGovernor.Brain.Store;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using Amount = RimGovernor.Brain.Policy.Amount;
-using GearStock = RimGovernor.Brain.Policy.GearStock;
+using GearStock = RimGovernor.Contracts.Wire.Observations.GearStock;
 using GearCandidate = RimGovernor.Brain.Policy.GearCandidate;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ClothingChoiceTests
 {
-    private static GearOption Garment(string product, string stuff, double cold = 5, string group = "Torso") => new()
-    {
-        ID = product + stuff,
-        Definition = new(product),
-        Stuff = new(stuff),
-        Slot = group == "Torso" ? GearSlot.SkinTorso : GearSlot.SkinLegs,
-        Layers = ["OnSkin"],
-        Groups = [group],
-        Source = GearSource.Bill,
-        Quality = 2,
-        Condition = 1,
-        Cold = cold,
-        Cost = 20,
-        Sharp = 0.2
-    };
+    private static GearOption Garment(string product, string stuff, double cold = 5, string group = "Torso") => new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option(product + stuff, product, stuff, GearSource.Bill)), Slot = group == "Torso" ? GearSlot.SkinTorso : GearSlot.SkinLegs, Layers = ["OnSkin"], Groups = [group], Cold = cold, Cost = 20, Sharp = 0.2 };
     private static GearObservation Census(double ambient = 20, params GearOption[] options) => ColonyModelFixtures.NoGear() with
     {
         Stored = [],
-        Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
-        Candidates = [], Apparel = [],
-        LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30, Worn = [Tattered],
-            Options = options.Length == 0 ? [Garment("Shirt", "Cloth"), Garment("Shirt", "Wool", 15)] : EquatableArray.From(options) }) }]
+        Pawns = [new() { Observed = GearFixtures.Loadout("") with { Token = "load", Pawn = new("wearer") }, Candidates = [], Apparel = [], LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Threat = ColonyModelFixtures.NoThreat, Ambient = ambient, Worn = [Tattered], Options = options.Length == 0 ? [Garment("Shirt", "Cloth"), Garment("Shirt", "Wool", 15)] : EquatableArray.From(options), Role = GearFixtures.Role }) }]
     };
     // The wearer's tattered shirt and bare legs (#3816): a torso garment ends the tattered thought, pants the nakedness.
-    private static GearOption Tattered => Garment("Shirt", "Cloth", 0) with
-    { ID = "tattered-shirt", Source = GearSource.Worn, Sharp = 0, Condition = 0.1, CareIfDamaged = true, CountsAsClothingForNudity = true };
+    private static GearOption Tattered => Garment("Shirt", "Cloth", 0) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Garment("Shirt", "Cloth", 0)).Origin).Value) with { Id = "tattered-shirt", Source = GearSource.Worn, Condition = 0.1 }), Sharp = 0, CareIfDamaged = true, CountsAsClothingForNudity = true };
     private static NeedThoughtStage[] ApparelStages =>
     [
         new("ApparelDamaged", ForecastApparel.Damaged, 0, -3, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)),
@@ -55,7 +38,7 @@ public sealed class ClothingChoiceTests
     private static RecipeActivityRead Read(params RecipeActivityOption[] options) => new()
     { Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Retained = [] };
     private static RoundsFacts Facts(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkResourceTestFacts.Create("tailor", "helper") with
-    { Resources = [new(new("Cloth"), (long)cloth), new(new("Wool"), (long)wool), new(new("DevilstrandCloth"), (long)devilstrand)] };
+    { Census = (WorkResourceTestFacts.Create("tailor", "helper")).Census with { Resources = [new O.Quantity { DefName = "Cloth", Units = (long)cloth }, new O.Quantity { DefName = "Wool", Units = (long)wool }, new O.Quantity { DefName = "DevilstrandCloth", Units = (long)devilstrand }] }};
     private static WorkResourceView Resources(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkRules.WorkResourcesOf(
         ProductionRules.WorkAdmissionEvidenceOf(Facts(cloth, wool, devilstrand), new ProductionBatchCensus.Read([])), new ProductionBatchCensus.Read([]), []);
     private static RoundsFacts Review(GearObservation census, RecipeActivityRead read, WorkResourceView resources)
@@ -65,7 +48,7 @@ public sealed class ClothingChoiceTests
         return facts with { Gear = census, WorkView = resources, MoodBreak = new() { Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] }, ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" },
-                template with { Pawn = "wearer", Apparel = NeedsFixtures.Apparel(RimGovernor.Contracts.Wire.Defs.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
+                template with { Pawn = "wearer", Apparel = NeedsFixtures.Apparel(D.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
             Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Clothing = read, Construction = ConstructionFixtures.NoConstruction() }
         } };
     }
@@ -198,18 +181,17 @@ public sealed class ClothingChoiceTests
     {
         var census = Census();
         // #3621: a physical replacement no longer withholds the craft; the comparison weighs the swap against it.
-        var physical = census with { Pawns = [census.Pawns[0] with { Candidates = [new("stored-shirt", 1, new("Shirt"))] }] };
+        var physical = census with { Pawns = [census.Pawns[0] with { Candidates = [new(new O.GearCandidate { Item = GearFixtures.Item("stored-shirt", new O.ItemQuality.Graded(D.QualityCategory.Normal)), Gain = 1 }, new("Shirt"))] }] };
         Assert.Equal(ClothingActivitiesRules.ClothingActivityRequirements(census), ClothingActivitiesRules.ClothingActivityRequirements(physical));
         Assert.NotEmpty(ClothingActivitiesRules.ClothingActivityRequirements(physical));
     }
 
-    private static GearOption Duster(string stuff, double sharp, GearSource source = GearSource.Bill) => Garment("Duster", stuff) with
-    { ID = source == GearSource.Bill ? "Duster" + stuff : source + "-duster-" + stuff, Slot = GearSlot.Outer, Layers = ["Shell"], Source = source, Sharp = sharp, Cold = 0 };
+    private static GearOption Duster(string stuff, double sharp, GearSource source = GearSource.Bill) => Garment("Duster", stuff) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Garment("Duster", stuff)).Origin).Value) with { Id = source == GearSource.Bill ? "Duster" + stuff : source + "-duster-" + stuff, Source = source }), Slot = GearSlot.Outer, Layers = ["Shell"], Sharp = sharp, Cold = 0 };
 
     private static GearObservation Wearing(params GearOption[] options) => Census(20, options) with
     {
         Pawns = [Census(20, options).Pawns[0] with { LoadoutModel = new GearModel.Modeled(Census(20, options).Pawns[0].Model! with
-        { Worn = [Garment("Shirt", "Cloth", 0) with { ID = "worn-shirt", Source = GearSource.Worn, Sharp = 0 }, Duster("Cloth", 0.1, GearSource.Worn)] }) }]
+        { Worn = [Garment("Shirt", "Cloth", 0) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Garment("Shirt", "Cloth", 0)).Origin).Value) with { Id = "worn-shirt", Source = GearSource.Worn }), Sharp = 0 }, Duster("Cloth", 0.1, GearSource.Worn)] }) }]
     };
 
     [Fact]
@@ -232,7 +214,7 @@ public sealed class ClothingChoiceTests
         var dusterSwap = new ForecastCommitment("gear/wearer/a", []) { ExclusiveOutcome = "gear/wearer",
             OutfitChanges = [new("wearer", [worn[0], Duster("DevilstrandCloth", 0.5, GearSource.Stored)])] };
         var shirtSwap = new ForecastCommitment("gear/wearer/b", []) { ExclusiveOutcome = "gear/wearer",
-            OutfitChanges = [new("wearer", [Garment("Shirt", "Wool") with { ID = "stored-shirt", Source = GearSource.Stored }, worn[1]])] };
+            OutfitChanges = [new("wearer", [Garment("Shirt", "Wool") with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Garment("Shirt", "Wool")).Origin).Value) with { Id = "stored-shirt", Source = GearSource.Stored }) }, worn[1]])] };
         var other = new ForecastCommitment("gear/other/a", []) { ExclusiveOutcome = "gear/other", OutfitChanges = [new("other", [])] };
 
         Assert.Equal(["gear/wearer/a"], ClothingActivitiesRules.SwapsInSlot(need, worn, [dusterSwap, shirtSwap, other]));

@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.PlayerApi;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Host;
 /// the last good observation, refreshed serially on a cadence, with the player's control
 /// state laid over it. Reading it never triggers inference or a native refresh; it owns no native mutation capability.
 /// </summary>
-internal sealed class HostSnapshots(string sessionId, ISource source, IClock clock, TimeSpan maxAge, Player player, HostLog log) : ISnapshotProvider, IPlanReader, IDisposable
+internal sealed class HostSnapshots(string sessionId, IObservationSource source, IClock clock, TimeSpan maxAge, Player player, HostLog log) : ISnapshotProvider, IPlanReader, IDisposable
 {
     private readonly SemaphoreSlim _refresh = new(1, 1);
     private readonly object _mu = new();
@@ -45,13 +45,13 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
         await _refresh.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            Reading reading;
+            ObservationReading reading;
             bool paused;
             try
             {
                 reading = await ObservationReads.Observe(source, clock, cancellationToken).ConfigureAwait(false);
-                reading.Snapshot.CheckFresh(clock.Now(), maxAge, reading.Snapshot.Identity);
-                paused = reading.Snapshot.Status.Paused.TryGetValue(out var read) ? read : throw new RequiredFactException("game_paused");
+                reading.CheckFresh(clock.Now(), maxAge);
+                paused = reading.Identity.Paused;
             }
             catch (NotLoadedException e)
             {
@@ -83,14 +83,14 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
 
             lock (_mu)
             {
-                _started = reading.Snapshot.StartedAt;
+                _started = reading.StartedAt;
                 _gamePaused = paused;
                 _snapshot = _snapshot with
                 {
                     Connected = true,
                     Stale = false,
                     Status = "Read-only observation",
-                    World = new ControllerWorld.Observed(reading.Snapshot.Identity, paused, reading.Snapshot.ObservedAt),
+                    World = new ControllerWorld.Observed(reading.Identity, paused, reading.ObservedAt),
                 };
             }
         }

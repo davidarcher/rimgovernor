@@ -1,36 +1,22 @@
 using RimGovernor.Brain.Policy;
+using NativeCellGrid = RimGovernor.Contracts.Wire.Mirror.CellGrid;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-/// <summary>
-/// The shared planning cell the tests stand cells with: a whole <see cref="SiteCell"/> (every required member) of
-/// open, walkable, unzoned, unroofed outdoor soil in no room, holding nothing. Tests set what they exercise with
-/// <c>with</c>.
-/// </summary>
+/// <summary>Complete native grid fixtures; all changes are staged before publishing a SiteCell view.</summary>
 internal static class SiteCellFixtures
 {
-    public static readonly SiteCell Ground = new()
-    {
-        Cell = new Cell(0, 0),
-        Walkable = true,
-        Zone = false,
-        Roofed = false,
-        Indoors = false,
-        StorageStacks = 0,
-        StorageCapacity = 1,
-        Doorway = false,
-        Fertility = 1.0,
-        Polluted = false,
-        Glow = 0,
-        Roof = null,
-        ZoneId = null,
-        Room = CellRoom.Outside,
-        Terrain = "Soil",
-        BaseTerrain = "Soil",
-        FoundationRemoval = false,
-        Things = [],
-    };
-
-    /// <summary>Open ground at <paramref name="cell"/>.</summary>
-    public static SiteCell At(Cell cell) => Ground with { Cell = cell };
+    public static SiteCell At(Cell cell, bool walkable = true, string? zoneId = null, string? roof = null,
+        bool indoors = false, int storageStacks = 0, int storageCapacity = 1, bool doorway = false,
+        double fertility = 1, bool polluted = false, double glow = 0, int? room = null,
+        string terrain = "Soil", string baseTerrain = "Soil", bool foundationRemoval = false, Thing[]? things = null) =>
+        new(new NativeCellGrid
+        {
+            X = cell.X, Z = cell.Z, Width = 1, Height = 1,
+            Held = [true], Walkable = [walkable], Indoors = [indoors], Doorway = [doorway], Polluted = [polluted],
+            InHome = [false], TopLayerRemovable = [false], FoundationRemoval = [foundationRemoval],
+            StorageStacks = [storageStacks], StorageCapacity = [storageCapacity],
+            Fertility = [(float)fertility], Glow = [(float)glow], SnowDepth = [0],
+            Terrain = [terrain], BaseTerrain = [baseTerrain], Roof = [roof], ZoneId = [zoneId], Room = [room], Things = [things],
+        }, 0);
 }

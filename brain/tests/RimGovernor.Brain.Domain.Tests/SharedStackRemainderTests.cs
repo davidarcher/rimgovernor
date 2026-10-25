@@ -4,7 +4,6 @@ using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -41,8 +40,8 @@ public sealed class SharedStackRemainderTests
         return facts with
         {
             Tick = new(tick),
-            Resources = [new(new("Rice"), (long)stock)],
-            WorkResources = native.Length == 0 ? roster.WorkResources : EquatableArray.From(native),
+
+            Census = (facts.Census with { WorkResources = native.Length == 0 ? roster.Census.WorkResources : EquatableArray.From(native) }) with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = (long)stock }] },
             CoupledAlternatives = null,
             ForecastObserved = facts.ForecastObserved with
             {
@@ -164,7 +163,7 @@ public sealed class SharedStackRemainderTests
         var unclaimed = target with { Id = "other-stack" };
         Assert.Equal(unclaimed, WorkRules.ProposableNeedTarget(claims, unclaimed));
         var hauled = Held(Facts(20), new PawnActivities(1, [new("pawn", "haul/pawn", "haul", 0, 1, false,
-            [new(PawnActivityKind.Deliver, Stack, "", "", 2, 20000) { Destination = new(3, 3) }])]));
+            [new PawnActivityStep(PawnActivityKind.Deliver, Stack, "", "", 2, 20000).At(new(3, 3))])]));
         Assert.Contains(Stack, hauled.WorkView!.Claims.Targets);
         Assert.Null(WorkRules.ProposableNeedTarget(hauled.WorkView.Claims, target));
         Assert.Empty(StackTasks(hauled, "helper"));

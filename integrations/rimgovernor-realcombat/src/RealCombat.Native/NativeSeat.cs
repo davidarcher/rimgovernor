@@ -75,7 +75,7 @@ public sealed class NativeSeat
     public Observations.BundleSnapshot Capture() => CombatMirror.Capture(_map, new Observations.BundleSnapshot());
 
     /// <summary>Applies one batch of combat orders in request order and returns the per-order results.</summary>
-    public IReadOnlyList<Receipts.CombatOrderResult> Apply(Operations.CombatOrders orders)
+    public IReadOnlyList<RimGovernor.Brain.Domain.CombatResult> Apply(Operations.CombatOrders orders)
     {
         var effect = NativeCombatOrders.Apply(orders, new Common.ObservationContext { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = Identity, Tick = Find.TickManager.TicksGame });
         return ((Receipts.EffectEvidenceEffect.CombatOrdersCase)effect.Effect!).Value.Results;

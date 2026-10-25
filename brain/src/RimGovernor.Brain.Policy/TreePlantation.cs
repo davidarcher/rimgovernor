@@ -142,7 +142,7 @@ public static partial class TreePlantationRules
                 }
                 foreach (var skill in skills!)
                 {
-                    if (skill.Name == "Plants" && !skill.Disabled)
+                    if (skill.DefName == "Plants" && !skill.Disabled)
                     {
                         best = Math.Max(best, skill.Level);
                     }

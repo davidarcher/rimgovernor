@@ -1,5 +1,9 @@
 # Mood relief contracts
 
+The mood loss ledger consumes the same `MoodPawn` rows as mood planning. Traits,
+precepts and expectation gates read their retained canonical pawn observations;
+only the grouped thought offsets are derived inputs.
+
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
 Normal production uses the [shared portfolio comparison](../architecture/portfolio-selection.md)
@@ -10,8 +14,8 @@ replace the per-pawn mood Needs and independent relief behavior described below.
 
 Each tracked pawn's mood is the `people/mood/<pawn>` Need of the people family (#3304;
 the `EnsureMood` Response and its mood relief planner are deleted), a Wellbeing Need
-whose predicate is the review's mood state; an unread review is one Unknown
-`people/mood` Need. It is unmet within 0.15 above the pawn's observed
+whose predicate is the current review's total mood-state census. A missing review
+fails the read before Need derivation; an observed empty census derives no mood Needs. It is unmet within 0.15 above the pawn's observed
 minor-break threshold, or when the native current thought target is below that
 threshold and falling relative to current mood, and met above it: one bar with no
 separate entry and recovery margins (#3265, decision 26). Missing pawns, thresholds
@@ -20,7 +24,7 @@ ideology; current thought pressure predicts neither a break probability nor its
 timing. The [pawn profile](work-assignment.md#pawn-profile) exports the trait flags
 (Pyromaniac, chemical interest, NightOwl) for relief and containment ordering.
 
-Typed nullable storage fields preserve unknown, zero and false. Manual clears current
+Mood views retain the complete canonical native pawn row and the actual same-frame patient forecast. Persisted mood history retains those same inputs and grouped thought totals, including a pawn that lacks a mood need and therefore has no patient forecast. Flags, needs, threshold and expectations are read directly from the retained native pawn. Manual clears current
 method proposals and suspends shared work while retaining mood history; world
 replacement and tick rewind reset that history. Departed pawns with unresolved risk
 remain unknown; departed recovered occurrences close.

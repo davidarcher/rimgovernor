@@ -1,44 +1,38 @@
 using ColonistDistance = RimGovernor.Contracts.Wire.Observations.ColonistDistance;
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
-
-/// <summary>An observed active native break, never an inferred mood risk.</summary>
-public sealed record MentalState
-{
-    public string DefName { get; init; } = "";
-
-    public bool IsAggro { get; init; }
-
-    public int TicksInState { get; init; }
-}
 
 /// <summary>One census pawn joined to its pawn-table row: every fact is the row's.</summary>
 public sealed record EmergencyPawn
 {
+    public required O.PawnState Observed { get; init; }
+
     /// <summary>The active native break; null when the pawn is in none.</summary>
-    public MentalState? MentalState { get; init; }
+    public O.PawnMentalState? MentalState => Observed.MentalState;
 
-    public required PawnId Id { get; init; }
+    public PawnId Id => new(Observed.Pawn.Id);
 
-    public required bool Dead { get; init; }
+    public bool Dead => Observed.Dead;
 
-    public required bool Downed { get; init; }
+    public bool Downed => Observed.Downed;
 
-    public required bool Bleeding { get; init; }
+    public bool Bleeding => Observed.Health.Bleeding;
 
-    public required bool NeedsTend { get; init; }
+    public bool NeedsTend => Observed.Health.NeedsTend;
 
     /// <summary>
     /// Decides whether a bleeding colonist who is still on their feet is anyone's patient: WorkGiver_Tend tends a
     /// humanlike only in a bed and the ground tend needs a downed pawn.
     /// </summary>
-    public required bool InBed { get; init; }
+    public bool InBed => Observed.InBed;
 
     /// <summary>The pawn's cell on the census map.</summary>
-    public required Cell Position { get; init; }
+    public Cell Position => Observed.Pawn.Place is O.EntityPlace.OnMap at
+        ? at.Cell : throw new DomainException("emergency pawn is not on a map");
 
     /// <summary>Need_Food: its level and CurCategory, or Lacks for a pawn without a food need.</summary>
-    public required FoodNeed Food { get; init; }
+    public FoodNeed Food => Observed.Needs.Food;
 }
 
 /// <summary>
@@ -64,8 +58,10 @@ public enum ThreatKind : byte
 /// HostileBuilding row is never dead or downed while the census lists it; it carries its own native CAS token
 /// (SnapshotToken) for the attack order and its definition name.
 /// </summary>
-public sealed record EmergencyThreat
+public abstract record EmergencyThreat
 {
+    private EmergencyThreat() { }
+
     /// <summary>
     /// The nearest-colonist distance from which a hostile or hunting animal is watched rather than held: the
     /// native supervisor stops a running clock for a hostile within the watch policy's hostile_within (20 cells
@@ -75,38 +71,55 @@ public sealed record EmergencyThreat
     /// </summary>
     public const int DistantThreatCells = 50;
 
-    public required PawnId Id { get; init; }
+    public abstract PawnId Id { get; }
+    public abstract ThreatKind Kind { get; }
+    public abstract bool Dead { get; }
+    public abstract bool Downed { get; }
+    public abstract bool Animal { get; }
+    public abstract ColonistDistance Distance { get; }
+    public abstract string SnapshotToken { get; }
+    public abstract string Definition { get; }
+    public abstract IReadOnlyList<Cell> Cells { get; }
+    public abstract bool Fogged { get; }
+    public abstract bool Passive { get; }
+    public abstract Cell Position { get; }
 
-    public required ThreatKind Kind { get; init; }
+    /// <summary>The actual table row and independently observed status census classification evidence.</summary>
+    public sealed record PawnThreat(O.PawnState ObservedPawn, O.ThreatPawn CensusThreatPawn, ThreatKind Classification) : EmergencyThreat
+    {
+        public override PawnId Id => new(ObservedPawn.Pawn.Id);
+        public override ThreatKind Kind => Classification;
+        public override bool Dead => ObservedPawn.Dead;
+        public override bool Downed => ObservedPawn.Downed;
+        public override bool Animal => ObservedPawn.Animal;
+        public override ColonistDistance Distance => CensusThreatPawn.NearestColonist;
+        public override string SnapshotToken => "";
+        public override string Definition => "";
+        public override IReadOnlyList<Cell> Cells => [];
+        public override bool Fogged => ObservedPawn.Fogged;
+        public override bool Passive => Classification == ThreatKind.Hostile && CensusThreatPawn.Passive;
+        public override Cell Position => MapPosition(ObservedPawn.Pawn.Place);
+    }
 
-    public required bool Dead { get; init; }
+    /// <summary>The census owns hostile-building evidence; no canonical building table contains these rows.</summary>
+    public sealed record BuildingThreat(O.ThreatBuilding ObservedBuilding) : EmergencyThreat
+    {
+        public override PawnId Id => new(ObservedBuilding.Building.Id);
+        public override ThreatKind Kind => ThreatKind.HostileBuilding;
+        public override bool Dead => false;
+        public override bool Downed => false;
+        public override bool Animal => false;
+        public override ColonistDistance Distance => ObservedBuilding.NearestColonist;
+        public override string SnapshotToken => ObservedBuilding.Snapshot;
+        public override string Definition => ObservedBuilding.Building.DefName;
+        public override IReadOnlyList<Cell> Cells => CellsRules.RectCells(ObservedBuilding.Occupied);
+        public override bool Fogged => ObservedBuilding.Fogged;
+        public override bool Passive => ObservedBuilding.Passive;
+        public override Cell Position => MapPosition(ObservedBuilding.Building.Place);
+    }
 
-    public required bool Downed { get; init; }
-
-    public required bool Animal { get; init; }
-
-    public required ColonistDistance Distance { get; init; }
-
-    /// <summary>Set on HostileBuilding rows only.</summary>
-    public string SnapshotToken { get; init; } = "";
-
-    /// <summary>Set on HostileBuilding rows only.</summary>
-    public string Definition { get; init; } = "";
-
-    /// <summary>Set on HostileBuilding rows only: the building's occupied rect, the cells a ranged defender needs a line of fire to.</summary>
-    public IReadOnlyList<Cell> Cells { get; init; } = [];
-
-    /// <summary>The native discovery fact: the threat stands in fog the colony has not explored.</summary>
-    public required bool Fogged { get; init; }
-
-    /// <summary>
-    /// Insects and hives and hostiles that can sleep, such as dormant mech clusters: true when the thing is
-    /// dormant, or awake but not engaging the colony. Any other threat is never passive.
-    /// </summary>
-    public required bool Passive { get; init; }
-
-    /// <summary>A pawn threat's cell, a building's position cell; the safety overlay draws a pawn's reach around it.</summary>
-    public required Cell Position { get; init; }
+    private static Cell MapPosition(O.EntityPlace place) => place is O.EntityPlace.OnMap at
+        ? at.Cell : throw new DomainException("emergency threat is not on a map");
 
     /// <summary>Set on HostileBuilding rows only: the catalog row of the def says a turret whose verb fires mortar shells.</summary>
     public bool Mortar { get; init; }
@@ -246,7 +259,7 @@ public sealed record EmergencySnapshot
         {
             Colonists = [.. facts.Colonists],
             DependentPatients = [.. facts.DependentPatients],
-            Threats = [.. facts.Threats.Select(t => t with { Cells = [.. t.Cells] })],
+            Threats = [.. facts.Threats],
             Unseen = [.. facts.Unseen],
         };
         return new EmergencySnapshot(current, tick, owned);

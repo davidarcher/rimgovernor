@@ -54,7 +54,7 @@ public sealed record StationFacts
     public RestSchedule? Rest { get; init; }
 
     /// <summary>The colonists' food census; its consumers' rates sum to the nutrition a day.</summary>
-    public FoodSupply Food { get; init; } = new() { Larder = new() };
+    public FoodSupply Food { get; init; } = new() { Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } };
 
     /// <summary>The work ledger as the latest review filed it: its wanted orders are read once a review reconciled it or found no planner declaring (LedgerOrders).</summary>
     public LedgerView Ledger { get; init; } = WorkRules.NewLedgerView(WorkRules.LedgerViewNone);
@@ -83,8 +83,8 @@ public sealed record StationFacts
     /// <summary>The map the plan was grown over.</summary>
     public MapSurvey Survey { get; init; } = default!;
 
-    /// <summary>The seasonal outdoor temperature curve (twelve means, C); the climate advice needs it and the catalog's full-rot temperature and is left off while either is unknown.</summary>
-    public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
+    /// <summary>The seasonal outdoor temperature curve (twelve means, C); required by climate advice alongside the catalog's full-rot temperature.</summary>
+    public EquatableArray<double> OutdoorCurve { get => ClimateRules.RequireOutdoorCurve(field); init; }
 
     public double FullRotRateC { get; init; }
 
@@ -404,7 +404,7 @@ public sealed record StationFacts
     }
 }
 
-/// <summary>One room group with the built rooms matched to it. Rooms are the matched built rooms' ids and Capacity their summed area. Outgrown: the group needs more floor than its built rooms give. Climate is the cold room's climate answer, beside its cooling station: the watts of each opening to the outdoors (#2940); null for a group that does not require cold or when the curve or the game's numbers are unknown.</summary>
+/// <summary>One room group with the built rooms matched to it. Rooms are the matched built rooms' ids and Capacity their summed area. Outgrown: the group needs more floor than its built rooms give. Climate is the cold room's climate answer, beside its cooling station: the watts of each opening to the outdoors (#2940); null for a group that does not require cold or when the game's numbers cannot be priced; the seasonal curve is required.</summary>
 public sealed record GroupAdvice
 {
     public RoomGroup Group { get; init; } = default!;
@@ -864,17 +864,6 @@ internal static class KeyText
                 return;
         }
         var type = v.GetType();
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Fact<>))
-        {
-            var known = (bool)type.GetProperty("IsKnown")!.GetValue(v)!;
-            sb.Append(known ? "known(" : "unknown(");
-            if (known)
-            {
-                Write(sb, type.GetProperty("ValueOrDefault")!.GetValue(v), depth + 1);
-            }
-            sb.Append(')');
-            return;
-        }
         if (v is IEnumerable items)
         {
             var parts = new List<string>();

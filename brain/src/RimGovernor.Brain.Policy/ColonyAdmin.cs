@@ -5,11 +5,11 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// The creep joiner work one family read found (#3264): weapon drops, surgical inspections, isolation moves and
 /// arrested ones to disarm, the stored inspection record they were read against, and whether any of it is owed.
-/// <see cref="Owed"/> is unknown while the colonist census or a creepjoiner's facts cannot be read.
+/// The complete colonist census is required before this work is derived.
 /// </summary>
 public sealed record CreepJoinerWork
 {
-    public Fact<bool> Owed { get; init; }
+    public bool Owed { get; init; }
 
     public IReadOnlyList<WeaponDrop> Drops { get; init; } = [];
 
@@ -36,7 +36,10 @@ public enum LedgerDiff
     Unread,
 }
 
-/// <summary>What the colony admin family reads; a section is null when its Need is not composed.</summary>
+/// <summary>A completed admin review's demand, or a section the runtime did not compose.</summary>
+public enum AdminWorkReview { NotComposed, Settled, Owed }
+
+/// <summary>What the colony admin family reads. A composed section must have its current review.</summary>
 public sealed record AdminFacts
 {
     public CreepJoinerWork? CreepJoiners { get; init; }
@@ -47,17 +50,17 @@ public sealed record AdminFacts
     /// </summary>
     public EquatableArray<StartingSupply> SupplySafety { get; init; }
 
-    /// <summary>Whether a tomb, grave or morgue step is due; unknown while the rooms, plan or corpses cannot be read.</summary>
-    public Fact<bool>? Burial { get; init; }
+    /// <summary>Whether a tomb, grave or morgue step is due.</summary>
+    public AdminWorkReview Burial { get; init; }
 
     /// <summary>The work ledger's reconcile diff (LedgerDiffOwed): Unread unless the ledger has declarers and read every bench's bills.</summary>
-    public LedgerDiff? WorkLedger { get; init; }
+    public LedgerDiff WorkLedger { get; init; } = LedgerDiff.Unread;
 
-    /// <summary>Whether the stockpile review proposes a zone edit, a storage room or a shelf; unknown while the zone claims or the site cells are unread.</summary>
-    public Fact<bool>? Stockpiles { get; init; }
+    /// <summary>Whether the stockpile review proposes a zone edit, a storage room or a shelf.</summary>
+    public AdminWorkReview Stockpiles { get; init; }
 
-    /// <summary>Whether the review owes a work assignment, pawn setting or coupled activity (WorkAssignmentsOwed); unknown while the coverage or cleanup census is unread.</summary>
-    public Fact<bool>? WorkAssignments { get; init; }
+    /// <summary>The work planner lifecycle and reviewed work assignment demand.</summary>
+    public WorkAssignmentsReview WorkAssignments { get; init; } = WorkAssignmentsReview.AwaitingPlanner;
 }
 
 /// <summary>Which of the colony admin family's Needs the runtime composes.</summary>
@@ -141,7 +144,7 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         var needs = new List<Need>(6);
         if (composed.CreepJoiners)
         {
-            needs.Add(CreepJoinersNeed(facts.CreepJoiners ?? new CreepJoinerWork()));
+            needs.Add(CreepJoinersNeed(facts.CreepJoiners ?? throw new RequiredFactException("creepjoiner work")));
         }
         if (composed.SupplySafety)
         {
@@ -149,19 +152,31 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         }
         if (composed.Burial)
         {
-            needs.Add(BurialNeed(facts.Burial ?? Fact.Unknown<bool>()));
+            needs.Add(BurialNeed(facts.Burial switch
+            {
+                AdminWorkReview.Owed => true,
+                AdminWorkReview.Settled => false,
+                AdminWorkReview.NotComposed => throw new RequiredFactException("burial steps"),
+                var invalid => throw new ArgumentOutOfRangeException(nameof(facts), facts.Burial, "Invalid burial review."),
+            }));
         }
         if (composed.WorkLedger)
         {
-            needs.Add(WorkLedgerNeed(facts.WorkLedger ?? LedgerDiff.Unread));
+            needs.Add(WorkLedgerNeed(facts.WorkLedger));
         }
         if (composed.Stockpiles)
         {
-            needs.Add(StockpilesNeed(facts.Stockpiles ?? Fact.Unknown<bool>()));
+            needs.Add(StockpilesNeed(facts.Stockpiles switch
+            {
+                AdminWorkReview.Owed => true,
+                AdminWorkReview.Settled => false,
+                AdminWorkReview.NotComposed => throw new RequiredFactException("stockpile review"),
+                var invalid => throw new ArgumentOutOfRangeException(nameof(facts), facts.Stockpiles, "Invalid stockpile review."),
+            }));
         }
         if (composed.WorkAssignments)
         {
-            needs.Add(WorkAssignmentsNeed(facts.WorkAssignments ?? Fact.Unknown<bool>()));
+            needs.Add(WorkAssignmentsNeed(facts.WorkAssignments));
         }
         return needs;
     }
@@ -179,13 +194,10 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         return output;
     }
 
-    /// <summary>Unmet while any creepjoiner work is owed (including a record change); raises <see cref="RequiredFactException"/> while it cannot be read, met otherwise.</summary>
+    /// <summary>Unmet while any observed creepjoiner work is owed (including a record change), met otherwise.</summary>
     public static Need CreepJoinersNeed(CreepJoinerWork work)
     {
-        if (!work.Owed.TryGetValue(out var owed))
-        {
-            throw new RequiredFactException("creepjoiner work");
-        }
+        var owed = work.Owed;
         return new Need
         {
             Id = CreepJoiners,
@@ -210,13 +222,9 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         };
     }
 
-    /// <summary>Unmet while a tomb, grave or morgue step is due; raises <see cref="RequiredFactException"/> while that cannot be read, met otherwise.</summary>
-    public static Need BurialNeed(Fact<bool> owed)
+    /// <summary>Unmet while an observed tomb, grave or morgue step is due, met otherwise.</summary>
+    public static Need BurialNeed(bool due)
     {
-        if (!owed.TryGetValue(out var due))
-        {
-            throw new RequiredFactException("burial steps");
-        }
         return new Need
         {
             Id = Burial,
@@ -229,11 +237,13 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     /// <summary>Unmet while the ledger's reconcile places or removes a bill; raises <see cref="RequiredFactException"/> while the declarations or the bench readback are unread, met otherwise.</summary>
     public static Need WorkLedgerNeed(LedgerDiff diff)
     {
-        if (diff == LedgerDiff.Unread)
+        var owed = diff switch
         {
-            throw new RequiredFactException("work ledger diff");
-        }
-        var owed = diff == LedgerDiff.Owed;
+            LedgerDiff.Owed => true,
+            LedgerDiff.Settled => false,
+            LedgerDiff.Unread => throw new RequiredFactException("work ledger diff"),
+            var invalid => throw new ArgumentOutOfRangeException(nameof(diff)),
+        };
         return new Need
         {
             Id = WorkLedger,
@@ -243,13 +253,9 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         };
     }
 
-    /// <summary>Unmet while the stockpile review proposes work; raises <see cref="RequiredFactException"/> while it cannot be read, met otherwise.</summary>
-    public static Need StockpilesNeed(Fact<bool> active)
+    /// <summary>Unmet while the completed stockpile review proposes work, met otherwise.</summary>
+    public static Need StockpilesNeed(bool owed)
     {
-        if (!active.TryGetValue(out var owed))
-        {
-            throw new RequiredFactException("stockpile review");
-        }
         return new Need
         {
             Id = Stockpiles,
@@ -260,12 +266,15 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     }
 
     /// <summary>Unmet while the review owes work assignments, settings or coupled activities; raises <see cref="RequiredFactException"/> while it cannot say, met otherwise.</summary>
-    public static Need WorkAssignmentsNeed(Fact<bool> owed)
+    public static Need WorkAssignmentsNeed(WorkAssignmentsReview review)
     {
-        if (!owed.TryGetValue(out var due))
+        var due = review switch
         {
-            throw new RequiredFactException("work assignments review");
-        }
+            WorkAssignmentsReview.Owed => true,
+            WorkAssignmentsReview.Settled => false,
+            WorkAssignmentsReview.AwaitingPlanner => throw new RequiredFactException("work assignments review"),
+            var invalid => throw new ArgumentOutOfRangeException(nameof(review)),
+        };
         return new Need
         {
             Id = WorkAssignments,

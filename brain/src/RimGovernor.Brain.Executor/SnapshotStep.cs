@@ -1,17 +1,16 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Facts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Cell = RimGovernor.Brain.Domain.Cell;
 using O = RimGovernor.Contracts.Wire.Observations;
-using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Executor;
 
 /// <summary>
 /// One planner step's own colony read: the projection a building or bill planner decided from, which carries what
 /// the review's read lacks (rooms, the step's definitions, fresh benches). A test replays the planner's selector
-/// over Projection.
+/// over Reading.
 /// </summary>
 public sealed class SnapshotStep
 {
@@ -26,8 +25,8 @@ public sealed class SnapshotStep
     /// <summary>"building", "bill", "hospital" or "deepdrill".</summary>
     public string Planner { get; set; } = "";
 
-    /// <summary>The step's reading with its Facts; its Zones and Window are not recorded, as in the rounds snapshot.</summary>
-    public required ColonyProjection Projection { get; set; }
+    /// <summary>The step's canonical reading, including the observed geometry used by site searches.</summary>
+    public required ColonyReading Reading { get; set; }
 }
 
 /// <summary>Names one step read in a stream: step-&lt;planner&gt;-&lt;goal&gt;-&lt;tick&gt;-&lt;seq&gt;.</summary>
@@ -42,9 +41,8 @@ public static class SnapshotStepReplay
     private static readonly Dictionary<string, int> StepSeq = new(StringComparer.Ordinal);
 
     /// <summary>Appends goal's step read to this process's stream in dir, numbered from 1 per planner, goal and tick.</summary>
-    public static void RecordStep(string dir, string planner, ConcernId goal, GenerationSnapshot current, ColonyProjection reading)
+    public static void RecordStep(string dir, string planner, ConcernId goal, GenerationSnapshot current, ColonyReading reading)
     {
-        reading = reading with { Zones = null, Window = null };
         var tick = reading.Identity.Tick;
         var step = new SnapshotStep
         {
@@ -53,7 +51,7 @@ public static class SnapshotStepReplay
             Tick = tick,
             Concern = goal,
             Planner = planner,
-            Projection = reading,
+            Reading = reading,
         };
         int seq;
         lock (StepLock)

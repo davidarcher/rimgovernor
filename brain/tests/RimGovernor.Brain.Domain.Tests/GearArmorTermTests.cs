@@ -1,3 +1,5 @@
+using D = RimGovernor.Contracts.Wire.Defs;
+using O = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -7,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class GearArmorTermTests
 {
     private static GearOption Garment(string id, GearSlot slot, string layer, double sharp, double blunt = 0, int quality = 2) =>
-        new() { ID = id, Definition = new(id), Slot = slot, Layers = [layer], Groups = ["Torso"], Quality = quality, Condition = 1, Sharp = sharp, Blunt = blunt, Source = GearSource.Stored };
+        new() { Origin = new GearOptionOrigin.Observed(GearFixtures.Option(id, id, "", GearSource.Stored) with { Quality = new O.ItemQuality.Graded((D.QualityCategory)(quality)) }), Slot = slot, Layers = [layer], Groups = ["Torso"], Sharp = sharp, Blunt = blunt };
 
     private static readonly GearOption Cloth = Garment("cloth-duster", GearSlot.Outer, "Shell", 0.1, 0.1);
     private static readonly GearOption Devilstrand = Garment("devilstrand-duster", GearSlot.Outer, "Shell", 0.5, 0.3);
@@ -47,8 +49,8 @@ public sealed class GearArmorTermTests
     {
         var threat = Threat(ArmorCategory.Sharp);
 
-        Assert.True(Value(threat, Devilstrand with { Quality = 6 }) > Value(threat, Devilstrand));
-        Assert.True(Value(threat, Devilstrand with { Condition = 0.4 }) < Value(threat, Devilstrand));
+        Assert.True(Value(threat, Devilstrand with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Devilstrand).Origin).Value) with { Quality = new O.ItemQuality.Graded(D.QualityCategory.Legendary) }) }) > Value(threat, Devilstrand));
+        Assert.True(Value(threat, Devilstrand with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(Devilstrand).Origin).Value) with { Condition = 0.4 }) }) < Value(threat, Devilstrand));
     }
 
     [Fact]
@@ -57,11 +59,11 @@ public sealed class GearArmorTermTests
         var uncomposed = ColonyModelFixtures.NoThreat;
         Assert.True(Value(uncomposed, Devilstrand) > Value(uncomposed, Cloth));
 
-        var loadout = GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, ComfortableMin = 10, ComfortableMax = 30, Ambient = 20, Options = [Cloth, Devilstrand] });
+        var loadout = GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Threat = ColonyModelFixtures.NoThreat, Ambient = 20, Options = [Cloth, Devilstrand], Role = GearFixtures.Role });
         Assert.Equal([GearArmorTerm.ThreatUncomposedFinding], loadout.Findings);
         Assert.Contains(loadout.Target, o => o.ID == Devilstrand.ID);
 
-        var known = GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { ComfortableMin = 10, ComfortableMax = 30, Ambient = 20, Threat = Threat(ArmorCategory.Sharp), Options = [Cloth, Devilstrand] });
+        var known = GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Ambient = 20, Threat = Threat(ArmorCategory.Sharp), Options = [Cloth, Devilstrand], Role = GearFixtures.Role });
         Assert.Empty(known.Findings);
         Assert.Contains(known.Target, o => o.ID == Devilstrand.ID);
     }
@@ -70,11 +72,7 @@ public sealed class GearArmorTermTests
     public void ASoldierWeighsTheSameArmorTenTimesAnotherPawn()
     {
         var threat = Threat(ArmorCategory.Sharp);
-        GearLoadout Plan(bool soldier) => GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput
-        {
-            ComfortableMin = 10, ComfortableMax = 30, Ambient = 20, Threat = threat, Options = [Flak],
-            Role = new GearRoleInput { DraftedSquad = soldier },
-        });
+        GearLoadout Plan(bool soldier) => GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Observed = GearFixtures.Loadout(""), Body = EmergencyFixtures.Placed("").Settings.Body with { ComfortableMinC = 10, ComfortableMaxC = 30 }, Ambient = 20, Threat = threat, Options = [Flak], Role = new GearRoleInput { Observed = GearFixtures.Loadout("") with { ApparelPolicy = PoliciesTests.EmptyOutfit }, Pawn = EmergencyFixtures.Placed("") with { Drafted = soldier } } });
 
         var armor = Value(threat, Flak);
         Assert.Equal(armor * 10, Assert.Single(Plan(true).Gaps).Gain - Assert.Single(Plan(false).Gaps).Gain + armor, 9);

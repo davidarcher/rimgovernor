@@ -21,67 +21,65 @@ public sealed record LightTerrains
     public bool this[string terrain] => Values.GetValueOrDefault(terrain);
 }
 
-public sealed partial record SiteCell
+/// <summary>A held native cell, retaining its published grid and exact row index without copying observations.</summary>
+public sealed record SiteCell
 {
-    public required Cell Cell { get; init; }
+    public SiteCell(RimGovernor.Contracts.Wire.Mirror.CellGrid native, int index)
+    {
+        ArgumentNullException.ThrowIfNull(native);
+        if (native.Width < 1 || native.Height < 1 || index < 0 || (long)index >= (long)native.Width * native.Height || index >= native.Held.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index), "cell index lies outside the native grid");
+        }
+        if (!native.Held[index])
+        {
+            throw new RequiredFactException("fogged native cell has no observation row");
+        }
+        Native = native;
+        Index = index;
+    }
 
-    public required bool Walkable { get; init; }
+    public RimGovernor.Contracts.Wire.Mirror.CellGrid Native { get; }
 
-    public required bool Zone { get; init; }
+    public int Index { get; }
 
-    public required bool Roofed { get; init; }
+    public Cell Cell => new(Native.X + (Index % Native.Width), Native.Z + (Index / Native.Width));
 
-    public required bool Indoors { get; init; }
+    public bool Walkable => Native.Walkable[Index];
 
-    /// <summary>The item stacks on the cell (0 for none).</summary>
-    public required int StorageStacks { get; init; }
+    public bool Zone => ZoneId is not null;
 
-    /// <summary>
-    /// The stacks the cell can hold: a storage building's maxItemsInCell (3 on a shelf), 0 under any other edifice,
-    /// 1 on open ground.
-    /// </summary>
-    public required int StorageCapacity { get; init; }
+    public bool Roofed => Roof is not null;
 
-    /// <summary>
-    /// Reports a door, or a door blueprint or frame, on the cell; indoor furnishing keeps the cells beside a
-    /// doorway clear as its aisle.
-    /// </summary>
-    public required bool Doorway { get; init; }
+    public bool Indoors => Native.Indoors[Index];
 
-    public required double Fertility { get; init; }
+    public int StorageStacks => Native.StorageStacks[Index];
 
-    public required bool Polluted { get; init; }
+    public int StorageCapacity => Native.StorageCapacity[Index];
 
-    public required double Glow { get; init; }
+    public bool Doorway => Native.Doorway[Index];
 
-    /// <summary>Names the native roof def over the cell (rock roofs mark a mountain face for excavation); null for no roof.</summary>
-    public required string? Roof { get; init; }
+    public double Fertility => Native.Fertility[Index];
 
-    /// <summary>Names the native zone covering the cell; null when Zone is false.</summary>
-    public required string? ZoneId { get; init; }
+    public bool Polluted => Native.Polluted[Index];
 
-    /// <summary>
-    /// The native room holding the cell (the grid's room key): growing-room kinds pick a block per room interior.
-    /// </summary>
-    public required CellRoom Room { get; init; }
+    public double Glow => Native.Glow[Index];
 
-    // The per-cell thing list and the tile columns that join it. Terrain names the terrain def;
-    // BaseTerrain names the terrain def under a floor or bridge; its affordances are
-    // what a foundation may stand on.
-    public required string Terrain { get; init; }
+    public string? Roof => Native.Roof[Index];
 
-    public required string BaseTerrain { get; init; }
+    public string? ZoneId => Native.ZoneId[Index];
 
-    /// <summary>A RemoveFoundation designation standing on the cell (a bridge ordered lifted).</summary>
-    public required bool FoundationRemoval { get; init; }
+    public CellRoom Room => Native.Room[Index] is { } room ? new CellRoom.InRoom(room) : CellRoom.Outside;
 
-    /// <summary>
-    /// The cell's non-pawn things in native order: a view into the grid's shared slab, never to be modified.
-    /// Empty means none on a held cell; a fogged cell is not a row at all.
-    /// </summary>
-    public required IReadOnlyList<Thing> Things { get; init; }
+    public string Terrain => Native.Terrain[Index];
+
+    public string BaseTerrain => Native.BaseTerrain[Index];
+
+    public bool FoundationRemoval => Native.FoundationRemoval[Index];
+
+    /// <summary>The native thing array, never modified; null on a held row means actual absence.</summary>
+    public IReadOnlyList<Thing> Things => Native.Things[Index] ?? [];
 }
-
 /// <summary>The native room a cell lies in, by the grid's room key, or none.</summary>
 public abstract record CellRoom
 {

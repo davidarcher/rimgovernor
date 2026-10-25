@@ -9,6 +9,23 @@ namespace RimGovernor.Brain.Domain.Tests;
 // Stopped and a home route is Reachable with its ticks or Unreachable. Each round-trips exactly through the wire JSON.
 public sealed class WorldProgressionWireTests
 {
+    [Fact]
+    public void ExpeditionTripsRetainNativeCaravansAndOnlyTheHomeAssembly()
+    {
+        var away = new O.CaravanAssembly { MapId = 2, Pawns = [new PawnId("away")] };
+        var trips = RimGovernor.Brain.Bridge.QuestReads.FrameExpeditionTrips(Snapshot with { Assemblies = [Snapshot.Assemblies[0], away] }, new(0));
+        Assert.Equal(3, trips.Count);
+        var caravan = Assert.IsType<RimGovernor.Brain.Policy.ExpeditionTrip.OnWorld>(trips[0]);
+        Assert.Same(Snapshot.Caravans[0], caravan.Observed);
+        Assert.Same(Snapshot.Caravans[0].Course, caravan.Course);
+        Assert.Same(Snapshot.Caravans[0].HomeRoutes[0], caravan.HomeRoutes[0]);
+        Assert.Equal(new PawnId("Human1"), Assert.Single(caravan.PawnIds));
+        Assert.Equal(91, (caravan with { Observed = caravan.Observed with { Tile = 91 } }).Tile);
+        var forming = Assert.IsType<RimGovernor.Brain.Policy.ExpeditionTrip.Forming>(trips[2]);
+        Assert.Same(Snapshot.Assemblies[0], forming.Observed);
+        Assert.Equal(new PawnId("Human3"), Assert.Single(forming.PawnIds));
+    }
+
     private static readonly C.ObservationContext Context = new() { NativeGeneration = new RimGovernor.Contracts.Wire.Common.ObservedGeneration.UnclaimedCase(), Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 10 };
 
     private static O.CaravanState Caravan(string id, O.CaravanCourse course) => new()
@@ -59,6 +76,19 @@ public sealed class WorldProgressionWireTests
         Assert.Contains("\"type\":\"unreachable\"", json);
     }
 
+    [Theory]
+    [InlineData("context")]
+    [InlineData("maps")]
+    [InlineData("caravans")]
+    [InlineData("assemblies")]
+    [InlineData("quests")]
+    [InlineData("sites")]
+    public void MissingWorldCensusSectionsCannotBecomeEmptyCollections(string member)
+    {
+        var node = System.Text.Json.Nodes.JsonNode.Parse(WireJson.Serialize(Snapshot))!.AsObject();
+        Assert.True(node.Remove(member));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<O.WorldProgressionSnapshot>(node.ToJsonString()));
+    }
     [Fact]
     public void ThePeaceTalksRangeRoundTripsExactly() =>
         RoundTrips(new O.QuestPeaceTalks { WorstGoodwillLoss = 40, BestGoodwillGain = 25, IdeologyActive = true });

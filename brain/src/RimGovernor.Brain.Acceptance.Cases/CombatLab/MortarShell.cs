@@ -37,7 +37,7 @@ internal static class CombatLabMortarShell
         var mortar = lab.Cell(0, CombatFixtures.SiegeOurMortar);
         var camp = lab.Cell(0, CombatFixtures.SiegeCampMortar);
         Operations.CombatOrder Fire(string shell) =>
-            CombatLabKit.Order(null, new Operations.CombatOrderOrder.MortarFireCase(new Operations.CombatMortarFire { Mortar = mortar, Target = camp, Shell = shell }));
+            CombatLabKit.Order(null, new Operations.CombatOrderOrder.MortarFireCase(new Operations.CombatMortarFire { Mortar = mortar, Aim = new Operations.MortarAim.At(camp), Shell = shell }));
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         var results = await CombatLabKit.OrdersAsync(
@@ -62,7 +62,7 @@ internal static class CombatLabMortarShell
     }
 
     // Runs until a frame's combat_mortars row for the mortar shows the shell loaded.
-    private static async Task LoadedAsync(TypedSession s, LabFrames frames, Common.Cell mortar, string shell, CancellationToken cancellationToken)
+    private static async Task LoadedAsync(TypedSession s, LabFrames frames, RimGovernor.Brain.Domain.Cell mortar, string shell, CancellationToken cancellationToken)
     {
         var frame = await frames.UntilAsync("loaded-" + shell, LoadTicks, 0, f => f.CombatMortars.Any(m => m.Cell == mortar && m.LoadedShell == shell), cancellationToken).ConfigureAwait(false);
         s.RecordWire("loaded_" + shell, frame.CombatMortars.First(m => m.Cell == mortar));

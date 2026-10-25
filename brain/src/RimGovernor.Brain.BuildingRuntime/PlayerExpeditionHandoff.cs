@@ -36,7 +36,9 @@ public sealed partial class Player
         {
             return false;
         }
-        var generation = new NativeGeneration(loaded.Context.NativeGeneration is PbCommon.ObservedGeneration.AtCase { Value: var observed } ? observed : 0UL);
+        if (loaded.Context.NativeGeneration is not C.ObservedGeneration.AtCase at || at.Value == 0)
+            throw new ControlException("map handoff has no allocated native generation");
+        var generation = new NativeGeneration(at.Value);
         _session.Disable();
         await confirm.ConfirmMapFocusAsync(state.Snapshot, target, generation, call).ConfigureAwait(false);
         return await HandoffHeldAsync(state, target, generation, call, epoch).ConfigureAwait(false);
@@ -72,7 +74,7 @@ public sealed partial class Player
     }
 
     /// <summary>The generation of the map an accepted caravan departure's crew now stands on; false when no departure has arrived.</summary>
-    internal static bool TryExpeditionHandoffTarget(GenerationSnapshot current, WorldProgressionRead world, IReadOnlyList<PlanState> plans, out GenerationSnapshot target)
+    internal static bool TryExpeditionHandoffTarget(GenerationSnapshot current, RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot world, IReadOnlyList<PlanState> plans, out GenerationSnapshot target)
     {
         foreach (var plan in plans)
         {

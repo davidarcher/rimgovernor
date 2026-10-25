@@ -382,13 +382,13 @@ public sealed record DefCount
 
 public sealed record CellList
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public EquatableArray<RimGovernor.Brain.Domain.Cell> Cells { get; init; }
 }
 
 public sealed record Rectangle
 {
-    public Common.Cell? Origin { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Origin { get; init; }
 
     public required int Width { get; init; }
 
@@ -436,7 +436,7 @@ public sealed record CombatRescue
 {
     public EntityPrecondition? Downed { get; init; }
 
-    public Common.Cell? Dest { get; init; }
+    public required RescueBed Bed { get; init; }
 }
 
 /// <summary>
@@ -447,7 +447,7 @@ public sealed record CombatRescue
 /// </summary>
 public sealed record CombatRepair
 {
-    public Common.Cell? Cell { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Cell { get; init; }
 }
 
 /// <summary>
@@ -465,9 +465,9 @@ public sealed record CombatRepair
 /// </summary>
 public sealed record CombatMortarFire
 {
-    public Common.Cell? Mortar { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Mortar { get; init; }
 
-    public Common.Cell? Target { get; init; }
+    public required MortarAim Aim { get; init; }
 
     public string? Shell { get; init; }
 }
@@ -494,13 +494,9 @@ public abstract record CombatAnimalAreaArea
 {
     private protected CombatAnimalAreaArea() { }
 
-    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Cell? Cell => (this as CellCase)?.Value;
+    public sealed record CellCase(RimGovernor.Brain.Domain.Cell Value) : CombatAnimalAreaArea;
 
-    public sealed record CellCase(Common.Cell Value) : CombatAnimalAreaArea;
-
-    public static implicit operator CombatAnimalAreaArea(Common.Cell value) => new CellCase(value);
+    public static implicit operator CombatAnimalAreaArea(RimGovernor.Brain.Domain.Cell value) => new CellCase(value);
 
     /// <summary>The <c>Clear</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -513,7 +509,7 @@ public abstract record CombatAnimalAreaArea
 
 public sealed record CombatDoor
 {
-    public Common.Cell? Cell { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Cell { get; init; }
 
     public required CombatDoorMode Mode { get; init; }
 }
@@ -546,11 +542,7 @@ public abstract record CombatOrderOrder
 {
     private protected CombatOrderOrder() { }
 
-    /// <summary>The <c>Move</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Cell? Move => (this as MoveCase)?.Value;
-
-    public sealed record MoveCase(Common.Cell Value) : CombatOrderOrder;
+    public sealed record MoveCase(RimGovernor.Brain.Domain.Cell Value) : CombatOrderOrder;
 
     /// <summary>
     /// A spawned pawn or a hostile building thing: any spawned
@@ -568,7 +560,7 @@ public abstract record CombatOrderOrder
     /// <summary>
     /// Force-fire a ground-targetable verb (grenades, launchers) at a cell.
     /// </summary>
-    public sealed record AttackGroundCase(Common.Cell Value) : CombatOrderOrder;
+    public sealed record AttackGroundCase(RimGovernor.Brain.Domain.Cell Value) : CombatOrderOrder;
 
     public sealed record FireModeCase(CombatFireMode Value) : CombatOrderOrder;
 
@@ -610,7 +602,7 @@ public abstract record CombatOrderOrder
     /// on the cell (vanilla ManTurret, which loads shells from stock); one
     /// already manning it applies. Refusals: not_a_mortar, unreachable.
     /// </summary>
-    public sealed record ManMortarCase(Common.Cell Value) : CombatOrderOrder;
+    public sealed record ManMortarCase(RimGovernor.Brain.Domain.Cell Value) : CombatOrderOrder;
 
     public sealed record MortarFireCase(CombatMortarFire Value) : CombatOrderOrder;
 
@@ -829,7 +821,7 @@ public sealed record ZoneIntent
 /// </summary>
 public sealed record RemoveFloorIntent
 {
-    public Common.Cell? Cell { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Cell { get; init; }
 
     public string? DefName { get; init; }
 }
@@ -1461,11 +1453,7 @@ public abstract record AbilityIntentTarget
 
     public sealed record NoTargetCase(AbilityNoTarget Value) : AbilityIntentTarget;
 
-    /// <summary>The <c>Cell</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Cell? Cell => (this as CellCase)?.Value;
-
-    public sealed record CellCase(Common.Cell Value) : AbilityIntentTarget;
+    public sealed record CellCase(RimGovernor.Brain.Domain.Cell Value) : AbilityIntentTarget;
 
     /// <summary>The <c>Pawn</c> case's payload, null when another case is set.</summary>
     [JsonIgnore]
@@ -1850,7 +1838,7 @@ public sealed record DesignateIntent
 
     public Common.Ref? Target { get; init; }
 
-    public Common.Cell? Cell { get; init; }
+    public required DesignationLocation Location { get; init; }
 
     public required DesignationGuard Guard { get; init; }
 
@@ -1882,8 +1870,6 @@ public sealed record DesignateIntent
 public sealed record RelocateIntent
 {
     public string? ThingId { get; init; }
-
-    public Common.Cell? Destination { get; init; }
 
     public required RelocationMode Mode { get; init; }
 
@@ -1943,8 +1929,8 @@ public abstract record BuildingPatchIntentChange
 /// </summary>
 public sealed record RemoveRoofIntent
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public EquatableArray<RimGovernor.Brain.Domain.Cell> Cells { get; init; }
 }
 
 /// <summary>
@@ -1955,8 +1941,8 @@ public sealed record RemoveRoofIntent
 /// </summary>
 public sealed record BuildRoofIntent
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public EquatableArray<RimGovernor.Brain.Domain.Cell> Cells { get; init; }
 }
 
 /// <summary>
@@ -1968,8 +1954,8 @@ public sealed record BuildRoofIntent
 /// </summary>
 public sealed record AreaPlantCutIntent
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public EquatableArray<RimGovernor.Brain.Domain.Cell> Cells { get; init; }
 }
 
 public sealed record HusbandryIntent
@@ -2251,7 +2237,7 @@ public sealed record RitualIntent
 
     public string? Verb { get; init; }
 
-    public Common.Cell? Spot { get; init; }
+    public required RitualLocation Location { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<RitualRoleAssignment>))]
     public EquatableArray<RitualRoleAssignment> Roles { get; init; }
@@ -2277,7 +2263,7 @@ public sealed record MoveIntent
 {
     public string? PawnId { get; init; }
 
-    public Common.Cell? Destination { get; init; }
+    public required RimGovernor.Brain.Domain.Cell Destination { get; init; }
 }
 
 /// <summary>
@@ -2510,7 +2496,7 @@ public abstract record RelocationMode
 {
     private protected RelocationMode() { }
     public sealed record Uninstall : RelocationMode;
-    public sealed record Move([property: JsonRequired] Placement.Rotation Value) : RelocationMode;
+    public sealed record Move([property: JsonRequired] Placement.Rotation Value, [property: JsonRequired] RimGovernor.Brain.Domain.Cell Destination) : RelocationMode;
 }
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

@@ -40,7 +40,8 @@ namespace HomeBridge.BridgeTools
             if (!ValidateCells(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
                 throw NativeFaults.Refused(failure);
-            var min = ((parsed.Rectangle ?? throw new System.InvalidOperationException("Required native value is unavailable: parsed.Rectangle.")).Minimum ?? throw new System.InvalidOperationException("Required native value is unavailable: (parsed.Rectangle ?? throw new System.InvalidOperationException(\"Required native value is unavailable: parsed.Rectangle.\")).Minimum.")); var max = (parsed.Rectangle.Maximum ?? throw new System.InvalidOperationException("Required native value is unavailable: parsed.Rectangle.Maximum."));
+            var rectangle = parsed.Rectangle ?? throw new InvalidOperationException("Rectangle missing.");
+            var min = rectangle.Minimum; var max = rectangle.Maximum;
             if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map))
                 throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map."));
             try
@@ -88,8 +89,9 @@ namespace HomeBridge.BridgeTools
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Valid identity and an inclusive rectangle of at most 1048576 cells required.");
             if (request == null || request.Scope?.ExpectedIdentity == null) return false;
-            var min = request.Rectangle?.Minimum; var max = request.Rectangle?.Maximum;
-            if (min == null || max == null || min.X < 0 || min.Z < 0 || max.X < min.X || max.Z < min.Z) return false;
+            if (request.Rectangle == null) return false;
+            var min = request.Rectangle.Minimum; var max = request.Rectangle.Maximum;
+            if (min.X < 0 || min.Z < 0 || max.X < min.X || max.Z < min.Z) return false;
             return ((long)max.X - min.X + 1) * ((long)max.Z - min.Z + 1) <= 1 << 20;
         }
 
@@ -210,8 +212,7 @@ namespace HomeBridge.BridgeTools
                 // targetA and works for the frame or bench in targetB.
                 var target = job.def == JobDefOf.HaulToContainer && job.targetB.HasThing ? job.targetB : job.targetA;
                 if (target.HasThing) {
-                    row = row with { TargetA = new Obs.TargetRef { Target = NativeRef.Thing(target.Thing) } };
-                    if (target.Thing.Spawned) row = row with { TargetACell = Cell(target.Thing.Position.x, target.Thing.Position.z) };
+                    row = row with { TargetA = new Obs.TargetRef { Target = new Obs.TargetRefTarget.EntityCase(NativeRef.Thing(target.Thing), target.Thing.Spawned ? new Obs.EntityPlace.OnMap(target.Thing.Map.uniqueID, Cell(target.Thing.Position.x, target.Thing.Position.z)) : new Obs.EntityPlace.Unplaced()) } };
                 } else if (target.IsValid) row = row with { TargetA = new Obs.TargetRef { Target = Cell(target.Cell.x, target.Cell.z) } };
                 else row = row with { TargetA = new Obs.TargetRef { Target = new Common.Unavailable { Reason = Common.UnavailableReason.NotApplicable, Detail = "Job has no target." } } };
             }
@@ -243,28 +244,7 @@ namespace HomeBridge.BridgeTools
         // things and the bundle's things table.
         internal static Obs.Thing ThingRow(Thing thing, Common.ObservationContext context)
         {
-            Obs.ThingFood food = thing.def.category == ThingCategory.Item && (thing is Corpse || thing.def.IsIngestible) ? FoodFacts(thing) : new Obs.ThingFood.NotFood();
-            return new Obs.Thing { Entity = Entity(thing), StackCount = thing.stackCount, Forbidden = thing.IsForbidden(Faction.OfPlayer), Corpse = thing is Corpse, Food = food };
-        }
-
-        // The food facts of an ingestible item or a corpse.
-        private static Obs.ThingFood.Edible FoodFacts(Thing thing)
-        {
-            var rot = thing.TryGetComp<CompRottable>();
-            Obs.ThingPlace place = new Obs.ThingPlace.Carried();
-            if (thing.Spawned) {
-                var room = thing.Position.GetRoom(thing.Map);
-                place = new Obs.ThingPlace.Stands { Roofed = thing.Position.Roofed(thing.Map), Room = room != null ? NativeRef.Room(room) : null };
-            }
-            return new Obs.ThingFood.Edible {
-                Rot = rot != null && rot.Active ? new Obs.ThingRot.Rots { Ticks = Math.Max(0, rot.TicksUntilRotAtCurrentTemp) } : new Obs.ThingRot.Keeps(),
-                TemperatureC = Finite(thing.AmbientTemperature),
-                Place = place,
-                IsHumanMeat = HumanFoodFacts.ContainsHumanMeat(thing),
-                Yield = thing is Corpse corpse
-                    ? new Obs.CorpseYield { MeatAmount = Finite(Math.Max(0, corpse.InnerPawn.GetStatValue(StatDefOf.MeatAmount))), BodySize = Finite(corpse.InnerPawn.BodySize) }
-                    : null,
-            };
+            return new Obs.Thing { Entity = Entity(thing), Forbidden = thing.IsForbidden(Faction.OfPlayer), Corpse = thing is Corpse };
         }
 
         // The bundle's things table: the rows of things, each once,
@@ -277,7 +257,7 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        private static Common.Cell Cell(int x,int z)=>new Common.Cell { X=x,Z=z };
+        private static RimGovernor.Brain.Domain.Cell Cell(int x,int z)=>new RimGovernor.Brain.Domain.Cell { X=x,Z=z };
         private static string Identifier(string? value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
         private static string Diagnostic(string value)=>PlacementPreviewOperation.Diagnostic(value);
         private static double Finite(double value)=>double.IsNaN(value)||double.IsInfinity(value)?throw new InvalidOperationException("Nonfinite native fact."):value;

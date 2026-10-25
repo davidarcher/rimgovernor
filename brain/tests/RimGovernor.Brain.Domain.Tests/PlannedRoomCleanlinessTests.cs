@@ -5,7 +5,6 @@ using RimGovernor.Brain.Store.Codec;
 using PlannedRoomPrediction = RimGovernor.Contracts.Wire.Observations.PlannedRoomPrediction;
 using PlannedRoomFurniture = RimGovernor.Contracts.Wire.Observations.PlannedRoomFurniture;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -148,6 +147,7 @@ public sealed class PlannedRoomCleanlinessTests
         var survey = PlannedBarracksTests.OpenMap();
         var tiled = LayoutTileRules.TileEmbedding(new TileInput
         {
+            OutdoorCurve = EquatableArray.From(Enumerable.Repeat(18.0, 12)),
             Groups = [PlannedBarracksTests.BarracksGroup with { FilthRuns = runs, Meals = 6 }],
             Embedding = new Embedding(),
             Blocks = [new EmbeddedBlock { Group = 0, Interior = new Rectangle(15, 12, 5, 4) }],

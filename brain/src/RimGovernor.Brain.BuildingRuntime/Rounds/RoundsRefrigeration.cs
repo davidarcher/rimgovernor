@@ -26,7 +26,7 @@ public sealed partial class RoundsBuildingPlanner
         return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodStoresRules.RefrigerationNeed.FilingKey, Need = FoodStoresRules.RefrigerationNeed, Definition = "Cooler" };
     }
 
-    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectRefrigerationAsync(ColonyProjection facts, bool allowance, CancellationToken ct)
+    internal async Task<(RoundsBuildingPlanner? Planner, Verdict Verdict)> SelectRefrigerationAsync(ColonyReading facts, bool allowance, CancellationToken ct)
     {
         var review = RefrigerationRules.ReviewRefrigeration(facts.Facts.FoodStorageUpkeep, Reviewer.Policy.FoodStorage);
         review = review.WithWarmRooms(RoundsBurialFacts.WarmCoolingRooms(facts));
@@ -80,14 +80,14 @@ public sealed partial class RoundsBuildingPlanner
             return BuildingReasonNoReview;
         }
         var identity = await Native.IdentityAsync(call).ConfigureAwait(false);
-        var expected = DecodeReads.DecodeIdentity(identity);
+        var expected = new ObservationIdentity { Context = identity.Context, Paused = identity.Paused };
         if (!RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
         {
             throw new ControlException(string.Create(CultureInfo.InvariantCulture, $"refrigeration step: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick) observed tick={expected.Tick.Value} review tick={review.Tick.Value}"));
         }
         var full = await Reviewer.ObserveOwnedAsync((IRoundsSource)Native, expected, RefrigerationDefinitions(), call).ConfigureAwait(false);
         var reading = full.Reading;
-        var facts = reading.Projection;
+        var facts = reading;
         PlannerSnapshot.RecordStepRead("building", Concern, state.Snapshot, facts);
         RecordRoleMismatches(facts, call);
         void Check()
@@ -258,7 +258,7 @@ public sealed partial class RoundsBuildingPlanner
         return (RefrigerationCoolingTicks - (tick.Value - v.Tick.Value), true);
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewRefrigerationAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewRefrigerationAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)
     {
         if (Refrigeration is null || Refrigeration.Method != RefrigerationMethod.Build)
         {
@@ -268,7 +268,7 @@ public sealed partial class RoundsBuildingPlanner
         return await PreviewWallBuildingAsync(snapshot, facts, protectedCells, check, "Build", Refrigeration.Cell, Refrigeration.Rotation, false, ct).ConfigureAwait(false);
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewWallBuildingAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, Action check, string def, Cell cell, Rotation rotation, bool overRock, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewWallBuildingAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, string def, Cell cell, Rotation rotation, bool overRock, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         if (protectedCells.Contains(cell))
@@ -276,7 +276,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null!, stock, BuildingReasonExistingWork);
         }
 
-        var available = facts.DefinitionAvailable(def);
+        var available = ColonyPlanningRules.DefinitionAvailable(facts.Facts, def);
 
         if (!available)
         {
@@ -299,7 +299,7 @@ public sealed partial class RoundsBuildingPlanner
         return (previews, planned, default);
     }
 
-    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPlannedBuildingAsync(GenerationSnapshot snapshot, ColonyProjection facts, Building building, int index, bool overRock, bool goOpen, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPlannedBuildingAsync(GenerationSnapshot snapshot, ColonyReading facts, Building building, int index, bool overRock, bool goOpen, CancellationToken ct)
     {
         var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{index}"), building, ConstructionTierRules.PlannerTier(Concern, Phase));

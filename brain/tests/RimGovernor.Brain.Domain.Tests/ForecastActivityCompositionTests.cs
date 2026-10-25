@@ -3,7 +3,6 @@ using RimGovernor.Contracts.Wire.Common;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -220,7 +219,7 @@ public sealed class ForecastActivityCompositionTests
             with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" };
         facts = facts with
         {
-            Resources = [new(new("Rice"), 4)],
+            Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 4 }] },
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", State = "eligible",
@@ -231,7 +230,7 @@ public sealed class ForecastActivityCompositionTests
                     FoodConversions = [Conversion("a"), Conversion("b")],
                     Construction = ConstructionFixtures.NoConstruction() with { Context = context,
                         Options = [new Row("shared-stock-frame", "TestWall", new(3, 1), "pawn", "Rice", "a", new(1, 1), 2, 4, "Finish",
-                            Known(0d), Known(10d), Known(10d)) { AvailableInput = Known(2d), SiteApproachTicks = Known(0d) }] },
+                            0d, 10d, 10d) { AvailableInput = 2d, SiteApproachTicks = 0d }] },
                     FoodUses = [new("pawn", "Meal", new(2, 1), true, .8, 10d, 1, new FoodFreshness.Rots(1000d)) { Thoughts = [], Ingredient = "Rice" }] },
             },
         };
@@ -302,10 +301,10 @@ public sealed class ForecastActivityCompositionTests
         var inside = new Cell(1, 1); var wall = new Cell(0, 1);
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
         ConstructionActivityOption Option(string source) => new Row("wall", "TestWall", wall, "pawn", "Rice", source, wall, 1, 10, "Finish",
-            Known(0d), Known(10d), Known(10d)) { AvailableInput = Known(1d), SiteApproachTicks = Known(0d) };
+            0d, 10d, 10d) { AvailableInput = 1d, SiteApproachTicks = 0d };
         facts = facts with
         {
-            Resources = [new(new("Rice"), 2)],
+            Census = facts.Census with { Resources = [new RimGovernor.Contracts.Wire.Observations.Quantity { DefName = "Rice", Units = 2 }] },
             PlannedShelters = [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }],
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
             {

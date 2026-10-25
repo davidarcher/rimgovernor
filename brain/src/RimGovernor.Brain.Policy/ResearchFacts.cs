@@ -9,26 +9,28 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record ResearchFacts
 {
-    public ResearchProjectId Current { get; init; }
+    public required ResearchCensus Census { get; init; }
 
-    public EquatableArray<ResearchProjectId> Finished { get; init; }
+    public ResearchProjectId Current => new(Census.Current);
 
-    public EquatableArray<ResearchProjectId> Projects { get; init; }
+    public EquatableArray<ResearchProjectId> Finished => [.. Census.Finished.Select(name => new ResearchProjectId(name))];
+
+    public EquatableArray<ResearchProjectId> Projects => [.. Census.Projects.Keys.Order(StringComparer.Ordinal).Select(name => new ResearchProjectId(name))];
 
     /// <summary>The current project's only native lock is the research bench nobody has built, so it does not progress and the goal stays in deficit for the bench.</summary>
-    public bool CurrentBenchMissing { get; init; }
+    public bool CurrentBenchMissing => Census.Current.Length != 0 && ResearchRules.ResearchBenchNeeded(Census.Projects[Census.Current]);
 
     /// <summary>The knowledge project an empty Anomaly knowledge slot should fund now (KnowledgePick), empty when none is owed.</summary>
-    public ResearchProjectId KnowledgePick { get; init; }
+    public ResearchProjectId KnowledgePick => new(ResearchRules.KnowledgePick(Census.Projects, Census.Finished, Census.Knowledge));
 
     /// <summary>Every knowledge category's slot, sorted by category; empty when Anomaly is inactive.</summary>
-    public EquatableArray<KnowledgeSlot> Knowledge { get; init; }
+    public EquatableArray<KnowledgeSlot> Knowledge => Census.Knowledge;
 
     /// <summary>The tech level of each listed project: what a ResearchTier goal expands to.</summary>
-    public IReadOnlyDictionary<ResearchProjectId, TechLevel> Levels { get; init; } = new Dictionary<ResearchProjectId, TechLevel>();
+    public IReadOnlyDictionary<ResearchProjectId, TechLevel> Levels => Census.Projects.ToDictionary(p => new ResearchProjectId(p.Key), p => p.Value.TechLevel);
 
     /// <summary>The census's facts of each listed project by defName: its cost, prerequisites and progress (the colony model's research input).</summary>
-    public IReadOnlyDictionary<string, ResearchProjectFacts> Details { get; init; } = new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal);
+    public IReadOnlyDictionary<string, ResearchProjectFacts> Details => Census.Projects;
 }
 
 public static partial class ResearchRules

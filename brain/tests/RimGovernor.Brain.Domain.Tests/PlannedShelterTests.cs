@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -20,7 +19,7 @@ public sealed class PlannedShelterTests
         var id = "planned/room1/" + kind + "/WoodLog";
         var cell = op == OpKind.WallIn ? WallCell : DoorCell;
         var row = new Row(id, kind == "wall" ? "Wall" : "Door", cell, "pawn", "", "", cell, 0, 0, "Finish",
-            Known(0.0), default, Known(finish)) { SiteApproachTicks = Known(1.0) };
+            0.0, default, finish) { SiteApproachTicks = 1.0 };
         return new PlannedBuildSite(id, 1, op, kind == "wall" ? "Wall" : "Door", "WoodLog", Rotation.North, [cell])
             { Answer = ConstructionFixtures.Answer(id, verdict) with { Options = [row] } };
     }
@@ -35,7 +34,7 @@ public sealed class PlannedShelterTests
     {
         var id = "planned/room1/build/" + def + "/1/1";
         var row = new Row(id, def, Inside, "pawn", "", "", Inside, 0, 0, "Finish",
-            Known(0.0), default, Known(finish)) { SiteApproachTicks = Known(1.0) };
+            0.0, default, finish) { SiteApproachTicks = 1.0 };
         return new PlannedBuildSite(id, 1, OpKind.Build, def, "", Rotation.North, [Inside])
             { Answer = ConstructionFixtures.Answer(id, verdict) with { Options = [row] } };
     }

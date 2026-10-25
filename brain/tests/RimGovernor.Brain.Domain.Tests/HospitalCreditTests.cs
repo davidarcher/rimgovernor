@@ -2,7 +2,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Policy.Methods;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -137,7 +136,7 @@ public sealed class HospitalCreditTests
             new Game.ThreatScheduleTests.StorytellerCompProperties_Test()));
         var schedule = HarmInputs.Of(new RoundsFacts
         {
-            ThreatTable = catalog.ThreatSchedule(), Storyteller = "Modded", DaysPassed = 30.0, RaidPoints = 500.0,
+            ThreatTable = catalog.ThreatSchedule(), Census = ColonyFactsCoreTests.Snapshot() with { Threat = new() { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = "Modded", DaysPassed = 30.0, RaidPoints = 500.0 } } },
         }).Schedule;
         var finding = "threat_comp_unmodelled:" + nameof(Game.ThreatScheduleTests.StorytellerCompProperties_Test);
         Assert.True(schedule.Assessed);

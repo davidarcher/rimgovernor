@@ -10,7 +10,7 @@
 | [brain/src/RimGovernor.Brain.BuildingRuntime](../../brain/src/RimGovernor.Brain.BuildingRuntime) | Rounds, planner catalog/queue and runtime composition |
 | [brain/src/RimGovernor.Brain.Store](../../brain/src/RimGovernor.Brain.Store) | Admission, session journal and views rebuilt from saved intent |
 | [brain/src/RimGovernor.Brain.Executor](../../brain/src/RimGovernor.Brain.Executor) | Hands dispatch and reconciliation, and the recorded-fact planner regression support |
-| [brain/src/RimGovernor.Brain.Observation](../../brain/src/RimGovernor.Brain.Observation) | Fact access and native-read decoding |
+| [brain/src/RimGovernor.Brain.Bridge](../../brain/src/RimGovernor.Brain.Bridge) | Fact access and native-read decoding |
 | [brain/src/RimGovernor.Brain.Bridge](../../brain/src/RimGovernor.Brain.Bridge), [Bridge.Contracts](../../brain/src/RimGovernor.Brain.Bridge.Contracts) | Typed native boundary (including the in-process native facade), definition catalog and guarded operations |
 | [brain/src/RimGovernor.Brain.HttpChannel](../../brain/src/RimGovernor.Brain.HttpChannel) | The loopback HTTP channel ([native facade](architecture/native-facade.md), [HTTP channel](architecture/http-channel.md)) |
 | [brain/src/RimGovernor.Brain.Contracts](../../brain/src/RimGovernor.Brain.Contracts) | Wire records (the C# source of truth) and their System.Text.Json context |

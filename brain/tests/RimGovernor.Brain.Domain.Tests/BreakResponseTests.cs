@@ -18,16 +18,16 @@ public sealed class BreakResponseTests
         Ranged,
     }
 
-    private static readonly EntityPlace At = new EntityPlace.OnMap(0, new Common.Cell { X = 10, Z = 10 });
+    private static readonly EntityPlace At = new EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 10, Z = 10 });
 
     private static EmergencyPawn Breaker() => EmergencyFixtures.Colonist("brookie") with
     {
-        MentalState = new MentalState { DefName = "Berserk", IsAggro = true, TicksInState = 10 },
+        Observed = EmergencyFixtures.Placed("brookie", 10, 10) with { MentalState = new PawnMentalState { DefName = "Berserk", IsAggro = true, Ticks = 10 } },
     };
 
     private static BreakResponder Pawn(string id, Arms arms, int distance, bool breaking = false) => new()
     {
-        Place = new EntityPlace.OnMap(0, new Common.Cell { X = 10 + distance, Z = 10 }),
+        Place = new EntityPlace.OnMap(0, new RimGovernor.Brain.Domain.Cell { X = 10 + distance, Z = 10 }),
         SquadDefenderFacts = new SquadDefenderFacts
         {
             Id = new PawnId(id),

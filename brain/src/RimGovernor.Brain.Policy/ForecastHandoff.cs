@@ -69,7 +69,7 @@ public static class ForecastHandoffPolicy
 
         var stocks = physical.Select(p => new ModelResourceStock(p.Key, p.Value)).ToArray();
         var stockKnown = physical.All(p => p.Value >= 0);
-        if (!SameStocks(request.Facts.Stock, basis.Input.Stocks.Materials))
+        if (!SameStocks(request.Facts.ObservedStock(), basis.Input.Stocks.Materials))
         { stockKnown = false; gaps.Add("terminal_material_census_scope_mismatch"); }
         if (!stockKnown) gaps.Add("terminal_stock_unknown");
         var nutrition = Nutrition(terminal, gaps);
@@ -86,7 +86,7 @@ public static class ForecastHandoffPolicy
         var budget = ForecastCoupledMaterials.CoupledMaterialBudgetOf(request, holds, tasks, outcome.Plan);
         if (holds is not null && budget is MaterialBudget.Read(var available))
         {
-            var initial = request.Facts.Stock;
+            var initial = request.Facts.ObservedStock();
             var reserved = new List<ModelResourceStock>();
             foreach (var resource in initial.Select(s => s.Resource).Concat(available.Keys).Distinct())
             {
@@ -164,9 +164,9 @@ public static class ForecastHandoffPolicy
         {
             var projected = p.Skills.Select(s =>
             {
-                var events = outcome.Plan.Allocations.Where(a => a.Pawn == p.Pawn && finished.ContainsKey(a.Activity) && a.Learning?.Skill == s.Name)
+                var events = outcome.Plan.Allocations.Where(a => a.Pawn == p.Pawn && finished.ContainsKey(a.Activity) && a.Learning?.Skill == s.DefName)
                     .SelectMany(a => a.Learning!.Callbacks).ToList();
-                foreach (var task in practice.Where(t => t.Worker.Pawn == p.Pawn && t.Worker.Skill == s.Name))
+                foreach (var task in practice.Where(t => t.Worker.Pawn == p.Pawn && t.Worker.Skill == s.DefName))
                 {
                     var allocation = outcome.Plan.Allocations.FirstOrDefault(a => a.Activity == task.Task && finished.ContainsKey(a.Activity));
                     if (allocation is null) continue;
@@ -175,8 +175,8 @@ public static class ForecastHandoffPolicy
                 }
                 if (ForecastSkillPolicy.ForecastSkill(s.Learning, events.OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray(),
                     (int)Math.Ceiling(day * GameTime.TicksPerDay)) is not SkillForecast.Projected { Projection: var result })
-                { gaps.Add($"terminal_skill_unprojectable:{p.Pawn}:{s.Name}"); return s with { Learning = null }; }
-                return s with { Level = result.Level, Stored = result.StoredLevel, Learning = result.TerminalLearning };
+                { gaps.Add($"terminal_skill_unprojectable:{p.Pawn}:{s.DefName}"); return s with { Learning = null }; }
+                return s with { Level = result.Level, StoredLevel = result.StoredLevel, Learning = result.TerminalLearning };
             });
             return p with { Skills = EquatableArray.From(projected) };
         }).ToArray();

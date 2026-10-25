@@ -1,11 +1,10 @@
 using System.Text.Json;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -29,13 +28,22 @@ public sealed class RetiredBlueprintsTests
     };
 
     private static ConstructionSite Blueprint(string id, Cell c) =>
-        new() { Id = id, Stage = ConstructionSite.BlueprintStage, Building = new Building("Wall", c, Rotation.North, "WoodLog") };
+        ConstructionObservationFixtures.Site(new Building("Wall", c, Rotation.North, "WoodLog"), id: id, stage: ConstructionSite.BlueprintStage);
 
-    private static ColonyProjection Colony(params ConstructionSite[] sites) => ColonyFactsCoreTests.Projection() with
+    private static ColonyReading Colony(params ConstructionSite[] sites) => ColonyFactsCoreTests.Reading() with
     {
-        LayoutPlan = Plan,
-        Rooms = RoomTestFacts.NoRooms,
-        Facts = new() { CurrentConstruction = CurrentConstruction.Empty with { Sites = [.. sites] } },
+        Facts = ColonyFactsCoreTests.Reading().Facts with
+            {
+            CurrentConstruction = CurrentConstruction.Empty with
+            {
+                Sites = [.. sites]
+            },
+            LayoutPlan = Plan,
+            Upkeep = new UpkeepObservation
+            {
+                Rooms = RoomTestFacts.NoRooms
+            }
+        }
     };
 
     private static DomainAction RoundTrip(DomainAction action)

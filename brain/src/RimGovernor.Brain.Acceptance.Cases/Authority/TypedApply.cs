@@ -62,8 +62,8 @@ internal static class TypedApply
             Scope = s.Scope,
             Rectangle = new Observations.Rectangle
             {
-                Minimum = new Common.Cell { X = rect.X, Z = rect.Z },
-                Maximum = new Common.Cell { X = rect.X + rect.Width - 1, Z = rect.Z + rect.Height - 1 },
+                Minimum = new RimGovernor.Brain.Domain.Cell { X = rect.X, Z = rect.Z },
+                Maximum = new RimGovernor.Brain.Domain.Cell { X = rect.X + rect.Width - 1, Z = rect.Z + rect.Height - 1 },
             },
         }, cancellationToken).ConfigureAwait(false);
         return MapCellGrid.Of(reply.Grid);

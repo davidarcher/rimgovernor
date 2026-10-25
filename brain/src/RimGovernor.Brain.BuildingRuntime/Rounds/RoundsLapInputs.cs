@@ -1,5 +1,5 @@
 using System.Reflection;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
@@ -8,8 +8,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// What each lap of the rounds review entered on, compared with the previous review's (#3564). The reading a lap
 /// enters on is the one the lap before it left, so a lap whose entering reading matches the previous review's
 /// re-derives from the same inputs (apart from what it reads from the game or the journal itself), and is the lap
-/// a continuation could skip. The comparison is by the projection's stored properties and the facts' that have
-/// value equality (records, value types, strings, Facts of those; <see cref="Uncompared"/> names the rest, which a
+/// a continuation could skip. The comparison is by the reading's stored properties and the facts' that have
+/// value equality (records, value types and strings; <see cref="Uncompared"/> names the rest, which a
 /// review rebuilds and which would read as changed whether or not anything did), named on the rounds_review row as
 /// <c>laps_changed</c>: lap to the properties that differ, in the order <see cref="Laps"/> gives; <c>laps_same</c>
 /// names the laps that entered on an identical reading. The properties are reflected once: a hand-written digest
@@ -23,11 +23,11 @@ internal sealed class RoundsLapInputs
     /// <summary>At most this many property names per lap; the rest is a count.</summary>
     internal const int NamesCap = 24;
 
-    private static readonly PropertyInfo[] ProjectionProperties = Stored(typeof(ColonyProjection), except: nameof(ColonyProjection.Facts));
+    private static readonly PropertyInfo[] ReadingProperties = Stored(typeof(ColonyReading), except: nameof(ColonyReading.Facts));
     private static readonly PropertyInfo[] FactsProperties = Stored(typeof(RoundsFacts), except: null);
 
-    private readonly Dictionary<string, ColonyProjection> _previous = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, ColonyProjection> _current = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ColonyReading> _previous = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ColonyReading> _current = new(StringComparer.Ordinal);
     private readonly List<string> _same = [];
     private GenerationSnapshot _world;
     private bool _compared;
@@ -49,7 +49,7 @@ internal sealed class RoundsLapInputs
     }
 
     /// <summary>Notes the reading <paramref name="lap"/> left (what the next lap enters on).</summary>
-    public void Left(string lap, ColonyProjection projection) => _current[lap] = projection;
+    public void Left(string lap, ColonyReading projection) => _current[lap] = projection;
 
     /// <summary>Whether a previous review's readings exist to compare with.</summary>
     public bool HasPrevious => _previous.Count > 0;
@@ -96,15 +96,15 @@ internal sealed class RoundsLapInputs
     /// <summary>The laps that entered on an identical reading, after <see cref="Changed"/>; empty before it.</summary>
     public string[] Same => _compared ? [.. _same] : [];
 
-    /// <summary>The properties of <paramref name="now"/> that differ from <paramref name="was"/>: the projection's by name, the facts' as "Facts.Name".</summary>
-    internal static List<string> Differences(ColonyProjection was, ColonyProjection now)
+    /// <summary>The properties of <paramref name="now"/> that differ from <paramref name="was"/>: the reading's by name, the facts' as "Facts.Name".</summary>
+    internal static List<string> Differences(ColonyReading was, ColonyReading now)
     {
         var names = new List<string>();
         if (ReferenceEquals(was, now))
         {
             return names;
         }
-        foreach (var property in ProjectionProperties)
+        foreach (var property in ReadingProperties)
         {
             if (!Equals(property.GetValue(was), property.GetValue(now)))
             {
@@ -125,12 +125,12 @@ internal sealed class RoundsLapInputs
     }
 
     /// <summary>
-    /// The stored properties the comparison leaves out, as the projection's names and "Facts.Name": their type (or
-    /// the one inside their Fact) has no value equality, so a review that rebuilds them would read as changed whether
+    /// The stored properties the comparison leaves out, as the reading's names and "Facts.Name": their type
+    /// has no value equality, so a review that rebuilds them would read as changed whether
     /// or not anything did.
     /// </summary>
     internal static readonly string[] Uncompared =
-        [.. Unequatable(typeof(ColonyProjection), nameof(ColonyProjection.Facts)), .. Unequatable(typeof(RoundsFacts), null).Select(n => "Facts." + n)];
+        [.. Unequatable(typeof(ColonyReading), nameof(ColonyReading.Facts)), .. Unequatable(typeof(RoundsFacts), null).Select(n => "Facts." + n)];
 
     /// <summary>The type's public stored properties (an init or set accessor; computed getters are derived from the stored ones) with value equality, in declaration order.</summary>
     private static PropertyInfo[] Stored(Type type, string? except) =>
@@ -144,46 +144,26 @@ internal sealed class RoundsLapInputs
     /// instances of the record agree on it (a record whose members include a plain dictionary or list overrides
     /// Equals and still compares those by reference, which the probe shows).
     /// </summary>
-    private static bool Compared(Type record, PropertyInfo property)
+    private static bool Compared(Type record, PropertyInfo property) =>
+        StructuralValueEquality(property.PropertyType, []);
+
+    // Discover nested reference equality from stored member types. Constructing a fake colony just to
+    // invoke its getters could bypass the same required facts this diagnostic is meant to describe.
+    private static bool StructuralValueEquality(Type type, HashSet<Type> visited)
     {
-        if (!HasValueEquality(property.PropertyType))
-        {
-            return false;
-        }
-        var a = ProbeRecord(record);
-        var b = ProbeRecord(record);
-        return Equals(property.GetValue(a), property.GetValue(b));
+        if (!HasValueEquality(type)) return false;
+        if (type.IsValueType || type == typeof(string) || !visited.Add(type)) return true;
+        return StoredAll(type, null).All(p => StructuralValueEquality(p.PropertyType, visited));
     }
-
-    // A diagnostic equality probe must compose required getters before reading them. Each probe owns its
-    // dictionary so construction's reference-comparing material table is correctly left out of the digest.
-    private static object? ProbeRecord(Type record) => record == typeof(RoundsFacts)
-        ? new RoundsFacts
-        {
-            CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long>() },
-            // These are equality probes, never planner inputs. Separate empty lists expose Gear's
-            // reference-comparing collections just as separate dictionaries do for construction.
-            Gear = new GearObservation
-            {
-                Pawns = new List<GearPawn>(),
-                Climate = new O.GearClimate { Temperatures = [], DaylightHours = [], CurrentTwelfth = 0, TicksToNextTwelfth = 0 },
-                Threat = new RaidThreat.Uncomposed(),
-            },
-        }
-        : Activator.CreateInstance(record);
-
     private static IEnumerable<PropertyInfo> StoredAll(Type type, string? except) =>
         type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
             .Where(p => p.CanRead && p.CanWrite && p.GetIndexParameters().Length == 0 && p.Name != except)
             .OrderBy(p => p.MetadataToken);
 
-    /// <summary>Whether values of the type compare by value: a value type or string, or a class that overrides Equals (a record); a Fact's by what it holds.</summary>
+    /// <summary>Whether values of the type compare by value: a value type or string, or a class that overrides Equals (a record); nested records are checked structurally.</summary>
     internal static bool HasValueEquality(Type type)
     {
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Fact<>))
-        {
-            type = type.GetGenericArguments()[0];
-        }
+
         if (type.IsValueType || type == typeof(string))
         {
             return true;

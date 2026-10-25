@@ -19,13 +19,13 @@ public sealed record SculptureStep
 /// <summary>A packed sculpture in stock: its id, the sculpture definition inside, its quality (QualityCategory ordinal, -1 unknown) and market value.</summary>
 public sealed record PackedSculpture
 {
-    public string Id { get; init; } = "";
-
-    public string Def { get; init; } = "";
-
-    public int Quality { get; init; }
-
-    public double MarketValue { get; init; }
+    public required RimGovernor.Contracts.Wire.Observations.StockItem Observed { get; init; }
+    public RimGovernor.Contracts.Wire.Observations.PackedBuilding Packed => Observed.Packed
+        ?? throw new DomainException("packed sculpture lacks its building");
+    public string Id => Observed.Id;
+    public string Def => Packed.DefName;
+    public int Quality => Packed.Quality is RimGovernor.Contracts.Wire.Observations.PackedQuality.Rated rated ? (int)rated.Category : -1;
+    public double MarketValue => Packed.MarketValue;
 }
 
 public static partial class RoomQualityRules
@@ -115,7 +115,7 @@ public static partial class RoomQualityRules
         foreach (var room in ArtRules.SculptureRooms(obs, targets, rooms))
         {
             var (p, cell, rot, ok) = FitSculpture(room.Room, RankSculptures(packed), null, items);
-            if (ok)
+            if (ok && p is not null)
             {
                 return (new SculptureStep { Packed = p.Id, Anchor = cell, Rot = rot }, true);
             }
@@ -124,7 +124,7 @@ public static partial class RoomQualityRules
     }
 
     /// <summary>The first of ranked, not in taken, with a free spot in room.</summary>
-    internal static (PackedSculpture Sculpture, Cell Anchor, Rotation Rot, bool Ok) FitSculpture(
+    internal static (PackedSculpture? Sculpture, Cell Anchor, Rotation Rot, bool Ok) FitSculpture(
         FurnitureRoom room, IReadOnlyList<PackedSculpture> ranked, ISet<string>? taken, ItemFacts items)
     {
         foreach (var p in ranked)
@@ -140,7 +140,7 @@ public static partial class RoomQualityRules
                 return (p, cell, rot, true);
             }
         }
-        return (new PackedSculpture(), default, Rotation.North, false);
+        return (null, default, Rotation.North, false);
     }
 
     /// <summary>
@@ -159,7 +159,7 @@ public static partial class RoomQualityRules
         foreach (var room in ArtRules.SculptureRooms(obs, targets, rooms))
         {
             var (p, _, _, ok) = FitSculpture(room.Room, ranked, reserved, items);
-            if (ok)
+            if (ok && p is not null)
             {
                 reserved.Add(p.Id);
             }
@@ -225,7 +225,7 @@ public static partial class RoomQualityRules
         var cells = new List<Cell>();
         foreach (var c in room.Cells)
         {
-            if (c.Pending.Length != 0 || !terrains.TryGetValue(c.Terrain, out var t) || c.Terrain == best || t.Beauty >= bestBeauty)
+            if (c.Pending is not null || !terrains.TryGetValue(c.Terrain, out var t) || c.Terrain == best || t.Beauty >= bestBeauty)
             {
                 continue;
             }

@@ -91,7 +91,7 @@ internal static class ControlPreemptHolder
             throw new AcceptanceException($"the holder's vanilla haul does not reserve the chunk: {ServedOps.Json(started)}");
         }
 
-        var step = new PawnActivityStep(PawnActivityKind.Deliver, stack, "", "", Count, int.MaxValue) { Destination = destination };
+        var step = new PawnActivityStep(PawnActivityKind.Deliver, stack, "", "", Count, int.MaxValue).At(destination);
         var batch = new PawnActivities(generation, [new PawnActivityOrder(deliverer, TaskId, TaskId, 0, 1, false, [step]) { Task = TaskId }])
         {
             Tasks = [new SelectedActivityTask(TaskId, deliverer, [], step, new Cell(origin.X, origin.Z), 0)],

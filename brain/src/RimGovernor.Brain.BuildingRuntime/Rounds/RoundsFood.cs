@@ -148,7 +148,7 @@ public sealed class FoodRounds
         {
             throw new ControlException("food read: the read took too long");
         }
-        return Facts(reading.Projection, _reviewer.Policy) with { BlightRefused = refused };
+        return Facts(reading.Reading, _reviewer.Policy) with { BlightRefused = refused };
     }
 
     /// <summary>The plants a cut of the blight Need's unretired Methods could not designate, so the next batch leaves them out.</summary>
@@ -172,10 +172,10 @@ public sealed class FoodRounds
     /// The family's facts in <paramref name="projection"/>: the field coverage against the season's reserve, the
     /// supply checks and the cooking fact, and the campfire it owes down.
     /// </summary>
-    internal static FoodFacts Facts(ColonyProjection projection, RoundsPolicy policy)
+    internal static FoodFacts Facts(ColonyReading projection, RoundsPolicy policy)
     {
-        var budgeted = projection.ApplyFieldBudget(policy.Seasonal(projection.Facts.Calendar, projection.Facts.DisasterConditions).FoodTargetDays);
-        return FoodFacts.From(budgeted.Facts, policy) with { CampfireRetireOwed = RoundsBuildingPlanner.CampfireRetireOwed(projection) };
+        var budgeted = ColonyPlanningRules.ApplyFieldBudget(projection.Facts, policy.Seasonal(projection.Facts.Calendar, projection.Facts.DisasterConditions).FoodTargetDays);
+        return FoodFacts.From(budgeted, policy) with { CampfireRetireOwed = RoundsBuildingPlanner.CampfireRetireOwed(projection) };
     }
 }
 
@@ -185,17 +185,17 @@ public sealed class FoodRounds
 /// </summary>
 public sealed class BabyFoodDeclarer : IOrderDeclarer
 {
-    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         Task.FromResult(Declare(projection, benches).For(FoodRules.BabyFeedingNeed.FilingKey.Value));
 
-    internal static Declared Declare(ColonyProjection projection, IReadOnlyList<GearBench> benches)
+    internal static Declared Declare(ColonyReading projection, IReadOnlyList<GearBench> benches)
     {
         var babies = projection.Facts.BabyFeeding;
         if (!babies.IsShort)
         {
             return new Declared();
         }
-        var (selected, ok) = ProductionRules.SelectProductionBill(BabyFeedingRules.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists, 0, 1, new ProductionBillContext { BabyFeeding = babies });
+        var (selected, ok) = ProductionRules.SelectProductionBill(BabyFeedingRules.BabyFoodBill, projection.Facts.EssentialInputs.Benches, projection.Facts.Census.ColonistCount, 0, 1, new ProductionBillContext { BabyFeeding = babies });
         return CareOrdersRules.DeclareSelection(selected, ok, benches);
     }
 }

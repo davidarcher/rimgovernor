@@ -95,13 +95,6 @@ namespace HomeBridge.BridgeTools
         private static Obs.NeedLevel Level(Need? need) =>
             need != null ? new Obs.NeedLevel.Has(Number(need.CurLevelPercentage)) : new Obs.NeedLevel.Lacks();
 
-        // Medical care cap inputs: the life threat and every hediff, none filtered.
-        internal static Obs.PawnConditions Conditions(Pawn pawn)
-        {
-            var all=pawn.health.hediffSet.hediffs;
-            return new Obs.PawnConditions { LifeThreatening = all.Any(h=>h.IsCurrentlyLifeThreatening), Hediffs = [.. all.Select(h=>HediffRow(pawn,h))] };
-        }
-
         internal static Obs.PawnHealth Health(Pawn pawn,Common.ObservationContext context)
         {
             var set=pawn.health.hediffSet;

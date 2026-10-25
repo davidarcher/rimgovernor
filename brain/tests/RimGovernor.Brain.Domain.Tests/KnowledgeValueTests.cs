@@ -1,7 +1,6 @@
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -41,11 +40,11 @@ public sealed class KnowledgeValueTests
     }
 
     // The production way: the census of the read over the catalog, its review summary on the frame, the model input, the standing graph.
-    private static (ColonyModelInput Input, ProjectMarginals Marginals) Review(Obs.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectFacts> catalog,
+    private static (ColonyModelInput Input, ProjectMarginals Marginals) Review(Obs.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectDefinition> catalog,
         IReadOnlyDictionary<string, string> overflow)
     {
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
-        var research = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = summary } }).Research;
+        var research = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Reading() with { Facts = ColonyModelFixtures.Reading().Facts with { Research = summary } }).Research;
         var input = ProjectGraphTests.Colony() with { Research = research };
         var policy = new ColonyModelPolicy { MedicineTendsPerDay = 0.0, Projects = ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat) };
         return (input, ProjectMarginalValue.Of(input, policy, new Completion(ProjectGraph.ResearchId(new ResearchProjectId(Bioferrite)))));
@@ -57,7 +56,7 @@ public sealed class KnowledgeValueTests
         Projects = [new() { Project = new() { DefName = Bioferrite }, ProgressFraction = 0.25, Finished = false, Current = false, LockReasons = [.. locks] }],
     };
 
-    private static readonly Dictionary<string, ResearchProjectFacts> AnomalyCatalog = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, ResearchProjectDefinition> AnomalyCatalog = new(StringComparer.Ordinal)
     {
         [Bioferrite] = new() { KnowledgeCategory = Basic, Cost = 4 },
     };
@@ -103,20 +102,17 @@ public sealed class KnowledgeValueTests
 
     internal const string ClothDef = "Cloth";
 
-    private static readonly GearOption UnlockedBill = ForecastValueTests.Duster(0.8) with
-    {
-        ID = $"bill:{Unlocked}/{Cloth}", Definition = new Resource(Unlocked), Stuff = Cloth, Source = GearSource.Bill, Slot = GearSlot.Outer, Research = [Bioferrite],
-    };
+    private static readonly GearOption UnlockedBill = ForecastValueTests.Duster(0.8) with { Origin = new GearOptionOrigin.Observed((((GearOptionOrigin.Observed)(ForecastValueTests.Duster(0.8)).Origin).Value) with { Id = $"bill:{Unlocked}/{Cloth}", DefName = Unlocked, Stuff = (Cloth).Value, Source = GearSource.Bill }), Slot = GearSlot.Outer, Research = [Bioferrite] };
 
     private static ProjectMarginals Priced(IReadOnlyList<GearOption> options, params string[] unlocks) =>
-        Priced(AnomalyRead(), new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal) { [Bioferrite] = AnomalyCatalog[Bioferrite] with { Unlocks = [.. unlocks] } },
+        Priced(AnomalyRead(), new Dictionary<string, ResearchProjectDefinition>(StringComparer.Ordinal) { [Bioferrite] = AnomalyCatalog[Bioferrite] with { Unlocks = [.. unlocks] } },
             new Dictionary<string, string>(StringComparer.Ordinal) { [Basic] = "", [Advanced] = Basic }, options);
 
     /// <summary>The production way as <see cref="Review"/>, with the colony value itself: the stock covers <see cref="Unlocked"/> and a recipe makes it.</summary>
-    internal static ProjectMarginals Priced(Obs.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectFacts> catalog, IReadOnlyDictionary<string, string> overflow, IReadOnlyList<GearOption> options)
+    internal static ProjectMarginals Priced(Obs.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectDefinition> catalog, IReadOnlyDictionary<string, string> overflow, IReadOnlyList<GearOption> options)
     {
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
-        var research = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = summary } }).Research;
+        var research = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Reading() with { Facts = ColonyModelFixtures.Reading().Facts with { Research = summary } }).Research;
         var recipe = new ProductionRecipeInput($"Make_{Unlocked}", EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(Cloth, 80) }) }), false)
         {
             Products = EquatableArray.From(new[] { new Amount(new Resource(Unlocked), 1) }),
@@ -164,7 +160,7 @@ public sealed class KnowledgeValueTests
     public void AFreshColonyWithoutAnomalyHasNoKnowledgeCategoryAndThrowsNothing()
     {
         // Without Anomaly the read has the ordinary slot alone and the catalog no knowledge category.
-        var (input, marginals) = Review(FreshRead, new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal) { ["Devilstrand"] = new() { Cost = 800 } },
+        var (input, marginals) = Review(FreshRead, new Dictionary<string, ResearchProjectDefinition>(StringComparer.Ordinal) { ["Devilstrand"] = new() { Cost = 800 } },
             new Dictionary<string, string>(StringComparer.Ordinal));
 
         Assert.Empty(input.Research.Knowledge);

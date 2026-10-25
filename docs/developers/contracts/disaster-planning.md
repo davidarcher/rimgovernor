@@ -65,7 +65,7 @@ With exposure protection satisfied, candidate pairs use the ordered refuel,
 breakdown and repair needs. Method identities include pawn/target and observed
 hit points or fuel; refuge identities include the prior area and a 600-tick lease
 window. The shared Episode supplies used methods, including retired plans.
-Refreshing a proposal does not count as attempting it. Saved typed inputs reproduce
+Refreshing a proposal does not count as attempting it. The review retains the actual native building rows and mood-pawn views. Candidate evidence keeps the complete native fuel union, including burn state and target. Saved typed inputs reproduce
 the candidates on load, and cancelled concerns receive no new
 proposals.
 

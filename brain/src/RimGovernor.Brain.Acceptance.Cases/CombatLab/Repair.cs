@@ -41,7 +41,7 @@ internal static class CombatLabRepair
 
         // A lab colonist may be incapable of construction (cannot_repair): the first brawler whose order applies is the repairer.
         string? repairer = null;
-        var tried = new List<Receipts.CombatOrderResult>();
+        var tried = new List<RimGovernor.Brain.Domain.CombatResult>();
         for (var i = 0; i < brawlers.Count && repairer is null; i++)
         {
             var r = (await CombatLabKit.OrdersAsync(s, $"repair-{i}", cancellationToken, CombatLabKit.Order(brawlers[i], new Operations.CombatOrderOrder.RepairCase(new Operations.CombatRepair { Cell = cell }))).ConfigureAwait(false))[0];

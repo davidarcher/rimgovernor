@@ -2,7 +2,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
 using WireObjective = RimGovernor.Contracts.Wire.Observations.QuestObjective;
 
@@ -135,6 +134,7 @@ public sealed class QuestStateTests
 
     private static RoundsFacts Calm(params QuestState[] offers) => WithQuests(new RoundsFacts
     {
+        Census = ColonyFactsCoreTests.Snapshot(),
         CurrentConstruction = CurrentConstruction.Empty,
         QuestCalm = QuestCalm.Settled,
         DefenseCapacity = 500.0,

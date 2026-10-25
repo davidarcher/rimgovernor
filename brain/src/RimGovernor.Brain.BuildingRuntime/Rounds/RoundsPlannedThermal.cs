@@ -9,14 +9,14 @@ public sealed partial class Rounder
     /// asked). Neither is read while the planned sites are unread or native has no activity source.
     /// </summary>
     internal async Task<(O.CoupledThermalRead? Thermal, EquatableArray<O.PlannedRoomPrediction> Predictions)> PlannedShelterReadsAsync(
-        GenerationSnapshot snapshot, ColonyProjection colony, IEnumerable<PlannedRoom> shelters, PlannedSiteFacts? planned, CancellationToken ct)
+        GenerationSnapshot snapshot, ColonyReading colony, IEnumerable<PlannedRoom> shelters, PlannedSiteFacts? planned, CancellationToken ct)
     {
         if (Native is not IActivityTaskSource source || planned is null)
         {
             return (null, []);
         }
         var rooms = shelters.ToList();
-        var furniture = colony.Shapes.Furniture;
+        var furniture = colony.Facts.Shapes.Furniture;
         var thermal = PlannedRules.PlannedThermalRequestOf(rooms, planned.Sites, [furniture.Heater, .. furniture.FueledHeaters]);
         var predictions = PlannedRules.PlannedRoomPredictionRequestOf(rooms, planned.Sites,
             colony.Facts.CurrentConstruction.Sites);

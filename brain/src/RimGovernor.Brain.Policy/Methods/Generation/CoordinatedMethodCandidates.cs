@@ -10,12 +10,11 @@ internal sealed record CoordinatedMethodCandidates(ForecastActivityProblem? Prob
     public IReadOnlyDictionary<string, ClothingActivityRequirement> Garments { get; init; } = new Dictionary<string, ClothingActivityRequirement>(StringComparer.Ordinal);
 }
 
-internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableArray<string> Prerequisites,
+internal record ActivityTaskCandidate(string Id, string Pawn, EquatableArray<string> Prerequisites,
     PawnActivityKind Kind, string Target, string WorkGiver, string Job, int Count, long Deadline, Cell Location)
 {
     public string Resource { get; init; } = "";
-    public Cell? Source { get; init; }
-    public Cell? Destination { get; init; }
+    public Cell Source { get; init; } = Location;
     public string Container { get; init; } = "";
     public string SiteDefinition { get; init; } = "";
     public string SupportDemand { get; init; } = "";
@@ -38,4 +37,10 @@ internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableAr
     /// <summary>A remote Supply (#3046): the step carries a full load, its stack then the <see cref="Collect"/> stacks.</summary>
     public bool FullLoad { get; init; }
     public EquatableArray<string> Collect { get; init; }
+}
+
+internal sealed record CellActivityTaskCandidate : ActivityTaskCandidate
+{
+    public CellActivityTaskCandidate(ActivityTaskCandidate task, Cell destination) : base(task) => Destination = destination;
+    public Cell Destination { get; init; }
 }

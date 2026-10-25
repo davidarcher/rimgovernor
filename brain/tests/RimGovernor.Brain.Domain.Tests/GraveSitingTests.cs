@@ -1,6 +1,6 @@
+using WasteItem = RimGovernor.Contracts.Wire.Observations.WasteItem;
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -51,7 +51,7 @@ public sealed class GraveSitingTests
             {
                 var c = new Cell(x, z);
                 var zoned = In(Crops, c) || In(FoodStore, c);
-                cells.Add(SiteCellFixtures.Ground with { Cell = c, Walkable = walkable?.Invoke(c) ?? true, Zone = zoned, Terrain = "Soil" });
+                cells.Add(SiteCellFixtures.At(c, walkable: walkable?.Invoke(c) ?? true, zoneId: zoned ? "Zone_1" : null));
             }
         }
         return cells;
@@ -104,14 +104,14 @@ public sealed class GraveSitingTests
     [Fact]
     public void WithoutASarcophagusTheDeadOweAGraveAndNoRoom()
     {
-        var corpse = new WasteItem { CorpseOf = CorpseOf.Colonist };
+        var corpse = new WasteItem { Thing = new() { Id = "corpse" }, CorpseClass = RimGovernor.Contracts.Wire.Common.CorpseClass.Colonist, Grave = null };
         var shapes = new PieceShapes { Furniture = new RoomFurniture { Sarcophagus = "Sarcophagus" } };
         var step = TombRules.NextTombStep(Plan, [corpse], [], shapes, false);
         Assert.Equal(TombStepKind.Grave, step.Kind);
         Assert.Equal(0, step.Room.Id);
         Assert.Empty(step.Template);
 
-        var empty = new CurrentBuilding { Id = "g1", Building = new Building(TombRules.GraveDefinition, new Cell(3, 20), Rotation.North, ""), Cells = [new Cell(3, 20), new Cell(3, 21)] };
+        var empty = ConstructionObservationFixtures.Built(new Building(TombRules.GraveDefinition, new Cell(3, 20), Rotation.North, ""), id: "g1", cells: [new Cell(3, 20), new Cell(3, 21)]);
         Assert.Equal(TombStepKind.None, TombRules.NextTombStep(Plan, [corpse], [empty], shapes, false).Kind);
     }
 }

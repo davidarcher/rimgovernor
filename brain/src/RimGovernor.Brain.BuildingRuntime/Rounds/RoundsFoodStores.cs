@@ -84,10 +84,10 @@ public sealed partial class FoodStoresRounds
         {
             // Refrigeration reads the room census: its warm stock stands in rooms and its cooling rooms are planned.
             reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, _cooler.RefrigerationDefinitions(), ct).ConfigureAwait(false);
-            warm = RoundsBurialFacts.WarmCoolingRooms(reading.Projection);
-            closet = RoundsBurialFacts.MealClosetOwed(reading.Projection);
+            warm = RoundsBurialFacts.WarmCoolingRooms(reading.Reading);
+            closet = RoundsBurialFacts.MealClosetOwed(reading.Reading);
         }
-        var facts = FoodStoresFacts.From(reading.Projection.Facts) with
+        var facts = FoodStoresFacts.From(reading.Reading.Facts) with
         {
             WarmRooms = warm,
             MealClosetOwed = closet,
@@ -114,7 +114,7 @@ public sealed partial class FoodStoresRounds
             {
                 throw new ControlException("food stores read: reserve supplies context", e);
             }
-            if ((read.Context?.Tick ?? 0) < reading.Projection.Identity.Tick.Value)
+            if ((read.Context?.Tick ?? 0) < reading.Reading.Identity.Tick.Value)
             {
                 throw new ControlException("food stores read: reserve supplies older than the census");
             }
@@ -129,14 +129,14 @@ public sealed partial class FoodStoresRounds
     }
 
     /// <summary>The stock-target meal order that stores food, filed under the food-stores/storage Need.</summary>
-    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
+    public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
         (await DeclareMealOrderAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(FoodStoresRules.FoodStorageNeed.FilingKey.Value);
 
     /// <summary>
     /// While reserve access or a larder change is due only the standing stock orders stand; otherwise, with
     /// storage short of its target and every covered site full, one meal bill. An unread fact abstains.
     /// </summary>
-    internal async Task<Declared> DeclareMealOrderAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    internal async Task<Declared> DeclareMealOrderAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var f = projection.Facts;
         if (f.FoodPlan is not { } storesPlan || !FoodOrdersRules.FoodPlanSupport(storesPlan, CandidateKind.Reserve, "stock-protection"))
@@ -238,7 +238,7 @@ partial class FoodStoresRounds
                 continue;
             }
 
-            var name = entry.Stock.DefName.Value;
+            var name = entry.Stock.DefName;
             if (name.Length != 0)
             {
                 names.Add(name);

@@ -44,7 +44,7 @@ public sealed record FoodOrderRequest
     public required FoodSupply Humans { get; init; }
 
     /// <summary>The cooking purpose's meal request.</summary>
-    public MealTierRequest Meals { get; init; } = new();
+    public MealTierRequest? Meals { get; init; }
 
     /// <summary>The seasonal runway target both the cooking purpose and the other selections size against.</summary>
     public double TargetDays { get; init; }
@@ -108,7 +108,7 @@ public static class FoodOrdersRules
         var selections = new List<BillSelection>();
         FoodOrder Gap(FoodOrderGap g, string subject) => new() { Gap = g, Subject = subject };
         (BillSelection, bool) Bill(BillPurpose purpose, double atRisk, params ProductionBillContext[] context) =>
-            ProductionRules.SelectProductionBill(purpose, census, f.Colonists, atRisk, r.TargetDays, context);
+            ProductionRules.SelectProductionBill(purpose, census, f.Census.ColonistCount, atRisk, r.TargetDays, context);
         switch (r.Purpose)
         {
             case var purpose when purpose == ProductionRules.CookFood:
@@ -119,7 +119,7 @@ public static class FoodOrdersRules
                 }
                 var context = new ProductionBillContext
                 {
-                    Meals = r.Meals,
+                    Meals = r.Meals ?? throw new RequiredFactException("cooking meal request"),
                     Ingredients = HumanFoodPlanRules.HumanCookingIngredients(r.Supply, r.Humans.Consumers, f.RequireFoodPlan(), HumanMeatRoute.Meals),
                 };
                 var (selected, known) = Bill(ProductionRules.CookFood, 0, context);

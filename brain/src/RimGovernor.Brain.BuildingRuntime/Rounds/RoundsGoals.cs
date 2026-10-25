@@ -54,7 +54,7 @@ public sealed partial class GoalsRounds
                 owners[owner] = new OwnerProgress(row.Method != "", row.Blocked.IsEmpty || row.Blocked.Waiting() ? "" : row.Blocked.Text);
             }
         }
-        var facts = GoalsFacts.From(reading.Projection.Facts, reading.Projection.TechTier, reading.Projection.WorkPawns, goals.Goals, goals.Themes, owners, StuffResearch(reading.Projection.Definitions)) with { Rooms = reading.Projection.Rooms };
+        var facts = GoalsFacts.From(reading.Reading.Facts, TechTierRules.SelectTechTier(reading.Reading.Tables.FinishedResearch.Select(project => new ResearchProjectId(project)).ToArray(), reading.Reading.Snapshot.PlayerTechLevel), reading.Reading.Facts.ForecastObserved.WorkPawns, goals.Goals, goals.Themes, owners, StuffResearch(reading.Reading.Facts.Definitions)) with { Rooms = reading.Reading.Facts.Upkeep.Rooms };
         facts = facts with { Infeasible = _reviewer.GoalInfeasible.Get(review.Snapshot), Etas = _reviewer.GoalEta.Get(review.Snapshot) };
         var targets = GoalRules.IdeoTargets(goals.Goals);
         if (targets.Count > 0 && facts.Ideology is IdeologyMode.Installed)

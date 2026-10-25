@@ -52,6 +52,12 @@ armor, child/adult and torso-or-legs flags. `policy.DesiredApparelPolicy` compar
 the current outfit with the specification and raises an `apparel_policy` action
 only on a difference.
 
+The native outfit record retains only outfit state and specialized apparel facts.
+The frame's canonical pawn row supplies work, skills, draft state, disabled work
+tags, equipment and comfort; developmental stage comes from the gear census's
+universal wearer inputs. Goal requirements extend the derived policy view without
+editing native requirements.
+
 The outfit filter also prices the wardrobe: the allowed definitions covering
 the core groups (`RoleApparelDefinitions`) are the garments whose recipes set
 the standing [clothing material demand](equipment-upkeep.md#clothing-material-demand).

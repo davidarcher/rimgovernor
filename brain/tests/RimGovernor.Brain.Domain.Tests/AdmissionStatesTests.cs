@@ -53,7 +53,7 @@ public sealed class AdmissionStatesTests
     [Fact]
     public void MissingNativePawnClockFailsTheReviewBoundary()
     {
-        var facts = WorkResourceTestFacts.Create("pawn") with { WorkResources = [] };
+        var facts = WorkResourceTestFacts.Create("pawn") with { Census = (WorkResourceTestFacts.Create("pawn")).Census with { WorkResources = [] } };
         Assert.Throws<RequiredFactException>(() => ProductionRules.WorkAdmissionEvidenceOf(facts, new ProductionBatchCensus.Read([])));
     }
     [Theory]
@@ -73,7 +73,7 @@ public sealed class AdmissionStatesTests
         {
             batch = batch with { Progress = batch.Progress with { Attempt = new(1), Stage = Stage.Completed, Bill = "bill" } };
             pricing = new BatchPricing.Priced(batch, [[new(new("Steel"), 2)]], false);
-            bills = [new("bill", false, BillRepeat.Count, 1, false, false, new("", []))];
+            bills = [new(BillWire.Bill("bill") with { RepeatMode = RimGovernor.Contracts.Wire.Operations.RepeatMode.Count })];
         }
         Assert.Equal(reason, Assert.IsType<ProductionPromiseSet.Blocked>(ProductionRules.ProductionPromisesOf([pricing], bills)).Reason);
     }

@@ -24,7 +24,7 @@ internal static class RoundsAnimalContainment
     internal static string? AnimalContainmentStuff(PlanningDefinition a, PlanningDefinition b) => StuffChoiceReads.SharedStuff(a, b, out var stuff) ? stuff : null;
 
     /// <summary>The stuff both shell definitions are made of: the styled wall stuff (ShellStyleOf), then the cheapest in stock, then any shared.</summary>
-    internal static string? ShellSharedStuff(ColonyProjection facts, PlanningDefinition a, PlanningDefinition b)
+    internal static string? ShellSharedStuff(ColonyReading facts, PlanningDefinition a, PlanningDefinition b)
     {
         var want = RoundsTierStyle.ShellStyleOf(facts);
         if (want != "" && a.StuffOptions.Count > 0 && a.MakeableFrom(want) && b.MakeableFrom(want))
@@ -33,7 +33,7 @@ internal static class RoundsAnimalContainment
         }
         try
         {
-            var price = a.StuffChoice(StuffCriterion.CheapestStuff, facts.Resources);
+            var price = a.StuffChoice(StuffCriterion.CheapestStuff, ResourceStockRules.Count(facts.Snapshot.Resources));
             if (b.MakeableFrom(price.Stuff))
             {
                 return price.Stuff;
@@ -65,9 +65,9 @@ internal static class RoundsAnimalContainment
     }
 
     /// <summary>Whether the planned animal pens stand.</summary>
-    internal static bool PensStand(ColonyProjection facts)
+    internal static bool PensStand(ColonyReading facts)
     {
-        var plan = facts.LayoutPlan;
+        var plan = facts.Facts.LayoutPlan;
         var pk = plan is not null;
         var census = facts.Facts.CurrentConstruction;
         var ground = RoundsBuildingPlanner.ColonyGround(facts);

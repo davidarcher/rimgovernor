@@ -30,11 +30,6 @@ namespace HomeBridge.BridgeTools
             // those it can wear (the apparel rows and its wear inputs).
             var required = CensusMemo.Of(("apparelDefs", (object?)null), () => DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel).OrderBy(d => d.defName).ToList())
                 .Where(d => precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))).Select(d => d.defName);
-            // A pawn without work settings (or skills) has no work (or skills) to list.
-            var work = p.workSettings == null ? Enumerable.Empty<Obs.WorkSetting>()
-                : DefDatabase<WorkTypeDef>.AllDefs.Select(d => new Obs.WorkSetting { DefName = d.defName, Priority = p.workSettings.GetPriority(d), Disabled = p.WorkTypeIsDisabled(d) });
-            var skills = p.skills == null ? Enumerable.Empty<Obs.Skill>()
-                : p.skills.skills.Select(s => new Obs.Skill { DefName = s.def.defName, Level = s.Level, StoredLevel = s.levelInt, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled });
             return new Obs.ApparelPolicyState
             {
                 Token = Token(p),
@@ -46,12 +41,7 @@ namespace HomeBridge.BridgeTools
                 MinQuality = (int)outfit.filter.AllowedQualityLevels.min,
                 MaxQuality = (int)outfit.filter.AllowedQualityLevels.max,
                 ExcludesTainted = !outfit.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) && outfit.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel),
-                Child = p.DevelopmentalStage.Child(),
                 Slave = p.IsSlaveOfColony,
-                IncapableOfViolence = p.WorkTagIsDisabled(WorkTags.Violent),
-                Work = [.. work],
-                Drafted = p.Drafted,
-                Skills = [.. skills],
                 PawnName = ShortName(p),
                 RequiredDefs = [.. required],
                 Nude = Nude(p),

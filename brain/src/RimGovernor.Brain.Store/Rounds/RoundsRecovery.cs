@@ -1,7 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
-using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoints;
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Store;
 
@@ -12,73 +12,6 @@ public sealed record RoundsRecoveryRestriction(PawnId Pawn, string Area);
 public sealed record RoundsRecoverySafety
 {
     public EquatableArray<RoundsRecoveryRestriction> Restrictions { get; init; }
-}
-
-/// <summary>A persisted worker's observed state, read whole from its pawn row (#3768).</summary>
-public sealed record RoundsRecoveryWorker
-{
-    public PawnId Pawn { get; init; }
-
-    public bool Dead { get; init; }
-
-    public bool Downed { get; init; }
-
-    public bool Drafted { get; init; }
-
-    public bool Mental { get; init; }
-
-    public bool PlayerForced { get; init; }
-}
-
-/// <summary>
-/// A persisted building's observed state, read whole: the hit points are null for a definition without them, the
-/// fuel and its target null for a building without a refuelable comp.
-/// </summary>
-public sealed record RoundsRecoveryBuilding
-{
-    public string Id { get; init; } = "";
-
-    public bool Broken { get; init; }
-
-    public bool Forbidden { get; init; }
-
-    public bool Burning { get; init; }
-
-    public int? HitPoints { get; init; }
-
-    public int? MaxHitPoints { get; init; }
-
-    public double? Fuel { get; init; }
-
-    public double? FuelTarget { get; init; }
-
-    /// <summary>The policy row this record persists.</summary>
-    internal RecoveryBuilding Building() => new()
-    {
-        Id = Id,
-        HitPoints = (HitPoints, MaxHitPoints) is ({ } current, { } maximum)
-            ? new BuildingHitPoints.Tracked { Current = current, Maximum = maximum }
-            : new BuildingHitPoints.Untracked(),
-        Broken = Broken,
-        Forbidden = Forbidden,
-        Burning = Burning,
-        Fuel = (Fuel, FuelTarget) is ({ } level, { } target) ? new RecoveryFuel.Refuelable(level, target) : new RecoveryFuel.NotRefuelable(),
-    };
-
-    /// <summary>The record persisting a policy row.</summary>
-    internal static RoundsRecoveryBuilding Of(RecoveryBuilding b)
-    {
-        var r = new RoundsRecoveryBuilding { Id = b.Id, Broken = b.Broken, Forbidden = b.Forbidden, Burning = b.Burning };
-        if (b.HitPoints is BuildingHitPoints.Tracked hp)
-        {
-            r = r with { HitPoints = hp.Current, MaxHitPoints = hp.Maximum };
-        }
-        if (b.Fuel is RecoveryFuel.Refuelable fuel)
-        {
-            r = r with { Fuel = fuel.Level, FuelTarget = fuel.Target };
-        }
-        return r;
-    }
 }
 
 /// <summary>
@@ -99,9 +32,9 @@ public sealed record RoundsRecovery
 
     public RoundsRecoverySafety Safety { get; init; } = new();
 
-    public EquatableArray<RoundsRecoveryWorker> Workers { get; init; }
+    public EquatableArray<MoodPawn> Workers { get; init; }
 
-    public EquatableArray<RoundsRecoveryBuilding> Buildings { get; init; }
+    public EquatableArray<O.BuildingState> Buildings { get; init; }
 
     public RecoverySelection Selection { get; init; } = new();
 
@@ -110,17 +43,12 @@ public sealed record RoundsRecovery
     {
         return new RecoveryPlanning
         {
-            Safety = new RecoverySafety { Restrictions = EquatableArray.From(Safety.Restrictions.Select(v => new RecoveryRestriction(v.Pawn, v.Area))) },
-            Buildings = EquatableArray.From(Buildings.Select(v => v.Building())),
-            Workers = EquatableArray.From(Workers.Select(v => new RecoveryWorker
+            Safety = new RecoverySafety { Restrictions = EquatableArray.From(Safety.Restrictions.Select(v => new O.RecoveryRestriction
             {
-                Pawn = v.Pawn,
-                Dead = v.Dead,
-                Downed = v.Downed,
-                Drafted = v.Drafted,
-                Mental = v.Mental,
-                PlayerForced = v.PlayerForced,
-            })),
+                Pawn = new() { Id = v.Pawn.Value }, AreaId = v.Area.Length == 0 ? null : v.Area,
+            })) },
+            Buildings = Buildings,
+            Workers = Workers,
         };
     }
 }
@@ -134,18 +62,10 @@ public sealed partial class Store
         {
             Safety = new RoundsRecoverySafety
             {
-                Restrictions = EquatableArray.From(p.Safety.Restrictions.Select(v => new RoundsRecoveryRestriction(v.Pawn, v.Area))),
+                Restrictions = EquatableArray.From(p.Safety.Restrictions.Select(v => new RoundsRecoveryRestriction(new PawnId(v.Pawn.Id), v.AreaId ?? ""))),
             },
-            Buildings = EquatableArray.From(p.Buildings.Select(RoundsRecoveryBuilding.Of)),
-            Workers = EquatableArray.From(p.Workers.Select(v => new RoundsRecoveryWorker
-            {
-                Pawn = v.Pawn,
-                Dead = v.Dead,
-                Downed = v.Downed,
-                Drafted = v.Drafted,
-                Mental = v.Mental,
-                PlayerForced = v.PlayerForced,
-            })),
+            Buildings = p.Buildings,
+            Workers = p.Workers,
         };
     }
 
@@ -185,7 +105,7 @@ public sealed partial class Store
         {
             return null;
         }
-        var r = RecoveryRecord(new RecoveryPlanning { Safety = f.RecoverySafety, Workers = f.RecoveryWorkers, Buildings = f.RecoveryBuildings });
+        var r = RecoveryRecord(new RecoveryPlanning { Safety = f.RecoverySafety, Workers = f.MoodPawns, Buildings = f.RecoveryBuildings });
         var owner = LoadNeedIn(tx, DisasterFamily.Services, review.Snapshot);
         r = r with
         {

@@ -18,7 +18,7 @@ public static class DefenseIEDs
     internal const int DefenseIEDSpacing = 2;
 
     /// <summary>The approach IEDs the layout plans: one for each turret it plans, so the approach is covered as far as the firing line is.</summary>
-    public static int IEDBudget(RaidDefense threat, EquatableArray<DefenseTurretFacts> turrets, int goalFloor) =>
+    public static int IEDBudget(RaidDefense threat, IReadOnlyList<DefenseTurretFacts> turrets, int goalFloor) =>
         DefenseBudget.TurretBudget(threat, turrets, goalFloor);
 
     /// <summary>

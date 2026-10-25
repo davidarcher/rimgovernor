@@ -17,11 +17,6 @@ internal static class ReadProjections
     private const int MaxStatusBytes = 2048;
     private const int MaxPlanActions = 1024;
 
-    internal static string? Known<T>(Fact<T> fact, Func<T, string> text) => fact.TryGetValue(out var v) ? text(v) : null;
-
-    internal static T? Value<T>(Fact<T> fact)
-        where T : struct => fact.TryGetValue(out var v) ? v : null;
-
     // state
 
     internal static StateDto State(ControllerSnapshot snapshot)
@@ -180,7 +175,7 @@ internal static class ReadProjections
     private static RoundsRosterPawnDto RosterPawn(PawnProfile p)
     {
         var skills = p.Skills.Values
-            .Select(s => new RoundsProfileSkillDto(s.Name, s.Level, s.Stored, s.Passion, s.Disabled, s.LearnFactor(p.Effects)))
+            .Select(s => new RoundsProfileSkillDto(s.DefName, s.Level, s.StoredLevel, s.Passion == RimGovernor.Contracts.Wire.Observations.Passion.None ? "" : WorkRules.PassionName(s.Passion), s.Disabled, PawnRules.SkillLearnFactor(s, p.Effects)))
             .OrderBy(s => s.Name, StringComparer.Ordinal).ToList();
         var incapable = p.Incapable.Where(kv => kv.Value).Select(kv => Wire.Name(kv.Key)).OrderBy(w => w, StringComparer.Ordinal).ToList();
         var e = p.Effects;
@@ -200,7 +195,7 @@ internal static class ReadProjections
 
     internal static ColonyStatusDto Colony(ColonyStatusReport v)
     {
-        IReadOnlyList<ColonyStockpileDto>? stockpiles = v.Stockpiles.TryGetValue(out var zones)
+        IReadOnlyList<ColonyStockpileDto>? stockpiles = v.Review?.Stockpiles is { } zones
             ? [.. zones.Select(z => new ColonyStockpileDto(z.Role, z.Zones, z.Cells, z.Capacity, z.Used))]
             : null;
         var downed = 0;
@@ -212,17 +207,17 @@ internal static class ReadProjections
             var row = new ColonyStatusPawnDto(
                 pawn.Id.Value,
                 pawn.Label,
-                Value(pawn.Downed),
-                Value(pawn.Mood),
-                Value(pawn.Food));
+                pawn.Downed,
+                pawn.Mood is RimGovernor.Contracts.Wire.Observations.NeedLevel.Has mood ? mood.Level : null,
+                pawn.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food ? food.Level : null);
             if (row.Downed == true)
             {
                 downed++;
             }
 
-            if (row.Mood is { } mood)
+            if (row.Mood is { } moodLevel)
             {
-                moodSum += mood;
+                moodSum += moodLevel;
                 moodCount++;
             }
 
@@ -230,8 +225,8 @@ internal static class ReadProjections
         }
 
         return new ColonyStatusDto(
-            v.FoodPlan is { } plan ? FoodPlanRow(plan, v.PetLabels) : null,
-            v.FoodPlanTick.TryGetValue(out var planTick) ? planTick.Value : null,
+            v.Review?.FoodPlan is { } plan ? FoodPlanRow(plan, v.Review.PetLabels) : null,
+            v.Review?.Tick.Value,
             v.Tick.Value,
             v.RosterTick.Value,
             v.Roster == ColonyRoster.NoColonists ? "no_colonists" : "colonists",
@@ -239,7 +234,7 @@ internal static class ReadProjections
             v.Workers,
             v.FoodNutrition,
             v.NutritionPerDay,
-            Value(v.FoodRunwayDays),
+            v.FoodRunway is RimGovernor.Contracts.Wire.Observations.FoodRunway.Days runway ? runway.Value : null,
             v.PendingFoodNutrition,
             v.Threat.RaidPoints,
             v.Threat.WealthTotal,
@@ -247,12 +242,12 @@ internal static class ReadProjections
             v.Threat.WealthBuildings,
             v.Threat.WealthPawns,
             v.PlayerTechLevel.ToString(),
-            v.TechTier.TryGetValue(out var tier) ? tier.ToString() : null,
+            v.TechTier.ToString(),
             stockpiles,
-            Value(v.ForbiddenSupplies),
+            v.Review?.ForbiddenSupplies,
             downed,
             moodCount > 0 ? moodSum / moodCount : null,
-            v.MoodLedger is { } ledger ? MoodLedgerRow(ledger) : null,
+            v.Review?.MoodLedger is { } ledger ? MoodLedgerRow(ledger) : null,
             pawns);
     }
 

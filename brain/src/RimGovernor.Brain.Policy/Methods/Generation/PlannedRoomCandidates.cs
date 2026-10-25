@@ -98,7 +98,18 @@ internal static class PlannedRoomCandidates
             clearing.Options.Where(Free).Where(r => clearing.Kind != PlannedClearingKind.Deconstruct || r.Input.Length > 0)
             .SelectMany(r => ConstructionMethodCandidates.Work(clearing.Kind, r) is { } work ? new[] { (Row: r, Work: work) } : [])
             .GroupBy(r => r.Row.Pawn).Select(p => p.First()).ToArray();
-        string RingKind(OpKind op) => op switch { OpKind.WallIn => "wall", OpKind.DoorIn => "door", OpKind.WallUp => "wallup", _ => "vent" };
+        string RingKind(OpKind op) => op switch
+        {
+            OpKind.WallIn => "wall",
+            OpKind.DoorIn => "door",
+            OpKind.WallUp => "wallup",
+            OpKind.VentIn => "vent",
+            OpKind.None or OpKind.RoofOff or OpKind.DoorOut or OpKind.WallOut or OpKind.Pack
+                or OpKind.FurnitureOut or OpKind.PackInUse or OpKind.FloorOut or OpKind.FloorIn
+                or OpKind.Install or OpKind.Build or OpKind.Claim or OpKind.Cut or OpKind.HaulOut
+                or OpKind.RoofIn => throw new DomainException($"planned room: operation {op} is not a ring kind"),
+            var invalid => throw new DomainException($"planned room: invalid operation {invalid}"),
+        };
         var assessed = new Dictionary<string, (Assessment Verdict, string Reason)>(StringComparer.Ordinal);
         foreach (var room in alternatives.GroupBy(a => a.Room).OrderBy(g => g.Key))
         {

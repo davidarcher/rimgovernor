@@ -2,7 +2,7 @@ using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 
 namespace RimGovernor.Brain.BuildingRuntime;
@@ -59,7 +59,7 @@ public sealed partial class FacadeNativeClient :
     Task<Tables> IColonySource.FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken) =>
         FrameTablesAsync(identity, cancellationToken);
 
-    Task<LifecyclePb.LoadedTick> ISource.TickAsync(CancellationToken cancellationToken) =>
+    Task<LifecyclePb.LoadedTick> IObservationSource.TickAsync(CancellationToken cancellationToken) =>
         TickAsync(cancellationToken);
 
     Task<BridgeCatalog> IDefinitionSource.DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) =>
@@ -97,7 +97,7 @@ public sealed partial class FacadeNativeClient :
     Task<O.BundleSnapshot?> IClockStepNative.ReadStepAsync(StepRequest request, CancellationToken ct) =>
         ReadStepAsync(request, ct);
 
-    Task<WorldProgressionRead> IClockStepNative.ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct) =>
+    Task<RimGovernor.Contracts.Wire.Observations.WorldProgressionSnapshot> IClockStepNative.ReadWorldProgressionAsync(C.Identity identity, CancellationToken ct) =>
         ReadWorldProgressionAsync(identity, ct);
 
     Task<System.Threading.Channels.ChannelReader<ColonyEvent>> IColonyEventNative.OpenColonyEventsAsync(CancellationToken ct) =>

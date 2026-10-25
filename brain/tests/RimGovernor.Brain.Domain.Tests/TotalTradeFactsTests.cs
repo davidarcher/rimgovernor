@@ -1,5 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
-using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Policy;
 using Xunit;
 using O = RimGovernor.Contracts.Wire.Observations;
@@ -10,7 +10,7 @@ public sealed class TotalTradeFactsTests
 {
     [Fact]
     public void MissingTraderCensusRefusesInsteadOfRecoveringTheCaravanNeed() =>
-        Assert.Throws<BridgeUnavailableException>(() => RoundsReads.FrameTraders(null));
+        Assert.Throws<BridgeUnavailableException>(() => RoundsFrameReads.FrameTraders(null));
 
     [Fact]
     public void EmptyTraderCensusAndAnUnpricedPresentTraderHaveDifferentNeeds()

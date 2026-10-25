@@ -1,3 +1,4 @@
+using O = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -23,27 +24,29 @@ public sealed record CustodyFacts
 
     public bool QuestProtected { get; init; }
 
-    public required bool WillJoinIfRescued { get; init; }
+    public bool WillJoinIfRescued => Person.WillJoinIfRescued;
 
-    public required PawnId Pawn { get; init; }
+    public required O.PopulationPerson Person { get; init; }
+    public required O.PawnState Observed { get; init; }
+    public PawnId Pawn => Person.Pawn;
 
-    public required bool Dead { get; init; }
+    public bool Dead => Observed.Dead;
 
-    public required bool Downed { get; init; }
+    public bool Downed => Observed.Downed;
 
-    public required bool Guest { get; init; }
+    public bool Guest => Person.Guest;
 
-    public required bool Admitted { get; init; }
+    public bool Admitted => Person.Admitted;
 
-    public required bool Prisoner { get; init; }
+    public bool Prisoner => Observed.Prisoner;
 
-    public required bool Hostile { get; init; }
+    public bool Hostile => Observed.Hostile;
 
     /// <summary>
     /// The game's guest.Recruitable, rolled at pawn generation (PawnGenerator.GeneratePawn ->
     /// SetupRecruitable), so a downed raider already carries it before capture. It orders captures only.
     /// </summary>
-    public required bool Recruitable { get; init; }
+    public bool Recruitable => Person.Recruitable;
 
     /// <summary>The pawn's biography: skills rank a standing hostile as a lance target.</summary>
     public required PrisonerProspect Prospect { get; init; }
@@ -52,10 +55,10 @@ public sealed record CustodyFacts
     /// A LuciferiumAddiction hediff: the raider is not CaptureWorthy, so the fight strips and finishes it
     /// instead.
     /// </summary>
-    public required bool Luciferium { get; init; }
+    public bool Luciferium => Observed.Health.Hediffs.Any(h => h.DefName == "LuciferiumAddiction");
 
     /// <summary>Gates a capture on the fight's strip: every downed raider is stripped before it is taken.</summary>
-    public required bool WearingApparel { get; init; }
+    public bool WearingApparel => Observed.Equipment.Apparel.Count > 0;
 }
 
 /// <summary>The one candidate chosen for a capture/rescue dispatch, chosen deterministically.</summary>

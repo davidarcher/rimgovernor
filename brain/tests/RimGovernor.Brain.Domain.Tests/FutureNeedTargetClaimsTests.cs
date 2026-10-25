@@ -2,7 +2,6 @@ using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -17,7 +16,7 @@ public sealed class FutureNeedTargetClaimsTests
         var step = new PawnActivityStep(kind, "shared-service", "", "", kind == PawnActivityKind.Eat ? 1 : 0, 2000);
         var task = new SelectedActivityTask("future-service", "owner", [], step, new(2, 2), 500);
         var batch = new PawnActivities(1, [new("owner", "assignment", "method", 0, 1, false,
-            [new(PawnActivityKind.Approach, "", "", "", 0, 2000) { Destination = new(2, 2), NotBefore = 500 },
+            [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 2000) { NotBefore = 500 }.At(new(2, 2)),
              new(PawnActivityKind.Hold, "", "", "", 0, 2000)]) { Task = task.Id, Preparing = true }])
             { Tasks = [task] };
         var action = DomainAction.NewPawnActivitiesAction(new("future"), batch);
@@ -51,7 +50,7 @@ public sealed class FutureNeedTargetClaimsTests
             Targets = [NeedsFixtures.Service("pin", "joy", 0d, .01) with
                 { Location = new(2, 2) }]
         };
-        facts = facts with { Resources = roster.Resources, WorkResources = roster.WorkResources,
+        facts = facts with { Census = facts.Census with { Resources = roster.Census.Resources, WorkResources = roster.Census.WorkResources },
             ForecastObserved = facts.ForecastObserved with { WorkPawns = roster.ForecastObserved.WorkPawns,
                 Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] } } };
         var step = new PawnActivityStep(PawnActivityKind.Recreation, "pin", "", "", 0, 2000);

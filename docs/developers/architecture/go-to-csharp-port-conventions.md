@@ -154,7 +154,8 @@ game data comes from the snapshot frames and the load's def stat table (the Go `
 There is no unknown ([rule 9](rules.md#review-items), #3753). A planner input is a read value
 or a named state; a fact that cannot be read raises `RequiredFactException`. Never turn a
 missing read into `null`, a default, a zero or a sentinel. The `Fact<T>` and `Unknown`
-members still in the code are burned down family by family; do not add new ones.
+wrappers are removed. Read the native Contracts record directly; retain a separate policy
+view only for derived calculations or named review lifecycle states.
 
 ## Per-package port checklist
 
@@ -168,7 +169,7 @@ A port child works through this in order. `internal/domain` is the worked exampl
    `ErrWriteUnsent`; closed variant `Action` with 76 kinds.
 2. **Create the project.** `src/RimGovernor.Brain.<Pkg>`, add it to `RimGovernor.slnx`,
    reference only already-ported packages. *Domain:* no references.
-3. **Write the foundation first.** Ids, `Fact<T>`, exceptions, enum conventions
+3. **Write the foundation first.** Ids, exceptions, enum conventions
    (`Wire`), `EquatableArray<T>`, the shared enums used everywhere (`ActionKind`).
    *Domain:* `Foundation/`.
 4. **Port leaf files, then dependents.** Value types, then constructors and

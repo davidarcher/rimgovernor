@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.BuildingRuntime;
-using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.Policy;
 using Xunit;
 
@@ -35,7 +34,7 @@ public sealed class LayoutReplanOffPathTests
     public void AFinishedReplanIsAdoptedOnlyOverTheWorldAndPlanItStartedFrom()
     {
         var held = new HeldLayout(new LayoutPlan(), new Tick(100));
-        var pending = new PendingLayoutReplan(World, new Tick(120), held, ColonyFactsCoreTests.Projection(), new MapSurvey(), null!, new RoomGrowth(), 3, "", "terrain", [], new PerimeterWall(new WallStrength.Unrated(), new WallStrength.Unrated()), [],
+        var pending = new PendingLayoutReplan(World, new Tick(120), held, ColonyFactsCoreTests.Reading(), new MapSurvey(), null!, new RoomGrowth(), 3, "", "terrain", [], new PerimeterWall(new WallStrength.Unrated(), new WallStrength.Unrated()), [],
             Task.FromResult(new LayoutReplanRun { StationRow = new RimGovernor.Brain.Telemetry.Decision { Kind = RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind } }));
 
         Assert.True(Rounder.LayoutReplanAdoptable(pending, World, new Tick(130), held, true));

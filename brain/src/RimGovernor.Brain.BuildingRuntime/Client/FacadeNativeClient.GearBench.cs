@@ -37,14 +37,11 @@ public sealed partial class FacadeNativeClient
             var bills = GearBillsFromStack(stack, def, recipes, recipeCatalog);
             var bench = new P.GearBench
             {
-                Id = stack.Bench,
-                Def = def,
-                WorkSpeed = stack.WorkSpeed,
+                Observed = stack,
                 Bills = EquatableArray.From(bills),
                 Recipes = EquatableArray.From(recipes),
-                Usable = stack.Usable,
             };
-            reads.Add(new GearBenchRead { Token = stack.Snapshot.Token ?? "", Bench = bench });
+            reads.Add(new GearBenchRead { Bench = bench });
         }
         reads.Sort((a, b) => string.CompareOrdinal(a.Bench.Id, b.Bench.Id));
         return reads;
@@ -137,10 +134,8 @@ public sealed partial class FacadeNativeClient
             recipes.Add(
                 new P.GearRecipe
                 {
-                    Definition = definition,
+                    Access = new P.RecipeAccess.OnBench(row),
                     Role = role,
-                    Available = row.AvailableNow,
-                    AvailableOn = row.AvailableOnBench,
                     Products = EquatableArray.From(products),
                     Ingredients = ingredients,
                     RequiredWork = requiredWork,
@@ -175,16 +170,11 @@ public sealed partial class FacadeNativeClient
             bills.Add(
                 new P.GearBill
                 {
-                    Id = bill.Id,
-                    Recipe = recipeName,
+                    Observed = bill,
                     Role = role,
-                    Active = !bill.Suspended && !bill.Finished,
-                    Worker = bill.Worker ?? "",
                     Products = billProducts,
-                    Spent = bill.Finished,
                     Kind = bill.BillClass == "Bill_GovernorRecipe" ? P.LedgerBillKind.ActivityExecution : billKind,
                     Spec = GearBillOrderSpec(bill, recipeName, benchDef),
-                    Existing = Observation.ColonyProductionReads.ExistingBillOf(bill, role, false) with { Active = !bill.Suspended && !bill.Finished },
                 }
             );
         }
@@ -197,7 +187,7 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     private static P.OrderSpec GearBillOrderSpec(PbObservations.BillState bill, string recipeName, string benchDef)
     {
-        var repeat = Observation.ColonyProductionReads.BillRepeatOf(bill.RepeatMode);
+        var repeat = ProductionRules.BillRepeatOf(bill.RepeatMode);
         switch (repeat)
         {
             case P.BillRepeat.Forever:

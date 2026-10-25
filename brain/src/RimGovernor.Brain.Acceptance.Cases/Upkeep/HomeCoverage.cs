@@ -100,8 +100,8 @@ internal static class UpkeepHomeCoverage
             Scope = s.Scope,
             Rectangle = new Observations.Rectangle
             {
-                Minimum = new Common.Cell { X = cells.Min(c => c.X), Z = cells.Min(c => c.Z) },
-                Maximum = new Common.Cell { X = cells.Max(c => c.X), Z = cells.Max(c => c.Z) },
+                Minimum = new RimGovernor.Brain.Domain.Cell { X = cells.Min(c => c.X), Z = cells.Min(c => c.Z) },
+                Maximum = new RimGovernor.Brain.Domain.Cell { X = cells.Max(c => c.X), Z = cells.Max(c => c.Z) },
             },
         }, cancellationToken).ConfigureAwait(false);
         return MapCellGrid.Of(reply.Grid);

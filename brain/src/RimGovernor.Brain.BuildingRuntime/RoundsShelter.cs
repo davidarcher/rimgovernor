@@ -23,7 +23,7 @@ public sealed partial class RoundsBuildingPlanner
 partial class RoundsBuildingPlanner
 {
     /// <summary>Whether any colonist can raise every named definition now (no construction skill needed): the zero Verdict when so, else the first thing missing, named.</summary>
-    internal static Verdict DefinitionsGate(Observation.ColonyProjection facts, IReadOnlyList<string> names)
+    internal static Verdict DefinitionsGate(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, IReadOnlyList<string> names)
     {
         foreach (var name in names)
         {
@@ -46,20 +46,20 @@ partial class RoundsBuildingPlanner
         return new Verdict();
     }
 
-    internal static (Observation.PlanningDefinition Def, bool Found) DefinitionRow(Observation.ColonyProjection facts, string name)
+    internal static (RimGovernor.Brain.Policy.PlanningDefinition Def, bool Found) DefinitionRow(RimGovernor.Brain.Bridge.Contracts.ColonyReading facts, string name)
     {
-        foreach (var def in facts.Definitions)
+        foreach (var def in facts.Facts.Definitions)
         {
             if (def.Name == name)
             {
                 return (def, true);
             }
         }
-        return (new Observation.PlanningDefinition(), false);
+        return (new RimGovernor.Brain.Policy.PlanningDefinition(), false);
     }
 
     /// <summary>The zero Verdict for a definition the game reports buildable, else the missing fact or the research it waits on.</summary>
-    internal static Verdict DefinitionAvailability(Observation.PlanningDefinition def)
+    internal static Verdict DefinitionAvailability(RimGovernor.Brain.Policy.PlanningDefinition def)
     {
         var ready = def.Available;
         if (ready)

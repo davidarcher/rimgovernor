@@ -1,61 +1,16 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
-using NeedLevel = RimGovernor.Contracts.Wire.Observations.NeedLevel;
 using PolicyMoodHistory = RimGovernor.Brain.Policy.MoodHistory;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Store;
-
-/// <summary>
-/// Optional persisted values distinguish unknown from observed zero/false: a <see cref="Fact{T}"/> persists as a
-/// nullable value. Domain Fact deliberately has no serialization contract.
-/// </summary>
-internal static class PersistedFact
-{
-    /// <summary>The known value of a struct fact, or null while it is unknown.</summary>
-    public static T? Value<T>(Fact<T> fact)
-        where T : struct => fact.TryGetValue(out var value) ? value : null;
-
-    /// <summary>The fact of a stored struct value: unknown when the value is absent.</summary>
-    public static Fact<T> Of<T>(T? value)
-        where T : struct => value is { } known ? Known(known) : Unknown<T>();
-}
 
 /// <summary>One mood need's measured level in a persisted mood state.</summary>
 public sealed record RoundsMoodCause(MoodNeed Need, double Level);
 
-/// <summary>A persisted pawn's mood evidence, read whole from its pawn row and the forecast's mood target (#3768).</summary>
-public sealed record RoundsMoodPawn
-{
-    public MentalState? Break { get; init; }
-
-    public PawnId Id { get; init; }
-
-    public MoodLevel Mood { get; init; } = new MoodLevel.Lacks();
-
-    public double Threshold { get; init; }
-
-    public NeedLevel Food { get; init; } = new NeedLevel.Lacks();
-
-    public NeedLevel Rest { get; init; } = new NeedLevel.Lacks();
-
-    public NeedLevel Joy { get; init; } = new NeedLevel.Lacks();
-
-    public bool Mental { get; init; }
-
-    public bool Dead { get; init; }
-
-    public bool Downed { get; init; }
-
-    public bool Drafted { get; init; }
-
-    public bool PlayerForced { get; init; }
-}
-
 /// <summary>One pawn's persisted mood state.</summary>
 public sealed record RoundsMoodState
 {
-    public RoundsMoodPawn Pawn { get; init; } = new();
+    public required MoodPawn Pawn { get; init; }
 
     public bool Active { get; init; }
 
@@ -75,21 +30,7 @@ public sealed record RoundsMoodState
         var p = s.Pawn;
         return new RoundsMoodState
         {
-            Pawn = new RoundsMoodPawn
-            {
-                Break = p.Break,
-                Id = p.Id,
-                Mood = p.Mood,
-                Threshold = p.Threshold,
-                Food = p.Food,
-                Rest = p.Rest,
-                Joy = p.Joy,
-                Mental = p.Mental,
-                Dead = p.Dead,
-                Downed = p.Downed,
-                Drafted = p.Drafted,
-                PlayerForced = p.PlayerForced,
-            },
+            Pawn = p,
             Active = s.Active,
             Missing = s.Missing,
             MentalRisk = s.MentalRisk,
@@ -103,21 +44,7 @@ public sealed record RoundsMoodState
     internal MoodState ToPolicy() =>
         new()
         {
-            Pawn = new MoodPawn
-            {
-                Break = Pawn.Break,
-                Id = Pawn.Id,
-                Mood = Pawn.Mood,
-                Threshold = Pawn.Threshold,
-                Food = Pawn.Food,
-                Rest = Pawn.Rest,
-                Joy = Pawn.Joy,
-                Mental = Pawn.Mental,
-                Dead = Pawn.Dead,
-                Downed = Pawn.Downed,
-                Drafted = Pawn.Drafted,
-                PlayerForced = Pawn.PlayerForced,
-            },
+            Pawn = Pawn,
             Active = Active,
             Missing = Missing,
             MentalRisk = MentalRisk,

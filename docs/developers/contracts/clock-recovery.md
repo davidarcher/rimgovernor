@@ -148,6 +148,16 @@ and direct colony projections use the same emergency rules and complete pawn cen
 for defense strength, recovery workers and dangerous cells. Recovery refuses a worker
 census that disagrees with its allowed-area restrictions.
 
+Emergency colonists and dependent patients retain their actual native pawn-table
+rows. Pawn threats retain both that row and the independently observed status
+threat row: status classifies hostility, predator hunts and proximity, while the
+pawn table supplies health, race, fog and position. Hostile buildings retain their
+whole status row, including distance, dormancy and occupied rectangle; no canonical
+building table contains them. Snapshots own the census collections and retain the
+immutable native evidence. A missing colonist row fails the read; an unresolved
+dependent or classified threat is explicitly `Unseen` and holds as stale. An empty
+census and a pawn without a food need or active mental state remain real absence.
+
 - A live, undowned hostile or hunting predator refuses the run (`unsafe_colony`)
   unless the `military/combat` Need holds an admitted plan with open work.
 - A hostile building alone refuses only while the defense planner has not reported

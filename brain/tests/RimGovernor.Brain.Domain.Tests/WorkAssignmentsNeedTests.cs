@@ -1,8 +1,8 @@
 using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -17,12 +17,31 @@ public sealed class WorkAssignmentsNeedTests
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
     [Fact]
-    public void TheNeedIsUnmetWhileWorkIsOwedMetWhenNotAndUnknownWhileUnread()
+    public void TheNeedRequiresACompletedWorkPlannerReview()
     {
-        Assert.Equal(Satisfaction.Unmet, AdminFamily.WorkAssignmentsNeed(Known(true)).Satisfaction);
-        Assert.Equal(Satisfaction.Met, AdminFamily.WorkAssignmentsNeed(Known(false)).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, AdminFamily.WorkAssignmentsNeed(WorkAssignmentsReview.Owed).Satisfaction);
+        Assert.Equal(Satisfaction.Met, AdminFamily.WorkAssignmentsNeed(WorkAssignmentsReview.Settled).Satisfaction);
         Assert.Equal("work assignments review", Assert.Throws<RequiredFactException>(() => Assert.Single(new AdminFamily(new AdminNeeds { WorkAssignments = true }).Derive(new AdminFacts()))).Fact);
-        Assert.Empty(new AdminFamily(new AdminNeeds()).Derive(new AdminFacts { WorkAssignments = Known(true) }));
+        Assert.Empty(new AdminFamily(new AdminNeeds()).Derive(new AdminFacts { WorkAssignments = WorkAssignmentsReview.Owed }));
+    }
+
+    [Fact]
+    public void WorkAndStockpileReviewsCannotReuseASettledPreviousWorld()
+    {
+        var other = World with { Load = new("next-load") };
+        var work = new ReviewMemory<WorkAssignmentsReview>(WorkAssignmentsReview.AwaitingPlanner);
+        Assert.Throws<RequiredFactException>(() => AdminFamily.WorkAssignmentsNeed(work.Get(World)));
+        work.Set(World, WorkAssignmentsReview.Settled);
+        Assert.Equal(Satisfaction.Met, AdminFamily.WorkAssignmentsNeed(work.Get(World)).Satisfaction);
+        Assert.Throws<RequiredFactException>(() => AdminFamily.WorkAssignmentsNeed(work.Get(other)));
+
+        var stockpiles = new StockpileMemory();
+        Assert.Throws<RequiredFactException>(() => stockpiles.Active(World));
+        stockpiles.SetActive(World, false);
+        Assert.False(stockpiles.Active(World));
+        Assert.Throws<RequiredFactException>(() => stockpiles.Active(other));
+        stockpiles.SetActive(World, null);
+        Assert.Throws<RequiredFactException>(() => stockpiles.Active(World));
     }
 
     [Fact]
@@ -34,23 +53,23 @@ public sealed class WorkAssignmentsNeedTests
         Assert.IsType<WorkRosterRead.Unread>(facts.WorkRoster);
         Assert.IsType<WorkRosterRead.Read>(new WorkRosterRead.Read([]));
         Assert.IsType<WorkPawnsRead>(new WorkPawnsRead([]));
-        Assert.Equal(Known(false), RoundsRules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Matched, CleanupPawns = false }, null));
-        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Unmatched, CleanupPawns = false }, null));
+        Assert.Equal(WorkAssignmentsReview.Settled, RoundsRules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Matched, CleanupPawns = false }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(facts with { WorkCoverage = WorkCoverageState.Unmatched, CleanupPawns = false }, null));
     }
 
     [Fact]
-    public void WorkIsOwedForUncoveredWorkIdlePawnsOwedSettingsOrCoupledWorkAndUnknownWhileCoverageIsUnread()
+    public void WorkReviewNamesTheAwaitingPlannerStateAndPreservesKnownWork()
     {
         var covered = WorkResourceTestFacts.Create("pawn") with { WorkCoverage = WorkCoverageState.Matched, CleanupPawns = false };
-        Assert.Equal(Known(false), RoundsRules.WorkAssignmentsOwed(covered, null));
-        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unmatched }, null));
-        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { CleanupPawns = true }, null));
-        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { HostilityOwed = true }, null));
-        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { NamesOwed = true }, null));
-        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { CoupledWorkActive = true }, null));
-        Assert.False(RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread }, null).IsKnown);
+        Assert.Equal(WorkAssignmentsReview.Settled, RoundsRules.WorkAssignmentsOwed(covered, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unmatched }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { CleanupPawns = true }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { HostilityOwed = true }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { NamesOwed = true }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { CoupledWorkActive = true }, null));
+        Assert.Equal(WorkAssignmentsReview.AwaitingPlanner, RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread }, null));
         // An owed setting is owed whatever the coverage read says.
-        Assert.Equal(Known(true), RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread, MedicalCareOwed = true }, null));
+        Assert.Equal(WorkAssignmentsReview.Owed, RoundsRules.WorkAssignmentsOwed(covered with { WorkCoverage = WorkCoverageState.Unread, MedicalCareOwed = true }, null));
     }
 
     [Fact]

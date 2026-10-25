@@ -94,7 +94,7 @@ public static partial class SiteRules
         var minimum = v.Crop.FertilityMin;
         foreach (var s in site.Cells)
         {
-            if (CropChoiceRules.FreeCropSoil(SiteUnroofed(s), minimum, null).Ok && s.Roofed && s.Indoors)
+            if (CropChoiceRules.FreeCropSoilUnderRoof(s, minimum, null).Ok && s.Roofed && s.Indoors)
             {
                 return c with { Reason = "free indoor soil: a greenhouse lamp is the cheaper kind" };
             }
