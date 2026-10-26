@@ -743,6 +743,7 @@ public sealed partial class BuildingPlanner
                 if (result.Verdict.IsZero) break;
                 var next = Copy();
                 next.Definition = name;
+                next.Stuff = facts.Facts.GeneratorRows[name].Stuff;
                 result = await next.PreviewPowerSiteAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
             }
             return result;
@@ -760,6 +761,7 @@ public sealed partial class BuildingPlanner
                 }
                 var next = Copy();
                 next.Definition = name;
+                next.Stuff = facts.Facts.GeneratorRows[name].Stuff;
                 (selected, stock, reason) = await next.PreviewPowerOrSearchAsync(snapshot, facts, protectedCells, missing, check, call).ConfigureAwait(false);
             }
         }

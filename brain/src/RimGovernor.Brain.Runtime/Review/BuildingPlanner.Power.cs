@@ -21,14 +21,14 @@ public sealed partial class BuildingPlanner
     /// <summary>The planner resolved to the power method the policy picked, or the verdict that says why none applies.</summary>
     internal (BuildingPlanner? Planner, Verdict Verdict) SelectPower(ColonyReading facts, IReadOnlyList<string> pendingConsumers)
     {
-        var planning = PowerRules.DefaultPowerPlanning(facts.Facts.ComponentSteel ?? throw new RequiredFactException("component steel cost"));
+        var planning = PowerRules.DefaultPowerPlanning();
         var crops = FieldPlanner.CropChoices(facts);
         var biome = facts.Facts.CropClimate.Biome;
         var skill = TreePlantationRules.GrowerSkill(facts.Facts.ForecastObserved.WorkPawns);
         var generators = ColonyPlanningRules.GeneratorOptions(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), fuel => TreePlantationRules.ResourceGrowable(crops, fuel, biome, skill));
         planning = planning with
         {
-            Generators = generators,
+            Generators = generators.Select(option => option with { Available = option.Available && ComfortBuilderAvailable(facts, option.Definition) }).ToList(),
             DaylightHours = facts.Facts.Gear.Climate.DaylightHoursIn(facts.Facts.Gear.Climate.CurrentTwelfth),
             Sources = facts.Facts.PowerSources,
             Battery = facts.Facts.PowerBattery,
@@ -76,6 +76,7 @@ public sealed partial class BuildingPlanner
         {
             case PowerMethod.Generate:
                 resolved.Definition = proposal.Definition;
+                resolved.Stuff = facts.Facts.GeneratorRows[proposal.Definition].Stuff;
                 break;
             case PowerMethod.Store:
                 resolved.Definition = proposal.Definition;
@@ -159,7 +160,7 @@ public sealed partial class BuildingPlanner
         }
 
         check();
-        var building = new Building(Definition, Power.Center, Rotation.North, "");
+        var building = new Building(Definition, Power.Center, Rotation.North, Stuff);
         var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
         var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
         var p = preview.Preview;
@@ -172,7 +173,7 @@ public sealed partial class BuildingPlanner
             }
         }
 
-        if (p.MadeFromStuff || p.Footprint.Count == 0 || !p.CanPlace || !p.SafeToPlace)
+        if (p.MadeFromStuff != (Stuff != "") || p.Footprint.Count == 0 || !p.CanPlace || !p.SafeToPlace)
         {
             return ([], stock, NoSpace("geyser_site"));
         }

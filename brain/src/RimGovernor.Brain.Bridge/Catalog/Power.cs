@@ -48,7 +48,7 @@ public sealed partial class DefinitionCatalog
     /// <summary>Buildable producers whose output and ordinary or geyser placement the existing power model evaluates.</summary>
     public IReadOnlyList<string> GeneratorDefinitions() => [.. _thingDefs.Values
         .Where(row => Buildable(row) && PowerSources().TryGetValue(row.defName, out var profile)
-            && profile.UnsupportedReason.Length == 0)
+            && profile.UnsupportedReason.Length == 0 && (!row.MadeFromStuff || AllowedStuffs(row.defName).Count > 0))
         .Select(row => row.defName).Order(StringComparer.Ordinal)];
 
     // The wind turbine profile: the WindManager speed range and the clear weather's wind factor.
@@ -74,10 +74,13 @@ public sealed partial class DefinitionCatalog
             throw new CatalogException($"def {name} is not a generator");
         }
 
+        var stuff = row.MadeFromStuff ? AllowedStuffs(name).OrderBy(material => CostValue(name, material))
+            .ThenBy(material => material, StringComparer.Ordinal).FirstOrDefault() ?? string.Empty : string.Empty;
+        if (row.MadeFromStuff && stuff.Length == 0) throw new CatalogException($"generator {name} has no allowed stuff");
         var generator = new P.GeneratorRow
         {
             NominalW = -watts,
-            Costs = [.. AdjustedCosts(name, string.Empty).Select(q => new P.Amount(new P.Resource(q.Def), q.Units))],
+            BuildValue = CostValue(name, stuff), Stuff = stuff,
         };
         if (row.GetCompProperties<CompProperties_Refuelable>() is not { } fuel)
             return generator;
@@ -136,33 +139,6 @@ public sealed partial class DefinitionCatalog
             Conduit = CheapestCostValue(P.LayoutPowerDeriveRules.PowerConduitDefinition),
             Wall = CheapestCostValue(ContainmentCellRules.ShellWallDefinition),
         };
-    }
-
-    /// <summary>
-    /// The units of input the cheapest recipe making product takes per unit made, when that recipe's one ingredient slot
-    /// accepts only input (the game's own steel-to-components rate); <see cref="P.InputCost.NoRecipe"/> when no recipe is so shaped.
-    /// </summary>
-    public P.InputCost ProductInputCost(string product, string input)
-    {
-        double? best = null;
-        foreach (var host in RecipeHosts(product, null))
-        {
-            if (host.Ingredients is not [[var only]] || only.Resource.Value != input)
-            {
-                continue;
-            }
-
-            var made = Recipe(host.Definition).products.Seq().Where(p => p.thingDef.defName == product).Sum(p => (long)p.count);
-            if (made <= 0)
-            {
-                continue;
-            }
-
-            var cost = (double)only.Count / made;
-            best = best is null || cost < best ? cost : best;
-        }
-
-        return best is { } value ? new P.InputCost.PerUnit(value) : new P.InputCost.NoRecipe();
     }
 
     /// <summary>The storage of the named battery def: the capacity and charge efficiency of its CompProperties_Battery. A def without the comp is an error.</summary>

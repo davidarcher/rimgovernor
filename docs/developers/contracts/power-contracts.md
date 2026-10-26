@@ -102,10 +102,12 @@ check on the model: a consumer that actually loses power is a deficit whatever t
     tree plantation counts and wild trees or chemfuel do not); then one burning a finite fuel,
     stocked; fuel-short ones; a renewable last when no battery can be built or (solar) the
     shortfall is night-only or the current twelfth has no daylight at the map's latitude (polar
-    night, read from the required gear climate's `DaylightHours`). Within a tier the higher average watts per steel of build cost goes
-    first, components priced at the game recipe's steel (`Make_ComponentIndustrial`: 12 steel each,
-    `DefinitionCatalog.ProductInputCost`); a component with no recipe (`InputCost.NoRecipe`) prices nothing and list order breaks
-    ties in ordinal definition order. Cost, nominal watts and accepted fuels come from the catalog
+    night, read from the required gear climate's `DaylightHours`). Within a tier the higher average watts per
+    native construction market value goes first, including every resource in the adjusted cost list.
+    Missing or invalid required prices fail the pass. Known free construction ranks first within its tier;
+    ordinal definition order breaks ties. A stuff-made generator uses its cheapest allowed material,
+    carrying that material through ordinary and geyser previews, alternative candidates and construction intent.
+    Candidates require an available capable builder. Cost, nominal watts and accepted fuels come from the catalog
     (`DefinitionCatalog.GeneratorRow`). A multi-fuel plant chooses a stocked full-tank fuel first,
     then renewable fuel, then greater stock, with ordinal identity breaking ties. All candidates join
     the ordinary planning census, research gate, pending-work correlation and room reconciliation.

@@ -14,7 +14,7 @@ public sealed partial class BuildingPlanner
         foreach (var definition in new[] { Definition }.Concat(Power.Alternatives))
         {
             check();
-            var building = new Building(definition, Power.Center, Rotation.North, "");
+            var building = new Building(definition, Power.Center, Rotation.North, s.Facts.Facts.GeneratorRows[definition].Stuff);
             var probe = s.State.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
             var action = DomainAction.NewBuildingAction(new ActionId($"{probe.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(action, probe, call).ConfigureAwait(false);

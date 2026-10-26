@@ -7,7 +7,6 @@ public sealed class PowerMethodTests
 {
     private static readonly PowerPlanning Planning = new()
     {
-        ComponentSteel = new InputCost.NoRecipe(),
         Battery = new PowerBattery(600, 0.5),
         Sources = new Dictionary<string, PowerSourceProfile> { ["WoodFiredGenerator"] = PowerRules.ConstantPowerProfile },
     };
@@ -57,17 +56,17 @@ public sealed class PowerMethodTests
         Assert.Equal(PowerMethod.WaitFuel, proposal.Method);
     }
 
-    // #3877: a component priced at its recipe's steel counts toward watts per steel; a component with no recipe prices
-    // the generator at nothing, so it ranks on list order alone.
     [Fact]
-    public void AComponentWithNoRecipePricesNothing()
+    public void GeneratorRankingRequiresTheCompleteNativeConstructionValue()
     {
-        var option = new GeneratorOption { Definition = "SolarGenerator", NominalW = 1700, Profile = PowerRules.ConstantPowerProfile, Costs = [new(SiteRules.SiteSteelUnit, 100), new(TradePolicyRules.ComponentResource, 3)] };
-
-        Assert.Equal(1700 * PowerRules.ConstantPowerProfile.Daily / (100 + 3 * 12.0), PowerRules.GeneratorYield(option, new InputCost.PerUnit(12)), 6);
-        Assert.Equal(0, PowerRules.GeneratorYield(option, new InputCost.NoRecipe()));
+        var option = new GeneratorOption { Definition = "InstalledGenerator", NominalW = 1700,
+            Profile = PowerRules.ConstantPowerProfile, BuildValue = 136 };
+        Assert.Equal(1700 * PowerRules.ConstantPowerProfile.Daily / 136, PowerRules.GeneratorYield(option), 6);
+        Assert.Equal(double.PositiveInfinity, PowerRules.GeneratorYield(option with { BuildValue = 0 }));
+        Assert.Throws<RequiredFactException>(() => PowerRules.GeneratorYield(option with { BuildValue = double.NaN }));
+        Assert.Throws<RequiredFactException>(() => PowerRules.GeneratorYield(option with { BuildValue = -1 }));
+        Assert.Throws<RequiredFactException>(() => PowerRules.GeneratorYield(option with { NominalW = 0 }));
     }
-
     // #3877: the fuel state is named: a not-refuelable building is never unfueled, a refuelable one is when out of fuel.
     [Fact]
     public void OnlyARefuelableBuildingOutOfFuelIsUnfueled()
@@ -99,10 +98,10 @@ public sealed class PowerMethodTests
     {
         GeneratorOption[] options =
         [
-            new() { Definition = "SolarGenerator", Available = true, Profile = PowerRules.SolarPowerProfile, NominalW = 1700 },
-            new() { Definition = PowerRules.WindTurbineDefinition, Available = true, Profile = PowerRules.WindProfile(0.04, 2, 1), NominalW = 2300 },
+            new() { Definition = "SolarGenerator", Available = true, Profile = PowerRules.SolarPowerProfile, NominalW = 1700, BuildValue = 10 },
+            new() { Definition = PowerRules.WindTurbineDefinition, Available = true, Profile = PowerRules.WindProfile(0.04, 2, 1), NominalW = 2300, BuildValue = 100 },
         ];
-        var ranking = new GeneratorRanking { ComponentSteel = new InputCost.NoRecipe(), BatteryAvailable = true, DaylightHours = 12 };
+        var ranking = new GeneratorRanking { BatteryAvailable = true, DaylightHours = 12 };
 
         Assert.Equal(["SolarGenerator", PowerRules.WindTurbineDefinition], PowerRules.RankGenerators(options, ranking));
         Assert.Equal(["SolarGenerator", PowerRules.WindTurbineDefinition], PowerRules.RankGenerators(options, ranking with { DaylightHours = 12.0}));

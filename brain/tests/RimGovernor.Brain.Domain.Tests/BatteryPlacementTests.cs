@@ -132,7 +132,7 @@ public sealed class BatteryPlacementTests
             RainVulnerable = true, Roofed = false,
         };
         var topology = new PowerTopology { Buildings = [battery], Blackout = false, Eclipse = false };
-        var planning = new PowerPlanning { ComponentSteel = new InputCost.NoRecipe(), Battery = new PowerBattery(600, 0.5), Light = light };
+        var planning = new PowerPlanning { Battery = new PowerBattery(600, 0.5), Light = light };
 
         var proposal = PowerRules.SelectPowerMethod(topology, new Bounds(20, 20), cells, [], planning);
 

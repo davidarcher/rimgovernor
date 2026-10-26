@@ -138,7 +138,6 @@ public static partial class ColonyPlanningReads
             f = f with
             {
                 GeneratorRows = generatorRows,
-                ComponentSteel = catalog.ProductInputCost(TradePolicyRules.ComponentResource.Value, SiteRules.SteelResource.Value),
             };
             if (catalog.FindThing(PowerRules.BatteryDefinition) is not null)
             {

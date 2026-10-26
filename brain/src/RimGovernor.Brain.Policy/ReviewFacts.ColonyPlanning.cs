@@ -32,7 +32,6 @@ public sealed partial record ReviewFacts
     public IReadOnlyDictionary<string, PowerSourceProfile> PowerSources { get; init; } = new Dictionary<string, PowerSourceProfile>();
     public PowerBattery PowerBattery { get; init; }
     public IReadOnlyDictionary<string, GeneratorRow> GeneratorRows { get; init; } = new Dictionary<string, GeneratorRow>();
-    public InputCost? ComponentSteel { get; init; }
     public LightTerrains LightTerrains { get; init; } = new();
     public double RoofSupport { get; init; }
     public ImpressivenessLevels Impressiveness { get; init; } = new();

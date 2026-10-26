@@ -88,7 +88,9 @@ public sealed record GeneratorOption
     public double NominalW { get; init; }
 
     /// <summary>The generator's build cost.</summary>
-    public IReadOnlyList<Amount> Costs { get; init; } = [];
+    public required double BuildValue { get; init; }
+
+
 }
 
 /// <summary>
@@ -100,7 +102,9 @@ public sealed record GeneratorRow
 {
     public double NominalW { get; init; }
 
-    public IReadOnlyList<Amount> Costs { get; init; } = [];
+    public required double BuildValue { get; init; }
+
+    public required string Stuff { get; init; }
 
     public IReadOnlyList<Resource> Fuels { get; init; } = [];
 
@@ -123,9 +127,6 @@ public sealed record PowerPlanning
 
     /// <summary>The delivery profile of every producer definition the catalog has (DefinitionCatalog.PowerSources); a producer on the map that it lacks is an error.</summary>
     public IReadOnlyDictionary<string, PowerSourceProfile> Sources { get; init; } = new Dictionary<string, PowerSourceProfile>();
-
-    /// <summary>The steel one component costs by the game's recipe; it prices generators' components for RankGenerators.</summary>
-    public required InputCost ComponentSteel { get; init; }
 
     /// <summary>The current twelfth's daylight hours at the map's latitude (GearClimate.DaylightHoursIn); RankGenerators ranks solar last at none.</summary>
     public double DaylightHours { get; init; }
@@ -153,9 +154,8 @@ public sealed record PowerPlanning
 /// <summary>
 /// What RankGenerators knows about the colony beyond the options: whether a battery can be built (a renewable
 /// is free to run but needs storage to carry the night), whether the shortfall being closed is night-only,
-/// which a solar generator cannot touch, and the steel a component costs to make (the game's own recipe,
-/// DefinitionCatalog.ProductInputCost), which prices a generator's components in steel. Without such a recipe no
-/// generator with components can be priced and list order breaks ties. DaylightHours is the current twelfth's daylight
+/// which a solar generator cannot touch. Each option carries its complete native construction value.
+/// DaylightHours is the current twelfth's daylight
 /// at the map's latitude: none (polar night) leaves a solar generator nothing to deliver; unknown keeps the nominal profile.
 /// </summary>
 public sealed record GeneratorRanking
@@ -164,22 +164,7 @@ public sealed record GeneratorRanking
 
     public bool NightOnly { get; init; }
 
-    public required InputCost ComponentSteel { get; init; }
-
     public double DaylightHours { get; init; }
-}
-
-/// <summary>
-/// The units of one input the cheapest recipe making a product takes per unit made, when a recipe's one ingredient
-/// slot accepts only that input (DefinitionCatalog.ProductInputCost); <see cref="NoRecipe"/> when no recipe is so shaped.
-/// </summary>
-public abstract record InputCost
-{
-    private InputCost() { }
-
-    public sealed record PerUnit(double Units) : InputCost;
-
-    public sealed record NoRecipe : InputCost;
 }
 
 public sealed record PowerProposal
@@ -236,7 +221,7 @@ public static partial class PowerRules
     /// <summary>The margin the storage target carries over the night deficit.</summary>
     public const double DefaultStorageMargin = 0.25;
 
-    public static PowerPlanning DefaultPowerPlanning(InputCost componentSteel) => new() { ComponentSteel = componentSteel, ReserveMinDays = 1, StorageMargin = DefaultStorageMargin };
+    public static PowerPlanning DefaultPowerPlanning() => new() { ReserveMinDays = 1, StorageMargin = DefaultStorageMargin };
 
     /// <summary>
     /// Pairs each generator definition with its catalog row (cost, nominal watts, fuel and tank), the observed
@@ -258,7 +243,7 @@ public static partial class PowerRules
                 throw new DomainException($"generator {name} has no catalog power source profile");
             }
             RequirePowerProfile(profile);
-            var option = new GeneratorOption { Definition = name, Available = available(name), Profile = profile, NominalW = row.NominalW, Costs = row.Costs };
+            var option = new GeneratorOption { Definition = name, Available = available(name), Profile = profile, NominalW = row.NominalW, BuildValue = row.BuildValue };
             if (row.Fuels.Count != 0)
             {
                 var fuel = row.Fuels.Select(fuel => new { Fuel = fuel, Stock = stock(fuel), Renewable = renewable(fuel) })
@@ -272,39 +257,13 @@ public static partial class PowerRules
         return options;
     }
 
-    /// <summary>
-    /// The average watts a generator delivers per steel of build cost, components counted at componentSteel
-    /// steel each; zero when a cost cannot be priced (no steel-only component recipe, or another resource).
-    /// </summary>
-    internal static double GeneratorYield(GeneratorOption o, InputCost componentSteel)
+    /// <summary>Average delivered watts per native market value of the complete selected construction cost.</summary>
+    internal static double GeneratorYield(GeneratorOption option)
     {
-        var steel = 0.0;
-        foreach (var c in o.Costs)
-        {
-            if (c.Resource == SiteRules.SiteSteelUnit)
-            {
-                steel += c.Count;
-            }
-            else if (c.Resource == TradePolicyRules.ComponentResource)
-            {
-                if (componentSteel is not InputCost.PerUnit(var rate))
-                {
-                    return 0;
-                }
-                steel += c.Count * rate;
-            }
-            else
-            {
-                return 0;
-            }
-        }
-        if (!(steel > 0))
-        {
-            return 0;
-        }
-        return o.NominalW * o.Profile.Daily / steel;
+        if (!double.IsFinite(option.BuildValue) || option.BuildValue < 0 || !double.IsFinite(option.NominalW) || option.NominalW <= 0)
+            throw new RequiredFactException("generator build value or output:" + option.Definition);
+        return option.BuildValue == 0 ? double.PositiveInfinity : option.NominalW * option.Profile.Daily / option.BuildValue;
     }
-
     private readonly record struct RankedGenerator(string Definition, int Tier, int Order, double Yield);
 
     /// <summary>
@@ -313,8 +272,7 @@ public static partial class PowerRules
     /// fuel next, fuel-short ones after, and a renewable that cannot serve the deficit (no battery, a
     /// night-only shortfall, or a solar generator in a twelfth with no daylight) last, still chosen when
     /// nothing else is available. Within a tier the generator
-    /// delivering the most watts per steel of build cost (components priced at their recipe's steel) goes
-    /// first; list order breaks ties.
+    /// delivering the most watts per native construction value goes first; list order breaks ties.
     /// </summary>
     public static IReadOnlyList<string> RankGenerators(IReadOnlyList<GeneratorOption> options, GeneratorRanking ranking)
     {
@@ -357,7 +315,7 @@ public static partial class PowerRules
                     tier = 2;
                 }
             }
-            rows.Add(new RankedGenerator(o.Definition, tier, i, GeneratorYield(o, ranking.ComponentSteel)));
+            rows.Add(new RankedGenerator(o.Definition, tier, i, GeneratorYield(o)));
         }
         return [.. rows
             .OrderBy(r => r.Tier)
@@ -825,7 +783,7 @@ public static partial class PowerRules
         ids.Sort(StringComparer.Ordinal);
         p = p with { Key = PowerMethodKey("generate", target.Id + "/" + string.Join("/", ids)) };
         var geothermal = RankGenerators(planning.Generators.Where(option => option.Profile.Steam).ToList(),
-            new() { ComponentSteel = planning.ComponentSteel, BatteryAvailable = planning.BatteryAvailable, DaylightHours = planning.DaylightHours });
+            new() { BatteryAvailable = planning.BatteryAvailable, DaylightHours = planning.DaylightHours });
         var geyser = geothermal.Count > 0 ? ReachableGeyser(target.Cell, geysers, route) : null;
         if (geyser is not null)
         {
@@ -835,7 +793,6 @@ public static partial class PowerRules
         var ranking = new GeneratorRanking
         {
             BatteryAvailable = planning.BatteryAvailable,
-            ComponentSteel = planning.ComponentSteel,
             DaylightHours = planning.DaylightHours,
             NightOnly = p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0,
         };
