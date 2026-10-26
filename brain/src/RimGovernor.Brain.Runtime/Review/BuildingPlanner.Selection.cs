@@ -10,6 +10,9 @@ public sealed partial class BuildingPlanner
     internal static bool PendingFacility(Progress progress, string definition) =>
         progress.Action.Building is { } building && building.Definition == definition && PendingWork.IsPending(progress);
 
+    internal static bool PendingBed(Progress progress, RoomFurniture furniture) =>
+        progress.Action.Building is { } building && furniture.IsBed(building.Definition) && PendingWork.IsPending(progress);
+
     public static BuildingPlanner NewReviewCookingPlanner(ColonyReview reviewer, IReviewBuildingSource native)
     {
         if (reviewer is null || native is null)

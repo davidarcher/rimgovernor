@@ -111,7 +111,7 @@ public static partial class TitleClaimRules
             }
             foreach (var thing in rung.BedroomThings)
             {
-                if (RoomQualityRules.IsReplacementBed(thing.AnyOf))
+                if (thing.AnyOf.Any(d => f.Rooms.Shapes.Furniture.IsBed(d.Value)))
                 {
                     continue;
                 }

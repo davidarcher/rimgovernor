@@ -191,7 +191,7 @@ public sealed class RoomFurnishingTests
         var free = room.Region.Cells().Where(c => !old.Cells.Contains(c)).ToList();
         var sculpture = Standing(Lever, free[0].X, free[0].Z);
         var open = free.Skip(1).Where(c => free.Skip(1).Contains(new Cell(c.X, c.Z + 1))).First();
-        var replacement = new BedReplacement { Step = BedReplacementStep.Build, Room = "1", Def = Bed, Stuff = "Steel", Cell = open, Rot = Rotation.North }.Piece();
+        var replacement = new BedReplacement { Step = BedReplacementStep.Build, Room = "1", Def = Bed, Stuff = "Steel", Cell = open, Rot = Rotation.North }.Piece(Shapes);
         Assert.Equal(new Cell(1, 2), replacement.Size);
 
         var furnishing = SleepingRules.BedroomFurnishing(room, Shapes, "", [old, sculpture], replacement);

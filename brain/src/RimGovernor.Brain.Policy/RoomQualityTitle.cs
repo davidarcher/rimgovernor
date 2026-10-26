@@ -40,7 +40,7 @@ public static partial class RoomQualityRules
             }
             foreach (var thing in title.BedroomThings)
             {
-                if (IsReplacementBed(thing.AnyOf))
+                if (thing.AnyOf.Any(d => room!.Room.Shapes.Furniture.IsBed(d.Value)))
                 {
                     continue;
                 }

@@ -17,6 +17,11 @@ building row, not repeated in the bed census. Room-quality views retain the actu
 the catalog supplies compiler-checked native stat names and policy reads its quality from that
 row's stats. Only catalog requirements and the derived colonist-bed membership accompany these
 observations. A pawn with no owned bed retains the native null relation.
+Bed replacement, royal bed alternatives and stored-bed reinstall placement use
+the catalog's adult-bed membership and actual native footprint. They share the
+room geometry and walkability checks; a known bed with an unread shape fails
+the affected pass. A replacement keeps its selected definition through the
+existing bedroom reconciliation and native construction intent.
 The repair structure census includes only native definitions with `useHitPoints`, so
 non-damageable markers such as sleeping spots are never repair targets.
 

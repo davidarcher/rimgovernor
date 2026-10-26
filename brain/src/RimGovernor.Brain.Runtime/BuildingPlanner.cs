@@ -541,7 +541,7 @@ public sealed partial class BuildingPlanner
                 }
                 if (pendingPlanner.Concern == MedicalRules.MedicalCareNeed.FilingKey || pendingPlanner.Phase == Pol.Phase.HousingSleeping)
                 {
-                    return PendingFacility(progress, "SleepingSpot") || PendingFacility(progress, "Bed") || PendingFacility(progress, "DoubleBed") || PendingFacility(progress, "RoyalBed");
+                    return PendingBed(progress, facts.Facts.Shapes.Furniture);
                 }
                 return PendingFacility(progress, pendingPlanner.Definition);
             }

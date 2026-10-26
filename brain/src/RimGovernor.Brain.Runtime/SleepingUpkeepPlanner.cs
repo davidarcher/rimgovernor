@@ -169,7 +169,7 @@ public sealed partial class SleepingUpkeepPlanner
                             var (replacement, replacementDue) = BedReplacementOf(facts);
                             if (replacementDue && replacement.Step == Pol.BedReplacementStep.Build)
                             {
-                                return await FurnishBedroomAsync(stock, state, review, goal, reading, replacement.Piece(), call, epoch).ConfigureAwait(false);
+                                return await FurnishBedroomAsync(stock, state, review, goal, reading, replacement.Piece(reading.Reading.Facts.Shapes), call, epoch).ConfigureAwait(false);
                             }
                             var (beauty, beautyDue) = BeautyUpgrade(facts);
                             if (beautyDue)

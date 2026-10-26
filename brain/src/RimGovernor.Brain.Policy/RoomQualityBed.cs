@@ -84,13 +84,13 @@ public sealed record BedReplacement
     public Rotation Rot { get; init; }
 
     /// <summary>The Build step as the furnishing piece it asks for: Def at Cell, Rot in Stuff.</summary>
-    public RoomUpgrade Piece() => new()
+    public RoomUpgrade Piece(PieceShapes shapes) => new()
     {
         Room = Room,
         Slot = "bed",
         Def = Def,
         Stuff = Stuff,
-        Size = RoomQualityRules.ReplacementBedSizes.GetValueOrDefault(new Resource(Def)),
+        Size = shapes.Get(Def) is ({ Size: var size }, true) ? size : throw new RequiredFactException("replacement bed shape: " + Def),
         Anchor = Cell,
         Rot = Rot,
     };
@@ -100,14 +100,6 @@ public static partial class RoomQualityRules
 {
     /// <summary>The QualityCategory ordinal of Normal.</summary>
     private const int NormalQuality = 2;
-
-    /// <summary>The North footprints of the beds the closer builds.</summary>
-    internal static readonly IReadOnlyDictionary<Resource, Cell> ReplacementBedSizes = new Dictionary<Resource, Cell>
-    {
-        [new Resource("Bed")] = new Cell(1, 2),
-        [new Resource("DoubleBed")] = new Cell(2, 2),
-        [new Resource("RoyalBed")] = new Cell(2, 2),
-    };
 
     /// <summary>
     /// Whether x improves on b for a room that wants the definition want: the wanted definition first, then
@@ -200,7 +192,8 @@ public static partial class RoomQualityRules
         {
             var owned = beds[s.Bed];
             var want = owned.Definition;
-            var (w0, wok) = TitleBed(titles.GetValueOrDefault(s.Owner), owned.Definition, available);
+            var rk = furniture.TryGetValue(s.Room, out var room);
+            var (w0, wok) = rk ? TitleBed(titles.GetValueOrDefault(s.Owner), owned.Definition, room!.Room.Shapes.Furniture, available) : (default(Resource), false);
             if (wok)
             {
                 want = w0;
@@ -229,7 +222,6 @@ public static partial class RoomQualityRules
             }
             var tk = targets.TryGetValue(s.Room, out var t);
             var qk = quality.TryGetValue(s.Room, out var q);
-            var rk = furniture.TryGetValue(s.Room, out var room);
             if (spare.Count > 0 || !rk)
             {
                 continue;
@@ -293,11 +285,13 @@ public static partial class RoomQualityRules
     /// <summary>The first free anchor (back row first) where a bed of def fits the room's floor clear of its furniture and keeps it walkable.</summary>
     internal static (Cell Cell, Rotation Rotation)? BedSpotCore(FurnitureRoom room, Resource def)
     {
-        if (!ReplacementBedSizes.TryGetValue(def, out var size))
+        if (!room.Room.Shapes.Furniture.IsBed(def.Value))
         {
             return null;
         }
-        var (anchor, rot, ok) = FreeSpot(room, size);
+        var (shape, measured) = room.Room.Shapes.Get(def.Value);
+        if (!measured) throw new RequiredFactException("replacement bed shape: " + def.Value);
+        var (anchor, rot, ok) = FreeSpot(room, shape.Size);
         return ok ? (anchor, rot) : null;
     }
 
@@ -346,7 +340,7 @@ public static partial class RoomQualityRules
     }
 
     /// <summary>The bed a royal title requires when the owned bed does not meet it: the first buildable bed of the title's bed entry.</summary>
-    internal static (Resource Def, bool Ok) TitleBed(RoyalTitle? title, Resource owned, Func<string, bool> available)
+    internal static (Resource Def, bool Ok) TitleBed(RoyalTitle? title, Resource owned, RoomFurniture furniture, Func<string, bool> available)
     {
         if (title is null)
         {
@@ -354,7 +348,7 @@ public static partial class RoomQualityRules
         }
         foreach (var thing in title.BedroomThings)
         {
-            if (!IsReplacementBed(thing.AnyOf))
+            if (!thing.AnyOf.Any(d => furniture.IsBed(d.Value)))
             {
                 continue;
             }
@@ -367,7 +361,7 @@ public static partial class RoomQualityRules
             }
             foreach (var d in thing.AnyOf)
             {
-                if (ReplacementBedSizes.ContainsKey(d) && available(d.Value))
+                if (furniture.IsBed(d.Value) && available(d.Value))
                 {
                     return (d, true);
                 }
@@ -376,15 +370,4 @@ public static partial class RoomQualityRules
         return (default, false);
     }
 
-    internal static bool IsReplacementBed(IReadOnlyList<Resource> defs)
-    {
-        foreach (var d in defs)
-        {
-            if (ReplacementBedSizes.ContainsKey(d))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
 }

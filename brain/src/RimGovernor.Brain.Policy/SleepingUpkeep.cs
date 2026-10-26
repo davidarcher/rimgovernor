@@ -460,7 +460,7 @@ public static partial class SleepingRules
             var n = 0;
             foreach (var thing in t.BedroomThings)
             {
-                if (RoomQualityRules.IsReplacementBed(thing.AnyOf) && thing.AnyOf.Contains(b.Definition))
+                if (thing.AnyOf.Contains(b.Definition))
                 {
                     n++;
                 }
