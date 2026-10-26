@@ -39,11 +39,27 @@ package at dirty `ff5cfc77b`, source tree
 These cases establish lifecycle mechanics and the staged feeding response. They
 do not establish a native throughput baseline, justify direct interventions, prove
 ordered native queues or close any routine migration entry. Existing exact
-generators, preemptible-as-free accounting and target-holder preemption remain
+generators and timetable-based throughput sizing remain
 identified work for the later groups. The unrelated observed layout logging
 exception is tracked as [#4041](https://github.com/davidarcher/rimgovernor/issues/4041).
 
 ## Routine execution migration inventory
+
+The next capacity increment removes interruptibility-as-free accounting and
+reservation-holder eviction. Useful observed native work is occupied; without a
+remaining-time estimate its capacity is unread. Every observed job target stays
+claimed. Native acquisition uses vanilla reservation checks and cannot end another
+holder's job. `UsefulNativeWorkIsOccupiedAndKeepsItsRoleWithoutInventingDuration`
+and `UsefulNativeWorkOccupiesCapacityAndRetainsItsTargetReservation` cover the
+policy consequences. The obsolete flag is deleted through the native observation,
+typed facts and admission codec, with journal schema 61. The required gate passed
+on 2026-10-26 (59 s), including native production/fixture compilation and contract
+probes. Earlier native gameplay results above precede this increment. Task 3.2
+remains incomplete pending conditional replacement of timetable throughput sizing.
+Rules 7–9: occupancy is a pure shared decision, native reservations retain legality,
+and unavailable duration stays named rather than becoming zero. Complexity: added
+0 execution paths / removed target-holder preemption and one boundary flag /
+orphans left: none.
 
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. Every activity family below currently feeds the shared exact binding/admission path. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 

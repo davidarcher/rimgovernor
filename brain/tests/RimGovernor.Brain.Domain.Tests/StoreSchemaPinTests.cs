@@ -16,10 +16,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class StoreSchemaPinTests
 {
-    private const int PinnedSchemaVersion = 60;
-    // ZoneKind was renamed LayoutZoneKind: the hash includes CLR generic argument names.
-    // Persisted names and geometry are unchanged (LayoutZonePersistenceTests); keep compatible journals loadable.
-    private const string PinnedShapeHash = "57EDE2B67FCA6CE6A2C4F52352EDAFC99CC7FDC5616944E7EBF913A1812288A2";
+    private const int PinnedSchemaVersion = 61;
+    // Version 61 drops the obsolete Preemptible property from frozen admission evidence.
+    private const string PinnedShapeHash = "3DEE37CA2AB7F6403F1C9C9FE8FB3F524FC41EEA465C89F10F688FA17DCC29A8";
 
     [Fact]
     public void CodecShapeIsPinnedToTheSchemaVersion()

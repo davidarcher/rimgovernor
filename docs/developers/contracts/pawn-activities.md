@@ -277,7 +277,7 @@ and carrying, but does not ask the hauling WorkGiver to select storage. It never
 collects nearby duplicates or substitutes a nearby drop location. Admission and
 execution require a capable hauler, sufficient source quantity and carrying capacity,
 an empty carry tracker or the exact selected carried stack, and a reachable destination that is
-unreserved or held only by preemptible colonists (see the offer rules below) and holds no loose item but one stack
+reservable by this pawn under vanilla's reservation rules and holds no loose item but one stack
 the delivered thing joins with room for the count. One step is one trip: a count over the pawn's carry is refused.
 A larger transfer is one task whose orders each carry one load (the coupled start clamps a Deliver to the binding's
 `Capacity`); the continuation observes each result and repeats the step over the remainder, each later carry
@@ -337,11 +337,9 @@ being erased. Remaining exact routine callers are tracked in the labor migration
 
 A selected native Job is identified by both reference and load ID, so pooling
 cannot transfer ownership. Actual StartJob and EndCurrentJob hooks distinguish an
-offer from execution. A coupled order outranks vanilla work (#3671): when a step's target, a
-`Deliver` destination cell or a `Supply` site is reserved only by preemptible colonists (controlled, no committed
-order), admission counts it reservable and the offer ends their jobs (`InterruptForced`, no new job started, so none
-re-reserves it first) before reserving it. A committed order, a player-forced or queued job, or a holder that is not a
-controlled colonist is never interrupted. Any other native reservation failure terminates the attempt visibly
+offer from execution. Admission and execution use native reservation checks for a
+step's target, `Deliver` destination and `Supply` site. They never end another
+holder's job to acquire its reservation. A native reservation failure terminates the attempt visibly
 (`target_unreachable_or_reserved`).
 Successful work advances only to an explicitly authorized next step; failed or
 interrupted work never silently restarts. A new revision is required to retry.
@@ -522,9 +520,10 @@ task dependency in intent; it offers no native waiting job. Native selection can
 take over while that dependency waits. An unowned colonist claims no pawn or target, so selected work,
 eat or sleep acquires it from revision zero and interrupts its vanilla job. Work
 candidacy and food/support availability treat it as free (`NativePawnActivities.Standing`).
-The pawn read reports its real vanilla job with `JobEvidence.preemptible` set
-(#3670): brain occupancy reads it as free, and target claims still see what it
-holds, so a coupled order on that target is not refused for it. Changing authority leaves
+The pawn read reports its real vanilla job. Shared capacity counts useful work as
+occupied and target claims protect what it holds, even when a direct order could
+interrupt it. `Standing` permits native legality checks; it does not establish
+free labor in the forecast. Changing authority leaves
 an unowned colonist's vanilla job running; it only releases stale orders. Native
 publishes nothing for an unowned colonist (#3556; the `unassigned_voluntary_pawn`
 invalidation is gone), and the next colony review reads it in the census. See [supported scope and remaining owners](voluntary-control.md).

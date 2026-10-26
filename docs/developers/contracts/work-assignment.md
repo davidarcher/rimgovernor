@@ -130,15 +130,15 @@ refill-withholding and global chunk-haul policies are removed.
 
 The roster and ColonyForecast use `ForecastCurrentWorkOf` to interpret the current
 job. A known idle job has zero remaining productive work; an unread job has unknown
-occupancy. A preemptible job (vanilla job selection on a controlled colonist with no
-committed coupled order, #3670) is unoccupied with zero remaining work but keeps its
-work type. An observed non-idle job is occupied, with unknown remaining ticks unless
+occupancy. An observed non-idle job is occupied, with unknown remaining ticks unless
 the forecast caller supplies an estimate. `WorkDecision.CurrentWork` exposes these
-facts; an unknown duration never becomes a free workday. Work claims still see a
-preemptible pawn's job target, but only a committed holder makes a candidate on that
-target `pawn_target_claimed`: the coupled order interrupts a preemptible holder.
+facts; an unknown duration never becomes a free workday. Work claims protect every
+observed job target with `pawn_target_claimed`. Native reservation checks preserve
+those holders: admission cannot evict another pawn merely because its work could
+be interrupted by a direct order. The obsolete interruptibility flag is removed
+from observations and journal admission evidence (schema 61).
 
-An enabled, eligible, demanded ordinary job, preemptible or not, protects its pawn from becoming the
+An enabled, eligible, demanded ordinary job protects its pawn from becoming the
 primary owner of another work type with equal or lower native natural priority.
 Other capable pawns can take that role. Within a type, ongoing work ranks before
 fitness; Construction still ranks raw skill first. Higher native natural-priority

@@ -189,12 +189,10 @@ namespace RimGovernor.Native
             foreach (var building in map.listerBuildings.allBuildingsNonColonist) if (!(building is Hive) && HostileBuilding(building, player)) found.Add(building);
             return found.OrderBy(t => t.thingIDNumber).ToList();
         }
-
-        // preemptible: controlled with no committed coupled order (NativePawnActivities.Standing, #3670).
-        internal static RimGovernor.Brain.GameFacts.Observations.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs, bool preemptible)
+        internal static RimGovernor.Brain.GameFacts.Observations.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs)
         {
             if (queuedJobs < 0) throw new InvalidOperationException("Negative native queued job count.");
-            var row = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs, Preemptible = preemptible };
+            var row = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs };
             if (job != null) {
                 row = row with { DefName = Identifier(job.def.defName) };
                 // The work giver's WorkTypeDef names the labor the job spends

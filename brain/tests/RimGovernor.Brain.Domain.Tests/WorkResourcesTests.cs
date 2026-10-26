@@ -220,31 +220,25 @@ public sealed class WorkResourcesTests
         Assert.Equal("shared_target:stack", WorkRules.WorkResourcesRefusal(view, Batch("clash", Staged("cook-builder", "stack"), Staged("helper", "stack"))));
     }
 
-    // #3670: a preemptible pawn's vanilla job is reported. Occupancy reads it as free; the claims still see its target and
-    // tell it from a committed holder: a coupled order interrupts the preemptible one (#3671) but never a committed one.
     [Fact]
-    public void PreemptibleVanillaJobIsFreeButStillShowsItsTargetToClaims()
+    public void UsefulNativeWorkOccupiesCapacityAndRetainsItsTargetReservation()
     {
-        ReviewFacts Holding(bool preemptible)
+        ReviewFacts Holding()
         {
             var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
             return facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = new WorkPawnsRead(EquatableArray.From(((WorkPawnsRead)facts.ForecastObserved.WorkPawns).Pawns
                 .Select(p => p.Id.Value != "helper" ? p : p with { Observed = (p).Observed with { Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "HaulToCell", WorkTypeDefName = "Hauling",
-                    TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase(new RimGovernor.Brain.GameFacts.Common.Ref { Id = "stack" }, new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new Cell(1, 1))) }, Preemptible = preemptible } } }))) } };
+                    TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase(new RimGovernor.Brain.GameFacts.Common.Ref { Id = "stack" }, new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new Cell(1, 1))) } } } }))) } };
         }
         PlanSpec Approach(string target) => Plan("approach", DomainAction.NewPawnActivitiesAction(new("approach-0"), new(1,
             [new("cook-builder", "m/cook-builder", "m", 0, 1, false,
                 [new PawnActivityStep(PawnActivityKind.Approach, target, "", "", 0, 500).At(new(5, 5)), new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Preparing = true }])));
-        var vanilla = View(Holding(preemptible: true));
+        var vanilla = View(Holding());
         var row = vanilla.Evidence.Pawns.Single(p => p.Pawn == "helper");
-        Assert.True(row.Preemptible);
-        Assert.False(row.Occupied);
+        Assert.True(row.Occupied);
         Assert.Equal("stack", row.Target);
-        Assert.True(vanilla.Capacity["helper"].Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start) > 0);
-        Assert.Null(WorkRules.WorkResourcesRefusal(vanilla, Approach("stack")));
-        var committed = View(Holding(preemptible: false));
-        Assert.True(committed.Evidence.Pawns.Single(p => p.Pawn == "helper").Occupied);
-        Assert.Equal("pawn_target_claimed", WorkRules.WorkResourcesRefusal(committed, Approach("stack")));
+        Assert.IsType<ForecastCapacityWindows.Unread>(vanilla.Capacity["helper"].Capacity.Windows);
+        Assert.Equal("pawn_target_claimed", WorkRules.WorkResourcesRefusal(vanilla, Approach("stack")));
     }
 
     [Fact]

@@ -93,17 +93,17 @@ public sealed class WorkOccupancyTests
         Assert.Throws<DomainException>(() => ForecastCurrentWork.ForecastCurrentWorkOf(pawn, new ForecastWorkRemaining.Timed(-1.0)));
     }
 
-    // #3670: a preemptible pawn's vanilla job leaves it free for the forecast, yet still protects its current role.
+    // Interruptibility does not erase useful native work or provide a remaining-duration estimate.
     [Fact]
-    public void PreemptibleVanillaJobIsUnoccupiedButKeepsItsRole()
+    public void UsefulNativeWorkIsOccupiedAndKeepsItsRoleWithoutInventingDuration()
     {
-        var cook = Pawn("cook", building: 20) with { Observed = (Pawn("cook", building: 20)).Observed with { Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "DoBill", WorkTypeDefName = "Cooking", Preemptible = true, TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotApplicable } } } } };
+        var cook = Pawn("cook", building: 20) with { Observed = (Pawn("cook", building: 20)).Observed with { Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { DefName = "DoBill", WorkTypeDefName = "Cooking", TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Common.Unavailable { Reason = RimGovernor.Brain.GameFacts.Common.UnavailableReason.NotApplicable } } } } };
         var current = ForecastCurrentWork.ForecastCurrentWorkOf(cook);
-        Assert.False(current.Occupied);
+        Assert.True(current.Occupied);
         Assert.Equal(WorkType.Cooking, current.Work);
-        Assert.Equal(0, Assert.IsType<ForecastWorkRemaining.Timed>(current.Remaining).Ticks);
-        Assert.True(ConstructionHelpersRules.IdleJob(cook.Job));
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(cook)).Capacity.Windows.ReadWindows().Sum(w => w.End - w.Start));
+        Assert.IsType<ForecastWorkRemaining.Untimed>(current.Remaining);
+        Assert.False(ConstructionHelpersRules.IdleJob(cook.Job));
+        Assert.IsType<ForecastCapacityWindows.Unread>(ForecastCapacity.ForecastPawnCapacityOf(Input(cook)).Capacity.Windows);
         var decision = Plan(cook, Pawn("free", cooking: 5));
         Assert.Equal(1, Priority(decision, "cook", WorkType.Cooking));
         Assert.NotEqual(1, Priority(decision, "cook", WorkType.Construction));

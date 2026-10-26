@@ -295,8 +295,8 @@ public static class ConstructionHelpersRules
 
     internal static bool BusyBuilding(WorkWorker w) => w.Pawn.Job.Work == WorkType.Construction;
 
-    /// <summary>Reports a pawn job that holds the pawn from no work: none, waiting or wandering, or a preemptible
-    /// vanilla job any coupled order may replace (#3670).</summary>
+    /// <summary>Waiting or wandering contributes no useful work. Native work remains occupied
+    /// even when a direct order could interrupt it.</summary>
     internal static bool IdleJob(PawnJob job) =>
-        job.Preemptible || job.Def is "" or "Wait" or "Wait_Wander" or "GotoWander" or "Wait_MaintainPosture";
+        job.Def is "" or "Wait" or "Wait_Wander" or "GotoWander" or "Wait_MaintainPosture";
 }

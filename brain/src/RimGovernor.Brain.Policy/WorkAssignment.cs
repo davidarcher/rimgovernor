@@ -238,7 +238,6 @@ public sealed record PawnJob
     public required RimGovernor.Brain.GameFacts.Observations.JobEvidence Observed { get; init; }
     public string Def => Observed.DefName ?? "";
     public WorkType Work => WorkRules.WorkTypeOf(Observed.WorkTypeDefName);
-    public bool Preemptible => Observed.Preemptible;
     public JobTarget Target => Observed.DefName is null ? new JobTarget.None() : TargetOf(Observed);
 
     private static JobTarget TargetOf(RimGovernor.Brain.GameFacts.Observations.JobEvidence job)
@@ -704,7 +703,7 @@ public static partial class WorkRules
         var currentWork = workers.ToDictionary(w => w.Pawn.Id, w => ForecastCurrentWork.ForecastCurrentWorkOf(w.Pawn));
         // Protect only ordinary work that remains demanded and eligible. Needs/forced jobs are not productive
         // owner roles; medical holds and changed requirements still win. This reserves a primary role, not a day.
-        // A preemptible vanilla job is free for occupancy but still names its work, so it is protected too (#3670).
+        // Current useful native work carries opportunity cost and retains its demanded role.
         var ongoing = new Dictionary<PawnId, WorkType>();
         foreach (var w in workers)
         {

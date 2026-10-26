@@ -60,9 +60,9 @@ internal sealed class WorkPawnAvailabilityConverter : ObjectCodec<WorkPawnAvaila
 {
     protected override WorkPawnAvailability Read(JsonElement e, Codecs o) => new(e.Str("Pawn"), e.Bool("Available"),
         e.Bool("Applies"), e.Bool("Occupied"), e.Str("Target"))
-    { Schedule = e.Get<EquatableArray<string>>("Schedule", o), LocalHour = e.Dbl("LocalHour"), Preemptible = e.Bool("Preemptible") };
+    { Schedule = e.Get<EquatableArray<string>>("Schedule", o), LocalHour = e.Dbl("LocalHour") };
     protected override void WriteFields(Utf8JsonWriter w, WorkPawnAvailability v, Codecs o)
-    { w.WriteString("Pawn", v.Pawn); w.Put("Available", v.Available, o); w.Put("Applies", v.Applies, o); w.WriteBoolean("Occupied", v.Occupied); w.Put("Target", v.Target, o); w.Put("Schedule", v.Schedule, o); w.Put("LocalHour", v.LocalHour, o); w.WriteBoolean("Preemptible", v.Preemptible); }
+    { w.WriteString("Pawn", v.Pawn); w.Put("Available", v.Available, o); w.Put("Applies", v.Applies, o); w.WriteBoolean("Occupied", v.Occupied); w.Put("Target", v.Target, o); w.Put("Schedule", v.Schedule, o); w.Put("LocalHour", v.LocalHour, o); }
 }
 
 internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn>

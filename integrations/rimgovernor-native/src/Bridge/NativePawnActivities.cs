@@ -312,24 +312,7 @@ namespace RimGovernor.Native
             var cell = new IntVec3(destination.X, 0, destination.Z);
             if (NativeSupportActivities.Remaining(pawn.Map, step, target.def) < step.Count) return "bill needs fewer than count";
             if ((step.SupportDemand.Length != 0 ? NativeSupportActivities.DestinationRefusal(pawn, target, cell, step.Count) : JobDriver_GovernorDeliver.DestinationRefusal(pawn, cell, target, step.Count)) is { } destinationWhy) return "destination (" + cell.x + "," + cell.z + ") not available for " + target.def.defName + " x" + step.Count + ": " + destinationWhy;
-            return Reservable(pawn, cell, PathEndMode.OnCell, Danger.Some) ? null : "destination cannot be reserved or reached";
-        }
-
-        // A coupled order outranks vanilla work (#3671): a thing or cell held only by preemptible colonists (Standing: controlled,
-        // no committed order) counts as reservable, and the offer ends their jobs. A committed order, a player-forced or queued
-        // job, or a holder that is not a controlled colonist keeps the refusal.
-        private static List<Pawn>? PreemptibleHolders(Pawn claimant, LocalTargetInfo target)
-        {
-            var holders = claimant.Map.reservationManager.ReservationsReadOnly.Where(r => r.Target == target && r.Claimant != claimant).Select(r => r.Claimant).Distinct().ToList();
-            return holders.Count != 0 && holders.All(h => Standing(h) && h.CurJob != null) ? holders : null;
-        }
-        internal static bool Reservable(Pawn pawn, LocalTargetInfo target, PathEndMode mode, Danger danger, int maxPawns = 1, int stackCount = -1)
-            => pawn.CanReserveAndReach(target, mode, danger, maxPawns, stackCount) || pawn.CanReach(target, mode, danger) && PreemptibleHolders(pawn, target) != null;
-        // Ends the preemptible holders' jobs without starting new ones, so none re-reserves the target before the offered job does.
-        private static void Preempt(Pawn claimant, LocalTargetInfo target, PathEndMode mode, Danger danger, int maxPawns = 1, int stackCount = -1)
-        {
-            if (claimant.CanReserve(target, maxPawns, stackCount) || !claimant.CanReach(target, mode, danger) || PreemptibleHolders(claimant, target) is not { } holders) return;
-            foreach (var holder in holders) holder.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
+            return pawn.CanReserveAndReach(cell, PathEndMode.OnCell, Danger.Some) ? null : "destination cannot be reserved or reached";
         }
 
         internal static bool SupplyAllowed(Pawn pawn, Thing target, PawnActivityStep step)
@@ -342,7 +325,7 @@ namespace RimGovernor.Native
                 && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
                 && (!CarryHeld(pawn) || pawn.carryTracker.CarriedThing == target && target.stackCount == step.Count)
                 && pawn.carryTracker.MaxStackSpaceEver(target.def) >= step.Count
-                && Reservable(pawn, site, PathEndMode.Touch, Danger.None);
+                && pawn.CanReserveAndReach(site, PathEndMode.Touch, Danger.None);
         }
 
         internal static RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(PawnActivities batch, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
@@ -509,7 +492,6 @@ namespace RimGovernor.Native
             var target = Thing(step.Target) ?? (p.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? p.carryTracker.CarriedThing : null)
                 ?? throw new InvalidOperationException("target_missing");
             var (maxPawns, stackCount) = NativeNeedsForecast.ServiceReservation(step.Kind, target, step.Count);
-            if (p.carryTracker.CarriedThing != target && !target.IsForbidden(p)) Preempt(p, target, PathEndMode.Touch, Danger.Some, maxPawns, stackCount);
             if (p.carryTracker.CarriedThing != target && (target.IsForbidden(p) || !p.CanReserveAndReach(target, PathEndMode.Touch, Danger.Some, maxPawns, stackCount))) throw new InvalidOperationException("target_unreachable_or_reserved");
             Job? job = null;
             if (step.Kind == PawnActivityKind.Work)
@@ -550,7 +532,6 @@ namespace RimGovernor.Native
             {
                 if (!DeliveryAllowed(p, target, step)) throw new InvalidOperationException("delivery_unavailable");
                 var cell = new IntVec3(((CellActivityStep)step).Destination.X, 0, ((CellActivityStep)step).Destination.Z);
-                Preempt(p, cell, PathEndMode.OnCell, Danger.Some);
                 job = JobMaker.MakeJob(deliveryDef, target, cell);
                 job.count = step.Count;
                 job.haulOpportunisticDuplicates = false;
@@ -569,7 +550,6 @@ namespace RimGovernor.Native
             {
                 if (!SupplyAllowed(p, target, step)) throw new InvalidOperationException("supply_unavailable");
                 var site = Thing(step.Container);
-                Preempt(p, site, PathEndMode.Touch, Danger.None);
                 job = JobMaker.MakeJob(JobDefOf.HaulToContainer, target, site, site);
                 job.count = step.Count; job.haulOpportunisticDuplicates = false;
                 if (step.FullLoad)

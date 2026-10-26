@@ -74,7 +74,7 @@ public sealed class ProductionAdmissionTests
     public void ObservedJobOccupancySurvivesTheJournalAsABoolean(bool occupied)
     {
         var pawn = new WorkPawnAvailability("pawn", true, true, occupied, "target")
-        { LocalHour = 12d, Schedule = [], Preemptible = true };
+        { LocalHour = 12d, Schedule = [] };
         var evidence = new WorkAdmissionEvidence { Pawns = [pawn] };
         Assert.Equal(pawn, Assert.Single(RoundTrip(evidence).Pawns));
     }

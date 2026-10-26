@@ -497,12 +497,6 @@ public sealed record JobEvidence
     /// </summary>
     public string? WorkTypeDefName { get; init; }
 
-    /// <summary>
-    /// preemptible: the pawn is controlled with no committed coupled order, so its job is vanilla job
-    /// selection any coupled order may replace (#3670). Occupancy reads it as free; the job and target
-    /// are still reported so target claims see what it holds.
-    /// </summary>
-    public bool Preemptible { get; init; }
 }
 
 /// <summary>

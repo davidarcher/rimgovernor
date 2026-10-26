@@ -34,7 +34,6 @@ public sealed class CanonicalWorkTests
         var observed = new RimGovernor.Brain.GameFacts.Observations.JobEvidence
         {
             DefName = "DoBill", WorkTypeDefName = "Cooking", PlayerForced = true, QueuedJobs = 3,
-            Preemptible = false,
             TargetA = new() { Target = new RimGovernor.Brain.GameFacts.Observations.TargetRefTarget.EntityCase(new RimGovernor.Brain.GameFacts.Common.Ref { Id = "bench" }, new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(0, new Cell(2, 4))) },
         };
         var worker = PawnFixtures.Worker("cook") with { Observed = PawnFixtures.Row("cook") with { Job = observed } };

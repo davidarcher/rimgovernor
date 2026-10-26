@@ -75,7 +75,7 @@ public static partial class ProductionRules
                     new Dictionary<Resource, long>()),
             Pawns = EquatableArray.From(facts.ForecastObserved.WorkPawns.Pawns.Select(p => new WorkPawnAvailability(p.Id.Value, p.Available && !care.Contains(p.Id.Value), p.Applies,
                     ForecastCurrentWork.ForecastCurrentWorkOf(p).Occupied, p.Job.Target.Thing)
-                    { Schedule = p.Schedule, Preemptible = p.Job.Preemptible, LocalHour = facts.Census.WorkResources.SingleOrDefault(n => n.Pawn == p.Id.Value)?.LocalHour
+                    { Schedule = p.Schedule, LocalHour = facts.Census.WorkResources.SingleOrDefault(n => n.Pawn == p.Id.Value)?.LocalHour
                         ?? throw new RequiredFactException("work_resources.local_hour:" + p.Id.Value) })),
             Stock = facts.ObservedStock(),
             Reservations = facts.BillReservations,
