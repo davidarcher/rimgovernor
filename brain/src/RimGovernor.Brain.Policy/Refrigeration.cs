@@ -49,8 +49,11 @@ public sealed record RefrigerationObservation
 
     public required EquatableArray<RefrigerationCooler> Coolers { get; init; }
 
-    /// <summary>The Cooler planning definition's availability (research AirConditioning).</summary>
-    public required bool CoolerAvailable { get; init; }
+    public required IReadOnlyList<TemperatureDefinition> Candidates { get; init; }
+
+    public required IReadOnlyList<PlanningDefinition> Definitions { get; init; }
+
+    public required IReadOnlyList<WorkPawn> Builders { get; init; }
 
     public required EquatableArray<SiteCell> Cells { get; init; }
 
@@ -122,10 +125,10 @@ public sealed record RefrigerationProposal
 
     public MethodId Key { get; init; }
 
-    /// <summary>Cell and Rotation place a new cooler in the room's wall with its cold side facing the room.</summary>
-    public Cell Cell { get; init; }
+    /// <summary>Ranked supported wall coolers and every vented wall site, tried through native preview.</summary>
+    public IReadOnlyList<TemperatureDefinition> Options { get; init; } = [];
 
-    public Rotation Rotation { get; init; }
+    public IReadOnlyList<(Cell Cell, Rotation Rotation)> WallSites { get; init; } = [];
 
     /// <summary>Cooler and TargetC patch an existing one.</summary>
     public string Cooler { get; init; } = "";
@@ -135,6 +138,10 @@ public sealed record RefrigerationProposal
 
 public static partial class RefrigerationRules
 {
+    /// <summary>The catalog mechanisms whose controlled cold/hot sides the freezer model supports.</summary>
+    public static IReadOnlyList<TemperatureDefinition> CoolerDefinitions(StationCatalog catalog) =>
+        [.. catalog.Temperature.Where(candidate => !candidate.Heats && candidate.Wall && candidate.Controlled)];
+
     /// <summary>
     /// A stock's contribution to the review: perishable, unrotted, standing roofed, whose temperature exceeds
     /// limit and whose rot runway is shorter than SafeRotDays.
@@ -275,9 +282,27 @@ public static partial class RefrigerationRules
                     continue;
                 }
             }
-            if (!v.CoolerAvailable)
+            var definitions = v.Definitions.ToDictionary(definition => definition.Name, StringComparer.Ordinal);
+            var available = new List<TemperatureDefinition>();
+            foreach (var candidate in v.Candidates)
+            {
+                candidate.Validate();
+                if (!definitions.TryGetValue(candidate.Name, out var definition)) throw new RequiredFactException("refrigeration definition:" + candidate.Name);
+                if (!candidate.Heats && candidate.Wall && candidate.Controlled && definition.Available
+                    && candidate.MinimumC <= p.FreezerTargetC && candidate.MaximumC >= p.FreezerTargetC) available.Add(candidate);
+            }
+            if (available.Count == 0)
             {
                 deferred = FirstReason(deferred, RefrigerationMethod.ResearchNeeded);
+                continue;
+            }
+            var options = available.Where(candidate => FacilityPlanningRules.BuilderAvailable(v.Builders, definitions[candidate.Name].ConstructionSkill))
+                .OrderBy(candidate => candidate.BuildValue / Math.Abs(candidate.HeatPerSecond))
+                .ThenBy(candidate => candidate.PowerW / Math.Abs(candidate.HeatPerSecond))
+                .ThenBy(candidate => candidate.Name, StringComparer.Ordinal).ToArray();
+            if (options.Length == 0)
+            {
+                deferred = FirstReason(deferred, RefrigerationMethod.Wait);
                 continue;
             }
             var taken = new HashSet<Cell>();
@@ -285,8 +310,13 @@ public static partial class RefrigerationRules
             {
                 taken.Add(cooler.Position);
             }
-            var (cell, rotation, ok) = VentedWall(id, roomCells, cellRoom, cells, taken);
-            if (!ok)
+            var sites = new List<(Cell Cell, Rotation Rotation)>();
+            while (VentedWall(id, roomCells, cellRoom, cells, taken) is { Ok: true } site)
+            {
+                sites.Add((site.Cell, site.Rotation));
+                taken.Add(site.Cell);
+            }
+            if (sites.Count == 0)
             {
                 deferred = FirstReason(deferred, RefrigerationMethod.NoWall);
                 continue;
@@ -296,8 +326,8 @@ public static partial class RefrigerationRules
             {
                 Method = RefrigerationMethod.Build,
                 Key = new MethodId("refrigeration-" + Convert.ToHexStringLower(digest.AsSpan(0, 12))),
-                Cell = cell,
-                Rotation = rotation,
+                Options = options,
+                WallSites = sites,
             };
         }
         return new RefrigerationProposal { Method = deferred == RefrigerationMethod.None ? RefrigerationMethod.NoMethod : deferred };

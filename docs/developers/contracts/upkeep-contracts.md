@@ -490,8 +490,14 @@ nutrition in a known room, warmer than 5 C (`ChilledExitC`) and under five days 
 It is unmet while that nutrition reaches the same five-unit floor and met once it is
 under it; it has no latch, and unknown temperature or room facts leave it unknown.
 
-- The method needs an enclosed room, native `Cooler` availability and a wall cell with a
-  straight inside-wall-outdoors line. An existing cooler facing the room is patched to
+- The method needs an enclosed room, an available supported catalog wall cooler and a
+  wall cell with a straight inside-wall-outdoors line. It ranks eligible coolers by
+  build value per heat moved, then power per heat moved and definition name. Each
+  candidate and vented wall site goes through native preview until one is legal;
+  the resulting construction intent retains that candidate's identity. Existing
+  buildings, pending work and the cooling allowance use the same catalog membership.
+  Materials may be supplied after blueprint placement through the shared resource
+  Need. An existing cooler facing the room is patched to
   the freezer target via the building-temperature action, not duplicated; an unpowered
   one defers to the `power/basic` Need; one venting into another enclosed room is blocked.
   A cooler receipt or build never clears the deficit; native cooling must be observed on

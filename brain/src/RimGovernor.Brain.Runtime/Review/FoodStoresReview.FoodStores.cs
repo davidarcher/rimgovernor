@@ -83,7 +83,7 @@ public sealed partial class FoodStoresReview
         else
         {
             // Refrigeration reads the room census: its warm stock stands in rooms and its cooling rooms are planned.
-            reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, _cooler.RefrigerationDefinitions(), ct).ConfigureAwait(false);
+            reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, BuildingPlanner.RefrigerationDefinitions(), ct).ConfigureAwait(false);
             warm = BurialFacts.WarmCoolingRooms(reading.Reading);
             closet = BurialFacts.MealClosetOwed(reading.Reading);
         }

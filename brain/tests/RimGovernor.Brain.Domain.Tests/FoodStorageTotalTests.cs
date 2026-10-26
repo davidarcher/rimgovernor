@@ -59,7 +59,7 @@ public sealed class FoodStorageTotalTests
         {
             Rooms = RoomTestFacts.NoRooms,
             Coolers = [],
-            CoolerAvailable = true,
+            Candidates = [], Definitions = [], Builders = [],
             Cells = [],
             Blackout = false,
         };

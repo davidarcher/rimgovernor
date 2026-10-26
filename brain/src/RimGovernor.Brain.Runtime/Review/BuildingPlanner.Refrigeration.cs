@@ -8,7 +8,7 @@ public sealed partial class BuildingPlanner
     internal const uint RefrigerationCoolingTicks = 2 * GameTime.TicksPerDay;
 
     /// <summary>The definitions the refrigeration step reads: the cooler, and the wall and door of the cold rooms it shells.</summary>
-    internal IReadOnlyList<string> RefrigerationDefinitions() => [Definition, ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition];
+    internal static IReadOnlyList<string> RefrigerationDefinitions() => [ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition];
 
     /// <summary>The shared building planner under the food-stores/refrigeration Need (#3280): its Methods bind under the Need and are admitted by claims.</summary>
     public static BuildingPlanner NewReviewRefrigerationPlanner(ColonyReview reviewer, IReviewBuildingSource native)
@@ -23,7 +23,7 @@ public sealed partial class BuildingPlanner
             throw new ControlException("NewReviewRefrigerationPlanner: native lacks the rounds or refrigeration source");
         }
 
-        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodStoresRules.RefrigerationNeed.FilingKey, Need = FoodStoresRules.RefrigerationNeed, Definition = "Cooler" };
+        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodStoresRules.RefrigerationNeed.FilingKey, Need = FoodStoresRules.RefrigerationNeed };
     }
 
     internal async Task<(BuildingPlanner? Planner, Verdict Verdict)> SelectRefrigerationAsync(ColonyReading facts, bool allowance, CancellationToken ct)
@@ -35,7 +35,7 @@ public sealed partial class BuildingPlanner
             return (null, BuildingReasonNoDeficit);
         }
 
-        var observed = await RefrigerationReads.RefrigerationFacts((IRefrigerationSource)Native, facts, Definition, ct).ConfigureAwait(false);
+        var observed = await RefrigerationReads.RefrigerationFacts((IRefrigerationSource)Native, facts, ct).ConfigureAwait(false);
         var proposal = RefrigerationRules.SelectRefrigerationMethod(review, observed, Reviewer.Policy.FoodStorage, allowance);
         switch (proposal.Method)
         {
@@ -43,7 +43,8 @@ public sealed partial class BuildingPlanner
             case RefrigerationMethod.SetTarget:
                 var resolved = Copy();
                 resolved.Refrigeration = proposal;
-                resolved.Definition = "Cooler";
+                resolved.Definition = proposal.Method == RefrigerationMethod.Build ? proposal.Options[0].Name
+                    : observed.Coolers.Single(cooler => cooler.Id == proposal.Cooler).Observed.Building.DefName;
                 return (resolved, default);
 
             case RefrigerationMethod.NoMethod:
@@ -100,7 +101,8 @@ public sealed partial class BuildingPlanner
         }
         var rounds = new ReviewReading { Reading = reading, Frame = new BridgeReviewFrame(), Emergency = new EmergencyFacts() };
 
-        var (exhausted, committed) = RefrigerationCooling(p.Journal, goal, state.Snapshot, facts.Identity.Tick, call);
+        var coolerDefinitions = RefrigerationRules.CoolerDefinitions(facts.Facts.Stations).Select(candidate => candidate.Name).ToHashSet(StringComparer.Ordinal);
+        var (exhausted, committed) = RefrigerationCooling(p.Journal, goal, state.Snapshot, facts.Identity.Tick, coolerDefinitions, call);
         // The dining room's meal closet stands before its cooler; a shell already committed, or refused, leaves the
         // cooling to go on.
         var (closet, closetOwed) = BurialFacts.PlannedMealCloset(facts);
@@ -157,7 +159,8 @@ public sealed partial class BuildingPlanner
         var heldReservations = p.Journal.BuildingReservations(snapshot, call);
         // One cooler is pending at a time: the player's or another plan's cooler still to stand holds this one.
         var playerPlan = p.Journal.LoadPlan(state.Snapshot.Plan, call);
-        if (playerPlan.Progress.Any(progress => PendingFacility(progress, r.Definition)) || heldReservations.Any(h => PendingFacility(h.Progress, r.Definition)))
+        if (playerPlan.Progress.Any(progress => coolerDefinitions.Any(def => PendingFacility(progress, def)))
+            || heldReservations.Any(h => coolerDefinitions.Any(def => PendingFacility(h.Progress, def))))
         {
             return BuildingReasonExistingWork;
         }
@@ -194,7 +197,7 @@ public sealed partial class BuildingPlanner
     /// Whether the cooling window of the Need's coolers has run out, and whether the Need has committed any method
     /// in its world. With none no cooler is known to be settling, so no second cooler is lent time (decision 16).
     /// </summary>
-    internal static (bool Exhausted, bool Committed) RefrigerationCooling(StoreJournal journal, NeedOwner goal, GenerationSnapshot current, Tick tick, CancellationToken ct)
+    internal static (bool Exhausted, bool Committed) RefrigerationCooling(StoreJournal journal, NeedOwner goal, GenerationSnapshot current, Tick tick, IReadOnlySet<string> definitions, CancellationToken ct)
     {
         var methods = journal.OwnerMethodHistory(goal, ct);
         if (methods.Count == 0)
@@ -207,7 +210,7 @@ public sealed partial class BuildingPlanner
         foreach (var method in methods)
         {
             var plan = journal.LoadPlan(method.Plan, ct);
-            var (remaining, completed) = RefrigerationCoolingRemaining(plan, current, tick);
+            var (remaining, completed) = RefrigerationCoolingRemaining(plan, current, tick, definitions);
             open = open || remaining > 0;
             exhausted = exhausted || (completed && remaining == 0);
         }
@@ -215,7 +218,7 @@ public sealed partial class BuildingPlanner
         return (exhausted && !open, true);
     }
 
-    internal static (long Remaining, bool Completed) RefrigerationCoolingRemaining(PlanState plan, GenerationSnapshot current, Tick tick)
+    internal static (long Remaining, bool Completed) RefrigerationCoolingRemaining(PlanState plan, GenerationSnapshot current, Tick tick, IReadOnlySet<string> definitions)
     {
         if (plan.Progress.Count != 1)
         {
@@ -226,7 +229,7 @@ public sealed partial class BuildingPlanner
         var action = progress.Action;
         if (action.Building is { } building)
         {
-            if (building.Definition != "Cooler")
+            if (!definitions.Contains(building.Definition))
             {
                 return (0, false);
             }
@@ -265,7 +268,16 @@ public sealed partial class BuildingPlanner
             throw new ControlException("previewRefrigeration: no refrigeration build proposal");
         }
 
-        return await PreviewWallBuildingAsync(snapshot, facts, protectedCells, check, "Build", Refrigeration.Cell, Refrigeration.Rotation, false, ct).ConfigureAwait(false);
+        var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
+        foreach (var option in Refrigeration.Options)
+        foreach (var site in Refrigeration.WallSites)
+        {
+            check();
+            var (previews, observed, verdict) = await PreviewWallBuildingAsync(snapshot, facts, protectedCells, check,
+                option.Name, site.Cell, site.Rotation, false, ct).ConfigureAwait(false);
+            if (verdict.IsZero) return (previews, observed, verdict);
+        }
+        return (null!, stock, NoSpace("refrigeration_site"));
     }
 
     internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewWallBuildingAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, string def, Cell cell, Rotation rotation, bool overRock, CancellationToken ct)

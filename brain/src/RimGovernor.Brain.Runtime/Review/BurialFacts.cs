@@ -93,5 +93,5 @@ internal static class BurialFacts
     internal static bool MealClosetOwed(ColonyReading facts) => PlannedMealCloset(facts).Owed;
 
     internal static EquatableArray<string> WarmCoolingRooms(ColonyReading facts) =>
-        TombRules.WarmCoolingRooms(ColonyPlanningRules.DefinitionAvailable(facts.Facts, nameof(RimWorld.ThingDefOf.Cooler)), facts.Facts.LayoutPlan, facts.Facts.Upkeep.Rooms);
+        TombRules.WarmCoolingRooms(RefrigerationRules.CoolerDefinitions(facts.Facts.Stations).Any(candidate => ColonyPlanningRules.DefinitionAvailable(facts.Facts, candidate.Name)), facts.Facts.LayoutPlan, facts.Facts.Upkeep.Rooms);
 }
