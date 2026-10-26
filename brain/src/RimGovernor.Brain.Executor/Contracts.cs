@@ -61,8 +61,8 @@ public interface IReviewScope
 }
 
 /// <summary>
-/// The durable journal the executor writes through. The store implements it (awaiting #3053);
-/// every method throws on a store failure.
+/// The durable journal the executor writes through. Runtime adapts the session's Store to this interface;
+/// Store owns durability and every method surfaces its failures.
 /// </summary>
 public interface IJournal
 {

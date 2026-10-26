@@ -2,8 +2,8 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// Drafts one pawn for the plan that holds it (a DraftIntent with drafted=true). The draft is the plan's: the
-/// combat planner undrafts any drafted colonist no live plan needs, so there is no native claim and no
-/// per-action cleanup.
+/// restore-workers family admits a separate undraft action once no live plan needs the pawn, so there is
+/// no native claim or implicit cleanup attached to this action.
 /// </summary>
 public sealed record OwnedDraft : IActionPayload
 {

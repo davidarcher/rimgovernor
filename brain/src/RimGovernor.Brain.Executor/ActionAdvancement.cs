@@ -36,7 +36,7 @@ public sealed partial class ActionAdvancement(ActionAdvancementConfig config)
 
     private static readonly HashSet<ActionKind> ExecutableKinds =
     [
-        ActionKind.Building, ActionKind.OwnedDraft, ActionKind.Subdue,
+        ActionKind.Building, ActionKind.OwnedDraft, ActionKind.Undraft, ActionKind.Subdue,
         ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.WorkAssignment, ActionKind.PawnActivities, ActionKind.Acquisition, ActionKind.AcquisitionWithdraw, ActionKind.ZoneCreate,
         ActionKind.ProductionBill, ActionKind.Tend, ActionKind.Rescue, ActionKind.Capture, ActionKind.UseItem, ActionKind.Haul, ActionKind.Equip, ActionKind.DropEquipment,
         ActionKind.GearReplace, ActionKind.ApparelPolicy, ActionKind.RecoveryService, ActionKind.Movement, ActionKind.Husbandry,

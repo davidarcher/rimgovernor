@@ -137,6 +137,8 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
                 return DomainAction.NewMovementAction(id, Payload<Movement>());
             case ActionKind.OwnedDraft:
                 return DomainAction.NewOwnedDraftAction(id, Payload<OwnedDraft>());
+            case ActionKind.Undraft:
+                return DomainAction.NewUndraftAction(id, Payload<Undraft>());
             case ActionKind.PawnSettings:
                 return DomainAction.NewPawnSettingsAction(id, Payload<PawnSettings>());
             case ActionKind.PolicyPrune:

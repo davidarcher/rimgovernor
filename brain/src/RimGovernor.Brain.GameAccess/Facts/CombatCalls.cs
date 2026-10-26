@@ -1,8 +1,5 @@
 using RimGovernor.Brain.GameFacts.Mirror;
-using RimGovernor.Brain.GameOrders.Mirror;
 using RimGovernor.Brain.GameFacts.Operations;
-using RimGovernor.Brain.GameOrders.Operations;
-using RimGovernor.Brain.GameFacts.Receipts;
 using Receipt = RimGovernor.Brain.GameFacts.Receipts.Receipt;
 
 namespace RimGovernor.Brain.GameAccess;
@@ -19,12 +16,6 @@ public static class CombatCalls
 
     /// <summary>The raid strategy of a drop-pod arrival row.</summary>
     public const string PodsStrategy = "pods";
-
-    /// <summary>The wire intent that undrafts one pawn no live plan needs.</summary>
-    public static RimGovernor.Brain.GameOrders.Operations.Action UndraftAction(string key, PawnId pawn)
-    {
-        return new RimGovernor.Brain.GameOrders.Operations.Action { Key = key, Intent = new DraftIntent { PawnId = pawn.Value, Drafted = false } };
-    }
 
     /// <summary>
     /// Whether <paramref name="row"/> is a drop-pod raid's arrival, a hostile arrived

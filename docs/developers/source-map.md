@@ -5,11 +5,11 @@
 | Source | Owns |
 | --- | --- |
 | [brain/src/RimGovernor.Brain.Host](../../brain/src/RimGovernor.Brain.Host) | In-process brain host: lifecycle, scheduler thread, watchdog, composition and the facade client ([brain host](architecture/brain-host.md)) |
-| [brain/src/RimGovernor.Brain.Domain](../../brain/src/RimGovernor.Brain.Domain) | Shared identities, Concerns, Plans and actions |
+| [brain/src/RimGovernor.Brain.Domain](../../brain/src/RimGovernor.Brain.Domain) | Shared identities, Plans and actions |
 | [brain/src/RimGovernor.Brain.Policy](../../brain/src/RimGovernor.Brain.Policy) | Pure decisions, demand, forecasts, placement and tactics |
-| [brain/src/RimGovernor.Brain.Runtime](../../brain/src/RimGovernor.Brain.Runtime) | Colony review, planner catalog/queue and runtime composition |
+| [brain/src/RimGovernor.Brain.Runtime](../../brain/src/RimGovernor.Brain.Runtime) | Colony review, planner catalog/queue, planning recordings/replay and runtime composition |
 | [brain/src/RimGovernor.Brain.Store](../../brain/src/RimGovernor.Brain.Store) | Admission, session journal and views rebuilt from saved intent |
-| [brain/src/RimGovernor.Brain.Executor](../../brain/src/RimGovernor.Brain.Executor) | Hands dispatch and reconciliation, and the recorded-fact planner regression support |
+| [brain/src/RimGovernor.Brain.Executor](../../brain/src/RimGovernor.Brain.Executor) | Hands execution of accepted actions, native dispatch and reconciliation |
 | [brain/src/RimGovernor.Brain.Bridge](../../brain/src/RimGovernor.Brain.Bridge) | Fact access and native-read decoding |
 | [brain/src/RimGovernor.Brain.Bridge](../../brain/src/RimGovernor.Brain.Bridge), [GameAccess](../../brain/src/RimGovernor.Brain.GameAccess) | Typed native boundary (including the in-process native facade), definition catalog and guarded operations |
 | [brain/src/RimGovernor.Brain.HttpChannel](../../brain/src/RimGovernor.Brain.HttpChannel) | The loopback HTTP channel ([game API](architecture/game-api.md), [HTTP channel](architecture/http-channel.md)) |

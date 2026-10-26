@@ -28,9 +28,6 @@ public sealed partial class ColonyReview
 
     internal TimeSpan MaxAge;
 
-    /// <summary>The undraft sweep's intents; null never undrafts.</summary>
-    internal IActionsWriter? Undraft;
-
     /// <summary>The latest review reading for the planners of the same tick; see reviewCensus.</summary>
     internal CensusStore Census = new();
 
@@ -287,7 +284,6 @@ public sealed partial class ColonyReview
             throw new ControlException("NewRounder: native lacks the bench census read");
         }
         var reviewerOverlay = false;
-        IActionsWriter? undraftWriter = null;
         var clearanceCensus = false;
         var jailShell = false;
         if (capabilities.Length > 1)
@@ -297,7 +293,6 @@ public sealed partial class ColonyReview
         if (capabilities.Length == 1)
         {
             reviewerOverlay = capabilities[0].LayoutOverlay;
-            undraftWriter = capabilities[0].Undraft;
             clearanceCensus = capabilities[0].ClearanceCensus;
             jailShell = capabilities[0].JailShell;
             Goals = capabilities[0].Goals;
@@ -310,7 +305,6 @@ public sealed partial class ColonyReview
         Policy = thresholds;
         MaxAge = maxAge;
         LayoutOverlay = reviewerOverlay;
-        Undraft = undraftWriter;
         ClearanceCensus = clearanceCensus;
         JailShell = jailShell;
     }
@@ -574,7 +568,7 @@ public sealed partial class ColonyReview
         reading = reading.WithFacts(rf => rf with { CriticalPatients = amputationCritical, UrgentPatients = amputationUrgent });
         // The admin/work-assignments Need is owed while a drafted colonist no live plan needs waits for the undraft sweep. A draft
         // its plan still holds is working, not stranded.
-        var needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, ct).ConfigureAwait(false);
+        var needed = await p.Journal.PlannedDraftsAsync(ct).ConfigureAwait(false);
         var stray = DraftNeeds.IdleDrafts(state, reading.Emergency, reading.Frame.Pawns, needed);
         reading = reading.WithFacts(rf => rf with { CleanupPawns = stray.Count > 0 });
         reading = reading.WithFacts(rf => rf with { HostilityOwed = HostilityRules.HostilityOwed(WorkPlanner.HostilityPawns(reading.Reading.Facts.ForecastObserved.WorkPawns), reading.Emergency.Threats) });
@@ -885,8 +879,6 @@ public sealed record Capabilities
     /// <summary>Turns the player's goals into stock floors, research, a colonist head count and herd targets each review (#3494). Set when the goals family runs.</summary>
     public bool Goals { get; init; }
 
-    /// <summary>Sends the undraft sweep's Draft intents; null never undrafts.</summary>
-    public IActionsWriter? Undraft { get; init; }
 }
 
 internal readonly record struct QuestSkipKey(QuestId Quest, QuestSkipReason Reason);

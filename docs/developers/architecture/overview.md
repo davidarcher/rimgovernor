@@ -13,7 +13,7 @@ flowchart LR
     Game[RimWorld simulation] --> Native[Native observations and guards]
     Native --> Facts[Typed facts]
     Facts --> Policy[Pure policy]
-    Policy --> Plan[Concerns, Methods and actions]
+    Policy --> Plan[Needs, Methods and actions]
     Plan --> Hands[Hands executor]
     Hands --> Facade[Game API]
     Facade --> Native
@@ -34,10 +34,11 @@ generic fact wrappers and hand-decoder layer are removed.
 
 | Component | Owns | Does not decide |
 | --- | --- | --- |
-| Policy | Findings, forecasts, method choices, tactics and demand | Transport, persistence or wall-clock scheduling |
-| Brain host | Planner scheduling, authority, lifecycle, watchdog and composition ([brain host](brain-host.md)) | RimWorld simulation |
-| Store | Method admission, action identity, session journal and continuation ownership | Candidate valuation or game orders |
-| Hands | Dispatch of admitted actions and write reconciliation | Which Method best serves a Concern |
+| Policy | Needs, forecasts, Method choices, tactics, demand and shared admission rules | Transport, persistence or wall-clock scheduling |
+| Runtime | Fact composition, planner scheduling and Method continuation or replacement | Colony choice calculations or individual action execution |
+| Brain host | Authority, process lifecycle, watchdog and composition ([brain host](brain-host.md)) | Colony strategy or RimWorld simulation |
+| Store | Atomic Method admission, claims, action identity and journaled progress | Candidate valuation, Method choice or game orders |
+| Hands | Advancement of admitted actions, execution waits, batching, dispatch and write reconciliation | Which Method best serves a Need |
 | Native bridge | Typed observations, operation guards and clock supervision | Colony strategy |
 | Game API | In-process calls into the mod (typed, no serialization) and main-thread dispatch; the loopback HTTP channel serves the launcher and tools | Colony policy |
 | RimWorld | Legality, pathing, pawn jobs and physical outcomes | Governor intent |
@@ -60,26 +61,23 @@ the [layer gate](rules.md) enforces their direction and Store's game-access bans
 ## The control cycle
 
 1. Read a coherent native frame; required facts fail the read and real absence has a named state.
-2. Inspect Concerns and select due or invalidated planners.
+2. Derive Needs and select due or invalidated planners.
 3. Validate proposals against current authority, dependencies and claims.
 4. Journal admitted actions before dispatch; retain receipts or uncertainty.
-5. Observe native outcomes and update Concern progress.
+5. Observe native outcomes and update Need progress.
 
-## From a Concern to work
+## From a Need to work
 
-Concerns are being replaced by Needs and Families one family at a time; see the
-[target model](control-loop.md#target-model-needs-families-and-claimed-methods).
-The flow below holds for both: a migrated family proposes candidates for a Need
-instead of a Concern.
-
-A Concern states the desired outcome. A Method is an admitted attempt to achieve
+A Family derives Needs from current facts and proposes Methods; see the
+[control model](control-loop.md#target-model-needs-families-and-claimed-methods).
+A Need states the desired outcome. A Method is an admitted attempt to achieve
 it through a Plan of actions. Candidate generation, forecast comparison and
 binding are pure policy steps in choosing that Method, not additional domain
 actors or state owners.
 
 ```mermaid
 flowchart LR
-    Concern[Concern and shared demand] --> Candidates[Candidate Method alternatives]
+    Need[Need and shared demand] --> Candidates[Candidate Method alternatives]
     Candidates --> Forecast[ColonyForecast comparison]
     Forecast --> Bind[Bind selected alternative to actions]
     Bind --> Journal[Method journal admission]
@@ -92,13 +90,13 @@ flowchart LR
 
 The live food path follows this flow: food-specific policy generates alternatives
 and concrete target bindings; the shared forecast comparator selects or postpones;
-binding constructs exact actions. The existing Method journal owns progress and
+binding constructs exact actions. The Method journal owns progress and
 revisions, and Hands remains the order writer. A forecast result does not admit a
 Method, reserve every resource or prove completed pawn work.
 
 Normal review compares supported food, needs, construction, shelter, clothing and
 support alternatives together. It binds selected tasks and bounded no-change
-intervals through the WorkAssignments Concern. Native routine priorities and
+intervals through the work-assignment Need. Native routine priorities and
 timetable templates do not choose voluntary jobs for controlled colonists.
 An eligible pawn without an authorized activity stops the supervised clock with
 an explicit unavailable-control reason. Unsupported states and remaining
@@ -136,11 +134,11 @@ fact's home. Loading a save restores that timeline's intent and invalidates old
 execution context. SQLite is the session journal, not a second colony save.
 
 An accepted construction order may complete its action contract while the
-Concern still waits for a finished building. Unknown facts never prove recovery.
+Need remains unmet until the building is finished. Missing facts never prove recovery.
 
 ## Read next
 
-- [Control loop](control-loop.md): the Need/Family/claimed-Method target model and its migration, review state, scheduling, native events and Manual.
+- [Control loop](control-loop.md): Needs, Families, claimed Methods, scheduling, native events and Manual.
 - [Plans and Hands](plans-and-hands.md): admission, dispatch and completion.
 - [Sessions and recovery](sessions-and-recovery.md): saves, authority and uncertain writes.
 - [Space and resources](space-and-resources.md), [supply](supply-model.md),

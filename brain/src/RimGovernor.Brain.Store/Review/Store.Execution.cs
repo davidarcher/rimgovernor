@@ -21,6 +21,7 @@ public sealed partial class Store
         ActionKind.ZoneCreate,
         ActionKind.ProductionBill,
         ActionKind.OwnedDraft,
+        ActionKind.Undraft,
         ActionKind.Subdue,
         ActionKind.Tend,
         ActionKind.Rescue,
@@ -168,6 +169,8 @@ public sealed partial class Store
     internal static void VetoAction(StoreTransaction tx, DomainAction a)
     {
         var review = LoadReview(tx);
+        if (a.Undraft is { } undraft && PlannedDraftsIn(tx).Contains(undraft.Pawn))
+            throw new ConflictException("draft is required by current combat or plan work");
         var (refusal, vetoed) = SafeguardsRules.RefuseAction(new SafeguardContext { Enabled = review.Enabled, Unsafe = review.Unsafe }, a);
         if (vetoed)
         {

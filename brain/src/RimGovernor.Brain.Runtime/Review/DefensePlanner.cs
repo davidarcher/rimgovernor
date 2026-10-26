@@ -183,7 +183,7 @@ public sealed partial class DefensePlanner
             return new DefenseResult { Verdict = reason };
         }
         var inp = inputs;
-        inp.Needed = await DraftNeeds.PlannedDraftsAsync(p.Journal, call).ConfigureAwait(false);
+        inp.Needed = await p.Journal.PlannedDraftsAsync(call).ConfigureAwait(false);
         inp.Unavailable = CombatUnavailable(p.Journal, state.Snapshot, combat.Emergency.Facts, arbiter, call);
         inp.Preferences = _reviewer.PreferencesOf(state.Snapshot, call);
         var emergency = combat.Emergency;

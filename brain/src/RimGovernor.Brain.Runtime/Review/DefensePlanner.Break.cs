@@ -195,7 +195,7 @@ public sealed partial class DefensePlanner
             return new DefenseResult();
         }
         targets.Sort((a, b) => string.CompareOrdinal(a.Id.Value, b.Id.Value));
-        var needed = await DraftNeeds.PlannedDraftsAsync(_reviewer.Player.Journal, call).ConfigureAwait(false);
+        var needed = await _reviewer.Player.Journal.PlannedDraftsAsync(call).ConfigureAwait(false);
         var responders = new List<BreakResponder>();
         var arms = await Armament.ReadArmamentAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         foreach (var p0 in f.Colonists)

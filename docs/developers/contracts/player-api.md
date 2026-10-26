@@ -114,11 +114,13 @@ routes. Work preferences attach to the live root plan.
 
 - `kind: "building"` with `building` and no `draft` payload;
 - `kind: "owned_draft"` (routine-produced) with `draft: {"pawnId": "…"}` and no `building` payload;
+- `kind: "undraft"` (restore-workers) with the same `draft` pawn payload and no `building` payload;
 - any other routine kind with neither payload.
 
 The public projection omits native tokens and brain-session ownership data. An
 `owned_draft` action is plan-owned: the undraft sweep undrafts its pawn once no live plan needs it, so
-drafts carry no cleanup progress and are not a persistent toggle.
+drafts are not a persistent toggle. The release is a separate journaled `undraft`
+action, with ordinary Hands attempts and receipts.
 
 ## Control API and launcher
 

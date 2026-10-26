@@ -102,8 +102,6 @@ public sealed partial class BrainComposition
 
         cfgStore = context.Sections;
         var (thresholds, capabilities) = CapabilitiesFor(sc, _options.LayoutOverlay);
-        // The undraft sweep releases drafts no live plan needs.
-        capabilities = capabilities with { Undraft = writer };
         var reviewer = new ColonyReview(context.Player, client, SystemClock.Instance, thresholds, StepTimeout, capabilities);
         cfgReview = reviewer;
         // Any toggle that declares production orders composes the admin family's work-ledger Need (#3304).

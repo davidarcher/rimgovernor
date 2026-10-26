@@ -22,6 +22,7 @@ public static class IntentActionRules
         [ActionKind.Trade] = TradeRules.TradeAction,
         [ActionKind.Haul] = BuildingsRules.HaulAction,
         [ActionKind.OwnedDraft] = GiveJobRules.DraftAction,
+        [ActionKind.Undraft] = GiveJobRules.UndraftAction,
         [ActionKind.Subdue] = GiveJobRules.SubdueAction,
         [ActionKind.Building] = BuildingsRules.BuildingAction,
         [ActionKind.Movement] = BuildingsRules.MovementAction,

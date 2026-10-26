@@ -84,6 +84,15 @@ public static class GiveJobRules
         return new RimGovernor.Brain.GameOrders.Operations.Action { Intent = new RimGovernor.Brain.GameOrders.Operations.DraftIntent { PawnId = v.Pawn.Value, Drafted = true } };
     }
 
+    internal static RimGovernor.Brain.GameOrders.Operations.Action UndraftAction(DomainAction action)
+    {
+        var undraft = action.Undraft ?? throw BridgeContractException.Contract("not an undraft action");
+        return new RimGovernor.Brain.GameOrders.Operations.Action
+        {
+            Intent = new RimGovernor.Brain.GameOrders.Operations.DraftIntent { PawnId = undraft.Pawn.Value, Drafted = false },
+        };
+    }
+
     internal static RimGovernor.Brain.GameOrders.Operations.Action SubdueAction(DomainAction action)
     {
         var v = action.Subdue ?? throw BridgeContractException.Contract("not a subdue action");

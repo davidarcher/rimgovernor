@@ -9,7 +9,9 @@ design and progression. See [Ideology creation and reform](ideology-contracts.md
 
 An accepted native order and a completed action are separate states. The table defines
 what each action must observe. Kinds marked intent-mode complete on an applied receipt
-alone (no observation phase); a refusal fails them and a lost receipt sends the intent again.
+alone (no observation phase); a refusal fails them and a lost receipt stays
+uncertain. An explicit idempotent retry passes the execution path's authority
+checks and records a new attempt; the automatic action driver defers uncertain work.
 Field-level shapes and required argument presence live in [operation contracts](../../../contracts/wire/operations.md); native checks live in
 the bridge and native code. This page keeps only the completion boundary and the
 non-obvious constraints.
@@ -44,7 +46,7 @@ proves demolition separately.
 | `remove_production_bill` (`RemoveProductionBillIntent`) | Deletes one ordinary production bill from a bench (a working pawn or a bound unfinished item does not refuse), naming the bench and the native bill id the placing `production_bill` or `surgery` receipt journaled (`Progress.view.Bill`, from `BillEffect.bill` or `SurgeryEffect.bill`). With `cancel_unfinished` (a recipe change orphaning the item) the bound unfinished item is destroyed with `DestroyMode.Cancel`, returning its ingredient share; otherwise it stays for a same-recipe bill. Applied (`BillEffect`) means the bill is gone; the Round retries a refusal. |
 | `movement` (`MoveIntent`) | Walk-to-cell for a plan-drafted pawn: applied when the pawn is alive, spawned, drafted and the cell is standable and reachable; an order that already matches is a no-op. Terminal; says nothing about arrival. A plan holds its final action until every mover stands on its cell, re-sending the move of a drafted pawn idle elsewhere. |
 | `clock` | Native clock control; it certifies no combat victory. |
-| `draft` (`DraftIntent`) | Sets or clears one colonist's draft under Auto. Drafts are plan-owned: no native claim, and the undraft sweep undrafts every drafted colonist no live plan needs. |
+| `draft` (`DraftIntent`) | Sets or clears one colonist's draft under Auto. Drafts are plan-owned: no native claim. The restore-workers sweep admits `undraft` actions for drafted colonists no live plan needs; Hands records their attempts and receipts. Dispatch rechecks current combat and journaled draft requirements, so newly needed drafts are vetoed. An applied receipt completes the release action. |
 | `building_temperature` (`BuildingPatchIntent` target_temperature) | Setpoint on one exact `CompTempControl` building, -273.15..1000 C. Applied means set; the next building read confirms it. |
 | `bed_medical` (`BuildingPatchIntent` medical / for_prisoners) | Medical flag on one exact `Building_Bed`, or prisoner use on a humanlike one; the game's setter drops every owner. A bed def that cannot be medical, or a crib / non-prison room for prisoners, is refused. |
 | `grower_crop` (`BuildingPatchIntent` plant_def) | Crop on one exact `Building_PlantGrower` under the set-plant gizmo rules (sowable, grower's sow tag, sow research finished). |

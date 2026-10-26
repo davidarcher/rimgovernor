@@ -19,6 +19,7 @@ internal static class ActionSites
         return a.Payload switch
         {
             OwnedDraft p => Site(p.Pawn, "", null),
+            Undraft p => Site(p.Pawn, "", null),
             Subdue p => Site(p.Pawn, p.Target.Value, null),
             Acquisition p => Site(default, p.Thing, p.Cell),
             Excavation p => Site(default, "", p.Cell),

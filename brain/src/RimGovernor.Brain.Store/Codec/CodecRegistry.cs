@@ -146,6 +146,7 @@ internal static class CodecRegistry
         codecs.Register(new NativeRefusalConverter());        codecs.Register(new ObservationConverter());
         codecs.Register(new OutsideTripConverter());
         codecs.Register(new OwnedDraftConverter());
+        codecs.Register(new UndraftConverter());
         codecs.Register(new PawnBiotechConverter());
         codecs.Register(new PawnBiotechStatusConverter());
         codecs.Register(new PawnDeathrestConverter());

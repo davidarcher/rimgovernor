@@ -82,6 +82,7 @@ public sealed partial class Executor
         ActionKind.Repair,
         ActionKind.Tend,
         ActionKind.OwnedDraft,
+        ActionKind.Undraft,
         ActionKind.Subdue,
         ActionKind.Equip,
         ActionKind.DropEquipment,

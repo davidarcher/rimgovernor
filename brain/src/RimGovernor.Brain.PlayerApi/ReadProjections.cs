@@ -106,6 +106,10 @@ internal static class ReadProjections
             {
                 draft = new DraftDto(d.Pawn.Value);
             }
+            else if (action.Undraft is { } release)
+            {
+                draft = new DraftDto(release.Pawn.Value);
+            }
 
             result.Add(new ActionDto(action.Id.Value, Wire.Name(action.Kind), building, draft, projected));
         }

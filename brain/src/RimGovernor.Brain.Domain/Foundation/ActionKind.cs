@@ -47,6 +47,7 @@ public enum ActionKind
     MoveBuilding,
     Movement,
     OwnedDraft,
+    Undraft,
     PawnSettings,
     PawnActivities,
     PolicyPrune,

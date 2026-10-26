@@ -74,6 +74,12 @@ public sealed class OwnedDraftConverter : ObjectCodec<OwnedDraft>
     protected override void WriteFields(Utf8JsonWriter w, OwnedDraft v, Codecs o) => w.Put("Pawn", v.Pawn, o);
 }
 
+public sealed class UndraftConverter : ObjectCodec<Undraft>
+{
+    protected override Undraft Read(JsonElement e, Codecs o) => new(e.Get<PawnId>(nameof(Undraft.Pawn), o));
+    protected override void WriteFields(Utf8JsonWriter w, Undraft v, Codecs o) => w.Put(nameof(Undraft.Pawn), v.Pawn, o);
+}
+
 public sealed class PawnSettingsConverter : ObjectCodec<PawnSettings>
 {
     protected override PawnSettings Read(JsonElement e, Codecs o)

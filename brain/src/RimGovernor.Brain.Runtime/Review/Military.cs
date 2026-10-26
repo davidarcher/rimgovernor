@@ -73,7 +73,7 @@ public sealed class MilitaryReview
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
-        Kinds = [ActionKind.Acquisition, ActionKind.Building, ActionKind.Equip, ActionKind.ApparelPolicy, ActionKind.PolicyPrune, ActionKind.Deconstruction, ActionKind.OwnedDraft],
+        Kinds = [ActionKind.Acquisition, ActionKind.Building, ActionKind.Equip, ActionKind.ApparelPolicy, ActionKind.PolicyPrune, ActionKind.Deconstruction, ActionKind.OwnedDraft, ActionKind.Undraft],
     };
 
     /// <summary>The definitions the range step reads availability and stuff for: the range's own buildings.</summary>
@@ -146,7 +146,7 @@ public sealed class MilitaryReview
         {
             throw new ControlException("military read: frame context mismatch");
         }
-        var needed = await DraftNeeds.PlannedDraftsAsync(_reviewer.Player.Journal, call).ConfigureAwait(false);
+        var needed = await _reviewer.Player.Journal.PlannedDraftsAsync(call).ConfigureAwait(false);
         var hostiles = facts.Hostiles;
         if (hostiles is HostileCensus.AwaitingEmergency)
         {

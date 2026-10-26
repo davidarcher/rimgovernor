@@ -137,6 +137,7 @@ public static partial class MethodClaimsRules
             if (assignment.HasArea) yield return "allowed-area/" + assignment.Pawn.Value;
         }
         else if (a.PawnSettings is { } settings) yield return "settings/" + settings.Pawn.Value;
+        else if (a.Undraft is { } undraft) yield return "draft/" + undraft.Pawn.Value;
         // A deconstruction claims its cell, like an uninstall: the designation it stands is worked by a pawn activity order
         // on the building, which claims the building itself (#3557), so the two never contend.
         else if (a.Deconstruction is { } cut) yield return CellClaimTarget(cut.Cell);

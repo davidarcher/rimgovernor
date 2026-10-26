@@ -15,6 +15,9 @@ public static class FamilyAdmissionRules
     /// <summary>An unsupported use is a normal refusal, rather than a malformed-plan conflict.</summary>
     public static string? UnsupportedReason(NeedId need, PlanSpec plan)
     {
+        if (plan.Actions.Any(a => a.Kind == ActionKind.Undraft) &&
+            (need != MilitaryFamily.RestoreWorkers || plan.Actions.Any(a => a.Kind != ActionKind.Undraft)))
+            return "undraft_not_owned_by_restore_workers";
         // Self-treatment is an observed permission, not a local assignment winner.
         if (need == AdminFamily.WorkAssignments
             && plan.Actions.Any(a => a.PawnSettings is { Kind: SettingKind.SelfTend }))
