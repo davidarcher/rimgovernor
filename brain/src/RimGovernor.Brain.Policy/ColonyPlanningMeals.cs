@@ -33,31 +33,7 @@ public static partial class ColonyPlanningRules
         {
             throw new RequiredFactException("meal raw-food forecast");
         }
-        var pawns = facts.ForecastObserved.WorkPawns.Pawns;
-        {
-            var cooks = new List<MealCook>();
-            foreach (var pawn in pawns)
-            {
-                if (!pawn.Available)
-                {
-                    continue;
-                }
-                foreach (var w in pawn.Work.Priorities())
-                {
-                    if (w.Work == WorkType.Cooking && w.Priority > 0 && !w.Disabled)
-                    {
-                        foreach (var s in pawn.Skills)
-                        {
-                            if (s.DefName == "Cooking" && !s.Disabled)
-                            {
-                                cooks.Add(new MealCook { Pawn = pawn.Id, Skill = s.Level });
-                            }
-                        }
-                    }
-                }
-            }
-            r = r with { Cooks = EquatableArray.From(cooks) };
-        }
+        r = r with { Cooks = EquatableArray.From(MealCooks(facts.ForecastObserved.WorkPawns.Pawns)) };
         var moodPawns = facts.MoodPawns;
         {
             var pressure = false;
@@ -94,5 +70,31 @@ public static partial class ColonyPlanningRules
             }
         }
         return r;
+    }
+    /// <summary>Observed available, allocated cooking workers; shared by meal and preservation selection.</summary>
+    public static IReadOnlyList<MealCook> MealCooks(IReadOnlyList<WorkPawn> pawns)
+    {
+        var cooks = new List<MealCook>();
+        foreach (var pawn in pawns)
+        {
+            if (!pawn.Available)
+            {
+                continue;
+            }
+            foreach (var w in pawn.Work.Priorities())
+            {
+                if (w.Work == WorkType.Cooking && w.Priority > 0 && !w.Disabled)
+                {
+                    foreach (var s in pawn.Skills)
+                    {
+                        if (s.DefName == "Cooking" && !s.Disabled)
+                        {
+                            cooks.Add(new MealCook { Pawn = pawn.Id, Skill = s.Level });
+                        }
+                    }
+                }
+            }
+        }
+        return cooks;
     }
 }

@@ -66,6 +66,8 @@ internal sealed record TargetBillSpec
     public required Func<Resource, double, double> Target { get; init; }
 
     public Func<ProductionProduct, bool>? FirstIf { get; init; }
+
+    public Func<ProductionRecipe, double>? Cost { get; init; }
 }
 
 public static class FoodReserveRules
@@ -239,13 +241,15 @@ public static class FoodReserveRules
     /// Picks the recipe, bench and target for a standing target-count bill of a product family. A recipe whose
     /// product another recipe's bill already makes needs no bill of its own (Make_Pemmican and Make_PemmicanBulk
     /// are one reserve); the bulk recipe wins over its single-item sibling. The target never exceeds the
-    /// product's storable count; matching bills are corrected, unrelated recipes retained.
+    /// product's storable count; matching bills are corrected, unrelated recipes retained. A supplied recipe
+    /// cost ranks before bulk preference; reserve and baby-food selection supply no such cost.
     /// </summary>
     internal static (BillSelection Selection, bool Ok) SelectTargetBill(IReadOnlyList<ProductionBench> rows, TargetBillSpec spec)
     {
         var options = new List<BillSelection>();
         var first = new Dictionary<string, bool>(StringComparer.Ordinal);
         var bulk = new Dictionary<string, bool>(StringComparer.Ordinal);
+        var costs = new Dictionary<string, double>(StringComparer.Ordinal);
         var produces = new Dictionary<string, Resource>(StringComparer.Ordinal);
         foreach (var bench in rows)
         {
@@ -317,6 +321,7 @@ public static class FoodReserveRules
                 }
                 first[recipe.Name] = spec.FirstIf is not null && spec.FirstIf(product);
                 bulk[recipe.Name] = recipe.Bulk;
+                costs[recipe.Name] = spec.Cost?.Invoke(recipe) ?? 0;
                 options.Add(selected);
             }
         }
@@ -327,6 +332,7 @@ public static class FoodReserveRules
         // The bulk recipe wins over its single-item sibling: singles are for the odd one or two items a player cranks out by hand.
         var best = options
             .OrderBy(o => spec.FirstIf is not null && first.GetValueOrDefault(o.Recipe) ? 0 : 1)
+            .ThenBy(o => costs[o.Recipe])
             .ThenBy(o => bulk.GetValueOrDefault(o.Recipe) ? 0 : 1)
             .ThenBy(o => o.Recipe, StringComparer.Ordinal)
             .ThenBy(o => o.Bench, StringComparer.Ordinal)

@@ -297,40 +297,56 @@ public static class FoodOrdersRules
     private static bool SameSet(IEnumerable<string> a, IEnumerable<string> b) =>
         a.Order(StringComparer.Ordinal).SequenceEqual(b.Order(StringComparer.Ordinal), StringComparer.Ordinal);
 
+    /// <summary>The native food products that can replace nutrition lost to spoilage, with no identity allowlist.</summary>
+    private static bool StorageFood(ProductionProduct product) => product.Food is ProductFood.Food { Perishable: false, Edible: true };
+
     /// <summary>
-    /// The food-stores/storage Need's produce fallback as an order: the stock-target bill
-    /// of the choice's resource on the first bench (by id) whose recipe makes it, chosen as if no bill stood.
-    /// Unknown for an invalid resource; Ok is false when no bench can make the resource.
+    /// Preserve a nutrition floor using the shared native target-bill selector. Native product nutrition converts
+    /// the deficit to item units; observed accepting storage caps it. Work per output nutrition compares recipes.
+    /// These standing food bills are not finite material reservations; the shared native activity/admission path
+    /// still owns ingredient choice, stock and pawn work when an iteration actually runs.
     /// </summary>
-    public static (OrderSpec Spec, MedicineMethodKind Kind, bool Ok) FoodStorageMealOrder(FoodStorageMethod choice, IReadOnlyList<GearBench> benches)
+    public static Declared FoodStorageOrders(double nutrition, IReadOnlyList<ProductionBench> production,
+        IReadOnlyList<GearBench> benches, FoodSupply supply, IReadOnlyList<MealCook> cooks, IReadOnlyList<string> ingredients)
     {
-        var bare = benches.Select(b => b with { Bills = [] }).ToList();
-        var picked = MedicalRules.SelectMedicineMethod(
-            new MedicinePlanningRequest
-            {
-                Review = new MedicalReserveReview { Active = true, Target = choice.Target },
-                Resource = choice.Resource,
-                Benches = EquatableArray.From(bare),
-            }
-        );
-        if (picked.Kind != MedicineMethodKind.Produce)
+        if (!FieldCapacityRules.FieldPositive(nutrition)) throw new RequiredFactException("food storage nutrition deficit");
+        if (cooks.Any(c => !FoodForecastRules.FoodId(c.Pawn.Value) || c.Skill is < 0 or > 20))
+            throw new RequiredFactException("food storage cooks");
+        var skill = cooks.Select(c => c.Skill).DefaultIfEmpty(-1).Max();
+        var sources = supply.Stocks.Where(s => s.Nutrition > 0 && s.Holder.IsEmpty && !s.Forbidden && !s.IsCorpse()
+                && !supply.IsReserved(s) && (!s.IsHumanMeat || ingredients.Contains(s.DefName)))
+            .Select(s => s.RawClass).Where(c => c is not (FoodIngredientClass.None or FoodIngredientClass.Any)).ToHashSet();
+        var eligible = production.Select(b => b with { Bills = [], Recipes = b.Recipes.Where(r =>
+            r.Products.Count == 1 && StorageFood(r.Products[0]) && r.Food is RecipeFood.Food { Cooking: RecipeCooking.FromRaw }).ToList() }).ToList();
+        foreach (var recipe in eligible.SelectMany(b => b.Recipes))
         {
-            return (new OrderSpec(), picked.Kind, false);
+            var food = (ProductFood.Food)recipe.Products[0].Food;
+            if (!FieldCapacityRules.FieldPositive(food.Nutrition) || food.Storable < 0)
+                throw new RequiredFactException("food storage product:" + food.Definition);
+            if (recipe.Food is not RecipeFood.Food { WorkPerNutrition: var work } || !double.IsFinite(work) || work < 0)
+                throw new RequiredFactException("food storage recipe work:" + recipe.Name);
         }
-        var def = "";
-        foreach (var b in benches)
+        eligible = eligible.Select(b => b with { Recipes = b.Recipes.Where(r => r.Food is RecipeFood.Food
+            { Cooking: RecipeCooking.FromRaw { CookSkillFloor: var floor, IngredientClasses: var slots } }
+            && skill >= floor && MealRules.MealSlotsSupported(slots, sources)).ToList() }).ToList();
+        var (selected, ok) = FoodReserveRules.SelectTargetBill(eligible, new TargetBillSpec
         {
-            if (b.Id == picked.Bench)
-            {
-                def = b.Def;
-            }
-        }
-        var spec = new OrderSpec { Recipe = picked.Recipe, Mode = BillMode.StockTarget, Target = (int)picked.Target, BenchKind = def, Product = choice.Resource };
-        spec = AdequateOrder(spec, benches);
-        return (spec, picked.Kind, def.Length != 0);
+            Family = StorageFood,
+            Target = (_, unitNutrition) => nutrition / unitNutrition,
+            Cost = r => ((RecipeFood.Food)r.Food).WorkPerNutrition,
+        });
+        if (!ok) return new Declared();
+        var bench = eligible.Single(b => b.Id == selected.Bench);
+        var product = bench.Recipes.Single(r => r.Name == selected.Recipe).Products[0];
+        var spec = (selected with { Ingredients = ingredients }).Order(bench.Definition) with { Product = new Resource(product.Name) };
+        return new Declared { Orders = [AdequateOrder(spec, benches) with { Product = spec.Product }] };
     }
 
-    /// <summary>The unspent bills that make the resource, declared as they stand.</summary>
-    public static Declared StandingStockOrders(IReadOnlyList<GearBench> benches, Resource resource) =>
-        new() { Orders = StandingOrders(benches, b => b.Products.Contains(resource)) };
+    /// <summary>Keep standing preservation bills during reserve access or larder work, identified by native products.</summary>
+    public static Declared StandingStorageOrders(IReadOnlyList<ProductionBench> production, IReadOnlyList<GearBench> benches)
+    {
+        var recipes = production.SelectMany(b => b.Recipes).Where(r => r.Products.Count == 1 && StorageFood(r.Products[0]))
+            .Select(r => r.Name).ToHashSet(StringComparer.Ordinal);
+        return new Declared { Orders = StandingOrders(benches, b => recipes.Contains(b.Spec.Recipe)) };
+    }
 }

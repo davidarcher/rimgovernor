@@ -1,7 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -105,9 +101,6 @@ public sealed record FoodStorageReview
 
 public enum FoodStorageMethodKind
 {
-    [WireName("")]
-    None = 0,
-
     [WireName("recovered")]
     Recovered,
 
@@ -118,51 +111,17 @@ public enum FoodStorageMethodKind
     [WireName("produce")]
     Produce,
 
-    [WireName("no_eligible_method")]
-    Blocked,
 }
 
 /// <summary>
-/// A candidate covered/enclosed stockpile SelectFoodStorageMethod may relocate at-risk stock into. Capacity is
-/// the site's remaining nutrition-equivalent room; it is a plain observed fact, not a reservation.
+/// Observed spare item capacity in covered/enclosed storage accepting an at-risk food definition.
+/// Vanilla hauling owns relocation; this is neither a nutrition measurement nor a reservation.
 /// </summary>
 public sealed record FoodStorageSite
 {
     public string Id { get; init; } = "";
 
     public long Capacity { get; init; }
-}
-
-/// <summary>
-/// The outcome SelectFoodStorageMethod proposes: Stuck when a covered/enclosed site already has room (no order
-/// is planned; vanilla hauling owns the move), or, when no site has room, a StockTarget-style production bill
-/// request for more preserved/non-perishable food (Resource/Target only; bench and recipe selection is the
-/// routine planner's job, the same deferral GearProduce/the economy/resource Need already use).
-/// </summary>
-public sealed record FoodStorageMethod
-{
-    public FoodStorageMethodKind Kind { get; init; }
-
-    public Resource Resource { get; init; }
-
-    public long Target { get; init; }
-}
-
-/// <summary>
-/// Carries everything SelectFoodStorageMethod needs: the latched Review, the observed candidate Sites census, the
-/// one Resource name to fall back to producing (an operator-declared preserved/non-perishable food definition, a
-/// config-only choice), and Seen method IDs already dispatched this cycle so a resolved relocation or bill is
-/// never proposed twice.
-/// </summary>
-public sealed record FoodStoragePlanningRequest
-{
-    public FoodStorageReview Review { get; init; } = new();
-
-    public EquatableArray<FoodStorageSite> Sites { get; init; }
-
-    public Resource Resource { get; init; }
-
-    public IReadOnlyList<MethodId> Seen { get; init; } = [];
 }
 
 public static class FoodStorageUpkeepRules
@@ -277,66 +236,19 @@ public static class FoodStorageUpkeepRules
         return r with { Active = isActive || larder, Larder = larder, Target = threshold, Deficit = deficit };
     }
 
-    private static MethodId FoodStorageMethodId(string kind, string resource, long target)
+    /// <summary>Existing storage with room leaves hauling to vanilla; otherwise production may protect the nutrition at risk.</summary>
+    public static FoodStorageMethodKind SelectFoodStorageMethod(FoodStorageReview review, IReadOnlyList<FoodStorageSite> sites)
     {
-        // The JSON of struct{Resource Resource; Target int64}.
-        var json = $"{{\"Resource\":{JsonSerializer.Serialize(resource)},\"Target\":{target}}}";
-        var sum = SHA256.HashData(Encoding.UTF8.GetBytes(kind + ":" + json));
-        return new MethodId($"food-storage-{kind}-{Convert.ToHexStringLower(sum.AsSpan(0, 16))}");
-    }
-
-    /// <summary>
-    /// Issues no game orders and reserves nothing; the shared method
-    /// admission must recheck site capacity and production costs against concurrent plans before committing.
-    /// With the deficit active, the first candidate site (by deterministic sort) with known spare capacity makes
-    /// the outcome Stuck. Only once every site is exhausted does it fall back to Produce. Throws
-    /// <see cref="DomainException"/>.
-    /// </summary>
-    public static FoodStorageMethod SelectFoodStorageMethod(FoodStoragePlanningRequest r)
-    {
-        if (!r.Review.Active)
+        if (!review.Active || review.Deficit <= 0)
         {
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.Recovered };
+            return FoodStorageMethodKind.Recovered;
         }
-        var deficit = r.Review.Deficit;
-        if (deficit <= 0)
+        DomainException.Require(FoodForecastRules.FoodNumber(review.Deficit), "invalid food storage deficit");
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var site in sites)
         {
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.Recovered };
+            DomainException.Require(FoodForecastRules.FoodId(site.Id) && seen.Add(site.Id) && site.Capacity >= 0, "invalid food storage site");
         }
-        DomainException.Require(FoodForecastRules.FoodNumber(deficit) && deficit <= 1e9, "invalid food storage deficit");
-        var seen = new HashSet<MethodId>();
-        foreach (var id in r.Seen)
-        {
-            DomainException.Require(FoodForecastRules.FoodId(id.Value) && seen.Add(id), "invalid food storage method history");
-        }
-        var candidates = r.Sites.OrderBy(s => s.Id, StringComparer.Ordinal).ToList();
-        var seenSite = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var site in candidates)
-        {
-            DomainException.Require(FoodForecastRules.FoodId(site.Id) && seenSite.Add(site.Id), "invalid or duplicate food storage site");
-        }
-        foreach (var site in candidates)
-        {
-            DomainException.Require(site.Capacity >= 0, "invalid food storage site capacity");
-            if (site.Capacity > 0)
-            {
-                return new FoodStorageMethod { Kind = FoodStorageMethodKind.Stuck };
-            }
-        }
-        if (!AdmissionRules.ValidResource(r.Resource))
-        {
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.Blocked };
-        }
-        var target = Math.Max(1L, (long)Math.Ceiling(deficit));
-        if (target > int.MaxValue)
-        {
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.Blocked };
-        }
-        var produceId = FoodStorageMethodId("produce", r.Resource.Value, target);
-        if (seen.Contains(produceId))
-        {
-            return new FoodStorageMethod { Kind = FoodStorageMethodKind.Blocked };
-        }
-        return new FoodStorageMethod { Kind = FoodStorageMethodKind.Produce, Resource = r.Resource, Target = target };
+        return sites.Any(s => s.Capacity > 0) ? FoodStorageMethodKind.Stuck : FoodStorageMethodKind.Produce;
     }
 }

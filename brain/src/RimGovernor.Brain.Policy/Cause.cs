@@ -95,13 +95,11 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     // site picks one, so the ledger view can say which input was missing instead of only who abstained.
     public static readonly Cause UnreadReview = new("review");
     public static readonly Cause UnreadBenchDef = new("bench_definition");
-    public static readonly Cause UnreadRecipes = new("recipes");
     public static readonly Cause UnreadDefinitions = new("definitions");
     public static readonly Cause UnreadNativeRead = new("native_source");
     public static readonly Cause UnreadWeapons = new("weapon_demand");
     public static readonly Cause UnreadFoodFacts = new("food_facts");
     public static readonly Cause UnreadFoodPlan = new("food_plan");
-    public static readonly Cause UnreadFoodStorage = new("food_storage");
     public static readonly Cause UnreadMechs = new("mech_gestation");
     public static readonly Cause UnreadWort = new("wort");
     public static readonly Cause UnreadWorkers = new("workers");
@@ -127,10 +125,10 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         CriticalMedical, MaterialRequired, DependencyBlocked, GeometryBlocked, InvalidHeld,
         ExcavationUnsupported, ExcavationGeometryChanged, UnsafeRoute, RoofSupportRisk, StorageMissing,
         UrgentCompetingWork,
-        UnreadReview, UnreadBenchDef, UnreadRecipes,
+        UnreadReview, UnreadBenchDef,
         UnreadDefinitions, UnreadNativeRead,
         UnreadWeapons,
-        UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage,
+        UnreadFoodFacts, UnreadFoodPlan,
         UnreadMechs, UnreadWort,
         UnreadWorkers, UnreadBuyers, UnreadSurplus, UnreadRunways,
         UnreadSupply, UnreadSources,
@@ -265,13 +263,11 @@ public static class CauseRules
 
         [Cause.UnreadReview] = UnreadWording("the Round's review"),
         [Cause.UnreadBenchDef] = UnreadWording("a bench's kind"),
-        [Cause.UnreadRecipes] = UnreadWording("a recipe's facts"),
         [Cause.UnreadDefinitions] = UnreadWording("the game's definitions"),
         [Cause.UnreadNativeRead] = UnreadWording("something the game could not serve"),
         [Cause.UnreadWeapons] = UnreadWording("the weapon demand"),
         [Cause.UnreadFoodFacts] = UnreadWording("the food facts"),
         [Cause.UnreadFoodPlan] = UnreadWording("the food plan"),
-        [Cause.UnreadFoodStorage] = UnreadWording("food storage"),
         [Cause.UnreadMechs] = UnreadWording("the mech gestation"),
         [Cause.UnreadWort] = UnreadWording("which wort makes beer"),
         [Cause.UnreadWorkers] = UnreadWording("the workers' skills"),

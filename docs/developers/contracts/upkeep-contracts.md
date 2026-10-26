@@ -470,6 +470,17 @@ change also leave it unmet.
   or exhausted, a StockTarget bill for preserved or non-perishable food through the
   shared source/bill method. Receipts never prove spoilage was averted; the census must
   see the stock stored or the runway recovered.
+- Preservation considers all native single-product, non-perishable foods every
+  colonist eats whose recipes the supported raw-food model describes. The shared
+  target-bill selector checks the actual bench, host and research gates and
+  accepting storage. Available allocated cooks must meet the recipe's skill floor;
+  unreserved shared raw stock must cover its supported ingredient classes. It ranks work per output nutrition before bulk preference
+  and deterministic recipe/bench order. The nutrition deficit becomes an item
+  stock floor using the selected product's native nutrition, capped by accepting
+  storage; existing stock satisfies that floor, rather than increasing it on
+  every review. The selected recipe, product, ingredient routing and target pass
+  through the ordinary ledger and native production admission. No candidate is
+  a valid outcome. Required census, catalog or storage-read failures stop the pass.
 - Native sets `FoodStock.roofed`, `temperature_c` and `room_id` per row. Stock is stored
   when roofed and either chilled (at or under the catalog's `full_rot_rate_c`) or with at
   least five days of rot runway; a roofed warm stockpile is no deficit unless close to

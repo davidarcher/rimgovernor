@@ -283,7 +283,7 @@ nutrition is stored; an unread census raises `RequiredFactException`; otherwise 
 Methods are `food-reserve` (at most eight hold/release supply actions) and
 `corpse-larder-{allow|forbid}-{corpse}`, admitted under the Need owner with the
 supply stacks as claims; `FamilyAdmissionRules.SupplyConflict` checks the Need against the stacks the
-review lists. The stock-target meal order and the PreserveFood bill declare to the
+review lists. The catalog-selected preservation order and the travel-reserve PreserveFood bill declare to the
 ledger under the Need's filing key, and the ledger reads the Need's standing for
 them instead of open work.
 

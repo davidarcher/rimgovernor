@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Runtime;
 /// <summary>
 /// The runtime half of the food stores family (#3251, #3280): its full read (the rounds census, or with
 /// refrigeration the room census and its cooling rooms, then the reserve stacks to hold or release while reserve
-/// access is pending), the stock-target meal order that stores food, which the work ledger places under the
+/// access is pending), the catalog-selected preservation order, which the work ledger places under the
 /// food-stores/storage Need, and the refrigeration Need's building work step.
 /// </summary>
 public sealed partial class FoodStoresReview
@@ -128,102 +128,38 @@ public sealed partial class FoodStoresReview
         return facts with { ReserveTargets = new ReserveSupplyRead.Targets(EquatableArray.From(targets)) };
     }
 
-    /// <summary>The stock-target meal order that stores food, filed under the food-stores/storage Need.</summary>
+    /// <summary>The storage Need's native preservation order, placed through the shared work ledger.</summary>
     public async Task<Declared> DeclareOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct) =>
-        (await DeclareMealOrderAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(FoodStoresRules.FoodStorageNeed.FilingKey.Value);
+        (await DeclarePreservationOrdersAsync(snapshot, projection, benches, ct).ConfigureAwait(false)).For(FoodStoresRules.FoodStorageNeed.FilingKey.Value);
 
-    /// <summary>
-    /// While reserve access or a larder change is due only the standing stock orders stand; otherwise, with
-    /// storage short of its target and every covered site full, one meal bill. An unread fact abstains.
-    /// </summary>
-    internal async Task<Declared> DeclareMealOrderAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
+    internal async Task<Declared> DeclarePreservationOrdersAsync(GenerationSnapshot snapshot, ColonyReading projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var f = projection.Facts;
-        if (f.FoodPlan is not { } storesPlan || !FoodOrdersRules.FoodPlanSupport(storesPlan, CandidateKind.Reserve, "stock-protection"))
-        {
+        var plan = f.RequireFoodPlan();
+        if (!FoodOrdersRules.FoodPlanSupport(plan, CandidateKind.Reserve, "stock-protection"))
             return WorkRules.Abstaining(Cause.UnreadFoodPlan);
-        }
-
-        var standing = FoodOrdersRules.StandingStockOrders(benches, FoodStorageResourceDefinition);
-        if (FoodStoresRules.ReserveAccessPending(f.FoodReserve))
-        {
-            return standing;
-        }
-
-        FoodStorageReview storage;
-        try
-        {
-            if (CorpseLarderRules.SelectCorpseLarder(f.FoodStorageUpkeep).Kind.Length != 0)
-            {
-                return standing;
-            }
-            storage = FoodStorageUpkeepRules.ReviewFoodStorage(f.FoodStorageUpkeep, _reviewer.Policy.FoodStorage);
-        }
-        catch (DomainException)
-        {
-            return WorkRules.Abstaining(Cause.UnreadFoodStorage);
-        }
-
-        if (!storage.Active)
-        {
-            return new Declared();
-        }
-
-        FoodStorageMethod choice;
-        try
-        {
-            choice = await StorageChoiceAsync(Boundary.Identity(snapshot), f.FoodStorageUpkeep, storage, ct).ConfigureAwait(false);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            return WorkRules.Abstaining(Cause.UnreadFoodStorage);
-        }
-
-        switch (choice.Kind)
-        {
-            case FoodStorageMethodKind.Produce:
-                OrderSpec spec;
-                MedicineMethodKind kind;
-                bool ok;
-                try
-                {
-                    (spec, kind, ok) = FoodOrdersRules.FoodStorageMealOrder(choice, benches);
-                }
-                catch (DomainException)
-                {
-                    return WorkRules.Abstaining(Cause.UnreadRecipes);
-                }
-
-                if (ok)
-                {
-                    return new Declared { Orders = [spec] };
-                }
-
-                break;
-        }
-
-        return new Declared();
+        var production = f.EssentialInputs.Benches;
+        if (FoodStoresRules.ReserveAccessPending(f.FoodReserve) || CorpseLarderRules.SelectCorpseLarder(f.FoodStorageUpkeep).Kind.Length != 0)
+            return FoodOrdersRules.StandingStorageOrders(production, benches);
+        var storage = FoodStorageUpkeepRules.ReviewFoodStorage(f.FoodStorageUpkeep, _reviewer.Policy.FoodStorage);
+        if (!storage.Active) return new Declared();
+        var choice = await StorageChoiceAsync(Boundary.Identity(snapshot), f.FoodStorageUpkeep, storage, ct).ConfigureAwait(false);
+        if (choice != FoodStorageMethodKind.Produce) return new Declared();
+        return FoodOrdersRules.FoodStorageOrders(storage.Deficit, production, benches, f.CombinedFoodSupply,
+            ColonyPlanningRules.MealCooks(f.ForecastObserved.WorkPawns.Pawns),
+            HumanFoodPlanRules.HumanCookingIngredients(f.CombinedFoodSupply, f.FoodSupply.Consumers, plan, HumanMeatRoute.Meals));
     }
 
-    /// <summary>Reads the spare room of every covered site the unstored food could go to and picks stuck or produce.</summary>
-    private async Task<FoodStorageMethod> StorageChoiceAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, FoodStorageObservation facts, FoodStorageReview review, CancellationToken ct)
+    /// <summary>Read spare storage for each at-risk food definition; failed required reads stop the pass.</summary>
+    private async Task<FoodStorageMethodKind> StorageChoiceAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, FoodStorageObservation facts, FoodStorageReview review, CancellationToken ct)
     {
         var names = FoodStorageUpkeepRules.FoodStorageDefNames(facts, _reviewer.Policy.FoodStorage);
         var sites = new List<FoodStorageSite>(names.Count);
         foreach (var name in names)
         {
             var (_, storage) = await _native.ReadResourceSourcesAsync(identity, name, ct).ConfigureAwait(false);
-
-            var spare = FoodStorageUpkeepRules.StorageSpare(storage.Capacity, storage.Stored);
-            sites.Add(new FoodStorageSite { Id = name, Capacity = spare });
+            sites.Add(new FoodStorageSite { Id = name, Capacity = FoodStorageUpkeepRules.StorageSpare(storage.Capacity, storage.Stored) });
         }
-
-        return FoodStorageUpkeepRules.SelectFoodStorageMethod(new FoodStoragePlanningRequest { Review = review, Sites = EquatableArray.From(sites), Resource = FoodStorageResourceDefinition });
+        return FoodStorageUpkeepRules.SelectFoodStorageMethod(review, sites);
     }
-}
-
-partial class FoodStoresReview
-{
-    internal static readonly Resource FoodStorageResourceDefinition = new("MealSimple");
-
 }
