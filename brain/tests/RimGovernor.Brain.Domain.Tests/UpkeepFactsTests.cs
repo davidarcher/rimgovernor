@@ -54,20 +54,21 @@ public sealed class UpkeepFactsTests
         [
             new()
             {
-                Id = "Thing_Bed1", Medical = false, Prisoners = false, Owners = [new PawnId("Human1")], Users = [], AccessibleTo = [new PawnId("Human1")],
+                Id = "Thing_Bed1", Slots = 2, Medical = false, Prisoners = false, Owners = [new PawnId("Human1")], Users = [], AccessibleTo = [new PawnId("Human1")],
                 TemperatureC = 21.5, Room = "room-3", Quality = new BedQuality.Graded(RimGovernor.Brain.GameFacts.Defs.QualityCategory.Good), ForSlaves = false,
             },
             new()
             {
-                Id = "Thing_SleepingSpot2", Medical = false, Prisoners = true, Owners = [], Users = [], AccessibleTo = [],
+                Id = "Thing_SleepingSpot2", Slots = 1, Medical = false, Prisoners = true, Owners = [], Users = [], AccessibleTo = [],
                 TemperatureC = -3, Room = "room-4", Quality = new BedQuality.Ungraded(), ForSlaves = false,
             },
         ];
 
         Assert.Equal(
-            """[{"id":"Thing_Bed1","medical":false,"prisoners":false,"owners":["Human1"],"users":[],"accessibleTo":["Human1"],"temperatureC":21.5,"room":"room-3","quality":{"type":"graded","category":"QUALITY_CATEGORY_GOOD"},"forSlaves":false},{"id":"Thing_SleepingSpot2","medical":false,"prisoners":true,"owners":[],"users":[],"accessibleTo":[],"temperatureC":-3,"room":"room-4","quality":{"type":"ungraded"},"forSlaves":false}]""",
+            """[{"id":"Thing_Bed1","slots":2,"medical":false,"prisoners":false,"owners":["Human1"],"users":[],"accessibleTo":["Human1"],"temperatureC":21.5,"room":"room-3","quality":{"type":"graded","category":"QUALITY_CATEGORY_GOOD"},"forSlaves":false},{"id":"Thing_SleepingSpot2","slots":1,"medical":false,"prisoners":true,"owners":[],"users":[],"accessibleTo":[],"temperatureC":-3,"room":"room-4","quality":{"type":"ungraded"},"forSlaves":false}]""",
             OrdersJson.Serialize(rows));
         Assert.All(rows, row => Assert.Equal(row, OrdersJson.Deserialize<UpkeepBed>(OrdersJson.Serialize(row))));
+        Assert.Throws<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<UpkeepBed>(OrdersJson.Serialize(rows[0]).Replace("\"slots\":2,", "", StringComparison.Ordinal)));
     }
 
     [Fact]

@@ -22,6 +22,10 @@ the catalog's adult-bed membership and actual native footprint. They share the
 room geometry and walkability checks; a known bed with an unread shape fails
 the affected pass. A replacement keeps its selected definition through the
 existing bedroom reconciliation and native construction intent.
+The bed census reads the required positive `Building_Bed.SleepingSlotsCount`.
+Couples may share beds with at least two observed slots; definition names do not
+establish capacity. Willingness, ownership, reach, temperature and the native
+assignment guard still apply.
 The repair structure census includes only native definitions with `useHitPoints`, so
 non-damageable markers such as sleeping spots are never repair targets.
 

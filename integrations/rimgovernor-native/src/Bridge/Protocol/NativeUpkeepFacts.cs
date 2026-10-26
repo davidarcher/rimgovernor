@@ -391,7 +391,7 @@ namespace RimGovernor.Native
 
         private static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.UpkeepBed> Beds(ThingSets sets, List<Pawn> people) =>
             [.. sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).Select(b => new RimGovernor.Brain.GameFacts.Observations.UpkeepBed {
-                Id = Id(b.GetUniqueLoadID()),
+                Id = Id(b.GetUniqueLoadID()), Slots = b.SleepingSlotsCount,
                 Medical = b.Medical, Prisoners = b.ForPrisoners, ForSlaves = b.ForSlaves,
                 TemperatureC = Number(b.AmbientTemperature),
                 // Every spawned bed stands in a room (outdoors is one); none is a broken read.

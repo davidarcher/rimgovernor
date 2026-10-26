@@ -15,7 +15,7 @@ public sealed class SleepingNativeOwnershipTests
         var pawn = new PawnId("sleeper");
         var person = SleepingNativeFixtures.Person(pawn);
         var nativePawn = SleepingNativeFixtures.Pawn(pawn, "bed", 16, 26);
-        var bed = SleepingNativeFixtures.Bed("bed", owners: [pawn], accessibleTo: [pawn], room: "bedroom", temperature: 21);
+        var bed = SleepingNativeFixtures.Bed("bed", owners: [pawn], accessibleTo: [pawn], room: "bedroom", temperature: 21, slots: 3);
         var building = SleepingNativeFixtures.Building("bed", roofed: true, stuff: null, cell: new(7, 9));
         var snapshot = ColonyFactsCoreTests.Snapshot() with
         {
@@ -35,6 +35,7 @@ public sealed class SleepingNativeOwnershipTests
         Assert.True(joined.Roofed);
         Assert.Null(joined.Stuff);
         Assert.True(joined.Humanlike);
+        Assert.Equal(3, joined.Slots);
 
         var room = SleepingNativeFixtures.Room("bedroom", RoomRole.Bedroom, new(12, 3, -1, 50, 24), 12);
         var rooms = SleepingUpkeepReads.UpkeepRooms(new RimGovernor.Brain.GameFacts.Observations.RoomsSnapshot { Context = snapshot.Context, Rooms = [room] }, observed.Beds);
@@ -69,6 +70,20 @@ public sealed class SleepingNativeOwnershipTests
             ColonistCount = 1, Upkeep = UpkeepFactsTests.NoUpkeep with { People = [person] },
         };
         Assert.Throws<ObservationContractException>(() => SleepingUpkeepReads.ColonySleeping(snapshot, Buildings.Of(), Pawns.Of(), null));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void AnInvalidSlotCountFailsTheWholeSleepingObservation(int slots)
+    {
+        var snapshot = ColonyFactsCoreTests.Snapshot() with
+        {
+            Upkeep = UpkeepFactsTests.NoUpkeep with { Beds = [SleepingNativeFixtures.Bed("bed", slots: slots)] },
+        };
+        var error = Assert.Throws<ObservationContractException>(() => SleepingUpkeepReads.ColonySleeping(snapshot,
+            Buildings.Of(SleepingNativeFixtures.Building("bed")), Pawns.Of(), Catalog()));
+        Assert.Contains("slot count", error.Message, StringComparison.Ordinal);
     }
 
     private static DefinitionCatalog Catalog()

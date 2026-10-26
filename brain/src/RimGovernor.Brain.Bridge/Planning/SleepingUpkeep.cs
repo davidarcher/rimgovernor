@@ -47,6 +47,8 @@ public static class SleepingUpkeepReads
         var beds = new List<SleepingBed>();
         foreach (var b in u.Beds)
         {
+            if (b.Slots <= 0)
+                throw new ObservationContractException($"sleeping bed {b.Id} has no positive slot count");
             if (!buildings.TryGetValue(b.Id, out var row))
             {
                 throw new ObservationContractException($"sleeping bed {b.Id} has no building row");

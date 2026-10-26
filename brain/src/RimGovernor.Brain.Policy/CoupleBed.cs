@@ -108,7 +108,7 @@ public static class CoupleBedRules
             {
                 var only = b.Owners.All(o => o == p || o == q);
                 var humanlike = b.Humanlike;
-                shared = shared || (SleepingRules.SleepingDoubleBeds.Contains(b.Definition) && humanlike && only);
+                shared = shared || ((b.Slots >= 2) && humanlike && only);
             }
             if (shared)
             {
@@ -119,7 +119,7 @@ public static class CoupleBedRules
             var pack = new List<FurniturePiece>();
             foreach (var pawn in new[] { p, q })
             {
-                if (!beds.TryGetValue(owned.GetValueOrDefault(pawn, ""), out var b) || SleepingRules.SleepingDoubleBeds.Contains(b.Definition))
+                if (!beds.TryGetValue(owned.GetValueOrDefault(pawn, ""), out var b) || (b.Slots >= 2))
                 {
                     continue;
                 }

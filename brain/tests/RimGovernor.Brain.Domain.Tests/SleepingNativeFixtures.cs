@@ -25,9 +25,9 @@ internal static class SleepingNativeFixtures
     internal static RimGovernor.Brain.GameFacts.Observations.UpkeepBed Bed(string id, bool medical = false, bool prisoners = false,
         bool slaves = false, double temperature = 0, EquatableArray<PawnId> owners = default,
         EquatableArray<PawnId> users = default, EquatableArray<PawnId> accessibleTo = default, string room = "",
-        RimGovernor.Brain.GameFacts.Observations.BedQuality? quality = null) => new()
+        RimGovernor.Brain.GameFacts.Observations.BedQuality? quality = null, int slots = 1) => new()
     {
-        Id = id, Medical = medical, Prisoners = prisoners, ForSlaves = slaves,
+        Id = id, Slots = slots, Medical = medical, Prisoners = prisoners, ForSlaves = slaves,
         TemperatureC = temperature, Owners = owners, Users = users, AccessibleTo = accessibleTo, Room = room,
         Quality = quality ?? new RimGovernor.Brain.GameFacts.Observations.BedQuality.Ungraded(),
     };

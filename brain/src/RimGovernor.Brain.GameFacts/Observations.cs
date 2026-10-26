@@ -4941,13 +4941,16 @@ public abstract record ItemRot
 }
 
 /// <summary>
-/// One player bed, read whole: its kind flags, owners, users and the census people who can reach it, its roof,
-/// ambient temperature and room, its quality and its stuff (null for a stuffless def). Its def and cell are its
-/// building table row's.
+/// One player bed, read whole: its sleeping slots, kind flags, owners, users and the census people who can
+/// reach it, ambient temperature, room and quality. Definition, cell, material and roof coverage belong to
+/// its canonical building row.
 /// </summary>
 public sealed record UpkeepBed
 {
     public required string Id { get; init; }
+
+    /// <summary>The observed Building_Bed.SleepingSlotsCount, including native overrides.</summary>
+    public required int Slots { get; init; }
 
     public required bool Medical { get; init; }
 

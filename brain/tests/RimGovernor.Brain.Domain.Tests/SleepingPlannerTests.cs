@@ -266,12 +266,15 @@ public sealed class SleepingPlannerTests
     /// lovers) are never paired, so the second has no bed to take and the fixture must stage a willing couple.
     /// </summary>
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void ThePartnerOfADoubleBedOwnerIsAssignedToItOnlyWhenBothAreWillingToShareABed(bool willing)
+    [InlineData(true, "DoubleBed", 2)]
+    [InlineData(false, "DoubleBed", 2)]
+    [InlineData(true, "InstalledCoupleBed", 2)]
+    [InlineData(true, "InstalledWideBed", 3)]
+    [InlineData(true, "DoubleBed", 1)]
+    public void ThePartnerOfADoubleBedOwnerIsAssignedToItOnlyWhenBothAreWillingToShareABed(bool willing, string definition, int slots)
     {
         static SleepingPerson Partner(PawnId id, PawnId other, string bed, bool willing) => new SleepingPerson { Native = SleepingNativeFixtures.Person(id: id, partners: [other], bedSharingAllowed: willing), Pawn = SleepingNativeFixtures.Pawn(id: id, ownedBed: bed, comfortableMin: 6.0, comfortableMax: 30.0) };
-        var dbl = new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "double", temperature: 28.0, owners: [A], accessibleTo: [A, B], room: "42"), Building = SleepingNativeFixtures.Building(id: "double", definition: new Resource("DoubleBed"), roofed: true), Humanlike = true, RestEffectiveness = 1 };
+        var dbl = new SleepingBed { Native = SleepingNativeFixtures.Bed(id: "double", slots: slots, temperature: 28.0, owners: [A], accessibleTo: [A, B], room: "42"), Building = SleepingNativeFixtures.Building(id: "double", definition: new Resource(definition), roofed: true), Humanlike = true, RestEffectiveness = 1 };
         var sleeping = new SleepingObservation
         {
             Colonists = 2, People = [Partner(A, B, "double", willing), Partner(B, A, "", willing)], Beds = [dbl], BedBuildable = true,
@@ -280,7 +283,7 @@ public sealed class SleepingPlannerTests
         var review = SleepingRules.ReviewSleeping(sleeping, new SleepingHistory(), new Tick(600));
         var choice = SleepingRules.SelectSleepingMethod(new SleepingRequest { Targets = review.Targets, Sleeping = sleeping, Rooms = RoomFixtures.Census(Array.Empty<RimGovernor.Brain.GameFacts.Observations.RoomState>()) });
 
-        if (willing)
+        if (willing && slots >= 2)
         {
             Assert.Equal((SleepingMethod.Assign, B, "double"), (choice.Method, choice.Pawn, choice.Bed));
             return;

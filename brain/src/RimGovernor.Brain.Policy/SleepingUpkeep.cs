@@ -21,6 +21,7 @@ public sealed record SleepingBed
     public required RimGovernor.Brain.GameFacts.Observations.UpkeepBed Native { get; init; }
     public required RimGovernor.Brain.GameFacts.Observations.BuildingState Building { get; init; }
     public string Id => Native.Id;
+    public int Slots => Native.Slots;
     public Resource Definition => new(Building.Building.DefName);
     public bool Humanlike { get; init; }
     public bool Crib { get; init; }
@@ -133,14 +134,6 @@ public sealed record SleepingReview
 
 public static partial class SleepingRules
 {
-    /// <summary>The bed definitions two partners can own together.</summary>
-    public static readonly IReadOnlySet<Resource> SleepingDoubleBeds = new HashSet<Resource>
-    {
-        new("DoubleBed"),
-        new("RoyalBed"),
-        new(SleepingCoupleBedrollDefinition),
-    };
-
     /// <summary>
     /// Maps each pawn to its couple partner: the lowest-ID love partner that names it back, both willing to
     /// share a bed. Unknown willingness pairs nobody, so non-partners are never put together.
@@ -332,7 +325,7 @@ public static partial class SleepingRules
             var coupled = couples.TryGetValue(p.Id, out var q);
             // A double bed only p's partner may join: p waits for the partner's assignment rather than moving out of it.
             var waiting = exists && coupled && Suitable(owned!) && owned!.Owners.Contains(p.Id) && owned.Owners.Count == 1
-                && SleepingDoubleBeds.Contains(owned.Definition) && !Shared(owned, p.Id);
+                && owned.Slots >= 2 && !Shared(owned, p.Id);
             if (exists && Suitable(owned!) && owned!.Owners.Contains(p.Id) && (Shared(owned, p.Id) || waiting))
             {
                 if (waiting)
@@ -383,7 +376,7 @@ public static partial class SleepingRules
                         continue;
                     }
                     var partnerOnly = b.Owners.Count == 0 || (b.Owners.Count == 1 && b.Owners[0] == q);
-                    if (SleepingDoubleBeds.Contains(b.Definition) && partnerOnly)
+                    if (b.Slots >= 2 && partnerOnly)
                     {
                         doubles.Add(b.Id);
                     }
