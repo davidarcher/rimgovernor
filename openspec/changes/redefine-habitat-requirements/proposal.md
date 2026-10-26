@@ -9,7 +9,7 @@ requirements category into an independent planner or claiming implementation com
 
 ## What Changes
 
-- Draft habitat requirements for accommodation, facilities and activity sites,
+- Implement approved habitat requirements for accommodation, facilities and activity sites,
   fields, growing zones, pens, access, utilities, defensive infrastructure,
   maintenance and redevelopment.
 - Preserve RG-HABITAT-001–003 and their core outcomes, broaden accommodation beyond
@@ -40,12 +40,15 @@ does not rewrite their policies.
 
 ## Impact
 
-This capture adds a proposal and a draft capability specification only. It does
-not replace the standing requirements in `docs/requirements/habitat.md`, migrate
-the standing capability, change code, or create implementation tasks. The existing
+The maintainer approved this proposal and the habitat requirements on 2026-10-26
+and requested design, implementation tasks and end-to-end implementation. The
+[design](design.md) audits every requirement against current paths; the
+[tasks](tasks.md) track implementation, checks and authority migration. The existing
 [habitat page](../../../docs/requirements/habitat.md) retains H1–H7 inspection,
 test provenance and evidence limits. No new game run or implementation audit is
-claimed. The change remains active for review and later planning.
+claimed by planning. The change remains active until the implementation tasks and
+their checks are complete. Standing authority migrates in the final integration
+milestone without treating migration as implementation proof.
 
 Future implementation must trace alternatives through typed facts, pure policy,
 shared demand, comparison, Method admission, Hands, native operations and observed
@@ -99,5 +102,6 @@ their domain policies, informed by feasible spatial alternatives.
 
 RG-HABITAT-001–003 preserve the existing accommodation, essential-service and useful
 development identities. RG-HABITAT-004–011 make the agreed scope and tradeoffs
-explicit. The scenarios are review examples, not execution evidence. The draft
-remains separate from standing requirements until explicitly adopted.
+explicit. The scenarios are review examples, not execution evidence. The approved
+draft remains separate from standing requirements until the tracked authority
+migration; this does not reduce the implementation obligations.
