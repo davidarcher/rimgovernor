@@ -20,12 +20,6 @@ public static partial class CombatWaitRules
     internal const double ExtremeColdC = -20.0;
     internal const double ExtremeHeatC = 45.0;
 
-    /// <summary>Wait hardening's stuff: a plasteel door holds far longer than a wooden one.</summary>
-    public const string WaitDoorStuff = "Plasteel";
-
-    /// <summary>A Door's plasteel stuff cost.</summary>
-    internal const int PlasteelDoorCost = 25;
-
     /// <summary>
     /// The wait-it-out comparison: ours is the health fraction summed over the armed, eligible defenders;
     /// theirs is the live hostiles' body sizes.
@@ -211,27 +205,36 @@ public static partial class CombatWaitRules
 
     /// <summary>
     /// The layout planner's builds for a waiting fight: each standing door of a sheltering room not already
-    /// plasteel is rebuilt in plasteel while the stock holds 25 plasteel for it, and each door the census no
+    /// the preferred stuff is rebuilt while stock covers its complete native cost, and each door the census no
     /// longer shows (broken) gets a wall of <paramref name="wallStuff"/> on the open floor cell behind it. A
     /// cell the census does not carry is left alone. A door takes no rotation: the game orients it between its walls.
     /// </summary>
-    public static List<Building> WaitHardening(CombatMemory m, IReadOnlyDictionary<Cell, WaitDoorCell> census, long plasteel, string door, string wall, string wallStuff)
+    public static List<Building> WaitHardening(CombatMemory m, IReadOnlyDictionary<Cell, WaitDoorCell> census, IReadOnlyDictionary<Resource, long> stock, PlanningDefinition door, string doorStuff, string wall, string wallStuff)
     {
         var result = new List<Building>();
         if (!m.Wait)
         {
             return result;
         }
+        var upgrade = door.Available ? door.StuffOptions.FirstOrDefault(option => option.Stuff == doorStuff) : null;
+        var costs = new Dictionary<Resource, long>();
+        foreach (var cost in upgrade?.Costs ?? [])
+        {
+            if (cost.Count < 0) throw new RequiredFactException("wait door construction cost");
+            costs[cost.Resource] = checked(costs.GetValueOrDefault(cost.Resource) + cost.Count);
+        }
+        var remaining = new Dictionary<Resource, long>(stock);
         foreach (var w in m.WaitRooms)
         {
             if (!census.TryGetValue(w.Door, out var at))
             {
                 continue;
             }
-            if (at.Edifice == door && at.Stuff != WaitDoorStuff && plasteel >= PlasteelDoorCost)
+            if (at.Edifice == door.Name && at.Stuff != doorStuff && upgrade is not null
+                && costs.All(cost => remaining.GetValueOrDefault(cost.Key) >= cost.Value))
             {
-                result.Add(new Building(door, w.Door, Rotation.North, WaitDoorStuff));
-                plasteel -= PlasteelDoorCost;
+                result.Add(new Building(door.Name, w.Door, Rotation.North, doorStuff));
+                foreach (var cost in costs) remaining[cost.Key] = remaining.GetValueOrDefault(cost.Key) - cost.Value;
             }
             else if (at.Edifice.Length == 0 && census.TryGetValue(w.Inside, out var inside) && inside.Edifice.Length == 0 && inside.Walkable)
             {

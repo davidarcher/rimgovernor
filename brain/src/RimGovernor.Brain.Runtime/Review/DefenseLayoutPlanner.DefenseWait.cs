@@ -30,8 +30,11 @@ public sealed partial class DefenseLayoutPlanner
             return new DefenseLayoutResult { Verdict = BuildingReasonNoDeficit, Tier = DefenseWaitTier };
         }
         var (read, census) = await FightCensusAsync(state, DefenseWaitRegion(m), call).ConfigureAwait(false);
-        var doorStock = ResourceStockRules.Count(read.Reading.Snapshot.Resources).GetValueOrDefault(new Resource(CombatWaitRules.WaitDoorStuff));
-        var buildings = CombatWaitRules.WaitHardening(m, census, doorStock, DefenseDefinitionNames.Door, DefenseDefinitionNames.Wall, DefenseDefinitionNames.WallStuff);
+        var door = read.Reading.Facts.Definitions.FirstOrDefault(definition => definition.Name == DefenseDefinitionNames.Door)
+            ?? throw new RequiredFactException("wait hardening door definition");
+        // Authored preference: a plasteel door outlasts the wooden shell while the fight waits.
+        var buildings = CombatWaitRules.WaitHardening(m, census, ResourceStockRules.Count(read.Reading.Snapshot.Resources), door,
+            nameof(RimWorld.ThingDefOf.Plasteel), DefenseDefinitionNames.Wall, DefenseDefinitionNames.WallStuff);
         if (buildings.Count == 0)
         {
             return new DefenseLayoutResult { Verdict = BuildingReasonNoDeficit, Tier = DefenseWaitTier };

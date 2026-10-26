@@ -547,6 +547,12 @@ authority and severe injury still require current evidence. Stationary ranged
 holders may use native `Wait_Combat` targeting; specialized roles keep explicit
 orders. Combat extensions below cover drugs, hunting, permits and psycasts.
 
+Wait-door hardening prefers plasteel and uses the selected door's native stuff
+costs. Every material in the bundle is charged against the shared stock before
+another door is proposed; unavailable research or an incompatible stuff offers
+no upgrade. Broken-door wall protection and native construction preview remain
+the existing path.
+
 Combat batches currently dispatch directly through the bridge; routing the exact
 batch through journaled Hands is tracked in
 [#2502](https://github.com/davidarcher/rimgovernor/issues/2502).

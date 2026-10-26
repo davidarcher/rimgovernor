@@ -54,7 +54,6 @@ PlayerApi/LifecycleRoutes.cs|LifecycleRoutes.MaxLoadTimeoutMs|120000
 Policy/ChildRooms.cs|FurnitureRole.DeathrestCasket|"DeathrestCasket"
 Policy/ClearanceGround.cs|ClearanceGroundRules.StandInBed|"SleepingSpot"
 Policy/Climate.cs|ClimateRules._climateTable|"Vent"
-Policy/Combat/CombatWait.cs|CombatWaitRules.WaitDoorStuff|"Plasteel"
 Policy/CombatCast.cs|CombatCastRules._psycastFamilies|"Flashstorm"
 Policy/ConstructionDemand.cs|ConstructionDemandRules.ConstructionWoodLog|"WoodLog"
 Policy/ContainmentCell.cs|ContainmentCellRules.ShellDoorDefinition|"Door"
