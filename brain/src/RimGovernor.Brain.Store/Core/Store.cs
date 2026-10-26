@@ -81,7 +81,7 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     private readonly PlanCache _plans = new();
     private readonly ReviewSlot _rounds = new();
 
-    private Store(SqliteConnection connection, string path)
+    internal Store(SqliteConnection connection, string path)
     {
         _connection = connection;
         Path = path;
@@ -282,10 +282,29 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// <summary>Runs <paramref name="work"/> in one transaction and commits it; an exception rolls it back.</summary>
     internal T Run<T>(Func<StoreTransaction, T> work, CancellationToken cancellationToken)
     {
-        using var tx = Begin(cancellationToken);
-        var result = work(tx);
-        tx.Commit();
-        return result;
+        var tx = Begin(cancellationToken);
+        try
+        {
+            var result = work(tx);
+            tx.Commit();
+            return result;
+        }
+        catch (Exception primary)
+        {
+            try
+            {
+                tx.Dispose();
+            }
+            catch (Exception rollback)
+            {
+                throw new AggregateException("journal operation and rollback both failed", primary, rollback);
+            }
+            throw;
+        }
+        finally
+        {
+            tx.Dispose();
+        }
     }
 
     internal void Run(Action<StoreTransaction> work, CancellationToken cancellationToken) =>

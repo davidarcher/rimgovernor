@@ -1,5 +1,11 @@
 # Persistence contracts
 
+Journal transactions read SQLite's actual transaction state before rollback: a
+transaction SQLite has already ended needs no second rollback. A genuine rollback
+failure closes the connection before releasing the gate, so later calls cannot
+reuse uncertain transactional state. An operation and its failed rollback surface
+together, with the operation failure first; rollback ignores caller cancellation.
+
 The existing full-review admission evidence owns the observed work-resource view:
 material census, exact building/recipe costs, native carried inputs and current
 pawn availability. Building footprints, material costs, recipes, native ownership, pawn schedules and clocks are complete plain values. Promise sets persist their assessed claims or their blocking reason; each material amount is exact or open. Pawn preemption, unfinished-item identity and recipe speed stats survive the same codec. Its observed current-job occupancy is a plain boolean; the replaceable session journal discards older codec shapes on a schema version change. Method actions remain the sole owner of commitments; current

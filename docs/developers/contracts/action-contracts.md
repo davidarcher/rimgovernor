@@ -7,6 +7,10 @@ design and progression. See [Ideology creation and reform](ideology-contracts.md
 
 [Documentation](../../README.md)
 
+An action Safeguard veto prevents dispatch even if journaling the held reason
+fails. The batch item's error retains both the veto and that journal failure;
+neither is replaced by a successful hold or a native write.
+
 An accepted native order and a completed action are separate states. The table defines
 what each action must observe. Kinds marked intent-mode complete on an applied receipt
 alone (no observation phase); a refusal fails them and a lost receipt stays

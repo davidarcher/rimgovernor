@@ -315,6 +315,7 @@ public sealed partial class Executor
             var (i, a, r) = (ready[j], readyAttempts[j], dispatched[j]);
             if (r.Error is ActionVetoedException vetoed)
             {
+                errors[i] = Errors.Join(new HeldException(), vetoed);
                 // An action Safeguard refused only this action; record why.
                 try
                 {
@@ -323,9 +324,8 @@ public sealed partial class Executor
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    // Recording the reason is best effort: the veto is reported either way.
+                    errors[i] = Errors.Join(errors[i], e);
                 }
-                errors[i] = Errors.Join(new HeldException(), vetoed);
                 continue;
             }
             if (r.Error is { } dispatchError)

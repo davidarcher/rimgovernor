@@ -159,13 +159,22 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
         try
         {
             // Rollback never observes the caller's cancellation: the gate must be released with a clean connection.
+            var handle = _connection.Handle ?? throw new InvalidOperationException("journal connection closed before rollback");
+            // SQLite can end a transaction itself after a failed statement/commit.
+            // Read that state rather than treating every rollback error as success.
+            if (SQLitePCL.raw.sqlite3_get_autocommit(handle) != 0)
+            {
+                return;
+            }
             using var command = _connection.CreateCommand();
             command.CommandText = "ROLLBACK";
             _ = command.ExecuteNonQuery();
         }
-        catch (SqliteException)
+        catch (Exception e) when (e is SqliteException or InvalidOperationException)
         {
-            // The transaction already ended (for example, a failed COMMIT); nothing is left to undo.
+            // A connection whose rollback failed must never serve another transaction.
+            _connection.Close();
+            throw;
         }
         finally
         {

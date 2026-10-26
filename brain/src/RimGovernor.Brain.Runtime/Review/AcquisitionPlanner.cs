@@ -80,14 +80,10 @@ public sealed partial class AcquisitionPlanner
         void Cool(ProgressContract contract, string thing)
         {
             var key = ConcernProgressRules.CooldownKey(contract.Method, thing);
+            // A revision conflict invalidates this step's owner and claims. The scheduler
+            // refreshes the review before replanning; never continue on the stale revision.
+            review = p.Journal.RecordProgressCooldown(review.Revision, _need, key, contract.CooldownUntil(expected.Tick), call);
             cooled.Add(thing);
-            try
-            {
-                review = p.Journal.RecordProgressCooldown(review.Revision, _need, key, contract.CooldownUntil(expected.Tick), call);
-            }
-            catch (ConflictException)
-            {
-            }
         }
 
         foreach (var method in owner.OpenMethods)

@@ -7,6 +7,10 @@ not the Concern's completion. Each family keeps its identity, memory and release
 path. The common contract is a set of transitions, not another workflow engine
 or persistent Method store.
 
+A revision conflict while recording an acquisition cooldown aborts the current
+step. The scheduler's existing failure path refreshes and replans; the planner
+cannot continue selecting or withdrawing against stale owner and claim state.
+
 | Evidence | Required decision |
 | --- | --- |
 | Stable prerequisites and useful issued work | Continue without replacing commands. |
