@@ -22,25 +22,8 @@ partial class BuildingPlanner
     /// <summary>Whether any colonist can raise every named definition now (no construction skill needed): the zero Verdict when so, else the first thing missing, named.</summary>
     internal static Verdict DefinitionsGate(RimGovernor.Brain.GameAccess.ColonyReading facts, IReadOnlyList<string> names)
     {
-        foreach (var name in names)
-        {
-            var (def, found) = DefinitionRow(facts, name);
-            if (!found)
-            {
-                return FieldUnavailable(name + "_definition");
-            }
-            var availability = DefinitionAvailability(def);
-            if (!availability.IsZero)
-            {
-                return availability;
-            }
-            var skill = def.ConstructionSkill;
-            if (skill != 0)
-            {
-                return Refuse(Pol.Cause.NoWorker, "builder_for_" + name, string.Create(CultureInfo.InvariantCulture, $"construction_skill_{skill}"));
-            }
-        }
-        return new Verdict();
+        var gate = FacilityPlanningRules.DefinitionsGate(facts.Facts.Definitions, names);
+        return gate.Cause == Cause.None ? default : Refuse(gate.Cause, gate.Subject, gate.Detail);
     }
 
     internal static (RimGovernor.Brain.Policy.PlanningDefinition Def, bool Found) DefinitionRow(RimGovernor.Brain.GameAccess.ColonyReading facts, string name)
@@ -58,16 +41,8 @@ partial class BuildingPlanner
     /// <summary>The zero Verdict for a definition the game reports buildable, else the missing fact or the research it waits on.</summary>
     internal static Verdict DefinitionAvailability(RimGovernor.Brain.Policy.PlanningDefinition def)
     {
-        var ready = def.Available;
-        if (ready)
-        {
-            return new Verdict();
-        }
-        if (def.Research.Count == 0)
-        {
-            return AwaitingPlan(def.Name, "unavailable");
-        }
-        return ResearchWait(string.Join("+", def.Research));
+        var gate = FacilityPlanningRules.DefinitionAvailability(def);
+        return gate.Cause == Cause.None ? default : Refuse(gate.Cause, gate.Subject, gate.Detail);
     }
 
 

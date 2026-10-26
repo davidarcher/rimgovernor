@@ -42,52 +42,17 @@ public sealed partial class ColonyReview
 partial class SleepingUpkeepPlanner
 {
     /// <summary>The worship room's furniture definitions: its required buildings and the things its presence demands count.</summary>
-    internal static IReadOnlyList<string> WorshipDefinitions(ColonyReading facts) => facts.Facts.Worship.Definitions;
+    internal static IReadOnlyList<string> WorshipDefinitions(ColonyReading facts) =>
+        SleepingPlanningRules.WorshipDefinitions(facts.Facts);
 
-    internal static IReadOnlyList<string> ContainmentDefinitions(ColonyReading facts)
-    {
-        if (facts.Facts.Containment.Defs is ContainmentDefsRead.Read { Defs: var defs })
-        {
-            var output = new List<string> { defs.Holder, ContainmentCellRules.ContainmentLampDefinition };
-            if (defs.Floor.Def != "")
-            {
-                output.Add(defs.Floor.Def);
-            }
-            return output;
-        }
-        return [];
-    }
-
-    internal static ChildRoomNeed? ContainmentCellNeed(ColonyReading facts) =>
-        ContainmentCellRules.ContainmentCellNeed(facts.Facts.Containment, FurnitureDefinitions(facts), BuildingPlanner.FlooringFactsOf(facts));
+    internal static IReadOnlyList<string> ContainmentDefinitions(ColonyReading facts) =>
+        SleepingPlanningRules.ContainmentDefinitions(facts.Facts);
 
     internal static (ChildRoomNeed Need, bool Owed) IsolationRoomNeed(ColonyReading facts) =>
-        IsolationRoomRules.IsolationRoomNeed(facts.Facts.Isolation, FurnitureDefinitions(facts));
+        SleepingPlanningRules.IsolationRoomNeed(facts.Facts);
 
-    internal static List<ChildRoomNeed> ChildRoomNeeds(ColonyReading facts)
-    {
-        var needs = new List<ChildRoomNeed>();
-        var pawns = facts.Facts.ForecastObserved.WorkPawns.Pawns;
-        {
-            needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns, facts.Facts.ForecastObserved.Needs?.Deathrest));
-        }
-        if (facts.Facts.Worship.Need is { } worship)
-        {
-            needs.Add(worship);
-        }
-        // The rooms the player's goals name (#3496) join the rooms the pawns owe: layout sizes and places them, the sleeping step builds them.
-        needs.AddRange(ChildRoomsRules.GoalRoomNeeds(facts.Facts.GoalBuild.Rooms, needs));
-        if (ContainmentCellNeed(facts) is { } cell)
-        {
-            needs.Add(cell);
-        }
-        var (isolation, isolationOwed) = IsolationRoomNeed(facts);
-        if (isolationOwed)
-        {
-            needs.Add(isolation);
-        }
-        return needs;
-    }
+    internal static List<ChildRoomNeed> ChildRoomNeeds(ColonyReading facts) =>
+        SleepingPlanningRules.ChildRoomNeeds(facts.Facts, facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray());
 
     /// <summary>The deathrest chamber's furniture the deathrest chamber credit reads (#3810), resolved as the staging resolves it.</summary>
     internal static EquatableArray<DeathrestPiece> DeathrestFurnitureOf(ColonyReading facts) =>
@@ -97,31 +62,9 @@ partial class SleepingUpkeepPlanner
     internal static EquatableArray<PlannedContainmentCell> ContainmentCellsOf(ColonyReading facts) =>
         ForecastContainment.CellsOf(facts.Facts.Containment, BuildingPlanner.FlooringFactsOf(facts));
 
-    internal static List<FurnitureDefinition> FurnitureDefinitions(ColonyReading facts)
-    {
-        var names = new HashSet<string>(WorshipDefinitions(facts).Concat(ContainmentDefinitions(facts)).Concat(facts.Facts.Isolation.Beds), StringComparer.Ordinal);
-        var defs = new List<FurnitureDefinition>();
-        foreach (var d in facts.Facts.Definitions)
-        {
-            if (d.RoomRoles.Count > 0 || names.Contains(d.Name))
-            {
-                defs.Add(new FurnitureDefinition { Name = d.Name, Available = d.Available, Size = d.Size, Roles = d.RoomRoles });
-            }
-        }
-        return defs;
-    }
+    internal static List<FurnitureDefinition> FurnitureDefinitions(ColonyReading facts) =>
+        SleepingPlanningRules.FurnitureDefinitions(facts.Facts);
 
-    internal static ChildRoomStep ChildRoomStep(ColonyReading facts)
-    {
-        var plan = facts.Facts.LayoutPlan;
-        var pk = plan is not null;
-        var rooms = facts.Facts.Upkeep.Rooms;
-        var census = facts.Facts.CurrentConstruction;
-        var ground = BuildingPlanner.ColonyGround(facts);
-        if (!pk)
-        {
-            return new ChildRoomStep();
-        }
-        return ChildRoomsRules.NextChildRoomStep(plan!, rooms!, plan!.GroundWithRock(ground, BuildingPlanner.NaturalRock(facts)), census.Buildings, ChildRoomNeeds(facts), FurnitureDefinitions(facts));
-    }
+    internal static ChildRoomStep ChildRoomStep(ColonyReading facts) =>
+        SleepingPlanningRules.ChildRoomStep(facts.Facts, facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Window is { } window ? window.Value.Cells : null);
 }

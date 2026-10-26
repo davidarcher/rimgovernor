@@ -14,12 +14,8 @@ public static partial class FacilityPlanningRules
     {
         var def = facts.Definitions.FirstOrDefault(d => d.Name == definition);
         if (def is null) return new(Cause.FieldUnavailable, definition + "_definition");
-        if (!def.Available)
-        {
-            return def.Research.Count == 0
-                ? new(Cause.AwaitingPlan, def.Name, "unavailable")
-                : new(Cause.AwaitingPlan, "research", string.Join("+", def.Research));
-        }
+        var availability = DefinitionAvailability(def);
+        if (availability.Cause != Cause.None) return availability;
         var minimum = def.ConstructionSkill;
         if (minimum < 0) return new(Cause.FieldUnavailable, definition + "_construction_skill");
         if (BuilderAvailable(facts.ForecastObserved.WorkPawns.Pawns, minimum)) return default;

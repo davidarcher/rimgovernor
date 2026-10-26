@@ -237,38 +237,8 @@ partial class BuildingPlanner
     }
 
     /// <summary>The flooring review's view of the colony's floors: every definition the mirror describes, the accessible stock and the tier style.</summary>
-    internal static Pol.FlooringFacts FlooringFactsOf(RimGovernor.Brain.GameAccess.ColonyReading facts)
-    {
-        var definitions = new Dictionary<string, Pol.FloorDefinition>(StringComparer.Ordinal);
-        var flooring = new Pol.FlooringFacts
-        {
-            Definitions = definitions,
-            Stock = ResourceStockRules.Count(facts.Snapshot.Resources),
-            Style = TierStyle.FloorStyle(facts),
-            Layout = facts.Facts.LayoutPlan,
-            Observation = facts.Facts.Upkeep.Flooring,
-        };
-        if (facts.Facts.Containment.Defs is ContainmentDefsRead.Read { Defs: var defs })
-        {
-            flooring = flooring with { ContainmentFloor = defs.Floor };
-        }
-        foreach (var d in facts.Facts.Definitions.Where(d => d.Floor is not null))
-        {
-            definitions[d.Name] = new Pol.FloorDefinition
-            {
-                Available = d.Available,
-                Terrain = d.Terrain,
-                Cleanliness = (d.Floor ?? throw new RequiredFactException("planning Floor")).Cleanliness,
-                Beauty = (d.Floor ?? throw new RequiredFactException("planning Floor")).Beauty,
-                Flammability = (d.Floor ?? throw new RequiredFactException("planning Floor")).Flammability,
-                PathCost = d.PathCost,
-                Costs = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs,
-                WorkToBuild = (d.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).WorkToBuild,
-                Tags = (d.Floor ?? throw new RequiredFactException("planning Floor")).FloorTags,
-            };
-        }
-        return flooring;
-    }
+    internal static Pol.FlooringFacts FlooringFactsOf(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
+        ColonyPlanningRules.FlooringFacts(facts.Facts, facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray());
 
     /// <summary>The census cells that are natural rock.</summary>
     internal static List<Cell> NaturalRock(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
@@ -365,17 +335,7 @@ partial class BuildingPlanner
     }
 
     /// <summary>The facing the plan sited the vent on cell with.</summary>
-    internal static Rotation VentRotation(Pol.LayoutPlan plan, Cell cell)
-    {
-        foreach (var s in plan.LiveSites(Pol.NodeKind.Vent))
-        {
-            if (s.Origin == cell && s.Rotation is Pol.Heading.Toward toward)
-            {
-                return toward.Side;
-            }
-        }
-        return Rotation.North;
-    }
+    internal static Rotation VentRotation(Pol.LayoutPlan plan, Cell cell) => FacilityPlanningRules.VentRotation(plan, cell);
 
     /// <summary>The order a wave's buildings are admitted in: doors first, then walls, floors and furniture, the vents last.</summary>
     internal static readonly Pol.OpKind[] RoomBuildKinds = [Pol.OpKind.DoorIn, Pol.OpKind.WallIn, Pol.OpKind.WallUp, Pol.OpKind.FloorIn, Pol.OpKind.Build, Pol.OpKind.VentIn];
@@ -407,17 +367,12 @@ partial class BuildingPlanner
     {
         var wallDef = AnimalContainment.AnimalContainmentDefinition(facts.Facts.Definitions, wall);
         var doorDef = AnimalContainment.AnimalContainmentDefinition(facts.Facts.Definitions, door);
-        if (wallDef is null || doorDef is null)
+        var gate = FacilityPlanningRules.ShellDefinitionsGate(wallDef, doorDef);
+        if (gate.Cause != Cause.None)
         {
-            return ("", "", FieldUnavailable("wall_door_definitions"), false);
+            return ("", "", Refuse(gate.Cause, gate.Subject, gate.Detail), false);
         }
-        var wa = wallDef.Available;
-        var da = doorDef.Available;
-        if (!wa || !da)
-        {
-            return ("", "", FieldUnavailable("wall_door_availability"), false);
-        }
-        var (wallStuff, doorStuff, refusal, ok) = choose is not null ? choose(wallDef, doorDef) : BaseRingStuff(facts, wall, door);
+        var (wallStuff, doorStuff, refusal, ok) = choose is not null ? choose(wallDef!, doorDef!) : BaseRingStuff(facts, wall, door);
         if (ok && UnstockedUntilKitAllowed(facts, wallStuff, doorStuff))
         {
             return ("", "", AwaitingPlan("start_kit", "forbidden"), false);
@@ -437,22 +392,8 @@ partial class BuildingPlanner
     /// allows the kit, and the stuff then falls to the best ranked one (stone blocks the map does not have). The
     /// ring waits for the kit instead of laying blueprints nothing can build (#2814).
     /// </summary>
-    internal static bool UnstockedUntilKitAllowed(RimGovernor.Brain.GameAccess.ColonyReading facts, params string[] stuffs)
-    {
-        var stock = ResourceStockRules.Count(facts.Snapshot.Resources);
-        if (!facts.Facts.EventLoot.Any(row => row.IsSafe && row.Forbidden))
-        {
-            return false;
-        }
-        foreach (var stuff in stuffs)
-        {
-            if (stuff != "" && stock.GetValueOrDefault(new Pol.Resource(stuff)) <= 0)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
+    internal static bool UnstockedUntilKitAllowed(RimGovernor.Brain.GameAccess.ColonyReading facts, params string[] stuffs) =>
+        FacilityPlanningRules.UnstockedUntilKitAllowed(facts.Facts, stuffs);
 
     /// <summary>Drops the blockers that are a blueprint of def, the ring cell's own wanted piece, and reports whether any was dropped.</summary>
     internal static (List<RimGovernor.Brain.GameFacts.Placement.PlacementBlocker> Remaining, bool Dropped) WithoutOwnBlueprint(IEnumerable<RimGovernor.Brain.GameFacts.Placement.PlacementBlocker> blockers, string def)

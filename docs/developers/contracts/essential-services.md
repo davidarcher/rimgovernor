@@ -127,3 +127,34 @@ food plan remains the one owner of cooking demand. Heat campfires are excluded
 from cooking retirement by the current construction claims. Required catalog and
 construction reads retain their failures; no replacement fact or strategy is
 introduced. Game identities supplied by Runtime use compiler-checked references.
+
+`FacilityPlanningRules` also owns ordered definition prerequisites, the indoor
+sleeping deficit and its 64-placement refusal, beer's barrel-before-wort
+prerequisite, suite ring stock, shell definition and forbidden-kit stock gates,
+and vent facing from the first live oriented site. Definition-only prerequisites
+continue to reject any nonzero construction skill; worker-aware prerequisites
+use the observed capable builders. `WorkRules.SelectWorkshopProduct` selects the
+first buildable or existing product, otherwise the last research candidate ahead
+of unavailable alternatives, and counts standing benches of the selected kind.
+Runtime supplies the selected product followed by its alternatives lazily and
+records only those the selection visits. A product with no usable candidate keeps
+the unavailable result; an empty product sequence violates this caller contract.
+
+`SleepingPlanningRules` owns the combined bedroom-owed predicate and the sleeping,
+companion-bed, royal and child-room prerequisite branches it visits. It keeps the
+existing short-circuit order: a bedroom deficit wins before later upgrade reads,
+and absent Royalty requires no title-claim construction facts. A selected path
+that needs the construction census, pawn profiles or planning window still fails
+when that required read is absent. The same room targets, furniture definitions,
+material prices and tier floor style serve review and execution; no second demand
+or observation owner is introduced. Direct prerequisite tests cover the selection
+order, stock boundaries and required-read failures. Crop field shrink is owned
+with the layout geometry policy, separately from these facility prerequisites.
+
+Workshop preparation calls the same `WorkRules.ExistingWorkshopBench` reuse rule
+as full selection. It can settle an existing productive bench before candidate
+definitions are read. Otherwise preparation discovers the hosting definitions,
+the census reads them, and full selection decides staging or research from those
+required rows. A further-capacity bench remains usable when no available host can
+stage its kind. A provisional request that has not selected reuse is not recorded
+as a full workshop decision; the later observed request is recorded for replay.

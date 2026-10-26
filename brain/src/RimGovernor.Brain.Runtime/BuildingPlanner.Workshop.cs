@@ -140,9 +140,10 @@ public sealed partial class BuildingPlanner
             resource = picked;
         }
         var census = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false));
-        if (resource.ToString() == "Beer")
+        var prerequisite = FacilityPlanningRules.WorkshopPrerequisiteOf(resource, observed.FermentingBarrels, "Beer");
+        if (prerequisite != WorkshopPrerequisite.Product)
         {
-            if (observed.FermentingBarrels == 0)
+            if (prerequisite == WorkshopPrerequisite.Barrel)
             {
                 var barrel = new WorkshopSelection { Barrel = true, Resource = resource, Candidates = ["FermentingBarrel"] };
                 return (barrel, new Verdict());
@@ -165,11 +166,11 @@ public sealed partial class BuildingPlanner
         {
             var hosts = defs.Catalog.RecipeHosts(product.ToString(), finished);
             var request = new Pol.WorkshopRequest { Resource = product, Benches = [.. benches], Hosts = hosts, Further = selection.Further };
-            SnapshotPlannerReplay.NoteWorkshop(request);
-            var choice = WorkRules.SelectWorkshopBench(request);
-            if (choice.Method == Pol.WorkshopMethod.Existing)
+            var (existing, _) = WorkRules.ExistingWorkshopBench(request);
+            if (existing is not null)
             {
-                RecordWorkshopLadder(state, review, product, choice, call);
+                SnapshotPlannerReplay.NoteWorkshop(request);
+                RecordWorkshopLadder(state, review, product, existing, call);
                 return (null, BuildingReasonExistingFacility);
             }
             var candidatesFor = WorkRules.WorkshopResearchCandidates(product, hosts);
@@ -254,35 +255,26 @@ public sealed partial class BuildingPlanner
         // A viable replacement precedes an unavailable or research-gated alternative.
         // Otherwise a missing layer's armor suggestion can hide a buildable shirt.
         List<WorkshopProduct> products = [new WorkshopProduct(Workshop.Resource, Workshop.Hosts), .. Workshop.Alternatives];
-        var choice = new Pol.WorkshopChoice { Method = Pol.WorkshopMethod.Unavailable };
-        var resource = Workshop.Resource;
-        foreach (var product in products)
+        IEnumerable<WorkshopRequest> Requests()
         {
-            var request = new Pol.WorkshopRequest
+            foreach (var product in products)
             {
-                Resource = product.Resource,
-                Benches = [.. Workshop.Benches],
-                Hosts = product.Hosts,
-                Definitions = definitions,
-                Power = FacilityPlanningRules.GeneratorAvailable(available),
-                BuilderSkill = WorkRules.BuilderSkill(facts.Facts.ForecastObserved.WorkPawns),
-                Further = Workshop.Further,
-            };
-            SnapshotPlannerReplay.NoteWorkshop(request);
-            var candidate = WorkRules.SelectWorkshopBench(request);
-            if (candidate.Method == Pol.WorkshopMethod.Build || candidate.Method == Pol.WorkshopMethod.Existing)
-            {
-                choice = candidate;
-                resource = product.Resource;
-                break;
-            }
-            if (candidate.Method == Pol.WorkshopMethod.Research || choice.Method == Pol.WorkshopMethod.Unavailable)
-            {
-                choice = candidate;
-                resource = product.Resource;
+                var request = new WorkshopRequest
+                {
+                    Resource = product.Resource,
+                    Benches = [.. Workshop.Benches],
+                    Hosts = product.Hosts,
+                    Definitions = definitions,
+                    Power = FacilityPlanningRules.GeneratorAvailable(available),
+                    BuilderSkill = WorkRules.BuilderSkill(facts.Facts.ForecastObserved.WorkPawns),
+                    Further = Workshop.Further,
+                };
+                SnapshotPlannerReplay.NoteWorkshop(request);
+                yield return request;
             }
         }
-RecordWorkshopLadder(state, review, resource, choice, call);
+        var (resource, choice) = WorkRules.SelectWorkshopProduct(Requests());
+        RecordWorkshopLadder(state, review, resource, choice, call);
         switch (choice.Method)
         {
 case Pol.WorkshopMethod.Existing:
@@ -295,13 +287,7 @@ case Pol.WorkshopMethod.Existing:
         var resolved = Copy();
         var selected = Workshop.Copy();
         selected.Resource = resource;
-        foreach (var b in Workshop.Benches)
-        {
-            if (b.Def == choice.Definition)
-            {
-                selected.Ordinal++;
-            }
-        }
+        selected.Ordinal += WorkRules.WorkshopOrdinal(Workshop.Benches, choice.Definition);
         resolved.Workshop = selected;
         resolved.Definition = choice.Definition;
         resolved.Environment = Pol.PlacementEnvironment.Indoors;

@@ -37,114 +37,19 @@ partial class SleepingUpkeepPlanner
     }
 
     /// <summary>The throne room the colony owes: a colony without Royalty owes none.</summary>
-    internal static (Pol.ThroneNeed Need, bool Owed) ThroneNeed(RimGovernor.Brain.GameAccess.ColonyReading facts)
-    {
-        if (facts.Facts.Royalty is not Pol.RoyaltyState.Active { Facts: var royalty })
-        {
-            return (new Pol.ThroneNeed(), false);
-        }
-        if (CeremonyRules.CeremonyThroneNeed(royalty) is { } ceremony)
-        {
-            return (ceremony, true);
-        }
-        return ThroneRules.NextThroneNeed(royalty);
-    }
+    internal static (Pol.ThroneNeed Need, bool Owed) ThroneNeed(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
+        SleepingPlanningRules.ThroneNeed(facts.Facts);
 
     /// <summary>
     /// The bestowing-ceremony quests the title claim gate allows to accept now (NextTitleClaim, ClaimQuests);
     /// none without Royalty or before the layout plan and construction census are available.
     /// </summary>
-    internal static IReadOnlyList<QuestId> TitleClaimQuests(RimGovernor.Brain.GameAccess.ColonyReading facts)
-    {
-        if (facts.Facts.Royalty is not Pol.RoyaltyState.Active { Facts: var royalty })
-        {
-            return [];
-        }
-        var sleeping = facts.Facts.Sleeping;
-        var plan = facts.Facts.LayoutPlan;
-        var pk = plan is not null;
-        var rooms = facts.Facts.Upkeep.Rooms;
-        var census = facts.Facts.CurrentConstruction;
-        if (!pk || census is null)
-        {
-            return [];
-        }
-
-        var claim = TitleClaimRules.NextTitleClaim(new Pol.TitleClaimFacts
-        {
-            Royalty = royalty,
-            Sleeping = sleeping,
-            BedroomPieces = FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells),
-            Plan = plan!,
-            Rooms = rooms!,
-            Built = census.Buildings,
-        });
-        return CeremonyRules.ClaimQuests(royalty!, claim);
-    }
+    internal static IReadOnlyList<QuestId> TitleClaimQuests(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
+        SleepingPlanningRules.TitleClaimQuests(facts.Facts, facts.Window is { } window ? window.Value.Cells : null);
 
     /// <summary>The projection's next throne step; none before the layout plan or construction census is available.</summary>
-    internal static Pol.ThroneStep ThroneStepOf(RimGovernor.Brain.GameAccess.ColonyReading facts)
-    {
-        var (need, owed) = ThroneNeed(facts);
-        var plan = facts.Facts.LayoutPlan;
-        var pk = plan is not null;
-        var rooms = facts.Facts.Upkeep.Rooms;
-        var census = facts.Facts.CurrentConstruction;
-        if (!owed || !pk || census is null)
-        {
-            return new Pol.ThroneStep();
-        }
-        var names = need.DefNames();
-        var defs = new List<Pol.FurnitureDefinition>(names.Count);
-        foreach (var d in facts.Facts.Definitions)
-        {
-            if (names.Contains(d.Name))
-            {
-                defs.Add(new Pol.FurnitureDefinition { Name = d.Name, Available = d.Available, Size = d.Size });
-            }
-        }
-        var ground = BuildingPlanner.ColonyGround(facts);
-        // ThroneNeed owes a room only with Royalty active.
-        var thrones = facts.Facts.Royalty is Pol.RoyaltyState.Active { Facts: var royalty } ? royalty.Thrones : [];
-        var step = ThroneRules.NextThroneStep(plan!, rooms!, plan!.GroundWithRock(ground, BuildingPlanner.NaturalRock(facts)), census.Buildings, need, defs, thrones);
-        if (step.Kind != Pol.ThroneStepKind.None)
-        {
-            return step;
-        }
-        // Everything stands and is assigned: keep its braziers lit.
-        var lighting = facts.Facts.Upkeep.Lighting;
-        var workers = facts.Facts.ForecastObserved.WorkPawns.Pawns;
-
-        return ThroneRules.NextThroneRefuel(plan, rooms!, need, lighting.Lamps, workers!);
-    }
-
-    /// <summary>
-    /// Adds the throne room's and the worship room's impressiveness targets (the title's, the presence demands', #3808) to
-    /// the room quality targets, so the room upgrade and the beauty upgrade furnish them.
-    /// </summary>
-    internal static Dictionary<string, Pol.RoomTarget>? WithRequirementTargets(RimGovernor.Brain.GameAccess.ColonyReading facts, Dictionary<string, Pol.RoomTarget>? targets)
-    {
-        var (need, owed) = ThroneNeed(facts);
-        var plan = facts.Facts.LayoutPlan;
-        var pk = plan is not null;
-        var rooms = facts.Facts.Upkeep.Rooms;
-        if (!pk)
-        {
-            return targets;
-        }
-        var throne = owed ? ThroneRules.ThroneRoomTargets(plan!, rooms!, need) : new Dictionary<string, Pol.RoomTarget>();
-        var worship = Pol.WorshipRules.WorshipRoomTargets(plan!, rooms!, facts.Facts.Worship);
-        if (throne.Count == 0 && worship.Count == 0)
-        {
-            return targets;
-        }
-        targets ??= new Dictionary<string, Pol.RoomTarget>(StringComparer.Ordinal);
-        foreach (var (id, t) in throne.Concat(worship))
-        {
-            targets[id] = t;
-        }
-        return targets;
-    }
+    internal static Pol.ThroneStep ThroneStepOf(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
+        SleepingPlanningRules.ThroneStepOf(facts.Facts, facts.Window is { } window ? window.Value.Cells : null);
 
     /// <summary>
     /// Marks the standing throne room in the flooring census with the title's flooring requirement, so the
@@ -152,35 +57,8 @@ partial class SleepingUpkeepPlanner
     /// projection's own stay untouched. No requirement, no standing room or an unlisted room leaves the census
     /// as read.
     /// </summary>
-    internal static Pol.FlooringObservation WithThroneFloor(RimGovernor.Brain.GameAccess.ColonyReading facts, Pol.FlooringObservation v)
-    {
-        var (need, owed) = ThroneNeed(facts);
-        if (!owed || facts.Facts.LayoutPlan is not { } plan || need.FloorTags.Count == 0)
-        {
-            return v;
-        }
-        var rooms = facts.Facts.Upkeep.Rooms;
-        var (room, ok) = plan.ThroneRoomFor(need.MinArea);
-        if (!ok)
-        {
-            return v;
-        }
-        // Census: the floor requirement is keyed by the room's id.
-        var (standing, found) = PlannedRoom.CensusRoomIn(room, rooms);
-        if (!found || standing is null)
-        {
-            return v;
-        }
-        var copy = v.Rooms.ToList();
-        for (var i = 0; i < copy.Count; i++)
-        {
-            if (copy[i].Id == standing.Id)
-            {
-                copy[i] = copy[i] with { RequiredTags = need.FloorTags };
-            }
-        }
-        return v with { Rooms = [.. copy] };
-    }
+    internal static Pol.FlooringObservation WithThroneFloor(RimGovernor.Brain.GameAccess.ColonyReading facts, Pol.FlooringObservation v) =>
+        SleepingPlanningRules.WithThroneFloor(facts.Facts, v);
 }
 
 public sealed partial class SleepingUpkeepPlanner

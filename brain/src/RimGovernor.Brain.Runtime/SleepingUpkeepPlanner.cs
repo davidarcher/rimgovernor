@@ -381,33 +381,12 @@ partial class SleepingUpkeepPlanner
     }
 
     /// <summary>Each colonist's trait effects from the work census, null while it is unknown.</summary>
-    internal static Dictionary<PawnId, Pol.TraitEffects>? SleepingTraits(RimGovernor.Brain.GameAccess.ColonyReading facts)
-    {
-        var pawns = facts.Facts.ForecastObserved.WorkPawns.Pawns;
-        var output = new Dictionary<PawnId, Pol.TraitEffects>(pawns.Count);
-        foreach (var p in pawns)
-        {
-            output[p.Id] = PawnRules.BuildProfile(p).Effects;
-        }
-        return output;
-    }
+    internal static Dictionary<PawnId, Pol.TraitEffects>? SleepingTraits(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
+        SleepingPlanningRules.SleepingTraits(facts.Facts);
 
     /// <summary>The next room quality swap: a jealous colonist into the best solo bedroom, an ascetic into the plainest.</summary>
-    internal static (Pol.BedroomSwap Swap, bool Ok) BedroomSwapOf(RimGovernor.Brain.GameAccess.ColonyReading facts)
-    {
-        var obs = facts.Facts.Sleeping;
-        var traits = SleepingTraits(facts);
-        if (traits is null)
-        {
-            return (new Pol.BedroomSwap(), false);
-        }
-        var rooms = facts.Facts.Upkeep.Rooms;
-        if (facts.Facts.LayoutPlan is not { } plan)
-        {
-            return (new Pol.BedroomSwap(), false);
-        }
-        return RoomQualityRules.NextBedroomSwap(obs, traits, RoomQualityRules.SuiteRoomIds(plan, rooms));
-    }
+    internal static (Pol.BedroomSwap Swap, bool Ok) BedroomSwapOf(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
+        SleepingPlanningRules.BedroomSwapOf(facts.Facts);
 
     /// <summary>
     /// Whether the bedroom ladder answers a sleeping choice: with no demand, and ahead of a barracks bed while

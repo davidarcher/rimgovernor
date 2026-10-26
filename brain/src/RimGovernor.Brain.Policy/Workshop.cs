@@ -164,6 +164,27 @@ public static partial class WorkRules
     }
 
     /// <summary>
+    /// Settles reuse without definition reads. Further capacity retains the last productive bench while an
+    /// available host of that kind can still be staged; without such a host, reuse already wins before research.
+    /// </summary>
+    public static (WorkshopChoice? Existing, WorkshopChoice? Further) ExistingWorkshopBench(WorkshopRequest r)
+    {
+        if (!AdmissionRules.ValidResource(r.Resource)) throw new DomainException("invalid workshop resource");
+        WorkshopChoice? further = null;
+        foreach (var bench in r.Benches)
+        {
+            foreach (var recipe in bench.Recipes)
+            {
+                if (!GearRules.ContainsResource(recipe.Products, r.Resource) || !recipe.Available || !recipe.AvailableOn) continue;
+                var existing = new WorkshopChoice { Method = WorkshopMethod.Existing, Recipe = recipe.Definition };
+                if (!r.Further.Contains(bench.Def)) return (existing, null);
+                further = existing;
+            }
+        }
+        if (further is not null && !WorkshopBenchCandidates(r.Resource, r.Hosts).Any(r.Further.Contains)) return (further, null);
+        return (null, further);
+    }
+    /// <summary>
     /// Decides whether a resource deficit already has a bench (reuse first), needs one staged (the first candidate
     /// the census reports buildable by a builder the colony has, unpowered before powered), is waiting on research
     /// (the first candidate gated by nothing else), or cannot be served yet. It issues no orders and reserves
@@ -171,32 +192,8 @@ public static partial class WorkRules
     /// </summary>
     public static WorkshopChoice SelectWorkshopBench(WorkshopRequest r)
     {
-        if (!AdmissionRules.ValidResource(r.Resource))
-        {
-            throw new DomainException("invalid workshop resource");
-        }
-        WorkshopChoice? reuse = null;
-        foreach (var b in r.Benches)
-        {
-            foreach (var recipe in b.Recipes)
-            {
-                if (!GearRules.ContainsResource(recipe.Products, r.Resource))
-                {
-                    continue;
-                }
-                if (recipe.Available && recipe.AvailableOn)
-                {
-                    var existing = new WorkshopChoice { Method = WorkshopMethod.Existing, Definition = "", Recipe = recipe.Definition };
-                    if (!r.Further.Contains(b.Def))
-                    {
-                        return existing;
-                    }
-
-                    // Capacity no longer suffices: a further bench of the kind, with this one as the fallback when none can be staged.
-                    reuse = existing;
-                }
-            }
-        }
+        var (existing, reuse) = ExistingWorkshopBench(r);
+        if (existing is not null) return existing;
         var byName = new Dictionary<string, BenchDefinition>();
         foreach (var d in r.Definitions)
         {

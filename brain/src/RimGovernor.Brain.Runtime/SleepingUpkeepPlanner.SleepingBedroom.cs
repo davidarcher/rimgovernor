@@ -47,31 +47,12 @@ partial class SleepingUpkeepPlanner
     }
 
     /// <summary>The projection's next wing migration step: none without the layout plan, the room census or the sleeping census.</summary>
-    internal static Pol.BedroomStep MigrateStep(RimGovernor.Brain.GameAccess.ColonyReading facts)
-    {
-        var plan = facts.Facts.LayoutPlan;
-        var pk = plan is not null;
-        var rooms = facts.Facts.Upkeep.Rooms;
-        var sleeping = facts.Facts.Sleeping;
-        if (!pk)
-        {
-            return new Pol.BedroomStep();
-        }
-        return SleepingRules.NextMigrateStep(plan!, rooms!, sleeping!);
-    }
+    internal static Pol.BedroomStep MigrateStep(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
+        SleepingPlanningRules.MigrateStep(facts.Facts);
 
     /// <summary>The rooms' quality targets, so a bedroom move leaves an ascetic's NeverUpgrade room alone; null while the census is unknown.</summary>
-    internal static Dictionary<string, Pol.RoomTarget>? BedroomTargets(RimGovernor.Brain.GameAccess.ColonyReading facts)
-    {
-        var obs = facts.Facts.Sleeping;
-        var traits = SleepingTraits(facts);
-        if (traits is null)
-        {
-            return null;
-        }
-        var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
-        return RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Facts.Impressiveness);
-    }
+    internal static Dictionary<string, Pol.RoomTarget>? BedroomTargets(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
+        SleepingPlanningRules.BedroomTargets(facts.Facts, facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray());
 
     /// <summary>
     /// The target-sized bedrooms the station graph sizes (#2939): the plan's suites with their owners' targets
@@ -92,42 +73,15 @@ partial class SleepingUpkeepPlanner
     }
 
     /// <summary>Excludes pawns awaiting a suite; their current rooms receive no in-place quality upgrade.</summary>
-    internal static IReadOnlyDictionary<string, Pol.RoomTarget> UpgradeTargetsOf(RimGovernor.Brain.GameAccess.ColonyReading facts, IReadOnlyDictionary<string, Pol.RoomTarget>? targets)
-    {
-        var plan = facts.Facts.LayoutPlan;
-        var pk = plan is not null;
-        var rooms = facts.Facts.Upkeep.Rooms;
-        var sleeping = facts.Facts.Sleeping;
-        var traits = SleepingTraits(facts);
-        if (!pk || traits is null)
-        {
-            return targets ?? new Dictionary<string, Pol.RoomTarget>();
-        }
-        var claims = RoomQualityRules.SuiteClaims(plan!, rooms!, sleeping!, BedroomTargets(facts) ?? new Dictionary<string, Pol.RoomTarget>(), traits, SuitePressure(facts) ?? new Dictionary<PawnId, double>());
-        return RoomQualityRules.UpgradeTargets(targets ?? new Dictionary<string, Pol.RoomTarget>(), sleeping!, claims);
-    }
+    internal static IReadOnlyDictionary<string, Pol.RoomTarget> UpgradeTargetsOf(RimGovernor.Brain.GameAccess.ColonyReading facts, IReadOnlyDictionary<string, Pol.RoomTarget>? targets) =>
+        SleepingPlanningRules.UpgradeTargetsOf(facts.Facts, facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), targets);
 
     /// <summary>
     /// The review's BedroomsOwed for the projection. A due room quality swap or wing migration owes a
     /// bedroom too, so the sleeping Need stays unmet until it is done.
     /// </summary>
-    internal static bool BedroomsOwedOf(RimGovernor.Brain.GameAccess.ColonyReading facts)
-    {
-        if (SleepingRules.BedroomsOwed(facts.Facts.LayoutPlan, facts.Facts.Upkeep.Rooms, facts.Facts.Sleeping, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts)))
-        {
-            return true;
-        }
-        if (facts.Facts.LayoutPlan is null)
-        {
-            return false;
-        }
-        return BedroomSwapOf(facts).Ok
-            || MigrateStep(facts).Kind != Pol.BedroomStepKind.None
-            || RoomUpgradeOf(facts).Due
-            || CompanionBed(facts).Due
-            || ThroneStepOf(facts).Owed
-            || ChildRoomStep(facts).Owed();
-    }
+    internal static bool BedroomsOwedOf(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
+        SleepingPlanningRules.BedroomsOwedOf(facts.Facts, facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Window is { } window ? window.Value.Cells : null);
 
     /// <summary>
     /// Prefixes every planned room's reconcile methods: "&lt;role&gt;-shell-room&lt;id&gt;". The in-flight census reads a
@@ -143,7 +97,7 @@ partial class SleepingUpkeepPlanner
 
     /// <summary>Orders the suite queue by the pawns' current bedroom, space and jealousy thoughts; null (pawn-id order) while the mood census is unknown.</summary>
     internal static Dictionary<PawnId, double>? SuitePressure(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
-        SuitePriorityRules.SuitePressure(facts.Facts.MoodPawns);
+        SleepingPlanningRules.SuitePressure(facts.Facts);
 }
 
 public sealed partial class SleepingUpkeepPlanner
@@ -158,14 +112,9 @@ public sealed partial class SleepingUpkeepPlanner
     {
         var facts = reading.Reading;
         // A suite is only started with its whole ring in stock.
-        if (step.Room.Role == Pol.PlannedRole.Suite)
+        if (!FacilityPlanningRules.SuiteStockAvailable(facts.Facts, step.Room))
         {
-            var inside = step.Room.Region.Bounds();
-            var walls = ColonyPlanningRules.StockedStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), "Wall")?.Count ?? 0;
-            if (walls < 2 * (inside.Width + inside.Height) + 4)
-            {
-                return new BuildingResult { Verdict = BuildingReasonSuiteStock };
-            }
+            return new BuildingResult { Verdict = BuildingReasonSuiteStock };
         }
         var request = SleepingRequest(facts, review);
         var (bed, method) = SleepingRules.SleepingDefinition(facts.Facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true);

@@ -154,17 +154,14 @@ public sealed partial class BuildingPlanner
                 }
                 return (1, new MethodId(string.Create(CultureInfo.InvariantCulture, $"sleeping-{Definition}-{Sleeping.Unhoused}")), default);
             }
-            var capacity = facts.Facts.Census.IndoorSleepingCapacity;
-            var missing = count - capacity;
-            if (missing <= 0)
+            var demand = FacilityPlanningRules.IndoorSleepingDemand(count, facts.Facts.Census.IndoorSleepingCapacity);
+            return demand.Method switch
             {
-                return (0, default, BuildingReasonNoDeficit);
-            }
-            if (missing > 64)
-            {
-                return (0, default, NoSpace("housing_bound"));
-            }
-            return (missing, new MethodId(string.Create(CultureInfo.InvariantCulture, $"indoor-sleeping-{count}-{missing}")), default);
+                IndoorSleepingMethod.NoDeficit => (0, default, BuildingReasonNoDeficit),
+                IndoorSleepingMethod.Bound => (0, default, NoSpace("housing_bound")),
+                IndoorSleepingMethod.Build => (demand.Count, new MethodId(string.Create(CultureInfo.InvariantCulture, $"indoor-sleeping-{count}-{demand.Count}")), default),
+                var invalid => throw new ControlException($"invalid indoor sleeping method {invalid}"),
+            };
         }
         if (c == FoodRules.CookingNeed.FilingKey)
         {
