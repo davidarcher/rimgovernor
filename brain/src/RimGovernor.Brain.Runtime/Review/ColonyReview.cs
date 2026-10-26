@@ -624,7 +624,6 @@ public sealed partial class ColonyReview
             required = WorkDemandRules.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(reading.Reading.Facts.Containment));
             {
                 var demand = Disease.DiseaseDemand(reading.Reading, definitions, previous, state.Snapshot);
-                try
                 {
                     var work = WorkRules.PlanWork(pawns, required!, demand);
                     reading = reading.WithFacts(rf => rf with { WorkCoverage = work.Planned ? (work.Matches ? WorkCoverageState.Matched : WorkCoverageState.Unmatched) : WorkCoverageState.Unread });
@@ -638,10 +637,6 @@ public sealed partial class ColonyReview
                         reading = reading.WithFacts(rf => rf with { QuestRoster = QuestCapacity.QuestRosterOf(reading.Reading.Facts.ForecastObserved.WorkPawns, reading.Reading.Facts.MoodPawns, work) });
                         reading = reading.WithFacts(rf => rf with { WorkHelp = work.Help });
                     }
-                }
-                catch (DomainException)
-                {
-                    // PlanWork's error leaves the coverage facts as the review set them.
                 }
             }
         }

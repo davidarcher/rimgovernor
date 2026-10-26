@@ -42,7 +42,9 @@ public sealed partial class GameClient
             }
             catch (BridgeUnavailableException)
             {
-                // The owned clock status is unavailable: the step goes on without it.
+                // Optional owned status is absent in this returned step. No
+                // previously read status is carried across the failed read.
+                return step;
             }
         }
         return step;

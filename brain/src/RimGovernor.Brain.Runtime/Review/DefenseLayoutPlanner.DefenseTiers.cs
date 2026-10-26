@@ -227,17 +227,10 @@ public sealed partial class DefenseLayoutPlanner
         var rows = new Dictionary<string, ClearRow>(StringComparer.Ordinal);
         foreach (var thing in things)
         {
-            try
+            var row = catalog.ClearRow(thing.Def, thing.Stuff);
+            if (row is not null)
             {
-                var row = catalog.ClearRow(thing.Def, thing.Stuff);
-                if (row is not null)
-                {
-                    rows[DefenseBlock.ClearKey(thing.Def, thing.Stuff)] = row;
-                }
-            }
-            catch (DomainException)
-            {
-                // A thing without a priced clear row stays unpriced.
+                rows[DefenseBlock.ClearKey(thing.Def, thing.Stuff)] = row;
             }
         }
         var p = read.Reading;

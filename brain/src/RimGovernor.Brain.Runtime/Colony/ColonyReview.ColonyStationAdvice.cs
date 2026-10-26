@@ -463,14 +463,7 @@ internal static class StationFactsBuilder
     public static StationFacts StationFactsOf(ColonyReading projection, LayoutPlan plan, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
     {
         var f = GraphFactsOf(projection, plan, needs, ledger) with { Survey = survey };
-        try
-        {
-            // an unread or inconsistent census leaves the guard off
-            f = f with { Mismatches = BuildingPlanner.RoleMismatches(projection) };
-        }
-        catch (DomainException)
-        {
-        }
+        f = f with { Mismatches = BuildingPlanner.RoleMismatches(projection) };
         var ground = BuildingPlanner.ColonyGround(projection);
         f = f with { Built = LayoutPlan.BuiltRooms(plan, ground), ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
         return f;

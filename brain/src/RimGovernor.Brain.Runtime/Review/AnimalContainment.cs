@@ -39,8 +39,11 @@ internal static class AnimalContainment
                 return price.Stuff;
             }
         }
-        catch (DomainException)
+        catch (NoStuffInStockException)
         {
+            // No stock is a real absence: choose shared stuff whose acquisition
+            // the normal construction demand can fund. Missing price facts still fail.
+            return AnimalContainmentStuff(a, b);
         }
         return AnimalContainmentStuff(a, b);
     }

@@ -483,19 +483,12 @@ public sealed partial class PlannerScheduler
         {
             if (!immediate)
             {
-                // Ordinary section refreshes belong after protective execution too. Failed reads retain the
-                // existing explicit stale/unknown evidence.
+                // Ordinary section refreshes belong after protective execution too.
+                // A failed required read aborts the wave before planning on stale facts.
                 var stepContext = _stepContext ?? throw new HeldException("planner wave ran before the step read its status");
                 var stepIdentity = stepContext.Identity ?? throw new HeldException("planner wave ran before the step read its identity");
                 await PlannerEntities.RefreshEntitySectionsAsync(_native, _facts, stepIdentity, FactScope(stepContext), call).ConfigureAwait(false);
-                try
-                {
-                    _ = await ZonesReads.ReadZoneSection(_native, stepIdentity, call).ConfigureAwait(false);
-                }
-                catch (Exception e) when (e is not OperationCanceledException)
-                {
-                    // A failed zone read keeps the held census: planners ask again and judge its staleness.
-                }
+                _ = await ZonesReads.ReadZoneSection(_native, stepIdentity, call).ConfigureAwait(false);
             }
             output.Stages.Lap("refresh");
             List<string> planners;

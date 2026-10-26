@@ -165,6 +165,15 @@ claim is relaxed. Stale identity, ownership, revision and other invariant failur
 still throw. The existing coupled_observed signal reports deferred admission
 after the result, rather than describing a rejected proposal as a transition.
 
+Required zone refreshes, station role facts, defense geometry and work coverage
+must succeed before a planning pass continues. A missing fact or broken invariant
+ends that pass and reaches the scheduler's existing refresh/replan owner; earlier
+coverage is never substituted. An open defense site has an empty rock list, while
+an invalid opening fails. Containment may select shared material for future
+acquisition when no allowed material is stocked, but missing stuff facts fail.
+Unavailable optional clock status is absent in the returned step and is read
+again on the next step; other status failures propagate.
+
 Native authority generation rollover ends PawnActivities ownership. The current
 shared action census excludes both pending and installed activity intent from
 older generations, including predecessor cleanup history. It issues no release

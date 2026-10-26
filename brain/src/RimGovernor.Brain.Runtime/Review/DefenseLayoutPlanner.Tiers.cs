@@ -295,16 +295,10 @@ public sealed partial class DefenseLayoutPlanner
         {
             return (new DefenseLayout(), [], plan, held, false);
         }
-        IReadOnlyList<RoleCell>? rock = null;
-        try
-        {
-            rock = DefenseLayout.DefenseRockCells(request);
-        }
-        catch (DomainException)
-        {
-            // No rock to dig: the killbox is laid out on the open ground.
-        }
-        if (rock is not null)
+        // Open ground is an empty list. A malformed/unread site is a failed
+        // planning pass, never evidence that there is no rock to clear.
+        var rock = DefenseLayout.DefenseRockCells(request);
+        if (rock.Count > 0)
         {
             var (result, handled) = await DigKillboxAsync(goal, review, state, read, request.Home, rock, call, epoch).ConfigureAwait(false);
             if (handled)
