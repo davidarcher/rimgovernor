@@ -33,8 +33,9 @@ catalog join reconstructs them in the brain. The forecast view retains reference
 to those rows and classifies barred stocks and reserve IDs. Reserve selections
 remain derived policy state under the existing food-reserve owner; protecting a
 stock in a forecast does not change its observed forbidden flag.
-A bench's auto-refuel state stays NotRefuelable or
-Refuelable(Allowed) through observation and heat-campfire selection.
+The canonical building fuel service owns auto-refuel control: NoSwitch or
+Switch(Allowed). Bill stacks do not duplicate this physical state. Temperature
+control reads the building service, including heaters with no cooking recipes.
 
 Cooling-room and meal-closet demand are computed from the current layout and
 room census. Before a layout exists there are no planned rooms to cool or shell.

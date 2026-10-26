@@ -60,7 +60,7 @@ public sealed class LightingTests
         var native = new LampState("torch", false);
         var fuel = new BuildingFuel.Refuelable
         {
-            Fuel = 0, TargetFuel = 30, OutOfFuel = true, Burn = BuildingServiceWire.IdleBurn,
+            AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(), Fuel = 0, TargetFuel = 30, OutOfFuel = true, Burn = BuildingServiceWire.IdleBurn,
         };
         var building = PowerBuildingFixtures.Trader("torch", "TorchLamp", new(2, 3), 0, 0, false) with
         {

@@ -8,8 +8,7 @@ namespace RimGovernor.Native
     // BuildingPatchIntent's auto_refuel arm: the game's auto-refuel
     // toggle (CompRefuelable.allowAutoRefuel) on one exact player building
     // whose refuelable shows that toggle. A setting that already holds
-    // applies again. The colony read reports the flag on a cooking bench
-    // (CookingFacts.auto_refuel).
+    // applies again. The canonical building fuel service reports the control.
     internal static class NativeAutoRefuel
     {
         internal static CompRefuelable? Comp(Thing thing) =>

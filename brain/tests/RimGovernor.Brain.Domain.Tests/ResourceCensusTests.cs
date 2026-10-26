@@ -17,7 +17,7 @@ public sealed class ResourceCensusTests
             {
                 Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable
                 {
-                    Fuel = empty ? 0 : 2, TargetFuel = 10, OutOfFuel = empty,
+                    AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(), Fuel = empty ? 0 : 2, TargetFuel = 10, OutOfFuel = empty,
                     Burn = new RimGovernor.Brain.GameFacts.Observations.FuelBurn { PerDay = 2, UnitsPerItem = 2, UseDriven = useDriven, InRain = rain, WhenPowered = false, Flickable = false },
                 },
             },

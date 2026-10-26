@@ -163,7 +163,11 @@ namespace RimGovernor.Native
             Power = Power(thing),
             SwitchedOn = thing.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true,
             Fuel = thing.TryGetComp<CompRefuelable>() is { } fuel
-                ? new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { Burn = new RimGovernor.Brain.GameFacts.Observations.FuelBurn {
+                ? new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable {
+                    AutoRefuel = NativeAutoRefuel.Comp(thing) is CompRefuelable controlled
+                        ? new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.Switch { Allowed = controlled.allowAutoRefuel }
+                        : new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(),
+                    Burn = new RimGovernor.Brain.GameFacts.Observations.FuelBurn {
                     PerDay = Nonnegative(fuel.Props.fuelConsumptionRate), UnitsPerItem = Nonnegative(fuel.Props.FuelMultiplierCurrentDifficulty),
                     UseDriven = fuel.Props.consumeFuelOnlyWhenUsed || fuel.Props.externalTicking,
                     InRain = fuel.Props.fuelConsumptionPerTickInRain > 0,

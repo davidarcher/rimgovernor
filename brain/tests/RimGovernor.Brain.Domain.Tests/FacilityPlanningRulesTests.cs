@@ -6,6 +6,34 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class FacilityPlanningRulesTests
 {
     [Fact]
+    public void HeatingControlReadsTheBuildingServiceWithoutABillStack()
+    {
+        var cell = new Cell(1, 1);
+        var placement = new Building("InstalledFuelHeater", cell, Rotation.North, "");
+        var heater = ConstructionObservationFixtures.Built(placement, "heater");
+        heater = heater with { Observed = heater.Observed with { Service = heater.Observed.Service with
+        {
+            Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable
+            {
+                AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.Switch { Allowed = true },
+                Burn = BuildingServiceWire.IdleBurn, Fuel = 1, TargetFuel = 10, OutOfFuel = false,
+            },
+        } } };
+        var facts = ColonyFactsCoreTests.Reading().Facts;
+        facts = facts with
+        {
+            CurrentConstruction = CurrentConstruction.Empty with { Buildings = [heater] },
+            ConstructionClaims = [new() { Concern = ShelterFamily.Temperature.FilingKey, Building = placement, Cells = [cell] }],
+            Upkeep = facts.Upkeep with { Rooms = RoomFixtures.Census((RoomFixtures.State("room"), [cell])) },
+        };
+        Assert.Empty(facts.EssentialInputs.Benches);
+        Assert.Equal(new HeatCampfire { Id = "heater", Room = "room", AutoRefuel = true },
+            Assert.Single(FacilityPlanningRules.HeatCampfires(facts, placement.Definition)));
+        facts = facts with { Upkeep = facts.Upkeep with { Rooms = RoomTestFacts.NoRooms } };
+        Assert.Empty(FacilityPlanningRules.HeatCampfires(facts, placement.Definition));
+    }
+
+    [Fact]
     public void CookingWaitsForItsFoodPlanBeforeLookingForAReplacement()
     {
         var facts = ColonyFactsCoreTests.Reading().Facts with { Cooking = true };

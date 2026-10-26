@@ -11,7 +11,7 @@ internal static class ProductionBenchFixtures
     {
         Bench = id, BenchDef = definition, Snapshot = new() { EntityId = id, Token = token },
         Usable = usable, Room = room is null ? null : new() { Id = room }, WorkSpeed = 1, Bills = [],
-        AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.NotRefuelable(),
+
     };
 
     internal static ProductionBench Ordinary(string id, string definition, string token, bool usable, string? room = null) => new()

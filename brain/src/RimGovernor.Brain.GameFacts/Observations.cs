@@ -2001,8 +2001,6 @@ public sealed record BillStackRow
 
     public RimGovernor.Brain.GameFacts.Common.Ref? Room { get; init; }
 
-    public required BenchAutoRefuel AutoRefuel { get; init; }
-
     public required double WorkSpeed { get; init; }
 }
 
@@ -2208,6 +2206,7 @@ public abstract record BuildingFuel
     /// <summary>CompRefuelable's fuel, its target fuel level, and whether it is out of fuel (not HasFuel).</summary>
     public sealed record Refuelable : BuildingFuel
     {
+        public required AutoRefuelControl AutoRefuel { get; init; }
         public required FuelBurn Burn { get; init; }
 
         public required double Fuel { get; init; }
@@ -5383,18 +5382,18 @@ public sealed record FoodProduction
     public required EquatableArray<FoodProduct> Products { get; init; }
 }
 
-/// <summary>A cooking bench's auto-refuel setting: <see cref="NotRefuelable"/> without a refuelable comp.</summary>
+/// <summary>A refuelable building's auto-refuel control, absent when its native comp exposes no switch.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(BenchAutoRefuel.NotRefuelable), "not_refuelable")]
-[JsonDerivedType(typeof(BenchAutoRefuel.Refuelable), "refuelable")]
-public abstract record BenchAutoRefuel
+[JsonDerivedType(typeof(AutoRefuelControl.NoSwitch), "no_switch")]
+[JsonDerivedType(typeof(AutoRefuelControl.Switch), "switch")]
+public abstract record AutoRefuelControl
 {
-    private protected BenchAutoRefuel() { }
+    private protected AutoRefuelControl() { }
 
-    public sealed record NotRefuelable : BenchAutoRefuel;
+    public sealed record NoSwitch : AutoRefuelControl;
 
     /// <summary>CompRefuelable.allowAutoRefuel.</summary>
-    public sealed record Refuelable : BenchAutoRefuel
+    public sealed record Switch : AutoRefuelControl
     {
         public required bool Allowed { get; init; }
     }

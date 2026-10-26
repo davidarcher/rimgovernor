@@ -117,9 +117,6 @@ namespace RimGovernor.Native
                 Bills = [.. bills],
                 WorkSpeed = workSpeed,
                 Room = bench.GetRoom() is Room room ? NativeRef.Room(room) : null,
-                AutoRefuel = NativeAutoRefuel.Comp(bench) is CompRefuelable refuel
-                    ? new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed = refuel.allowAutoRefuel }
-                    : new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.NotRefuelable(),
             };
         }
 

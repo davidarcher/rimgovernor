@@ -140,7 +140,6 @@ public static partial class FacilityPlanningRules
     public static List<HeatCampfire> HeatCampfires(ReviewFacts facts, string campfireDefinition)
     {
         var claims = facts.ConstructionClaims;
-        var benches = facts.EssentialInputs.Benches.Where(b => !b.Butcher).ToArray();
         var census = facts.CurrentConstruction;
         var heat = HeatCampfireCells(claims, campfireDefinition);
         if (census is null || heat.Count == 0)
@@ -148,18 +147,19 @@ public static partial class FacilityPlanningRules
             return [];
         }
         var output = new List<HeatCampfire>();
-        foreach (var bench in benches)
+        foreach (var b in census.Buildings)
         {
-            if (bench.Definition != campfireDefinition)
+            if (b.Building.Definition != campfireDefinition || b.Cells.Count == 0 || !heat.Contains(b.Cells[0]))
             {
                 continue;
             }
-            foreach (var b in census.Buildings)
+            if (b.Observed.Service.Fuel is not RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable fuel)
+                throw new RequiredFactException("heating building fuel:" + b.Id);
+            foreach (var room in facts.Upkeep.Rooms.Rooms)
             {
-                if (b.Id == bench.Id && b.Cells.Count > 0 && heat.Contains(b.Cells[0]))
+                if (facts.Upkeep.Rooms.CellsOf(room).Contains(b.Cells[0]))
                 {
-                    // A campfire whose native room or auto-refuel toggle was not read owes no switch.
-                    if (HeatCampfire.Of(bench.Id, bench.Room, bench.Observed.AutoRefuel) is { } campfire)
+                    if (HeatCampfire.Of(b.Id, room.Id, fuel.AutoRefuel) is { } campfire)
                     {
                         output.Add(campfire);
                     }

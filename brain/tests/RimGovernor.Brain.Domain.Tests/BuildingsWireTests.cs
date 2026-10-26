@@ -93,7 +93,7 @@ public sealed class BuildingsWireTests
             BuildingServiceWire.NoService with
             {
                 Power = new RimGovernor.Brain.GameFacts.Observations.BuildingPower.Trader { RatedW = 1000, PowerOn = true, OutputW = 1000, Network = "net-1" },
-                Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 30, OutOfFuel = true },
+                Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(), Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 30, OutOfFuel = true },
             },
             BuildingServiceWire.NoService with { Power = new RimGovernor.Brain.GameFacts.Observations.BuildingPower.Trader { RatedW = -100, PowerOn = false, OutputW = 0, Network = null } },
             BuildingServiceWire.NoService with { Power = new RimGovernor.Brain.GameFacts.Observations.BuildingPower.Battery { StorageWD = 600, Network = "net-2" }, BrokenDown = true },

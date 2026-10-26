@@ -62,8 +62,8 @@ public sealed record HeatCampfire
     public required bool AutoRefuel { get; init; }
 
     /// <summary>The campfire with its native room and toggle; no room heat source outdoors or before the toggle is read.</summary>
-    public static HeatCampfire? Of(string id, string? room, RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel autoRefuel) =>
-        room is { } r && autoRefuel is RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed: var on } ? new HeatCampfire { Id = id, Room = r, AutoRefuel = on } : null;
+    public static HeatCampfire? Of(string id, string? room, RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl autoRefuel) =>
+        room is { } r && autoRefuel is RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.Switch { Allowed: var on } ? new HeatCampfire { Id = id, Room = r, AutoRefuel = on } : null;
 }
 
 public sealed record TemperatureProposal

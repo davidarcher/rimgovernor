@@ -63,7 +63,7 @@ public sealed class ClimateStatesTests
     public void ARefuelSwitchOutranksTheRoomMethodAndNamesTheCampfire()
     {
         var sleeper = new SleepingPerson { Native = SleepingNativeFixtures.Person(id: new PawnId("p")), Pawn = SleepingNativeFixtures.Pawn(id: new PawnId("p"), ownedBed: "bed", comfortableMin: 16, comfortableMax: 26) };
-        var burning = HeatCampfire.Of("fire", "room", new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed = true });
+        var burning = HeatCampfire.Of("fire", "room", new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.Switch { Allowed = true });
         var cooling = Cooling(campfires: [burning!], sleepers: [sleeper]);
         var off = TemperatureMethodRules.SelectTemperatureMethod(Rooms(30, true, "bed"), ["bed"], cooling, Limits);
         Assert.Equal(TemperatureMethod.RefuelOff, off.Method);
@@ -75,9 +75,9 @@ public sealed class ClimateStatesTests
     [Fact]
     public void ACampfireWithAnUnreadRoomOrToggleIsNotBuilt()
     {
-        Assert.Null(HeatCampfire.Of("fire", default, new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed = true }));
-        Assert.Null(HeatCampfire.Of("fire", "room", new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.NotRefuelable()));
-        Assert.NotNull(HeatCampfire.Of("fire", "room", new RimGovernor.Brain.GameFacts.Observations.BenchAutoRefuel.Refuelable { Allowed = false }));
+        Assert.Null(HeatCampfire.Of("fire", default, new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.Switch { Allowed = true }));
+        Assert.Null(HeatCampfire.Of("fire", "room", new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch()));
+        Assert.NotNull(HeatCampfire.Of("fire", "room", new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.Switch { Allowed = false }));
     }
 
     [Fact]
