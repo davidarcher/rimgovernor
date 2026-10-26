@@ -20,7 +20,7 @@ public sealed class AcquisitionObservationTests
             Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(10, 10)),
         };
         var source = new AcquisitionSource { Observed = observed, Entity = entity, NutritionYield = 4.1 };
-        var selected = Assert.Single(AcquisitionRules.SelectAcquisition([source], 4, 0, true, new Dictionary<string, bool>(), 1));
+        var selected = Assert.Single(AcquisitionRules.SelectAcquisition([source], 4, 0, new Dictionary<string, bool>(), 1));
         Assert.Same(source, selected);
         Assert.Same(observed, selected.Observed);
         Assert.Same(entity, selected.Entity);

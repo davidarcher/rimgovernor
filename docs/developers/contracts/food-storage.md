@@ -2,6 +2,12 @@
 
 Storage nutrition rows and their aggregate must remain finite; an overflowing aggregate fails the review.
 
+Food acquisition selects the shared food plan's open forage and lone-hunt channels.
+Pending forage leaves hunt slots available; pending or held sources are never
+admitted twice. Resource acquisition uses the shared resource supply portfolio
+for each requested resource, without a separate wood-only selector. Required-fact
+and invariant failures reach the review owner and stop the affected pass.
+
 Meal shelves use the native `MealShelf` filter preset: every storable definition
 whose ingestible food type includes Meal. They include installed content without
 a vanilla definition allowlist. Freezer catch-all storage uses `ColdFood`: only

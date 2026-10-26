@@ -6,7 +6,6 @@ Runtime/Review/ColonyReview.cs|ColonyReview.ReviewStepAsync|"Door"
 Runtime/Review/ColonyReview.cs|ColonyReview.ReviewStepAsync|"Hopper"
 Runtime/Review/ColonyReview.cs|ColonyReview.ReviewStepAsync|"NutrientPasteDispenser"
 Runtime/Review/ColonyReview.cs|ColonyReview.ReviewStepAsync|"Wall"
-Runtime/Review/AcquisitionPlanner.cs|AcquisitionPlanner.CensusBlocking|"WoodLog"
 Runtime/Review/BuildingPlanner.Selection.cs|BuildingPlanner.NewReviewButcherPlanner|"TableButcher"
 Runtime/Review/BuildingPlanner.Selection.cs|BuildingPlanner.NewReviewCookingPlanner|"Campfire"
 Runtime/Review/BuildingPlanner.Selection.cs|BuildingPlanner.Selection|"TableButcher"
@@ -60,7 +59,6 @@ Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.PrepareWorkshopAsync|"Fermen
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.SelectWorkshop|"FermentingBarrel"
 Runtime/Client/GameClient.Defense.cs|GameClient.DefenseSpatialAccessBudgetMs|2500
 PlayerApi/LifecycleRoutes.cs|LifecycleRoutes.MaxLoadTimeoutMs|120000
-Policy/Acquisition.cs|AcquisitionRules.SelectAcquisition|"WoodLog"
 Policy/ChildRooms.cs|FurnitureRole.DeathrestCasket|"DeathrestCasket"
 Policy/ClearanceGround.cs|ClearanceGroundRules.StandInBed|"SleepingSpot"
 Policy/Climate.cs|ClimateRules._climateTable|"Human"

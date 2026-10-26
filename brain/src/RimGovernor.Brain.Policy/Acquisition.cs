@@ -129,13 +129,12 @@ public static class AcquisitionRules
         EquatableArray<AcquisitionSource> sources,
         double deficit,
         double pending,
-        bool food,
         IReadOnlyDictionary<string, bool> held,
         int huntSlots = 0
     )
     {
         (double, bool) Accept(AcquisitionSource row) =>
-            food ? (row.NutritionYield, row.Food && row.NutritionYield > 0) : (row.Yield, row.Tree && row.Resource == "WoodLog");
+            (row.NutritionYield, row.Food && row.NutritionYield > 0);
         return SelectAcquisitionCore(sources, deficit, pending, Accept, held, huntSlots);
     }
 

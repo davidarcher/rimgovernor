@@ -134,7 +134,7 @@ public sealed partial class AcquisitionPlanner
         // designated resource in resourceSelection instead; its other targets still plan.
         if (!stockGoal)
         {
-            var (block, plants) = CensusBlocking(projection.Facts.Acquisition, food, held, undispatched);
+            var (block, plants) = CensusBlocking(projection.Facts.Acquisition, held, undispatched);
             if (block)
             {
                 return new AcquisitionResult { Verdict = BuildingReasonExistingWork };
@@ -161,21 +161,14 @@ public sealed partial class AcquisitionPlanner
         var (slots, _) = ResourcePlanner.HuntSlots(projection);
         IReadOnlyList<AcquisitionSource> selected;
         var existing = false;
-        try
+        if (stockGoal)
         {
-            if (stockGoal)
-            {
-                var supply = await _reviewer.ResourceSupplyAsync(state, review, owner, call).ConfigureAwait(false);
-                (selected, existing) = ResourceSelection(supply, busy);
-            }
-            else
-            {
-                selected = GoalSelection(projection.Facts.Acquisition, huntOnly, deficit, pending, food, held, slots);
-            }
+            var supply = await _reviewer.ResourceSupplyAsync(state, review, owner, call).ConfigureAwait(false);
+            (selected, existing) = ResourceSelection(supply, busy);
         }
-        catch (DomainException)
+        else
         {
-            return new AcquisitionResult { Verdict = FieldUnavailable("acquisition_sources") };
+            selected = GoalSelection(projection.Facts.Acquisition, huntOnly, deficit, pending, held, slots);
         }
         if (selected.Count == 0 && existing)
         {
@@ -299,9 +292,9 @@ partial class AcquisitionPlanner
     /// <summary>
     /// Reads the goal's designated census rows, and the rows of its undispatched acquisitions, skipping held
     /// ones: block when a designated row is one the goal would plan, except that for food a designated plant
-    /// harvest only restricts the goal to hunts (plants). The wood goal counts designated trees yielding wood.
+    /// harvest only restricts the goal to hunts (plants). Resource acquisition uses its shared supply portfolio.
     /// </summary>
-    internal static (bool Block, bool Plants) CensusBlocking(EquatableArray<AcquisitionSource> sources, bool food, Dictionary<string, bool> held, HashSet<string> undispatched)
+    internal static (bool Block, bool Plants) CensusBlocking(EquatableArray<AcquisitionSource> sources, Dictionary<string, bool> held, HashSet<string> undispatched)
     {
         var plants = false;
         foreach (var row in sources)
@@ -310,11 +303,11 @@ partial class AcquisitionPlanner
             {
                 continue;
             }
-            if (food && row.Food && !row.Hunt)
+            if (row.Food && !row.Hunt)
             {
                 plants = true;
             }
-            else if ((food && row.Food) || (!food && row.Tree && row.Resource == "WoodLog"))
+            else if (row.Food)
             {
                 return (true, plants);
             }
@@ -383,18 +376,18 @@ partial class AcquisitionPlanner
     }
 
     /// <summary>
-    /// The food and wood goals' census selection. For food the census is the food plan's open forage and lone-hunt
+    /// The food Need's census selection uses the food plan's open forage and lone-hunt
     /// channels (FoodPlanAcquisition): forage goes first, so a colony with no armed hunter (no hunt slots) still
     /// designates wild food plants for vanilla to harvest and eat (#3668). huntOnly (a forage batch already designated)
     /// keeps only the hunt rows.
     /// </summary>
-    internal static IReadOnlyList<AcquisitionSource> GoalSelection(EquatableArray<AcquisitionSource> sources, bool huntOnly, double deficit, double pending, bool food, IReadOnlyDictionary<string, bool> held, int slots)
+    internal static IReadOnlyList<AcquisitionSource> GoalSelection(EquatableArray<AcquisitionSource> sources, bool huntOnly, double deficit, double pending, IReadOnlyDictionary<string, bool> held, int slots)
     {
         if (huntOnly)
         {
             sources = [.. sources.Where(row => row.Hunt)];
         }
-        return AcquisitionRules.SelectAcquisition(sources, deficit, pending, food, held, slots);
+        return AcquisitionRules.SelectAcquisition(sources, deficit, pending, held, slots);
     }
 
     /// <summary>

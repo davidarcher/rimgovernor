@@ -35,7 +35,7 @@ public sealed class FoodForageTests
     private static IReadOnlyList<AcquisitionSource> Select(bool huntOnly, int slots)
     {
         var (sources, deficit) = AcquisitionPlanner.FoodPlanAcquisition(Plan, EquatableArray.From([Berries, Deer]));
-        return AcquisitionPlanner.GoalSelection(sources, huntOnly, deficit, 0.0, food: true, new Dictionary<string, bool>(), slots);
+        return AcquisitionPlanner.GoalSelection(sources, huntOnly, deficit, 0.0, new Dictionary<string, bool>(), slots);
     }
 
     [Fact]
@@ -51,5 +51,23 @@ public sealed class FoodForageTests
     {
         Assert.Empty(Select(huntOnly: true, slots: 0));
         Assert.Equal([Deer.Id], Select(huntOnly: true, slots: 1).Select(s => s.Id));
+    }
+
+    [Fact]
+    public void FoodBlockingIgnoresResourceWorkAndKeepsForageAndHuntSeparate()
+    {
+        var tree = Berries with
+        {
+            Observed = Berries.Observed with { Resource = "InstalledTimber", Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant(false, 1, false) },
+            Tree = true,
+        };
+        var held = new Dictionary<string, bool>();
+        var pending = new HashSet<string> { tree.Id };
+        Assert.Equal((false, false), AcquisitionPlanner.CensusBlocking([tree], held, pending));
+        Assert.Equal((false, true), AcquisitionPlanner.CensusBlocking([Berries], held, pending));
+        pending.Add(Deer.Id);
+        Assert.Equal((true, true), AcquisitionPlanner.CensusBlocking([Berries, Deer], held, pending));
+        held.Add(Deer.Id, true);
+        Assert.Equal((false, true), AcquisitionPlanner.CensusBlocking([Berries, Deer], held, pending));
     }
 }

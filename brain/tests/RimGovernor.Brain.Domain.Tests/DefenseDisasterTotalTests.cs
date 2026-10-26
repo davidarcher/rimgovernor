@@ -48,9 +48,9 @@ public sealed class DefenseDisasterTotalTests
         var prey = new AcquisitionSource { Observed = new() { Source = new() { Id = "prey" }, Token = "prey", Resource = "Meat_Deer", Yield = 1, Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Open(), Taken = false, Kind = new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(82, 1, false, false, false, false) },
         Entity = new() { Id = "prey", DefName = "Deer", Label = "Deer", Place = new RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap(1, new Cell(1, 1)) }, NutritionYield = 2 };
         var held = new Dictionary<string, bool>();
-        Assert.Empty(AcquisitionRules.SelectAcquisition([prey], 2, 0, true, held, 0));
-        Assert.Equal(prey, Assert.Single(AcquisitionRules.SelectAcquisition([prey], 2, 0, true, held, 1)));
-        Assert.Throws<DomainException>(() => AcquisitionRules.SelectAcquisition([prey], 2, 0, true, held, -1));
-        Assert.Throws<DomainException>(() => AcquisitionRules.SelectAcquisition([prey], 2, 0, true, held, PawnRules.MaxHuntRows + 1));
+        Assert.Empty(AcquisitionRules.SelectAcquisition([prey], 2, 0, held, 0));
+        Assert.Equal(prey, Assert.Single(AcquisitionRules.SelectAcquisition([prey], 2, 0, held, 1)));
+        Assert.Throws<DomainException>(() => AcquisitionRules.SelectAcquisition([prey], 2, 0, held, -1));
+        Assert.Throws<DomainException>(() => AcquisitionRules.SelectAcquisition([prey], 2, 0, held, PawnRules.MaxHuntRows + 1));
     }
 }
