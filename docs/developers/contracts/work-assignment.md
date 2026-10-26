@@ -668,3 +668,19 @@ reviewer enables no activities; synthetic reviews must supply the Needs they
 intend to compare. Layout anchors are optional until a layout core exists, and
 placement must use a present layout, room or power-consumer anchor.
 
+
+## Shared requirement ownership
+
+`WorkDemandRules` derives construction, open-bill, pending-production and research
+work requirements in pure Policy. Merging keeps the highest skill floor for each
+work type in first-seen order and retains its first named skill. Pending resource
+or equipment production enables the relevant bench work before its bill exists;
+wort work also covers a positive beer target. An equipment-only research ladder
+contributes requirements only while that equipment Need is owed.
+
+Runtime's `ProjectBillReads` gathers the existing admitted actions and one native
+bench census, then passes their existing rows to Policy. Both colony review and
+the work planner consume the same requirement functions. A required bench,
+recipe or construction definition absent from that census remains a named read
+failure, and no outstanding work means no bench read. This introduces no second
+demand ledger or persisted work state.

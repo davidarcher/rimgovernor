@@ -59,7 +59,7 @@ public sealed partial class ColonyReview
                 var claims = Player.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
                 var protectedCells = FieldProtected(state, review, projection, claims, call);
                 var site = new FarmSiteRequest { Anchor = anchor, Cells = projection.PlanningWindow.Cells, Protected = protectedCells };
-                var fields = LayoutFieldPlanning.LayoutFieldCells(projection);
+                var fields = LayoutFieldPlanning.LayoutFieldCells(projection.Facts);
                 if (fields is not null)
                 {
                     site = site with { Fields = fields };

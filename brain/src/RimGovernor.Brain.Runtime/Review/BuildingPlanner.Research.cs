@@ -98,7 +98,7 @@ public sealed class EconomyReview
             throw new ControlException("economy read: the scope is another world or older than the review");
         }
         var items = await _reviewer.ItemFactsAsync(scope.World, ct).ConfigureAwait(false);
-        var needs = ProjectBill.ResearchNeeds(p.Journal, _reviewer.Policy, items, scope.World, _reviewer.EquipmentOwed(scope.World), ct);
+        var needs = ProjectBillReads.ResearchNeeds(p.Journal, scope.World, _reviewer.EquipmentOwed(scope.World), ct);
         needs = _reviewer.CensusResearchNeeds(needs);
         needs = DeepDrillRules.DeepDrillingResearch(needs, review.ResourceRunwayState(), items);
         var facts = new EconomyFacts { ResearchNeeds = [.. needs] };

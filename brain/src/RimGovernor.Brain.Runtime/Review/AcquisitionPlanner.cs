@@ -507,7 +507,7 @@ public sealed partial class ColonyReview
     {
         var p = Player;
         var plans = p.Journal.LoadPlans(call);
-        var definitions = ProjectBill.ProjectDefinitions(plans, world);
+        var definitions = ProjectBillReads.ProjectDefinitions(plans, world);
         var crops = await SowableCropsAsync(world, call).ConfigureAwait(false);
         var unique = FieldPlanner.UniqueFieldDefinitions([.. definitions, .. crops]);
         var expected = await StepScope.StepScopeAsync(Native, call).ConfigureAwait(false);

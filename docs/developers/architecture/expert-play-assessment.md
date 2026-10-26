@@ -84,7 +84,7 @@ or simultaneous resource/labor conflict.
    [buildResourceSupply](../../../brain/src/RimGovernor.Brain.Runtime/Review/ColonyReview.ResourceSupply.cs)
    plans resource candidates with the labor food leaves. This is one ranker
    reused in sequential plans, not one joint optimization over all colony work.
-3. [Work requirements](../../../brain/src/RimGovernor.Brain.Runtime/ProjectBill.cs)
+3. [Work requirements](../../../brain/src/RimGovernor.Brain.Policy/WorkDemandRules.cs)
    connect open buildings/bills to required work types and skill floors.
    These establish eligibility, not remaining work duration or completion time.
 4. Shared proposal claims and family admission commit Methods. In

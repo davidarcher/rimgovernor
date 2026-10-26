@@ -1027,3 +1027,14 @@ a second coordinate record. An operation without an exact cell names its meaning
 rescue searches for a bed, mortar aim is cleared, a designation resolves its exact
 target, and a ritual that is not beginning carries NotStarting. A relocation
 move carries its destination together with its rotation; uninstall has neither.
+
+## Field placement ownership
+
+Pure `LayoutFieldPlanning` owns crop-option order, stable demand priority,
+food-zone adoption, soil/adjacency eligibility and connected placement geometry.
+`LayoutFieldShrink` owns the target hysteresis, surplus-zone choice and removal
+order; it skips removals that would disconnect the remaining zone or remove its
+last cell. Both use existing observed cells and zone rows. Runtime retains each
+Need's journal owner, obtains the required frame and submits the chosen edit;
+native previews and legality checks still guard the resulting order. Missing
+geometry or zone reads fail only when the selected planning path needs them.

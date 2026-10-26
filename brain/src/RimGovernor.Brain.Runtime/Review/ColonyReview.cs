@@ -373,7 +373,7 @@ public sealed partial class ColonyReview
             throw new ControlException("step: expected.Colony != state.Snapshot.Colony || expected.Load != state.Snapshot.Load || expected.Map != state.S");
         }
         var plans = await p.Journal.LoadPlansAsync(ct).ConfigureAwait(false);
-        var definitions = ProjectBill.ProjectDefinitions(plans, state.Snapshot);
+        var definitions = ProjectBillReads.ProjectDefinitions(plans, state.Snapshot);
         var readDefinitions = definitions;
         if (Needs.Contains(FoodRules.CookingNeed))
         {
@@ -597,7 +597,7 @@ public sealed partial class ColonyReview
             _goalResearch = goalDemand.Research;
             reading = reading.WithFacts(rf => GoalRules.Apply(rf, goalDemand));
         }
-        var needs = ProjectBill.ResearchNeeds(p.Journal, Policy, reading.Reading.Facts.Items, state.Snapshot, EquipmentOwed(state.Snapshot), ct);
+        var needs = ProjectBillReads.ResearchNeeds(p.Journal, state.Snapshot, EquipmentOwed(state.Snapshot), ct);
         needs = CensusResearchNeeds(needs);
         reading = reading.WithFacts(rf => rf with { ResearchNeeds = [.. needs] });
         var medicine = MedicalRules.ReviewMedicalReserve(reading.Reading.Facts.MedicalReserve, previous.Snapshot == state.Snapshot && previous.Latches.MedicalReserve, Policy.MedicalReserve);
@@ -617,16 +617,16 @@ public sealed partial class ColonyReview
         var pawns = reading.Reading.Facts.ForecastObserved.WorkPawns.Pawns;
         {
             reading = reading.WithFacts(rf => rf with { WorkProfiles = [.. PawnRules.Profiles(pawns)] });
-            var required = ProjectBill.ProjectWork(definitions, reading.Reading.Facts.Definitions);
+            var required = WorkDemandRules.ProjectWork(definitions, reading.Reading.Facts.Definitions);
             var nativeBench = (IReviewWorkBenchSource)Native;
             var benchSource = BenchSource(nativeBench, expected, true);
             var recovered = ResearchRules.ResourceTargetNeed(resourceTargets, reading.Reading.Facts.ObservedStock()).Recovered;
-            var deficitTargets = ProjectBill.DeficitTargets(resourceTargets, !recovered, reading.Reading.Facts.Gear);
-            var benchWork = await ProjectBill.BenchWorkAsync(benchSource, state.Snapshot, plans, deficitTargets, deficitTargets.Count > 0, reading.Reading.Facts.Items.Wort, ct).ConfigureAwait(false);
-            required = ProjectBill.MergeWorkRequirements([.. required], benchWork);
-            required = ProjectBill.MergeWorkRequirements([.. required], ProjectBill.ResearchWork(needs, reading.Reading.Facts.Research));
-            required = ProjectBill.MergeWorkRequirements([.. required], FieldPlanner.FishingWork(reading.Reading));
-            required = ProjectBill.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(reading.Reading.Facts.Containment));
+            var deficitTargets = WorkDemandRules.DeficitTargets(resourceTargets, !recovered, reading.Reading.Facts.Gear);
+            var benchWork = await ProjectBillReads.BenchWorkAsync(benchSource, state.Snapshot, plans, deficitTargets, deficitTargets.Count > 0, reading.Reading.Facts.Items.Wort, ct).ConfigureAwait(false);
+            required = WorkDemandRules.MergeWorkRequirements([.. required], benchWork);
+            required = WorkDemandRules.MergeWorkRequirements([.. required], WorkDemandRules.ResearchWork(needs, reading.Reading.Facts.Research));
+            required = WorkDemandRules.MergeWorkRequirements([.. required], FieldPlanner.FishingWork(reading.Reading));
+            required = WorkDemandRules.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(reading.Reading.Facts.Containment));
             {
                 var demand = Disease.DiseaseDemand(reading.Reading, definitions, previous, state.Snapshot);
                 try

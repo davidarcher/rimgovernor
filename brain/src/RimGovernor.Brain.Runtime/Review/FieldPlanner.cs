@@ -65,7 +65,7 @@ public sealed partial class FieldPlanner
         }
         var plans = p.Journal.LoadPlans(call);
         var crops = await _reviewer.SowableCropsAsync(state.Snapshot, call).ConfigureAwait(false);
-        var definitions = ProjectBill.ProjectDefinitions(plans, state.Snapshot).Concat(crops).ToList();
+        var definitions = ProjectBillReads.ProjectDefinitions(plans, state.Snapshot).Concat(crops).ToList();
         definitions.AddRange(["SunLamp", "HydroponicsBasin", "Heater"]);
         definitions = UniqueFieldDefinitions(definitions);
         var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
@@ -144,7 +144,7 @@ public sealed partial class FieldPlanner
             bool tried;
             if (candidate.Kind == SiteKind.Outdoor && candidate.Buildings.Count == 0)
             {
-                var shortfall = new FieldShortfall(goal, LayoutFieldPlanning.FieldBlockOptions(candidate, selection.Candidates), "food");
+                var shortfall = new FieldShortfall(goal, LayoutFieldPlanning.FieldBlockOptions(candidate, selection.Candidates));
                 (result, tried) = await PlaceLedgerAsync(state, projection, read, [shortfall], request.Field.Site.Anchor, protectedCells, call, epoch).ConfigureAwait(false);
             }
             else
@@ -179,7 +179,7 @@ public sealed partial class FieldPlanner
         var (hay, hayOk) = Hay.HayShortfall(projection);
         if (hayOk)
         {
-            output.Add(new FieldShortfall(rgoal, [hay], "hay"));
+            output.Add(new FieldShortfall(rgoal, [hay]));
         }
         if (review.BrewingFinished && SocialCropsRules.BrewingFinished(projection.Facts.Research))
         {
@@ -188,14 +188,14 @@ public sealed partial class FieldPlanner
             {
                 foreach (var opt in opts)
                 {
-                    output.Add(new FieldShortfall(rgoal, [opt], "social"));
+                    output.Add(new FieldShortfall(rgoal, [opt]));
                 }
             }
         }
         var supply = await _reviewer.ResourceSupplyAsync(state, review, rgoal, call).ConfigureAwait(false);
         foreach (var plan in supply.OpenedFields())
         {
-            output.Add(new FieldShortfall(rgoal, [new FieldBlockOption(plan.Crop, plan.Needed)], "resource"));
+            output.Add(new FieldShortfall(rgoal, [new FieldBlockOption(plan.Crop, plan.Needed)]));
         }
         return output;
     }
@@ -203,8 +203,9 @@ public sealed partial class FieldPlanner
     internal async Task<(ReviewFieldResult Result, bool Tried)> PlaceLedgerAsync(ControlState state, ColonyReading projection, ReviewReading read, IReadOnlyList<FieldShortfall> ledger, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
     {
         var result = new ReviewFieldResult { Verdict = BuildingReasonNoDeficit };
-        foreach (var s in LayoutFieldPlanning.RankFieldShortfalls(ledger))
+        foreach (var index in LayoutFieldPlanning.RankFieldShortfalls([.. ledger.Select(s => s.Options)]))
         {
+            var s = ledger[index];
             if (s.Options.Count == 0)
             {
                 continue;
@@ -370,7 +371,7 @@ public sealed partial class FieldPlanner
     internal async Task<(ReviewFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, NeedOwner goal, ColonyReading projection, ReviewReading read, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        var (planned, reason) = LayoutFieldPlanning.PlanFieldBlock(projection, anchor, options, protectedCells);
+        var (planned, reason) = LayoutFieldPlanning.PlanFieldBlock(projection.Facts, projection.Window is { } window ? window.Value.Cells : null, projection.Tables.Zones, anchor, options, protectedCells);
         if (planned is not { } edit)
         {
             ClockEvents.Event("layout", "fields", "outdoor field refused: " + reason, ("crop", candidate.Crop.Name));
@@ -553,7 +554,7 @@ partial class FieldPlanner
         var (field, choices) = FieldRequestOf(projection, reserveDays);
         var anchor = LayoutProtected.FieldAnchor(projection) ?? default;
         var site = new FarmSiteRequest { Anchor = anchor, Cells = projection.PlanningWindow.Cells, Protected = protectedCells };
-        if (LayoutFieldPlanning.LayoutFieldCells(projection) is { } fields)
+        if (LayoutFieldPlanning.LayoutFieldCells(projection.Facts) is { } fields)
         {
             site = site with { Fields = fields };
         }

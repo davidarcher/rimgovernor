@@ -1,25 +1,21 @@
-using RimGovernor.Brain.Policy;
-namespace RimGovernor.Brain.Runtime;
+namespace RimGovernor.Brain.Policy;
 
 // Outdoor food fields fill the layout plan's field blocks at every tier. A plan field zone is a block the station
 // chain placed for a crop, sized by FieldCapacityTarget; inside it each crop takes its own adjacent crop block,
 // sized by its demand, and grows in place with add-cells.
 
 /// <summary>The next outdoor field step: an empty <see cref="Zone"/> creates a growing zone of <see cref="Crop"/> on <see cref="Cells"/>; otherwise Cells are added to Zone, which grows Crop.</summary>
-internal sealed record FieldBlockEdit(string Zone, string Crop, IReadOnlyList<Cell> Cells);
+public sealed record FieldBlockEdit(string Zone, string Crop, IReadOnlyList<Cell> Cells);
 
-/// <summary>One goal's open field-block demand in the cross-crop ledger: options lead with the goal's own crop and cells.</summary>
-internal sealed record FieldShortfall(NeedOwner Owner, IReadOnlyList<FieldBlockOption> Options, string What);
-
-internal static class LayoutFieldPlanning
+public static class LayoutFieldPlanning
 {
     /// <summary>The fertility above which soil is rich, the policy survey's line.</summary>
     public const double FieldRichFertility = 1.0;
 
     /// <summary>The plan's field cells; null with no plan or no field zones.</summary>
-    public static HashSet<Cell>? LayoutFieldCells(ColonyReading facts)
+    public static HashSet<Cell>? LayoutFieldCells(ReviewFacts facts)
     {
-        if (facts.Facts.LayoutPlan is not { } plan)
+        if (facts.LayoutPlan is not { } plan)
         {
             return null;
         }
@@ -39,9 +35,9 @@ internal static class LayoutFieldPlanning
     /// within FieldBlockNeighbourRadius of that block. <paramref name="options"/> are the viable crops in
     /// preference order. The reason explains a refusal: no field blocks, or every block full.
     /// </summary>
-    public static (FieldBlockEdit? Edit, string Reason) PlanFieldBlock(ColonyReading facts, Cell anchor, IReadOnlyList<FieldBlockOption> options, IReadOnlyList<Cell> protectedCells)
+    public static (FieldBlockEdit? Edit, string Reason) PlanFieldBlock(ReviewFacts facts, IReadOnlyList<SiteCell>? observedCells, RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot? zones, Cell anchor, IReadOnlyList<FieldBlockOption> options, IReadOnlyList<Cell> protectedCells)
     {
-        if (facts.Facts.LayoutPlan is not { } plan)
+        if (facts.LayoutPlan is not { } plan)
         {
             return (null, "no layout plan");
         }
@@ -54,10 +50,11 @@ internal static class LayoutFieldPlanning
         {
             return (null, "no field cells needed");
         }
+        var heldCells = observedCells ?? throw new RequiredFactException("planning window");
         var blocked = new HashSet<Cell>(protectedCells);
-        var census = new Dictionary<Cell, SiteCell>(facts.PlanningWindow.Cells.Count);
+        var census = new Dictionary<Cell, SiteCell>(heldCells.Count);
         var rich = new HashSet<Cell>();
-        foreach (var c in facts.PlanningWindow.Cells)
+        foreach (var c in heldCells)
         {
             census[c.Cell] = c;
             if (c.Fertility > FieldRichFertility)
@@ -66,13 +63,13 @@ internal static class LayoutFieldPlanning
             }
         }
         var growing = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var f in (facts.Tables.Zones ?? throw new RequiredFactException("zone census")).Zones.OfType<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing>())
+        foreach (var f in (zones ?? throw new RequiredFactException("zone census")).Zones.OfType<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing>())
         {
             growing[f.Id] = f.Crop;
         }
         var inedible = new HashSet<string>(StringComparer.Ordinal);
         var trees = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var d in facts.Facts.Definitions)
+        foreach (var d in facts.Definitions)
         {
             var edible = (d.Harvest ?? throw new RequiredFactException("planning Harvest")).Edible;
             if (!edible)
@@ -90,7 +87,7 @@ internal static class LayoutFieldPlanning
         // one cell clear of every zone of the other kind; tree zones never grow by adoption either (AdoptsZone).
         var treeZone = new HashSet<Cell>();
         var cropZone = new HashSet<Cell>();
-        foreach (var c in facts.PlanningWindow.Cells)
+        foreach (var c in heldCells)
         {
             if (c.ZoneId is { } id && growing.TryGetValue(id, out var crop))
             {
@@ -174,7 +171,7 @@ internal static class LayoutFieldPlanning
             var first = ConnectedPick(FreeFor(block, options[0].Crop), occupied, rich, anchor, options[0].Needed);
             if (first.Count > 0)
             {
-                var neighbours = FieldBlockNeighbours(facts.PlanningWindow.Cells, new HashSet<Cell>(first), growing);
+                var neighbours = FieldBlockNeighbours(heldCells, new HashSet<Cell>(first), growing);
                 foreach (var o in CropChoiceRules.BlockCropOrder(options, neighbours))
                 {
                     if (o.Needed <= 0)
@@ -192,13 +189,9 @@ internal static class LayoutFieldPlanning
         return (null, "every field block is full");
     }
 
-    /// <summary>Needed cells.</summary>
-    public static int FieldShortfallWeight(FieldShortfall s) =>
-        s.Options.Count == 0 ? 0 : s.Options[0].Needed;
-
-    /// <summary>Orders the ledger heaviest first (stable); the first placed block takes the patch's richest free cells. It decides order only, never how many cells a goal gets.</summary>
-    public static List<FieldShortfall> RankFieldShortfalls(IEnumerable<FieldShortfall> ledger) =>
-        ledger.OrderByDescending(FieldShortfallWeight).ToList();
+    /// <summary>Indices in stable, heaviest-demand-first order; Runtime retains each Need owner.</summary>
+    public static IReadOnlyList<int> RankFieldShortfalls(IReadOnlyList<IReadOnlyList<FieldBlockOption>> ledger) =>
+        Enumerable.Range(0, ledger.Count).OrderByDescending(i => ledger[i].Count == 0 ? 0 : ledger[i][0].Needed).ToList();
 
     /// <summary>The crops a new field block may take: the candidate first, then every other plantable outdoor soil candidate in score order.</summary>
     public static List<FieldBlockOption> FieldBlockOptions(SiteTypeCandidate candidate, IEnumerable<SiteTypeCandidate> all)

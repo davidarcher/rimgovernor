@@ -359,7 +359,7 @@ partial class FirebreakPlan
     internal static HashSet<Cell> FirebreakBusy(IReadOnlyList<PlanState> plans, GenerationSnapshot current)
     {
         var busy = new HashSet<Cell>();
-        ProjectBill.OpenActions(plans, current, a =>
+        ProjectBillReads.OpenActions(plans, current, a =>
         {
             if (a.Building is { } b)
             {

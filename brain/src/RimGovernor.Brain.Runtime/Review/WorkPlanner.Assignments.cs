@@ -44,7 +44,7 @@ public sealed partial class WorkPlanner
         Verdict Existing(Verdict unknown) => open.Count > 0 ? BuildingReasonExistingWork : unknown;
 
         var plans = p.Journal.LoadPlans(call);
-        var definitions = ProjectBill.ProjectDefinitions(plans, state.Snapshot);
+        var definitions = ProjectBillReads.ProjectDefinitions(plans, state.Snapshot);
         var expected = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
         if (!BuildingPlanner.BuildingBoundary(expected, state.Snapshot, review.Tick))
         {
@@ -58,19 +58,19 @@ public sealed partial class WorkPlanner
         {
             construction = construction[..8];
         }
-        var required = ProjectBill.ProjectWork(definitions, read.Reading.Facts.Definitions);
+        var required = WorkDemandRules.ProjectWork(definitions, read.Reading.Facts.Definitions);
         var resourceTargets = _reviewer.ResourceTargets(state.Snapshot);
         // The resource targets are in deficit when the economy/resource Need's threshold reads short now.
         var deficit = !ResearchRules.ResourceTargetNeed(resourceTargets, read.Reading.Facts.ObservedStock()).Recovered;
-        var targets = ProjectBill.DeficitTargets(resourceTargets, deficit, read.Reading.Facts.Gear);
-        var benchWork = await ProjectBill.BenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, targets, targets.Count > 0, read.Reading.Facts.Items.Wort, call).ConfigureAwait(false);
+        var targets = WorkDemandRules.DeficitTargets(resourceTargets, deficit, read.Reading.Facts.Gear);
+        var benchWork = await ProjectBillReads.BenchWorkAsync(_reviewer.BenchSource(_benches, expected, false), state.Snapshot, plans, targets, targets.Count > 0, read.Reading.Facts.Items.Wort, call).ConfigureAwait(false);
 
-        required = ProjectBill.MergeWorkRequirements([.. required], benchWork);
-        var needs = ProjectBill.ResearchNeeds(p.Journal, _reviewer.Policy, read.Reading.Facts.Items, state.Snapshot, _reviewer.EquipmentOwed(state.Snapshot), call);
+        required = WorkDemandRules.MergeWorkRequirements([.. required], benchWork);
+        var needs = ProjectBillReads.ResearchNeeds(p.Journal, state.Snapshot, _reviewer.EquipmentOwed(state.Snapshot), call);
         needs = _reviewer.CensusResearchNeeds(needs);
-        required = ProjectBill.MergeWorkRequirements([.. required], ProjectBill.ResearchWork(needs, read.Reading.Facts.Research));
-        required = ProjectBill.MergeWorkRequirements([.. required], FieldPlanner.FishingWork(read.Reading));
-        required = ProjectBill.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(read.Reading.Facts.Containment));
+        required = WorkDemandRules.MergeWorkRequirements([.. required], WorkDemandRules.ResearchWork(needs, read.Reading.Facts.Research));
+        required = WorkDemandRules.MergeWorkRequirements([.. required], FieldPlanner.FishingWork(read.Reading));
+        required = WorkDemandRules.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(read.Reading.Facts.Containment));
         var demand = Disease.DiseaseDemand(read.Reading, definitions, review, state.Snapshot);
         var sharedWork = p.Journal.WorkResources(state.Snapshot, call);
         demand = demand with { CommittedPawns = sharedWork.Claims.Pawns, WorkClaimsTruncated = sharedWork.Claims.Truncated };
