@@ -72,7 +72,7 @@ public sealed partial class SleepingUpkeepPlanner
         {
             throw new ControlException("decide: !roundsBuildingBoundary(expected, state.Snapshot, review.Tick)");
         }
-        List<string> definitions = ["Wall", "Door", .. RoomQualityRules.RoomBeautyDefinitions(), .. Reviewer.RememberedThrones(), .. Reviewer.Census.RememberedWorship()];
+        List<string> definitions = [nameof(RimWorld.ThingDefOf.Wall), nameof(RimWorld.ThingDefOf.Door), .. RoomQualityRules.RoomBeautyDefinitions(), .. Reviewer.RememberedThrones(), .. Reviewer.Census.RememberedWorship()];
         var reading = await Reviewer.ObserveOwnedAsync((IReviewSource)Native, expected, [.. definitions], call).ConfigureAwait(false);
         var facts = reading.Reading;
         // The day-one floor's stand-in spots come before any bed change (#3659).

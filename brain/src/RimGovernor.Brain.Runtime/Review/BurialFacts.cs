@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Runtime;
 
 internal static class BurialFacts
 {
-    internal static readonly string[] BurialDefinitions = ["Wall", "Door", TombRules.GraveDefinition];
+    internal static readonly string[] BurialDefinitions = [nameof(RimWorld.ThingDefOf.Wall), nameof(RimWorld.ThingDefOf.Door), TombRules.GraveDefinition];
 
     internal static TombStep TombStep(ColonyReading facts)
     {
@@ -74,7 +74,7 @@ internal static class BurialFacts
 
     internal static (PlannedRoom Room, bool Owed) PlannedMealCloset(ColonyReading facts)
     {
-        var available = ColonyPlanningRules.DefinitionAvailable(facts.Facts, "Cooler");
+        var available = ColonyPlanningRules.DefinitionAvailable(facts.Facts, nameof(RimWorld.ThingDefOf.Cooler));
         if (!available)
         {
             return (new PlannedRoom(), false);
@@ -93,5 +93,5 @@ internal static class BurialFacts
     internal static bool MealClosetOwed(ColonyReading facts) => PlannedMealCloset(facts).Owed;
 
     internal static EquatableArray<string> WarmCoolingRooms(ColonyReading facts) =>
-        TombRules.WarmCoolingRooms(ColonyPlanningRules.DefinitionAvailable(facts.Facts, "Cooler"), facts.Facts.LayoutPlan, facts.Facts.Upkeep.Rooms);
+        TombRules.WarmCoolingRooms(ColonyPlanningRules.DefinitionAvailable(facts.Facts, nameof(RimWorld.ThingDefOf.Cooler)), facts.Facts.LayoutPlan, facts.Facts.Upkeep.Rooms);
 }

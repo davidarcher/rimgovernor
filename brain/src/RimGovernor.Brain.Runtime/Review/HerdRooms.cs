@@ -5,8 +5,8 @@ internal static class HerdRooms
 {
     internal static readonly string[] HerdDefinitions =
     [
-        "Wall",
-        "Door",
+        nameof(RimWorld.ThingDefOf.Wall),
+        nameof(RimWorld.ThingDefOf.Door),
         HerdPenRules.PenFenceDefinition,
         HerdPenRules.PenGateDefinition,
         HerdPenRules.PenMarkerDefinition,

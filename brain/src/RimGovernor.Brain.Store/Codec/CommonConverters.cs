@@ -49,7 +49,7 @@ public sealed class GenerationSnapshotConverter : ObjectCodec<GenerationSnapshot
     protected override GenerationSnapshot Read(JsonElement e, Codecs o) =>
         new(
             e.Get<ColonyId>("Colony", o),
-            e.Get<MapId>("Map", o),
+            e.Get<MapId>(nameof(GenerationSnapshot.Map), o),
             e.Get<LoadId>("Load", o),
             e.Get<PlanId>("Plan", o),
             e.Get<PlanRevision>("Revision", o),
@@ -59,7 +59,7 @@ public sealed class GenerationSnapshotConverter : ObjectCodec<GenerationSnapshot
     protected override void WriteFields(Utf8JsonWriter w, GenerationSnapshot v, Codecs o)
     {
         w.Put("Colony", v.Colony, o);
-        w.Put("Map", v.Map, o);
+        w.Put(nameof(GenerationSnapshot.Map), v.Map, o);
         w.Put("Load", v.Load, o);
         w.Put("Plan", v.Plan, o);
         w.Put("Revision", v.Revision, o);

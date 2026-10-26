@@ -298,7 +298,7 @@ internal sealed class CombatOrderConverter : ObjectCodec<CombatOrder>
             Target = e.Get<RimGovernor.Brain.Domain.PawnId>("Target", o),
             FireMode = e.Str("FireMode"),
             Reason = e.Get<CombatOrderReason>("Reason", o),
-            Door = e.Get<DoorMode>("Door", o),
+            Door = e.Get<DoorMode>(nameof(CombatOrder.Door), o),
             Aim = e.Get<Cell>("Aim", o),
             Clear = e.Bool("Clear"),
             Shell = e.Str("Shell"),
@@ -316,7 +316,7 @@ internal sealed class CombatOrderConverter : ObjectCodec<CombatOrder>
         w.Put("Target", v.Target, o);
         w.WriteString("FireMode", v.FireMode);
         w.Put("Reason", v.Reason, o);
-        w.Put("Door", v.Door, o);
+        w.Put(nameof(CombatOrder.Door), v.Door, o);
         w.Put("Aim", v.Aim, o);
         w.WriteBoolean("Clear", v.Clear);
         w.WriteString("Shell", v.Shell);
@@ -1545,7 +1545,7 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
             Replaces = e.I32("Replaces"),
             Role = e.Get<PlannedRole>("Role", o),
             Region = e.Get<Region>("Region", o),
-            Door = e.Get<Cell>("Door", o),
+            Door = e.Get<Cell>(nameof(PlannedRoom.Door), o),
             DoorSide = e.Has("DoorRot") ? new DoorSide.Doored(e.Get<Rotation>("DoorRot", o)) : new DoorSide.Doorless(),
             Crossing = e.GetOr<RoomCrossing?>("Crossing", null, o),
             Through = e.Bool("Through"),
@@ -1567,7 +1567,7 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
         w.WriteNum("Replaces", v.Replaces);
         w.Put("Role", v.Role, o);
         w.Put("Region", v.Region, o);
-        w.Put("Door", v.Door, o);
+        w.Put(nameof(PlannedRoom.Door), v.Door, o);
         if (v.DoorSide is DoorSide.Doored doored)
         {
             w.Put("DoorRot", doored.Side, o);
@@ -1825,7 +1825,7 @@ internal sealed class ReadyWorkReportConverter : ObjectCodec<ReadyWorkReport>
         new()
         {
             Colony = e.Get<ColonyId>("Colony", o),
-            Map = e.Get<MapId>("Map", o),
+            Map = e.Get<MapId>(nameof(ReadyWorkReport.Map), o),
             Load = e.Get<LoadId>("Load", o),
             Tick = e.Get<Tick>("Tick", o),
             Candidates = e.Get<EquatableArray<ReadyWork>>("Candidates", o),
@@ -1836,7 +1836,7 @@ internal sealed class ReadyWorkReportConverter : ObjectCodec<ReadyWorkReport>
     protected override void WriteFields(Utf8JsonWriter w, ReadyWorkReport v, Codecs o)
     {
         w.Put("Colony", v.Colony, o);
-        w.Put("Map", v.Map, o);
+        w.Put(nameof(ReadyWorkReport.Map), v.Map, o);
         w.Put("Load", v.Load, o);
         w.Put("Tick", v.Tick, o);
         w.Put("Candidates", v.Candidates, o);
@@ -2212,14 +2212,14 @@ internal sealed class SleepingUseConverter : ObjectCodec<SleepingUse>
     protected override SleepingUse Read(JsonElement e, Codecs o) =>
         new(
             e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
-            e.Str("Bed"),
+            e.Str(nameof(SleepingUse.Bed)),
             e.Get<Tick>("Tick", o)
         );
 
     protected override void WriteFields(Utf8JsonWriter w, SleepingUse v, Codecs o)
     {
         w.Put("Pawn", v.Pawn, o);
-        w.WriteString("Bed", v.Bed);
+        w.WriteString(nameof(SleepingUse.Bed), v.Bed);
         w.Put("Tick", v.Tick, o);
     }
 }
@@ -2594,13 +2594,13 @@ internal sealed class WaitDoorConverter : ObjectCodec<WaitDoor>
 {
     protected override WaitDoor Read(JsonElement e, Codecs o) =>
         new(
-            e.Get<Cell>("Door", o),
+            e.Get<Cell>(nameof(WaitDoor.Door), o),
             e.Get<Cell>("Inside", o)
         );
 
     protected override void WriteFields(Utf8JsonWriter w, WaitDoor v, Codecs o)
     {
-        w.Put("Door", v.Door, o);
+        w.Put(nameof(WaitDoor.Door), v.Door, o);
         w.Put("Inside", v.Inside, o);
     }
 }
@@ -2654,13 +2654,13 @@ internal sealed class WorldConverter : ObjectCodec<World>
         new(
             e.Get<ColonyId>("Colony", o),
             e.Get<LoadId>("Load", o),
-            e.Get<MapId>("Map", o)
+            e.Get<MapId>(nameof(World.Map), o)
         );
 
     protected override void WriteFields(Utf8JsonWriter w, World v, Codecs o)
     {
         w.Put("Colony", v.Colony, o);
         w.Put("Load", v.Load, o);
-        w.Put("Map", v.Map, o);
+        w.Put(nameof(World.Map), v.Map, o);
     }
 }

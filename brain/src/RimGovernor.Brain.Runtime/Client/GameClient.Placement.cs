@@ -167,8 +167,8 @@ public sealed partial class GameClient
             var nativeWorkPending = false;
             foreach (var blocker in orientation.BlockingThings)
             {
-                var replaceConduit = b.Definition == "HiddenConduit"
-                    && blocker.DefName == "PowerConduit"
+                var replaceConduit = b.Definition == nameof(RimWorld.ThingDefOf.HiddenConduit)
+                    && blocker.DefName == nameof(RimWorld.ThingDefOf.PowerConduit)
                     && blocker.Category == "Building"
                     && !blocker.IsBlueprint
                     && !blocker.IsFrame

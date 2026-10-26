@@ -8,21 +8,21 @@ namespace RimGovernor.Brain.Simulation.Supply;
 // closes sources each day; World.Run returns a deterministic Report. Goods are plain strings so a resource
 // world can register more.
 
-/// <summary>Names a stocked good ("Nutrition", later "WoodLog", "Steel").</summary>
+/// <summary>Names a stocked good: a simulation aggregate or a compiler-checked game resource.</summary>
 public readonly record struct Good(string Value)
 {
     public static readonly Good Nutrition = new("Nutrition");
 
     /// <summary>The trade currency good.</summary>
-    public static readonly Good Silver = new("Silver");
+    public static readonly Good Silver = new(nameof(RimWorld.ThingDefOf.Silver));
 
     // Resource goods, named as the policy resource definitions.
-    public static readonly Good Wood = new("WoodLog");
+    public static readonly Good Wood = new(nameof(RimWorld.ThingDefOf.WoodLog));
     public static readonly Good StoneChunks = new("StoneChunks");
     public static readonly Good StoneBlocks = new("StoneBlocks");
-    public static readonly Good Steel = new("Steel");
-    public static readonly Good Plasteel = new("Plasteel");
-    public static readonly Good Components = new("ComponentIndustrial");
+    public static readonly Good Steel = new(nameof(RimWorld.ThingDefOf.Steel));
+    public static readonly Good Plasteel = new(nameof(RimWorld.ThingDefOf.Plasteel));
+    public static readonly Good Components = new(nameof(RimWorld.ThingDefOf.ComponentIndustrial));
     public static readonly Good Cotton = new("Cotton");
     public static readonly Good Leather = new("Leather");
 

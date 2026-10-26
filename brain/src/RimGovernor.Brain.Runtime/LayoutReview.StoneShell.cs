@@ -120,7 +120,7 @@ public sealed partial class LayoutReview
             throw new ControlException("propose: the source serves no definition catalog");
         }
         // The candidate stuffs are the stony stuffs the wall can be made from, priced by the catalog rows.
-        var materials = catalog.StuffMaterials("Wall", "Stony");
+        var materials = catalog.StuffMaterials(nameof(RimWorld.ThingDefOf.Wall), "Stony");
         if (materials.Count == 0)
         {
             return (BuildingReasonStoneShellUnstocked, false);
@@ -160,7 +160,7 @@ public sealed partial class LayoutReview
         for (var i = 0; i < site.BackupCells.Count; i++)
         {
             var cell = site.BackupCells[i];
-            var building = new Building("Wall", cell, Rotation.North, material.Stuff);
+            var building = new Building(nameof(RimWorld.ThingDefOf.Wall), cell, Rotation.North, material.Stuff);
             var actionId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-backup-{i}"));
             var action = DomainAction.NewBuildingAction(actionId, building, ConstructionTier.Survive);
             if (await PreviewWallAsync(action, snapshot, cell, call).ConfigureAwait(false) is not { } preview)
@@ -176,7 +176,7 @@ public sealed partial class LayoutReview
         var demolishId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-demolish"));
         var demolish = DomainAction.NewWallRemovalAction(demolishId, removal);
         actions.Add(demolish);
-        var permanentBuilding = new Building("Wall", site.Origin, Rotation.North, material.Stuff);
+        var permanentBuilding = new Building(nameof(RimWorld.ThingDefOf.Wall), site.Origin, Rotation.North, material.Stuff);
         var permanentId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-replace"));
         var permanent = DomainAction.NewBuildingAction(permanentId, permanentBuilding, ConstructionTier.Survive);
         if (await PreviewWallAsync(permanent, snapshot, site.Origin, call).ConfigureAwait(false) is not { } permanentPreview)

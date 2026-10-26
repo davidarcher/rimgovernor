@@ -18,7 +18,7 @@ internal static class ShellInteriors
         void Extend(PlanId id, Building building)
         {
             var def = building.Definition;
-            if (def != "Wall" && def != "Door")
+            if (def != nameof(RimWorld.ThingDefOf.Wall) && def != nameof(RimWorld.ThingDefOf.Door))
             {
                 return;
             }

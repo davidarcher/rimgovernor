@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Runtime;
 
 public sealed partial class DefensePlanner
 {
-    internal const string ShieldBeltDef = "Apparel_ShieldBelt";
+    internal const string ShieldBeltDef = nameof(RimWorld.ThingDefOf.Apparel_ShieldBelt);
 
     /// <summary>The equip and wear orders that arm the squad before the fight: threat weapons from the map and shield belts from the colony.</summary>
     internal async Task<List<LoadoutOrder>> FightLoadoutAsync(ControlState state, CombatView view, IReadOnlyDictionary<string, RimGovernor.Brain.GameFacts.Observations.PawnState> rows, IReadOnlyList<PawnId> pawns, DefinitionCatalog catalog, CancellationToken call)

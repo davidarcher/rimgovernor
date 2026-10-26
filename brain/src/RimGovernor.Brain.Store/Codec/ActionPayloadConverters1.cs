@@ -213,8 +213,8 @@ public sealed class BuildingTemperatureConverter : ObjectCodec<BuildingTemperatu
 public sealed class CaptureConverter : ObjectCodec<Capture>
 {
     protected override Capture Read(JsonElement e, Codecs o) =>
-        e.Has("Bed")
-            ? Capture.NewArrest(e.Get<PawnId>("Capturer", o), e.Get<PawnId>("Patient", o), e.Str("Bed"))
+        e.Has(nameof(Capture.Bed))
+            ? Capture.NewArrest(e.Get<PawnId>("Capturer", o), e.Get<PawnId>("Patient", o), e.Str(nameof(Capture.Bed)))
             : new Capture(e.Get<PawnId>("Capturer", o), e.Get<PawnId>("Patient", o));
 
     protected override void WriteFields(Utf8JsonWriter w, Capture v, Codecs o)
@@ -223,7 +223,7 @@ public sealed class CaptureConverter : ObjectCodec<Capture>
         w.Put("Patient", v.Patient, o);
         if (v.Bed is { } bed)
         {
-            w.WriteString("Bed", bed);
+            w.WriteString(nameof(Capture.Bed), bed);
         }
     }
 }
@@ -270,7 +270,7 @@ public sealed class CombatCommandConverter : ObjectCodec<CombatCommand>
             Target = e.GetOr("Target", default(PawnId), o),
             Cell = e.GetOr("Cell", default(Cell), o),
             Aim = e.GetOr("Aim", default(Cell), o),
-            Door = e.StrOr("Door"),
+            Door = e.StrOr(nameof(CombatCommand.Door)),
             FireMode = e.StrOr("FireMode"),
             Clear = e.BoolOr("Clear"),
             Shell = e.StrOr("Shell"),
@@ -284,7 +284,7 @@ public sealed class CombatCommandConverter : ObjectCodec<CombatCommand>
         w.Put("Target", v.Target, o);
         w.Put("Cell", v.Cell, o);
         w.Put("Aim", v.Aim, o);
-        w.WriteString("Door", v.Door);
+        w.WriteString(nameof(CombatCommand.Door), v.Door);
         w.WriteString("FireMode", v.FireMode);
         w.WriteBoolean("Clear", v.Clear);
         w.WriteString("Shell", v.Shell);

@@ -20,7 +20,7 @@ public sealed class PrisonersReview
         _custody = custody;
         if (recruit && reviewer.Native is IReviewBuildingSource source)
         {
-            _building = new BuildingPlanner { Reviewer = reviewer, Native = source, Definition = "Wall" };
+            _building = new BuildingPlanner { Reviewer = reviewer, Native = source, Definition = nameof(RimWorld.ThingDefOf.Wall) };
         }
     }
 
@@ -71,7 +71,7 @@ public sealed class PrisonersReview
         {
             throw new ControlException("prisoners jail: the native boundary moved");
         }
-        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, ["Wall", "Door"], call).ConfigureAwait(false);
+        var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, [nameof(RimWorld.ThingDefOf.Wall), nameof(RimWorld.ThingDefOf.Door)], call).ConfigureAwait(false);
         var step = JailStep(reading.Reading);
         switch (step.Kind)
         {
