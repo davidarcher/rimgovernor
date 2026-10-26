@@ -16,6 +16,8 @@ public enum FilterBase
     OutdoorSafe,
     IndoorOnly,
     OutdoorSafeWaste,
+    MealShelf,
+    ColdFood,
 }
 
 /// <summary>
@@ -178,7 +180,7 @@ public sealed partial record StockpileFilter
         new(FilterBase.Nothing, [FilterSelector.CategoryDef("MeatRaw"), FilterSelector.CategoryDef("PlantFoodRaw")], [FilterSelector.SpecialFilter("AllowRotten")]);
 
     /// <summary>Holds the cooked meals of a cold meal store: the meal closet or the freezer shelf by the dining room.</summary>
-    public static StockpileFilter MealShelfFilter() => AllowOnlyFilter(["MealFine", "MealLavish", "MealNutrientPaste", "MealSimple", "MealSurvivalPack"]);
+    public static StockpileFilter MealShelfFilter() => new(FilterBase.MealShelf);
 
     /// <summary>Holds raw meat, never rotten: the freezer's meat shelf.</summary>
     public static StockpileFilter RawMeatFilter() =>
@@ -194,9 +196,8 @@ public sealed partial record StockpileFilter
     /// </summary>
     public static StockpileFilter PerishablesFilter() =>
         new(
-            FilterBase.Nothing,
-            [FilterSelector.CategoryDef("Foods"), FilterSelector.CategoryDef("CorpsesAnimal"), FilterSelector.CategoryDef("CorpsesInsect")],
-            [FilterSelector.SpecialFilter("AllowRotten"), FilterSelector.ThingDef("MealSurvivalPack"), FilterSelector.ThingDef("Pemmican")]
+            FilterBase.ColdFood,
+            disallow: [FilterSelector.SpecialFilter("AllowRotten")]
         );
 
     /// <summary>

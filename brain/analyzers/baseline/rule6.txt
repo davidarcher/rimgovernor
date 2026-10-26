@@ -71,12 +71,6 @@ Runtime/TierStyle.cs|TierStyle.ShellStyleOf|"WoodLog"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.PrepareWorkshopAsync|"FermentingBarrel"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.SelectWorkshop|"FermentingBarrel"
 Domain/PlanSpec.cs|PlanSpec.PlanSpec|"Wall"
-Domain/StockpileFilter.cs|StockpileFilter.MealShelfFilter|"MealFine"
-Domain/StockpileFilter.cs|StockpileFilter.MealShelfFilter|"MealNutrientPaste"
-Domain/StockpileFilter.cs|StockpileFilter.MealShelfFilter|"MealSimple"
-Domain/StockpileFilter.cs|StockpileFilter.MealShelfFilter|"MealSurvivalPack"
-Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"MealSurvivalPack"
-Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"Pemmican"
 Domain/TradeMission.cs|TradeMission.Validate|"Silver"
 Runtime/Client/GameClient.Defense.cs|GameClient.DefenseSpatialAccessBudgetMs|2500
 PlayerApi/LifecycleRoutes.cs|LifecycleRoutes.MaxLoadTimeoutMs|120000

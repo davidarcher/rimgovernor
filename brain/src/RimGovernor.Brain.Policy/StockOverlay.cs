@@ -33,6 +33,8 @@ public sealed record StockZone
         {
             case FilterBase.Food:
             case FilterBase.Perishables:
+            case FilterBase.MealShelf:
+            case FilterBase.ColdFood:
                 food = true;
                 break;
             case FilterBase.Everything:

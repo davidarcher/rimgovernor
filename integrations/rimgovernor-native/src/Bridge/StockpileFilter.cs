@@ -171,6 +171,10 @@ namespace RimGovernor.Native
         {
             if (preset == "food")
                 return universe.Where(IsFood).ToList();
+            if (preset == "mealShelf")
+                return universe.Where(RimGovernor.Brain.Bridge.DefinitionCatalog.MealStorageFood).ToList();
+            if (preset == "coldFood")
+                return universe.Where(RimGovernor.Brain.Bridge.DefinitionCatalog.ColdStorageFood).ToList();
             if (preset == "perishables")
                 return universe.Where(IsRottable).ToList();
             if (preset == "nonperishables")
@@ -204,6 +208,12 @@ namespace RimGovernor.Native
                     break;
                 case "perishables":
                     d["perishables"] = "Storable defs carrying a CompRottable (ThingDef.HasComp<CompRottable>(), which matches subclasses): raw food, meals, corpses, anything with a rot timer.";
+                    break;
+                case "mealShelf":
+                    d["mealShelf"] = "Storable defs whose ingestible food type includes Meal, including installed content.";
+                    break;
+                case "coldFood":
+                    d["coldFood"] = "Rot-capable storable defs within Foods or CorpsesAnimal, including insect corpses through their parent category. The planner separately disallows rotten items.";
                     break;
                 case "nonperishables":
                     d["nonperishables"] = "Every storable def that is NOT perishable -- the exact complement of the perishables set over the same universe, so the two counts sum to storableDefCount.";

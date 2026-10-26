@@ -42,6 +42,8 @@ namespace RimGovernor.Native
             FilterBase.OutdoorSafe => "outdoorSafe",
             FilterBase.IndoorOnly => "indoorOnly",
             FilterBase.OutdoorSafeWaste => "outdoorSafeWaste",
+            FilterBase.MealShelf => "mealShelf",
+            FilterBase.ColdFood => "coldFood",
             _ => throw new ArgumentOutOfRangeException(nameof(preset), preset, "Unknown filter preset."),
         };
 

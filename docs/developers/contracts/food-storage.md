@@ -2,6 +2,14 @@
 
 Storage nutrition rows and their aggregate must remain finite; an overflowing aggregate fails the review.
 
+Meal shelves use the native `MealShelf` filter preset: every storable definition
+whose ingestible food type includes Meal. They include installed content without
+a vanilla definition allowlist. Freezer catch-all storage uses `ColdFood`: only
+rot-capable definitions in Foods or CorpsesAnimal (including the nested insect
+category), with rotten items disallowed. Non-rotting reserve food belongs in
+general storage. The same presets pass through zone creation, shelf settings,
+journal codecs and native filter matching; their observations remain native-owned.
+
 The existing storage chooser reads at most sixteen distinct unstored food
 definitions in ordinal order. Policy computes spare capacity as observed
 capacity minus stored units, floored at zero, before choosing the existing
