@@ -100,14 +100,10 @@ public sealed class RoomsReview
         return Verdict.AwaitingPlan(id.Value, "no_method");
     }
 
-    /// <summary>The definitions the read carries: the lamps, the floors the traffic tier prices, and the PartySpot.</summary>
+    /// <summary>The gathering definition; lamps and floors join ordinary catalog composition.</summary>
     private IReadOnlyList<string> Definitions()
     {
         var definitions = new List<string>();
-        if (_lighting is not null)
-        {
-            definitions.AddRange(_lighting.LightingDefinitions());
-        }
         if (ComfortComposed)
         {
             definitions.Add(PartySpotRules.PartySpotDefinition);

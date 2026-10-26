@@ -108,7 +108,7 @@ public static partial class ColonyPlanningReads
         var f = new ReviewFacts
         {
             EssentialInputs = new() { Benches = productionBenches },
-            Definitions = definitions.AppendDefinitions([], DefinitionsReads.StarterDefinitions.Concat(defs.SowableCrops()).Concat(defs.BuildableFloors()).Concat(defs.GeneratorDefinitions())),
+            Definitions = definitions.AppendDefinitions([], DefinitionsReads.StarterDefinitions.Concat(defs.SowableCrops()).Concat(defs.BuildableFloors()).Concat(defs.GeneratorDefinitions()).Concat(defs.LampDefinitions().Select(lamp => lamp.Name))),
             FoodSupply = foodSupply,
             CombinedFoodSupply = combinedFoodSupply,
             Books = defs.Books(),

@@ -432,6 +432,7 @@ internal static class StationFactsBuilder
     {
         var f = new StationFacts
         {
+            FinishedResearch = projection.Tables.FinishedResearch.ToHashSet(StringComparer.Ordinal),
             Catalog = projection.Facts.Stations,
             Recipes = projection.Facts.ProductionRecipes,
             Furniture = projection.Facts.Shapes.Furniture,

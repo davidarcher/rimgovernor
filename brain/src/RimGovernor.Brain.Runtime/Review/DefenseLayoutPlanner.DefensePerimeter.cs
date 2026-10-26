@@ -34,7 +34,7 @@ public sealed partial class DefenseLayoutPlanner
         {
             return (new DefenseCut(), false);
         }
-        var cut = new DefenseCut { Plan = plan, Bridge = DefensePerimeterBridge(projection), LampReach = projection.Facts.Stations.Light.StandingReach() };
+        var cut = new DefenseCut { Plan = plan, Bridge = DefensePerimeterBridge(projection), LampReach = projection.Facts.Stations.Light.ReachOf(DefenseRoomLamp) };
         var q = DefenseTurretRequest(read).Turret;
         if (DefenseResearched(projection, DefenseMoistureResearch))
         {

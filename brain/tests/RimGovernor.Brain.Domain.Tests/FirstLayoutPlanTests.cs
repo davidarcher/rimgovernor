@@ -83,7 +83,7 @@ public sealed class FirstLayoutPlanTests
                     Capacity = new StationCapacity { Kind = CapacityKind.Items, Slots = 6 },
                 },
             },
-            Light = new LightModel { Standing = new LampModel(75, 30, 12, 217) },
+            Light = new LightModel { Lamps = [new() { Name = "StandingLamp", Powered = true, Model = new LampModel(75, 30, 12, 217) }] },
             Power = new PowerModel
             {
                 Wind = new SupplyRow { NominalW = 2300, Build = 300, Profile = new PowerSourceProfile(.5, .5, false) },

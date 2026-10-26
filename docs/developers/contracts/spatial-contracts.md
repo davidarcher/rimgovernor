@@ -429,15 +429,15 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   food upkeep a day (the food census over the colonists, in site-type units against the
   best crop's `cropRate`, turned into watts by `SiteTypeWeights.Power` as `BuildW` does):
   a derived lower bound with no new constant. A lamp costs its power draw plus its build
-  value at `BuildW`'s rate (`StationCatalog.Light`, read by the bridge from
-  `LightDefs().LampDef`). A work cell is a worker station's interaction cell, charged
+  value at `BuildW`'s rate (`StationCatalog.Light.Lamps`, every installed fixture with
+  modeled glow and service gates). Research-locked fixtures are excluded. Fuel-free
+  fixtures enter layout pricing; runtime also considers refuelable lights. A work cell is a worker station's interaction cell, charged
   a whole colonist-day; a walked cell is charged the extra time its movements a day
   (`tripCellMovements`, the same walk as the airlocks) take at the dark speed. A standing
   lamp stands on a floor cell no station or worker holds; a lamp lights a cell within its
   reach (`glowReach`, below); the greedy search adds the lamp that lights the most dark
   cost, less its own cost, while that is positive.
-  **Wall lamp (#2948, #2951).** The second option (`LightDefs().WallLampDef`,
-  `LightModel.Wall`). From the defs and `Placeworker_AttachedToWall`: it is not built into
+  **Wall fixtures.** From each candidate's defs and `Placeworker_AttachedToWall`: it is not built into
   a wall cell but stands on a floor cell with the wall in the cardinal direction it faces
   (`PlannedLamp.Facing`), is Standable with no path cost and is not an edifice, so it shares
   a cell with furniture, a work cell's standing spot included; the place worker refuses only
@@ -452,15 +452,17 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   placed), for rooms (`roomCands`), and the
   search takes whichever lamp covers the dark for least. A held wall cell makes the wall
   lamp absent there and the standing lamp answers, so contention is priced by the
-  substitute, never refused. A catalog without the wall lamp, its radius or its colour
-  leaves it out; without the standing lamp's radius or colour the lamps are unpriced.
+  substitute, never refused. Each candidate carries its own cost, radius and colour;
+  a fixture without measurable reach cannot enter the comparison. Definitions sort
+  ordinally within standing and wall groups; standing-before-wall order and the
+  existing cell/facing order break equal-price ties.
   **Reach (#2951).** `glowReach` solves the game's falloff for `LitGlow`
   (`ComputeGlowGridsJob.SetGlowFromDist`: the lamp's colour times a blend of `1-x/radius`
   and `1/x^2`, x being 1 plus the octile path distance, per channel truncated;
   `GlowGrid.GroundGlowAt`: brightest channel over 255 times 3.6, lit above 0.3). Both lamps
   glow (214,148,94), so the radius sets the reach: 9.0 cells along an axis from a standing
   lamp and 8.2 from a wall lamp (the wiki's "9 to 8 tiles"). The planner measures
-  Euclidean distance, so `LightPrice.LampReach` and `WallReach` divide the path reach by
+  Euclidean distance, so each `PricedLamp.Reach` divides the path reach by
   the worst octile stretch of a diagonal (8.35 and 7.59 cells), keeping every cell inside lit.
   The earlier flat 6 cells and its 11/12 scaling undershot both; the infestation room-lamp
   planner (`BaseRoomLamps`) spaces its standing lamps by the same catalog reach. Constants: `LightTable`.  A room under the sky (an outdoor role) gets none, and fields stay unroofed (the

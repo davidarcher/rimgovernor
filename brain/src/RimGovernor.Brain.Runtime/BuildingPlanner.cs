@@ -258,7 +258,7 @@ public sealed partial class BuildingPlanner
         }
         if (r.Concern == RoomsFamily.Lighting.FilingKey)
         {
-            definitions = r.LightingDefinitions();
+            definitions = [];
         }
         if (r.Concern == RoomsFamily.Flooring.FilingKey)
         {

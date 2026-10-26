@@ -20,29 +20,18 @@ public sealed record LightingPolicy
     /// <summary>Bounds the Chebyshev distance from the dark cell at which a new lamp may stand.</summary>
     public int PlacementRadius { get; init; }
 
-    /// <summary>Ranks the fixture definitions to consider; powered ones are only chosen while the colony has an active power source.</summary>
-    public IReadOnlyList<LampDefinition> Lamps { get; init; } = [];
-
     public static LightingPolicy Default() =>
         new()
         {
             LitGlow = 0.3,
             PlacementRadius = 2,
-            Lamps = [new LampDefinition { Name = "StandingLamp", Powered = true }, new LampDefinition { Name = "TorchLamp" }],
         };
 
     internal bool IsValid()
     {
-        if (!(LitGlow > 0 && LitGlow <= 1) || PlacementRadius < 1 || PlacementRadius > 8 || Lamps.Count == 0)
+        if (!(LitGlow > 0 && LitGlow <= 1) || PlacementRadius < 1 || PlacementRadius > 8)
         {
             return false;
-        }
-        foreach (var l in Lamps)
-        {
-            if (!FoodForecastRules.FoodId(l.Name))
-            {
-                return false;
-            }
         }
         return true;
     }
@@ -52,6 +41,12 @@ public sealed record LampDefinition
 {
     public string Name { get; init; } = "";
     public bool Powered { get; init; }
+    public bool Wall { get; init; }
+    public bool Refuelable { get; init; }
+    public int ConstructionSkill { get; init; }
+    public LampModel Model { get; init; }
+    public IReadOnlyList<string> Research { get; init; } = [];
+    public IReadOnlyList<Amount> Costs { get; init; } = [];
 }
 
 /// <summary>
@@ -152,6 +147,15 @@ public enum LightingMethod
     [WireName("lamp_research_needed")]
     ResearchNeeded,
 
+    [WireName("lamp_materials_needed")]
+    MaterialsNeeded,
+
+    [WireName("lamp_builder_needed")]
+    BuilderNeeded,
+
+    [WireName("no_supported_lamp")]
+    NoLamp,
+
     [WireName("no_lamp_cell")]
     NoSpace,
 
@@ -161,6 +165,7 @@ public enum LightingMethod
 
 public sealed record LightingProposal
 {
+    public IReadOnlyList<LampDefinition> Options { get; init; } = [];
     public LightingMethod Method { get; init; }
     public MethodId Key { get; init; }
 
@@ -179,6 +184,9 @@ public sealed record LightingProposal
 /// <summary>What SelectLightingMethod needs beyond the census.</summary>
 public sealed record LightingFacts
 {
+    public IReadOnlyList<LampDefinition> Candidates { get; init; } = [];
+    public IReadOnlyList<WorkPawn> Builders { get; init; } = [];
+    public IReadOnlyDictionary<Resource, long> Stock { get; init; } = new Dictionary<Resource, long>();
     public required RoomObservation Rooms { get; init; }
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
@@ -242,6 +250,8 @@ public static class LightingRules
         {
             return new LightingProposal { Method = LightingMethod.NoMethod };
         }
+        var selection = SelectLampDefinitions(facts);
+        bool Eligible(PlannedLamp lamp) => selection.Options.Any(option => option.Name == lamp.Def);
         var v = fact;
         var cells = new Dictionary<Cell, SiteCell>();
         foreach (var c in facts.Cells)
@@ -287,9 +297,10 @@ public static class LightingRules
             List<PlannedLamp> planned = [];
             if (facts.PoweredSource)
             {
-                planned = UnbuiltPlannedLamps(facts.Plan.PlannedLampsAt(target.Cell), v.Lamps);
+                planned = [.. UnbuiltPlannedLamps(facts.Plan.PlannedLampsAt(target.Cell), v.Lamps).Where(Eligible)];
             }
-            var (definition, method) = SelectLampDefinition(facts, p);
+            var (options, method) = selection;
+            var definition = options.Count > 0 ? options[0].Name : "";
             List<Cell> candidates = [];
             if (method == LightingMethod.None)
             {
@@ -304,7 +315,7 @@ public static class LightingRules
                 deferred = FirstLightingReason(deferred, method);
                 continue;
             }
-            if (planned.Count > 0)
+            if (definition.Length == 0 && planned.Count > 0)
             {
                 definition = planned[0].Def;
             }
@@ -314,6 +325,7 @@ public static class LightingRules
                 Method = LightingMethod.Build,
                 Key = new MethodId("lighting-" + Convert.ToHexStringLower(digest.AsSpan(0, 12))),
                 Definition = definition,
+                Options = options,
                 Cells = candidates,
                 Planned = planned,
             };
@@ -325,9 +337,15 @@ public static class LightingRules
             foreach (var id in review.Planned)
             {
                 facts.Plan.Lamps.TryGetValue(id, out var roomLamps);
-                var planned = UnbuiltPlannedLamps(roomLamps ?? [], v.Lamps);
+                var unbuilt = UnbuiltPlannedLamps(roomLamps ?? [], v.Lamps);
+                var planned = unbuilt.Where(Eligible).ToList();
                 if (planned.Count == 0)
                 {
+                    foreach (var lamp in unbuilt)
+                    {
+                        var candidate = facts.Candidates.SingleOrDefault(candidate => candidate.Name == lamp.Def);
+                        deferred = FirstLightingReason(deferred, candidate is null ? LightingMethod.NoLamp : LampReadiness(candidate, facts));
+                    }
                     continue;
                 }
                 var digest = SHA256.HashData(Encoding.UTF8.GetBytes($"room/{id}/{planned[0].Def}/{planned[0].Cell.X},{planned[0].Cell.Z}"));
@@ -342,6 +360,8 @@ public static class LightingRules
         }
         if (deferred == LightingMethod.None)
         {
+            if (review.Planned.Count > 0 && selection.Method != LightingMethod.None)
+                return new LightingProposal { Method = selection.Method };
             return new LightingProposal { Method = LightingMethod.NoMethod };
         }
         return new LightingProposal { Method = deferred };
@@ -389,39 +409,36 @@ public static class LightingRules
     }
 
     /// <summary>
-    /// The first policy lamp that is available and, when powered, backed by an active power source. Unknown
-    /// availability or source facts defer rather than guess.
+    /// The authored style first, then powered fixtures while power is available, then cheaper build value
+    /// and ordinal identity. Every candidate needs measured availability and stock; an absent row fails.
     /// </summary>
-    private static (string Definition, LightingMethod Method) SelectLampDefinition(LightingFacts facts, LightingPolicy p)
+    private static (IReadOnlyList<LampDefinition> Options, LightingMethod Method) SelectLampDefinitions(LightingFacts facts)
     {
-        bool Available(string name) => facts.Available.TryGetValue(name, out var available)
-            ? available : throw new RequiredFactException("lamp definition:" + name);
         var deferred = LightingMethod.None;
-        if (facts.Styled != "" && Available(facts.Styled))
+        var options = new List<LampDefinition>();
+        foreach (var lamp in facts.Candidates.OrderByDescending(lamp => lamp.Name == facts.Styled)
+            .ThenByDescending(lamp => lamp.Powered).ThenBy(lamp => lamp.Model.Build).ThenBy(lamp => lamp.Name, StringComparer.Ordinal))
         {
-            return (facts.Styled, LightingMethod.None);
+            var reason = LampReadiness(lamp, facts);
+            if (reason == LightingMethod.None) options.Add(lamp);
+            else if (deferred == LightingMethod.None || (deferred == LightingMethod.ResearchNeeded && reason != LightingMethod.ResearchNeeded)) deferred = reason;
         }
-        foreach (var lamp in p.Lamps)
-        {
-            if (!Available(lamp.Name))
-            {
-                deferred = FirstLightingReason(deferred, LightingMethod.ResearchNeeded);
-                continue;
-            }
-            if (lamp.Powered)
-            {
-                if (!facts.PoweredSource)
-                {
-                    continue;
-                }
-            }
-            return (lamp.Name, LightingMethod.None);
-        }
+        if (options.Count > 0) return (options, LightingMethod.None);
         if (deferred == LightingMethod.None)
         {
-            deferred = LightingMethod.ResearchNeeded;
+            deferred = LightingMethod.NoLamp;
         }
-        return ("", deferred);
+        return (options, deferred);
+    }
+
+    private static LightingMethod LampReadiness(LampDefinition lamp, LightingFacts facts)
+    {
+        if (!facts.Available.TryGetValue(lamp.Name, out var available))
+            throw new RequiredFactException("lamp definition:" + lamp.Name);
+        if (!available) return LightingMethod.ResearchNeeded;
+        if (lamp.Powered && !facts.PoweredSource) return LightingMethod.PowerNeeded;
+        if (lamp.Costs.Any(cost => facts.Stock.GetValueOrDefault(cost.Resource) < cost.Count)) return LightingMethod.MaterialsNeeded;
+        return FacilityPlanningRules.BuilderAvailable(facts.Builders, lamp.ConstructionSkill) ? LightingMethod.None : LightingMethod.BuilderNeeded;
     }
 
     /// <summary>

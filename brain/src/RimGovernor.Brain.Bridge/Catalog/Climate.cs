@@ -138,18 +138,29 @@ public sealed partial class DefinitionCatalog
         }
     }
 
-    // The lamps the plan places (P.LayoutLightRules.LightDefs): for each the power it draws, the market value of its
-    // cheapest cost list and its glow radius. A catalog without a def (a hand-built one) has an unknown model for it, not
-    // an error: the standing lamp unknown leaves the lamps unpriced, the wall lamp unknown leaves it out of the options.
-    private P.LightModel LightModel()
-    {
-        var defs = P.LayoutLightRules.LightDefs();
-        return new P.LightModel { Standing = LampModel(defs.LampDef), Wall = LampModel(defs.WallLampDef) };
-    }
+    private P.LightModel LightModel() => new() { Lamps = LampDefinitions() };
+
+    /// <summary>Single-cell, stuffless fixtures with native static glow and modeled power/fuel service gates.</summary>
+    public IReadOnlyList<P.LampDefinition> LampDefinitions() => [.. _thingDefs.Values
+        .Where(row => Buildable(row) && row.category == Verse.ThingCategory.Building && row.size == IntVec2.One
+            && !row.MadeFromStuff && row.GetCompProperties<CompProperties_Glower>() is { compClass: var kind } && kind == typeof(CompGlower)
+            && !typeof(IThingGlower).IsAssignableFrom(row.thingClass)
+            && row.comps.All(comp => !typeof(IThingGlower).IsAssignableFrom(comp.compClass)
+                || comp.compClass == typeof(CompPowerTrader) || comp.compClass == typeof(CompRefuelable)
+                || comp.compClass == typeof(CompFlickable) || comp.compClass == typeof(CompBreakdownable)))
+        .OrderBy(row => row.defName, StringComparer.Ordinal)
+        .Select(row => new P.LampDefinition
+        {
+            Name = row.defName, Powered = PowerDraw(row) > 0, Refuelable = HasComp<CompProperties_Refuelable>(row),
+            ConstructionSkill = row.constructionSkillPrerequisite,
+            Wall = row.placeWorkers.Seq().Contains(typeof(Placeworker_AttachedToWall)),
+            Model = LampModel(row.defName), Research = [.. row.researchPrerequisites.Seq().Select(project => project.defName)],
+            Costs = [.. AdjustedCosts(row.defName, "").Select(cost => new P.Amount(new P.Resource(cost.Def), cost.Units))],
+        })];
 
     private P.LampModel LampModel(string def)
     {
-        if (FindThing(def) is not { } row || PowerDraw(row) is not { } watts)
+        if (FindThing(def) is not { } row)
         {
             return default;
         }
@@ -158,6 +169,6 @@ public sealed partial class DefinitionCatalog
 
         // The glow colour's brightest channel sets how far the glow stays lit.
         var brightness = row.GetCompProperties<CompProperties_Glower>() is { } glower ? Math.Max(glower.glowColor.r, Math.Max(glower.glowColor.g, glower.glowColor.b)) : 0;
-        return new P.LampModel(watts, CheapestCostValue(def), radius, brightness);
+        return new P.LampModel(PowerDraw(row) ?? 0, CheapestCostValue(def), radius, brightness);
     }
 }

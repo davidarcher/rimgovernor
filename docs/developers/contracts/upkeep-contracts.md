@@ -522,10 +522,14 @@ service state from the catalog and building rows).
   further away does not stop a lamp of its own. While a network has an active source, the
   layout plan's own lamps for the bench's room (`LayoutPlan.Lamps`, standing or wall, those no
   observed lamp stands on, in plan order) are previewed first, each as its planned definition
-  and facing; a room the plan found darkness cheaper for has none. Otherwise it places the first affordable lamp
-  (`StandingLamp` only while a network has an active source, else `TorchLamp`) on the nearest
+  and facing; a room the plan found darkness cheaper for has none. Otherwise it chooses from every installed
+  single-cell, stuffless fixture with native static glow and modeled service gates. The tier's authored style
+  comes first, then powered fixtures while a source runs, then cheaper build value and ordinal identity.
+  Research, construction stock and a qualified enabled builder must cover the chosen fixture.
+  The same eligibility applies to the plan's fixtures. It places it on the nearest
   free, walkable, unzoned cell of the room within two cells of the interaction cell, each
-  validated by native preview. A receipt never clears the deficit; the next census must read
+  validated by native preview. Wall fixtures try each cardinal attachment facing; a fixture with no legal
+  site yields to the next ranked option. The accepted preview owns the dispatched identity. A receipt never clears the deficit; the next census must read
   the cell lit.
 - The plan is also a deficit input (`policy.PlanLitRooms`): a room the plan
   lights (`LayoutPlan.Lamps`, so lighting its dark cost less than leaving it, in the tiler's

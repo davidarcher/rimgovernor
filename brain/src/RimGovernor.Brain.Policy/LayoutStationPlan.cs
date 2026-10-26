@@ -13,6 +13,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record StationFacts
 {
+    public IReadOnlySet<string> FinishedResearch { get; init; } = new HashSet<string>(StringComparer.Ordinal);
     public StationCatalog Catalog { get; init; } = default!;
     public RoomFurniture Furniture { get; init; } = default!;
 

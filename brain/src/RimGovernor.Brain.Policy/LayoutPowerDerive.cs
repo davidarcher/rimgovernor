@@ -42,8 +42,10 @@ public static partial class LayoutPowerDeriveRules
     /// <summary>The watts the groups draw: their powered stations and the lamps that light their floor. A group that wants a lamp the catalog does not price makes the demand unknown.</summary>
     internal static double PlannedDemandW(this StationFacts f, IReadOnlyList<RoomGroup> groups)
     {
-        var lamp = f.Catalog.Light.Standing;
-        var reach = f.Catalog.Light.StandingReach();
+        var lamp = f.Catalog.Light.Lamps.Where(lamp => !lamp.Wall && !lamp.Refuelable && lamp.Model.Reach() > 0
+            && lamp.Research.All(f.FinishedResearch.Contains))
+            .OrderBy(lamp => lamp.Model.PowerW / Math.Pow(lamp.Model.Reach(), 2))
+            .ThenBy(lamp => lamp.Model.Build).ThenBy(lamp => lamp.Name, StringComparer.Ordinal).FirstOrDefault();
         var demand = 0.0;
         foreach (var g in groups)
         {
@@ -59,11 +61,12 @@ public static partial class LayoutPowerDeriveRules
             {
                 continue;
             }
-            if (!QuestCapacityForecast.FinitePositive(lamp.PowerW) || !QuestCapacityForecast.FinitePositive(reach))
+            if (lamp is null)
             {
                 throw new RequiredFactException("lamp");
             }
-            demand += lamp.PowerW * Math.Ceiling(g.Area / (Math.PI * reach * reach));
+            var reach = lamp.Model.Reach();
+            demand += lamp.Model.PowerW * Math.Ceiling(g.Area / (Math.PI * reach * reach));
         }
         return demand;
     }

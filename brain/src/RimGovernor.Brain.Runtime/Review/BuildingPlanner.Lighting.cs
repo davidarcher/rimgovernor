@@ -15,26 +15,11 @@ public sealed partial class BuildingPlanner
             throw new ControlException("NewReviewLightingPlanner: native is not a rounds source");
         }
 
-        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Lighting.FilingKey, Need = RoomsFamily.Lighting, Definition = "TorchLamp" };
+        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Lighting.FilingKey, Need = RoomsFamily.Lighting };
     }
 
     internal static EquatableArray<int> PlanLitRooms(ColonyReading facts) =>
         LightingRules.PlanLitRooms(facts.Facts.LayoutPlan, facts.Facts.Upkeep.Rooms, facts.Facts.Upkeep.Lighting, TierStyle.PoweredSource(facts));
-
-    internal IReadOnlyList<string> LightingDefinitions()
-    {
-        var output = Reviewer.Policy.Lighting.Lamps.Select(lamp => lamp.Name).ToList();
-        var defs = LayoutLightRules.LightDefs();
-        foreach (var name in new[] { defs.LampDef, defs.WallLampDef })
-        {
-            if (!output.Contains(name))
-            {
-                output.Add(name);
-            }
-        }
-
-        return output;
-    }
 
     /// <summary>The lighting review of <paramref name="facts"/> with the plan's unlit rooms folded in, measured fresh: the rooms/lighting Need's evidence.</summary>
     internal static LightingReview LightingReviewOf(ColonyReading facts, LightingPolicy p) =>
@@ -55,6 +40,9 @@ public sealed partial class BuildingPlanner
 
         var lighting = new LightingFacts
         {
+            Candidates = facts.Facts.Stations.Light.Lamps,
+            Builders = facts.Facts.ForecastObserved.WorkPawns.Pawns,
+            Stock = ResourceStockRules.Count(facts.Snapshot.Resources),
             Rooms = rooms,
             Cells = facts.PlanningWindow.Cells,
             Available = facts.Facts.Definitions.ToDictionary(d => d.Name, d => d.Available),
@@ -83,6 +71,9 @@ public sealed partial class BuildingPlanner
             case LightingMethod.SwitchedOff:
             case LightingMethod.Blocked:
             case LightingMethod.ResearchNeeded:
+            case LightingMethod.MaterialsNeeded:
+            case LightingMethod.BuilderNeeded:
+            case LightingMethod.NoLamp:
             case LightingMethod.NoSpace:
                 return (null, AwaitingMethod(proposal.Method));
         }
@@ -108,6 +99,7 @@ public sealed partial class BuildingPlanner
             }
         }
 
+        foreach (var option in Lighting.Options)
         foreach (var cell in Lighting.Cells)
         {
             if (guarded.Contains(cell))
@@ -115,7 +107,19 @@ public sealed partial class BuildingPlanner
                 continue;
             }
 
-            var building = new Building(Lighting.Definition, cell, Rotation.North, "");
+            if (option.Wall)
+            {
+                foreach (var rotation in Enum.GetValues<Rotation>())
+                {
+                    var (attached, attachedStock, reason) = await PreviewWallBuildingAsync(snapshot, facts, protectedCells, check,
+                        option.Name, cell, rotation, false, ct).ConfigureAwait(false);
+                    if (reason.IsZero)
+                        return (attached, attachedStock, default);
+                }
+                continue;
+            }
+
+            var building = new Building(option.Name, cell, Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;

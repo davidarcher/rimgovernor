@@ -30,18 +30,13 @@ namespace RimGovernor.Brain.Policy;
 // standing lamp answers: contention is priced by what the substitute costs, never refused.
 
 /// <summary>
-/// The lamp pricing's table. LampDef
-/// is the standing lamp the plan places and WallLampDef the one hung on a wall; DarkSpeed is StatPart_Glow's
+/// The lamp pricing's table. DarkSpeed is StatPart_Glow's
 /// factor at glow 0 for WorkSpeedGlobal and MoveSpeed. The glow constants are the game's: GroundScale is
 /// GlowGrid.GroundGlowAt's 3.6, FalloffBlend ComputeGlowGridsJob.SetGlowFromDist's lerp weight of 1/x^2 against
 /// 1-x/radius, and DiagonalCost its 141/100 per diagonal step.
 /// </summary>
 public sealed record LightTable
 {
-    public string LampDef { get; init; } = string.Empty;
-
-    public string WallLampDef { get; init; } = string.Empty;
-
     public double DarkSpeed { get; init; }
 
     public double GroundScale { get; init; }
@@ -54,20 +49,18 @@ public sealed record LightTable
 /// <summary>One lamp's catalog numbers: the power it draws, the market value of its cheapest cost list, its glow radius and the brightest channel of its glow colour. The default value is unknown.</summary>
 public readonly record struct LampModel(double PowerW, double Build, double Radius, double Brightness)
 {
-    internal bool Priced() => QuestCapacityForecast.FinitePositive(PowerW) && QuestCapacityForecast.FinitePositive(Build);
+    internal bool Priced() => FoodForecastRules.FoodNumber(PowerW) && FoodForecastRules.FoodNumber(Build);
 
     internal double Reach() => LayoutLightRules.GlowReach(Radius, Brightness);
 }
 
-/// <summary>The catalog's two lamps; an unknown one is an absent option.</summary>
+/// <summary>The catalog's buildable fixtures with modeled glow and service mechanics.</summary>
 public sealed record LightModel
 {
-    public LampModel Standing { get; init; }
+    public IReadOnlyList<LampDefinition> Lamps { get; init; } = [];
 
-    public LampModel Wall { get; init; }
-
-    /// <summary>The standing lamp's lit radius in cells (GlowReach of its catalog glow); zero when the catalog does not know the lamp.</summary>
-    public double StandingReach() => Standing.Reach();
+    /// <summary>The named fixture's measured lit radius; zero when the catalog does not offer it.</summary>
+    public double ReachOf(string definition) => Lamps.Where(lamp => lamp.Name == definition).Select(lamp => lamp.Model.Reach()).SingleOrDefault();
 }
 
 /// <summary>
@@ -96,16 +89,17 @@ public abstract record StationWorkDay
 }
 
 /// <summary>
-/// What darkness and light cost, in sustained watts. WorkDayW is a colonist's work-day, LampW one standing lamp's
-/// draw and amortised build, CellWalkDays the work-days a colonist spends walking one cell. LampReach is the
-/// standing lamp's lit radius in cells. WallLampW and WallReach are the wall lamp's price and reach; zero while
-/// the wall lamp is unknown, which leaves it out of the options.
+/// A priced installed fixture: identity, attachment, sustained watts and measured lit radius.
 /// </summary>
-public readonly record struct LightPrice(double WorkDayW, double LampW, double CellWalkDays, double LampReach, double WallLampW, double WallReach)
+public readonly record struct PricedLamp(string Definition, bool Wall, double W, double Reach);
+
+/// <summary>A colonist's work-day and movement cost, with every available fixture's operating and amortised build cost.</summary>
+public readonly record struct LightPrice(double WorkDayW, double CellWalkDays)
 {
+    public IReadOnlyList<PricedLamp> Lamps { get; init; } = [];
     /// <summary>Reports a price with every number known.</summary>
     public bool Valid() =>
-        QuestCapacityForecast.FinitePositive(WorkDayW) && QuestCapacityForecast.FinitePositive(LampW) && QuestCapacityForecast.FinitePositive(CellWalkDays) && QuestCapacityForecast.FinitePositive(LampReach);
+        QuestCapacityForecast.FinitePositive(WorkDayW) && QuestCapacityForecast.FinitePositive(CellWalkDays) && Lamps is { Count: > 0 };
 
     /// <summary>What a dark work cell costs: the work speed lost over one colonist's work-day.</summary>
     public double WorkCellW() => (1 - LayoutLightRules.LightSpeed(0)) * WorkDayW;
@@ -116,10 +110,9 @@ public readonly record struct LightPrice(double WorkDayW, double LampW, double C
     /// <summary>The standing lamps that could stand on spots.</summary>
     internal List<LampCand> StandingCands(IReadOnlyList<Cell> spots)
     {
-        // Locals, because a lambda inside a struct cannot read the struct's members.
-        var lampW = LampW;
-        var lampReach = LampReach;
-        return spots.Select(s => new LampCand(new PlannedLamp { Def = LayoutLightRules.LightJudgment.LampDef, Cell = s }, lampW, lampReach)).ToList();
+        if (!Valid()) return [];
+        return Lamps.Where(lamp => !lamp.Wall).SelectMany(lamp => spots.Select(s =>
+            new LampCand(new PlannedLamp { Def = lamp.Definition, Cell = s }, lamp.W, lamp.Reach))).ToList();
     }
 
     /// <summary>
@@ -153,6 +146,7 @@ public readonly record struct LightPrice(double WorkDayW, double LampW, double C
 /// <summary>What the price reads. UpkeepPerDay is one colonist's nutrition a day and UnitNutrition the nutrition a day of one site-type unit; Climate gives the game's ticks per second.</summary>
 public sealed record LightPriceInput
 {
+    public IReadOnlySet<string> FinishedResearch { get; init; } = new HashSet<string>(StringComparer.Ordinal);
     public LightModel Model { get; init; } = new();
 
     public ClimateModel Climate { get; init; } = new();
@@ -192,8 +186,6 @@ public static partial class LayoutLightRules
 {
     private static readonly LightTable LightTableValue = new()
     {
-        LampDef = "StandingLamp",
-        WallLampDef = "WallLamp",
         DarkSpeed = 0.8,
         GroundScale = 3.6,
         FalloffBlend = 0.4,
@@ -247,9 +239,6 @@ public static partial class LayoutLightRules
         return (lo - 1) / Math.Sqrt(1 + ((t.DiagonalCost - 1) * (t.DiagonalCost - 1)));
     }
 
-    /// <summary>The buildings the lamp pricing places.</summary>
-    public static LightTable LightDefs() => LayoutLightRules.LightJudgment;
-
     /// <summary>The speed factor of a pawn on ground of the given glow (StatPart_Glow): linear from DarkSpeed at 0 to 1 at LitGlow.</summary>
     public static double LightSpeed(double glow)
     {
@@ -267,28 +256,24 @@ public static partial class LayoutLightRules
         {
             w = SiteRules.DefaultSiteTypeWeights();
         }
-        if (!input.Model.Standing.Priced() || !QuestCapacityForecast.FinitePositive(input.SteelValue)
+        if (!QuestCapacityForecast.FinitePositive(input.SteelValue)
             || !QuestCapacityForecast.FinitePositive(input.UpkeepPerDay) || !QuestCapacityForecast.FinitePositive(input.UnitNutrition) || !QuestCapacityForecast.FinitePositive(input.Climate.TicksPerSecond) || !QuestCapacityForecast.FinitePositive(w.Power))
         {
             return default;
         }
         var p = new LightPrice(
             WorkDayW: ClimateRules.UnitsW(w, input.UpkeepPerDay / input.UnitNutrition),
-            LampW: input.Model.Standing.PowerW + ClimateRules.BuildW(w, input.Model.Standing.Build, input.SteelValue),
-            CellWalkDays: input.Climate.TicksPerSecond / CombatManhunterRules.ColonistMoveSpeed / GameTime.TicksPerDay,
-            LampReach: input.Model.Standing.Reach(),
-            WallLampW: 0,
-            WallReach: 0);
-        // A lamp whose glow is unknown cannot be placed: the standing lamp's leaves the price invalid, the wall
-        // lamp's leaves it out.
+            CellWalkDays: input.Climate.TicksPerSecond / CombatManhunterRules.ColonistMoveSpeed / GameTime.TicksPerDay)
+        {
+            Lamps = [.. input.Model.Lamps.Where(lamp => !lamp.Refuelable && lamp.Model.Priced() && lamp.Model.Reach() > 0
+                && lamp.Research.All(input.FinishedResearch.Contains)).OrderBy(lamp => lamp.Name, StringComparer.Ordinal)
+                .Select(lamp => new PricedLamp(lamp.Name, lamp.Wall,
+                    lamp.Model.PowerW + ClimateRules.BuildW(w, lamp.Model.Build, input.SteelValue), lamp.Model.Reach()))],
+        };
+        // No priced, research-available fixture leaves lighting unpriced.
         if (!p.Valid())
         {
             return default;
-        }
-        var wall = input.Model.Wall;
-        if (wall.Priced() && wall.Reach() > 0)
-        {
-            p = p with { WallLampW = wall.PowerW + ClimateRules.BuildW(w, wall.Build, input.SteelValue), WallReach = wall.Reach() };
         }
         return p;
     }
@@ -304,7 +289,7 @@ public static partial class LayoutLightRules
         {
             return default;
         }
-        return NewLightPrice(new LightPriceInput { Model = f.Catalog.Light, Climate = f.Catalog.Climate, SteelValue = steel, UpkeepPerDay = day.Upkeep, UnitNutrition = day.Unit });
+        return NewLightPrice(new LightPriceInput { Model = f.Catalog.Light, FinishedResearch = f.FinishedResearch, Climate = f.Catalog.Climate, SteelValue = steel, UpkeepPerDay = day.Upkeep, UnitNutrition = day.Unit });
     }
 
     /// <summary>
@@ -412,7 +397,7 @@ public static partial class LayoutLightRules
     internal static List<LampCand> WallLampCands(IReadOnlyList<Cell> spots, Func<Cell, bool>? isWall, LightPrice p)
     {
         var output = new List<LampCand>();
-        if (p.WallLampW <= 0 || p.WallReach <= 0 || isWall is null)
+        if (!p.Valid() || isWall is null)
         {
             return output;
         }
@@ -424,7 +409,8 @@ public static partial class LayoutLightRules
                 {
                     continue;
                 }
-                output.Add(new LampCand(new PlannedLamp { Def = LayoutLightRules.LightJudgment.WallLampDef, Cell = s, Facing = DefenseLayout.RotationOf(dir) }, p.WallLampW, p.WallReach));
+                foreach (var lamp in p.Lamps.Where(lamp => lamp.Wall))
+                    output.Add(new LampCand(new PlannedLamp { Def = lamp.Definition, Cell = s, Facing = DefenseLayout.RotationOf(dir) }, lamp.W, lamp.Reach));
                 break;
             }
         }

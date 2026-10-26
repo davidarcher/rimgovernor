@@ -98,6 +98,6 @@ public sealed class GeneratorCandidatePipelineTests(ITestOutputHelper output)
     {
         var power = new CompProperties_Power { compClass = kind };
         GameMembers.BasePowerConsumption(power) = -1000;
-        return new() { defName = name, thingClass = typeof(Building), designationCategory = new(), comps = [power] };
+        return new() { defName = name, thingClass = typeof(Verse.Building), designationCategory = new(), comps = [power] };
     }
 }
