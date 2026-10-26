@@ -70,15 +70,15 @@ public sealed class WorkUpkeepTotalTests
             Stock = new Dictionary<Resource, long> { [ingredient] = stock },
         };
         var order = new OrderSpec { Recipe = recipe.Definition, BenchKind = "observed-kind" };
-        Assert.Equal(expected, WorkRules.ObserveOrder(order, offers ? 1 : 0, new DispatchSizing.Sized(0, 1, 1), input).Ingredients);
+        Assert.Equal(expected, WorkRules.ObserveOrder(order, offers ? 1 : 0, new DispatchSizing.Sized(1, 1), input).Ingredients);
     }
     [Theory]
     [InlineData(ThroughputIngredients.Missing, UnmetReason.Ingredients, false)]
-    [InlineData(ThroughputIngredients.Stocked, UnmetReason.Haul, false)]
+    [InlineData(ThroughputIngredients.Stocked, UnmetReason.WorkUnstarted, false)]
     [InlineData(ThroughputIngredients.NoRecipe, UnmetReason.None, true)]
     public void IngredientStatesControlThroughputCalibration(ThroughputIngredients ingredients, UnmetReason expected, bool widen)
     {
-        var start = new ThroughputObservation { Tick = 1, Target = 100, Carrying = 1, Eligible = 2, Capacity = 10, Active = true, Ingredients = ingredients,
+        var start = new ThroughputObservation { Tick = 1, Target = 100, Carrying = 1, Eligible = 2, Capacity = new ForecastTerm.Assessed(10), Active = true, Ingredients = ingredients,
             Output = new ProductionOutput.Observed("load", 0), Basis = new(new(), [], []) };
         var (window, _) = WorkRules.CalibrateThroughput(new(), start);
         var (_, result) = WorkRules.CalibrateThroughput(window, start with { Tick = 1 + WorkRules.ThroughputWindowTicks });

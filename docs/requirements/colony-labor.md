@@ -123,6 +123,24 @@ Runtime supplies facts and admits Methods, and occupation remains independently
 observed. Complexity: added same-pawn settings admission evidence / removed the
 claim-based priority freeze and duplicate claims view / orphans left: none.
 
+The next task 3.3 increment retains native recipe-output windows when conditional
+capacity changes with current need debt. Calibration uses the least supported
+sampled rate; an unassessed capacity sample preserves observed output but cannot
+authorize a shortfall or widening verdict. Unsized stock-target orders still read
+their exact bill counters. The former idle-bench `haul_bound` diagnosis is now
+`work_unstarted`: stored ingredients and an idle bench do not prove a delivery
+bottleneck. The unused sizing stock field was deleted. `NativeThroughputTests`
+covers changing capacity, unassessed capacity, actual unsized output and the real
+dispatcher retaining its window while dropping unsupported widening. The gate
+passed 4,123 domain tests, 30 workflow tests, native compilation, probes and the
+orphan check (1m36s). No new native gameplay claim is made. Task 3.3 remains
+incomplete: shared outcome baseline/settings alternatives and supported future
+shortfall are still required. Rules 7–9: calibration is pure policy over canonical
+output; existing derived memory owns the window; unassessed capacity is not zero.
+Complexity: added conditional-capacity window regressions / removed volatile-rate
+resets, unsupported hauling attribution and duplicate stock field / orphans left:
+none.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. Every activity family below currently feeds the shared exact binding/admission path. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |

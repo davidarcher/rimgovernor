@@ -429,7 +429,9 @@ storage, merges or consumption. A full window whose product creation is under ha
 of predicted output (and whose stock never reached the target) widens by one bench, capped at the
 usable benches, unless the recipe's ingredient stock is at or below one unit
 (`ingredient_bound`) or every carrying bill is active, ingredients are present and
-no pawn's job targeted a carrying bench all window (`haul_bound`); with a bill on
+no pawn's job targeted a carrying bench all window (`work_unstarted`). This does
+not identify hauling as the cause: stored ingredients do not prove delivery,
+worker selection or bench access. With a bill on
 every eligible bench it reports `benches_exhausted`. Stock reaching the target
 stops shortfall calibration; changes in stock otherwise measure neither production
 nor its absence. Counts from other bills, products or acquisition channels do not
@@ -439,6 +441,13 @@ rebaselines on world/load change, tick rewind, counter regression or changed ord
 eligible benches, carrying bill identity/configuration, worker availability,
 priorities, skills or measured speed. Stale widening and shortfall evidence is
 discarded with that basis. Units are product units per game day.
+Changing conditional capacity from current need debt does not reset actual
+production history. Calibration uses the least supported sampled rate in the
+window, rather than the earlier higher estimate. An unassessed capacity sample
+retains the observed counter baseline but prevents a shortfall/widening verdict
+for that window; it is not a zero-output prediction. Unsized stock-target orders
+still observe exact bill output. These sampled estimates do not promise future
+native work selection.
 `ReviewFacts.UnmetThroughput`
 is one row per bench kind (`policy.UnmetThroughput`: units a day short and the
 reason, also `no_bench` when the model wants more benches than exist and

@@ -23,9 +23,9 @@ public enum UnmetReason
     [WireName("ingredient_bound")]
     Ingredients,
 
-    /// <summary>The bill is active and its ingredients exist but the bench sat idle all window; hauling, not bench count, limits it.</summary>
-    [WireName("haul_bound")]
-    Haul,
+    /// <summary>Active bills and stocked ingredients did not produce observed bench work; the missing native work is not attributed to hauling without delivery evidence.</summary>
+    [WireName("work_unstarted")]
+    WorkUnstarted,
 
     /// <summary>Production stays short with a bill on every usable bench; only a new bench can raise it.</summary>
     [WireName("benches_exhausted")]
@@ -56,10 +56,10 @@ public abstract record DispatchSizing
     public sealed record Unsized : DispatchSizing;
 
     /// <summary>
-    /// The product's stock, the units per day that clear its deficit and the mean units per day of one eligible bench
+    /// The units per day that clear the product's deficit and the mean units per day of one eligible bench
     /// with an average worker.
     /// </summary>
-    public sealed record Sized(long Stock, double Demand, double Capacity) : DispatchSizing;
+    public sealed record Sized(double Demand, double Capacity) : DispatchSizing;
 }
 
 /// <summary>The rate model's answer for one order.</summary>
@@ -92,8 +92,8 @@ public sealed record ThroughputWindow
     /// <summary>The units short of target at Start.</summary>
     public long Deficit { get; init; }
 
-    /// <summary>The predicted units per day of the Carrying benches.</summary>
-    public double PerDay { get; init; }
+    /// <summary>The least supported conditional rate sampled during the window; unread capacity is not zero.</summary>
+    public ForecastTerm PerDay { get; init; } = new ForecastTerm.Unassessed("labor_capacity_unread");
 
     public int Carrying { get; init; }
 
@@ -131,7 +131,7 @@ public sealed record ThroughputObservation
     public int Eligible { get; init; }
 
     /// <summary>Units per day of one bench.</summary>
-    public double Capacity { get; init; }
+    public ForecastTerm Capacity { get; init; } = new ForecastTerm.Unassessed("labor_capacity_unread");
 
     /// <summary>Every carrying bill is known active.</summary>
     public bool Active { get; init; }
@@ -229,7 +229,7 @@ public static partial class WorkRules
         }
         var held = have.GetValueOrDefault(order.Product);
         var demand = BenchRateRules.DemandRate((long)order.Target - held, order.Class);
-        d = d with { Sizing = new DispatchSizing.Sized(held, demand, capacity) };
+        d = d with { Sizing = new DispatchSizing.Sized(demand, capacity) };
         if (BenchRateRules.Wanted(demand, capacity) is not BenchesWanted.Count { Benches: var n })
         {
             return d;
@@ -380,7 +380,7 @@ public static partial class WorkRules
     /// <summary>
     /// Advances the order's window with this Round's reading. The window restarts whenever the carrying count
     /// changes, and only a full window gives a verdict. A short window widens by one bench unless the shortfall is
-    /// ingredient-bound (a known ingredient stock at or below IngredientBoundStock) or haul-bound (every carrying
+    /// ingredient-bound (a known ingredient stock at or below IngredientBoundStock) or unstarted (every carrying
     /// bill active, ingredients present, yet no pawn worked a carrying bench all window); a short window with a bill
     /// on every eligible bench is UnmetBenchesExhausted.
     /// </summary>
@@ -401,17 +401,24 @@ public static partial class WorkRules
                 LoadToken = loadToken,
                 Basis = o.Basis,
                 Deficit = Math.Max(o.Target - stock, 0),
-                PerDay = capacity * o.Carrying,
+                PerDay = capacity is ForecastTerm.Assessed(var rate) ? new ForecastTerm.Assessed(rate * o.Carrying) : capacity,
                 Carrying = o.Carrying,
                 Met = stock >= o.Target,
                 Samples = 0,
             };
         if (!w.Open || w.Carrying != o.Carrying || o.Tick < w.Start || w.LoadToken != loadToken
-            || !SameThroughputBasis(w.Basis, o.Basis) || produced < w.StartProduced || w.PerDay != capacity * o.Carrying)
+            || !SameThroughputBasis(w.Basis, o.Basis) || produced < w.StartProduced)
         {
             return (Fresh(), new Calibration());
         }
-        w = w with { Met = w.Met || stock >= o.Target, Samples = w.Samples + 1 };
+        w = w with
+        {
+            Met = w.Met || stock >= o.Target, Samples = w.Samples + 1,
+            PerDay = w.PerDay is ForecastTerm.Unassessed ? w.PerDay
+                : capacity is ForecastTerm.Unassessed ? capacity
+                : new ForecastTerm.Assessed(Math.Min(((ForecastTerm.Assessed)w.PerDay).Value,
+                    ((ForecastTerm.Assessed)capacity).Value * o.Carrying)),
+        };
         if (o.Busy)
         {
             w = w with { Busy = w.Busy + 1 };
@@ -425,8 +432,9 @@ public static partial class WorkRules
             return (w, new Calibration());
         }
         var days = (double)(o.Tick - w.Start) / GameTime.TicksPerDay;
-        var expected = Math.Min(w.PerDay * days, (double)w.Deficit);
         var cal = new Calibration { Closed = true };
+        if (w.PerDay is not ForecastTerm.Assessed(var supported)) return (Fresh(), cal);
+        var expected = Math.Min(supported * days, (double)w.Deficit);
         var gain = (double)(produced - w.StartProduced);
         if (!w.Met && expected > 0 && gain < ShortfallFraction * expected)
         {
@@ -437,7 +445,7 @@ public static partial class WorkRules
             }
             else if (o.Ingredients == ThroughputIngredients.Stocked && !w.Inactive && w.Samples > 0 && w.Busy == 0)
             {
-                cal = cal with { Reason = UnmetReason.Haul };
+                cal = cal with { Reason = UnmetReason.WorkUnstarted };
             }
             else if (o.Carrying < o.Eligible)
             {

@@ -10,7 +10,7 @@ public sealed class NativeThroughputTests
     private static ThroughputObservation Start() => new()
     {
         Tick = 100, Stock = 20, Target = 1000, Output = new ProductionOutput.Observed("load", 100), Carrying = 1, Eligible = 2,
-        Capacity = 10, Active = true, Busy = true, Ingredients = ThroughputIngredients.Stocked,
+        Capacity = new ForecastTerm.Assessed(10), Active = true, Busy = true, Ingredients = ThroughputIngredients.Stocked,
         Basis = new(new(), [new("bench", true, 1, null, [new("bill", true, "")])],
             [new(new("worker"), true, true, [], [], [])]),
     };
@@ -35,7 +35,7 @@ public sealed class NativeThroughputTests
     [InlineData("rewind")]
     [InlineData("counter")]
     [InlineData("order")]
-    [InlineData("rate")]
+
     [InlineData("worker")]
     [InlineData("bench")]
     [InlineData("bill")]
@@ -52,7 +52,6 @@ public sealed class NativeThroughputTests
             "rewind" => next with { Tick = 1 },
             "counter" => next with { Output = new ProductionOutput.Observed("load", 0) },
             "order" => next with { Basis = next.Basis! with { Order = new() { Target = 2 } } },
-            "rate" => next with { Capacity = 20 },
             "worker" => next with { Basis = next.Basis! with
             { Workers = [new(new("worker"), false, true, [], [], [])] } },
             "bench" => next with { Basis = next.Basis! with
@@ -73,6 +72,54 @@ public sealed class NativeThroughputTests
     }
 
     [Fact]
+    public void ChangingNeedDebtDoesNotEraseNativeProductionOrUseTheOldHigherCapacity()
+    {
+        var start = Start();
+        var (window, _) = WorkRules.CalibrateThroughput(new(), start);
+        var middle = start with { Tick = start.Tick + GameTime.TicksPerDay / 2,
+            Capacity = new ForecastTerm.Assessed(4), Output = new ProductionOutput.Observed("load", 102) };
+        (window, _) = WorkRules.CalibrateThroughput(window, middle);
+        Assert.Equal(start.Tick, window.Start);
+        Assert.Equal(new ForecastTerm.Assessed(4), window.PerDay);
+        var (_, result) = WorkRules.CalibrateThroughput(window, start with
+        { Tick = start.Tick + GameTime.TicksPerDay, Output = new ProductionOutput.Observed("load", 104) });
+        Assert.True(result.Closed);
+        Assert.False(result.IsShort);
+        Assert.False(result.Widen);
+    }
+
+    [Fact]
+    public void UnknownCapacityRetainsObservedProductionWithoutClaimingAShortfall()
+    {
+        var start = Start();
+        var (window, _) = WorkRules.CalibrateThroughput(new(), start);
+        var unknown = start with { Tick = start.Tick + GameTime.TicksPerDay / 2,
+            Capacity = new ForecastTerm.Unassessed("labor_native_work_remaining:worker:hauling"),
+            Output = new ProductionOutput.Observed("load", 103) };
+        (window, _) = WorkRules.CalibrateThroughput(window, unknown);
+        Assert.Equal(start.Tick, window.Start);
+        Assert.Equal(100, window.StartProduced);
+        Assert.Equal(unknown.Capacity, window.PerDay);
+        var (_, result) = WorkRules.CalibrateThroughput(window, start with
+        { Tick = start.Tick + GameTime.TicksPerDay, Output = new ProductionOutput.Observed("load", 103) });
+        Assert.True(result.Closed);
+        Assert.False(result.IsShort);
+        Assert.False(result.Widen);
+    }
+
+    [Fact]
+    public void UnsizedOrdersStillObserveTheirActualOutput()
+    {
+        var order = new OrderSpec { Recipe = "recipe", BenchKind = "kind", Product = new("meal") };
+        var input = new DispatchInputs { Stock = new Dictionary<Resource, long> { [order.Product] = 7 },
+            Production = new() { LoadToken = "load", Kills = [], Butchers = [], Counts = [] } };
+        var observation = WorkRules.ObserveOrder(order, 0, new DispatchSizing.Unsized(), input);
+        Assert.IsType<ForecastTerm.Unassessed>(observation.Capacity);
+        Assert.Equal(new ProductionOutput.Observed("load", 0), observation.Output);
+        Assert.Equal(7, observation.Stock);
+    }
+
+    [Fact]
     public void MissingProductionIsUnavailableRatherThanZero()
     {
         var start = Start();
@@ -82,6 +129,28 @@ public sealed class NativeThroughputTests
         Assert.False(unread.Open);
         Assert.False(result.Closed);
         Assert.False(result.Widen);
+    }
+
+    [Fact]
+    public void DispatcherRetainsAnUnsizedOrdersWindowAndDropsUnsupportedWidening()
+    {
+        var order = new OrderSpec { Recipe = "recipe", BenchKind = "kind", Product = new("meal"), Mode = BillMode.StockTarget, Target = 10 };
+        var bill = new GearBill { Observed = BillWire.Bill("bill") with { Recipe = order.Recipe }, Spec = order };
+        var input = new DispatchInputs { Tick = 100, Declared = [new() { Orders = [order] }],
+            Benches = [new() { Observed = ProductionBenchFixtures.Observed("bench", "kind", "token", true), Bills = [bill], Recipes = [] }],
+            Production = new() { LoadToken = "load", Kills = [], Butchers = [], Counts = [Count(Obs.DeliveryKind.Recipe, "bill", "meal", 3)] } };
+        var memory = new DispatchMemory();
+        memory.Dispatch(input);
+        var original = memory.Windows[order.Key()];
+        Assert.True(original.Open);
+        memory.Widen[order.Key()] = 1;
+        memory.Dispatch(input with { Tick = 200, Production = input.Production with
+            { Counts = [Count(Obs.DeliveryKind.Recipe, "bill", "meal", 5)] } });
+        Assert.Equal(original.Start, memory.Windows[order.Key()].Start);
+        Assert.Equal(3, memory.Windows[order.Key()].StartProduced);
+        Assert.IsType<ForecastTerm.Unassessed>(memory.Windows[order.Key()].PerDay);
+        Assert.Empty(memory.Widen);
+        Assert.Empty(memory.Shortfalls);
     }
 
     [Fact]
@@ -99,10 +168,10 @@ public sealed class NativeThroughputTests
              Count(Obs.DeliveryKind.Recipe, "bill", "other-product", 11),
              Count(Obs.DeliveryKind.Crop, "bill", "meal", 13)] },
         };
-        var observed = WorkRules.ObserveOrder(order, 1, new(0, 1, 1), input);
+        var observed = WorkRules.ObserveOrder(order, 1, new DispatchSizing.Sized(1, 1), input);
         Assert.Equal(new ProductionOutput.Observed("load", 3), observed.Output);
         Assert.Equal(new ProductionOutput.CensusUnread(),
-            WorkRules.ObserveOrder(order, 1, new(0, 1, 1), input with { Production = null }).Output);
+            WorkRules.ObserveOrder(order, 1, new DispatchSizing.Sized(1, 1), input with { Production = null }).Output);
     }
 
     private static Obs.DeliveryCount Count(Obs.DeliveryKind kind, string source, string product, long units) => new()

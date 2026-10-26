@@ -53,19 +53,18 @@ public sealed class DispatchMemory
                 Shortfalls.Remove(k);
                 continue;
             }
-            if (d.Sizing is not DispatchSizing.Sized sized)
+            if (d.Sizing is not DispatchSizing.Sized)
             {
-                // An unsized order has no prediction to calibrate against: its window starts over.
-                Windows[k] = new ThroughputWindow();
+                // No supported prediction means no widening, but actual production remains observable.
                 Widen.Remove(k);
                 Shortfalls.Remove(k);
-                continue;
             }
             var previous = Windows.GetValueOrDefault(k) ?? new ThroughputWindow();
-            var observation = WorkRules.ObserveOrder(order, d.Eligible, sized, input);
+            var observation = WorkRules.ObserveOrder(order, d.Eligible, d.Sizing, input);
             if (observation.Output is not ProductionOutput.Observed(var token, var units) || previous.LoadToken != token || !WorkRules.SameThroughputBasis(previous.Basis, observation.Basis)
                 || observation.Tick < previous.Start || units < previous.StartProduced
-                || previous.PerDay != observation.Capacity * observation.Carrying)
+                || observation.Capacity is ForecastTerm.Assessed(var capacity)
+                    && previous.PerDay != new ForecastTerm.Assessed(capacity * observation.Carrying))
             {
                 Widen.Remove(k);
                 Shortfalls.Remove(k);
@@ -135,7 +134,7 @@ public sealed class DispatchMemory
 public static partial class WorkRules
 {
     /// <summary>Reads one stock-target order off the Round: the benches carrying it, whether its bills are active and a pawn works them, and whether the recipe's ingredients are in stock.</summary>
-    public static ThroughputObservation ObserveOrder(OrderSpec order, int eligibleCount, DispatchSizing.Sized sized, DispatchInputs input)
+    public static ThroughputObservation ObserveOrder(OrderSpec order, int eligibleCount, DispatchSizing sizing, DispatchInputs input)
     {
         var key = order.Key();
         var o = new ThroughputObservation
@@ -143,8 +142,9 @@ public static partial class WorkRules
             Tick = input.Tick,
             Target = order.Target,
             Eligible = eligibleCount,
-            Capacity = sized.Capacity,
-            Stock = sized.Stock,
+            Capacity = sizing is DispatchSizing.Sized sized ? new ForecastTerm.Assessed(sized.Capacity)
+                : new ForecastTerm.Unassessed("labor_capacity_unassessed"),
+            Stock = input.Stock.GetValueOrDefault(order.Product),
             Active = true,
             Ingredients = ThroughputIngredients.NoRecipe,
         };

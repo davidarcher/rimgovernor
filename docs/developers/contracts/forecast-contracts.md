@@ -25,6 +25,13 @@ delivery and consumption do not count as production. An unread counter census is
 The existing world reset and typed production basis invalidate obsolete evidence.
 This is observed output over a completed window, not a predicted native job
 trajectory or a guarantee that native workers will meet a timetable's hours.
+Normal changes in conditional capacity retain the actual output window. The
+dispatcher compares production against the least supported sampled capacity;
+an unassessed sample prevents a calibration shortfall or widening verdict.
+Active bills with stocked ingredients but no observed bench work name
+`work_unstarted`, rather than claiming a hauling bottleneck without delivery
+evidence. This is still dispatcher calibration; the portfolio's general native
+baseline and intervention materiality are separate, incomplete work.
 
 ## Combat exposure states
 
