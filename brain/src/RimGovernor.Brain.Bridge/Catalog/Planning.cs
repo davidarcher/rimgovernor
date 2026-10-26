@@ -20,6 +20,14 @@ public static class PlanningStatNames
 
 public sealed partial class DefinitionCatalog
 {
+    // The native classroom worker tests these exact ThingDefOf identities, not a building subclass.
+    private static FurnitureRole SchoolFurnitureRole(string name) => name switch
+    {
+        nameof(ThingDefOf.Blackboard) => FurnitureRole.Board,
+        nameof(ThingDefOf.SchoolDesk) => FurnitureRole.Desk,
+        _ => default,
+    };
+
     /// <summary><c>ThingDef.BuildableByPlayer</c>: the def has a designation category.</summary>
     public static bool Buildable(ThingDef row) => row.BuildableByPlayer;
 
@@ -38,7 +46,7 @@ public sealed partial class DefinitionCatalog
             roles.Add(FurnitureRole.Toy.Value);
         }
 
-        if (DefTablesRules.GameRoomRoleDefs.TryGetValue(name, out var role))
+        if (SchoolFurnitureRole(name) is { IsEmpty: false } role)
         {
             roles.Add(role.Value);
         }

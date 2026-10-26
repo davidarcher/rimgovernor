@@ -79,6 +79,6 @@ public sealed partial class DefinitionCatalog
         }
 
         return HasComp<CompProperties_ChangeableProjectile>(gun)
-            && FilterAccepts(gun.building?.fixedStorageSettings?.filter, DefTablesRules.MortarProbeShells[0]);
+            && FilterAccepts(gun.building?.fixedStorageSettings?.filter, nameof(ThingDefOf.Shell_HighExplosive));
     }
 }

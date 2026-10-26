@@ -311,14 +311,4 @@ public static partial class StationCatalogRules
         return false;
     }
 
-    /// <summary>
-    /// The buildings the game's role workers name through ThingDefOf rather than by a trait of the def: the
-    /// deathrest casket (the bindable test counts every other bindable building half) and the psychic ritual
-    /// spot. The game offers no def signal for either.
-    /// </summary>
-    public static readonly IReadOnlyDictionary<string, RoomRole> RoomRoleNamedDefs = new Dictionary<string, RoomRole>(StringComparer.Ordinal)
-    {
-        ["DeathrestCasket"] = RoomRole.DeathrestChamber,
-        ["PsychicRitualSpot"] = RoomRole.CeremonialChamber,
-    };
 }

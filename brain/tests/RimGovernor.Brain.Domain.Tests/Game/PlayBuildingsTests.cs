@@ -11,6 +11,20 @@ namespace RimGovernor.Brain.Domain.Tests.Game;
 public sealed class PlayBuildingsTests
 {
     [Fact]
+    public void SchoolWorkersSupplyRolesOnlyForTheirExactNativeDefinitions()
+    {
+        var catalog = Catalog(
+            new ThingDef { defName = nameof(ThingDefOf.Blackboard), designationCategory = new() },
+            new ThingDef { defName = nameof(ThingDefOf.SchoolDesk), designationCategory = new() },
+            new ThingDef { defName = "InstalledDesk", designationCategory = new() });
+        Assert.Equal([FurnitureRole.Board.Value], catalog.GameRoomRoles(nameof(ThingDefOf.Blackboard)));
+        Assert.Equal([FurnitureRole.Desk.Value], catalog.GameRoomRoles(nameof(ThingDefOf.SchoolDesk)));
+        Assert.Empty(catalog.GameRoomRoles("InstalledDesk"));
+        Assert.Equal([nameof(ThingDefOf.Blackboard), nameof(ThingDefOf.SchoolDesk)], catalog.RoomRoleRows());
+        Assert.Empty(Catalog().RoomRoleRows());
+    }
+
+    [Fact]
     public void TheToyGiverPlaysAtTheToyBoxAndTheOthersAtNothing()
     {
         var catalog = Catalog(

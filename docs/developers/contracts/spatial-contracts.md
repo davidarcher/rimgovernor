@@ -17,6 +17,11 @@ reads canonical facts and keeps native construction previews and legality guards
 These rules constrain shared plan admission and each later dispatch. They use native
 observations; they do not reserve permanent ownership of coordinates.
 
+The native catalog derives classroom, deathrest and ceremonial room roles from
+the same exact definition identities and component checks as the native room
+workers. Policy consumes those roles. Mortar classification likewise probes the
+native ammunition filter with the compiler-checked high-explosive shell identity.
+
 ## Layout and native zone kinds
 
 Policy's `LayoutZoneKind` names a planned land use (field, pasture, mining, wood,

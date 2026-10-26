@@ -183,7 +183,7 @@ public sealed partial class DefinitionCatalog
             Score(scores, RoomRole.WorshipRoom, P.RoleCondition.IdeoAltar);
         }
 
-        if (P.DefTablesRules.GameRoomRoleDefs.TryGetValue(row.defName, out var furniture) && (furniture == P.FurnitureRole.Desk || furniture == P.FurnitureRole.Board))
+        if (!SchoolFurnitureRole(row.defName).IsEmpty)
         {
             Score(scores, RoomRole.Classroom, P.RoleCondition.Always);
         }
@@ -193,7 +193,14 @@ public sealed partial class DefinitionCatalog
             Score(scores, RoomRole.Playroom, P.RoleCondition.Always);
         }
 
-        if (P.StationCatalogRules.RoomRoleNamedDefs.TryGetValue(row.defName, out var named))
+        // These workers name their special building; all other deathrest-bindable buildings use the bindable score.
+        var named = row.defName switch
+        {
+            nameof(ThingDefOf.DeathrestCasket) => RoomRole.DeathrestChamber,
+            nameof(ThingDefOf.PsychicRitualSpot) => RoomRole.CeremonialChamber,
+            _ => RoomRole.None,
+        };
+        if (named != RoomRole.None)
         {
             Score(scores, named, P.RoleCondition.Always);
         }
