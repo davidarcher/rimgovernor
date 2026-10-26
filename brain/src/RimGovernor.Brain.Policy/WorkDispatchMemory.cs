@@ -15,6 +15,7 @@ public sealed record DispatchInputs
     public long Tick { get; init; }
 
     public RimGovernor.Brain.GameFacts.Observations.DeliveryLedger? Production { get; init; }
+    public RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead? Needs { get; init; }
 }
 
 /// <summary>
@@ -42,7 +43,7 @@ public sealed class DispatchMemory
         foreach (var k in wanted.Keys.Order(StringComparer.Ordinal))
         {
             var order = wanted[k];
-            var d = WorkRules.DispatchOrder(order, input.Stock, input.Benches, input.Pawns, Widen.GetValueOrDefault(k));
+            var d = WorkRules.DispatchOrder(order, input.Stock, input.Benches, input.Pawns, input.Needs, Widen.GetValueOrDefault(k));
             dispatch[k] = d;
             copies[k] = d.Copies;
             if (!order.Stocked())
@@ -68,7 +69,7 @@ public sealed class DispatchMemory
             {
                 Widen.Remove(k);
                 Shortfalls.Remove(k);
-                d = WorkRules.DispatchOrder(order, input.Stock, input.Benches, input.Pawns, 0);
+                d = WorkRules.DispatchOrder(order, input.Stock, input.Benches, input.Pawns, input.Needs, 0);
                 dispatch[k] = d;
                 copies[k] = d.Copies;
             }

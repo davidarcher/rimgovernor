@@ -19,9 +19,8 @@ public static class QuestCapacityForecast
     private readonly record struct QuestTimedWork(long Deadline, QuestWorkload Workload);
 
     /// <summary>
-    /// The forecast prices actual native work at observed rates. It uses complete days, at most eight
-    /// scheduled work/Anything hours per day, and half that time for useful work; the remainder funds
-    /// hauling, walking and normal upkeep.
+    /// Conditional deadline capacity at observed native work rates. Shared needs/service estimates
+    /// debit recovery and approach; competing untimed work makes the affected capacity unassessed.
     /// </summary>
     public static QuestSkipReason QuestDeadlineFeasibility(QuestState offer, ReviewFacts f)
     {
@@ -119,11 +118,13 @@ public static class QuestCapacityForecast
             foreach (var pawn in eligible)
             {
                 var p = byId[pawn.PawnId];
-                var scheduled = p.WorkHoursPerDay();
                 if (!QuestWorkEnabled(p, task.Workload.Work))
                 {
                     continue;
                 }
+                var days = (task.Deadline - now) / (double)GameTime.TicksPerDay;
+                if (NativeLaborCapacity.HoursPerDay(p.Observed, f.ForecastObserved.Needs, [task.Workload.Work], days)
+                    is not ForecastTerm.Assessed(var hours)) return "deadline_capacity_unassessed";
                 // Native rates every recipe work speed stat, construction and plant work, so a missing one is a broken read.
                 var rate = task.Workload.Stat is not { } stat ? 1.0
                     : pawn.Rates.FirstOrDefault(r => r.Stat == stat) is { } measured ? measured.Rate : throw new RequiredFactException($"quest work rate {stat} of {pawn.PawnId}");
@@ -132,7 +133,7 @@ public static class QuestCapacityForecast
                 {
                     continue;
                 }
-                var budget = (double)((task.Deadline - now) / GameTime.TicksPerDay) * (Math.Min(scheduled, 8) * GameTime.TicksPerHour) / 2 - used.GetValueOrDefault(pawn.PawnId);
+                var budget = days * hours * GameTime.TicksPerHour - used.GetValueOrDefault(pawn.PawnId);
                 if (budget <= 0)
                 {
                     continue;

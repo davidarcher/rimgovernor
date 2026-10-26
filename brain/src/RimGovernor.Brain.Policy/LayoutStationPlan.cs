@@ -50,6 +50,7 @@ public sealed record StationFacts
 
     /// <summary>Says who is a baby.</summary>
     public WorkPawnsRead WorkPawns { get; init; } = new WorkPawnsRead([]);
+    public RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead? Needs { get; init; }
 
     /// <summary>The colony's rest schedule from its workers' timetables (#3750); null while unread, which fails the disturbed-sleep price that needs it.</summary>
     public RestSchedule? Rest { get; init; }

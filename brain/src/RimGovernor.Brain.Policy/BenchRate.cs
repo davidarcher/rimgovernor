@@ -18,7 +18,7 @@ public enum ResourceClass
 }
 
 /// <summary>
-/// One pawn assigned to a bench: the game hours per day it works and its work speed stat for the recipe
+/// One pawn's conditional potential at a bench: estimated hours per day and its work speed stat for the recipe
 /// (1 is a baseline pawn).
 /// </summary>
 public sealed record BenchWorker

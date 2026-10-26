@@ -4,6 +4,14 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 internal static class StockArrivalTestFacts
 {
+    // Isolate recipe/stock mechanics with a complete, zero-upkeep needs census.
+    // NativeLaborCapacityTests supplies physiological overhead, care and current work.
+    internal static StockArrival Craft(IReadOnlyList<StockRecipe> recipes,
+        IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BillStackRow> benches,
+        IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.PawnState> workers, IReadOnlyDictionary<Resource, long> stock) =>
+        StockArrivalRules.Craft(recipes, benches, workers, stock,
+            NeedsFixtures.Read(0, [.. workers.Select(p => NeedsFixtures.Pawn() with { Pawn = p.Pawn.Id! })]));
+
     internal static RimGovernor.Brain.GameFacts.Observations.BillStackRow Bench(string definition, bool usable, double workSpeed) =>
         ProductionBenchFixtures.Observed(definition + "-bench", definition, "stock-bench", usable) with { WorkSpeed = workSpeed };
 

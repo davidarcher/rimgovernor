@@ -92,17 +92,16 @@ public abstract record PawnCycle
         var need = Need(pawn, kind);
         RequireRate(need.Fall, kind + " fall", pawn);
         RequireRate(need.Gain, kind + " gain", pawn);
-        var hours = Served(need.Fall, need.Gain);
+        var hours = NeedServiceRules.ContinuousHours(need.Fall, need.Gain);
         if (need.OutdoorShares.Count == 12 && need.Gain > need.ShelteredGain)
         {
             var share = need.OutdoorShares[twelfth];
-            hours = share * hours + (1 - share) * Served(need.Fall, need.ShelteredGain);
+            hours = share * hours + (1 - share) * NeedServiceRules.ContinuousHours(need.Fall, need.ShelteredGain);
         }
         if (hours == 0) findings.Add($"{kind}_unserved:{pawn.Pawn}");
         return hours;
     }
 
-    private static double Served(double fall, double gain) => gain == 0 ? 0 : HoursPerDay * fall / (fall + gain);
     private static void RequireRate(double rate, string name, ModelPawn pawn)
     {
         if (!double.IsFinite(rate) || rate < 0) throw new RequiredFactException($"{name}:{pawn.Pawn}");
@@ -113,7 +112,7 @@ public abstract record PawnCycle
             throw new RequiredFactException($"meal gain:{pawn.Pawn}");
         RequireRate(service.ServiceTicks, "meal service", pawn);
         RequireRate(service.ApproachTicks, "meal approach", pawn);
-        return fall * GameTime.TicksPerDay / service.GainPerUse * (service.ServiceTicks + service.ApproachTicks) / GameTime.TicksPerHour;
+        return NeedServiceRules.MealHours(fall, service.GainPerUse, service.ServiceTicks, service.ApproachTicks);
     }
     private static double Eating(ModelNeed food, ModelPawn pawn)
     {

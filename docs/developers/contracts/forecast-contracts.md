@@ -736,12 +736,19 @@ owns native gates and the execution boundary.
 Crafting is the first source (`StockArrivalRules.Craft`): each catalog recipe making a medicine or an install recipe's fixed part
 (`DefinitionCatalog.StockRecipes`, research finished, not ideology-gated, every slot fillable) at the best usable bench of the bills
 census hosting it and the best eligible crafter (the bench's DoBill work type enabled, every `skillRequirements` level met) runs at
-work hours × 2500 × the crafter's `workSpeedStat` × the bench's `WorkTableWorkSpeedFactor` ÷ `WorkAmountTotal` × batch units a
+conditional work hours × 2500 × the crafter's `workSpeedStat` × the bench's `WorkTableWorkSpeedFactor` ÷ `WorkAmountTotal` × batch units a
 day (`Toils_Recipe.DoRecipeWork`), up to the iterations the stock of the scarcest ingredient slot pays for. A recipe whose bench
 stat is another (`workTableSpeedStat`) is named `stock_arrival_bench_speed_unmodelled:<recipe>`.
 Crafting reads the actual `BillStackRow` and `PawnState` records. Work eligibility, skill levels and speed stats
-come from those rows; work hours are calculated from the native timetable. No separate bench, crafter or skill census
-copies are stored. An incomplete timetable retains the existing named stock-arrival schedule refusal.
+come from those rows; `NativeLaborCapacity` derives conditional hours from canonical
+needs/service/approach, current care and useful work, using timetable preference
+only as a ceiling. This is a mechanical arrival estimate under those conditions,
+not guaranteed native production. An unassessed worker contributes no craft source
+and its reason remains in `StockArrival.Findings`, without discarding supported
+trade or other craft sources. No separate bench, crafter, skill or capacity census
+is stored. Missing timetable support is `labor_schedule_unread:<pawn>`; missing
+needs and competing untimed work have distinct findings. The shared admission
+forecast still protects actual work independently of these potential-rate estimates.
 
 ### Conditional local incident process
 

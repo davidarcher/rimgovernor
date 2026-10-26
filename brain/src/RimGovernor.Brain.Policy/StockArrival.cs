@@ -420,17 +420,8 @@ public static class StockArrivalRules
     /// (<see cref="StockArrival.Unread"/>).
     /// </summary>
     public static StockArrival Craft(IReadOnlyList<StockRecipe> recipes, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BillStackRow> benches, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.PawnState> crafters,
-        IReadOnlyDictionary<Resource, long> stock)
+        IReadOnlyDictionary<Resource, long> stock, RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead? needs)
     {
-        var workers = new List<(RimGovernor.Brain.GameFacts.Observations.PawnState Pawn, int Hours)>();
-        foreach (var pawn in crafters)
-        {
-            if (PawnRules.WorkHours([.. pawn.Settings.Schedule.Select(slot => slot.AssignmentDefName)]) is not { } hours)
-            {
-                return new StockArrival { Unread = "stock_arrival_schedule:" + pawn.Pawn.Id };
-            }
-            workers.Add((pawn, hours));
-        }
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var sources = new List<StockSource>();
         foreach (var recipe in recipes.OrderBy(r => r.Recipe, StringComparer.Ordinal))
@@ -451,14 +442,21 @@ public static class StockArrivalRules
             {
                 foreach (var bench in benches.Where(b => b.Usable && b.BenchDef == host.Bench))
                 {
-                    foreach (var crafter in workers.Where(c => DoesWork(c.Pawn, host.Work) && recipe.Skills.All(s => Level(c.Pawn, s.Skill) >= s.MinLevel)))
+                    foreach (var crafter in crafters.Where(c => DoesWork(c, host.Work) && recipe.Skills.All(s => Level(c, s.Skill) >= s.MinLevel)))
                     {
-                        if (Speed(crafter.Pawn, recipe.WorkSpeedStat) is not { } speed)
+                        var potential = NativeLaborCapacity.HoursPerDay(crafter, needs, [host.Work]);
+                        if (potential is ForecastTerm.Unassessed(var reason))
                         {
-                            return new StockArrival { Unread = "work_speed:" + crafter.Pawn.Pawn.Id + ":" + recipe.WorkSpeedStat };
+                            findings.Add(reason);
+                            continue;
+                        }
+                        var hours = ((ForecastTerm.Assessed)potential).Value;
+                        if (Speed(crafter, recipe.WorkSpeedStat) is not { } speed)
+                        {
+                            return new StockArrival { Unread = "work_speed:" + crafter.Pawn.Id + ":" + recipe.WorkSpeedStat };
                         }
 
-                        best = Math.Max(best, crafter.Hours * GameTime.TicksPerHour * speed * bench.WorkSpeed / recipe.WorkAmount * recipe.Batch);
+                        best = Math.Max(best, hours * GameTime.TicksPerHour * speed * bench.WorkSpeed / recipe.WorkAmount * recipe.Batch);
                     }
                 }
             }

@@ -28,7 +28,7 @@ already carries (`Work.cs`): the actual native skill rows, including learning ev
 level, the stored level beneath aptitude, passion and disabled flag; traits with
 degree; the backstory-incapable work types; biological age (`Child` from the Biotech developmental stage).
 The profile retains the complete canonical native pawn row. Identity, skills,
-incapable work types, age, inspiration and timetable hours are read from that row;
+incapable work types, age, inspiration and timetable slots are read from that row;
 catalog-derived trait, gene and work values stay alongside it. Missing required
 native inputs fail the read. An absent skill is explicitly missing, and absent
 Biotech is the named inactive state.
@@ -281,8 +281,8 @@ role, trait and need-band timetable writer is deleted. A timetable is observed
 native state, not a competing instruction to a controlled pawn.
 
 The existing WorkSettings schedule operation remains for explicit operations and
-player-authority mechanics. Independent quest/rate consumers still read observed
-work hours and preserve unknown timetables; these observations do not schedule
+player-authority mechanics. Quest/rate consumers use the shared conditional
+labor estimate and preserve unread timetables; these observations do not schedule
 supported colony work. The layout comfort estimate has a fixed occupancy
 assumption, explicitly separate from the selected needs timeline.
 ## Mech control
@@ -668,7 +668,21 @@ there is no independent needs labor budget. Existing routine assignment consumer
 may still inspect timetable availability, but the automatic timetable writer is
 removed and those observations cannot start a competing voluntary job.
 
-Pawn profiles carry the observed work hours, gene effects and work minimum ages directly. A pawn with no timetable has zero scheduled work hours; a malformed nonempty timetable fails the read. Routine and direct colony reads derive the same complete colonist profiles from the native pawn census.
+Pawn profiles retain native timetable slots, gene effects and work minimum ages.
+The old computed `WorkHours` property and `WorkPawnProfileExtensions` are removed.
+`NativeLaborCapacity.HoursPerDay` supplies conditional potential for bill sizing,
+craft arrivals, quest deadlines and construction work-day pricing. It shares
+`NeedServiceRules` with `PawnCycle`, debits physiological service/approach and
+current recovery debt, respects observed active care and names competing untimed
+native work as unassessed. The native timetable is a preference ceiling, never
+completed output or shared free capacity. Same-type ongoing work can contribute
+to a conditional throughput estimate while shared admission still protects its
+occupation. Missing needs, service, timetable or competing duration cannot finance
+production. Crafting excludes the affected source with a finding; supported other
+sources remain available. Quest deadline capacity becomes unassessed; bill sizing
+remains unsized; an unpriced construction work-day keeps block pricing invalid.
+No separate schedule or capacity store is added. Routine and direct colony reads
+derive the same complete colonist profiles from the native pawn census.
 
 
 Work and bench requirements are total once the frame is read. A project definition, open bill bench or recipe missing from its census fails the planner boundary; it never supplies an empty requirement. Station demand uses the current world's derived resource targets and fails before that review exists. The builder count is a plain count of available, capable construction workers, including zero. Throughput names NoRecipe, Missing and Stocked ingredient states; recipes taking no ingredients are Stocked.

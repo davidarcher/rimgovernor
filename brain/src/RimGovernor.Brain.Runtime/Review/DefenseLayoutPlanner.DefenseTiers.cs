@@ -234,7 +234,7 @@ public sealed partial class DefenseLayoutPlanner
             }
         }
         var p = read.Reading;
-        var facts = new StationFacts { Catalog = p.Facts.Stations, Items = p.Facts.Items, Colonists = p.Facts.Census.ColonistCount, Food = p.Facts.FoodSupply, WorkPawns = p.Facts.ForecastObserved.WorkPawns, Crops = FieldCrops.Growing(p) };
+        var facts = new StationFacts { Catalog = p.Facts.Stations, Items = p.Facts.Items, Colonists = p.Facts.Census.ColonistCount, Food = p.Facts.FoodSupply, WorkPawns = p.Facts.ForecastObserved.WorkPawns, Needs = p.Facts.ForecastObserved.Needs, Crops = FieldCrops.Growing(p) };
         var decisions = DefenseBlock.PriceTierBlocks(census.Cells, pins, tiers.Sited, DefenseBlock.NewBlockPricing(facts, census.UnitCosts, rows));
         var key = string.Join(" ", decisions.Select(d => d.ToString()));
         if (key == BlocksLogged)

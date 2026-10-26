@@ -446,6 +446,7 @@ internal static class StationFactsBuilder
             Races = projection.Facts.AnimalUpkeep.AnimalRaces,
             Pasture = projection.Facts.Pasture,
             WorkPawns = projection.Facts.ForecastObserved.WorkPawns,
+            Needs = projection.Facts.ForecastObserved.Needs,
             Rest = projection.Facts.Rest,
             Food = projection.Facts.FoodSupply,
             Ledger = ledger,

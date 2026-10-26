@@ -226,9 +226,6 @@ public sealed record PawnProfile
     /// <summary>The current InspirationDef defName; "" means none.</summary>
     public string Inspiration => Observed.Inspiration ?? "";
 
-    /// <summary>The hours per day the timetable assigns to Work or Anything (WorkPawn.WorkHoursPerDay); zero for a pawn without a timetable.</summary>
-    public int WorkHours => WorkPawnProfileExtensions.WorkHoursPerDay(EquatableArray.From(Observed.Settings.Schedule.Select(slot => slot.AssignmentDefName)));
-
     /// <summary>The pawn's skill row; a skill absent from the read is level 0 and never learns (a disabled skill).</summary>
     public ProfileSkill Skill(string name) =>
         Skills.TryGetValue(name, out var s) ? new ProfileSkill.Present(s) : new ProfileSkill.Missing();
@@ -302,19 +299,6 @@ public sealed record PawnProfile
         result.AddRange(young.OrderBy(w => Wire.Name(w), StringComparer.Ordinal));
         return result;
     }
-}
-
-public static class WorkPawnProfileExtensions
-{
-    /// <summary>
-    /// How many hours of the pawn's timetable are Work or Anything. A pawn without a timetable has zero; malformed
-    /// nonempty timetables fail the read.
-    /// </summary>
-    public static int WorkHoursPerDay(this WorkPawn w) => WorkHoursPerDay(w.Schedule);
-
-    /// <summary>The Work or Anything hours of a timetable, one TimeAssignmentDef per hour (WorkHoursPerDay above).</summary>
-    public static int WorkHoursPerDay(EquatableArray<string> rows) =>
-        rows.Count == 0 ? 0 : PawnRules.WorkHours(rows) ?? throw new DomainException("invalid pawn timetable" );
 }
 
 public static partial class PawnRules

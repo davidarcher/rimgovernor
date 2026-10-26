@@ -36,7 +36,7 @@ public static class StockArrivalReads
 
         var crafters = (pawns?.Pawns ?? []).Where(row => row.Colonist && !row.Dead && !row.Downed && !row.Drafted
             && row.MentalState is null && row.Settings.Work is not RimGovernor.Brain.GameFacts.Observations.PawnWork.NeverWorks).ToArray();
-        var craft = StockArrivalRules.Craft(catalog.StockRecipes(finished), bills.Benches, crafters, stock);
+        var craft = StockArrivalRules.Craft(catalog.StockRecipes(finished), bills.Benches, crafters, stock, colony.Forecast.Needs);
         if (craft.Unread.Length != 0)
         {
             return craft;

@@ -211,13 +211,12 @@ public static class DefenseBlock
     public static string ClearKey(string def, string stuff) => def + "|" + stuff;
 
     /// <summary>
-    /// The work ticks one colonist's work-day holds: the mean over the available colonists of their timetable's
-    /// work hours at the removal driver's work a tick (<see cref="WorkRules.ConstructionWorkPerTick"/>, #3868). Zero when no
-    /// colonist can be dispatched to construction or none has working hours at a positive speed: no work-day to price.
+    /// Conditional work-day potential at the removal driver's rate. Needs, care and competing work
+    /// constrain the shared estimate. Zero leaves the existing block price invalid; it never means free construction.
     /// </summary>
-    public static double ColonistWorkTicksPerDay(IReadOnlyList<WorkPawn> pawns)
+    public static double ColonistWorkTicksPerDay(IReadOnlyList<WorkPawn> pawns, RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead? needs)
     {
-        if (!WorkRules.TryDispatchWorkers(pawns, [], WorkRules.ConstructionSpeedStat, out var workers) || workers.Count == 0)
+        if (!WorkRules.TryDispatchWorkers(pawns, [new() { Work = WorkType.Construction }], WorkRules.ConstructionSpeedStat, needs, out var workers) || workers.Count == 0)
         {
             return 0;
         }
@@ -332,7 +331,7 @@ public static class DefenseBlock
         var p = new BlockPricing { Work = LayoutRegroupRules.StationWorkPrice(f), SteelValue = steel, Market = f.Items.Market, UnitCosts = unitCosts, Rows = rows };
         var pawns = f.WorkPawns.Pawns;
         {
-            p = p with { TicksPerWorkDay = ColonistWorkTicksPerDay(pawns) };
+            p = p with { TicksPerWorkDay = ColonistWorkTicksPerDay(pawns, f.Needs) };
         }
         return p;
     }

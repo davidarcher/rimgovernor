@@ -205,7 +205,7 @@ public sealed class StockArrivalTests
     {
         // 8 work hours × 2500 ticks × 1.2 × the bench's 0.9 ÷ 10 000 work: 2.16 a day; 5 spacer components pay for 2 arms.
         BillStackRow[] benches = [StockArrivalTestFacts.Bench("FabricationBench", true, 0.9), StockArrivalTestFacts.Bench("FabricationBench", false, 2), StockArrivalTestFacts.Bench("HandTailoringBench", true, 1)];
-        var crafted = StockArrivalRules.Craft([Recipe(Arm)], benches,
+        var crafted = StockArrivalTestFacts.Craft([Recipe(Arm)], benches,
             [Crafter("Low", 7, 3), Crafter("Anna", 8, 1.2), Crafter("Bo", 10, 1), Crafter("Cook", 12, 5, WorkType.Cooking)], Stock);
         var source = Assert.Single(crafted.Sources);
         Assert.Equal((Arm, 2L), (source.Resource, source.Units));
@@ -213,14 +213,14 @@ public sealed class StockArrivalTests
         Assert.Empty(crafted.Findings);
 
         // No usable bench of the recipe: no source.
-        var none = StockArrivalRules.Craft([Recipe(Arm)], [StockArrivalTestFacts.Bench("FabricationBench", false, 1)], [Crafter("Anna", 8, 1.2)], Stock);
+        var none = StockArrivalTestFacts.Craft([Recipe(Arm)], [StockArrivalTestFacts.Bench("FabricationBench", false, 1)], [Crafter("Anna", 8, 1.2)], Stock);
         Assert.Empty(none.Sources);
         Assert.Empty(none.Findings);
 
         // A bench stat the census does not read is named; a crafter without the recipe's speed stat leaves the model unread.
-        var otherStat = StockArrivalRules.Craft([Recipe(Arm) with { BenchSpeedStat = "DrugCookingSpeed" }], benches, [Crafter("Anna", 8, 1.2)], Stock);
+        var otherStat = StockArrivalTestFacts.Craft([Recipe(Arm) with { BenchSpeedStat = "DrugCookingSpeed" }], benches, [Crafter("Anna", 8, 1.2)], Stock);
         Assert.Contains(StockArrivalRules.BenchSpeedUnmodelled + ":Make_BionicArm", otherStat.Findings);
-        var unread = StockArrivalRules.Craft([Recipe(Arm, stat: "MedicineSpeed")], benches, [Crafter("Anna", 8, 1.2)], Stock);
+        var unread = StockArrivalTestFacts.Craft([Recipe(Arm, stat: "MedicineSpeed")], benches, [Crafter("Anna", 8, 1.2)], Stock);
         Assert.Equal("work_speed:Anna:MedicineSpeed", unread.Unread);
     }
 
@@ -229,13 +229,15 @@ public sealed class StockArrivalTests
     {
         var pawn = Crafter("Anna", 10, 1);
         BillStackRow[] benches = [StockArrivalTestFacts.Bench("FabricationBench", true, 1)];
-        Assert.Single(StockArrivalRules.Craft([Recipe(Arm)], benches, [pawn], Stock).Sources);
+        Assert.Single(StockArrivalTestFacts.Craft([Recipe(Arm)], benches, [pawn], Stock).Sources);
         var disabled = pawn with { Settings = pawn.Settings with { Work = new PawnWork.Works(true, [new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Crafting", Priority = 1, Disabled = true }]) } };
-        Assert.Empty(StockArrivalRules.Craft([Recipe(Arm)], benches, [disabled], Stock).Sources);
+        Assert.Empty(StockArrivalTestFacts.Craft([Recipe(Arm)], benches, [disabled], Stock).Sources);
         var missingSchedule = pawn with { Settings = pawn.Settings with { Schedule = [] } };
-        Assert.Equal("stock_arrival_schedule:Anna", StockArrivalRules.Craft([Recipe(Arm)], benches, [missingSchedule], Stock).Unread);
+        var unassessed = StockArrivalTestFacts.Craft([Recipe(Arm)], benches, [missingSchedule], Stock);
+        Assert.Empty(unassessed.Sources);
+        Assert.Contains("labor_schedule_unread:Anna", unassessed.Findings);
         Assert.Equal(24, pawn.Settings.Schedule.Count);
-        Assert.Single(StockArrivalRules.Craft([Recipe(Arm)], benches, [pawn], Stock).Sources);
+        Assert.Single(StockArrivalTestFacts.Craft([Recipe(Arm)], benches, [pawn], Stock).Sources);
     }
     [Fact]
     public void TheMedicineCraftedIsTheBestKindASourceMakesWithTheBetterKindsBeforeIt()

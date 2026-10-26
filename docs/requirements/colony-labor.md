@@ -72,12 +72,40 @@ and `UsefulNativeWorkOccupiesCapacityAndRetainsItsTargetReservation` cover the
 policy consequences. The obsolete flag is deleted through the native observation,
 typed facts and admission codec, with journal schema 61. The required gate passed
 on 2026-10-26 (59 s), including native production/fixture compilation and contract
-probes. Earlier native gameplay results above precede this increment. Task 3.2
-remains incomplete pending conditional replacement of timetable throughput sizing.
+probes. Earlier native gameplay results above precede this increment. Task 3.2's
+conditional replacement of timetable throughput sizing follows below.
 Rules 7–9: occupancy is a pure shared decision, native reservations retain legality,
 and unavailable duration stays named rather than becoming zero. Complexity: added
 0 execution paths / removed target-holder preemption and one boundary flag /
 orphans left: none.
+
+Task 3.2 replaces timetable-only hours in bill sizing, crafting arrival, quest
+deadline capacity and construction work-day pricing with `NativeLaborCapacity`.
+It reuses the canonical needs census and `NeedServiceRules`' existing steady
+service assumptions, sharing the continuous/meal mechanics with `PawnCycle`.
+Service approach, immediate recovery and observed continuous-service remainder
+consume potential labor. Active care and competing untimed work are named
+unassessed states. A same-type native worker can have conditional production
+potential while remaining occupied for shared admission; potential is not idle
+capacity. Unsupported craft sources retain findings without discarding supported
+trade; missing deadline capacity abstains. The old profile-hour property and
+schedule-count extension are removed. Slots remain native facts because settings
+and explicit timetable protection still read them.
+
+`NativeLaborCapacityTests` verifies 24 scheduled work slots cannot finance a
+24-hour production day, current hunger/rest and service travel reduce potential,
+ongoing continuous service consumes time above its trigger, active care/unknown
+duration do not become free labor, and bench/craft consumers use the same estimate
+with skill gates. The required gate passed 4,121 domain tests and 30 workflow tests
+(1m10s), native compilation, contract probes and the orphan check; strict OpenSpec
+validation passed five items on 2026-10-26. No additional native gameplay result is
+claimed for this policy increment. These are conditional estimates, not a native
+future schedule or completed output. Native-baseline comparison, settings
+admission, intervention materiality and routine migration remain later tasks.
+Rules 7–9: policy owns capacity math; Runtime only supplies canonical facts;
+unread inputs name a state and cannot finance work. Complexity: added one shared
+conditional estimate / removed timetable-only sizing, the profile-hour property
+and its extension / orphans left: none.
 
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. Every activity family below currently feeds the shared exact binding/admission path. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 

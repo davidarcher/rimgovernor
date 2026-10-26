@@ -84,13 +84,13 @@ public sealed class StockArrivalCatalogTests
             PartThing = "BionicArm", PartOnMap = false, MedicineOnMap = true, MedicineCount = 2, EligibleDoctors = 1, SuccessChance = 0.95, DoctorSuccessChance = 0.95,
         };
 
-        var fresh = StockArrivalRules.Craft(recipes, [], crafters, stock) with { Medicines = [new Resource("MedicineHerbal")] };
+        var fresh = StockArrivalTestFacts.Craft(recipes, [], crafters, stock) with { Medicines = [new Resource("MedicineHerbal")] };
         Assert.Empty(fresh.Sources);
         var (pick, reason, _) = SurgeryRules.RestorePick([(replacement, 1.0)], fresh, 30);
         Assert.Equal((null, SurgeryWantReason.PartShort), (pick, reason));
 
         // A fabrication bench at 1x: 8 hours × 2500 ticks ÷ 10 000 work, 2 arms a day; 100 plasteel pays for 6.
-        var built = StockArrivalRules.Craft(recipes, [StockArrivalTestFacts.Bench("FabricationBench", true, 1)], crafters, stock) with { Medicines = [new Resource("MedicineHerbal")] };
+        var built = StockArrivalTestFacts.Craft(recipes, [StockArrivalTestFacts.Bench("FabricationBench", true, 1)], crafters, stock) with { Medicines = [new Resource("MedicineHerbal")] };
         var source = Assert.Single(built.Sources);
         Assert.Equal((new Resource("BionicArm"), 2.0, 6L), (source.Resource, source.PerDay, source.Units));
         (pick, reason, var wait) = SurgeryRules.RestorePick([(replacement, 1.0)], built, 30);

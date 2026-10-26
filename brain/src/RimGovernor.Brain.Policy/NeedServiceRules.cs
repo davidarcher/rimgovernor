@@ -5,6 +5,19 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The steady service assumption shared by the colony cycle and room-use accounting; detailed activities remain selected by the shared portfolio.</summary>
 public static class NeedServiceRules
 {
+    public static double ContinuousHours(double fall, double gain)
+    {
+        DomainException.Require(double.IsFinite(fall) && fall >= 0 && double.IsFinite(gain) && gain >= 0, "continuous need service rates");
+        return gain == 0 ? 0 : 24 * fall / (fall + gain);
+    }
+
+    public static double MealHours(double fall, double gain, double service, double approach)
+    {
+        DomainException.Require(double.IsFinite(fall) && fall >= 0 && double.IsFinite(gain) && gain > 0
+            && double.IsFinite(service) && service >= 0 && double.IsFinite(approach) && approach >= 0, "meal service mechanics");
+        return fall * GameTime.TicksPerDay / gain * (service + approach) / GameTime.TicksPerHour;
+    }
+
     public static NeedTarget? Meal(NeedsForecastPawn pawn) => pawn.Targets
         .Where(t => t.Kind == "food" && t.Recovery is NeedRecovery.Ingest { GainPerUnit: > 0 } && t.AvailableCount > 0)
         .OrderByDescending(t => ((NeedRecovery.Ingest)t.Recovery).GainPerUnit).ThenBy(t => t.Id, StringComparer.Ordinal).FirstOrDefault();

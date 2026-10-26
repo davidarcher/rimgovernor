@@ -70,7 +70,7 @@ public sealed class CanonicalProfileSkillTests
         }
         Assert.Equal(active, restored.Child);
         Assert.Equal(9, restored.Age);
-        Assert.Equal(8, restored.WorkHours);
+        Assert.Equal(pawn.Settings.Schedule, restored.Observed.Settings.Schedule);
         Assert.Equal(pawn.Inspiration, restored.Inspiration);
         Assert.True(restored.Incapable[WorkType.Cooking]);
         Assert.Equal(profile.Id, restored.Id);

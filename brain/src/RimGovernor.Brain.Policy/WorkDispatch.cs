@@ -213,7 +213,8 @@ public static partial class WorkRules
     /// (BenchesWanted.NoCapacity), wants one bench. widen is the calibration's extra benches. The workers are the pawns
     /// that can work the recipe (TryDispatchWorkers).
     /// </summary>
-    public static OrderDispatch DispatchOrder(OrderSpec order, IReadOnlyDictionary<Resource, long> have, IReadOnlyList<GearBench> benches, IReadOnlyList<WorkPawn> pawns, int widen)
+    public static OrderDispatch DispatchOrder(OrderSpec order, IReadOnlyDictionary<Resource, long> have, IReadOnlyList<GearBench> benches, IReadOnlyList<WorkPawn> pawns,
+        RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead? needs, int widen)
     {
         var eligible = EligibleBenches(order, benches);
         var d = new OrderDispatch { Copies = 1, Eligible = eligible.Count, Sizing = new DispatchSizing.Unsized(), NoBenchShort = 0 };
@@ -222,7 +223,7 @@ public static partial class WorkRules
             return d;
         }
         if (RecipeOf(eligible[0], order.Recipe) is not { } recipe
-            || !TryDispatchWorkers(pawns, recipe.RequiredWork, recipe.WorkSpeedStat, out var workers) || !TryMeanCapacity(order, eligible, AverageWorker(workers), out var capacity))
+            || !TryDispatchWorkers(pawns, recipe.RequiredWork, recipe.WorkSpeedStat, needs, out var workers) || !TryMeanCapacity(order, eligible, AverageWorker(workers), out var capacity))
         {
             return d;
         }
@@ -310,7 +311,8 @@ public static partial class WorkRules
     /// Speed is the pawn's <paramref name="stat"/> as read (<see cref="WorkPawn.WorkSpeeds"/>, #3868), 1 for a work that names
     /// none (Toils_Recipe.DoRecipeWork). False while such a pawn's work hours or that stat are unread.
     /// </summary>
-    public static bool TryDispatchWorkers(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<WorkRequirement> work, string stat, out IReadOnlyList<BenchWorker> workers)
+    public static bool TryDispatchWorkers(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<WorkRequirement> work, string stat,
+        RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead? needs, out IReadOnlyList<BenchWorker> workers)
     {
         var output = new List<BenchWorker>();
         workers = output;
@@ -324,14 +326,18 @@ public static partial class WorkRules
             {
                 continue;
             }
-            var profile = PawnRules.BuildProfile(p);
+            if (NativeLaborCapacity.HoursPerDay(p.Observed, needs, [.. work.Select(w => w.Work)]) is not ForecastTerm.Assessed(var hours))
+            {
+                workers = [];
+                return false;
+            }
             var speed = stat.Length == 0 ? 1 : p.WorkSpeeds.FirstOrDefault(s => s.Stat == stat)?.Value;
             if (speed is not { } read)
             {
                 workers = [];
                 return false;
             }
-            output.Add(new BenchWorker { WorkHoursPerDay = profile.WorkHours, WorkSpeed = Math.Max(read, 0) });
+            output.Add(new BenchWorker { WorkHoursPerDay = hours, WorkSpeed = Math.Max(read, 0) });
         }
         return true;
     }
@@ -346,7 +352,7 @@ public static partial class WorkRules
             }
             foreach (var req in work)
             {
-                if (row.Work == req.Work)
+                if (row.Work == req.Work && (req.Minimum <= 0 || p.Skills.Any(s => s.DefName == req.Skill && !s.Disabled && s.Level >= req.Minimum)))
                 {
                     return true;
                 }
