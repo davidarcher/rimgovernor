@@ -427,6 +427,7 @@ public static partial class ForecastPrison
         }
 
         var shortfall = JoinerMoodRules.ShortfallOf(outcome, commitments, context, horizon);
+        if (shortfall.Unassessed.Count > 0) { All([.. states, .. shortfall.Unassessed]); return output; }
         var valued = new List<(PrisonerRecruitRead Prisoner, double Value)>();
         var certaintyByPawn = new Dictionary<string, double>(StringComparer.Ordinal);
         var converters = new Dictionary<string, ConversionReductionRead>(StringComparer.Ordinal);

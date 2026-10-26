@@ -96,14 +96,15 @@ public static class ForecastTradeRequests
             Math.Max(selection.Horizon, context.InvestmentHorizonDays * GameTime.TicksPerDay));
     }
 
-    private sealed record RequestCredit(EquatableArray<ForecastInvestmentContribution> Rows, EquatableArray<string> Findings);
+    private sealed record RequestCredit(EquatableArray<ForecastInvestmentContribution> Rows, EquatableArray<string> Findings, bool Assessed);
     private static readonly PerOutcome<RequestCredit> Credits = new((outcome, chosen, context, horizon) =>
     {
-        if (context.StockBeforeRequests is not { } basis) return new([], []);
+        if (context.StockBeforeRequests is not { } basis) return new([], [], true);
         var ids = chosen.Select(c => c.TradeRequest).ToHashSet(StringComparer.Ordinal);
         var requests = basis.Requests.Where(r => ids.Contains(r.Id)).OrderBy(r => r.Id, StringComparer.Ordinal);
         var rows = new List<ForecastInvestmentContribution>();
         var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var assessed = true;
         var pawns = context.Needs.Pawns.ToDictionary(p => p.Pawn, StringComparer.Ordinal);
         double Loss(StockArrival stock, double ticks)
         {
@@ -149,7 +150,13 @@ public static class ForecastTradeRequests
             if (days > horizon / GameTime.TicksPerDay && mission.Sources.Any(s => s.From < days))
                 gain = Loss(after, days * GameTime.TicksPerDay) - Loss(basis, days * GameTime.TicksPerDay)
                     - (Loss(after, horizon) - Loss(basis, horizon));
-            var lost = ForecastSettlementMissions.LostWork(mission, outcome, chosen, context, horizon);
+            if (ForecastSettlementMissions.LostWork(mission, outcome, chosen, context, horizon) is not ForecastTerm.Assessed(var lost))
+            {
+                findings.Add("trade_mission_lost_work_unassessed:" + mission.Id);
+                assessed = false;
+                basis = after;
+                continue;
+            }
             rows.Add(new(mission.Id, "", mission.Id, 1, gain + lost));
             findings.Add("trade_mission_lost_work:" + mission.Id);
             basis = after;
@@ -163,14 +170,15 @@ public static class ForecastTradeRequests
                 rows.Add(new(visit.Id, "", visit.Id, 1, Loss(after, ticks) - Loss(basis, ticks) - (Loss(after, horizon) - Loss(basis, horizon))));
             basis = after;
         }
-        return new(EquatableArray.From(rows), EquatableArray.From(findings));
+        return new(EquatableArray.From(rows), EquatableArray.From(findings), assessed);
     });
 
-    internal static void Credit(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> chosen, ForecastCoupledContext context,
+    internal static bool Credit(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> chosen, ForecastCoupledContext context,
         double horizon, List<ForecastInvestmentContribution> rows, SortedSet<string> findings)
     {
         var credit = Credits.Of(outcome, chosen, context, horizon);
         rows.AddRange(credit.Rows);
         findings.UnionWith(credit.Findings);
+        return credit.Assessed;
     }
 }

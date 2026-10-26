@@ -141,6 +141,24 @@ Complexity: added conditional-capacity window regressions / removed volatile-rat
 resets, unsupported hauling attribution and duplicate stock field / orphans left:
 none.
 
+The subsequent capacity-bound increment removes whole-horizon idle credit from
+`WorkShortfallRules`. Deferred work can use only unallocated supported capacity
+windows, with overlapping windows and allocations counted once. Unread capacity
+of a relevant worker produces named `WorkShortfall.Unassessed` reasons, rather
+than either zero capacity or an idle day. Unrelated dependents do not invalidate
+the estimate. Pawn/skill/classroom/prison valuation withholds work-dependent
+credit; caravan lost-work uncertainty reaches the total capability ledger.
+The existing review signal exposes the unassessed reasons and absent pawn values.
+`NativeWorkShortfallTests` covers these bounds and telemetry; the settlement
+mission regression exercises unavailable lost work through the total value.
+The gate passed 4,127 domain tests, 30 workflow tests, native compilation, probes
+and the orphan check (1m18s). No native gameplay result is claimed. This remains
+partial task 3.3 work: useful ongoing production and setting alternatives still
+need integration into the shared baseline. Rules 7–9: existing policy capacity
+and demand are reused; Runtime only formats the existing signal; unknown native
+duration cannot finance labor. Complexity: added explicit shortfall uncertainty
+and consumer propagation / removed whole-horizon idle credit / orphans left: none.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. Every activity family below currently feeds the shared exact binding/admission path. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |

@@ -375,13 +375,13 @@ public static partial class ForecastValue
         var goals = -earned;
         var chosen = commitments?.ToArray() ?? [];
         var investmentRows = InvestmentOf(outcome, chosen, context, index, horizon, findings);
-        ForecastTradeRequests.Credit(outcome, chosen, context, horizon, investmentRows, findings);
+        var tradeAssessed = ForecastTradeRequests.Credit(outcome, chosen, context, horizon, investmentRows, findings);
         PlannedRoomCredits.Credit(outcome, chosen, context, horizon, investmentRows, findings);
         ForecastApparel.Credits(outcome, context, commitments, horizon, investmentRows);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;
         double priced = 0;
-        var assessed = true;
+        var assessed = tradeAssessed;
         foreach (var term in new[] { hunger, rest, rawIngredients, poisoning, thermal, breaks, wellbeing, harm })
             if (term is LedgerTerm.Priced(var loss)) priced += loss;
             else assessed = false;

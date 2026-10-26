@@ -112,11 +112,24 @@ public sealed class ForecastSettlementMissionTests
         };
         var roots = candidates.Alternatives.Where(c => selected.Selection.Selected.Contains(c.Id)).ToArray();
         var mission = Option();
-        var cost = ForecastSettlementMissions.LostWork(mission, selected.Selected, roots, context, selected.Horizon);
+        var cost = Assert.IsType<ForecastTerm.Assessed>(ForecastSettlementMissions.LostWork(mission, selected.Selected, roots, context, selected.Horizon)).Value;
         Assert.True(cost > 0);
-        Assert.Equal(2 * cost, ForecastSettlementMissions.LostWork(mission with { Days = 6 }, selected.Selected, roots, context, selected.Horizon), 10);
+        Assert.Equal(2 * cost, Assert.IsType<ForecastTerm.Assessed>(ForecastSettlementMissions.LostWork(mission with { Days = 6 }, selected.Selected, roots, context, selected.Horizon)).Value, 10);
         Assert.Equal(ForecastSettlementMissions.LostWork(mission with { Days = 10 }, selected.Selected, roots, context, selected.Horizon),
             ForecastSettlementMissions.LostWork(mission with { Days = 100 }, selected.Selected, roots, context, selected.Horizon));
-        Assert.Equal(0, ForecastSettlementMissions.LostWork(mission, selected.Selected, roots, context with { Joiners = context.Joiners with { Roots = [] } }, selected.Horizon));
+        Assert.Equal(new ForecastTerm.Assessed(0), ForecastSettlementMissions.LostWork(mission, selected.Selected, roots, context with { Joiners = context.Joiners with { Roots = [] } }, selected.Horizon));
+        var unavailable = context with { Activities = context.Activities with
+            { Pawns = context.Activities.Pawns.Select(p => p with { Windows = new ForecastCapacityWindows.Unread() }).ToArray() } };
+        Assert.IsType<ForecastTerm.Unassessed>(ForecastSettlementMissions.LostWork(mission, selected.Selected, roots, unavailable, selected.Horizon));
+        var unreadMission = mission with { Sources = [] };
+        unavailable = unavailable with { StockBeforeRequests = new() { Missions = [unreadMission] } };
+        var chosen = roots.Append(unreadMission.Commitment()).ToArray();
+        var credits = new List<ForecastInvestmentContribution>();
+        var reasons = new SortedSet<string>(StringComparer.Ordinal);
+        Assert.False(ForecastTradeRequests.Credit(selected.Selected, chosen, unavailable, selected.Horizon, credits, reasons));
+        Assert.Empty(credits);
+        Assert.Contains("trade_mission_lost_work_unassessed:" + mission.Id, reasons);
+        var value = ForecastValue.Of(selected.Selected, unavailable, selected.Horizon, commitments: chosen);
+        Assert.IsType<LedgerTerm.Unassessed>(value.Total);
     }
 }

@@ -199,6 +199,7 @@ public static class ForecastClassroom
         var teacher = context.Needs.Pawns.FirstOrDefault(p => p.Pawn == read.Teacher) ?? throw new RequiredFactException("teacher upkeep:" + read.Teacher);
         var speeds = teacher.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal);
         var shortfall = JoinerMoodRules.ShortfallOf(outcome, commitments, context, horizon);
+        if (shortfall.Unassessed.Count > 0) { All([.. states, .. shortfall.Unassessed]); return output; }
         foreach (var room in served)
         {
             var roomStates = new SortedSet<string>(states, StringComparer.Ordinal);

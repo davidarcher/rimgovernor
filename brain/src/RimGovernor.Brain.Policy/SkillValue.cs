@@ -42,6 +42,7 @@ internal static class SkillValue
         if (raise.Xp <= 0 || !upkeep.SkillSpeeds.Any(r => r.Skill == skill)
             && upkeep.ChildWork?.Ages.Any(a => a.SkillSpeeds.Any(r => r.Skill == skill)) != true) return priced;
         var table = Tables.Of(outcome, commitments, context, horizon);
+        if (table.Shortfall.Unassessed.Count > 0) return null;
         return priced + table.WorkPerXp.GetOrAdd(key, _ => WorkPerXp(table, context, pawn, skill, upkeep, raise));
     }
 

@@ -121,9 +121,11 @@ public sealed partial class ColonyReview
     internal static IEnumerable<(string Key, object? Value)> PawnValueAttrs(Findings findings)
     {
         var awaiting = findings.PawnValuesAwaitingPlan.Length > 0;
-        yield return (ReviewTelemetry.WorkShortfallKey, findings.WorkShortfall?.Rows.ToDictionary(r => r.WorkType + "/" + r.Stat, r => (object?)r.TicksPerDay));
+        yield return (ReviewTelemetry.WorkShortfallKey, findings.WorkShortfall is { Unassessed.Count: > 0 } unread
+            ? new Dictionary<string, object?> { ["unassessed"] = unread.Unassessed.ToArray() }
+            : findings.WorkShortfall?.Rows.ToDictionary(r => r.WorkType + "/" + r.Stat, r => (object?)r.TicksPerDay));
         yield return (ReviewTelemetry.PawnValuesAwaitingPlanKey, awaiting ? findings.PawnValuesAwaitingPlan : null);
-        yield return (ReviewTelemetry.PawnValuesKey, findings.WorkShortfall is null || awaiting ? null : findings.PawnValues.ToDictionary(v => v.Pawn, v => (object?)new Dictionary<string, object?>
+        yield return (ReviewTelemetry.PawnValuesKey, findings.WorkShortfall is null || findings.WorkShortfall.Unassessed.Count > 0 || awaiting ? null : findings.PawnValues.ToDictionary(v => v.Pawn, v => (object?)new Dictionary<string, object?>
         {
             ["per_day"] = v.PerDay, ["work"] = v.WorkAdded, ["food"] = v.FoodUpkeep, ["food_haul"] = v.FoodHaul, ["breaks"] = v.BreakUpkeep, ["bed"] = v.BedUpkeep,
             ["shares"] = v.Work.ToDictionary(s => s.WorkType + "/" + s.Stat, s => (object?)s.TicksPerDay), ["not_modelled"] = v.NotModelled.ToArray(),

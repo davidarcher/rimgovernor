@@ -240,9 +240,22 @@ and their prerequisites, each counted once over all outcomes. An activity's work
 - a recipe is its giver's work type at the recipe's `workSpeedStat`;
 - other work is its giver's work type at the stat its job driver applies (`DefinitionCatalog.WorkSpeedFacts`).
 
-Its work is the cheapest option's ticks times that pawn's speed. The plan's idle pawn time over the horizon first takes
-the work it has an option on. The rest is short. So work that waits on material is not short while a builder stands
-idle. #3805 and #3809 build on this model.
+Its work is the cheapest option's ticks times that pawn's speed. Unallocated time
+inside the shared supported capacity windows first takes work the pawn has an
+option on. Overlapping allocations and windows count time once. The whole
+unassigned horizon is not spare labor. These are conditional capacity bounds,
+not a native future job trajectory or completed production. The rest is short.
+Work that waits on material is not short while a capable builder has sufficient
+supported capacity.
+
+Unread capacity of a worker who could cover deferred work leaves the shortfall
+unassessed, with the worker named; an unrelated dependent's unread capacity does
+not invalidate it. Pawn values then remain absent, skill work credit is unpriced,
+and classroom/prison work-dependent credits retain the gap in their states.
+Caravan lost work is an unassessed term and makes total capability value
+unassessed; it is never a free trip. The `work_shortfall` observation carries an
+`unassessed` reason array instead of numeric rows in this state. No second demand
+or labor store is introduced.
 
 **Work added.** A colonist's free hours (`PawnCycle.FreeHoursByPawn`: the day less sleep, meals and recreation, each
 twelfth's cycle weighted by the investment horizon's days in it, known on a colony with no recreation building through

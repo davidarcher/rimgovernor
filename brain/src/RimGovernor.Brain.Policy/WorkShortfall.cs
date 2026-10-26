@@ -29,6 +29,8 @@ public sealed record WorkShortfallRow(string WorkType, string Stat, double Ticks
 public sealed record WorkShortfall
 {
     public EquatableArray<WorkShortfallRow> Rows { get; init; }
+    /// <summary>Named capacity gaps; numeric rows cannot value work while this is nonempty.</summary>
+    public EquatableArray<string> Unassessed { get; init; }
 
     /// <summary>The colony is short of nothing.</summary>
     public static readonly WorkShortfall None = new();
@@ -46,8 +48,8 @@ public static class WorkShortfallRules
     /// delivery or supply is <see cref="WorkSpeedFacts.Hauling"/> at no stat, a recipe its giver's work type at its recipe's
     /// stat, other work its giver's work type at its job's stat; eating, sleeping, recreation, holding, approaching and practice are
     /// not work. Its work is the least over its options of the option's ticks (<see cref="ForecastCoupledContext.OptionWork"/>) times
-    /// the option pawn's speed at the stat. The pawns' time the plan leaves idle over the horizon (the horizon less the union of their
-    /// allocations' departure to end) first takes what they have an option on, cheapest option first; what remains is short. A
+    /// the option pawn's speed at the stat. Unallocated time inside supported capacity windows first takes what the pawn has an
+    /// option on, cheapest option first; what remains is short. Relevant unread capacity leaves the result unassessed. A
     /// work activity no option prices, a giver, job or recipe the defs do not map, or a pawn speed the read lacks throws
     /// <see cref="RequiredFactException"/>.
     /// </summary>
@@ -108,7 +110,13 @@ public static class WorkShortfallRules
         }
 
         if (unscheduled.Count == 0) return WorkShortfall.None;
-        var idle = IdleTicks(context, allocations, horizon);
+        var relevant = unscheduled.Values.SelectMany(a => options.GetValueOrDefault(a) ?? []).ToHashSet(StringComparer.Ordinal);
+        var unread = context.Activities.Pawns.Where(p => relevant.Contains(p.Pawn) && p.Windows is ForecastCapacityWindows.Unread)
+            .Select(p => "native_work_capacity:" + p.Pawn)
+            .Concat(relevant.Where(p => !context.Activities.Pawns.Any(c => c.Pawn == p)).Select(p => "native_work_capacity_absent:" + p))
+            .Order(StringComparer.Ordinal).ToArray();
+        if (unread.Length > 0) return new() { Unassessed = EquatableArray.From(unread) };
+        var idle = IdleTicks(context, allocations, horizon, relevant);
         var short_ = new SortedDictionary<(string WorkType, string Stat), double>();
         foreach (var activity in unscheduled.Values)
         {
@@ -158,21 +166,31 @@ public static class WorkShortfallRules
         return (type, work.JobStat.TryGetValue(binding.Job, out var jobStat) ? jobStat : throw new RequiredFactException("work speed stat of job " + binding.Job));
     }
 
-    // Per pawn the plan schedules, the horizon's ticks no allocation of it holds (its departure to end, overlaps once).
-    private static Dictionary<string, double> IdleTicks(ForecastCoupledContext context, IReadOnlyList<ForecastActivityAllocation> allocations, double horizon)
+    // Unallocated time inside supported capacity windows, not the whole unassigned horizon.
+    private static Dictionary<string, double> IdleTicks(ForecastCoupledContext context, IReadOnlyList<ForecastActivityAllocation> allocations, double horizon, HashSet<string> relevant)
     {
         var idle = new Dictionary<string, double>(StringComparer.Ordinal);
-        foreach (var pawn in context.Activities.Pawns.Select(p => p.Pawn).Distinct())
+        foreach (var pawn in context.Activities.Pawns.Where(p => relevant.Contains(p.Pawn)))
         {
-            var busy = 0.0;
-            var reach = 0.0;
-            foreach (var (start, end) in allocations.Where(a => a.Pawn == pawn).Select(a => (Math.Max(0, a.Depart), Math.Min(horizon, a.End))).OrderBy(s => s.Item1))
+            if (pawn.Windows is not ForecastCapacityWindows.Read(var windows))
+                throw new RequiredFactException("native work capacity:" + pawn.Pawn);
+            var free = 0d;
+            var reach = 0d;
+            foreach (var window in windows.OrderBy(w => w.Start))
             {
-                var from = Math.Max(start, reach);
-                if (end > from) { busy += end - from; reach = end; }
+                var start = Math.Max(reach, Math.Max(0, window.Start));
+                var end = Math.Min(horizon, window.End);
+                if (end <= start) continue;
+                reach = end;
+                var cursor = start;
+                foreach (var allocation in allocations.Where(a => a.Pawn == pawn.Pawn && a.End > start && a.Depart < end).OrderBy(a => a.Depart))
+                {
+                    free += Math.Max(0, Math.Min(end, allocation.Depart) - cursor);
+                    cursor = Math.Max(cursor, Math.Min(end, allocation.End));
+                }
+                free += Math.Max(0, end - cursor);
             }
-
-            idle[pawn] = Math.Max(0, horizon - busy);
+            idle[pawn.Pawn] = free;
         }
 
         return idle;

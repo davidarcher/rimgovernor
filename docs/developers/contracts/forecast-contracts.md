@@ -33,6 +33,14 @@ Active bills with stocked ingredients but no observed bench work name
 evidence. This is still dispatcher calibration; the portfolio's general native
 baseline and intervention materiality are separate, incomplete work.
 
+Shared work-shortfall valuation uses unallocated supported capacity windows,
+counting overlapping commitments once. It does not use the whole unassigned
+horizon as idle labor. A relevant worker's unread capacity makes that estimate
+explicitly unassessed, withholding work-dependent pawn/skill/room credits;
+unassessed caravan lost work propagates to total capability value. See
+[work shortfall](../architecture/forecast-value.md#pawn-value) for consumers and
+observation shape. These capacity bounds do not promise native output.
+
 ## Combat exposure states
 
 `NeedsForecastPawn.ViolenceCapable` reads `!pawn.WorkTagIsDisabled(WorkTags.Violent)`.

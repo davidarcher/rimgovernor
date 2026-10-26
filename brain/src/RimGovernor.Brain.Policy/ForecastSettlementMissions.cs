@@ -42,11 +42,12 @@ public static class ForecastSettlementMissions
         return new(settlement.Id, EquatableArray.From(crew), days, EquatableArray.From(sources));
     }
 
-    internal static double LostWork(ForecastSettlementMission mission, ForecastCoupledOutcome outcome,
+    internal static ForecastTerm LostWork(ForecastSettlementMission mission, ForecastCoupledOutcome outcome,
         IReadOnlyList<ForecastCommitment> chosen, ForecastCoupledContext context, double horizon)
     {
-        if (context.InvestmentHorizonDays <= 0 || mission.Days <= 0) return 0;
+        if (context.InvestmentHorizonDays <= 0 || mission.Days <= 0) return new ForecastTerm.Assessed(0);
         var shortfall = JoinerMoodRules.ShortfallOf(outcome, chosen, context, horizon);
+        if (shortfall.Unassessed.Count > 0) return new ForecastTerm.Unassessed(string.Join(",", shortfall.Unassessed));
         var free = PawnValueRules.FreeHoursOf(outcome, context);
         double days = 0;
         foreach (var id in mission.Crew)
@@ -59,6 +60,6 @@ public static class ForecastSettlementMissions
                 Incapable = pawn.Upkeep.IncapableWork, FreeTicksPerDay = hours * GameTime.TicksPerHour,
             }, shortfall).Sum(w => w.TicksPerDay) / GameTime.TicksPerDay * Math.Min(mission.Days, context.InvestmentHorizonDays);
         }
-        return days;
+        return new ForecastTerm.Assessed(days);
     }
 }

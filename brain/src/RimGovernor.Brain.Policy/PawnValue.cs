@@ -167,6 +167,7 @@ public static class PawnValueRules
     /// </summary>
     public static IReadOnlyList<PawnWorkShare> WorkAdded(PawnValueFacts pawn, WorkShortfall shortfall)
     {
+        if (shortfall.Unassessed.Count > 0) throw new RequiredFactException(string.Join(",", shortfall.Unassessed));
         DomainException.Require(double.IsFinite(pawn.FreeTicksPerDay) && pawn.FreeTicksPerDay >= 0, "pawn free ticks");
         var incapable = pawn.Incapable.ToHashSet(StringComparer.Ordinal);
         var free = pawn.FreeTicksPerDay;
@@ -222,6 +223,7 @@ public static class PawnValueRules
         var speeds = needs.Pawns.ToDictionary(p => p.Pawn, p => (IReadOnlyDictionary<string, double>)p.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), StringComparer.Ordinal);
         var shortfall = WorkShortfallRules.Of(context, [.. candidates.Alternatives, .. candidates.Incumbents], selection.Selection.Selected.ToHashSet(StringComparer.Ordinal),
             selection.Selected.Plan.Allocations, selection.Horizon, work, speeds);
+        if (shortfall.Unassessed.Count > 0) return (shortfall, [], "");
         if (context.FoodHaul is not { } haul) return (shortfall, [], AwaitingLayoutPlan);
         var hours = FreeHoursOf(selection.Selected, context);
         var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = haul, HorizonDays = context.InvestmentHorizonDays };
