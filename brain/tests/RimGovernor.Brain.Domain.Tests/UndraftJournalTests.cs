@@ -182,6 +182,32 @@ public sealed class UndraftJournalTests
         Assert.Equal(Stage.Pending, rig.Progress.Stage);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DispatchKeepsTheCurrentFightRosterDraftedWithoutHoldingUnrelatedPawns(bool onRoster)
+    {
+        using var rig = new Rig();
+        rig.Native.Inspect = () =>
+        {
+            var fight = new PlanSpec(new("fight"), new(1), [DomainAction.NewAutoHomeAreaAction(new("home"), false)]);
+            rig.Journal.CreatePlan(fight, Ct);
+            rig.Journal.OpenCombatFight(fight.Id, new CombatMemory(), new World(Root.Colony, Root.Load, Root.Map),
+                [new PawnId(onRoster ? "pawn" : "other")], Ct);
+        };
+        var result = await rig.Run();
+        if (onRoster)
+        {
+            Assert.IsType<ConflictException>(result.Error);
+            Assert.Equal(0, rig.Native.Writes);
+        }
+        else
+        {
+            Assert.Null(result.Error);
+            Assert.Equal(1, rig.Native.Writes);
+        }
+    }
+
     [Fact]
     public async Task LostReleaseReceiptIsJournaledAndAnExplicitRetryRecordsANewAttempt()
     {

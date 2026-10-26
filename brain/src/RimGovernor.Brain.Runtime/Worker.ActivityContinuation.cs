@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Runtime;
 
 public sealed partial class Worker
 {
-    /// <summary>Existing Method cleanup runs independently of new-work Concern eligibility. Reads and
+    /// <summary>Existing Method cleanup runs independently of new-work Need eligibility. Reads and
     /// journal transitions only: ordinary worker/Hands dispatch performs the resulting release.</summary>
     private async Task ContinueActivityMethodsAsync(GenerationSnapshot current, CancellationToken ct)
     {

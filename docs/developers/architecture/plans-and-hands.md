@@ -51,7 +51,7 @@ flowchart LR
 ## Method selection and binding
 
 The live food policy separates three responsibilities within the existing
-Concern/Method model:
+Need/Method model:
 
 1. **Generate alternatives.** Family-specific policy supplies forecast activities,
    dependencies, eligible options and concrete target bindings for candidate
@@ -68,7 +68,7 @@ The forecast graph describes hypothetical work. The Plan describes proposed or
 admitted actions. Neither is a second Method lifecycle. The journal owns the
 admitted Method's identity, revisions and execution responsibility. Observations
 drive continuation, rebinding or release through that same owner; an accepted
-write alone does not complete the Concern.
+write alone does not satisfy the Need.
 
 For food, the live comparison covers bounded same-pawn harvest/delivery
 alternatives and, after observed harvest, raw delivery versus one cooking iteration.

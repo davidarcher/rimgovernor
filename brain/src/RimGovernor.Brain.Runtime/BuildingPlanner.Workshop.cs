@@ -140,7 +140,7 @@ public sealed partial class BuildingPlanner
             resource = picked;
         }
         var census = (await source.ReadGearBenchesAsync(identity, call).ConfigureAwait(false));
-        var prerequisite = FacilityPlanningRules.WorkshopPrerequisiteOf(resource, observed.FermentingBarrels, "Beer");
+        var prerequisite = FacilityPlanningRules.WorkshopPrerequisiteOf(resource, observed.FermentingBarrels, nameof(RimWorld.ThingDefOf.Beer));
         if (prerequisite != WorkshopPrerequisite.Product)
         {
             if (prerequisite == WorkshopPrerequisite.Barrel)

@@ -5,11 +5,12 @@ namespace RimGovernor.Brain.Runtime;
 
 /// <summary>
 /// ColonyReview observes and journals needs under Player's existing gate.
-/// It neither acquires authority nor creates methods or game orders.
+/// Its planning steps admit Methods to the journal; Hands issues their game orders.
+/// It does not acquire authority.
 /// </summary>
 public sealed partial class ColonyReview
 {
-    /// <summary>The migrated families' Needs the runtime composes (#3280); the review reads their facts as it read their Concerns'.</summary>
+    /// <summary>The families' Needs the runtime composes (#3280).</summary>
     internal IReadOnlySet<NeedId> Needs = new HashSet<NeedId>();
 
     /// <summary>The composed Needs; a bare ColonyReview enables no coupled activities.</summary>

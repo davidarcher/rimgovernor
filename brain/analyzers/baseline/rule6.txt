@@ -88,7 +88,6 @@ Runtime/BuildingPlanner.Temperature.cs|BuildingPlanner.TemperatureDefinitions|"C
 Runtime/BuildingPlanner.Temperature.cs|BuildingPlanner.TemperatureDefinitions|"PassiveCooler"
 Runtime/BuildingPlanner.Temperature.cs|BuildingPlanner.SelectTemperature|"Campfire"
 Runtime/TierStyle.cs|TierStyle.ShellStyleOf|"WoodLog"
-Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.PrepareWorkshopAsync|"Beer"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.PrepareWorkshopAsync|"FermentingBarrel"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.SelectWorkshop|"FermentingBarrel"
 Domain/Actions/Ideoligion.cs|IdeoligionReform.IdeoligionReform|2147483647
