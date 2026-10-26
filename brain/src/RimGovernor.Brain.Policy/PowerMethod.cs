@@ -121,8 +121,6 @@ public sealed record PowerPlanning
 
     public PowerBattery Battery { get; init; }
 
-    public bool GeothermalAvailable { get; init; }
-
     /// <summary>The delivery profile of every producer definition the catalog has (DefinitionCatalog.PowerSources); a producer on the map that it lacks is an error.</summary>
     public IReadOnlyDictionary<string, PowerSourceProfile> Sources { get; init; } = new Dictionary<string, PowerSourceProfile>();
 
@@ -186,6 +184,7 @@ public abstract record InputCost
 
 public sealed record PowerProposal
 {
+    public bool OnGeyser { get; init; }
     public PowerMethod Method { get; init; }
 
     public string Definition { get; init; } = "";
@@ -211,7 +210,7 @@ public sealed record PowerProposal
     /// Reports whether the proposal names its exact placement: a geothermal generator is anchored on its
     /// geyser (Center) rather than searched for near the consumer.
     /// </summary>
-    public bool FixedSite() => Method == PowerMethod.Generate && Definition == PowerRules.GeothermalDefinition;
+    public bool FixedSite() => Method == PowerMethod.Generate && OnGeyser;
 }
 
 public static partial class PowerRules
@@ -825,10 +824,12 @@ public static partial class PowerRules
         var ids = producers.Select(b => b.Id).ToList();
         ids.Sort(StringComparer.Ordinal);
         p = p with { Key = PowerMethodKey("generate", target.Id + "/" + string.Join("/", ids)) };
-        var geyser = ReachableGeyser(target.Cell, geysers, planning, route);
+        var geothermal = RankGenerators(planning.Generators.Where(option => option.Profile.Steam).ToList(),
+            new() { ComponentSteel = planning.ComponentSteel, BatteryAvailable = planning.BatteryAvailable, DaylightHours = planning.DaylightHours });
+        var geyser = geothermal.Count > 0 ? ReachableGeyser(target.Cell, geysers, route) : null;
         if (geyser is not null)
         {
-            return p with { Method = PowerMethod.Generate, Definition = PowerRules.GeothermalDefinition, Center = geyser.Cell, Cells = [.. geyser.Cells] };
+            return p with { Method = PowerMethod.Generate, OnGeyser = true, Definition = geothermal[0], Alternatives = [.. geothermal.Skip(1)], Center = geyser.Cell, Cells = [.. geyser.Cells] };
         }
         // A shortfall the day already covers is night-only: no solar answers it.
         var ranking = new GeneratorRanking
@@ -838,7 +839,7 @@ public static partial class PowerRules
             DaylightHours = planning.DaylightHours,
             NightOnly = p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0,
         };
-        var ranked = RankGenerators(planning.Generators, ranking);
+        var ranked = RankGenerators(planning.Generators.Where(option => !option.Profile.Steam).ToList(), ranking);
         if (ranked.Count == 0)
         {
             return p with { Method = PowerMethod.NoGenerator };
@@ -847,13 +848,8 @@ public static partial class PowerRules
     }
 
     /// <summary>The nearest free geyser a conduit route of at most GeothermalReachCells can reach from start, when the geothermal generator is natively available. Null when none.</summary>
-    private static PowerGeyser? ReachableGeyser(Cell start, IReadOnlyList<PowerGeyser> geysers, PowerPlanning planning, HashSet<Cell> route)
+    private static PowerGeyser? ReachableGeyser(Cell start, IReadOnlyList<PowerGeyser> geysers, HashSet<Cell> route)
     {
-        var available = planning.GeothermalAvailable;
-        if (!available)
-        {
-            return null;
-        }
         var destinations = new Dictionary<Cell, PowerGeyser>();
         var allowed = new HashSet<Cell>(route);
         foreach (var g in geysers)

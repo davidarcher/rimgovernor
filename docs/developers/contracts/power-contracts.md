@@ -82,12 +82,17 @@ check on the model: a consumer that actually loses power is a deficit whatever t
   report `no_observed_route`. Ordinary conduits are also replaced in one method because roofs do not
   prevent their random short-circuit event.
 - **`generate`:**
-  - `GeothermalGenerator` first whenever the definition is natively available and the development
+  - A supported, natively available steam plant first whenever the development
     census lists a free steam geyser (`DevelopmentFacts.geysers`: `Building_SteamGeyser` cells,
     occupied when a harvester, building, blueprint or frame stands on it) whose footprint the consumer
     can reach within `GeothermalReachCells` (48) over buildable cells. The proposal is fixed-site
     (`FixedSite()`), previewed at the geyser's anchor without the site census (which reports the geyser
     cell occupied) and admitted on the native preview's legality and safety alone.
+    Every exact native steam-plant definition joins the shared generator catalog;
+    ranked steam alternatives retain the same geyser anchor through legal preview.
+    Steam plants never enter ordinary free-placement ranking without a free,
+    reachable geyser. Observed mechanics, rather than a geothermal definition name,
+    identify fixed placement.
   - Otherwise one generator chosen by `RankGenerators` over every installed player-buildable ordinary
     generator whose native mechanics have a delivery model, natively unavailable ones
     skipped. Tiers: a fuel-free generator first once a `Battery` can bank its surplus; then a

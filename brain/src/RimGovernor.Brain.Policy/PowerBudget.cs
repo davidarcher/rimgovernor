@@ -20,6 +20,9 @@ public readonly record struct PowerSourceProfile(double Daily, double Night, boo
     public string UnsupportedReason { get; init; } = "";
 
     public bool Wind { get; init; }
+
+    /// <summary>The native steam plant must stand on a free geyser.</summary>
+    public bool Steam { get; init; }
 }
 
 /// <summary>One producer's nominal wattage and delivery profile as the budget sees it.</summary>

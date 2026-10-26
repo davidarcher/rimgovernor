@@ -34,7 +34,6 @@ public sealed partial class BuildingPlanner
             Battery = facts.Facts.PowerBattery,
             Light = facts.Facts.LightTerrains,
             BatteryAvailable = ColonyPlanningRules.DefinitionAvailable(facts.Facts, PowerRules.BatteryDefinition),
-            GeothermalAvailable = ColonyPlanningRules.DefinitionAvailable(facts.Facts, PowerRules.GeothermalDefinition),
             PendingDemandW = BuildingPlanner.PendingDemand(facts, pendingConsumers),
         };
         if (facts.Facts.LayoutPlan is { } plan)

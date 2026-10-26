@@ -737,7 +737,15 @@ public sealed partial class BuildingPlanner
         }
         if (Power is not null && Power.FixedSite())
         {
-            return await PreviewPowerSiteAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+            var result = await PreviewPowerSiteAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+            foreach (var name in Power.Alternatives)
+            {
+                if (result.Verdict.IsZero) break;
+                var next = Copy();
+                next.Definition = name;
+                result = await next.PreviewPowerSiteAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
+            }
+            return result;
         }
         var (selected, stock, reason) = await PreviewPowerOrSearchAsync(snapshot, facts, protectedCells, missing, check, call).ConfigureAwait(false);
         if (Power is { Method: Pol.PowerMethod.Generate })

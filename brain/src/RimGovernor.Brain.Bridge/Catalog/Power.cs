@@ -6,8 +6,7 @@ using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Bridge;
 
-// The power views. A power comp is CompProperties_Power or a subclass; a solar or wind plant is
-// told by its compClass (CompPowerPlantSolar, CompPowerPlantWind or a subclass).
+// Power views are priced only for exact native comp classes with modeled delivery mechanics.
 
 public sealed partial class DefinitionCatalog
 {
@@ -38,18 +37,18 @@ public sealed partial class DefinitionCatalog
             }
             sources[name] = kind == typeof(CompPowerPlantSolar) ? PowerRules.SolarPowerProfile
                 : kind == typeof(CompPowerPlantWind) ? WindProfile()
-                : kind == typeof(CompPowerPlant) || kind == typeof(CompPowerPlantSteam) ? PowerRules.ConstantPowerProfile
+                : kind == typeof(CompPowerPlantSteam) ? PowerRules.ConstantPowerProfile with { Steam = true }
+                : kind == typeof(CompPowerPlant) ? PowerRules.ConstantPowerProfile
                 : new(0, 0, false) { UnsupportedReason = "unmodeled generation comp " + (kind?.FullName ?? "absent") };
         }
 
         return sources;
     }
 
-    /// <summary>Buildable producers whose output and ordinary placement the existing power model evaluates.</summary>
+    /// <summary>Buildable producers whose output and ordinary or geyser placement the existing power model evaluates.</summary>
     public IReadOnlyList<string> GeneratorDefinitions() => [.. _thingDefs.Values
         .Where(row => Buildable(row) && PowerSources().TryGetValue(row.defName, out var profile)
-            && profile.UnsupportedReason.Length == 0
-            && row.GetCompProperties<CompProperties_Power>()!.compClass != typeof(CompPowerPlantSteam))
+            && profile.UnsupportedReason.Length == 0)
         .Select(row => row.defName).Order(StringComparer.Ordinal)];
 
     // The wind turbine profile: the WindManager speed range and the clear weather's wind factor.

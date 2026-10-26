@@ -10,10 +10,13 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class BuiltCountGoalTests
 {
+    private static readonly IReadOnlyDictionary<string, PowerSourceProfile> Sources = new Dictionary<string, PowerSourceProfile> { ["InstalledSteam"] = PowerRules.ConstantPowerProfile with { Steam = true } };
+
     private static GoalRecord Built(int id, string thing, int count) => new() { Id = id, Kind = GoalKind.BuiltCount, Target = thing, Count = count };
 
     private static ReviewFacts Standing(params (string Thing, long Count)[] built) => new()
     {
+        PowerSources = Sources,
         BuiltBuildings = EquatableArray.From(built.Select(b => new Amount(new Resource(b.Thing), b.Count))),
     };
 
@@ -71,12 +74,12 @@ public sealed class BuiltCountGoalTests
 
     [Theory]
     [InlineData(GoalRules.TradeBeaconDefinition, BuiltPlacer.Beacon)]
-    [InlineData(PowerRules.GeothermalDefinition, BuiltPlacer.Geothermal)]
+    [InlineData("InstalledSteam", BuiltPlacer.Geothermal)]
     public void TheBeaconAndTheGeothermalGeneratorAreThePlacedByTheGoalsOwnNeed(string thing, BuiltPlacer placer)
     {
-        Assert.Equal(placer, GoalRules.PlacerOf(thing));
+        Assert.Equal(placer, GoalRules.PlacerOf(thing, Sources));
         var goal = Built(1, thing, 2);
-        Assert.True(GoalRules.OwnStep(goal));
+        Assert.True(GoalRules.OwnStep(goal, Sources));
         var own = GoalRules.NeedOf(goal);
 
         var open = Facts(goal, Standing((thing, 1)));
@@ -93,10 +96,10 @@ public sealed class BuiltCountGoalTests
     [Fact]
     public void ADefinitionNoPlannerOwnsIsNotOwnedByTheGoalsFamily()
     {
-        Assert.Equal(BuiltPlacer.None, GoalRules.PlacerOf("Bed"));
-        Assert.False(GoalRules.OwnStep(Built(1, "Bed", 1)));
-        Assert.False(GoalRules.OwnStep(Built(1, DefenseTurretsPolicy.TurretMini, 1)));
-        Assert.All(DefenseTurretsPolicy.TurretLadder, t => Assert.Equal(BuiltPlacer.Turret, GoalRules.PlacerOf(t)));
+        Assert.Equal(BuiltPlacer.None, GoalRules.PlacerOf("Bed", Sources));
+        Assert.False(GoalRules.OwnStep(Built(1, "Bed", 1), Sources));
+        Assert.False(GoalRules.OwnStep(Built(1, DefenseTurretsPolicy.TurretMini, 1), Sources));
+        Assert.All(DefenseTurretsPolicy.TurretLadder, t => Assert.Equal(BuiltPlacer.Turret, GoalRules.PlacerOf(t, Sources)));
     }
 
     [Fact]

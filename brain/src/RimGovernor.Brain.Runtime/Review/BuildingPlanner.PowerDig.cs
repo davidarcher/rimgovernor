@@ -11,43 +11,28 @@ public sealed partial class BuildingPlanner
             return (new BuildingResult(), false);
         }
 
-        check();
-        var building = new Building(Definition, Power.Center, Rotation.North, "");
-        var probe = s.State.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
-        var action = DomainAction.NewBuildingAction(new ActionId($"{probe.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
-        var preview = await Native.PreviewBuildingAsync(action, probe, call).ConfigureAwait(false);
-        var footprint = preview.Preview.Footprint;
-        if (footprint.Count == 0)
+        foreach (var definition in new[] { Definition }.Concat(Power.Alternatives))
         {
-            return (new BuildingResult(), false);
+            check();
+            var building = new Building(definition, Power.Center, Rotation.North, "");
+            var probe = s.State.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
+            var action = DomainAction.NewBuildingAction(new ActionId($"{probe.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
+            var preview = await Native.PreviewBuildingAsync(action, probe, call).ConfigureAwait(false);
+            var footprint = preview.Preview.Footprint;
+            if (footprint.Count == 0) continue;
+            if (footprint.Any(protectedCells.Contains)) continue;
+            var planned = footprint.Select(cell => new RoleCell { Cell = cell, Role = RockRole.NeedsFloor }).ToList();
+            if (RockStepRules.RockStep(planned, s.Facts.PlanningWindow.Cells).Dig.Count == 0)
+                return (new BuildingResult(), false);
+            var (access, ok) = RockStepRules.RockAccess(footprint, s.Facts.PlanningWindow.Cells);
+            if (!ok)
+                return (new BuildingResult { Verdict = RockNotDug(definition, "no_open_cell_beside_footprint") }, true);
+            var method = new MethodId($"plan-dig-geothermal-{Power.Center.X}-{Power.Center.Z}");
+            return await AdmitRockStepAsync(s, planned, access, method, [], check, call, epoch).ConfigureAwait(false);
         }
-
-        var planned = new List<RoleCell>(footprint.Count);
-        foreach (var c in footprint)
-        {
-            if (protectedCells.Contains(c))
-            {
-                return (new BuildingResult { Verdict = BuildingReasonExistingWork }, true);
-            }
-
-            planned.Add(new RoleCell { Cell = c, Role = RockRole.NeedsFloor });
-        }
-
-        if (RockStepRules.RockStep(planned, s.Facts.PlanningWindow.Cells).Dig.Count == 0)
-        {
-            return (new BuildingResult(), false);
-        }
-
-        var (access, ok) = RockStepRules.RockAccess(footprint, s.Facts.PlanningWindow.Cells);
-        if (!ok)
-        {
-            return (new BuildingResult { Verdict = RockNotDug(Definition, "no_open_cell_beside_footprint") }, true);
-        }
-
-        var method = new MethodId($"plan-dig-geothermal-{Power.Center.X}-{Power.Center.Z}");
-        return await AdmitRockStepAsync(s, planned, access, method, [], check, call, epoch).ConfigureAwait(false);
+        // Placement preview owns the final legality verdict when no candidate supplies a usable footprint.
+        return (new BuildingResult(), false);
     }
-
     /// <summary>Clears roofs and rock above a wind turbine or solar site; not handled when no planned site needs it.</summary>
     internal async Task<(BuildingResult Result, bool Handled)> DigSkyAsync(ExcavationStep s, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken call, CancellationToken epoch)
     {

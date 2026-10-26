@@ -273,7 +273,7 @@ public sealed class GoalsFamily : IFamily<GoalsFacts>
         foreach (var need in ready)
         {
             var goal = facts.Goals.FirstOrDefault(g => GoalRules.NeedOf(g) == need.Id);
-            if (goal is null || GoalRules.OwnStep(goal))
+            if (goal is null || GoalRules.OwnStep(goal, facts.ReviewState.PowerSources))
             {
                 // A goal the family places itself reports through its work step.
                 continue;
@@ -447,14 +447,14 @@ public static partial class GoalRules
     public const string TradeBeaconDefinition = "OrbitalTradeBeacon";
 
     /// <summary>Who places <paramref name="definition"/>: the turret ladder through the defense layout, the beacon and the geothermal generator through the goals family's own steps; nothing places any other definition.</summary>
-    public static BuiltPlacer PlacerOf(string definition) =>
+    public static BuiltPlacer PlacerOf(string definition, IReadOnlyDictionary<string, PowerSourceProfile> sources) =>
         DefenseTurretsPolicy.TurretLadder.Contains(definition) ? BuiltPlacer.Turret
         : definition == TradeBeaconDefinition ? BuiltPlacer.Beacon
-        : definition == PowerRules.GeothermalDefinition ? BuiltPlacer.Geothermal
+        : sources.TryGetValue(definition, out var source) && source.Steam && source.UnsupportedReason.Length == 0 ? BuiltPlacer.Geothermal
         : BuiltPlacer.None;
 
     /// <summary>Whether the goals family itself places the goal's building (its Need has a work step instead of a held Method).</summary>
-    public static bool OwnStep(GoalRecord goal) => goal.Kind == GoalKind.BuiltCount && PlacerOf(goal.Target) is BuiltPlacer.Beacon or BuiltPlacer.Geothermal;
+    public static bool OwnStep(GoalRecord goal, IReadOnlyDictionary<string, PowerSourceProfile> sources) => goal.Kind == GoalKind.BuiltCount && PlacerOf(goal.Target, sources) is BuiltPlacer.Beacon or BuiltPlacer.Geothermal;
 
     /// <summary>How many finished buildings of <paramref name="definition"/> stand.</summary>
     public static long BuiltOf(ReviewFacts f, string definition) =>
@@ -467,7 +467,7 @@ public static partial class GoalRules
     /// </summary>
     private static GoalStatus Built(GoalRecord goal, GoalsFacts f)
     {
-        var placer = PlacerOf(goal.Target);
+        var placer = PlacerOf(goal.Target, f.ReviewState.PowerSources);
         if (placer == BuiltPlacer.None)
         {
             // A definition nothing places has no method; one already standing is still met.
@@ -757,7 +757,7 @@ public static partial class GoalRules
                 case GoalKind.Colonists:
                     colonists = Math.Max(colonists, goal.Count);
                     break;
-                case GoalKind.BuiltCount when goal.Count > 0 && PlacerOf(goal.Target) == BuiltPlacer.Turret:
+                case GoalKind.BuiltCount when goal.Count > 0 && PlacerOf(goal.Target, f.ReviewState.PowerSources) == BuiltPlacer.Turret:
                     // The turret goal keeps asking once met: a lower budget would plan the standing turrets away.
                     turrets = Math.Max(turrets, goal.Count);
                     break;

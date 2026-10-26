@@ -14,11 +14,11 @@ public sealed partial class GoalsReview
     internal async Task<Verdict> WorkAsync(NeedWork work, GoalsFacts facts, CancellationToken call)
     {
         var goal = facts.Goals.FirstOrDefault(g => GoalRules.NeedOf(g) == work.Need.Id);
-        if (goal is null || !GoalRules.OwnStep(goal) || goal.Count <= 0)
+        if (goal is null || !GoalRules.OwnStep(goal, facts.ReviewState.PowerSources) || goal.Count <= 0)
         {
             return Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
         }
-        return await BuildStepAsync(work, goal, GoalRules.PlacerOf(goal.Target), call).ConfigureAwait(false);
+        return await BuildStepAsync(work, goal, GoalRules.PlacerOf(goal.Target, facts.ReviewState.PowerSources), call).ConfigureAwait(false);
     }
 
     /// <summary>

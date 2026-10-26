@@ -47,7 +47,7 @@ public sealed partial class GoalsReview
         var goals = await journal.LoadGoalsAsync(Player.PlayerWorld(scope.World), ct).ConfigureAwait(false);
         var owners = new Dictionary<NeedId, OwnerProgress>();
         // A goal the family places itself is its own owner.
-        foreach (var owner in Owners.Concat(goals.Goals.Where(GoalRules.OwnStep).Select(GoalRules.NeedOf)))
+        foreach (var owner in Owners.Concat(goals.Goals.Where(goal => GoalRules.OwnStep(goal, reading.Reading.Facts.PowerSources)).Select(GoalRules.NeedOf)))
         {
             if (review.ConcernProgress(owner.FilingKey) is { } row)
             {

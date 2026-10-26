@@ -141,7 +141,7 @@ nothing places is `NoMethod` with the reason `no placer for <def>` (it still rea
   and are named on the tier, and the goal reports the Need's block. The count is of the goal's own def while the layout
   builds the rung its armory tier allows, so a goal for another rung stays unmet. A met goal keeps its floor so the
   budget never plans standing turrets away. The mortar has no placer here.
-- **Trade beacon** (`OrbitalTradeBeacon`) and **geothermal generator** (`GeothermalGenerator`, a standalone owed
+- **Trade beacon** (`OrbitalTradeBeacon`) and **steam generator** (any supported native steam-plant definition from the shared power catalog, a standalone owed
   count). The goal's own Need (`goals/built-count/<id>`) has a work step (`GoalsReview.WorkAsync`, scheduled on
   `ActionKind.Building`) modelled on the biotech charger and gene bank: one building Method per count standing
   (`built-<def>-<n>`) on a free site previewed natively (`FreeSitesRules.FreeSites` near the colony centre for the
