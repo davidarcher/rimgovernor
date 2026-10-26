@@ -335,20 +335,24 @@ public sealed partial class BuildingPlanner
 
     internal BuildingResult CommitRefrigerationTarget(NeedOwner goal, Action check, CancellationToken call)
     {
-        var p = Reviewer.Player;
         var proposal = Refrigeration;
         if (proposal is null || proposal.Method != RefrigerationMethod.SetTarget)
         {
             throw new ControlException("commitRefrigerationTarget: no set-target proposal");
         }
 
-        var method = proposal.Key;
+        return CommitTemperatureTarget(goal, proposal.Key, proposal.Cooler, proposal.TargetC, check, call);
+    }
+
+    private BuildingResult CommitTemperatureTarget(NeedOwner goal, MethodId method, string building, double target, Action check, CancellationToken call)
+    {
+        var p = Reviewer.Player;
         if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
             return new BuildingResult { Verdict = WaitFor(Cause.MethodUsed, "refrigeration_target") };
         }
 
-        var patch = new BuildingTemperature(proposal.Cooler, proposal.TargetC);
+        var patch = new BuildingTemperature(building, target);
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewBuildingTemperatureAction(new ActionId($"{id}-0"), patch);
         var plan = new PlanSpec(id, new PlanRevision(1), [action]);

@@ -5,10 +5,12 @@ namespace RimGovernor.Brain.Runtime;
 public sealed partial class BuildingPlanner
 {
     /// <summary>Commits the auto-refuel switch of a heat campfire as one owner method.</summary>
-    internal BuildingResult CommitCampfireRefuel(NeedOwner goal, Action check, CancellationToken call)
+    internal BuildingResult CommitTemperatureControl(NeedOwner goal, Action check, CancellationToken call)
     {
         var p = Reviewer.Player;
         var proposal = Temperature;
+        if (proposal is { Method: Pol.TemperatureMethod.SetTarget })
+            return CommitTemperatureTarget(goal, proposal.Key, proposal.Thing, proposal.TargetC, check, call);
         if (proposal is null || (proposal.Method != Pol.TemperatureMethod.RefuelOff && proposal.Method != Pol.TemperatureMethod.RefuelOn))
         {
             throw new ControlException("commitCampfireRefuel: not a refuel proposal");

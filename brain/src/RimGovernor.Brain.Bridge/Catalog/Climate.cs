@@ -13,6 +13,41 @@ namespace RimGovernor.Brain.Bridge;
 
 public sealed partial class DefinitionCatalog
 {
+    /// <summary>Exact native thermostats and fuel-gated heat pushers; unknown subclasses need their own model.</summary>
+    public IReadOnlyList<P.TemperatureDefinition> TemperatureDefinitions()
+    {
+        var output = new List<P.TemperatureDefinition>();
+        foreach (var row in _thingDefs.Values.OrderBy(row => row.defName, StringComparer.Ordinal))
+        {
+            if (!Buildable(row) || row.category != Verse.ThingCategory.Building || row.size != IntVec2.One || row.MadeFromStuff) continue;
+            var control = row.GetCompProperties<CompProperties_TempControl>();
+            var push = row.GetCompProperties<CompProperties_HeatPusher>();
+            var power = row.GetCompProperties<CompProperties_Power>();
+            var fuel = row.GetCompProperties<CompProperties_Refuelable>();
+            var thermostat = control is { energyPerSecond: not 0 } && control.compClass == typeof(CompTempControl)
+                && ((row.thingClass == typeof(Building_Heater) && control.energyPerSecond > 0)
+                    || (row.thingClass == typeof(Building_Cooler) && control.energyPerSecond < 0))
+                && power is { compClass: var powerClass } && powerClass == typeof(CompPowerTrader) && fuel is null;
+            var burner = push is { heatPerSecond: not 0 } && push.compClass == typeof(CompHeatPusherPowered)
+                && fuel is { compClass: var fuelClass, showAllowAutoRefuelToggle: true } && fuelClass == typeof(CompRefuelable)
+                && power is null && (row.thingClass == typeof(Verse.Building) || row.thingClass == typeof(Building_WorkTable));
+            if (!thermostat && !burner) continue;
+            var definition = new P.TemperatureDefinition
+            {
+                Name = row.defName, HeatPerSecond = thermostat ? control!.energyPerSecond : push!.heatPerSecond,
+                PowerW = power is null ? 0 : GameMembers.BasePowerConsumption(power),
+                MinimumC = thermostat ? float.MinValue : push!.heatPushMinTemperature,
+                MaximumC = thermostat ? float.MaxValue : push!.heatPushMaxTemperature,
+                Wall = thermostat && row.thingClass == typeof(Building_Cooler), Controlled = thermostat,
+                BuildValue = CheapestCostValue(row.defName), Fuels = [.. RefuelFuels(row.defName).Select(name => new P.Resource(name))],
+            };
+            definition.Validate();
+            if (burner && definition.Fuels.Count == 0) throw new CatalogException("thermal fuel:" + row.defName);
+            output.Add(definition);
+        }
+        return output;
+    }
+
     // The comfortable temperature range of the colonists' race, its ComfyTemperatureMin and ComfyTemperatureMax stat bases;
     // the zero band when the race states neither.
     private P.Band LivingBand(P.ClimateTable table)

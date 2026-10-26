@@ -18,6 +18,9 @@ public sealed record StationCatalog
     /// <summary>The lamp's draw and build value (#2945); the default is unknown and leaves the lamps unpriced.</summary>
     public LightModel Light { get; init; } = new();
 
+    /// <summary>Every buildable native heater/cooler whose placement and service mechanics are modeled.</summary>
+    public IReadOnlyList<TemperatureDefinition> Temperature { get; init; } = [];
+
     /// <summary>The generators, the battery, the conduit and the wall a power site is derived and priced from (#2999); the default is unknown.</summary>
     public PowerModel Power { get; init; } = new();
 

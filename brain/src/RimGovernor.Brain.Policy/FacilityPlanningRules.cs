@@ -137,11 +137,12 @@ public static partial class FacilityPlanningRules
         return heat;
     }
 
-    public static List<HeatCampfire> HeatCampfires(ReviewFacts facts, string campfireDefinition)
+    public static List<HeatCampfire> HeatCampfires(ReviewFacts facts, IReadOnlySet<string> heaterDefinitions)
     {
         var claims = facts.ConstructionClaims;
         var census = facts.CurrentConstruction;
-        var heat = HeatCampfireCells(claims, campfireDefinition);
+        var heat = claims.Where(claim => claim.Concern == ShelterFamily.Temperature.FilingKey
+            && claim.Building is { } building && heaterDefinitions.Contains(building.Definition)).SelectMany(claim => claim.Cells).ToHashSet();
         if (census is null || heat.Count == 0)
         {
             return [];
@@ -149,7 +150,7 @@ public static partial class FacilityPlanningRules
         var output = new List<HeatCampfire>();
         foreach (var b in census.Buildings)
         {
-            if (b.Building.Definition != campfireDefinition || b.Cells.Count == 0 || !heat.Contains(b.Cells[0]))
+            if (!heaterDefinitions.Contains(b.Building.Definition) || b.Cells.Count == 0 || !heat.Contains(b.Cells[0]))
             {
                 continue;
             }
@@ -170,8 +171,10 @@ public static partial class FacilityPlanningRules
     }
 
     /// <summary>Whether a heat campfire owes its refuel switch or an unheated sleeping room sits cold; false while the room census is unread.</summary>
-    public static bool TemperatureOwed(ReviewFacts facts, string campfireDefinition) =>
-        TemperatureMethodRules.TemperatureOwed(facts.Upkeep.Rooms, facts.Sleeping, HeatCampfires(facts, campfireDefinition));
+    public static bool TemperatureOwed(ReviewFacts facts) =>
+        TemperatureMethodRules.TemperatureOwed(facts.Upkeep.Rooms, facts.Sleeping,
+            HeatCampfires(facts, facts.Stations.Temperature.Where(definition => definition.Heats && definition.Fuels.Count > 0)
+                .Select(definition => definition.Name).ToHashSet(StringComparer.Ordinal)));
 
     public static bool CampfireRetireOwed(ReviewFacts facts, string campfireDefinition)
     {

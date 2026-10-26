@@ -480,14 +480,23 @@ under it; it has no latch, and unknown temperature or room facts leave it unknow
   ([power contracts](power-contracts.md)).
 - The `shelter/temperature` Need reuses the wall search for a hot sleeping room. Hot rooms are
   served hottest first, cold rooms coldest first. A room with no thermal facility gets
-  one powered `Cooler` at the lowest-sorted vented wall cell, cold side in, when `Cooler`
-  is `ClimateGear.Placeable` and a connected network's nominal producer capacity exceeds
-  demand by the cooler's draw (`policy.TemperatureCooling`, `PowerTopology.SpareW`).
-  A solar flare, unfinished research, `ClimatePower.NoCensus` or no vented wall keep
-  the passive cooler inside the room. A `Cooler` the power census places beside the room
-  counts as its facility. The setpoint is the native default (21 C); the family patches
-  no setpoints; its draw reaches the `power/basic` Need as pending demand while open, measured
-  once built.
+  a supported catalog heater/cooler, with its actual definition carried through legal
+  preview, reservations and ordinary building intent. The catalog models exact native
+  heater/cooler thermostats and fuel-gated heat pushers, with their heat direction,
+  power draw, accepted fuels and operating temperature limits. Unknown subclasses
+  are not assigned invented mechanics. Research, builder skill, construction stock,
+  fuel stock and spare connected power gate each candidate. Renewable fuel heat
+  keeps its preference; otherwise thermostats precede finite fuel heat. Cooling
+  prefers thermostats. Build value per unit of heat, draw per unit of heat and
+  ordinal identity break ties.
+  Wall coolers need an observed vented wall with the cold side in; legal preview
+  tries all ranked options and room cells, including passive alternatives. Native
+  temperature proves recovery. Existing thermostats count by actual definition,
+  position and facing; targets outside the sleepers' comfort intersection are
+  corrected through the existing building-temperature action and CAS refresh.
+  Claimed fuel heaters read their auto-refuel switch from the canonical building
+  fuel service, including heaters with no bill stack. Their draw reaches the
+  `power/basic` Need as pending demand while open and is measured once built.
 - Solar flare: while a `SolarFlare` condition with a native remaining-duration read is
   observed (`policy.PowerOutageHold`) the power family holds `power/basic` without a
   Method (`power_outage`; its open work is kept, never cancelled), and

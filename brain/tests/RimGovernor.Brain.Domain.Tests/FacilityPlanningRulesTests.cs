@@ -28,9 +28,9 @@ public sealed class FacilityPlanningRulesTests
         };
         Assert.Empty(facts.EssentialInputs.Benches);
         Assert.Equal(new HeatCampfire { Id = "heater", Room = "room", AutoRefuel = true },
-            Assert.Single(FacilityPlanningRules.HeatCampfires(facts, placement.Definition)));
+            Assert.Single(FacilityPlanningRules.HeatCampfires(facts, new HashSet<string> { placement.Definition })));
         facts = facts with { Upkeep = facts.Upkeep with { Rooms = RoomTestFacts.NoRooms } };
-        Assert.Empty(FacilityPlanningRules.HeatCampfires(facts, placement.Definition));
+        Assert.Empty(FacilityPlanningRules.HeatCampfires(facts, new HashSet<string> { placement.Definition }));
     }
 
     [Fact]

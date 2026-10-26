@@ -454,7 +454,7 @@ public sealed partial class ColonyReview
         reading = reading.WithFacts(rf => rf with { WarmRooms = BurialFacts.WarmCoolingRooms(reading.Reading) });
         reading = reading.WithFacts(rf => rf with { MealClosetOwed = BurialFacts.MealClosetOwed(reading.Reading) });
         reading = reading.WithFacts(rf => rf with { CampfireRetireOwed = FacilityPlanningRules.CampfireRetireOwed(reading.Reading.Facts, nameof(RimWorld.ThingDefOf.Campfire)) });
-        reading = reading.WithFacts(rf => rf with { TemperatureOwed = FacilityPlanningRules.TemperatureOwed(reading.Reading.Facts, nameof(RimWorld.ThingDefOf.Campfire)) });
+        reading = reading.WithFacts(rf => rf with { TemperatureOwed = FacilityPlanningRules.TemperatureOwed(reading.Reading.Facts) });
         Lap("d_owed");
         var targets = await ArmoryShells.ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Reading, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ShellTargets = EquatableArray.From(targets), ShellsShort = ArmoryShellsRules.ShellsShort(targets, ResourceStockRules.Count(reading.Reading.Snapshot.Resources)) });

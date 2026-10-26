@@ -89,7 +89,7 @@ public sealed class ShelterReview
         f = f with
         {
             SleepingRecovered = recovered,
-            TemperatureOwed = FacilityPlanningRules.TemperatureOwed(projection.Facts, nameof(RimWorld.ThingDefOf.Campfire)),
+            TemperatureOwed = FacilityPlanningRules.TemperatureOwed(projection.Facts),
             Upkeep = f.Upkeep with { Rooms = projection.Facts.Upkeep.Rooms },
             SafeAreaOwed = _safeArea ? _reviewer.SafeArea.Owed(world) : SafeAreaStatus.AwaitingReview,
         };

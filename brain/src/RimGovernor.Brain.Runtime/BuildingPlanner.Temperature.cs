@@ -43,19 +43,11 @@ public sealed partial class BuildingPlanner
         var proposal = TemperatureMethodRules.SelectTemperatureMethod(rooms, rooms.EligibleBeds, cooling, Reviewer.Policy);
         switch (proposal.Method)
         {
-            case Pol.TemperatureMethod.Heat or Pol.TemperatureMethod.HeatElectric or Pol.TemperatureMethod.Cool or Pol.TemperatureMethod.CoolPowered or Pol.TemperatureMethod.RefuelOff or Pol.TemperatureMethod.RefuelOn:
+            case Pol.TemperatureMethod.Heat or Pol.TemperatureMethod.HeatElectric or Pol.TemperatureMethod.Cool or Pol.TemperatureMethod.CoolPowered or Pol.TemperatureMethod.RefuelOff or Pol.TemperatureMethod.RefuelOn or Pol.TemperatureMethod.SetTarget:
                 var resolved = Copy();
                 resolved.Temperature = proposal;
-                resolved.Definition = Wire.Name(proposal.Method);
+                resolved.Definition = proposal.Definition;
                 resolved.Environment = Pol.PlacementEnvironment.Anywhere;
-                if (proposal.Thing != "")
-                {
-                    resolved.Definition = "Campfire";
-                }
-                if (proposal.Method == Pol.TemperatureMethod.HeatElectric)
-                {
-                    resolved.Definition = cooling.Heater;
-                }
                 return (resolved, new Verdict());
             case Pol.TemperatureMethod.BedsUnroomed:
                 return (null, FieldUnavailable("room_temperatures"));
@@ -72,44 +64,55 @@ public sealed partial class BuildingPlanner
 
 partial class BuildingPlanner
 {
+    internal async Task<(IReadOnlyList<Pol.Preview>? Previews, Pol.StockObservation Stock, Verdict Verdict)> PreviewTemperatureAsync(
+        GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken call)
+    {
+        var proposal = Temperature ?? throw new ControlException("temperature preview without proposal");
+        var stock = new StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
+        foreach (var option in proposal.Options)
+        {
+            if (option.Wall)
+            {
+                foreach (var site in proposal.WallSites)
+                {
+                    var (previews, observed, verdict) = await PreviewWallBuildingAsync(snapshot, facts, protectedCells, check,
+                        option.Name, site.Cell, site.Rotation, false, call).ConfigureAwait(false);
+                    if (verdict.IsZero) return (previews, observed, verdict);
+                }
+                continue;
+            }
+            foreach (var cell in proposal.Cells)
+            {
+                if (protectedCells.Contains(cell)) continue;
+                check();
+                var (preview, observed, verdict) = await PreviewPlannedBuildingAsync(snapshot, facts,
+                    new Building(option.Name, cell, Rotation.North, ""), 0, false, false, call).ConfigureAwait(false);
+                if (verdict.IsZero) return (preview, observed, verdict);
+            }
+        }
+        return (null, stock, NoSpace("temperature_cell"));
+    }
+
     /// <summary>
-    /// Assembles the powered cooler evidence from the rooms reading: the Cooler planning definition
-    /// (placeability, draw), the colony power topology, the site cells the vented-wall search walks, and the
-    /// sleepers whose comfortable ranges band each room. An unread sleeper census raises.
+    /// Supplies the shared catalog, measured services, construction eligibility, fuel renewability,
+    /// site geometry and sleeper comfort to pure temperature policy.
     /// </summary>
     internal static Pol.TemperatureCooling TemperatureCooling(RimGovernor.Brain.GameAccess.ColonyReading facts)
     {
-        var sleeping = facts.Facts.Sleeping;
-        var heater = facts.Facts.Shapes.Furniture.Heater;
-        Pol.ClimateGear cooler = new Pol.ClimateGear.NotPlaceable();
-        Pol.ClimateGear heaterGear = new Pol.ClimateGear.NotPlaceable();
-        foreach (var d in facts.Facts.Definitions)
-        {
-            if (!d.Available) continue;
-            if (d.Name == "Cooler")
-            {
-                cooler = Pol.ClimateGear.Of(d.Name, d.Available, (d.Power ?? throw new RequiredFactException("planning Power")).PowerW);
-            }
-            else if (d.Name == heater)
-            {
-                heaterGear = Pol.ClimateGear.Of(d.Name, d.Available, (d.Power ?? throw new RequiredFactException("planning Power")).PowerW);
-            }
-        }
+        var candidates = facts.Facts.Stations.Temperature;
+        var fuels = candidates.SelectMany(candidate => candidate.Fuels).Distinct().ToList();
+        var renewable = fuels.Where(fuel => TreePlantationRules.ResourceGrowable(FieldPlanner.CropChoices(facts), fuel,
+            facts.Facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(facts.Facts.ForecastObserved.WorkPawns))).ToHashSet();
         return new Pol.TemperatureCooling
         {
-            Cooler = cooler,
-            Power = Pol.ClimatePower.Of(facts.Facts.EssentialInputs.Power),
+            Candidates = candidates, Definitions = facts.Facts.Definitions,
+            Buildings = (facts.Facts.CurrentConstruction ?? throw new RequiredFactException("temperature construction")).Buildings,
+            Builders = facts.Facts.ForecastObserved.WorkPawns.Pawns, Stock = ResourceStockRules.Count(facts.Snapshot.Resources),
+            RenewableFuels = renewable, Power = Pol.ClimatePower.Of(facts.Facts.EssentialInputs.Power),
             Cells = facts.PlanningWindow.Cells,
-            HeatCampfires = FacilityPlanningRules.HeatCampfires(facts.Facts, nameof(RimWorld.ThingDefOf.Campfire)),
-            Sleepers = [.. sleeping.People, .. sleeping.Slaves],
-            Heater = heater,
-            HeaterGear = heaterGear,
-            // Campfires burn wood: a finite stock unless a tree species can be sown.
-            HeatFuelFinite = !TreePlantationRules.ResourceGrowable(FieldPlanner.CropChoices(facts), ConstructionDemandRules.ConstructionWoodLog, facts.Facts.CropClimate.Biome, TreePlantationRules.GrowerSkill(facts.Facts.ForecastObserved.WorkPawns)),
+            HeatCampfires = FacilityPlanningRules.HeatCampfires(facts.Facts, candidates.Where(candidate => candidate.Heats && candidate.Fuels.Count > 0)
+                .Select(candidate => candidate.Name).ToHashSet(StringComparer.Ordinal)),
+            Sleepers = [.. facts.Facts.Sleeping.People, .. facts.Facts.Sleeping.Slaves],
         };
     }
-
-    /// <summary>The planning definitions the temperature planner reads: every method it can place, so availability and draw are known before one is chosen.</summary>
-    internal static readonly string[] TemperatureDefinitions = ["Campfire", "PassiveCooler", "Cooler"];
-
 }

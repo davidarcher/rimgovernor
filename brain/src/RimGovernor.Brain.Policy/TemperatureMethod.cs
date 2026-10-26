@@ -50,6 +50,9 @@ public enum TemperatureMethod
     /// <summary>Switches a heat campfire's auto-refuel on again below its sleepers' comfort minimum (sleepersBand).</summary>
     [WireName("campfire_refuel_on")]
     RefuelOn,
+
+    [WireName("temperature_target")]
+    SetTarget,
 }
 
 /// <summary>A campfire the temperature family built as room heat (its construction claim carries the shelter/temperature filing key): its native room and auto-refuel toggle.</summary>
@@ -70,130 +73,74 @@ public sealed record TemperatureProposal
 {
     public required TemperatureMethod Method { get; init; }
 
+    public string Definition { get; init; } = "";
+
+    public IReadOnlyList<TemperatureDefinition> Options { get; init; } = [];
+
+    public double TargetC { get; init; }
+
     public MethodId Key { get; init; }
 
     public IReadOnlyList<Cell> Cells { get; init; } = [];
 
-    /// <summary>The exact wall cell of a powered cooler (CoolPowered); the passive methods search Cells.</summary>
-    public Cell Cell { get; init; }
-
-    /// <summary>The facing of a powered cooler (CoolPowered).</summary>
-    public Rotation Rotation { get; init; }
+    /// <summary>Every observed vented wall in deterministic order, with its cold side facing the room.</summary>
+    public IReadOnlyList<(Cell Cell, Rotation Rotation)> WallSites { get; init; } = [];
 
     /// <summary>The heat campfire a refuel switch targets.</summary>
     public string Thing { get; init; } = "";
 }
 
-/// <summary>
-/// The evidence the powered cooler method reads beside the room census: the Cooler planning definition's
-/// placeability and draw, the colony power topology and the site cells the wall search walks.
-/// </summary>
+/// <summary>The measured candidates, services and eligibility used by temperature policy.</summary>
 public sealed record TemperatureCooling
 {
-    /// <summary>The Cooler planning definition: placeable at a nominal draw, or not placeable.</summary>
-    public required ClimateGear Cooler { get; init; }
-
-    /// <summary>The colony power census, or the named state that none was read (the powered methods are then not offered).</summary>
+    public required IReadOnlyList<TemperatureDefinition> Candidates { get; init; }
+    public required IReadOnlyList<PlanningDefinition> Definitions { get; init; }
+    public required IReadOnlyList<CurrentBuilding> Buildings { get; init; }
+    public required IReadOnlyList<WorkPawn> Builders { get; init; }
+    public required IReadOnlyDictionary<Resource, long> Stock { get; init; }
+    public required IReadOnlySet<Resource> RenewableFuels { get; init; }
     public required ClimatePower Power { get; init; }
-
     public required IReadOnlyList<SiteCell> Cells { get; init; }
-
-    /// <summary>The campfires standing as room heat, whose auto-refuel the method switches.</summary>
     public required IReadOnlyList<HeatCampfire> HeatCampfires { get; init; }
-
-    /// <summary>The colonists and slaves whose owned beds and comfortable ranges band each sleeping room.</summary>
     public required IReadOnlyList<SleepingPerson> Sleepers { get; init; }
 
-    /// <summary>The catalog's heater definition (RoomFurniture.Heater); empty when the catalog has none.</summary>
-    public required string Heater { get; init; }
-
-    /// <summary>The Heater planning definition: placeable at a nominal draw, or not placeable.</summary>
-    public required ClimateGear HeaterGear { get; init; }
-
-    /// <summary>True when the campfire's fuel (wood) is a finite stock here: nothing sows it. A renewable fuel keeps campfire heat.</summary>
-    public required bool HeatFuelFinite { get; init; }
-
-    /// <summary>
-    /// Whether room holds a working climate piece: a powered heater of the catalog's heater definition standing
-    /// on its floor, or a wall cooler beside it. A room that holds one needs no
-    /// second.
-    /// </summary>
-    public bool Conditioned(IReadOnlyList<Cell> cells) => WallCoolerBeside(cells) || HeaterIn(cells);
-
-    /// <summary>Whether a powered heater of the catalog's heater definition stands in room.</summary>
-    internal bool HeaterIn(IReadOnlyList<Cell> cells)
+    public IReadOnlyList<TemperatureDefinition> Options(bool heat, double target)
     {
-        if (Power is not ClimatePower.Census { Topology: var topology } || Heater.Length == 0)
+        var definitions = Definitions.ToDictionary(row => row.Name, StringComparer.Ordinal);
+        var options = new List<TemperatureDefinition>();
+        foreach (var candidate in Candidates)
         {
-            return false;
+            candidate.Validate();
+            if (!definitions.TryGetValue(candidate.Name, out var definition))
+                throw new RequiredFactException("thermal definition:" + candidate.Name);
+            if (candidate.Heats != heat || candidate.MinimumC > target || candidate.MaximumC < target || !definition.Available
+                || !FacilityPlanningRules.BuilderAvailable(Builders, definition.ConstructionSkill)) continue;
+            if (candidate.PowerW > 0 && (Power is not ClimatePower.Census { Topology: var topology }
+                || topology.Blackout || topology.SpareW() < candidate.PowerW)) continue;
+            if (candidate.Fuels.Count > 0 && !candidate.Fuels.Any(fuel => Stock.GetValueOrDefault(fuel) > 0)) continue;
+            if (definition.FixedConstruction is not { } construction)
+                throw new RequiredFactException("thermal construction:" + candidate.Name);
+            if (construction.Costs.Any(cost => Stock.GetValueOrDefault(cost.Resource) < cost.Count)) continue;
+            options.Add(candidate);
         }
-        var inside = new HashSet<Cell>(cells);
-        foreach (var b in topology.Buildings)
-        {
-            if (b.Definition != Heater)
-            {
-                continue;
-            }
-            if (b.Powered && inside.Contains(b.Cell))
-            {
-                return true;
-            }
-        }
-        return false;
+        return [.. options.OrderBy(candidate => heat && candidate.Fuels.Any(RenewableFuels.Contains) ? 0 : candidate.Controlled ? 1 : 2)
+            .ThenBy(candidate => candidate.BuildValue / Math.Abs(candidate.HeatPerSecond))
+            .ThenBy(candidate => candidate.PowerW / Math.Abs(candidate.HeatPerSecond))
+            .ThenBy(candidate => candidate.Name, StringComparer.Ordinal)];
     }
 
-    /// <summary>A Cooler in the power census standing on a cell four-adjacent to one of the room's cells: a cooler placed through the room's wall.</summary>
-    internal bool WallCoolerBeside(IReadOnlyList<Cell> cells)
+    public IEnumerable<(CurrentBuilding Building, TemperatureDefinition Definition)> Existing(IReadOnlyList<Cell> cells, bool heat)
     {
-        if (Power is not ClimatePower.Census { Topology: var topology })
+        var inside = cells.ToHashSet();
+        var definitions = Candidates.Where(candidate => candidate.Heats == heat).ToDictionary(candidate => candidate.Name, StringComparer.Ordinal);
+        foreach (var building in Buildings.OrderBy(building => building.Id, StringComparer.Ordinal))
         {
-            return false;
+            if (!definitions.TryGetValue(building.Building.Definition, out var definition)) continue;
+            var cell = definition.Wall ? RefrigerationRules.ColdSide(building.Building.Cell, building.Building.Rotation) : building.Building.Cell;
+            if (inside.Contains(cell)) yield return (building, definition);
         }
-        var inside = new HashSet<Cell>(cells);
-        foreach (var b in topology.Buildings)
-        {
-            if (b.Definition != "Cooler")
-            {
-                continue;
-            }
-            foreach (var rotation in new[] { Rotation.North, Rotation.East, Rotation.South, Rotation.West })
-            {
-                if (inside.Contains(RefrigerationRules.Step(b.Cell, RefrigerationRules.Facing(rotation), 1)))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
-
-    /// <summary>Whether a powered cooler can be proposed at all: research finished, draw known and a network with that much spare.</summary>
-    internal bool PoweredCoolerReady() => SpareCovers(Cooler);
-
-    /// <summary>Whether a powered heater is preferred over a campfire: the campfire's fuel is finite, the heater is placeable and a network has the spare capacity for its draw.</summary>
-    internal bool ElectricHeatReady() => HeatFuelFinite && Heater.Length != 0 && SpareCovers(HeaterGear);
-
-    private bool SpareCovers(ClimateGear gear) =>
-        gear is ClimateGear.Placeable { DrawW: var draw }
-        && Power is ClimatePower.Census { Topology: var topology }
-        && !topology.Blackout
-        && topology.SpareW() >= draw;
 }
-
-/// <summary>A climate piece's planning definition: Placeable at a nominal DrawW (researched and available), or NotPlaceable.</summary>
-public abstract record ClimateGear
-{
-    private protected ClimateGear() { }
-
-    public sealed record NotPlaceable : ClimateGear;
-
-    public sealed record Placeable(double DrawW) : ClimateGear;
-
-    /// <summary>The gear a planning definition describes: not placeable while unavailable, else placeable at its nominal draw. An unread availability, or draw of an available piece, raises <see cref="RequiredFactException"/>.</summary>
-    public static ClimateGear Of(string name, bool available, double drawW) =>
-        !available ? new NotPlaceable() : double.IsFinite(drawW) ? new Placeable(drawW) : throw new RequiredFactException(name + " power draw");
-}
-
 /// <summary>The colony power census the powered climate methods read: Census, or NoCensus when the native power section was not read this review.</summary>
 public abstract record ClimatePower
 {
@@ -233,8 +180,8 @@ public static partial class TemperatureMethodRules
     }
 
     /// <summary>
-    /// Holds shelter/temperature unmet past the fixed thresholds: a heat campfire owes its refuel switch, or a
-    /// sleeping room with no campfire or heater sits below its sleepers' comfort minimum.
+    /// Holds shelter/temperature unmet when a claimed fuel heater owes its switch or a sleeping room
+    /// remains outside its sleepers' comfortable range. A standing facility does not prove recovery.
     /// </summary>
     public static bool TemperatureOwed(RoomObservation rooms, SleepingObservation s, IReadOnlyList<HeatCampfire> heatCampfires) =>
         TemperatureOwed(rooms, heatCampfires, [.. s.People, .. s.Slaves]);
@@ -248,20 +195,12 @@ public static partial class TemperatureMethodRules
         foreach (var room in v.Rooms)
         {
             var temperature = room.TemperatureC;
-            var (low, _, banded) = SleepersBand(room, sleepers);
-            if (!banded || temperature >= low)
+            var (low, high, banded) = SleepersBand(room, sleepers);
+            if (!banded || (temperature >= low && temperature <= high))
             {
                 continue;
             }
-            var heated = false;
-            foreach (var q in room.Contents)
-            {
-                heated = heated || (q.Units > 0 && (q.DefName == "Campfire" || q.DefName == "Heater"));
-            }
-            if (!heated)
-            {
-                return true;
-            }
+            return true;
         }
         return false;
     }
@@ -462,7 +401,7 @@ public static partial class TemperatureMethodRules
             // A plain threshold at the comfort band's exit bars (no hysteresis, #3257). Known sleepers' comfort
             // minimum replaces the fixed cold threshold: a parka wearer needs no heat at 10 C.
             var cold = temperature < limits.ColdExit;
-            var (low, _, banded) = SleepersBand(room, cooling.Sleepers);
+            var (low, high, banded) = SleepersBand(room, cooling.Sleepers);
             if (banded)
             {
                 cold = temperature < low;
@@ -471,7 +410,7 @@ public static partial class TemperatureMethodRules
             {
                 method = TemperatureMethod.Heat;
             }
-            else if (temperature > limits.HotExit)
+            else if (temperature > (banded ? high : limits.HotExit))
             {
                 method = TemperatureMethod.Cool;
             }
@@ -501,88 +440,56 @@ public static partial class TemperatureMethodRules
                 return string.CompareOrdinal(a.Bed, b.Bed);
             }
         );
-        var powered = cooling.PoweredCoolerReady();
-        var electric = cooling.ElectricHeatReady();
         var cellRoom = new Dictionary<Cell, string>();
-        var cells = new Dictionary<Cell, SiteCell>();
-        if (powered)
-        {
-            foreach (var room in v.Rooms)
-            {
-                foreach (var c in v.CellsOf(room))
-                {
-                    cellRoom[c] = room.Id;
-                }
-            }
-            foreach (var c in cooling.Cells)
-            {
-                cells[c.Cell] = c;
-            }
-        }
+        foreach (var room in v.Rooms)
+        foreach (var cell in v.CellsOf(room)) cellRoom[cell] = room.Id;
+        var cells = cooling.Cells.ToDictionary(site => site.Cell);
         foreach (var choice in choices)
         {
-            var method = choice.Method;
-            var exists = false;
-            foreach (var q in choice.Room.Contents)
+            var heat = choice.Method == TemperatureMethod.Heat;
+            var (low, high, banded) = SleepersBand(choice.Room, cooling.Sleepers);
+            if (!banded) { low = limits.ColdExit; high = limits.HotExit; }
+            var target = heat ? low : high;
+            var options = cooling.Options(heat, target);
+            var existing = cooling.Existing(choice.Cells, heat).ToList();
+            foreach (var (building, definition) in existing)
             {
-                if (q.Units == 0)
-                {
-                    continue;
-                }
-                var name = q.DefName;
-                if (method == TemperatureMethod.Heat)
-                {
-                    // With a finite wood stock and power to spare a standing campfire does not hold the room:
-                    // the heater joins it.
-                    exists = exists || (name == "Campfire" && !electric) || name == "Heater";
-                }
-                else
-                {
-                    // A campfire in a hot room is the heat's cause, not a cooling target: its refuel switch
-                    // lets it burn out.
-                    exists = exists || name == "PassiveCooler" || name == "Cooler" || name == "Campfire";
-                }
-            }
-            // A wall cooler stands in the room's boundary, outside its cell set and its contents: the power
-            // census's Cooler rows beside the room are the facility the room already has.
-            if (method == TemperatureMethod.Cool && !exists)
-            {
-                exists = cooling.WallCoolerBeside(choice.Cells);
-            }
-            exists = exists || (method == TemperatureMethod.Heat && cooling.HeaterIn(choice.Cells));
-            if (exists)
-            {
-                continue;
-            }
-            if (method == TemperatureMethod.Cool && powered)
-            {
-                // A vented wall cell hosts the powered cooler; a room with no such wall (rock-bound, or ringed
-                // by other rooms) keeps the passive cooler.
-                var (cell, rotation, ok) = RefrigerationRules.VentedWall(choice.Room.Id, choice.Cells, cellRoom, cells, new HashSet<Cell>());
-                if (ok)
-                {
+                if (!definition.Controlled) continue;
+                if (building.Observed.Settings.Control is not RimGovernor.Brain.GameFacts.Observations.BuildingControl.Temperature control
+                    || !double.IsFinite(control.TargetC)) throw new RequiredFactException("thermal control:" + building.Id);
+                var desired = Math.Clamp(control.TargetC, low, high);
+                if (desired != control.TargetC)
                     return new TemperatureProposal
                     {
-                        Method = TemperatureMethod.CoolPowered,
-                        Key = ThermalKey(choice.Bed + "/" + Wire.Name(TemperatureMethod.CoolPowered)),
-                        Cells = [.. choice.Cells],
-                        Cell = cell,
-                        Rotation = rotation,
+                        Method = TemperatureMethod.SetTarget, Definition = definition.Name, Thing = building.Id, TargetC = desired,
+                        Key = ThermalKey(building.Id + "/target/" + desired.ToString("R", System.Globalization.CultureInfo.InvariantCulture)),
                     };
+            }
+            // Keep a working facility; finite fuel heat may be joined by a powered thermostat.
+            if (existing.Any(pair => pair.Definition.Controlled || !heat || options.Count == 0 || !options[0].Controlled)) continue;
+            // A claimed heat source in a hot room must finish burning out before adding cooling.
+            if (!heat && cooling.HeatCampfires.Any(source => source.Room == choice.Room.Id)) continue;
+            var walls = new List<(Cell Cell, Rotation Rotation)>();
+            if (options.Any(option => option.Wall))
+            {
+                var taken = new HashSet<Cell>();
+                while (RefrigerationRules.VentedWall(choice.Room.Id, choice.Cells, cellRoom, cells, taken) is { Ok: true } site)
+                {
+                    walls.Add((site.Cell, site.Rotation));
+                    taken.Add(site.Cell);
                 }
             }
-            if (method == TemperatureMethod.Heat && electric)
-            {
-                method = TemperatureMethod.HeatElectric;
-            }
+            options = [.. options.Where(option => !option.Wall || walls.Count > 0)];
+            if (options.Count == 0) continue;
+            var selected = options[0];
+            var method = heat ? selected.Controlled ? TemperatureMethod.HeatElectric : TemperatureMethod.Heat
+                : selected.Controlled ? TemperatureMethod.CoolPowered : TemperatureMethod.Cool;
             return new TemperatureProposal
             {
-                Method = method,
-                Key = ThermalKey(choice.Bed + "/" + Wire.Name(method)),
-                Cells = [.. choice.Cells],
+                Method = method, Definition = selected.Name, Options = options,
+                Key = ThermalKey(choice.Bed + "/" + Wire.Name(method)), Cells = [.. choice.Cells], WallSites = walls,
             };
-        }
-        if (seen.Count != wanted.Count)
+        }        if (seen.Count != wanted.Count)
         {
             return new TemperatureProposal { Method = TemperatureMethod.BedsUnroomed };
         }

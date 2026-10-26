@@ -254,7 +254,7 @@ public sealed partial class BuildingPlanner
         }
         if (r.Concern == ShelterFamily.Temperature.FilingKey)
         {
-            definitions = [.. TemperatureDefinitions, "Heater"];
+            definitions = [];
         }
         if (r.Concern == RoomsFamily.Lighting.FilingKey)
         {
@@ -404,7 +404,7 @@ public sealed partial class BuildingPlanner
         }
         if (r.Temperature is not null && r.Temperature.Thing != "")
         {
-            return r.CommitCampfireRefuel(goal, () =>
+            return r.CommitTemperatureControl(goal, () =>
             {
                 p.Current(call, epoch);
                 if (p.Session.State() != state)
@@ -526,11 +526,7 @@ public sealed partial class BuildingPlanner
             {
                 if (pendingPlanner.Concern == ShelterFamily.Temperature.FilingKey)
                 {
-                    if (pendingPlanner.Temperature!.Method == Pol.TemperatureMethod.Heat || pendingPlanner.Temperature.Method == Pol.TemperatureMethod.HeatElectric)
-                    {
-                        return PendingFacility(progress, "Campfire") || PendingFacility(progress, "Heater");
-                    }
-                    return PendingFacility(progress, "PassiveCooler") || PendingFacility(progress, "Cooler");
+                    return facts.Facts.Stations.Temperature.Any(candidate => PendingFacility(progress, candidate.Name));
                 }
                 if (pendingPlanner.Concern == PowerFamily.Basic.FilingKey)
                 {
@@ -768,9 +764,9 @@ public sealed partial class BuildingPlanner
         {
             return await PreviewPasteAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
         }
-        if (Temperature is { Method: Pol.TemperatureMethod.CoolPowered })
+        if (Temperature is { Options.Count: > 0 })
         {
-            return await PreviewWallBuildingAsync(snapshot, facts, protectedCells, check, Wire.Name(Pol.TemperatureMethod.CoolPowered), Temperature.Cell, Temperature.Rotation, false, call).ConfigureAwait(false);
+            return await PreviewTemperatureAsync(snapshot, facts, protectedCells, check, call).ConfigureAwait(false);
         }
         if (Lighting is not null)
         {
@@ -801,7 +797,7 @@ public sealed partial class BuildingPlanner
         var adjacent = new HashSet<Cell>(Adjacent);
         var roomCells = new HashSet<Cell>();
         var interiorRooms = new List<Pol.InteriorRoom>();
-        var restricted = Temperature is not null || Cells is not null;
+        var restricted = Cells is not null;
         if (looseSpot)
         {
             restricted = true;
@@ -814,13 +810,6 @@ public sealed partial class BuildingPlanner
         {
             // Cooking waits for the planned kitchen.
             return (null, new Pol.StockObservation(), BuildingReasonNoLayoutPlan);
-        }
-        if (Temperature is not null)
-        {
-            foreach (var c in Temperature.Cells)
-            {
-                roomCells.Add(c);
-            }
         }
         if (Cells is not null)
         {
