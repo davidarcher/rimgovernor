@@ -11,7 +11,9 @@ estimates, and a prioritized review queue.
 
 The [OpenSpec food pilot](../openspec/README.md) separates
 [standing food requirements](../openspec/specs/food-security/spec.md) from
-[implementation evidence and inferred candidates](requirements/food-security.md).
+[historical implementation evidence](requirements/food-security.md). The
+[food decision record and related production drafts](../openspec/changes/redefine-food-requirements/proposal.md)
+capture the maintainer-confirmed replacement for the recovered baseline.
 
 | Task | Guide |
 | --- | --- |

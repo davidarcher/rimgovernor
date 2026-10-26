@@ -4,17 +4,21 @@
 · [CLI setup](../docs/developers/agent-runbook.md#openspec)
 
 Food security is the pilot. Its [standing specification](specs/food-security/spec.md)
-owns the five documented requirements RG-FOOD-001–004 and RG-FOOD-006 and their
-proposed acceptance scenarios. Its [evidence page](../docs/requirements/food-security.md)
-owns implementation status, inspected sources, registered cases, results and proof
-limits. It also owns inferred candidates RG-FOOD-005, RG-FOOD-007 and RG-FOOD-008.
-Other capabilities remain in the existing requirements collection.
+owns RG-FOOD-001–013, based on the maintainer-confirmed policy in the
+[decision record](changes/redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary).
+The [evidence page](../docs/requirements/food-security.md) retains historical source
+and test inspection, results and proof limits; it does not certify the expanded
+requirements. Other standing capabilities remain in the existing collection.
+The active [change](changes/redefine-food-requirements/proposal.md) also captures
+related acquisition, hunting, growing and herd drafts. Design and implementation
+tasks are outside this requirements capture; the change remains active.
 
 ## Authority
 
 Documented intent, inferred candidate and human-approved intent remain distinct.
-Migrating or synchronizing text does not approve it. The pilot's detailed scenarios
-remain proposals for review. To adopt or change intended behavior, record the
+Migrating or synchronizing text does not approve it. The food policy has explicit
+maintainer confirmation; its concrete scenarios illustrate that direction rather
+than establish separately approved tactics. To adopt or change intent, record the
 maintainer's explicit decision and its source. Do not copy inferred candidates
 into the standing specification as agreed requirements. Preserve stable RG IDs
 when moving or changing a requirement; never reuse a retired ID.

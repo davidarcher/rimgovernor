@@ -1,36 +1,37 @@
 # Keep the colony fed
 
-[Collection](README.md) · [Standing food specification](../../openspec/specs/food-security/spec.md) · [Review queue and recommended checks](review-queue.md)
+[Collection](README.md) · [Standing food specification](../../openspec/specs/food-security/spec.md) · [Review queue](review-queue.md)
 
-The governor handles the colony's food supply: finding food, preparing it when
-useful, feeding colonists and replacing what they consume. It makes these decisions
-from the colony's condition and the options available in the game.
+## Intent and evidence ownership
 
-The standing specification owns documented requirements RG-FOOD-001–004 and
-RG-FOOD-006 and their proposed scenarios. This page owns implementation status,
-evidence and inferred candidates RG-FOOD-005/007/008. Migration preserves intent
-status and evidence limits; it adds no gameplay verification. Existing section
-anchors remain entry points to each requirement's evidence.
+The [standing specification](../../openspec/specs/food-security/spec.md) owns
+RG-FOOD-001–013. Its policy was confirmed by the maintainer in this chat on
+2026-10-25; the [decision record](../../openspec/changes/redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary)
+records the direction and authorization to replace the recovered baseline.
+RG-FOOD-005/007/008 are no longer inferred candidates. The detailed scenarios
+formalize the agreed direction and do not constitute new gameplay evidence.
+
+This page owns historical implementation and test evidence. The support labels
+below describe the narrower paths previously inspected, not a fresh audit or
+certification of the expanded requirements. No new implementation gaps or test
+passes are inferred from this requirements rewrite. The new obligations need
+claim-by-claim implementation assessment before anyone can report them supported.
 
 The initial trace follows an unarmed colonist obtaining and eating wild berries,
-with cooking and recovery as supporting examples. Its code revision was:
+with cooking and recovery as supporting examples. Its code revision was
 `06db87fb4deb9df2626e1dfbc7059e0655379463`, on 2026-10-24.
 Growing, preservation, hunting choices and special feeding were sampled at the
-[collection revisions](README.md). Evidence F7–F14 records that added inspection.
+[collection revisions](README.md). F1–F14 retains that inspection unchanged.
+A native pawn eating berries does not by itself establish a useful autonomous
+food-management contribution; evidence must be interpreted against the new claim.
 
-## Requirement evidence and inferred candidates
+## Historical evidence by requirement
 
 ### RG-FOOD-001 — Feed colonists autonomously
 
-**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-001--feed-colonists-autonomously).
+**Requirement and scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-001--feed-all-colony-dependents).
 
-**Intent status:** Documented intent in the [player guide](../players/README.md),
-[controls](../players/controls.md#planned-work-and-needs) and
-[pawn activity contract](../developers/contracts/pawn-activities.md#needs-forecast-support-matrix).
-The user explicitly confirmed full autonomy on 2026-10-24. The detailed acceptance
-examples remain proposals for review.
-
-**Implementation status:** Supported for the inspected ordinary food path. Hunger
+**Historical implementation assessment:** Supported for the inspected ordinary food path. Hunger
 and food observations lead to work and eating assignments. The
 [explanations page](explanations.md) traces blockers to the player view.
 
@@ -43,12 +44,9 @@ execution descriptions.
 
 ### RG-FOOD-002 — Replace food before the colony runs out
 
-**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-002--replace-food-before-the-colony-runs-out).
+**Requirement and scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-002--replace-food-before-the-colony-runs-out).
 
-**Intent status:** Documented intent in the [supply model](../developers/architecture/supply-model.md#demands)
-and [food observation contract](../developers/contracts/controller-contracts.md#observation).
-
-**Implementation status:** Supported for inspected replacement decisions. The
+**Historical implementation assessment:** Supported for inspected replacement decisions. The
 calculations account for consumption, arrival time, labor and spoilage, and reopen
 shortfalls as coverage drops. Farming, fishing, trade, hunting and refrigeration
 have distinct outcome limits recorded in F7–F13 and the supply page. Sustained
@@ -64,12 +62,9 @@ sufficiency.
 
 ### RG-FOOD-003 — Turn available ingredients into useful food
 
-**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-003--turn-available-ingredients-into-useful-food).
+**Requirement and scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-003--turn-available-ingredients-into-useful-food).
 
-**Intent status:** Documented intent in [food work](../developers/contracts/pawn-activities.md#live-one-iteration-cooking)
-and [cooking evidence](../developers/contracts/pawn-activities.md#observation-and-tests).
-
-**Implementation status:** Supported for exact recipe execution and the inspected
+**Historical implementation assessment:** Supported for exact recipe execution and the inspected
 planning connections, including cooking-facility selection (F14). Recovery after
 losing a stove has no current native outcome evidence.
 
@@ -82,12 +77,9 @@ to a meal eaten.
 
 ### RG-FOOD-004 — Reassess interrupted food work
 
-**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-004--reassess-interrupted-food-work).
+**Requirement and scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-004--reassess-interrupted-food-work).
 
-**Intent status:** Documented intent in [food continuation](../developers/contracts/pawn-activities.md#live-one-iteration-cooking)
-and the [food progress contract](../developers/contracts/controller-contracts.md#priority-evaluation).
-
-**Implementation status:** Supported for the inspected continuation decisions and
+**Historical implementation assessment:** Supported for the inspected continuation decisions and
 missing-information checks. Autonomous recovery through a later meal still needs
 native outcome evidence.
 
@@ -102,65 +94,50 @@ missing data.
 
 ### RG-FOOD-005 — Grow food for the coming shortage
 
-The governor should size and revise food growing work using expected consumption,
-seasonal availability and the time until harvest. The purpose is a dependable
-replacement supply as current stock is eaten or spoils. Planting should leave the
-immediate shortage visible until food can actually arrive.
+**Requirement and scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-005--grow-food-for-the-coming-shortage).
 
-For example, reserve targets should build before the growing season ends. A crop
-that matures too late should leave demand for an earlier food source. Lost field
-capacity or a changed colony population should prompt a new assessment. A missing
-layout or unusable growing site should explain why field work cannot proceed.
-
-**Intent:** Inferred candidate from the food/supply path and seasonal policy.
-**Implementation:** Supported for seasonal targets, field planning, exact sowing
+**Historical implementation assessment:** Supported for seasonal targets, field planning, exact sowing
 and harvest-to-eating work. Sowing and harvesting have separate native cases;
 a complete growing season is an evidence gap. Evidence F7/F11; proposed T3/T5.
 
 ### RG-FOOD-006 — Preserve food that the colony will need
 
-**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-006--preserve-food-that-the-colony-will-need).
+**Requirement and scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-006--preserve-food-that-the-colony-will-need).
 
-**Intent:** Documented in the storage family and
-[spatial contract](../developers/contracts/spatial-contracts.md).
-**Implementation:** Supported for storage demand, cooler construction and measured
+**Historical implementation assessment:** Supported for storage demand, cooler construction and measured
 chilling. Long-term loss prevention and recovery from power loss need execution
 evidence. Evidence F8/F12; proposed T5/T12.
 
 ### RG-FOOD-007 — Account for the cost and danger of hunting
 
-When hunting is considered, the governor should account for eligible hunters,
-expected harm, usable yield and retrieval. The purpose is to obtain food without
-discarding the risks and work required to bring it home. Missing estimates or
-routes should prevent that option from being treated as ready.
+**Requirement and scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-007--account-for-the-cost-and-danger-of-hunting).
 
-An unarmed or busy pawn should be excluded from the inspected hunting choices.
-Lower expected harm should take precedence over extra meat in those choices.
-After a target or route changes, the governor should reassess. A successful kill
-still leaves butchery, retrieval and eating to complete where required.
-
-**Intent:** Inferred candidate from hunting policy and its tests; full autonomy
-is approved, while these detailed tradeoffs have not received separate approval.
-**Implementation:** Supported for inspected alternative selection. Native hunting
+**Historical implementation assessment:** Supported for inspected alternative selection. Native hunting
 safety and completion across changing conditions need broader evidence. Evidence F9
 and the additional tribal case below.
 
 ### RG-FOOD-008 — Feed people who need suitable food or help
 
-Food adequacy should account for who can eat the available food and who needs
-another pawn to feed them. The purpose is to avoid overlooking a hungry baby or
-patient in a colony that has plenty of unsuitable or inaccessible food.
+**Requirement and scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-008--feed-people-who-need-suitable-food-or-help).
 
-With babies and no breastfeeder, the colony should provide enough baby-edible
-nutrition and complete feeding. A downed patient should receive usable food.
-Changed diet eligibility or an unavailable caregiver should keep the affected
-need visible and trigger reassessment when conditions improve.
-
-**Intent:** Inferred candidate, with baby-food provisioning documented in the
-inspected code. **Implementation:** Partial: dietary eligibility and baby-food
+**Historical implementation assessment:** Partial: dietary eligibility and baby-food
 production demand are supported. Assisted feeding relies on native work; the food
 assessment does not certify that a dependent was fed. Evidence F10/F13;
 proposed T12 and [care](colonist-wellbeing.md).
+
+## Additional confirmed requirements awaiting implementation assessment
+
+The following entries have confirmed intent in the same decision record. Existing
+F1–F14 observations may inform a later assessment, but they do not establish full
+support or execution of these claims. No new coverage audit was performed here.
+
+| Requirement | Standing requirement | Implementation assessment |
+| --- | --- | --- |
+| RG-FOOD-009 | [Eating times and portions](../../openspec/specs/food-security/spec.md#requirement-rg-food-009--choose-eating-times-and-portions-for-useful-intake) | Unassessed against the confirmed requirement. |
+| RG-FOOD-010 | [Restrictions and emergency exceptions](../../openspec/specs/food-security/spec.md#requirement-rg-food-010--respect-restrictions-and-weigh-emergency-exceptions) | Unassessed against the confirmed requirement. |
+| RG-FOOD-011 | [Scarcity priorities](../../openspec/specs/food-security/spec.md#requirement-rg-food-011--prioritize-dependents-under-unavoidable-scarcity) | Unassessed against the confirmed requirement. |
+| RG-FOOD-012 | [World travel](../../openspec/specs/food-security/spec.md#requirement-rg-food-012--feed-dependents-during-world-travel) | Unassessed against the confirmed requirement. |
+| RG-FOOD-013 | [Dining conditions](../../openspec/specs/food-security/spec.md#requirement-rg-food-013--provide-worthwhile-dining-conditions) | Unassessed against the confirmed requirement. |
 
 ## From hunger to food eaten
 

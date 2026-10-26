@@ -11,11 +11,13 @@ direction. Detailed behavior inferred from code remains a candidate until review
 
 Food is the [OpenSpec pilot](../../openspec/README.md). Its
 [standing specification](../../openspec/specs/food-security/spec.md) owns
-documented requirements RG-FOOD-001–004 and RG-FOOD-006 and their proposed
-acceptance scenarios. The [food page](food-security.md) retains implementation
-status, evidence and inferred candidates RG-FOOD-005/007/008. All eight IDs remain
-in use. Other capabilities still own their requirements on these pages.
-OpenSpec migration changes neither intent approval nor gameplay evidence.
+RG-FOOD-001–013, grounded in the maintainer's confirmed food policy and explicit
+replacement authorization in the [decision record](../../openspec/changes/redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary).
+The [food page](food-security.md) retains historical implementation inspection
+and evidence limits. RG-FOOD-005/007/008 now have confirmed intent; the expanded
+requirements have no new implementation audit or gameplay pass claim. Other
+capabilities still own their standing requirements on these pages, with related
+production requirements captured as drafts in that OpenSpec change.
 
 **Repository revision examined:** the epic #3650 requirements update examined
 `d0fe7897d`, on 2026-10-25. It updates room selection, clothing/facility value,
@@ -43,7 +45,7 @@ of that trace are exercised and whether the fixture bypasses autonomous choice.
 | Outcome | Requirements | Examined paths | Evidence limit or confirmed gap |
 | --- | --- | --- | --- |
 | Start a colony and hand control over predictably | [Start and control](start-and-control.md), RG-CONTROL-001–002 | Launch/setup gating, generation, loading, failure display, authority, clock and speed | Native interrupt/resume and clean-machine execution; conflicting Stop guides |
-| Keep colonists fed and preserve food | [Food](food-security.md), RG-FOOD-001–008 | Supply timing, forage, cooking, continuation, sowing/harvest, hunting, fishing/milk facts, storage/cooling, diets, babies and herd feed | Assisted-feeding effects, autonomous loss recovery and seasonal sufficiency |
+| Feed all colony dependents and preserve food | [Food spec](../../openspec/specs/food-security/spec.md), RG-FOOD-001–013; [historical evidence](food-security.md) | Previously inspected supply, acquisition, cooking, continuation, growing, hunting, storage and dependent-food paths | Expanded confirmed intent requires claim-by-claim assessment; prior proof limits remain |
 | Provide habitable shelter and working facilities | [Habitat](habitat.md), RG-HABITAT-001–003 | First rooms, service-day value for every planned role, prerequisite/connector work, priced room sharing, temperature and upkeep | Explicit repair/replacement holds; repeated growth/loss outcomes and forecast approximations |
 | Keep people healthy and able to work | [Wellbeing](colonist-wellbeing.md), RG-HEALTH-001–002 | Urgent pairing/tend, condition history, surgery gates, rest/recreation, subdue, clothing | Treatment/recovery outcomes; gathering and residual apparel holds |
 | Supply useful work and trade affordably | [Supply](development-and-supply.md), RG-SUPPLY-001–002 | Deficits, extraction, shared stock arrivals, conditional native incident timing, selected trade, mission cargo | Full delivered supply/expedition proof; bootstrap and conditional arrival estimates |
@@ -74,8 +76,10 @@ are implementation gaps, with desired admission policy still to decide.
   symbols, case assertions and limits on its capability page. Food is the deepest
   trace. Other areas include both the decision boundary and a native outcome or
   explicit unsupported boundary.
-- **Uninvestigated mapped capabilities:** none. This is a representative recovery,
-  not a line-by-line audit of every branch, DLC combination or map.
+- **Uninvestigated mapped capabilities at the recovery baseline:** none. This is
+  a representative recovery, not a line-by-line audit of every branch, DLC
+  combination or map. The subsequently confirmed food requirements expand beyond
+  that baseline; its evidence does not establish complete implementation coverage.
 - **Evidence not obtained:** new gameplay results beyond the reused scoped combat
   calibration, live visual interaction, arbitrary crash/corruption experiments and
   sustained campaign results. These

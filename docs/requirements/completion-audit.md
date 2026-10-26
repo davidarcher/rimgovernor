@@ -6,6 +6,13 @@ This audit compares the collection with the original requirements-recovery
 request and the subsequent direction to complete every mapped area. It assesses
 the documentation task; it does not certify the product's gameplay.
 
+This is the recovery-baseline audit. The later
+[confirmed food policy](../../openspec/changes/redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary)
+replaces recovered food intent and expands the standing food requirements to
+RG-FOOD-001–013. Food growing, hunting and assisted feeding are no longer inferred
+intent candidates. The historical coverage and counts below do not certify those
+expanded requirements; their implementation needs separate assessment.
+
 ## Original request
 
 | Completion condition | Result and location |
