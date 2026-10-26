@@ -103,32 +103,31 @@ internal sealed class HostSnapshots(string sessionId, IObservationSource source,
     /// <summary>Runs after the initial refresh until the token ends.</summary>
     public async Task PollAsync(TimeSpan interval, CancellationToken cancellationToken)
     {
-        try
-        {
-            await RefreshAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            log.Warn("snapshot_refresh_failed", "the first observation refresh failed", ("error", e.Message));
-        }
-
         using var timer = new PeriodicTimer(interval);
+        string? lastFailure = null;
         try
         {
-            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+            do
             {
                 try
                 {
                     await RefreshAsync(cancellationToken).ConfigureAwait(false);
+                    lastFailure = null;
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    // the snapshot already reads disconnected and stale; the next tick tries again
+                    if (lastFailure != e.Message)
+                    {
+                        log.Warn("snapshot_refresh_failed", "observation refresh failed; the snapshot is disconnected and stale", ("error", e.Message));
+                        lastFailure = e.Message;
+                    }
                 }
             }
+            while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false));
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            return;
         }
     }
 

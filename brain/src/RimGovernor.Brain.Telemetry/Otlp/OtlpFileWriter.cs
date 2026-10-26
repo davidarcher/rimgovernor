@@ -238,9 +238,10 @@ public sealed class OtlpFileWriter : ITelemetrySink, IAsyncDisposable
                 ExportMetrics();
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             // Shutdown: the final collection is the caller's.
+            return;
         }
     }
 

@@ -33,16 +33,3 @@ Acceptance/Setup/SetupEnvironment.cs|SetupEnvironment.InstallModAsync
 Acceptance/Setup/SetupProcesses.cs|SetupProcesses.StopPids
 Acceptance/Suites/ChildProcess.cs|ChildProcess.KillTree
 Acceptance/Suites/SuiteRunner.cs|SuiteRunner.RunEntryOnceAsync
-Runtime/Colony/ColonyReview.ColonyPlan.cs|ColonyReview.DrawLayoutOverlayAsync
-Runtime/Player.cs|Player.Player
-Runtime/Worker.cs|Worker.Steps
-Runtime/Worker.cs|Worker.Worker
-Host/BrainHost.cs|BrainHost.StartAsync
-Host/HostSnapshots.cs|HostSnapshots.PollAsync
-Host/PlayerProviders.cs|HostPlayerControl.RunAsync
-Host/SchedulerLoop.cs|SchedulerLoop.Run
-Host/SchedulerLoop.cs|SchedulerLoop.WaitOrWake
-HttpChannel/EndpointFile.cs|EndpointFile.Remove
-HttpChannel/HttpChannelServer.cs|HttpChannelServer.ServeAsync
-PlayerApi/PlayerRoutes.cs|PlayerRoutes.ReadControlAsync
-Telemetry/Otlp/OtlpFileWriter.cs|OtlpFileWriter.MetricLoopAsync

@@ -508,7 +508,7 @@ public sealed partial class ColonyReview
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            // output only
+            Tel.Decide(new Decision { Kind = Decision.PlannerStepKind, Component = "layout", Target = "layout_overlay", Verdict = "failed", Reason = "output_error", Attrs = new Dictionary<string, object?> { ["error"] = e.Message } });
         }
     }
 

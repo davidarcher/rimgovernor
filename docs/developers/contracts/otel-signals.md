@@ -155,6 +155,16 @@ The other kinds are read in the OTLP timeline and the launcher's Log view.
 | `state_reset` | event row, level `WARN`, component `brain-host`: the state database came from another schema version and was moved aside (`path`, `aside`). Written once at startup. |
 | `control_failed` | event row, level `WARN`, component of the player host: a player Resume or Pause failed (`request`, `kind`, `phase` the journaled record's phase or `""` when none began, `error` the exception with its stack; a resume names the step that threw, `resume <step>: ...`). The route's 503 detail carries the same message. Reader: diagnosis of a 503 control reply (#3549). |
 
+The `planner_step` reader also accepts `worker_step` with `failed`/`error`
+and an `error` attribute for background cycle faults, and `layout_overlay` with
+`failed`/`output_error` for optional drawing failures. Both are visible through
+`rimgovernor log`; a drawing failure never marks the overlay delivered. Expected
+lifetime cancellation emits neither failure. `http_access` status 499 with zero
+bytes means the client disconnected before the response was delivered, rather
+than the response's planned status and size. `snapshot_refresh_failed` is a host
+warning read by `rimgovernor log`: a changed background refresh failure is emitted
+once, and a successful read resets that suppression.
+
 The OTLP log ring is the only log: the telemetry handler writes a row for a record that names a `kind`
 and drops one that does not, there is no Debug level, and `telemetry.Event` takes the `kind` as a required
 parameter so code logs through it, not `slog` directly. stderr carries only the startup banner, parse errors,

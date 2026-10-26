@@ -93,7 +93,7 @@ internal sealed class SchedulerLoop
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
-            // shutdown
+            return;
         }
         catch (Exception e)
         {
@@ -303,9 +303,10 @@ internal sealed class SchedulerLoop
         {
             wakeTask.Wait();
         }
-        catch (Exception e) when (e is OperationCanceledException or AggregateException)
+        catch (Exception e) when (cancel.IsCancellationRequested &&
+            (e is OperationCanceledException || e is AggregateException aggregate && aggregate.Flatten().InnerExceptions.All(inner => inner is OperationCanceledException)))
         {
-            // cancelled: no wake
+            return !_lifetime.IsCancellationRequested;
         }
         if (takeEvidence && wakeTask.IsCompletedSuccessfully)
         {

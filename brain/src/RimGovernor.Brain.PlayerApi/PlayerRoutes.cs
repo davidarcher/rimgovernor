@@ -104,6 +104,7 @@ public static class PlayerRoutes
         catch (NotFoundException)
         {
             // No intent was ever journaled: an empty record is a normal answer.
+            return ControlResponse(null, player, null);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

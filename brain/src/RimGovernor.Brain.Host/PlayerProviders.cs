@@ -43,6 +43,7 @@ internal sealed class HostPlayerControl(Player player, StoreJournal journal, Ste
         catch (Exception e) when (e is not OperationCanceledException and not ControlFailureException)
         {
             ControlRecord? journaled = null;
+            Exception cause = e;
             try
             {
                 // The lookup is not tied to the caller's token: the failure may be that very token's, and the
@@ -50,16 +51,21 @@ internal sealed class HostPlayerControl(Player player, StoreJournal journal, Ste
                 using var bound = new CancellationTokenSource(JournalLookupBound);
                 journaled = await journal.LookupControlAsync(request.RequestId, bound.Token).ConfigureAwait(false);
             }
-            catch (Exception)
+            catch (Exception lookupFailure)
             {
-                // never begun, or the journal cannot say: the failure stands as thrown
+                // No record is an ordinary outcome when the request never began.
+                // A failed lookup, unlike absence, must remain alongside the primary failure.
+                if (lookupFailure is not NotFoundException)
+                {
+                    cause = new AggregateException(e, lookupFailure);
+                }
             }
-            log.Warn("control_failed", "a player control request failed", ("request", request.RequestId), ("kind", RimGovernor.Brain.Domain.Wire.Name(request.Kind)), ("phase", journaled is null ? "" : RimGovernor.Brain.Domain.Wire.Name(journaled.Phase)), ("error", e.ToString()));
+            log.Warn("control_failed", "a player control request failed", ("request", request.RequestId), ("kind", RimGovernor.Brain.Domain.Wire.Name(request.Kind)), ("phase", journaled is null ? "" : RimGovernor.Brain.Domain.Wire.Name(journaled.Phase)), ("error", cause.ToString()));
             if (journaled is null)
             {
-                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e).Throw();
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cause).Throw();
             }
-            throw new ControlFailureException(journaled, e);
+            throw new ControlFailureException(journaled, cause);
         }
     }
 

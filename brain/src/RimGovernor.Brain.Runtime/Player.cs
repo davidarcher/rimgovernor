@@ -55,6 +55,7 @@ public sealed partial class Player : IDisposable
     private CancellationToken _epoch;
     private bool _closing;
     private bool _closed;
+    private Exception? _lifetimeStopFailure;
     // Holder names the caller holding the gate and when it took it, so a slow wait can name what it queued behind.
     private string _holder = "";
     private DateTimeOffset _holderSince;
@@ -82,14 +83,7 @@ public sealed partial class Player : IDisposable
                 if (!_closed)
                 {
                     _epochSource.Cancel();
-                    try
-                    {
-                        _session.Disable();
-                    }
-                    catch (Exception)
-                    {
-                        // the epoch is already cancelled; nothing left to report to
-                    }
+                    _lifetimeStopFailure = DisableCaptured();
                 }
             }
         });
@@ -470,7 +464,7 @@ public sealed partial class Player : IDisposable
             }
             _closing = true;
             _epochSource.Cancel();
-            disableErr = DisableCaptured();
+            disableErr = ErrorJoin.Of(_lifetimeStopFailure, DisableCaptured());
         }
         using var callSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
         callSource.CancelAfter(_config.CallTimeout);
@@ -504,6 +498,10 @@ public sealed partial class Player : IDisposable
             {
                 _closed = true;
                 _stopLifetime.Dispose();
+            }
+            if (disableErr is not null)
+            {
+                ExceptionDispatchInfo.Capture(disableErr).Throw();
             }
         }
         finally

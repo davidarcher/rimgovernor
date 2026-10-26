@@ -91,9 +91,17 @@ public sealed class HttpChannelServer : IAsyncDisposable
         }
 
         _listener = null;
+        Exception? endpointFailure = null;
         if (_options.EndpointDirectory is { } directory)
         {
-            EndpointFile.Remove(directory, _options.RunId);
+            try
+            {
+                EndpointFile.Remove(directory, _options.RunId);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                endpointFailure = e;
+            }
         }
 
         await _stopping.CancelAsync().ConfigureAwait(false);
@@ -112,6 +120,10 @@ public sealed class HttpChannelServer : IAsyncDisposable
         await Task.WhenAny(Task.WhenAll(pending), Task.Delay(_options.ShutdownTimeout)).ConfigureAwait(false);
         _stopping.Dispose();
         _slots.Dispose();
+        if (endpointFailure is not null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(endpointFailure).Throw();
+        }
     }
 
     private static HttpListener BindEphemeral(out string address)
@@ -243,7 +255,12 @@ public sealed class HttpChannelServer : IAsyncDisposable
         }
         catch (Exception e) when (e is HttpListenerException or ObjectDisposedException or IOException)
         {
-            // The client went away; nothing to answer.
+            // The response was not delivered: the access reader must not count
+            // its planned status or bytes as a successful reply.
+            context.Response.Abort();
+            clock.Stop();
+            RecordAccess(method, path, 499, started, clock.Elapsed, 0);
+            return;
         }
 
         clock.Stop();

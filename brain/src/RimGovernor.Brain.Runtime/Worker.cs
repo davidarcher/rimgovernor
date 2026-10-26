@@ -120,11 +120,11 @@ public sealed partial class Worker
         _config = config;
         _lifetime = lifetime;
         _stopPlayer = player.Lifetime.Register(() => lifetime.Cancel());
-        _stopContext = lifetime.Token.Register(() => { try { Stop(); } catch (Exception) { /* the error is discarded */ } });
+        _stopContext = lifetime.Token.Register(Stop);
         _done = Task.Run(async () =>
         {
             await Steps().ConfigureAwait(false);
-            try { Stop(); } catch (Exception) { /* the error is discarded */ }
+            Stop();
         });
     }
 
@@ -162,6 +162,8 @@ public sealed partial class Worker
     }
 
     /// <summary>Rejects new player requests before waiting for a possibly slow native call.</summary>
+    private Exception? _stopFailure;
+
     private void Stop()
     {
         var p = _player;
@@ -173,22 +175,23 @@ public sealed partial class Worker
             }
             p.Closing = true;
             p.CancelEpoch();
-            p.Session.Disable();
+            try
+            {
+                p.Session.Disable();
+            }
+            catch (Exception failure)
+            {
+                _stopFailure = failure;
+            }
         }
     }
 
     public async Task Close(CancellationToken ct)
     {
         _lifetime.Cancel();
-        Exception? disableErr = null;
-        try
-        {
-            Stop();
-        }
-        catch (Exception e)
-        {
-            disableErr = e;
-        }
+        Stop();
+        Exception? disableErr;
+        lock (_player.Mu) { disableErr = _stopFailure; }
         try
         {
             await _done.WaitAsync(ct).ConfigureAwait(false);
@@ -241,9 +244,13 @@ public sealed partial class Worker
             {
                 await Step(DateTimeOffset.UtcNow, ct).ConfigureAwait(false);
             }
-            catch (Exception)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                // The step loop discards the step's error; the dispatch rows and the telemetry carry it.
+                return;
+            }
+            catch (Exception e)
+            {
+                Tel.Decide(new Decision { Kind = Decision.PlannerStepKind, Component = "worker", Target = "worker_step", Verdict = "failed", Reason = "error", Attrs = new Dictionary<string, object?> { ["error"] = e.Message } });
             }
             burst++;
             // A wake steps at once; while focused actions remain, keep stepping so each of them is reconciled
@@ -260,8 +267,9 @@ public sealed partial class Worker
             {
                 await Task.WhenAny(Task.Delay(_config.StepInterval, wait.Token), WakeSignal.Wait(_config.Wake, wait.Token)).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                return;
             }
             wait.Cancel();
             if (ct.IsCancellationRequested)

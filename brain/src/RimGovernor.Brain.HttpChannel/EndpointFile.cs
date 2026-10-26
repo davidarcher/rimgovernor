@@ -60,14 +60,7 @@ public static class EndpointFile
     {
         if (Read(directory) is { } current && current.RunId == runId)
         {
-            try
-            {
-                File.Delete(PathIn(directory));
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                // A reader holds it; the next run overwrites it.
-            }
+            File.Delete(PathIn(directory));
         }
     }
 }

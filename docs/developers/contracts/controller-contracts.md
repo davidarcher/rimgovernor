@@ -15,6 +15,14 @@ wild-plant access, starter terrain/support affordances and actual definition cos
 Native growers keep ownership of cultivated crop harvest timing. Unknown observations
 never certify recovery.
 
+Background observation failures mark the snapshot disconnected and stale, and
+report each changed failure once until recovery. Only cancellation requested by
+the owning lifetime is normal shutdown. Player and worker shutdown invalidate
+work immediately, retain a failed disable for Close, and drain before reporting
+it. Startup and control-request failures remain first when cleanup or a journal
+lookup also fails. Endpoint-file removal failures are reported after the HTTP
+listener and requests have been stopped.
+
 ## Priority evaluation
 
 The priority tree evaluates combat, critical medicine, food, shelter, temperature,

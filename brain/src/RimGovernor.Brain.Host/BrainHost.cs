@@ -101,15 +101,15 @@ public sealed class BrainHost : IAsyncDisposable
             await host.StartCoreAsync(cancellationToken).ConfigureAwait(false);
             return host;
         }
-        catch
+        catch (Exception startFailure)
         {
             try
             {
                 await host.StopAsync().ConfigureAwait(false);
             }
-            catch (Exception)
+            catch (Exception stopFailure)
             {
-                // the start failure is the one the caller needs
+                throw new AggregateException(startFailure, stopFailure);
             }
             throw;
         }
