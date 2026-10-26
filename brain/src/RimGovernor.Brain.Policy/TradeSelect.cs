@@ -157,6 +157,73 @@ public sealed record TradeReserveFacts
 
 public static partial class TradePolicyRules
 {
+
+    public static TradeSelection ReserveOnly(TradeEconomicPolicy economic, TradeSelectionFacts facts)
+    {
+        var (currency, _) = TradeCurrency(facts.Rows);
+        return new TradeSelection { SilverReserve = Math.Max(economic.SilverReserve, facts.Floors.GetValueOrDefault(currency)) };
+    }
+
+    public static long MaxSpend(long colonySilver) => Math.Max(0, colonySilver);
+
+    public static bool ReserveSatisfied(TradeSelectionFacts facts, TradeSelection selection, double transfer) =>
+        facts.Favor || !((double)facts.ColonySilver + transfer < (double)selection.SilverReserve);
+
+    public static (long CashCap, Dictionary<Resource, TradeCompatibility> Buys) ExportBuyers(
+        IReadOnlyList<string> kinds, IReadOnlyList<Resource> products,
+        Func<string, Resource, TradeCompatibility> compatibility, Func<string, long> silver)
+    {
+        var buys = new Dictionary<Resource, TradeCompatibility>();
+        foreach (var product in products)
+        {
+            var result = TradeCompatibility.DoesNotTrade;
+            foreach (var kind in kinds)
+            {
+                var candidate = compatibility(kind, product);
+                switch (candidate)
+                {
+                    case TradeCompatibility.Trades:
+                        result = candidate;
+                        break;
+                    case TradeCompatibility.UnsupportedGenerator when result != TradeCompatibility.Trades:
+                        result = candidate;
+                        break;
+                    case TradeCompatibility.UnsupportedGenerator:
+                    case TradeCompatibility.DoesNotTrade:
+                        break;
+                }
+            }
+            buys[product] = result;
+        }
+        long cap = 0;
+        foreach (var kind in kinds) cap = Math.Max(cap, silver(kind));
+        return (cap, buys);
+    }
+
+    /// <summary>
+    /// Keeps the resource purchases of need (an economy/resource shortfall, the component target) and its food
+    /// nutrition (what the food plan opened to buy from this trader) only as far as the plans opened them;
+    /// medicine, surgery parts, ingredient upgrades and every sale stay.
+    /// </summary>
+    public static TradeNeed RestrictToPlan(TradeNeed need, IReadOnlyDictionary<Resource, long> planned, double food)
+    {
+        var kept = new List<Amount>();
+        foreach (var shortfall in need.Shortfall)
+        {
+            var units = Math.Min(shortfall.Count, planned.GetValueOrDefault(shortfall.Resource));
+            if (units > 0)
+            {
+                kept.Add(new Amount { Resource = shortfall.Resource, Count = units });
+            }
+        }
+        return need with
+        {
+            Food = need.Food with { Nutrition = food },
+            Shortfall = kept,
+            ComponentShortfall = Math.Min(need.ComponentShortfall, planned.GetValueOrDefault(TradePolicyRules.ComponentResource)),
+        };
+    }
+
     /// <summary>The surplus sale's MinSellPrice (TradeTargets): any positive price.</summary>
     internal const double ArtMinSellPrice = double.Epsilon;
 

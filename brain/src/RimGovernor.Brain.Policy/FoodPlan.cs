@@ -181,6 +181,14 @@ public sealed record CropCooking
 
 public static class FoodPlanRules
 {
+
+    public static double SeasonalShortfall(FoodForecast forecast, double targetDays) =>
+        Math.Max(0, (forecast.Consumers.Sum(c => c.NutritionPerDay) * targetDays) - forecast.UsableNutrition);
+
+    public static double AcquisitionNutrition(FoodPlan plan) => plan.GapPerDay * plan.HorizonDays;
+
+    public static double SupplyLabor(int workers) => workers * CookTicksPerDay;
+
     /// <summary>
     /// The food view of PlanSupply: the request's forecast becomes the Nutrition
     /// demand, its channels become candidates, and the supply plan reads back as a FoodPlan. PlanSupply owns the

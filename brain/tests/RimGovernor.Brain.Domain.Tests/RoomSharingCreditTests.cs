@@ -61,7 +61,7 @@ public sealed class RoomSharingCreditTests
         Assert.Contains(PlannedRole.Hospital, functions);
         Assert.Contains(PlannedRole.Lab, functions);
         Assert.Contains(PlannedRole.Freezer, functions);
-        Assert.Same(room, BuildingPlanner.PlannedStationRoom(plan, "ResearchBench", CurrentConstruction.Empty));
+        Assert.Same(room, PlannedRules.PlannedStationRoom(plan, "ResearchBench", CurrentConstruction.Empty));
         var thermal = PlannedRules.PlannedThermalRequestOf([room], [], [], "Cooler", -5, plan);
         Assert.Equal(1, Assert.Single(thermal!.Coolers).Room);
     }

@@ -2,6 +2,11 @@
 
 [Documentation](../../README.md) · [Controller contracts](controller-contracts.md)
 
+Hay demand first uses the observed seasonal harvest gap and the first eligible hay
+crop. Only growing zones of that crop reduce its remaining nutrition demand,
+with no negative shortfall. Runtime requests zones only after positive hay demand
+and a usable crop are known; unread required zones still fail the read.
+
 The `animals/herd` Need of the `animals` family (#3260) keeps the herd plan: it is
 unmet while an animal is owed training, a race is under its floor with a tameable
 wild animal or over its cap with a removable one, the food plan asks for a slaughter

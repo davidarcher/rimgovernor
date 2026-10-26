@@ -148,7 +148,7 @@ public sealed partial class AcquisitionPlanner
         // A designated or undispatched source is held: it is not planned again. Its resource is busy for
         // the resource Need unless a cooldown held it.
         var busy = HoldWorked(projection.Facts.Acquisition, undispatched, held);
-        var pending = WithoutStalled(projection.Snapshot.PendingFoodNutrition, projection.Facts.Acquisition, stalledSources, food);
+        var pending = AcquisitionRules.WithoutStalled(projection.Snapshot.PendingFoodNutrition, projection.Facts.Acquisition, stalledSources, food);
         var deficit = 0.0;
         FoodRunway? runway = null;
         if (food)
@@ -438,29 +438,6 @@ partial class AcquisitionPlanner
         var id = PlanIds.MintPlanId();
         var action = DomainAction.NewAcquisitionWithdrawAction(new ActionId($"{id}-0"), value);
         return (method, new PlanSpec(id, new PlanRevision(1), [action]));
-    }
-
-    /// <summary>
-    /// Takes the census rows this step withdrew as stalled off native's pending total (nutrition for food,
-    /// yield otherwise): a designation nobody took still counts there, and without this the re-plan would see
-    /// its own stalled yield as covering the deficit and propose nothing.
-    /// </summary>
-    internal static double WithoutStalled(double pending, EquatableArray<AcquisitionSource> sources, HashSet<string> stalled, bool food)
-    {
-        var outstanding = pending;
-        if (stalled.Count == 0)
-        {
-            return pending;
-        }
-        foreach (var row in sources)
-        {
-            if (!stalled.Contains(row.Id) || !row.Designated)
-            {
-                continue;
-            }
-            outstanding -= food ? row.NutritionYield : row.Yield;
-        }
-        return Math.Max(0, outstanding);
     }
 
     /// <summary>

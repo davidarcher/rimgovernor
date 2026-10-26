@@ -46,7 +46,7 @@ public sealed partial class ResourcePlanner
     {
         var deep = f.Snapshot.DeepResources;
         var history = reviewer.Player.Journal.OwnerMethodHistory(goal, call);
-        foreach (var drill in ExhaustedDrills(deep))
+        foreach (var drill in DeepDrillRules.ExhaustedDrills(deep))
         {
             if (f.Facts.Preferences.Protects(drill.Id))
             {
@@ -129,7 +129,7 @@ public sealed partial class ResourcePlanner
         f = f with { Facts = f.Facts with { Research = FrameReads.FrameResearch(research, catalog) } };
         PlannerSnapshot.RecordStepRead("deepdrill", EconomyFamily.Resource.FilingKey, state.Snapshot, f);
         var output = new DeepDrillReading { Native = deepNative, F = f };
-        output.Sites = DeepDrillSites(f, review.ResourceRunwayState(), items);
+        output.Sites = DeepDrillRules.DeepDrillSites(f.Facts, f.Snapshot.DeepResources, review.ResourceRunwayState(), items, nameof(RimWorld.ThingDefOf.DeepDrill), nameof(RimWorld.ThingDefOf.GroundPenetratingScanner));
         if (output.Sites.Count == 0)
         {
             return output;
@@ -158,7 +158,7 @@ public sealed partial class ResourcePlanner
         var center = f.Facts.LayoutPlan?.Center() ?? throw new RequiredFactException("layout center for deep drilling");
         foreach (var site in output.Sites)
         {
-            var distance = Math.Sqrt(Math.Pow(site.Centre.X - center.X, 2) + Math.Pow(site.Centre.Z - center.Z, 2));
+            var distance = DeepDrillRules.SiteDistance(site.Centre, center);
             var (placement, ok) = await ReadDeepDrillPlacementAsync(deepNative, state, f, site, distance, call).ConfigureAwait(false);
             if (ok)
             {
@@ -176,7 +176,7 @@ public sealed partial class ResourcePlanner
         var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTierRules.PlannerTier(EconomyFamily.Resource.FilingKey, Pol.Phase.None));
         var preview = (await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false));
         var p = preview.Preview;
-        if (!p.CanPlace || !p.SafeToPlace || PreviewRules.WatchUnreachable(p) || !DeepDrillFootprint(f.PlanningWindow.Cells, p.Footprint, site.Centre))
+        if (!p.CanPlace || !p.SafeToPlace || PreviewRules.WatchUnreachable(p) || !DeepDrillRules.DeepDrillFootprint(f.PlanningWindow.Cells, p.Footprint, site.Centre))
         {
             return (null, false);
         }
@@ -259,105 +259,5 @@ public sealed partial class ResourcePlanner
             return (new ResourceResult { Verdict = BuildingReasonAdmitted, Plan = place.Plan.Id }, true);
         }
         return (new ResourceResult(), false);
-    }
-}
-
-partial class ResourcePlanner
-{
-    /// <summary>The deep resource lumps of the needed resources, nearest the colony centre first; empty without a scanner, the research or the drill.</summary>
-    internal static List<RimGovernor.Brain.GameFacts.Observations.DeepResourceLump> DeepDrillSites(ColonyReading f, IReadOnlyList<ResourceRunway> runways, ItemFacts items)
-    {
-        var deep = f.Snapshot.DeepResources;
-        var available = ColonyPlanningRules.DefinitionAvailable(f.Facts, "DeepDrill");
-        if (f.Facts.LayoutPlan?.Center() is not { } center || ResearchRules.ResearchGate(["DeepDrilling", "GroundPenetratingScanner"], f.Facts.Research) != "" || !available)
-        {
-            return [];
-        }
-        var scanner = false;
-        foreach (var row in deep.GroundScanners)
-        {
-            scanner = scanner || row.Definition == "GroundPenetratingScanner";
-        }
-        if (!scanner)
-        {
-            return [];
-        }
-        var needed = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in runways)
-        {
-            if (row.InDeficit && row.Stock < row.Target && items.IsDeepResource(row.Resource))
-            {
-                needed.Add(row.Resource.Value);
-            }
-        }
-        var sites = new List<RimGovernor.Brain.GameFacts.Observations.DeepResourceLump>();
-        foreach (var lump in deep.Lumps)
-        {
-            if (needed.Contains(lump.Definition) && lump.Count > 0)
-            {
-                sites.Add(lump);
-            }
-        }
-        long Distance(Cell c)
-        {
-            long x = (long)c.X - center.X;
-            long z = (long)c.Z - center.Z;
-            return (x * x) + (z * z);
-        }
-
-        sites.Sort((a, b) =>
-        {
-            var da = Distance(a.Centre);
-            var db = Distance(b.Centre);
-            if (da != db)
-            {
-                return da.CompareTo(db);
-            }
-            if (a.Centre.X != b.Centre.X)
-            {
-                return a.Centre.X.CompareTo(b.Centre.X);
-            }
-            return a.Centre.Z.CompareTo(b.Centre.Z);
-        });
-        return sites;
-    }
-
-    /// <summary>The drills with no valuable deposit left under them and no standing Deconstruct designation, by id.</summary>
-    internal static List<RimGovernor.Brain.GameFacts.Observations.DeepDrill> ExhaustedDrills(RimGovernor.Brain.GameFacts.Observations.DeepResources deep)
-    {
-        var output = new List<RimGovernor.Brain.GameFacts.Observations.DeepDrill>();
-        foreach (var drill in deep.Drills)
-        {
-            if (drill.Deposit is null && !drill.Designated)
-            {
-                output.Add(drill);
-            }
-        }
-        output.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
-        return output;
-    }
-
-    /// <summary>Whether the drill footprint is all open, unroofed, walkable ground that includes the lump's anchor cell.</summary>
-    internal static bool DeepDrillFootprint(IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> footprint, Cell anchor)
-    {
-        if (footprint.Count == 0)
-        {
-            return false;
-        }
-        var seen = new Dictionary<Cell, SiteCell>();
-        foreach (var row in cells)
-        {
-            seen[row.Cell] = row;
-        }
-        var onLump = false;
-        foreach (var cell in footprint)
-        {
-            if (!seen.TryGetValue(cell, out var row) || row.Roofed || row.Occupied() || !row.Walkable)
-            {
-                return false;
-            }
-            onLump = onLump || cell == anchor;
-        }
-        return onLump;
     }
 }

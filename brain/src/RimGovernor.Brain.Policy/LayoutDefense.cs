@@ -4,6 +4,8 @@ using System.Text;
 
 namespace RimGovernor.Brain.Policy;
 
+public enum DefinitionReadiness { Available, Blocked, Unread }
+
 // The defense layout builds on the layout plan: the corridor, firing line and turrets stand in the plan's
 // killbox, and the perimeter tier raises the plan's 3-thick wall with its gates in staged sections.
 /// <summary>
@@ -23,6 +25,117 @@ public sealed record PerimeterSection
 
 public static partial class LayoutDefenseRules
 {
+    /// <summary>
+    /// What the facts say of building <paramref name="name"/> now (#3819): Blocked when its definition is read unavailable
+    /// or its research is read with a prerequisite unfinished; Unread when the census does not describe it; else Available.
+    /// </summary>
+    public static DefinitionReadiness DefinitionReadinessOf(ReviewFacts facts, string name)
+    {
+        var research = facts.Research;
+        foreach (var d in facts.Definitions)
+        {
+            if (d.Name != name)
+            {
+                continue;
+            }
+            var v = d.Available;
+            if (!v)
+            {
+                return DefinitionReadiness.Blocked;
+            }
+            foreach (var prerequisite in d.Research)
+            {
+                if (!research.Finished.Contains(new ResearchProjectId(prerequisite)))
+                {
+                    return DefinitionReadiness.Blocked;
+                }
+            }
+            return DefinitionReadiness.Available;
+        }
+        return DefinitionReadiness.Unread;
+    }
+
+    public static (StuffPrice Price, bool Ok) DefenseUnitPrice(PlanningDefinition d, IReadOnlyDictionary<Resource, long> stock)
+    {
+        try
+        {
+            return (d.StuffChoice(StuffCriterion.MaxHitPointsPerCost, stock), true);
+        }
+        catch (DomainException)
+        {
+            return (new StuffPrice("", []), false);
+        }
+    }
+
+    /// <summary>How many defenders hold a ranged weapon (capped at eight) and the shortest reach among them; zero with none.</summary>
+    public static (int Count, double Shortest) DefenderRangeOf(IEnumerable<WeaponDef> weapons)
+    {
+        var count = 0;
+        var shortest = double.PositiveInfinity;
+        foreach (var weapon in weapons)
+        {
+            var reach = weapon.Ranged ? weapon.Range : 0;
+            if (reach <= 0)
+            {
+                continue;
+            }
+            count++;
+            shortest = Math.Min(shortest, reach);
+        }
+        if (count == 0)
+        {
+            return (0, 0);
+        }
+        if (count > 8)
+        {
+            count = 8;
+        }
+        return (count, shortest);
+    }
+
+    /// <summary>The conduit cells connected to the buildings of a power network, sorted by x then z.</summary>
+    public static List<Cell> DefenseNetworkConduits(PowerTopology topology, string network)
+    {
+        var conduit = new HashSet<Cell>(topology.Conduits);
+        var seen = new HashSet<Cell>();
+        var queue = new Queue<Cell>();
+        var output = new List<Cell>();
+        foreach (var b in topology.Buildings)
+        {
+            if (b.Network != network)
+            {
+                continue;
+            }
+            foreach (var cell in b.OccupiedCells)
+            {
+                foreach (var c in topology.Conduits)
+                {
+                    if (!seen.Contains(c) && Math.Abs(c.X - cell.X) <= 6 && Math.Abs(c.Z - cell.Z) <= 6)
+                    {
+                        seen.Add(c);
+                        queue.Enqueue(c);
+                    }
+                }
+            }
+        }
+        Cell[] directions = [new Cell(1, 0), new Cell(-1, 0), new Cell(0, 1), new Cell(0, -1)];
+        while (queue.Count > 0)
+        {
+            var c = queue.Dequeue();
+            output.Add(c);
+            foreach (var d in directions)
+            {
+                var n = new Cell(c.X + d.X, c.Z + d.Z);
+                if (conduit.Contains(n) && seen.Add(n))
+                {
+                    queue.Enqueue(n);
+                }
+            }
+        }
+        output.Sort((a, b) => a.X != b.X ? a.X.CompareTo(b.X) : a.Z.CompareTo(b.Z));
+        return output;
+    }
+
     /// <summary>Names the perimeter's sections: this prefix plus a two-digit order, or TierGeothermal for the geyser's enclosure.</summary>
     public const string TierPerimeterPrefix = "perimeter-";
 

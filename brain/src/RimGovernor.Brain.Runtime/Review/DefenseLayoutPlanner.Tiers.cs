@@ -139,49 +139,6 @@ public sealed partial class DefenseLayoutPlanner
         return plan.WithTurretReplaced(old, replacement, reserved);
     }
 
-    /// <summary>The conduit cells connected to the buildings of a power network, sorted by x then z.</summary>
-    internal static List<Cell> DefenseNetworkConduits(PowerTopology topology, string network)
-    {
-        var conduit = new HashSet<Cell>(topology.Conduits);
-        var seen = new HashSet<Cell>();
-        var queue = new Queue<Cell>();
-        var output = new List<Cell>();
-        foreach (var b in topology.Buildings)
-        {
-            if (b.Network != network)
-            {
-                continue;
-            }
-            foreach (var cell in b.OccupiedCells)
-            {
-                foreach (var c in topology.Conduits)
-                {
-                    if (!seen.Contains(c) && Math.Abs(c.X - cell.X) <= 6 && Math.Abs(c.Z - cell.Z) <= 6)
-                    {
-                        seen.Add(c);
-                        queue.Enqueue(c);
-                    }
-                }
-            }
-        }
-        Cell[] directions = [new Cell(1, 0), new Cell(-1, 0), new Cell(0, 1), new Cell(0, -1)];
-        while (queue.Count > 0)
-        {
-            var c = queue.Dequeue();
-            output.Add(c);
-            foreach (var d in directions)
-            {
-                var n = new Cell(c.X + d.X, c.Z + d.Z);
-                if (conduit.Contains(n) && seen.Add(n))
-                {
-                    queue.Enqueue(n);
-                }
-            }
-        }
-        output.Sort((a, b) => a.X != b.X ? a.X.CompareTo(b.X) : a.Z.CompareTo(b.Z));
-        return output;
-    }
-
     /// <summary>
     /// The record's tier cells with the reserved cells of the plan's tier nodes (#3584), and the firing line and the
     /// trap lane of the plan's DefFiring and DefLane nodes (#3583).

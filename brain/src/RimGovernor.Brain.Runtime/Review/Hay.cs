@@ -45,15 +45,7 @@ internal static class Hay
             return (default!, false);
         }
 
-        var yield = crop.HarvestNutrition;
-
-        foreach (var zone in (p.Tables.Zones ?? throw new RequiredFactException("zones")).Zones.OfType<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing>())
-        {
-            if (zone.Crop == crop.Name)
-            {
-                need = Math.Max(0, need - (zone.UsableCells * yield));
-            }
-        }
+        need = AnimalFoodRules.OutstandingHay(need, crop, (p.Tables.Zones ?? throw new RequiredFactException("zones")).Zones.OfType<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing>());
 
         if (need <= 0)
         {

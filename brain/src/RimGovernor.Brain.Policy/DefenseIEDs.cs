@@ -8,6 +8,28 @@ public sealed record DefenseIED(string Definition, double Radius, bool Incendiar
 
 public static class DefenseIEDs
 {
+
+    public const string HighExplosive = "TrapIED_HighExplosive";
+    public const string Incendiary = "TrapIED_Incendiary";
+
+    public static (List<DefenseIED> Ieds, Dictionary<string, EquatableArray<Amount>> Costs) Options(
+        ReviewFacts facts, IReadOnlyDictionary<Resource, long> stock, IReadOnlyDictionary<string, EquatableArray<Amount>> existing)
+    {
+        var ieds = new List<DefenseIED>();
+        var costs = new Dictionary<string, EquatableArray<Amount>>(existing, StringComparer.Ordinal);
+        foreach (var d in facts.Definitions)
+        {
+            if (d.Name != HighExplosive && d.Name != Incendiary) continue;
+            if (LayoutDefenseRules.DefinitionReadinessOf(facts, d.Name) != DefinitionReadiness.Available) continue;
+            var radius = (d.Explosive ?? throw new RequiredFactException("planning Explosive")).ExplosiveRadius;
+            ieds.Add(new DefenseIED(d.Name, radius, d.Name == Incendiary));
+            var (price, ok) = LayoutDefenseRules.DefenseUnitPrice(d, stock);
+            if (ok) costs[d.Name] = [.. price.Costs];
+        }
+        ieds.Sort((a, b) => string.CompareOrdinal(a.Definition, b.Definition));
+        return (ieds, costs);
+    }
+
     /// <summary>The IED traps on the approach ahead of the killbox corridor: the trap lane extended outward from Entry toward the map edge.</summary>
     public static readonly DefenseTierName TierIEDs = new("ieds");
 

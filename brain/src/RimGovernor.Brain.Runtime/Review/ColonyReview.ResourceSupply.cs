@@ -135,12 +135,7 @@ internal sealed class ResourceSupplyState
                     continue;
                 }
 
-                e.Candidate.Yields[0].StockOf(out var units);
-                if (e.Wanted > 0)
-                {
-                    units = Math.Min(units, e.Wanted);
-                }
-
+                var units = ResourceRules.PlannedTradeUnits(e);
                 output[resource] = output.GetValueOrDefault(resource) + units;
             }
         }
@@ -171,7 +166,7 @@ internal static class DeepDrillReadingExtensions
                 continue;
             }
 
-            if (AcquisitionCatalogRules.DeepDrillCandidate(resource, place.Id, Math.Min(place.Site.Count, deficit), place.Distance, headroom, out var c))
+            if (AcquisitionCatalogRules.DeepDrillCandidate(resource, place.Id, DeepDrillRules.AvailableYield(place.Site, deficit), place.Distance, headroom, out var c))
             {
                 output.Add(c);
             }
@@ -255,7 +250,7 @@ public sealed partial class ColonyReview
         {
             var target = ranked[i];
             var resource = target.Resource;
-            var deficit = target.Target - reader.Count(resource);
+            var deficit = ResourceRules.OutstandingTarget(target.Target, reader.Count(resource));
             if (resource.Value == "Beer" || deficit <= 0)
             {
                 continue;
@@ -293,49 +288,20 @@ public sealed partial class ColonyReview
                     candidates.Add(produce);
                     foreach (var cost in produce.UpfrontCost.Resources)
                     {
-                        var shortfall = cost.Count;
-                        foreach (var usable in input.Usable)
-                        {
-                            if (usable.Key == cost.Key)
-                            {
-                                shortfall -= usable.Count;
-                            }
-                        }
-
-                        var known = input.Usable.Any(q => q.Key == cost.Key);
+                        var (shortfall, known) = ResourceRules.IngredientShortfall(cost, input.Usable);
                         if (known && shortfall > 0 && !queued.Contains(cost.Key.Def))
                         {
                             queued.Add(cost.Key.Def);
-                            output.Derived[cost.Key.Def] = reader.Count(cost.Key.Def) + shortfall;
+                            output.Derived[cost.Key.Def] = ResourceRules.DerivedTarget(reader.Count(cost.Key.Def), shortfall);
                             ranked.Add(new ResourceTarget { Resource = cost.Key.Def, Target = output.Derived[cost.Key.Def] });
                         }
                     }
                 }
             }
 
-            var need = deficit;
-            var priced = new List<(AcquisitionSource Source, double Yield)>();
-            foreach (var source in rows)
-            {
-                var offered = ClothingDemandRules.ResourceYieldFor(source, resource, clothing);
-                if (offered is null)
-                {
-                    continue;
-                }
-
-                if (source.Designated)
-                {
-                    need -= (long)Math.Round(offered.Value, MidpointRounding.AwayFromZero);
-                }
-                else if (!(held.TryGetValue(source.Id, out var isHeld) && isHeld) && !(source.Hunt && output.Hunts <= 0))
-                {
-                    row.Open.Add(source);
-                    priced.Add((source, offered.Value));
-                }
-            }
-
-            row.Standing = Math.Max(fieldPlanner.Standing(resource) - ResourcePlanner.GrownPlantationYield(rows, resource), 0);
-            need -= row.Standing;
+            var (need, standing, open, priced) = ResourceRules.OutstandingSupply(resource, deficit, rows, clothing, held, output.Hunts, fieldPlanner.Standing(resource));
+            row.Standing = standing;
+            row.Open.AddRange(open);
             if (need > 0 && fieldPlanner.Serves(resource))
             {
                 var (candidate, plan) = fieldPlanner.Candidate(resource, need);
@@ -350,7 +316,7 @@ public sealed partial class ColonyReview
                 }
             }
 
-            input = input with { Deficit = Math.Max(need, 0) };
+            input = input with { Deficit = ResourceRules.UncoveredSupply(need) };
             if (center is { } at)
             {
                 candidates.AddRange(AcquisitionCatalogRules.AcquisitionSourceCandidates(resource, priced, at, new YieldStorage.Accepts(need)));
@@ -400,22 +366,5 @@ public sealed partial class ResourcePlanner
         }
 
         return (slots, false);
-    }
-}
-
-partial class ResourcePlanner
-{
-    internal static long GrownPlantationYield(IReadOnlyList<AcquisitionSource> rows, Resource resource)
-    {
-        var units = 0.0;
-        foreach (var s in rows)
-        {
-            if (s.Plantation && s.Tree && new Resource(s.Resource) == resource)
-            {
-                units += s.Yield;
-            }
-        }
-
-        return (long)Math.Round(units, MidpointRounding.AwayFromZero);
     }
 }

@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-
 /// <summary>
 /// An observed native-approved source, not inventory. Definition is the source's own native definition name
 /// (the plant or the animal, not the harvested resource); a hunt row of a pest race (Pest, the race row's) is a
@@ -91,6 +90,29 @@ public sealed record AcquisitionSource
 
 public static class AcquisitionRules
 {
+    /// <summary>
+    /// Takes the census rows this step withdrew as stalled off native's pending total (nutrition for food,
+    /// yield otherwise): a designation nobody took still counts there, and without this the re-plan would see
+    /// its own stalled yield as covering the deficit and propose nothing.
+    /// </summary>
+    public static double WithoutStalled(double pending, EquatableArray<AcquisitionSource> sources, HashSet<string> stalled, bool food)
+    {
+        var outstanding = pending;
+        if (stalled.Count == 0)
+        {
+            return pending;
+        }
+        foreach (var row in sources)
+        {
+            if (!stalled.Contains(row.Id) || !row.Designated)
+            {
+                continue;
+            }
+            outstanding -= food ? row.NutritionYield : row.Yield;
+        }
+        return Math.Max(0, outstanding);
+    }
+
     /// <summary>
     /// The highest manhunter-on-harm chance a standing animal may carry and still be hunted. Above it (moose,
     /// boar, elk...) one wounding shot risks a revenge charge the colony's one or two hunters cannot absorb.

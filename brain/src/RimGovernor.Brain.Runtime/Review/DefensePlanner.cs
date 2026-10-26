@@ -863,13 +863,3 @@ partial class DefensePlanner
         return (ids, hunting, buildings);
     }
 }
-
-internal sealed partial class Armament
-{
-    /// <summary>The primary weapon's range when it is a ranged weapon; zero otherwise.</summary>
-    internal double PrimaryRange(RimGovernor.Brain.GameFacts.Observations.PawnEquipment equipment)
-    {
-        var weapon = Primary(equipment);
-        return weapon.Ranged ? weapon.Range : 0;
-    }
-}

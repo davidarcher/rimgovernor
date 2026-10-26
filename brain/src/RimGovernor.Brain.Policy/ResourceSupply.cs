@@ -63,6 +63,64 @@ public sealed record ResourceSupply
 
 public static partial class ResourceRules
 {
+
+    public static (long Shortfall, bool Known) IngredientShortfall(ResourceQuantity cost, IReadOnlyList<ResourceQuantity> usable)
+    {
+        var shortfall = cost.Count;
+        foreach (var amount in usable)
+            if (amount.Key == cost.Key) shortfall -= amount.Count;
+        return (shortfall, usable.Any(amount => amount.Key == cost.Key));
+    }
+
+    public static long DerivedTarget(long stock, long shortfall) => stock + shortfall;
+
+    public static long GrownPlantationYield(IReadOnlyList<AcquisitionSource> rows, Resource resource)
+    {
+        var units = 0.0;
+        foreach (var s in rows)
+        {
+            if (s.Plantation && s.Tree && new Resource(s.Resource) == resource)
+            {
+                units += s.Yield;
+            }
+        }
+
+        return (long)Math.Round(units, MidpointRounding.AwayFromZero);
+    }
+
+    /// <summary>Outstanding units after designated sources and the unharvested plantation are credited once.</summary>
+    public static (long Need, long Standing, List<AcquisitionSource> Open, List<(AcquisitionSource Source, double Yield)> Priced) OutstandingSupply(
+        Resource resource, long deficit, IReadOnlyList<AcquisitionSource> rows, IReadOnlySet<Resource> clothing,
+        IReadOnlyDictionary<string, bool> held, int hunts, long standingFields)
+    {
+        var need = deficit;
+        var open = new List<AcquisitionSource>();
+        var priced = new List<(AcquisitionSource Source, double Yield)>();
+        foreach (var source in rows)
+        {
+            var offered = ClothingDemandRules.ResourceYieldFor(source, resource, clothing);
+            if (offered is null) continue;
+            if (source.Designated) need -= (long)Math.Round(offered.Value, MidpointRounding.AwayFromZero);
+            else if (!(held.TryGetValue(source.Id, out var isHeld) && isHeld) && !(source.Hunt && hunts <= 0))
+            {
+                open.Add(source);
+                priced.Add((source, offered.Value));
+            }
+        }
+        var standing = Math.Max(standingFields - GrownPlantationYield(rows, resource), 0);
+        return (need - standing, standing, open, priced);
+    }
+
+    public static long OutstandingTarget(long target, long stock) => target - stock;
+
+    public static long UncoveredSupply(long need) => Math.Max(need, 0);
+
+    public static long PlannedTradeUnits(SupplyEntry entry)
+    {
+        entry.Candidate.Yields[0].StockOf(out var units);
+        return entry.Wanted > 0 ? Math.Min(units, entry.Wanted) : units;
+    }
+
     /// <summary>
     /// Runs PlanSupply over the deficits as stock demands wanted now, sharing one labor budget (work ticks per
     /// day; what the food plan leaves of workers * 20000). A candidate listed under two resources keeps its

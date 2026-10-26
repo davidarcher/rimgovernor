@@ -244,8 +244,7 @@ public sealed partial class TradePlanner
         else if (economic.Targets.Count == 0 && facts.StockNeeds.Count == 0 && facts.SaleArt.Count + facts.SaleAnimals.Count + facts.SaleGear.Count == 0)
         {
             // Nothing to buy or sell by the resource catalog: only a pawn purchase can still stage, against the same silver reserve.
-            var (currency, _) = Pol.TradePolicyRules.TradeCurrency(facts.Rows);
-            selection = new Pol.TradeSelection { SilverReserve = Math.Max(economic.SilverReserve, facts.Floors.GetValueOrDefault(currency)) };
+            selection = Pol.TradePolicyRules.ReserveOnly(economic, facts);
         }
         else
         {
@@ -292,7 +291,7 @@ public sealed partial class TradePlanner
         {
             return await CancelAsync(state, owner, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
-        if (!facts.Favor && (double)facts.ColonySilver + balance.Transfer < (double)selection.SilverReserve)
+        if (!Pol.TradePolicyRules.ReserveSatisfied(facts, selection, balance.Transfer))
         {
             return await CancelAsync(state, owner, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
@@ -379,13 +378,13 @@ public sealed partial class TradePlanner
         var planned = await PlannedPurchasesAsync(state, review, trader, call).ConfigureAwait(false);
         // An unread food plan opened no nutrition to buy.
         var plannedNutrition = projection.Facts.FoodPlan is { } foodPlan ? Pol.TradePolicyRules.PlannedTradeNutrition(foodPlan, trader) : 0;
-        need = TradeOfferBook.RestrictToPlan(need, planned, plannedNutrition);
+        need = TradePolicyRules.RestrictToPlan(need, planned, plannedNutrition);
         var economic = Pol.TradePolicyRules.TradeTargets(projection.Facts.Items, need with { MedicineReplenish = 0, SurgeryParts = [] }, rows, targets, projection.Facts.Census.ColonistCount);
         var (colonySilver, traderSilver, silverKnown) = TradeSheetSilver(sheet.Lines);
         var facts = new Pol.TradeSelectionFacts { Complete = true, Rows = rows, Floors = floors, CropSurplusFloors = Pol.TradePolicyRules.CropSurplusFloors(need), ColonySilver = colonySilver, TraderSilver = traderSilver, SilverKnown = silverKnown };
         var waits = Reviewer.TradeWaits.Require(state.Snapshot, "selected trade waits");
         facts = facts with { StockNeeds = waits.Needs, StockMedicines = waits.Medicines };
-        facts = facts with { MaxSilverSpend = Math.Max(0, facts.ColonySilver) };
+        facts = facts with { MaxSilverSpend = Pol.TradePolicyRules.MaxSpend(facts.ColonySilver) };
         facts = facts with { Favor = sheet.CurrencyKind == RimGovernor.Brain.GameFacts.Defs.TradeCurrency.Favor };
         facts = facts with { FavorKeep = Pol.TradePolicyRules.FavorGoldKeep(targets, floors, retained) };
         facts = facts with { SaleArt = saleArt ?? [] };

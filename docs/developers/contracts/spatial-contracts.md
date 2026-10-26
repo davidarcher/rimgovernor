@@ -2,6 +2,18 @@
 
 [Documentation](../../README.md) · [Space and resources](../architecture/space-and-resources.md) (why planned geometry is rechecked)
 
+Placement choices belong to Policy. A station uses the first room by saved room
+id whose planned count exceeds standing buildings and sites. Goal geothermal
+placement offers unoccupied geysers nearest the layout center by Manhattan
+distance, preserving census order for ties and when no center exists.
+
+Defense policy uses every observed primary weapon to choose the shortest ranged
+reach, with at most eight firing positions. Eligible researched IED definitions
+require their explosive radius and retain ordinal definition order. Power-tier
+geometry starts at conduits within six cells on each axis of the network's
+buildings, then follows cardinal connections; results sort by x and z. Runtime
+reads canonical facts and keeps native construction previews and legality guards.
+
 These rules constrain shared plan admission and each later dispatch. They use native
 observations; they do not reserve permanent ownership of coordinates.
 

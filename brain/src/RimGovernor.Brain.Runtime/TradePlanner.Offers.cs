@@ -144,30 +144,3 @@ public sealed partial class TradePlanner
         return supply.TradeLines(trader);
     }
 }
-
-partial class TradeOfferBook
-{
-    /// <summary>
-    /// Keeps the resource purchases of need (an economy/resource shortfall, the component target) and its food
-    /// nutrition (what the food plan opened to buy from this trader) only as far as the plans opened them;
-    /// medicine, surgery parts, ingredient upgrades and every sale stay.
-    /// </summary>
-    internal static Pol.TradeNeed RestrictToPlan(Pol.TradeNeed need, IReadOnlyDictionary<Pol.Resource, long> planned, double food)
-    {
-        var kept = new List<Pol.Amount>();
-        foreach (var shortfall in need.Shortfall)
-        {
-            var units = Math.Min(shortfall.Count, planned.GetValueOrDefault(shortfall.Resource));
-            if (units > 0)
-            {
-                kept.Add(new Pol.Amount { Resource = shortfall.Resource, Count = units });
-            }
-        }
-        return need with
-        {
-            Food = need.Food with { Nutrition = food },
-            Shortfall = kept,
-            ComponentShortfall = Math.Min(need.ComponentShortfall, planned.GetValueOrDefault(Pol.TradePolicyRules.ComponentResource)),
-        };
-    }
-}

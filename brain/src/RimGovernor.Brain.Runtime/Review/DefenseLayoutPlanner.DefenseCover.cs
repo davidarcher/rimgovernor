@@ -23,7 +23,7 @@ public sealed partial class DefenseLayoutPlanner
         }
         SameTick(observed.Context, state, read.Reading.Identity.Tick);
         var arms = await Armament.ReadArmamentAsync(_native, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
-        var (defenders, minRange) = DefenderRangeOf(observed.Pawns, arms);
+        var (defenders, minRange) = LayoutDefenseRules.DefenderRangeOf(observed.Pawns.Select(row => arms.Primary(row.Equipment)));
         return (defenders, minRange, defenders > 0);
     }
 

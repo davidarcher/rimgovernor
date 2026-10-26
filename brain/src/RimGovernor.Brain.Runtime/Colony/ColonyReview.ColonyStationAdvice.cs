@@ -72,7 +72,7 @@ public sealed partial class ColonyReview
     {
         var (wallDef, doorDef) = (ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition);
         var stuffs = PlannedRingStuffsOf(projection, wallDef, doorDef);
-        return stuffs.Count == 0 ? (null, null) : (ShellPiece(projection, wallDef, stuffs[0]), ShellPiece(projection, doorDef, stuffs[0]));
+        return stuffs.Count == 0 ? (null, null) : (ColonyPlanningRules.ShellPiece(projection.Facts, wallDef, stuffs[0]), ColonyPlanningRules.ShellPiece(projection.Facts, doorDef, stuffs[0]));
     }
 
     /// <summary>
@@ -92,7 +92,7 @@ public sealed partial class ColonyReview
         var pieces = new SortedDictionary<string, (double Work, IReadOnlyList<Amount> Costs)>(StringComparer.Ordinal);
         foreach (var (def, s) in facts.Catalog.Stations)
         {
-            if (s.Capacity.Kind == CapacityKind.Workers && s.Capacity.Recipes.Any(r => recipes.Contains(r.Recipe)) && HostPiece(projection, def) is { } piece)
+            if (s.Capacity.Kind == CapacityKind.Workers && s.Capacity.Recipes.Any(r => recipes.Contains(r.Recipe)) && ColonyPlanningRules.HostPiece(projection.Facts, def) is { } piece)
             {
                 pieces[def] = piece;
             }
@@ -121,7 +121,7 @@ public sealed partial class ColonyReview
         {
             return new(true, 0);
         }
-        if (HostPiece(projection, name) is not { } piece)
+        if (ColonyPlanningRules.HostPiece(projection.Facts, name) is not { } piece)
         {
             return null;
         }
@@ -129,37 +129,6 @@ public sealed partial class ColonyReview
         return new(false, LayoutClusterRules.PiecePrice(piece, values));
     }
 
-    /// <summary>A work station's work to build and cost list: its own for a def made from no stuff, else its cheapest common stuff's (by cost value).</summary>
-    private static (double Work, IReadOnlyList<Amount> Costs)? HostPiece(ColonyReading colony, string name)
-    {
-        if (AnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, name) is not { } def)
-        {
-            return null;
-        }
-        if (def.StuffOptions.Count == 0)
-        {
-            return ShellPiece(colony, name, "");
-        }
-        var cheapest = def.StuffOptions.Where(o => o.Common).OrderBy(o => o.Value).ThenBy(o => o.Stuff, StringComparer.Ordinal).FirstOrDefault();
-        return cheapest is null ? null : ShellPiece(colony, name, cheapest.Stuff);
-    }
-
-    /// <summary>A shell piece's work to build and cost list in <paramref name="stuff"/> (its own for a def made from no stuff); null where the catalog shows neither.</summary>
-    private static (double Work, IReadOnlyList<Amount> Costs)? ShellPiece(ColonyReading colony, string name, string stuff)
-    {
-        if (AnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, name) is not { } def)
-        {
-            return null;
-        }
-        if (def.StuffOptions.Count == 0)
-        {
-            var own = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).WorkToBuild;
-            var costs = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs;
-            return (own, costs);
-        }
-        return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is { } option && option.Stats.TryGetValue(Domain.StatDefNames.StatWorkToBuild, out var work)
-            ? (work, option.Costs) : null;
-    }
 }
 
 internal static class StationAdviceLog

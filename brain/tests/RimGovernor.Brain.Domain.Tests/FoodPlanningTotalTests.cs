@@ -18,7 +18,7 @@ public sealed class FoodPlanningTotalTests
     public void PendingYieldPreventsDuplicateAcquisitionAndStalledYieldReopensIt()
     {
         var designated = Bush with { Observed = Bush.Observed with { Designation = new RimGovernor.Brain.GameFacts.Observations.AcquisitionDesignation.Designated(new(0)) } };
-        var pending = AcquisitionPlanner.WithoutStalled(.5, [designated], [Bush.Id], true);
+        var pending = AcquisitionRules.WithoutStalled(.5, [designated], [Bush.Id], true);
         Assert.Equal(0, pending);
         Assert.Empty(AcquisitionRules.SelectAcquisition([Bush], .5, .5, true, new Dictionary<string, bool>()));
         Assert.Equal(Bush, Assert.Single(AcquisitionRules.SelectAcquisition([Bush], .5, pending, true, new Dictionary<string, bool>())));

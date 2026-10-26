@@ -16,7 +16,7 @@ internal static class ColonyPlanCut
             {
                 continue;
             }
-            var (price, priced) = DefenseLayoutPlanner.DefenseUnitPrice(projection, d);
+            var (price, priced) = LayoutDefenseRules.DefenseUnitPrice(d, ResourceStockRules.Count(projection.Snapshot.Resources));
             foreach (var option in d.StuffOptions)
             {
                 if (!option.Stats.TryGetValue(Domain.StatDefNames.StatMaxHitPoints, out var hp))

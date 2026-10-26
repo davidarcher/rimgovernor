@@ -64,7 +64,7 @@ public sealed partial class GoalsReview
         IEnumerable<Rectangle> sites;
         if (placer == BuiltPlacer.Geothermal)
         {
-            sites = GeyserSites(f.Facts.EssentialInputs.Power.Geysers, f.Facts.LayoutPlan?.Center(), size);
+            sites = GoalRules.GeyserSites(f.Facts.EssentialInputs.Power.Geysers, f.Facts.LayoutPlan?.Center(), size);
         }
         else
         {
@@ -78,14 +78,4 @@ public sealed partial class GoalsReview
         return verdict ?? NoSpace(placer == BuiltPlacer.Geothermal ? "geyser" : "beacon_cell");
     }
 
-    /// <summary>The free geysers' footprints, nearest the colony's centre first (in map order while it is unread).</summary>
-    internal static IEnumerable<Rectangle> GeyserSites(IReadOnlyList<PowerGeyser> geysers, Cell? center, Bounds size)
-    {
-        var free = geysers.Where(g => !g.Occupied && g.Cells.Count > 0);
-        if (center is { } at)
-        {
-            free = free.OrderBy(g => Math.Abs(g.Cell.X - at.X) + Math.Abs(g.Cell.Z - at.Z));
-        }
-        return free.Select(g => new Rectangle(g.Cells.Min(c => c.X), g.Cells.Min(c => c.Z), size.Width, size.Height));
-    }
 }

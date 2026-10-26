@@ -128,20 +128,7 @@ internal sealed class ResourceFieldPlanner
         return (site, sited);
     }
 
-    public long Standing(Resource resource)
-    {
-        var byName = Choices.ToDictionary(c => c.Name);
-        var units = 0.0;
-        foreach (var farm in Farms)
-        {
-            if (byName.TryGetValue(farm.Crop, out var crop))
-            {
-                units += FieldResourceRules.StandingFieldYield(crop, resource, farm.UsableCells);
-            }
-        }
-
-        return (long)Math.Round(units, MidpointRounding.AwayFromZero);
-    }
+    public long Standing(Resource resource) => FieldResourceRules.StandingFields(Choices, Farms, resource);
 
     /// <summary>The field candidate that grows the resource, with its plan; a null candidate when the site, plan or candidate is missing.</summary>
     public (SupplyCandidate? Candidate, FieldPlan Plan) Candidate(Resource resource, long need)

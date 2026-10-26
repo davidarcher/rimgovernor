@@ -2,6 +2,13 @@
 
 [Contracts](README.md) · [Actions](action-contracts.md) · [Persistence](persistence-contracts.md)
 
+Pure trade policy owns the reserve, maximum spend, supply-plan purchase caps and
+export buyer aggregation. Purchase caps retain only opened resource units while
+leaving medical, surgery and sale demand intact. A compatible buyer outranks an
+unsupported generator, which outranks no trade; export cash uses the largest
+reachable kind's observed ceiling. Runtime performs catalog lookups and fresh
+sheet reads, then rechecks the selected reserve before native acceptance.
+
 `common.TradeTarget` names exactly one map trader, settlement plus player
 caravan, or orbital ship. Every target is scoped by the enclosing identity.
 Native resolves map sellers on that map and world sellers in that loaded world;

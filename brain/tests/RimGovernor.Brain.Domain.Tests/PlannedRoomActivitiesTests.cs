@@ -355,7 +355,7 @@ public sealed class PlannedRoomActivitiesTests
             "ore" => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Mined = steel }),
             _ => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Salvage = steel }),
         };
-        Assert.Equal(RimGovernor.Brain.Runtime.DefinitionReadiness.Available, RimGovernor.Brain.Runtime.BuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
+        Assert.Equal(RimGovernor.Brain.Policy.DefinitionReadiness.Available, RimGovernor.Brain.Runtime.BuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
         var candidates = Barracks(colony).CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_site_blocked:", StringComparison.Ordinal));
         Assert.Contains("planned_room_alternative_unvalued:" + BarracksFull + ":" + BarracksStove + ":no_finish_option", candidates.Findings);
@@ -373,7 +373,7 @@ public sealed class PlannedRoomActivitiesTests
             "sources" => PlannedRoomGateTests.StoveFacts(sourcesRead: false),
             _ => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Unsalvaged = PlannedRoomGateTests.MachineUnsalvaged }),
         };
-        Assert.Equal(RimGovernor.Brain.Runtime.DefinitionReadiness.Unread, RimGovernor.Brain.Runtime.BuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
+        Assert.Equal(RimGovernor.Brain.Policy.DefinitionReadiness.Unread, RimGovernor.Brain.Runtime.BuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
         var candidates = Barracks(colony).CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_site_blocked:", StringComparison.Ordinal));
         Assert.Contains("planned_room_alternative_unvalued:" + BarracksFull + ":" + BarracksStove + ":no_finish_option", candidates.Findings);

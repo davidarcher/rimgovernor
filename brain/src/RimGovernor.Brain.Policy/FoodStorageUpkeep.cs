@@ -108,7 +108,6 @@ public enum FoodStorageMethodKind
     [WireName("")]
     None = 0,
 
-
     [WireName("recovered")]
     Recovered,
 
@@ -161,7 +160,6 @@ public sealed record FoodStoragePlanningRequest
 
     public EquatableArray<FoodStorageSite> Sites { get; init; }
 
-
     public Resource Resource { get; init; }
 
     public IReadOnlyList<MethodId> Seen { get; init; } = [];
@@ -169,6 +167,30 @@ public sealed record FoodStoragePlanningRequest
 
 public static class FoodStorageUpkeepRules
 {
+    public const int FoodStorageSiteLimit = 16;
+
+    public static IReadOnlyList<string> FoodStorageDefNames(FoodStorageObservation observed, FoodStoragePolicy p)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var entry in observed.Stocks)
+        {
+            if (!FoodStorageUpkeepRules.FoodStorageUnstored(entry, observed.ChilledMaxC, p))
+            {
+                continue;
+            }
+
+            var name = entry.Stock.DefName;
+            if (name.Length != 0)
+            {
+                names.Add(name);
+            }
+        }
+
+        return names.OrderBy(n => n, StringComparer.Ordinal).Take(FoodStorageSiteLimit).ToList();
+    }
+
+    public static long StorageSpare(long capacity, long stored) => Math.Max(capacity - stored, 0);
+
     /// <summary>Lifts a food-supply census into the storage-upkeep census. chilledMaxC is the catalog's full-rot-rate temperature.</summary>
     public static FoodStorageObservation FoodStorageStocks(FoodSupply supply, double chilledMaxC) =>
         new()

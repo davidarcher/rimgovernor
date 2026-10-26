@@ -35,6 +35,12 @@ public enum PlannedRoomGate
 
 public static partial class PlannedRules
 {
+    public static PlannedRoom? PlannedStationRoom(LayoutPlan layout, string definition, CurrentConstruction census) =>
+        layout.Rooms.OrderBy(r => r.Id).FirstOrDefault(room =>
+            (layout.Pieces.GetValueOrDefault(room.Id) ?? []).Count(p => p.Def == definition)
+            > census.Buildings.Count(b => b.Building.Definition == definition && room.Region.Cells().Contains(b.Building.Cell))
+                + census.Sites.Count(s => s.Building is { } b && b.Definition == definition && room.Region.Cells().Contains(b.Cell)));
+
     /// <summary>
     /// The planned-room selection of one comparison (#3278, #3342, #3651); null when the review compared nothing (no
     /// candidates or no selection). The selected sites are the planned sites the selected portfolio's plan starts inside

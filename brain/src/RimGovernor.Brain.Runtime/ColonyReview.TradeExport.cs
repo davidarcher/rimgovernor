@@ -176,7 +176,7 @@ internal sealed class TradeExportPlanner : IPurposeReporter
             Floors = Pol.TradePolicyRules.TradeFloors(rd.Policy, null),
             Sources = candidateSources,
         };
-        request = request with { Stock = ExportStock(f) };
+        request = request with { Stock = Pol.ResourceStockRules.Count(f.Census.Resources) };
         if (review.Enabled && review.Snapshot == snapshot)
         {
             request = request with { Runways = review.ResourceRunwayState() };
@@ -216,7 +216,7 @@ internal sealed class TradeExportPlanner : IPurposeReporter
         {
             return GearPlanner.AbstainOnRead(Pol.Cause.UnreadBuyers, null, ct);
         }
-        var (cashCap, buys) = ExportBuyers(catalog, kinds, products);
+        var (cashCap, buys) = Pol.TradePolicyRules.ExportBuyers(kinds, products, catalog.TraderKindBuys, catalog.TraderKindSilver);
         request = request with { CashCap = cashCap, Buys = buys };
         request = request with { WorkFor = ExportWorkFor(catalog) };
         var names = ExportOrdersRules.ExportIngredients(request);
@@ -412,47 +412,4 @@ internal sealed class TradeExportPlanner : IPurposeReporter
     private static Func<Pol.Resource, Pol.Resource, (double Work, bool Ok)> ExportWorkFor(Bridge.DefinitionCatalog catalog) =>
         (product, stuff) => catalog.WorkToMake(product.Value, stuff.Value);
 
-    /// <summary>The colony stock by definition from the resource census.</summary>
-    internal static Dictionary<Pol.Resource, long> ExportStock(Pol.ReviewFacts f)
-    {
-        var output = new Dictionary<Pol.Resource, long>();
-        foreach (var row in f.ObservedStock())
-        {
-            output[row.Resource] = output.GetValueOrDefault(row.Resource) + row.Count;
-        }
-        return output;
-    }
-
-    /// <summary>
-    /// Evaluates the reachable kinds' buy generators: per product whether any kind buys it, and the cash cap, the
-    /// low end of the silver the best kind carries. No reachable kind buys nothing and caps at zero.
-    /// </summary>
-    internal static (long CashCap, Dictionary<Pol.Resource, Pol.TradeCompatibility> Buys) ExportBuyers(Bridge.DefinitionCatalog catalog, IReadOnlyList<string> kinds, IReadOnlyList<Pol.Resource> products)
-    {
-        var buys = new Dictionary<Pol.Resource, Pol.TradeCompatibility>();
-        foreach (var product in products)
-        {
-            var result = Pol.TradeCompatibility.DoesNotTrade;
-            foreach (var kind in kinds)
-            {
-                var candidate = catalog.TraderKindBuys(kind, product);
-                switch (candidate)
-                {
-                    case Pol.TradeCompatibility.Trades:
-                        result = candidate;
-                        break;
-                    case Pol.TradeCompatibility.UnsupportedGenerator when result != Pol.TradeCompatibility.Trades:
-                        result = candidate;
-                        break;
-                    case Pol.TradeCompatibility.UnsupportedGenerator:
-                    case Pol.TradeCompatibility.DoesNotTrade:
-                        break;
-                }
-            }
-            buys[product] = result;
-        }
-        long cap = 0;
-        foreach (var kind in kinds) cap = Math.Max(cap, catalog.TraderKindSilver(kind));
-        return (cap, buys);
-    }
 }

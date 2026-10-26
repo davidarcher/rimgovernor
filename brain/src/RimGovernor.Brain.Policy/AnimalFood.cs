@@ -1,6 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-
 /// <summary>
 /// What an animal eats that the colony's food math counts: Plants at PerDay (its race's adult feed scaled by its
 /// life stage's hunger), or NoPlants for a race that eats no plants or has no food need.
@@ -62,6 +61,15 @@ public static class AnimalFoodExtensions
 
 public static class AnimalFoodRules
 {
+
+    public static double OutstandingHay(double need, CropChoice crop, IEnumerable<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing> zones)
+    {
+        foreach (var zone in zones)
+            if (zone.Crop == crop.Name)
+                need = Math.Max(0, need - (zone.UsableCells * crop.HarvestNutrition));
+        return need;
+    }
+
     public static double HayNutritionNeed(EquatableArray<PenGrazing> rows, double gap)
     {
         var days = gap;

@@ -34,6 +34,17 @@ public sealed record ResourceFieldRequest
 
 public static class FieldResourceRules
 {
+
+    public static long StandingFields(IReadOnlyList<CropChoice> choices, IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing> farms, Resource resource)
+    {
+        var byName = choices.ToDictionary(c => c.Name);
+        var units = 0.0;
+        foreach (var farm in farms)
+            if (byName.TryGetValue(farm.Crop, out var crop))
+                units += StandingFieldYield(crop, resource, farm.UsableCells);
+        return (long)Math.Round(units, MidpointRounding.AwayFromZero);
+    }
+
     /// <summary>Starts the ID of a resource field candidate: the prefix plus the crop name, so the executor reads the plan it priced by ID.</summary>
     public const string ResourceFieldPrefix = "field:";
 

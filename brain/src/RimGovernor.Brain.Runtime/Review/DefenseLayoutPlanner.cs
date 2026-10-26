@@ -3,9 +3,6 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Runtime;
 
-/// <summary>What the facts say of building a definition now (DefenseLayoutPlanner.DefinitionReadinessOf, #3819).</summary>
-internal enum DefinitionReadiness { Available, Blocked, Unread }
-
 public sealed class DefenseLayoutResult : IPlannerResult
 {
     public Verdict Verdict { get; set; }
@@ -21,8 +18,6 @@ public sealed partial class DefenseLayoutPlanner
     internal const string DefenseTurretDefinition = DefenseTurretsPolicy.TurretMini;
     internal const string DefenseConduitDefinition = "HiddenConduit";
     internal const string DefenseMortarDefinition = "Turret_Mortar";
-    internal const string DefenseIedHighExplosive = "TrapIED_HighExplosive";
-    internal const string DefenseIedIncendiary = "TrapIED_Incendiary";
 
     internal static readonly DefenseDefinitions DefenseDefinitionNames = new()
     {
@@ -33,7 +28,7 @@ public sealed partial class DefenseLayoutPlanner
     internal static readonly string[] DefenseExtraDefinitions =
     [
         DefenseTurretsPolicy.TurretMini, DefenseTurretsPolicy.TurretAutocannon, DefenseTurretsPolicy.TurretSniper, DefenseMortarDefinition, DefenseConduitDefinition,
-        DefenseCoverStock.DefenseSandbags, DefenseCoverStock.DefenseEmbrasure, DefenseIedHighExplosive, DefenseIedIncendiary,
+        DefenseCoverStock.DefenseSandbags, DefenseCoverStock.DefenseEmbrasure, DefenseIEDs.HighExplosive, DefenseIEDs.Incendiary,
     ];
 
     internal static readonly DefenseTierName[] DefenseTierOrder =
@@ -64,37 +59,7 @@ public sealed partial class DefenseLayoutPlanner
 
     /// <summary>Whether a defense may build <paramref name="name"/>: read available with its research finished; an unread fact is no option.</summary>
     internal static bool DefenseDefinitionAvailable(ReviewReading read, string name) =>
-        DefinitionReadinessOf(read.Reading, name) == DefinitionReadiness.Available;
-
-    /// <summary>
-    /// What the facts say of building <paramref name="name"/> now (#3819): Blocked when its definition is read unavailable
-    /// or its research is read with a prerequisite unfinished; Unread when the census does not describe it; else Available.
-    /// </summary>
-    internal static DefinitionReadiness DefinitionReadinessOf(ColonyReading projection, string name)
-    {
-        var research = projection.Facts.Research;
-        foreach (var d in projection.Facts.Definitions)
-        {
-            if (d.Name != name)
-            {
-                continue;
-            }
-            var v = d.Available;
-            if (!v)
-            {
-                return DefinitionReadiness.Blocked;
-            }
-            foreach (var prerequisite in d.Research)
-            {
-                if (!research.Finished.Contains(new ResearchProjectId(prerequisite)))
-                {
-                    return DefinitionReadiness.Blocked;
-                }
-            }
-            return DefinitionReadiness.Available;
-        }
-        return DefinitionReadiness.Unread;
-    }
+        LayoutDefenseRules.DefinitionReadinessOf(read.Reading.Facts, name) == DefinitionReadiness.Available;
 
     internal static bool DefenseRoamerOwned(ColonyReading projection)
     {
@@ -454,7 +419,7 @@ public sealed partial class DefenseLayoutPlanner
             {
                 continue;
             }
-            var (price, ok) = DefenseUnitPrice(projection, d);
+            var (price, ok) = LayoutDefenseRules.DefenseUnitPrice(d, ResourceStockRules.Count(projection.Snapshot.Resources));
             if (ok)
             {
                 unitCosts[d.Name] = [.. price.Costs];
@@ -462,18 +427,6 @@ public sealed partial class DefenseLayoutPlanner
             }
         }
         return request with { Mortar = mortar, UnitCosts = unitCosts };
-    }
-
-    internal static (StuffPrice Price, bool Ok) DefenseUnitPrice(ColonyReading projection, PlanningDefinition d)
-    {
-        try
-        {
-            return (d.StuffChoice(StuffCriterion.MaxHitPointsPerCost, ResourceStockRules.Count(projection.Snapshot.Resources)), true);
-        }
-        catch (DomainException)
-        {
-            return (new StuffPrice("", []), false);
-        }
     }
 
     /// <summary>
@@ -494,7 +447,7 @@ public sealed partial class DefenseLayoutPlanner
             {
                 continue;
             }
-            var (price, priced) = DefenseUnitPrice(projection, d);
+            var (price, priced) = LayoutDefenseRules.DefenseUnitPrice(d, ResourceStockRules.Count(projection.Snapshot.Resources));
             if (priced)
             {
                 unitCosts[d.Name] = [.. price.Costs];
@@ -531,9 +484,9 @@ public sealed partial class DefenseLayoutPlanner
         }
         if (best != "")
         {
-            turret = turret with { SpareW = spare, Transmitters = [.. DefenseNetworkConduits(topology, best)] };
+            turret = turret with { SpareW = spare, Transmitters = [.. LayoutDefenseRules.DefenseNetworkConduits(topology, best)] };
         }
-        var ready = DefinitionReadinessOf(projection, turret.Definition) == DefinitionReadiness.Available;
+        var ready = LayoutDefenseRules.DefinitionReadinessOf(projection.Facts, turret.Definition) == DefinitionReadiness.Available;
         turret = turret with { Available = ready && drawRead && best != "" };
         return request with { Turret = turret, UnitCosts = unitCosts };
     }

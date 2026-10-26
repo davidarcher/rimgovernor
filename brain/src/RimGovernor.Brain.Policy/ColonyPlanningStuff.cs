@@ -2,6 +2,33 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class ColonyPlanningRules
 {
+
+    /// <summary>The cheapest common construction stuff, with ordinal names breaking equal values.</summary>
+    public static (double Work, IReadOnlyList<Amount> Costs)? HostPiece(ReviewFacts colony, string name)
+    {
+        if (!TryDefinition(colony, name, out var def)) return null;
+        if (def.StuffOptions.Count == 0) return ShellPiece(colony, name, "");
+        var cheapest = def.StuffOptions.Where(o => o.Common).OrderBy(o => o.Value).ThenBy(o => o.Stuff, StringComparer.Ordinal).FirstOrDefault();
+        return cheapest is null ? null : ShellPiece(colony, name, cheapest.Stuff);
+    }
+
+    /// <summary>A shell piece's work to build and cost list in <paramref name="stuff"/> (its own for a def made from no stuff); null where the catalog shows neither.</summary>
+    public static (double Work, IReadOnlyList<Amount> Costs)? ShellPiece(ReviewFacts colony, string name, string stuff)
+    {
+        if (!TryDefinition(colony, name, out var def))
+        {
+            return null;
+        }
+        if (def.StuffOptions.Count == 0)
+        {
+            var own = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).WorkToBuild;
+            var costs = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs;
+            return (own, costs);
+        }
+        return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is { } option && option.Stats.TryGetValue(Domain.StatDefNames.StatWorkToBuild, out var work)
+            ? (work, option.Costs) : null;
+    }
+
     /// <summary>Name's resolved planning row.</summary>
     public static bool TryDefinition(ReviewFacts facts, string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlanningDefinition? definition)
     {

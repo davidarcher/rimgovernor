@@ -104,7 +104,7 @@ public sealed class BuiltCountGoalTests
     {
         PowerGeyser Geyser(string id, int x, int z, bool occupied = false) => new() { Id = id, Cell = new Cell(x + 1, z + 1), Occupied = occupied, Cells = [new Cell(x, z), new Cell(x + 1, z), new Cell(x, z + 1), new Cell(x + 1, z + 1)] };
         var geysers = new[] { Geyser("far", 80, 80), Geyser("taken", 21, 20, occupied: true), Geyser("near", 30, 30) };
-        var sites = GoalsReview.GeyserSites(geysers, new Cell(20, 20), new Bounds(2, 2)).ToList();
+        var sites = GoalRules.GeyserSites(geysers, new Cell(20, 20), new Bounds(2, 2)).ToList();
         Assert.Equal([new Rectangle(30, 30, 2, 2), new Rectangle(80, 80, 2, 2)], sites);
     }
 }

@@ -147,7 +147,7 @@ partial class ColonyReview
         channels.AddRange(FoodPlanRules.ForageChannels(sources));
         // The hunt alternatives: nutrition the colony still needs to reach its target runway, compared over roster estimates.
         var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
-        var needed = Math.Max(0, (forecast.Consumers.Sum(c => c.NutritionPerDay) * thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays) - forecast.UsableNutrition);
+        var needed = FoodPlanRules.SeasonalShortfall(forecast, thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays);
         var hungry = HuntHungry(p);
         var huntPlan = HuntPlanningRules.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], needed, hungry);
         // The held formation stands until a release trigger; released, the plan's own choice is offered.
@@ -197,7 +197,7 @@ partial class ColonyReview
             TargetDays = seasonal.FoodTargetDays,
             EmergencyDays = seasonal.FootholdFoodDays,
             Channels = EquatableArray.From(channels),
-            Labor = workers * 20000.0,
+            Labor = FoodPlanRules.SupplyLabor(workers),
         });
 
         credit.Opened(plan, channels, p.Identity.Tick);
@@ -206,7 +206,7 @@ partial class ColonyReview
             var offers = new List<SupplyCandidate>();
             offers.AddRange(AnimalFoodRules.SlaughterFoodChannels(p.Facts.FoodChannels.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPlans.HerdPolicyOf(p.Facts, plan)));
 
-            offers.AddRange(TradePolicyRules.TradeFoodChannels(trade.Offers, trade.Silver, trade.Reserve, plan.GapPerDay * plan.HorizonDays));
+            offers.AddRange(TradePolicyRules.TradeFoodChannels(trade.Offers, trade.Silver, trade.Reserve, FoodPlanRules.AcquisitionNutrition(plan)));
             var acquire = new AnimalAcquisition
             {
                 Races = p.Facts.AnimalUpkeep.AnimalRaces,
@@ -227,7 +227,7 @@ partial class ColonyReview
                     TargetDays = seasonal.FoodTargetDays,
                     EmergencyDays = seasonal.FootholdFoodDays,
                     Channels = EquatableArray.From(channels),
-                    Labor = workers * 20000.0,
+                    Labor = FoodPlanRules.SupplyLabor(workers),
                 });
             }
         }
@@ -290,7 +290,6 @@ partial class ColonyReview
     };
 
     internal static bool FoodPlanSupportOf(FoodPlan p, CandidateKind kind, string id) => FoodOrdersRules.FoodPlanSupport(p, kind, id);
-
 
     internal static bool FoodPlanOpensField(FoodPlan plan)
     {

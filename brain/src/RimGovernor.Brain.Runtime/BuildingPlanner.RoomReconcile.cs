@@ -187,7 +187,7 @@ partial class BuildingPlanner
         var (stuffs, stuffRead) = ColonyReview.PlannedRingStuffsRead(projection, name, "");
         DefinitionReadiness[] halves =
         [
-            DefenseLayoutPlanner.DefinitionReadinessOf(projection, name),
+            LayoutDefenseRules.DefinitionReadinessOf(projection.Facts, name),
             stuffs.Count > 0 ? DefinitionReadiness.Available : stuffRead ? DefinitionReadiness.Blocked : DefinitionReadiness.Unread,
             ColonyReview.PieceCostReadiness(projection, name),
         ];

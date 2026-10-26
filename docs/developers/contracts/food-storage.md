@@ -2,6 +2,13 @@
 
 Storage nutrition rows and their aggregate must remain finite; an overflowing aggregate fails the review.
 
+The existing storage chooser reads at most sixteen distinct unstored food
+definitions in ordinal order. Policy computes spare capacity as observed
+capacity minus stored units, floored at zero, before choosing the existing
+storage method. The broader chooser replacement remains tracked by
+[#3239](https://github.com/davidarcher/rimgovernor/issues/3239) and
+[#3734](https://github.com/davidarcher/rimgovernor/issues/3734).
+
 `FoodSupplyFacts.Stocks` owns observed food quantity, rot, location, temperature,
 human-meat classification and corpse yield. Native observation builds those rows
 directly from the stock census. The general thing table carries identity,

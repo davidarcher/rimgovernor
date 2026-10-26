@@ -307,6 +307,17 @@ public sealed class GoalsFamily : IFamily<GoalsFacts>
 
 public static partial class GoalRules
 {
+    /// <summary>The free geysers' footprints, nearest the colony's centre first (in map order while it is unread).</summary>
+    public static IEnumerable<Rectangle> GeyserSites(IReadOnlyList<PowerGeyser> geysers, Cell? center, Bounds size)
+    {
+        var free = geysers.Where(g => !g.Occupied && g.Cells.Count > 0);
+        if (center is { } at)
+        {
+            free = free.OrderBy(g => Math.Abs(g.Cell.X - at.X) + Math.Abs(g.Cell.Z - at.Z));
+        }
+        return free.Select(g => new Rectangle(g.Cells.Min(c => c.X), g.Cells.Min(c => c.Z), size.Width, size.Height));
+    }
+
     /// <summary>The NeedId of <paramref name="goal"/>: <c>goals/&lt;kind&gt;/&lt;id&gt;</c>.</summary>
     public static NeedId NeedOf(GoalRecord goal) => NeedId.Of(GoalsFamily.FamilyId, KindSlug(goal.Kind), goal.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
 

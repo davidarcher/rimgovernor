@@ -370,56 +370,11 @@ public sealed partial class DefenseLayoutPlanner
         };
     }
 
-    /// <summary>How many defenders hold a ranged weapon (capped at eight) and the shortest reach among them; zero with none.</summary>
-    internal static (int Count, double Shortest) DefenderRangeOf(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.PawnState> rows, Armament arms)
-    {
-        var count = 0;
-        var shortest = double.PositiveInfinity;
-        foreach (var row in rows)
-        {
-            var reach = arms.PrimaryRange(row.Equipment);
-            if (reach <= 0)
-            {
-                continue;
-            }
-            count++;
-            shortest = Math.Min(shortest, reach);
-        }
-        if (count == 0)
-        {
-            return (0, 0);
-        }
-        if (count > 8)
-        {
-            count = 8;
-        }
-        return (count, shortest);
-    }
     internal static DefenseRequest DefenseIedRequest(ReviewReading read, DefenseRequest request)
     {
         var projection = read.Reading;
         request = request with { IEDMax = DefenseIEDs.IEDBudget(RaidDefense.Of(projection.Facts), projection.Facts.EssentialInputs.Power.Buildings.Where(b => b.Turret is not null).ToArray(), projection.Facts.GoalBuild.Turrets), IEDStock = ResourceStockRules.Count(projection.Snapshot.Resources) };
-        var ieds = new List<DefenseIED>();
-        var unitCosts = new Dictionary<string, EquatableArray<Amount>>(request.UnitCosts, StringComparer.Ordinal);
-        foreach (var d in projection.Facts.Definitions)
-        {
-            if (d.Name != DefenseIedHighExplosive && d.Name != DefenseIedIncendiary)
-            {
-                continue;
-            }
-            if (!DefenseDefinitionAvailable(read, d.Name))
-            {
-                continue;
-            }
-            var radius = (d.Explosive ?? throw new RequiredFactException("planning Explosive")).ExplosiveRadius;
-            ieds.Add(new DefenseIED(d.Name, radius, d.Name == DefenseIedIncendiary));
-            var (price, ok) = DefenseUnitPrice(projection, d);
-            if (ok)
-            {
-                unitCosts[d.Name] = [.. price.Costs];
-            }
-        }
-        ieds.Sort((a, b) => string.CompareOrdinal(a.Definition, b.Definition));
+        var (ieds, unitCosts) = DefenseIEDs.Options(projection.Facts, ResourceStockRules.Count(projection.Snapshot.Resources), request.UnitCosts);
         request = request with { UnitCosts = unitCosts };
         // An IED is sited clear of flammable storage, so a round whose zones are not read whole places none.
         if (projection.Zones is not { Complete: true } zones)

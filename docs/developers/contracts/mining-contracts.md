@@ -2,6 +2,19 @@
 
 [Documentation](../../README.md) · [Space and resources](../architecture/space-and-resources.md)
 
+Policy owns outstanding supply accounting over the canonical acquisition rows.
+Designated yields round individually away from zero; standing field yield rounds
+after summation. Grown plantation yield is deducted from standing field credit so
+the same wood is not promised twice. Held sources and hunts without slots remain
+ineligible, and eligible sources retain census order. Runtime assembles native
+and journal facts and reads a field site only when the remaining demand needs it.
+
+Deep-drill eligibility and ranking use the same shared resource runways. Positive
+needed deposits sort by squared distance from the layout center, then x and z.
+Missing required planning definitions still fail the read; absent layout, unfinished
+research or absent scanner offers no site. Native preview and placement legality
+remain final guards.
+
 `economy/resource` uses the shared concern, plan, reservations and Hands path. A native resource census
 ranks eligible sources by distance and stable identity. Whether a mine opens at all is the Round's
 [supply plan](../architecture/space-and-resources.md#resource-demand-and-acquisition-scoring): the

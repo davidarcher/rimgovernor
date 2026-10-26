@@ -10,7 +10,7 @@ public sealed partial class BuildingPlanner
     {
         if (!FacilityLadder() && !ButcherFacility() && Concern != FoodRules.CookingNeed.FilingKey) return (this, new BuildingResult(), false);
         var layout = facts.Facts.LayoutPlan;
-        var room = layout is null ? null : PlannedStationRoom(layout, Definition, facts.Facts.CurrentConstruction);
+        var room = layout is null ? null : PlannedRules.PlannedStationRoom(layout, Definition, facts.Facts.CurrentConstruction);
         if (room is null)
             return (null, new BuildingResult { Verdict = AwaitingPlan("station_room", Definition) }, true);
 
@@ -25,11 +25,6 @@ public sealed partial class BuildingPlanner
         return (placed, new BuildingResult(), false);
     }
 
-    internal static PlannedRoom? PlannedStationRoom(LayoutPlan layout, string definition, CurrentConstruction census) =>
-        layout.Rooms.OrderBy(r => r.Id).FirstOrDefault(room =>
-            (layout.Pieces.GetValueOrDefault(room.Id) ?? []).Count(p => p.Def == definition)
-            > census.Buildings.Count(b => b.Building.Definition == definition && room.Region.Cells().Contains(b.Building.Cell))
-                + census.Sites.Count(s => s.Building is { } b && b.Definition == definition && room.Region.Cells().Contains(b.Cell)));
 }
 
 partial class BuildingPlanner

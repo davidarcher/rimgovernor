@@ -208,13 +208,13 @@ public sealed partial class FoodStoresReview
     /// <summary>Reads the spare room of every covered site the unstored food could go to and picks stuck or produce.</summary>
     private async Task<FoodStorageMethod> StorageChoiceAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, FoodStorageObservation facts, FoodStorageReview review, CancellationToken ct)
     {
-        var names = FoodStorageDefNames(facts, _reviewer.Policy.FoodStorage);
+        var names = FoodStorageUpkeepRules.FoodStorageDefNames(facts, _reviewer.Policy.FoodStorage);
         var sites = new List<FoodStorageSite>(names.Count);
         foreach (var name in names)
         {
             var (_, storage) = await _native.ReadResourceSourcesAsync(identity, name, ct).ConfigureAwait(false);
 
-            var spare = Math.Max(storage.Capacity - storage.Stored, 0);
+            var spare = FoodStorageUpkeepRules.StorageSpare(storage.Capacity, storage.Stored);
             sites.Add(new FoodStorageSite { Id = name, Capacity = spare });
         }
 
@@ -226,25 +226,4 @@ partial class FoodStoresReview
 {
     internal static readonly Resource FoodStorageResourceDefinition = new("MealSimple");
 
-    internal const int FoodStorageSiteLimit = 16;
-
-    internal static IReadOnlyList<string> FoodStorageDefNames(FoodStorageObservation observed, FoodStoragePolicy p)
-    {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var entry in observed.Stocks)
-        {
-            if (!FoodStorageUpkeepRules.FoodStorageUnstored(entry, observed.ChilledMaxC, p))
-            {
-                continue;
-            }
-
-            var name = entry.Stock.DefName;
-            if (name.Length != 0)
-            {
-                names.Add(name);
-            }
-        }
-
-        return names.OrderBy(n => n, StringComparer.Ordinal).Take(FoodStorageSiteLimit).ToList();
-    }
 }
