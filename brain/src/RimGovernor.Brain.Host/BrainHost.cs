@@ -123,7 +123,7 @@ public sealed class BrainHost : IAsyncDisposable
         // Explicit registration: no kind is intent-mode until this runs, and it must precede any progress.
         IntentActionRules.RegisterIntentKinds();
 
-        var (journal, movedAside) = await StoreJournal.OpenOrReplaceAsync(options.StatePath, startup).ConfigureAwait(false);
+        var (journal, movedAside) = await StoreJournal.OpenOrReplaceAsync(options.StatePath, startup, RimGovernor.Brain.Bridge.GameDefinitionSemantics.Instance).ConfigureAwait(false);
         _journal = journal;
         if (movedAside is not null)
         {

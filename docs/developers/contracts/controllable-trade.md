@@ -251,3 +251,10 @@ roundtrip absence, not continuous awake work. This occupancy adds no labor price
 `LostWork` owns that cost. The safe native pack proves food and rot coverage;
 the forecast does not invent caravan eating or rest timings. Immediate physiological
 limits remain explicit in the needs timeline.
+
+A mission's packed native currency must equal its authorized silver budget.
+The game-aware boundary supplies the compiler-checked currency identity to
+mission validation and departure construction. Journal writes, decoded reads
+and save import independently validate it with the journal's own service;
+other cargo of the same count cannot satisfy the budget. The service is not
+persisted and does not own inventory or prices.

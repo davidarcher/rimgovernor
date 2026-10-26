@@ -21,7 +21,7 @@ public sealed record TradeMissionsRecord
 
     public IReadOnlyList<TradeMissionEntry> Missions { get; init; } = [];
 
-    public void Validate()
+    public void Validate(IGameDefinitionSemantics? definitions = null)
     {
         World.Validate();
         DomainException.Require(Missions.Count <= MaxMissions, "too many trade missions");
@@ -30,7 +30,7 @@ public sealed record TradeMissionsRecord
             var entry = Missions[i];
             DomainException.Require(Families.ValidIdentity(entry.Id) && (i == 0 || string.CompareOrdinal(Missions[i - 1].Id, entry.Id) < 0), "invalid trade mission id");
             DomainException.Require(entry.Mission is not null && entry.Mission.HomeColony == World.Colony && entry.Mission.HomeMap == World.Map, "trade mission scope mismatch");
-            entry.Mission.Validate();
+            entry.Mission.Validate(definitions);
             DomainException.Require(!entry.Mission.Over, "a trade mission that is over leaves the record");
         }
     }
@@ -56,12 +56,12 @@ public sealed partial class Store
     internal static TradeMissionsRecord? LoadTradeMissionsIn(StoreTransaction tx)
     {
         var r = LoadSingleton<TradeMissionsRecord>(tx, "economy_trade_missions", MaxTradeMissionsBytes);
-        return r is null ? null : Validated(r, r.Validate, "trade missions");
+        return r is null ? null : Validated(r, () => r.Validate(tx.Definitions), "trade missions");
     }
 
     private static void PutTradeMissionsIn(StoreTransaction tx, TradeMissionsRecord r)
     {
-        r.Validate();
+        r.Validate(tx.Definitions);
         if (r.Missions.Count == 0)
         {
             _ = tx.Execute("DELETE FROM economy_trade_missions");
@@ -92,7 +92,7 @@ public sealed partial class Store
         need.Validate();
         if (!method.IsValid) throw new DomainException("invalid need method id");
         if (plan.Actions.Count == 0) throw new DomainException("empty need method");
-        record.Validate();
+        record.Validate(_definitions);
         return Run(tx =>
         {
             var commit = CommitClaimedNeedMethodIn(tx, need, current, method, reason, plan);

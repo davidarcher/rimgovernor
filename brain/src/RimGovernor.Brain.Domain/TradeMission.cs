@@ -47,7 +47,7 @@ public sealed record TradeMission
 
     public bool PurchaseCommitted { get; init; }
 
-    public void Validate()
+    public void Validate(IGameDefinitionSemantics? definitions = null)
     {
         DomainException.Require(
             HomeColony.IsValid
@@ -72,7 +72,7 @@ public sealed record TradeMission
         ulong silver = 0;
         foreach (var item in Pack)
         {
-            if (item.Definition == "Silver")
+            if ((definitions ?? throw new DomainException("trade mission validation requires native definition semantics")).IsTradeCurrency(item.Definition))
             {
                 silver = item.Count;
             }
@@ -95,9 +95,9 @@ public sealed record TradeMission
     }
 
     /// <summary>The caravan departure this mission sends out.</summary>
-    public CaravanDeparture Departure()
+    public CaravanDeparture Departure(IGameDefinitionSemantics definitions)
     {
-        Validate();
+        Validate(definitions);
         return new CaravanDeparture(Crew, Pack, SettlementTile);
     }
 

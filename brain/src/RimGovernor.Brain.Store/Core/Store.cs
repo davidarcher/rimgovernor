@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Domain;
 using System.Globalization;
 using System.Security.Cryptography;
 using Microsoft.Data.Sqlite;
@@ -77,13 +78,15 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     private static bool _providerReady;
 
     private readonly SqliteConnection _connection;
+    private readonly IGameDefinitionSemantics? _definitions;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly PlanCache _plans = new();
     private readonly ReviewSlot _rounds = new();
 
-    internal Store(SqliteConnection connection, string path)
+    internal Store(SqliteConnection connection, string path, IGameDefinitionSemantics? definitions = null)
     {
         _connection = connection;
+        _definitions = definitions;
         Path = path;
         Floors = RetirementFloors.For(path);
     }
@@ -100,7 +103,7 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Opens (creating it when new) the journal at a filesystem path, never a caller-supplied connection string.
     /// Throws <see cref="IncompatibleDatabaseException"/> for a database another schema version or application wrote.
     /// </summary>
-    public static Store Open(string path, CancellationToken cancellationToken)
+    public static Store Open(string path, CancellationToken cancellationToken, IGameDefinitionSemantics? definitions = null)
     {
         if (string.IsNullOrEmpty(path))
         {
@@ -118,7 +121,7 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
                 DefaultTimeout = 1,
             }.ToString()
         );
-        var db = new Store(connection, full);
+        var db = new Store(connection, full, definitions);
         try
         {
             RetryBusy(
@@ -151,10 +154,10 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     }
 
     /// <summary><see cref="Open"/> as a task.</summary>
-    public static async Task<Store> OpenAsync(string path, CancellationToken cancellationToken)
+    public static async Task<Store> OpenAsync(string path, CancellationToken cancellationToken, IGameDefinitionSemantics? definitions = null)
     {
         await Task.CompletedTask.ConfigureAwait(false);
-        return Open(path, cancellationToken);
+        return Open(path, cancellationToken, definitions);
     }
 
     /// <summary>
@@ -162,11 +165,11 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// regenerate) but moved aside, with its WAL and shared-memory files, to <c>&lt;path&gt;.v&lt;old&gt;.bak[.n]</c>,
     /// and a fresh one is created in its place. <c>MovedAside</c> is that path, or null when the database opened as it was.
     /// </summary>
-    public static (Store Journal, string? MovedAside) OpenOrReplace(string path, CancellationToken cancellationToken)
+    public static (Store Journal, string? MovedAside) OpenOrReplace(string path, CancellationToken cancellationToken, IGameDefinitionSemantics? definitions = null)
     {
         try
         {
-            return (Open(path, cancellationToken), null);
+            return (Open(path, cancellationToken, definitions), null);
         }
         catch (IncompatibleDatabaseException incompatible)
         {
@@ -184,15 +187,15 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
                     File.Move(path + suffix, aside + suffix);
                 }
             }
-            return (Open(path, cancellationToken), aside);
+            return (Open(path, cancellationToken, definitions), aside);
         }
     }
 
     /// <summary><see cref="OpenOrReplace"/> as a task.</summary>
-    public static async Task<(Store Journal, string? MovedAside)> OpenOrReplaceAsync(string path, CancellationToken cancellationToken)
+    public static async Task<(Store Journal, string? MovedAside)> OpenOrReplaceAsync(string path, CancellationToken cancellationToken, IGameDefinitionSemantics? definitions = null)
     {
         await Task.CompletedTask.ConfigureAwait(false);
-        return OpenOrReplace(path, cancellationToken);
+        return OpenOrReplace(path, cancellationToken, definitions);
     }
 
     /// <summary>
@@ -270,7 +273,7 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
         try
         {
             RetryBusy(() => OnConnection("BEGIN IMMEDIATE"), cancellationToken);
-            return new StoreTransaction(_connection, _gate, _plans, _rounds, Floors, cancellationToken);
+            return new StoreTransaction(_connection, _gate, _plans, _rounds, Floors, _definitions, cancellationToken);
         }
         catch
         {

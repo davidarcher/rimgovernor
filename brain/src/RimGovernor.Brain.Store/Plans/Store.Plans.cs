@@ -27,7 +27,7 @@ public sealed partial class Store
 
     internal static void CreatePlanIn(StoreTransaction tx, PlanSpec plan)
     {
-        plan.Validate();
+        plan.Validate(tx.Definitions);
         if (tx.Scalar("SELECT count(*) FROM plans WHERE retired=0") >= PlanCapacity)
         {
             throw new CapacityException();
@@ -114,7 +114,7 @@ public sealed partial class Store
             }
             actions.Add(StoreJson.Deserialize<DomainAction>(body));
         }
-        var plan = new PlanSpec(id, new PlanRevision(header.Revision), actions, LoadDependencies(tx, id));
+        var plan = new PlanSpec(id, new PlanRevision(header.Revision), actions, LoadDependencies(tx, id), tx.Definitions);
         var progress = new List<Progress>(actions.Count);
         var admissions = new List<ActionAdmission>();
         foreach (var a in actions)

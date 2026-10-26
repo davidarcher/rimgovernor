@@ -47,14 +47,14 @@ public sealed class OrphanStandardTests
     public void TradeMissionsRecordSurvivesSaveAndReload()
     {
         var ct = TestContext.Current.CancellationToken;
-        using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-missions-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-missions-" + Guid.NewGuid().ToString("N") + ".db"), ct, DefinitionSemanticsFixture.Instance);
         var home = new Store.World(World.Colony, World.Load, World.Map);
         source.SaveTradeMissions(new TradeMissionsRecord { World = home }.With("m-1", Mission(World)), ct);
 
         var saved = source.GovernorStateBlobs(ct);
         Assert.Contains(Journal.GovernorTradeMissionsKey, saved.Keys);
 
-        using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-missions-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-missions-" + Guid.NewGuid().ToString("N") + ".db"), ct, DefinitionSemanticsFixture.Instance);
         loaded.RebuildOwners(null, ct);
         loaded.RebuildFamilies(saved, ct);
         var reloaded = home with { Load = new("load-2") };
@@ -75,7 +75,7 @@ public sealed class OrphanStandardTests
     public void OldSaveTradeMissionStandardBlobLoadsAndIsDropped()
     {
         var ct = TestContext.Current.CancellationToken;
-        using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-old-mission-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        using var source = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-old-mission-" + Guid.NewGuid().ToString("N") + ".db"), ct, DefinitionSemanticsFixture.Instance);
         source.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = RimGovernor.Brain.Policy.Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a") }, ct);
         var saved = new Dictionary<string, string>(source.GovernorStateBlobs(ct), StringComparer.Ordinal);
 
@@ -85,7 +85,7 @@ public sealed class OrphanStandardTests
         standard["Mission"] = new JsonObject { ["HomeColony"] = "colony", ["Settlement"] = "settlement", ["Phase"] = "outbound" };
         saved[Journal.LegacyStandardKeyPrefix + "trade-mission-1"] = blob.ToJsonString();
 
-        using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-old-mission-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        using var loaded = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-old-mission-" + Guid.NewGuid().ToString("N") + ".db"), ct, DefinitionSemanticsFixture.Instance);
         loaded.RebuildOwners(null, ct);
         loaded.RebuildFamilies(saved, ct);
 

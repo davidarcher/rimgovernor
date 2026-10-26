@@ -92,7 +92,7 @@ public static class ServiceJournal
         {
             try
             {
-                return await Journal.OpenAsync(path, cancellationToken).ConfigureAwait(false);
+                return await Journal.OpenAsync(path, cancellationToken, RimGovernor.Brain.Bridge.GameDefinitionSemantics.Instance).ConfigureAwait(false);
             }
             catch (Exception e) when (e is not OperationCanceledException && DateTime.UtcNow <= deadline)
             {

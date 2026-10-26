@@ -15,13 +15,14 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
     private readonly SemaphoreSlim _gate;
     private bool _finished;
 
-    internal StoreTransaction(SqliteConnection connection, SemaphoreSlim gate, PlanCache plans, ReviewSlot rounds, RetirementFloors floors, CancellationToken cancellationToken)
+    internal StoreTransaction(SqliteConnection connection, SemaphoreSlim gate, PlanCache plans, ReviewSlot rounds, RetirementFloors floors, IGameDefinitionSemantics? definitions, CancellationToken cancellationToken)
     {
         _connection = connection;
         _gate = gate;
         Plans = plans;
         ReviewState = rounds;
         Floors = floors;
+        Definitions = definitions;
         Cancellation = cancellationToken;
     }
 
@@ -36,6 +37,8 @@ public sealed class StoreTransaction : IDisposable, IAsyncDisposable
 
     /// <summary>The token of the call that opened the transaction; each statement observes it.</summary>
     public CancellationToken Cancellation { get; }
+
+    internal IGameDefinitionSemantics? Definitions { get; }
 
     public void Commit()
     {

@@ -406,3 +406,10 @@ Selected practice references live role requirements through the existing Method 
 Journal version 57 stores pawn profile work hours and biotech effects directly, replacing older journals. Medical care history retains unresolved tracked patients until a current observation proves recovery; an absent patient is never evidence of recovery. These values remain in the existing review and medical history records; there is no second census store.
 
 The existing save-owned layout plan also retains each room's derived useful production loads (PlannedRoom.Production): recipe, bench definition and daily runs assigned by the station graph. Current catalog RecipeFlow/products join those assignments by reference at review; native product facts are never saved with the plan. Replanning replaces the assignments; they are not native facts or a second bill store. Journal version 60 requires this codec shape. Older saved layout blobs use the existing invalid-plan path and rederive on the next survey; other saved families retain their format. InventoryWalk consumption totals are transient evidence of one selected outcome, alongside its terminal stock, and have no durable store.
+
+Native definition semantics are an unpersisted validation service supplied when
+the host or acceptance reader opens the journal. Domain and Store retain their
+structural validation without importing game assemblies or persisting another
+identity table. The journal's service revalidates backup-wall plans on admission
+and replay, and currency budgets on trade mission writes, reads and save import.
+A caller's constructor validation never substitutes for journal validation.

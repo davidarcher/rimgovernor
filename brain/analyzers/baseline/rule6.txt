@@ -70,8 +70,6 @@ Runtime/BuildingPlanner.Temperature.cs|BuildingPlanner.SelectTemperature|"Campfi
 Runtime/TierStyle.cs|TierStyle.ShellStyleOf|"WoodLog"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.PrepareWorkshopAsync|"FermentingBarrel"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.SelectWorkshop|"FermentingBarrel"
-Domain/PlanSpec.cs|PlanSpec.PlanSpec|"Wall"
-Domain/TradeMission.cs|TradeMission.Validate|"Silver"
 Runtime/Client/GameClient.Defense.cs|GameClient.DefenseSpatialAccessBudgetMs|2500
 PlayerApi/LifecycleRoutes.cs|LifecycleRoutes.MaxLoadTimeoutMs|120000
 Policy/Acquisition.cs|AcquisitionRules.SelectAcquisition|"WoodLog"
@@ -184,7 +182,6 @@ Policy/TierStyle.cs|TierStyleRules.PlannedLighting|"WoodLog"
 Policy/Tomb.cs|TombRules.GraveDefinition|"Grave"
 Policy/TradeFavor.cs|TradePolicyRules.FavorSaleResource|"Gold"
 Policy/TradeRoutine.cs|TradePolicyRules.ComponentResource|"ComponentIndustrial"
-Store/Plans/BuildingDependency.cs|Store.WallCellsIn|"Wall"
 Telemetry/Otlp/MetricAggregator.cs|MetricAggregator.s_defaultBounds|2500
 Telemetry/Otlp/MetricAggregator.cs|MetricAggregator.s_defaultBounds|5000
 Telemetry/Otlp/MetricAggregator.cs|MetricAggregator.s_defaultBounds|7500

@@ -82,10 +82,12 @@ public sealed partial class Store
         {
             throw new CapacityException();
         }
+        if (named.Count == 0) return [];
+        var definitions = tx.Definitions ?? throw new DomainException("wall census requires native definition semantics");
         var standing = new HashSet<Cell>();
         foreach (var b in census.Buildings)
         {
-            if (b.Building?.Definition != "Wall")
+            if (!definitions.IsColonyWall(b.Building.Definition))
             {
                 continue;
             }

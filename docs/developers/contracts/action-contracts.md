@@ -289,3 +289,12 @@ an explicit policy result (for example unavailable production or no mortar sites
 Required room footprints, hospital haul ranking and install-item catalog prices
 likewise propagate invalid facts. A doorless room explicitly has no shell and
 requires no threshold footprint.
+
+Backup-wall bundles require the preceding building at the removal's exact cell,
+with an uncoupled dependency on that action. Their constructor receives native
+identity validation from the game-aware boundary; a purpose tag cannot establish
+that the prerequisite builds a wall. Journal admission validates again using its
+own boundary service, and replay applies the same check to decoded actions. The
+wall-clearance census uses that service too. Native dispatch still checks the
+live wall-upgrade site and legality. An unavailable validation service refuses
+the affected bundle.

@@ -106,9 +106,9 @@ public sealed class ForecastTradeExecutionTests
             [new(Arm, 3, 0) { Once = true, Silver = 800, Kinds = [new(1, ForecastTradeRequestTests.Offer(100))] }])
             { Departure = departure, HomeTile = 1 };
         var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
-        var mission = ForecastTradeExecution.Mission(option, world, 800, [new([Arm], 1)], []);
+        var mission = ForecastTradeExecution.Mission(option, world, 800, [new([Arm], 1)], [], DefinitionSemanticsFixture.Instance);
         Assert.Equal(TradeMissionPhase.Departing, mission.Phase);
-        Assert.Equal(departure, mission.Departure());
+        Assert.Equal(departure, mission.Departure(DefinitionSemanticsFixture.Instance));
         Assert.Equal(new CargoItem("Arm", 1), Assert.Single(mission.Demand));
         Assert.Equal(1, mission.HomeTile);
     }
@@ -171,15 +171,15 @@ public sealed class ForecastTradeExecutionTests
             ForecastCoupledSelection.CoupledConsequences(outcome), ForecastCoupledSelection.CoupledConsequences(outcome), [], GameTime.TicksPerDay, false),
             candidates, 1, "method", 100));
         var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
-        using var journal = RimGovernor.Brain.Store.Store.Open(Path.Combine(Path.GetTempPath(), "rg-selected-trade-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        using var journal = RimGovernor.Brain.Store.Store.Open(Path.Combine(Path.GetTempPath(), "rg-selected-trade-" + Guid.NewGuid().ToString("N") + ".db"), ct, DefinitionSemanticsFixture.Instance);
         journal.Review(new() { Current = world, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn") }, ct);
         var id = new PlanId("selected-trade");
         if (settlement)
         {
-            var mission = ForecastTradeExecution.Mission(option, world, 800, [new([Arm], 1)], []);
+            var mission = ForecastTradeExecution.Mission(option, world, 800, [new([Arm], 1)], [], DefinitionSemanticsFixture.Instance);
             var record = journal.LoadTradeMissions(new RimGovernor.Brain.Store.World(world.Colony, world.Load, world.Map), ct);
             var admitted = journal.CommitTradeMissionMethod(EconomyFamily.TradeMission, world, new("selected"), "", new(id, new(1),
-                [DomainAction.NewCaravanDepartureAction(new("departure"), mission.Departure())]), record.With(id.Value, mission), ct);
+                [DomainAction.NewCaravanDepartureAction(new("departure"), mission.Departure(DefinitionSemanticsFixture.Instance))]), record.With(id.Value, mission), ct);
             Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, admitted.Outcome);
             Assert.Equal(TradeMissionPhase.Departing, Assert.Single(journal.LoadTradeMissions(record.World, ct).Missions).Mission.Phase);
         }

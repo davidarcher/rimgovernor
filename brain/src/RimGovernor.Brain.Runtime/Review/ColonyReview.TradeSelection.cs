@@ -34,10 +34,10 @@ public sealed partial class ColonyReview
                 if (record.Missions.Count != 0) continue;
                 var mission = ForecastTradeExecution.Mission(option, snapshot,
                     TradePolicyRules.TradeMissionBudget(facts.Silver(), facts.Census.ColonistCount),
-                    ForecastTradeRequests.SelectedWaits(selection, candidates), candidates.Context.Stock.Medicines);
+                    ForecastTradeRequests.SelectedWaits(selection, candidates), candidates.Context.Stock.Medicines, RimGovernor.Brain.Bridge.GameDefinitionSemantics.Instance);
                 Record(Player.Journal.CommitTradeMissionMethod(EconomyFamily.TradeMission, snapshot, new MethodId("trade-depart/" + id.Value),
                     "selected stock arrival", new PlanSpec(id, new PlanRevision(1),
-                        [DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-departure"), mission.Departure())]),
+                        [DomainAction.NewCaravanDepartureAction(new ActionId(id.Value + "-departure"), mission.Departure(RimGovernor.Brain.Bridge.GameDefinitionSemantics.Instance))]),
                     record.With(id.Value, mission), call));
             }
             else if (work.Action is Trade visit)

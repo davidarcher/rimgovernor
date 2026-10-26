@@ -15,7 +15,9 @@ public readonly record struct ActionDependency(ActionId Action, ActionId Require
 /// </summary>
 public sealed record PlanSpec
 {
-    public PlanSpec(PlanId id, PlanRevision revision, IEnumerable<DomainAction> actions, IEnumerable<ActionDependency>? dependencies = null)
+    private readonly IGameDefinitionSemantics? _definitions;
+
+    public PlanSpec(PlanId id, PlanRevision revision, IEnumerable<DomainAction> actions, IEnumerable<ActionDependency>? dependencies = null, IGameDefinitionSemantics? definitions = null)
     {
         DomainException.Require(id.IsValid, "invalid plan identity");
         var list = actions.ToList();
@@ -35,7 +37,9 @@ public sealed record PlanSpec
             }
             if (a.WallRemoval is { BackupOf.IsEmpty: false } removal)
             {
-                var ok = seen.TryGetValue(removal.BackupOf, out var prerequisite) && prerequisite.Building is { } building && building.Definition == "Wall" && building.Cell == removal.Cell;
+                var ok = seen.TryGetValue(removal.BackupOf, out var prerequisite) && prerequisite.Building is { } building
+                    && (definitions ?? throw new DomainException("backup wall validation requires native definition semantics")).IsColonyWall(building.Definition)
+                    && building.Cell == removal.Cell;
                 DomainException.Require(ok, "backup wall removal requires its preceding backup wall at the same cell in the same bundle");
             }
             seen[a.Id] = a;
@@ -62,6 +66,7 @@ public sealed record PlanSpec
         Revision = revision;
         Actions = EquatableArray.From(list);
         Dependencies = EquatableArray.From(deps);
+        _definitions = definitions;
     }
 
     public PlanId Id { get; }
@@ -86,7 +91,10 @@ public sealed record PlanSpec
         return null;
     }
 
-    public void Validate() => _ = new PlanSpec(Id, Revision, Actions, Dependencies);
+    public void Validate() => Validate(_definitions);
+
+    /// <summary>Revalidates against the admission owner's native semantics, independently of the constructor's source.</summary>
+    public void Validate(IGameDefinitionSemantics? definitions) => _ = new PlanSpec(Id, Revision, Actions, Dependencies, definitions);
 
     private static List<ActionDependency> ValidateDependencies(Dictionary<ActionId, DomainAction> actions, IEnumerable<ActionDependency> dependencies)
     {

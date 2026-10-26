@@ -40,7 +40,7 @@ public static class ForecastTradeExecution
     }
 
     public static TradeMission Mission(ForecastSettlementMission option, GenerationSnapshot world, long silver,
-        IReadOnlyList<StockNeed> needs, IReadOnlyList<Resource> medicines)
+        IReadOnlyList<StockNeed> needs, IReadOnlyList<Resource> medicines, IGameDefinitionSemantics definitions)
     {
         var departure = option.Departure ?? throw new RequiredFactException("trade_mission_departure:" + option.Settlement);
         var offers = option.Sources.GroupBy(s => s.Resource).Select(g => new StockPurchaseOffer(g.Key.Value, g.Key, long.MaxValue,
@@ -54,7 +54,7 @@ public static class ForecastTradeExecution
             Negotiator = departure.Crew[0], SilverBudget = silver, Demand = EquatableArray.From(demand), Pack = departure.Cargo,
             Phase = TradeMissionPhase.Departing, ReturnHome = true,
         };
-        mission.Validate();
+        mission.Validate(definitions);
         return mission;
     }
 }

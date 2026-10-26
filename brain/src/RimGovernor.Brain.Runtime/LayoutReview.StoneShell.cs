@@ -200,7 +200,7 @@ public sealed partial class LayoutReview
             dependencies.Add(new ActionDependency(backupRemoveId, permanentId));
             dependencies.Add(new ActionDependency(backupRemoveId, backupIds[i]));
         }
-        var plan = new PlanSpec(id, new PlanRevision(1), actions, dependencies);
+        var plan = new PlanSpec(id, new PlanRevision(1), actions, dependencies, RimGovernor.Brain.Bridge.GameDefinitionSemantics.Instance);
         // The chosen wall's per-unit cost applies to every Wall this bundle places (each backup and the
         // permanent replacement), so admission's stock check runs against the combined bundle, not a per-action share.
         for (var i = 0; i < previews.Count; i++)

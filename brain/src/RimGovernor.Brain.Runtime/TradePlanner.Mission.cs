@@ -7,7 +7,7 @@ partial class TradePlanner
     {
         try
         {
-            m.Validate();
+            m.Validate(RimGovernor.Brain.Bridge.GameDefinitionSemantics.Instance);
             return true;
         }
         catch (DomainException)

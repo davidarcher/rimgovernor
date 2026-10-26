@@ -140,7 +140,7 @@ public sealed partial class TradePlanner
             if (observed) return MissionRecord(step, m with { Phase = observedPhase }, call);
             var departureId = PlanIds.MintPlanId();
             return MissionCommit(state, step, m with { Phase = TradeMissionPhase.Departing }, departureId,
-                DomainAction.NewCaravanDepartureAction(new ActionId(departureId + "-departure"), m.Departure()), "trade-depart", call, work.Epoch);
+                DomainAction.NewCaravanDepartureAction(new ActionId(departureId + "-departure"), m.Departure(RimGovernor.Brain.Bridge.GameDefinitionSemantics.Instance)), "trade-depart", call, work.Epoch);
         }
         if (m.Phase is TradeMissionPhase.Departing or TradeMissionPhase.Outbound)
         {
