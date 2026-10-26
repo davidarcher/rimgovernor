@@ -2,6 +2,54 @@
 
 [Documentation](../../README.md) · [Portfolio selection](../architecture/portfolio-selection.md) · [Pawn activities](pawn-activities.md)
 
+[Food evidence](../../requirements/food-security.md) records the separate executed
+native bottle-feeding and nursing claims and their limits.
+
+## Baby feeding
+
+Food derives each baby's hunger from the canonical needs read, including babies in
+a carry tracker. `BabyCareFoodRead.WantsFeeding` reads native `WantsSuckle`;
+current food level is observed separately from opportunities and active jobs.
+Possible nursing, food in storage and job start do not satisfy hunger. Missing food
+observations retain an unmet need with `baby_food_unobserved`.
+
+`BabyCareRules` assesses finite current provision, prioritizing lower observed
+food levels. This assessment neither chooses native caregivers nor reserves them.
+Depleted milk with future refill is not
+usable milk now. `ReadyToFeed` reads the native lactation activation predicate
+separately from charge/refill: positive charge below activation is still unready.
+Future opportunity bounds retain that refill observation. One caregiver cannot
+cover two simultaneous demands. Active native care retains its caregiver,
+including carrying and safe return. This is
+recomputed current capacity, not a milk ledger or a feeding-duration forecast.
+
+Shared admission withholds only observed active care capacity from fresh work.
+Vanilla selects its legal feeding jobs, caregivers, food, seating and safe return.
+There is no advance caregiver release. An actual native takeover invalidates the
+old job handle and publishes a pawn-fact invalidation; the worker re-reads ownership
+and reconciles the installed Method through the journal and Hands. It releases
+only exact remaining participants and never ends the replacement care job.
+The normal 600-tick review cadence reassesses hunger, interruption, changed
+supply and eligible alternatives. Active bottle-feeding may accumulate nutrition
+before ingestion; unchanged food on one sample does not cancel care. Actual
+partial intake stays in the next observation; the response never refunds or
+replays consumption. No usable alternative leaves an explicit
+`no_usable_feeding_opportunity` blocker.
+
+A selected shared graph that binds no native order reports the existing
+`coupled_selection` decision with target `no_dispatchable_activity`; its selected
+tasks and consequence findings remain inspectable rather than disappearing at binding.
+
+Provision is separate: the existing food owner bills suitable stock when current
+usable nursing does not cover the baby-food floor. Capability counts no longer
+exempt the colony from provision, and stock alone never certifies feeding.
+
+The colony model keeps babies outside independent labor and meal-service cycles.
+Their food demand remains in the existing other-consumer nutrition accounting;
+the presence of a baby must not fault the review before childcare can respond.
+
+## Shared support methods
+
 Support work serves observed production, care or material demand. Family providers
 offer exact care, surgery and delivery operations to the existing shared composition
 and ColonyForecast comparison. Policy chooses participants, quantities and timing;

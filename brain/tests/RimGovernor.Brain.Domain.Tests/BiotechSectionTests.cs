@@ -28,8 +28,6 @@ public sealed class BiotechSectionTests
         GeneBanks = [new RimGovernor.Brain.GameFacts.Observations.GeneBankState { Position = new Cell(1, 1), Capacity = 4, PackIds = ["Thing_Genepack1"] }],
         GeneAssemblers = [new RimGovernor.Brain.GameFacts.Observations.GeneAssemblerState { Position = new Cell(2, 1) }],
         Genepacks = [new RimGovernor.Brain.GameFacts.Observations.GenepackState { BankId = "Thing_GeneBank1" }, new RimGovernor.Brain.GameFacts.Observations.GenepackState { BankId = null }],
-        Babies = ["Thing_Human2"],
-        Breastfeeders = ["Thing_Human1"],
     };
 
     [Fact]
@@ -40,7 +38,7 @@ public sealed class BiotechSectionTests
         var json = OrdersJson.Serialize(section);
 
         Assert.Equal(
-            """{"type":"active","facts":{"pollutedUncoveredCells":7,"wastepacks":[{"thingId":"Thing_Wastepack1","defName":"Wastepack","position":{"x":3,"z":4},"count":5,"frozen":false,"inAtomizer":false,"forbidden":true}],"atomizers":[{"position":{"x":8,"z":9}}],"gestators":[{"billId":"Bill_Mech1","wasteCount":2},{"billId":null,"wasteCount":0}],"chargers":[{"powered":true,"fullOfWaste":false,"chargingMechId":null}],"geneBanks":[{"position":{"x":1,"z":1},"capacity":4,"packIds":["Thing_Genepack1"]}],"geneAssemblers":[{"position":{"x":2,"z":1}}],"genepacks":[{"bankId":"Thing_GeneBank1"},{"bankId":null}],"babies":["Thing_Human2"],"breastfeeders":["Thing_Human1"]}}""",
+            """{"type":"active","facts":{"pollutedUncoveredCells":7,"wastepacks":[{"thingId":"Thing_Wastepack1","defName":"Wastepack","position":{"x":3,"z":4},"count":5,"frozen":false,"inAtomizer":false,"forbidden":true}],"atomizers":[{"position":{"x":8,"z":9}}],"gestators":[{"billId":"Bill_Mech1","wasteCount":2},{"billId":null,"wasteCount":0}],"chargers":[{"powered":true,"fullOfWaste":false,"chargingMechId":null}],"geneBanks":[{"position":{"x":1,"z":1},"capacity":4,"packIds":["Thing_Genepack1"]}],"geneAssemblers":[{"position":{"x":2,"z":1}}],"genepacks":[{"bankId":"Thing_GeneBank1"},{"bankId":null}]}}""",
             json);
         Assert.Equal(section, OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.BiotechSection>(json));
         Assert.Equal("""{"type":"inactive"}""", OrdersJson.Serialize(NoBiotech));

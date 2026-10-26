@@ -1,19 +1,13 @@
 namespace RimGovernor.Brain.Policy;
 
-// The food family's baby-feeding Need keeps babies fed. The game feeds a baby itself: a lactating pawn breastfeeds
-// any baby, otherwise a colonist on Childcare work bottle-feeds it food it can eat (baby food, milk or insect jelly).
-// Childcare is pinned work for every pawn already, so the one thing the colony owes is the food: with no
-// breastfeeder and too little baby-edible stock, the work ledger places a standing target-count bill for a
-// baby-edible recipe through the existing production bill write.
-
 /// <summary>
 /// The review of baby food: what the babies' foods hold against what they need. <see cref="IsShort"/> leaves the
 /// food/baby-feeding Need unmet.
 /// </summary>
 public sealed record BabyFeeding
 {
-    /// <summary>A colonist can breastfeed, which feeds every baby.</summary>
-    public bool Breastfed { get; init; }
+    /// <summary>Each baby's observed hunger and current native care, distinct from provision.</summary>
+    public EquatableArray<BabyFeedingStatus> Care { get; init; }
 
     /// <summary>The shared baby-edible nutrition (stocks a baby eats).</summary>
     public double StockNutrition { get; init; }
@@ -42,12 +36,13 @@ public static class BabyFeedingRules
     /// <paramref name="targetDays"/>, at least the game's alert threshold per baby. A baby with no known
     /// consumer row throws.
     /// </summary>
-    public static BabyFeeding ReviewBabyFeeding(IReadOnlyList<PawnId> babies, int breastfeeders, FoodSupply supply, double targetDays)
+    public static BabyFeeding ReviewBabyFeeding(IReadOnlyList<PawnId> babies,
+        EquatableArray<BabyFeedingStatus> care, FoodSupply supply, double targetDays)
     {
         var byDefinition = new Dictionary<Resource, double>();
         var r = new BabyFeeding
         {
-            Breastfed = breastfeeders > 0,
+            Care = care,
             ByDefinition = byDefinition,
         };
         if (babies.Count == 0)
@@ -73,6 +68,8 @@ public static class BabyFeedingRules
         }
 
         DomainException.Require(found == isBaby.Count, "food facts unavailable");
+        DomainException.Require(care.Count == isBaby.Count && care.Select(c => c.Baby).Distinct(StringComparer.Ordinal).Count() == care.Count
+            && care.All(c => isBaby.Contains(new PawnId(c.Baby))), "baby care facts unavailable");
         var stockNutrition = 0.0;
         foreach (var s in supply.Stocks)
         {
@@ -94,12 +91,15 @@ public static class BabyFeedingRules
             }
         }
 
-        var floor = babies.Count * BabyFoodAlertNutrition;
+        // Only currently usable nursing covers provision; a nursing-capable pawn count cannot cover every baby.
+        var nursing = care.Count(c => c.Opportunity?.Kind == RimGovernor.Brain.GameFacts.Observations.BabyCareKind.Breastfeed
+            || c.Active?.Kind == RimGovernor.Brain.GameFacts.Observations.BabyCareKind.Breastfeed);
+        var floor = (babies.Count - nursing) * BabyFoodAlertNutrition;
         return r with
         {
             StockNutrition = stockNutrition,
             TargetNutrition = Math.Max(perDay * targetDays, floor),
-            IsShort = !r.Breastfed && stockNutrition < floor,
+            IsShort = stockNutrition < floor,
         };
     }
 

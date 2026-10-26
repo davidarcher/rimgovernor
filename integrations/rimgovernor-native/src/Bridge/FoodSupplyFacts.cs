@@ -13,6 +13,9 @@ namespace RimGovernor.Native
     {
         internal static Snapshot Read(List<Pawn> people, List<Thing> shared)
         {
+            // Pickup does not remove a dependent's appetite or food-policy eligibility from the census.
+            people = people.Concat(people.Select(p => p.carryTracker?.CarriedThing).OfType<Pawn>()
+                .Where(p => !p.Dead && p.DevelopmentalStage.Baby())).Distinct().ToList();
             var stocks = new List<StockFacts>();
             var seen = new HashSet<int>();
             var consumers = people.Where(p => p.needs?.food != null).Select(p => new ConsumerFacts {

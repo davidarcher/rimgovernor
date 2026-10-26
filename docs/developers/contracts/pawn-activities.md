@@ -1,5 +1,12 @@
 # Planner-owned pawn activities
 
+Native baby feeding and its associated safe return are occupied work. A standing
+colonist doing that care is not preemptible, including while carrying the baby
+after ingestion. Native admission rechecks care occupation for every productive
+order, closing the race where feeding starts after the planning read. Exact
+release cleanup remains admissible. Actual native takeover detaches the old
+governor handle; vanilla's normal finalizer performs safe return.
+
 `PawnActivities` is the existing Hands intent for atomic exact assignments. Its
 Method journals selected tasks, prerequisite edges, participants, absolute departure
 windows and remaining obligations. It has no separate scheduler or workflow store.
@@ -319,12 +326,14 @@ forecast credit. Interrupted collection can leave carried or placed ingredients;
 there is no automatic retry, refund or assertion that those inputs remain at
 their original locations.
 
-For owned pawns the normal and constant think-tree selection paths are intercepted.
-Override probes cannot consume/restart assignments. Opportunistic prefixes and
-optional finalizer jobs are suppressed; the underlying driver's cleanup and
-reservation handling still run. Existing queued/player-forced work refuses initial
-acquisition instead of being erased. Native work priorities and timetables do not
-select activities inside this boundary. Uncontrolled pawns keep native behavior.
+The requested first job is offered for an installed assignment. Once work runs,
+native selection and overrides can choose replacements; constant think-tree,
+opportunistic work and native finalizers run normally. Merely considering a job
+does not revoke an assignment. An actually installed different job ends the old
+execution handle, and shared continuation reconciles its remaining commitments.
+Job completion does not force the bot's next step back over native selection.
+Existing queued/player-forced work still refuses initial acquisition instead of
+being erased. Remaining exact routine callers are tracked in the labor migration.
 
 A selected native Job is identified by both reference and load ID, so pooling
 cannot transfer ownership. Actual StartJob and EndCurrentJob hooks distinguish an
@@ -494,11 +503,13 @@ all rejected alternatives and forecast graphs are transient.
 
 ## Voluntary ownership and bounded no-change
 
-Active authority intercepts voluntary selection only for a controlled colonist
-that holds a committed order: its selection, constant think-tree checks,
-opportunistic work, finalizers and job starts are the order's. Existing exact
-orders may finish; player work, drafted pawns, involuntary states and burning
-retain their native or protective owner.
+An installed order offers its first job; it does not own the pawn's future native
+choices. Native replacement is observed after job installation using both job
+reference and load ID. The old execution handle is detached without terminating
+the replacement or its cleanup. Player work, drafting, involuntary states and
+burning retain their native or protective behavior. This changes execution;
+routine exact candidate migration and meaningful intervention admission remain
+tracked in the labor change.
 
 A controlled colonist with no committed order runs vanilla job selection (#3669,
 replacing the explicit `Standby` order of #3662): every one of those entries
@@ -507,7 +518,8 @@ colonist's work priorities, and designations, bills and zones with no coupled
 binding are worked. When comparison retains no change for an available pawn, the
 review installs nothing for it; there is no timed idle (the bounded 600-tick Idle
 kind is gone) and no standby order. Hold remains solely an already-authorized
-task dependency. An unowned colonist claims no pawn or target, so selected work,
+task dependency in intent; it offers no native waiting job. Native selection can
+take over while that dependency waits. An unowned colonist claims no pawn or target, so selected work,
 eat or sleep acquires it from revision zero and interrupts its vanilla job. Work
 candidacy and food/support availability treat it as free (`NativePawnActivities.Standing`).
 The pawn read reports its real vanilla job with `JobEvidence.preemptible` set
@@ -516,14 +528,12 @@ holds, so a coupled order on that target is not refused for it. Changing authori
 an unowned colonist's vanilla job running; it only releases stale orders. Native
 publishes nothing for an unowned colonist (#3556; the `unassigned_voluntary_pawn`
 invalidation is gone), and the next colony review reads it in the census. See [supported scope and remaining owners](voluntary-control.md).
-Native disorientation and the native imposed-sleep/force-job ability effects retain
-their direct job authority through exact source-method scopes. The scope applies only
-to the affected pawn, restores on exceptions, and records interruption/release of any
-voluntary assignment. It does not authorize arbitrary LayDown or Goto jobs.
+Native disorientation, imposed sleep and ordinary replacement jobs use the same
+actual-job takeover observation; there are no source-method permission scopes.
 
-Early native completion before the next selected task's departure installs that
-task's bounded preparation under a new journal revision. The terminal old order
-does not grant clock progress; preparation preserves the original deadline and
-waits for the selected departure and observed prerequisites.
+Early native completion may journal preparation for a later task under a new
+revision. It offers no indefinite native wait and cannot block native choice
+until the selected departure. Any actual takeover is reconciled from fresh
+ownership instead of reinstalling that future task over the replacement.
 
 Selected range/sparring use the existing Work step with a typed practice (skill, partner, partner marker, duration; no role mandate since #3813) and reciprocal exact participants. See [assigned capability maintenance](capability-maintenance.md) for who practises, bounded execution and uncertainty. Native autonomous roster/skill selection is disabled under active bot authority for the current map; uncontrolled behavior remains native.

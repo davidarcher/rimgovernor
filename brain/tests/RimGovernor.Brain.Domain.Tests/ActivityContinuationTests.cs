@@ -33,6 +33,37 @@ public sealed class ActivityContinuationTests
     private static Journal Open(CancellationToken ct) => Journal.Open(Path.Combine(Path.GetTempPath(),
         "rg-continuation-" + Guid.NewGuid().ToString("N") + ".db"), ct);
 
+    [Fact]
+    public void NativeTakeoverReconcilesDependentWorkThroughTheJournalWithoutReleasingTheNewOwner()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Open(ct);
+        var helper = Order with { Pawn = "helper", Assignment = "helper-assignment", Task = "dependent" };
+        var producer = Order with { Pawn = "producer", Assignment = "producer-assignment", Task = "unrelated" };
+        var batch = Batch with { Orders = [Order with { Task = "partial" }, helper, producer], Tasks =
+        [new("partial", "pawn", [], Order.Steps[0], new(0, 0), 100),
+            new("dependent", "helper", ["partial"], Order.Steps[0], new(0, 0), 100),
+            new("unrelated", "producer", [], Order.Steps[0], new(0, 0), 100)] };
+        var initial = Plan("care-initial", batch);
+        Admit(journal, initial, ct);
+        ActivityOwnership[] observed = [new("pawn", "", "", 0, "unowned"), new("helper", helper.Assignment, "method", 1, "holding"),
+            new("producer", producer.Assignment, "method", 1, "running")];
+        Assert.Null(ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Owed, 110, observed[..1]).Release);
+        Assert.False(journal.LoadPlan(initial.Id, ct).Retired);
+        var release = ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Owed, 110, observed).Release!;
+        Assert.DoesNotContain(release.Orders, o => o.Pawn == "pawn");
+        Assert.All(release.Orders, o =>
+        { Assert.True(o.Release); Assert.Equal(1, o.ExpectedRevision); Assert.Equal(2, o.Revision); });
+        Assert.Empty(release.Tasks);
+        var next = Plan("care-release", release);
+        Assert.Equal(ActivityContinuationAdmission.Admitted,
+            journal.ContinueActivityMethod(initial.Id, Root, new(110), observed, next, ct));
+        Assert.True(journal.LoadPlan(initial.Id, ct).Retired);
+        var persisted = journal.LoadPlan(next.Id, ct).Spec.Actions[0].PawnActivities!;
+        Assert.Equal(release.Tasks, persisted.Tasks);
+        Assert.All(release.Orders.Zip(persisted.Orders), pair => Assert.True(PawnActivities.SameOrder(pair.First, pair.Second)));
+    }
+
     /// <summary>#3624: a coupled worker read completed while a recipe is left is one finished task, keyed by its order, so a
     /// continuation deferred at that boundary and read again is the same event; none when no recipe is left or mid-task.</summary>
     [Fact]

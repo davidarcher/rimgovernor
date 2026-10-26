@@ -85,9 +85,6 @@ namespace RimGovernor.Native
             foreach(var p in worker.Map.mapPawns.FreeColonistsSpawned.Where(p=>p!=worker&&p!=helper)) p.workSettings?.DisableAll();
             NativePawnActivities.Apply(batch,c);
             NativePawnActivities.Apply(batch,c); // Idempotent reinstall must not restart work.
-            var before=NativePawnActivities.Read(worker);
-            for(var i=0;i<8;i++)worker.jobs.CheckForJobOverride();
-            if(NativePawnActivities.Read(worker)!=before)throw new InvalidOperationException("Override probes consumed an assignment.");
             var stale=batch with { Orders=new[]{workerOrder with { Revision=2,ExpectedRevision=0 }} };
             if(NativePawnActivities.Validate(stale,c)==null)throw new InvalidOperationException("Stale revision accepted.");
             return FixtureKit.Reply(new Fx.FixtureDone { Success=true });
@@ -125,6 +122,7 @@ namespace RimGovernor.Native
                 case "preemption": Preemption(); break;
                 case "release": Release(); break;
                 case "overrides": Overrides(); break;
+                case "takeover": Takeover(); break;
                 case "player": Player(); break;
                 default: throw new ArgumentException($"Unknown probe \"{probe}\".");
             }
@@ -142,18 +140,33 @@ namespace RimGovernor.Native
             if(NativePawnActivities.Validate(invalid,c)==null || NativePawnActivities.Read(worker!)!=original)throw new InvalidOperationException("Invalid batch was not atomic.");
         }
 
-        // A hold's deadline ends its authorization without resetting, and the failed task-backed hold holds the clock.
+        // A waiting dependency must leave native selection available instead of installing an eternal bot wait.
+        private static void Takeover()
+        {
+            var offered=Offer();
+            if(!offered.IsValid)throw new InvalidOperationException("Initial ordinary work offer missing.");
+            worker!.jobs.StartJob(offered.Job,JobCondition.InterruptForced,offered.SourceNode);
+            var installed=NativePawnActivities.Read(worker)??throw new InvalidOperationException("Started offered work lost its handle.");
+            // Considering a native alternative is not a takeover.
+            _=Offer();
+            if(NativePawnActivities.Read(worker)!=installed)throw new InvalidOperationException("Considering an alternative invalidated running work.");
+            var replacement=JobMaker.MakeJob(JobDefOf.Wait,40);
+            worker.jobs.StartJob(replacement,JobCondition.InterruptForced);
+            if(!ReferenceEquals(worker.CurJob,replacement)||NativePawnActivities.Owned(worker))
+                throw new InvalidOperationException("Actual native replacement failed to detach only the old handle.");
+            worker.jobs.EndCurrentJob(JobCondition.Succeeded);
+            if(NativePawnActivities.Owned(worker)||ReferenceEquals(worker.CurJob,offered.Job))
+                throw new InvalidOperationException("Ending replacement reinstalled the stale attempt.");
+        }
+
+        // A waiting dependency must leave native selection available instead of installing an eternal bot wait.
         private static void Deadline()
         {
             Install(Revised(workerOrder!,Hold(Find.TickManager.TicksGame+2)) with {Task="terminal-fixture"});
             var offer=Offer();
-            if(!offer.IsValid)throw new InvalidOperationException("Hold offer missing.");
+            if(!offer.IsValid)throw new InvalidOperationException("Native selection returned no work while a dependency waited.");
             worker!.jobs.StartJob(offer.Job,JobCondition.InterruptForced,offer.SourceNode);
-            for(var i=0;i<3;i++)Find.TickManager.DoSingleTick();
-            if(NativePawnActivities.Read(worker)?.Reason!="hold_deadline")throw new InvalidOperationException("Hold deadline did not terminate authorization.");
-            Find.TickManager.CurTimeSpeed=TimeSpeed.Normal;
-            NativePawnActivities.WaitTick(worker);
-            if(!Find.TickManager.Paused)throw new InvalidOperationException("Failed task-backed hold allowed time without continuation.");
+            if(NativePawnActivities.Owned(worker))throw new InvalidOperationException("Native takeover retained stale dependency ownership.");
         }
 
         // Work the native game refuses (repairing an undamaged bed) fails the execution visibly.
@@ -233,16 +246,12 @@ namespace RimGovernor.Native
             imposedSleep.Apply(new LocalTargetInfo(worker),LocalTargetInfo.Invalid);
             if(NativePawnActivities.Owned(worker)||worker.CurJob?.def!=JobDefOf.LayDown||worker.CurJob.forceSleep!=true)
                 throw new InvalidOperationException("Native imposed sleep did not release voluntary ownership.");
-            var sourceThrew=false;
-            try { new CompAbilityEffect_PutToSleep().Apply(new LocalTargetInfo(worker),LocalTargetInfo.Invalid); }
-            catch(NullReferenceException) { sourceThrew=true; }
-            if(!sourceThrew)throw new InvalidOperationException("Imposed-effect exception probe did not reach its failing native source.");
-            // Only an owned pawn refuses a job its order did not offer: an unowned one runs vanilla (#3669).
+            // Every actual native replacement is observed, including ordinary work after nested cleanup.
             Install(Fresh());
             var afterImposed=JobMaker.MakeJob(JobDefOf.Wait,40);
             worker.jobs.StartJob(afterImposed,JobCondition.InterruptForced);
-            if(ReferenceEquals(worker.CurJob,afterImposed))
-                throw new InvalidOperationException("Native imposed-effect permission leaked beyond its source or exception.");
+            if(!ReferenceEquals(worker.CurJob,afterImposed)||NativePawnActivities.Owned(worker))
+                throw new InvalidOperationException("Native replacement retained stale execution ownership.");
         }
 
         // A player's ordered job and a direct native menu command each take the pawn from Hands ownership.

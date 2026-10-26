@@ -569,10 +569,16 @@ Every row is a spawned player-owned thing on the colony map:
 - `gene_banks` (buildings with `CompGenepackContainer`: cell, capacity, held
   pack ids), `gene_assemblers` (cells) and `genepacks` (the bank holding each
   pack, null for a pack spawned loose).
-- `babies` (player humanlike Newborn or Baby pawn ids) and `breastfeeders`
-  (the pawns `ChildcareUtility.CanBreastfeedPlayerPawns` names).
 
-Verdicts come from the game (comps, buildings, `ChildcareUtility`), never
+Baby identity, hunger and care use `NeedsForecastRead.Babies.Babies`, including
+carried babies, rather than separate Biotech identity/capability counts.
+`BabyCareFoodRead.WantsFeeding` is native `ChildcareUtility.WantsSuckle`.
+`BabyCareOpportunityRead.ReadyToFeed` distinguishes current milk activation or
+usable bottle food from a conditional future opportunity with lactation refill.
+Food level, opportunities and active care are separate observations; none of the
+latter two certifies intake. See [baby care](../../docs/developers/contracts/support-work.md#baby-feeding).
+
+Verdicts come from the game (comps and buildings), never
 def-name lists. `ColonyProjection.BiotechSection` carries the section as read;
 `observation.BiotechColonyReads` lifts it into the policy inputs (the recharge
 policy's chargers, the gestation review's gestators and wastepacks, the

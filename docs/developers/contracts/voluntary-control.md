@@ -1,10 +1,20 @@
 # Voluntary control
 
-Ordinary controlled-pawn work belongs to the shared Concern/Method path:
+Vanilla owns baby feeding selection and mechanics. Food observes hungry dependents
+and current provision without assigning or reserving a prospective caregiver. Active
+feeding and carrying/return keep both caregiver and baby occupied independently
+of a food-level increase. Native admission rechecks actual occupation. Other
+native replacements are observed through the same takeover path.
+See [support work](support-work.md#baby-feeding).
+
+Bot work intent belongs to the shared Need/Method path:
 native observations → candidate generation → ColonyForecast comparison →
 Method admission and journal → Hands → observed completion and revision.
-A proposal rejected by shared resource admission remains uncommitted and is reported as deferred; existing Methods keep authority and continue. An accepted intent is not completed work. Neither a timetable nor an adviser
-may choose a competing ordinary job for a controlled pawn.
+A proposal rejected by shared resource admission remains uncommitted and is reported
+as deferred; existing Methods continue against current observations. An accepted
+intent is not completed work. Native job selection remains available after the
+requested first job. The labor migration
+still has exact routine callers; their comparison and binding are pending migration.
 
 The [pawn activity contract](pawn-activities.md) owns exact execution and the
 [continuation contract](method-continuation.md) owns release after the originating
@@ -59,6 +69,14 @@ pawns or tasks) is admitted in the same review (#3598). A forecast of future wor
 after retention does not authorize a second owner for the same pawn.
 
 ## Control boundary and unsupported states
+
+The native-led labor migration now permits native takeover after an installed
+assignment offers its first job. Native overrides, constant selection,
+opportunistic work and finalizers are not suppressed. Only an actual installed
+replacement invalidates the old execution handle; worker continuation reconciles
+the affected Method without restoring the displaced job over native care.
+The [labor inventory](../../requirements/colony-labor.md) tracks routine exact
+callers still awaiting migration; their existence does not make this work complete.
 
 The native selection boundary distinguishes controlled voluntary work from
 simulation and protection. Inactive authority and uncontrolled pawns retain

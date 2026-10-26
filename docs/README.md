@@ -15,6 +15,8 @@ The [OpenSpec food pilot](../openspec/README.md) separates
 [food decision record and related production drafts](../openspec/changes/redefine-food-requirements/proposal.md)
 capture the maintainer-confirmed replacement for the recovered baseline.
 
+The [native-led labor change](../openspec/changes/native-led-labor-execution/proposal.md) defines the new routine execution direction; [labor evidence and migration coverage](requirements/colony-labor.md) records actual implementation status and proof limits.
+
 | Task | Guide |
 | --- | --- |
 | Install and prepare the game | [Setup](players/setup.md) |

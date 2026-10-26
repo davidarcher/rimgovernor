@@ -271,8 +271,9 @@ public sealed class FoodFamilyTests
         var stocked = BabyFeedingOf(new() { BabyFeeding = new BabyFeeding { StockNutrition = 10, TargetNutrition = 5 } });
         Assert.Equal((FoodRules.BabyFeedingNeed, NeedTier.Wellbeing, Satisfaction.Met, 0.0), (stocked.Id, stocked.Tier, stocked.Satisfaction, stocked.Deficit));
 
-        var breastfed = BabyFeedingOf(new() { BabyFeeding = new BabyFeeding { Breastfed = true } });
-        Assert.Equal(Satisfaction.Met, breastfed.Satisfaction);
+        var hungry = BabyFeedingOf(new() { BabyFeeding = new BabyFeeding
+            { StockNutrition = 10, Care = [new("baby", true, null, null, "no_usable_feeding_opportunity")] } });
+        Assert.Equal(Satisfaction.Unmet, hungry.Satisfaction);
 
         var shortFood = BabyFeedingOf(new() { BabyFeeding = new BabyFeeding { TargetNutrition = 5, IsShort = true } });
         Assert.Equal((Satisfaction.Unmet, 1.0), (shortFood.Satisfaction, shortFood.Deficit));
@@ -296,7 +297,7 @@ public sealed class FoodFamilyTests
         Assert.Equal((Satisfaction.Unmet, 1.0), (standing.Satisfaction, standing.Deficit));
 
         Assert.Equal(Satisfaction.Met, BlightOf(new()).Satisfaction);
-        var all = SupplyFacts() with { Cooking = false, BabyFeeding = new BabyFeeding { Breastfed = true }, Blight = [] };
+        var all = SupplyFacts() with { Cooking = false, BabyFeeding = new BabyFeeding(), Blight = [] };
         Assert.Equal([FoodRules.FoodSupplyNeed, FoodRules.CookingNeed, FoodRules.BabyFeedingNeed, FoodRules.BlightNeed], new FoodFamily(true, true, true, true).Derive(all).Select(n => n.Id));
     }
 

@@ -130,7 +130,7 @@ internal static class NeedsFarMealStandby
         }
     }
 
-    // Whether the colonist started a vanilla job (no Hands assignment, not the governor's hold) after the brain's first
+    // Whether the colonist started a vanilla job (no Hands assignment) after the brain's first
     // review: the review left it unheld (#3669).
     private static bool Released(TypedSession s, string pawn)
     {
@@ -139,7 +139,7 @@ internal static class NeedsFarMealStandby
         var first = reviews.Min();
         return s.Telemetry(TelemetryKinds.PawnActivityInterval).Any(r =>
             Text(r, PawnActivityTelemetry.PawnKey) == pawn && Text(r, PawnActivityTelemetry.AssignmentKey).Length == 0
-            && Text(r, "job") is { Length: > 0 } job && job != "RimGovernorWait"
+            && Text(r, "job") is { Length: > 0 }
             && r.Payload.GetValueOrDefault(PawnActivityTelemetry.StartTickKey) is { } start
             && Convert.ToInt64(start, CultureInfo.InvariantCulture) > first);
     }

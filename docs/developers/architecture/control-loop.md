@@ -464,12 +464,15 @@ keyed to the Need; the coupled-candidate gate reads `ReviewFacts.AvailableNeeds`
 **Food, baby feeding and blight (#3254).** MaintainBabyFeeding and RemoveBlight
 are the `food/baby-feeding` and `food/blight` Needs (`BabyFeedingNeedOf`,
 `BlightNeedOf`), Wellbeing Needs of the same `food` entry. Baby feeding is
-composed by the bill toggle: unmet while babies live, no colonist can breastfeed
-and the stock a baby eats is under the low-baby-food floor; an unread
-review raises `RequiredFactException`. Its one remedy is the standing baby food bill, which
-`BabyFoodDeclarer` declares to the work ledger under the Need's filing key
-(nothing while met); the family has no Methods of its
-own for it, so its work verdict waits on the bill (`baby_food_bill`). Blight is
+composed by the bill toggle: unmet while a baby is hungry or suitable provision
+is short. The canonical needs census includes carried babies. Current usable
+nursing can cover provision; capability alone cannot establish feeding adequacy.
+Shared admission withholds current caregiver capacity and Food withdraws competing
+Method work through exact journal revisions and Hands. Vanilla chooses feeding
+and safe return; both remain protected against new orders. Missing provision
+still goes through `BabyFoodDeclarer` under the Need's filing key
+(`baby_food_bill`); other waits expose current care or access blockers. See
+[baby feeding](../contracts/support-work.md#baby-feeding). Blight is
 composed by the blight toggle: unmet while any blighted plant stands (designated
 or not, since the cut meets it, not the order), met on an empty census; an unread census
 raises `RequiredFactException`. Its Method is the family's pure proposal of the next batch of at most

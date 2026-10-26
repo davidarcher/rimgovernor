@@ -120,6 +120,76 @@ public sealed class FoodActivityContinuationTests
         }
     }
 
+    private sealed class TakeoverReads : IArrivalPawns, IActivityTaskSource
+    {
+        internal readonly TaskCompletionSource First = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal bool TakenOver;
+        private static RimGovernor.Brain.GameFacts.Common.ObservationContext Context => new()
+        { Identity = Boundary.Identity(Root), NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(1), Tick = 200 };
+        public Task<ActivityTaskRead> ReadActivityTasksAsync(ActivityTaskRequest request, CancellationToken ct)
+        {
+            var lost = Volatile.Read(ref TakenOver);
+            var read = ConstructionFixtures.NoTasks() with
+            {
+                Context = Context,
+                Pawns = EquatableArray.From(request.Batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
+                    lost && o.Pawn == "pawn" ? null : new(o.Assignment, o.Method, o.Revision, 0, "started", "", 200)))),
+            };
+            First.TrySetResult();
+            return Task.FromResult(read);
+        }
+        public Task<ConstructionActivityRead> ReadConstructionActivityAsync(ConstructionActivityRequest request, CancellationToken ct) => Task.FromResult(ConstructionFixtures.NoConstruction());
+        public Task<PawnSnapshot> ReadPawnsAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
+            Task.FromResult(new PawnSnapshot { Context = Context, Pawns = [] });
+    }
+
+    [Fact]
+    public async Task NativeTakeoverInvalidationWakesTheWorkerAndDispatchesOnlyExactRemainingRelease()
+    {
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var ct = lifetime.Token;
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-takeover-worker-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        IntentActionRules.RegisterIntentKinds();
+        journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn", "helper") }, ct);
+        var batch = Harvest();
+        var helper = batch.Orders[0] with { Pawn = "helper", Assignment = "method/helper", Task = "", Steps =
+            [new(PawnActivityKind.Hold, "", "", "", 0, 500)] };
+        batch = batch with { Orders = [batch.Orders[0], helper] };
+        var plan = new PlanSpec(new("takeover"), new(1), [DomainAction.NewPawnActivitiesAction(new("takeover-action"), batch)]);
+        TestNeed.Commit(journal, Root, new("method"), plan, ct);
+        TestNeed.File(journal, met: false, new("method"), ct);
+        var scope = Root with { Plan = plan.Id };
+        journal.Prepare(plan.Id, plan.Actions[0].Id, scope, new(100), ct);
+        var dispatched = journal.Dispatch(plan.Id, plan.Actions[0].Id, scope, new(100), ct);
+        journal.RecordReceipt(plan.Id, plan.Actions[0].Id, dispatched.View.Attempt, Receipt.Accepted, ct);
+        var session = new DispatchSession(journal);
+        using var player = Player.Create(new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, session, new Worlds(), ct);
+        var reads = new TakeoverReads();
+        var wake = new WakeSignal();
+        var worker = Worker.CreateInternal(new() { ReviewMethods = true, Pawns = reads, Wake = wake,
+            StepInterval = TimeSpan.FromMinutes(1), MaxBackoff = TimeSpan.FromMinutes(1), StepTimeout = TimeSpan.FromSeconds(5) }, player, session, ct);
+        try
+        {
+            await reads.First.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.False(session.Sent.Task.IsCompleted);
+            Volatile.Write(ref reads.TakenOver, true);
+            RimGovernor.Brain.Bridge.ColonyEvent[] events = [new RimGovernor.Brain.Bridge.ObservationInvalidated(
+                new("colony", "load", 1, 200, 0), "Native takeover", [RimGovernor.Brain.GameFacts.Clock.FactFamily.Pawns],
+                "native job took over pawn", ["pawn"], null)];
+            var hint = ColonyEventConsumer.EventsWake(events);
+            wake.NotifySections(hint.Families, ColonyEventConsumer.EventSections(events), hint.Authority, hint.Stopped, hint.StopAt, hint.Review, hint.Speed);
+            var release = await session.Sent.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            var order = Assert.Single(release.Orders);
+            Assert.Equal("helper", order.Pawn);
+            Assert.True(order.Release);
+            Assert.Equal((helper.Assignment, helper.Revision, helper.Revision + 1), (order.Assignment, order.ExpectedRevision, order.Revision));
+            Assert.Empty(release.Tasks);
+            Assert.True(journal.LoadPlan(plan.Id, ct).Retired);
+        }
+        finally { await worker.Close(CancellationToken.None); }
+    }
+
     [Fact]
     public async Task WorkerObservesHarvestAndDispatchesDeliveryThroughItsNormalSession()
     {

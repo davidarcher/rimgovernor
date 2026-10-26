@@ -69,8 +69,7 @@ public sealed class FoodReview
     };
 
     /// <summary>
-    /// The baby feeding Need's work: none of the family's own. Its one remedy is the baby food bill the work ledger
-    /// places (<see cref="BabyFoodDeclarer"/>).
+    /// Missing suitable provision goes to the work ledger (<see cref="BabyFoodDeclarer"/>).
     /// </summary>
     internal static readonly Verdict BabyFoodBillVerdict = Verdict.WaitFor(Cause.Facility, "baby_food_bill");
 
@@ -83,7 +82,10 @@ public sealed class FoodReview
         }
         if (work.Need.Id == FoodRules.BabyFeedingNeed)
         {
-            return BabyFoodBillVerdict;
+            if (facts.BabyFeeding.IsShort) return BabyFoodBillVerdict;
+            var hungry = facts.BabyFeeding.Care.FirstOrDefault(b => b.Hungry);
+            return hungry is null ? Verdict.WaitFor(Cause.ExistingWork, "native_baby_care_cleanup")
+                : Verdict.WaitFor(Cause.ExistingWork, hungry.Blocker);
         }
         if (work.Need.Id == FoodRules.BlightNeed)
         {

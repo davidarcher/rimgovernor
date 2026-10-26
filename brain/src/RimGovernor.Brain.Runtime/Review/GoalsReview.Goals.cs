@@ -73,7 +73,8 @@ public sealed partial class GoalsReview
         var output = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
         foreach (var d in definitions)
         {
-            var stuff = (d.Harvest ?? throw new RequiredFactException("planning Harvest")).HarvestedThingDef;
+            if (d.Harvest is not { } harvest) continue;
+            var stuff = harvest.HarvestedThingDef;
             if (d.Research.Count > 0)
             {
                 output[stuff] = d.Research;

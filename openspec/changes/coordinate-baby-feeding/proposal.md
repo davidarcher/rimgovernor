@@ -1,5 +1,9 @@
 # Proposal
 
+## Superseded execution design
+
+The maintainer's 2026-10-26 direction and [native-led labor change](../native-led-labor-execution/proposal.md) supersede advance caregiver selection/release in this proposal. Its implementation checkpoint `ff5cfc77b` is local and unlanded; native feeding acceptance remains unproved and #4040 remains open. Preserve the confirmed food requirements and useful observations. Continue implementation through the labor change, not this obsolete execution plan.
+
 ## Why
 
 [Issue #4040](https://github.com/davidarcher/rimgovernor/issues/4040) identifies a missing path between baby-food provisioning and actual assisted feeding when caregivers hold governor work. The confirmed RG-FOOD-008 requires suitable food and available help; a capable breastfeeding pawn or stocked ingredients cannot establish that a baby will receive nutrition.

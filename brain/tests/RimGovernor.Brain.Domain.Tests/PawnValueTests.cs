@@ -270,10 +270,17 @@ public sealed class PawnValueTests
         Assert.Null(RimGovernor.Brain.Runtime.ColonyReview.PawnValueAttrs(planned).Single(a => a.Key == RimGovernor.Brain.Telemetry.ReviewTelemetry.PawnValuesAwaitingPlanKey).Value);
     }
 
+    [Fact]
+    public void ADependentBabyIsNotValuedAsAnIndependentWorker()
+    {
+        var findings = Inspected(1, 100, 3 * Day, FreshLegs(), baby: true);
+        Assert.Equal("pawn", Assert.Single(findings.PawnValues).Pawn);
+    }
+
     private static Findings Inspected(int sites, int stock, double finishTicks, ColonyModelInput? model = null) =>
         Inspected(sites, stock, finishTicks, FreshLegs(), model);
 
-    private static Findings Inspected(int sites, int stock, double finishTicks, FoodHaulLegs? haul, ColonyModelInput? model = null)
+    private static Findings Inspected(int sites, int stock, double finishTicks, FoodHaulLegs? haul, ColonyModelInput? model = null, bool baby = false)
     {
         var catalog = Game.WorkSpeedFactsTests.Catalog();
         var facts = ForecastCoupledTests.ConstructionReview(sites, stock);
@@ -308,6 +315,20 @@ public sealed class PawnValueTests
                 Context = coupled.Context with { ModelBasis = new(input, new() { MedicineTendsPerDay = 0 }), Bed = new(true, 0), FoodHaul = haul, InvestmentHorizonDays = 30 },
             },
         };
+        if (baby)
+        {
+            var read = facts.ForecastObserved.Needs!;
+            facts = facts with { ForecastObserved = facts.ForecastObserved with { Needs = read with
+            {
+                Pawns = [.. read.Pawns, NeedsFixtures.Pawn("baby")],
+                Babies = NeedsFixtures.NoBabies with { Babies = [new()
+                {
+                    Pawn = "baby", Care = new() { Active = null, Food = null, Play = null, Opportunities = [] },
+                    SleepHearers = [], CribMood = null, Play = null, SleepWithoutNursery = new("", false, true, .00003, 0, 21),
+                    Fits = [], InNursery = false, Hearers = [],
+                }] },
+            } } };
+        }
         return Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings());
     }
 }

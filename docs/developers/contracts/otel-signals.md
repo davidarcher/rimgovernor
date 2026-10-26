@@ -8,6 +8,13 @@ numbers to `metrics.jsonl` ([OTEL core](otel-core.md), [OTEL metrics](otel-metri
 These files are always written, with or without a collector. This contract
 defines the row shapes, kinds, the record mapping, the readers and the retention.
 
+Actual native takeover of an installed pawn activity uses the existing
+`ObservationInvalidated` event and its clock invalidation row, naming the Pawns
+family and pawn identifier. The event consumer hints the worker to re-read ownership;
+telemetry itself is not the wake. This occurs once when the old handle detaches,
+not on every job-driver or toil tick. The existing execution row records the
+`native_job_takeover` failure reason when the attempt was still running.
+
 A row has a `kind`, a context (`level` `INFO`/`WARN`/`ERROR`, `at`, `tick` when
 the service has observed one, `component`, and the trace and span ids when it
 was emitted under a span) and a payload. Oversized payloads are replaced by

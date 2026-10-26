@@ -41,6 +41,20 @@ public sealed class TombTests
         TombRules.TombOwed(Shapes, true, Plan, [.. waste], CurrentConstruction.Empty);
 
     [Fact]
+    public void ReplanningBurialDemandUsesTheSuppliedPlanBeforeReviewFactsCarryIt()
+    {
+        var reading = ColonyModelFixtures.Reading();
+        reading = reading with { Facts = reading.Facts with
+        {
+            LayoutPlan = null, Shapes = Shapes, CurrentConstruction = CurrentConstruction.Empty,
+            Definitions = [ColonyModelFixtures.CropRow() with { Name = Sarcophagus, Available = true, Stuffed = false }],
+            Waste = [Corpse(CorpseOf.Colonist)],
+        } };
+        var demand = RimGovernor.Brain.Runtime.BurialFacts.BurialDemand(reading, new LayoutPlan());
+        Assert.Equal(1, demand.Tomb);
+    }
+
+    [Fact]
     public void AColonistCorpseIsStagedIntoAFreeTombSlot()
     {
         var step = TombRules.NextTombStep(Plan, [Corpse(CorpseOf.Colonist)], [], Shapes, true);

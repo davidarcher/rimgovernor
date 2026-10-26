@@ -1,5 +1,7 @@
 # Tasks
 
+> Execution plan superseded by [native-led-labor-execution](../native-led-labor-execution/tasks.md). Existing checked tasks record the earlier local implementation only; they do not prove the new direction or native feeding. Unchecked tasks remain incomplete. Do not apply the advance-release design or mark these tasks done merely because the labor change replaces it.
+
 Implement [#4040](https://github.com/davidarcher/rimgovernor/issues/4040) against
 [the existing food delta](specs/food-security/spec.md) and [the revised design](design.md).
 The maintainer authorized vanilla-owned feeding with observation and reactive
@@ -8,12 +10,12 @@ none is complete merely because its design or native mechanics were inspected.
 
 ## 1. Observe feeding and keep unmet demand honest
 
-- [ ] 1.1 Use the canonical baby-care facts to assess hunger/condition, active feeding, current care availability and safe-return state; add only observations needed by those decisions. Verify focused boundary/policy tests distinguish possible care, active care, actual intake and unavailable facts; document the native observation semantics in the owning contract.
-- [ ] 1.2 Remove the blanket assumption that a breastfeeding-capable pawn establishes feeding adequacy or always suppresses alternative provision. Verify FoodFamily tests cover unavailable/depleted nursing, working nursing, suitable bottle supply and multiple babies with remaining unmet demand; document provisioning versus actual feeding without creating a second reserve or milk-allocation model.
+- [x] 1.1 Use the canonical baby-care facts to assess hunger/condition, active feeding, current care availability and safe-return state; add only observations needed by those decisions. Verify focused boundary/policy tests distinguish possible care, active care, actual intake and unavailable facts; document the native observation semantics in the owning contract.
+- [x] 1.2 Remove the blanket assumption that a breastfeeding-capable pawn establishes feeding adequacy or always suppresses alternative provision. Verify FoodFamily tests cover unavailable/depleted nursing, working nursing, suitable bottle supply and multiple babies with remaining unmet demand; document provisioning versus actual feeding without creating a second reserve or milk-allocation model.
 
 ## 2. Make room for vanilla care and react to outcomes
 
-- [ ] 2.1 Connect the Food response to shared Method admission/release so justified childcare can obtain a caregiver held by competing governor work. Verify tests through the real release/admission path preserve revisions, partial work, carried inputs and dependent participants, change nothing for a losing response and respect protected actors. Update voluntary-control and continuation contracts.
+- [x] 2.1 Connect the Food response to shared Method admission/release so justified childcare can obtain a caregiver held by competing governor work. Verify tests through the real release/admission path preserve revisions, partial work, carried inputs and dependent participants, change nothing for a losing response and respect protected actors. Update voluntary-control and continuation contracts.
 - [ ] 2.2 Let vanilla choose and execute legal feeding and associated safe return, protecting the active caregiver and baby from conflicting assignments until the native care lifecycle is finished. Verify integration tests reject premature reassignment and allow the associated cleanup without authorizing unrelated jobs. Reuse current resource observations/reservations and the existing Method/Hands boundary; add a typed request or journal field only if that working path needs it, with its own boundary test and owning contract update.
 - [ ] 2.3 Reassess interrupted, blocked or worsening feeding through existing reviews/events, including suitable alternate care or food and explicit blockers when none is feasible. Verify tests do not treat release or job start as success, do not misclassify normal bottle accumulation as a stall, retain actual partial intake and do not replay consumption. Document how the observed state triggers the response soon enough to avoid preventable harm.
 

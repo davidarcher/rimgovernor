@@ -4,6 +4,31 @@
 
 ## Intent and evidence ownership
 
+The [native-led labor change](../../openspec/changes/native-led-labor-execution/proposal.md) supersedes the unlanded baby change's advance caregiver selection/release. Checkpoint `ff5cfc77b` and later worktree edits are implementation evidence only: the executed feeding cases below now establish their scoped outcomes; #4040 remains open until the verified implementation lands. Earlier bottle fixtures never obtained their unrelated owned-research precondition; those results do not establish a feeding failure. The new change owns the remaining proof.
+
+The first deterministic live-journal bottle run (`.rimgovernor/baby-native-bottle/child/coordinated-bottle-feeding/result.json`, 2026-10-26, dirty `ff5cfc77b`, source tree `5eb1ca56eb5d6536cb79c307d0e0b433d2eee633c28c1199bebe21bf68f16900`) observed the competing Method, native takeover, actual intake, no malnutrition and care-time dispatch rejection. It failed the complete case: research occupied the first 4,000 ticks and feeding was still running at the fixed 8,000-tick limit. A safety job observed before feeding is not proof of post-feeding return. The fixture now stages a small harvest and requires return after feeding, without increasing the budget; its executed results follow.
+
+The revised cases both passed on 2026-10-26 with the private native package at dirty
+`ff5cfc77b`, source tree `f8b7bc3f1f433ae51a7c934204ff9350eb3268d579aa27363e0aedf2ff054b0d`.
+The fixture admits one harvest Method to the live journal after an enabled work
+review; normal worker/Hands dispatch starts it. Hunger is staged once after that
+ownership is observed. No post-setup harness release or feeding order is issued.
+
+| Native claim | Result and local provenance | Observed outcome |
+| --- | --- | --- |
+| `child/coordinated-bottle-feeding` | PASS, 24.94 s; `.rimgovernor/baby-native-harvest-bottle/child/coordinated-bottle-feeding/result.json` | Native bottle feeding after harvest; food 0.902, no malnutrition, post-feeding return complete; stale dispatch refused during feeding and return. |
+| `child/coordinated-nursing` | PASS, 23.751 s; `.rimgovernor/baby-native-nursing-meals/child/coordinated-nursing/result.json` | Native nursing with usable lactation; food 0.988, no malnutrition, post-feeding return complete; stale dispatch refused during feeding and return. |
+
+The first nursing attempt was stopped at tick zero: its fixture omitted adult
+food, causing the ordinary review's `meal_service_unavailable` blocker before
+admission. The successful revision adds adult meals and retains native nursing.
+Both passing cases use the original 8,000-tick budget. They establish these scoped
+feeding lifecycles, not all RG-FOOD obligations or the general labor migration.
+An unrelated layout outcome logging exception from the earlier bottle attempt is
+tracked as [#4041](https://github.com/davidarcher/rimgovernor/issues/4041).
+
+Reconciliation retains canonical hunger/current-care facts, usable nursing and provisioning assessment, active-care admission, dependent-pawn model corrections, the held-layout-plan handoff and non-harvest research-catalog fixes. Later edits also retain the nonempty baby-social array codec regression and no-dispatch selection diagnostics. Superseded work is the advance `MakeRoomForBabyCare` / `ReleaseForBabyCare` path, greedy caregiver allocation/withholding and research-goal test setup; removal is tracked in the labor change. Historical tests and results below retain their original scope and provenance. Confirmed RG-FOOD requirement text is unchanged.
+
 The [standing specification](../../openspec/specs/food-security/spec.md) owns
 RG-FOOD-001–013. Its policy was confirmed by the maintainer in this chat on
 2026-10-25; the [decision record](../../openspec/changes/redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary)
@@ -124,6 +149,77 @@ and the additional tribal case below.
 production demand are supported. Assisted feeding relies on native work; the food
 assessment does not certify that a dependent was fed. Evidence F10/F13;
 proposed T12 and [care](colonist-wellbeing.md).
+
+**Scoped baby audit — [#4040](https://github.com/davidarcher/rimgovernor/issues/4040).**
+The original count-only assessment could hide a hungry baby, and an installed
+governor activity suppressed vanilla job selection even with Childcare enabled.
+The implementation now reads hunger and care from the canonical needs census,
+keeps hungry babies unmet, withholds current caregiver capacity in shared
+admission and revises competing Methods through journal/Hands release. Vanilla
+chooses and executes feeding and safe return. Carried babies remain consumers.
+
+[BabyFeedingResponseTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/BabyFeedingResponseTests.cs)
+covers usable/depleted nursing, unsuitable or unavailable care, finite caregiver
+capacity, interruption, delayed bottle ingestion and protection after intake.
+[ActivityContinuationTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ActivityContinuationTests.cs)
+exercises caregiver/dependent withdrawal through the actual Method journal,
+exact revisions, stale-owner refusal and unchanged unrelated participants.
+
+One additional execution guard addresses a concrete race in the old ownership
+boundary: every unowned colonist was preemptible, so a previously prepared work
+order could interrupt newly started feeding or its safe return before another
+review could react. Admission now rechecks actual native care occupation. This
+does not bind food stacks, predict chairs or add a milk/food reservation model.
+
+The first local bottle case (`.rimgovernor/baby-bottle-run`, 2026-10-26 UTC)
+stopped at tick 0: `PawnCycle.Split` demanded a joy need from the baby and faulted
+every review before competing work could start. No feeding claim passed in that
+run. A later run (`.rimgovernor/baby-bottle-current`) reached the review but held
+tick 0 because the baby had no independent meal service. The correction keeps
+babies out of the labor-cycle model and retains their nutrition in the existing
+other-consumer demand path. `ColonyModelInputTests` verifies valid input, unchanged
+adult labor and retained baby food demand, without inventing joy or a meal service.
+The case explicitly stages one superpawn caregiver rather than the default crew.
+The next run (`.rimgovernor/baby-bottle-dependent`) exposed the same assumption
+in pawn valuation: it requested free working hours for the dependent baby and
+disabled review authorization before the clock could advance. `PawnValueTests`
+now exercises that review with a baby present; valuation excludes dependent
+babies while retaining the existing missing-hours error for actual workers.
+The valuation retry (`.rimgovernor/baby-bottle-valuation`) advanced 8,083 ticks
+but established no competing research Method. Its replan also read an absent
+layout from review facts despite receiving the held plan. `TombTests` reproduces
+that handoff; burial demand now uses its supplied plan. The fixture seeds an
+explicit research goal through the normal goal owner so the contention
+precondition does not depend on optional research winning selection.
+That goal-driven retry (`.rimgovernor/baby-bottle-goal`) exposed a catalog reader
+demanding harvested products from buildings; it was stopped after diagnosis,
+without a feeding claim. `WornCountGoalTests` now includes a researched building
+with no harvest. Goal research prerequisites are derived only from definitions
+with an observed harvested product.
+
+Native lactation has a positive activation threshold: a little charge with
+future refill can be observed while nursing cannot start. `ReadyToFeed` reads
+native `CanActivate` separately from charge/refill; the depleted-nursing regression
+rejects that false cover and selects a usable bottle alternative. Future nursery
+exposure bounds retain their original charge/refill observations.
+
+| Native case | Claim | Execution evidence |
+| --- | --- | --- |
+| `child/coordinated-bottle-feeding` | Normal governor research first owns the caregiver; native bottle-feeding then raises food before malnutrition and completes safe return, with reassignment refused during both phases. | Registered OnDemand; local verification in progress. |
+| `child/coordinated-nursing` | The same contention/release lifecycle with usable native lactation and actual nursing intake. | Registered OnDemand; not yet executed. |
+
+Both [cases](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Child/ChildFeedingResponse.cs)
+stage hunger once behind observed governor research, assign neither feeding nor
+release, and stop on the one feeding lifecycle. Setup enables Childcare but
+disables vanilla Research priority: native research without a governor Method
+does not establish the contention precondition. Expected wall time is about one
+minute each, under two with startup. Code-gate result on the implementation:
+PASS (2m10s), 4,062 domain tests and 30 workflow tests, native builds and contract
+probes; contract orphan checking found none.
+Native execution is required before #4040 closes. These checks establish neither
+sustained colony feeding nor the remaining patient, prisoner and animal portions
+of RG-FOOD-008. Historical run 40193999645's first-child failure remains historical
+evidence, without an inferred cause or attribution to this gap.
 
 ## Additional confirmed requirements awaiting implementation assessment
 
@@ -271,9 +367,9 @@ Their accuracy and the native response to a failed hunt need separate evidence.
 feeds the active Biotech baby census into
 [BabyFeedingRules](../../brain/src/RimGovernor.Brain.Policy/BabyFeeding.cs).
 The rule counts stock with baby eater eligibility, derives a target from demand
-and rejects missing consumer rows. Its model treats a present breastfeeder as
-covering breastfeeding. F13 traces provisioning and native eligibility; the model
-does not demonstrate timely caregiver availability or completed feeding.
+and rejects missing consumer rows. Current usable nursing contributes provision;
+capability counts no longer exempt every baby. Each observed hungry baby remains
+unmet until its hunger is relieved. See the scoped #4040 audit below for verification.
 Registered OnDemand
 [tools/foodchannels](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Tools/ToolsFoodChannels.cs)
 checks berry sources, absence of Odyssey fishing water in a core-only setup and
@@ -314,8 +410,9 @@ checks vegetarian, insect-meat and human-meat choices and forbidden methods.
 [BabyFoodDeclarer](../../brain/src/RimGovernor.Brain.Runtime/Review/Food.cs)
 passes shortage to shared production; BabyFeedingRules selects baby-edible recipes.
 [WorkAssignment](../../brain/src/RimGovernor.Brain.Policy/WorkAssignment.cs) pins
-Childcare. FoodFamilyTests checks the provisioning need and breastfeeder assumption.
-These decisions stop short of measuring completed assisted feeding.
+Childcare. FoodFamilyTests and BabyFeedingResponseTests distinguish provisioning
+from hunger, active care and native safe return. Registered native feeding cases
+below measure one actual bout per feeding mode when executed.
 
 **Other sources.** [FoodChannelPolicyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/FoodChannelPolicyTests.cs)
 checks fishing capacity, regeneration and seasonal gaps; F10 checks forage and

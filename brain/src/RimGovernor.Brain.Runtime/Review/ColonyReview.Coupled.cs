@@ -55,6 +55,8 @@ public sealed partial class ColonyReview
                     Attrs = PlannedRoomSelectionAttrs(selection, candidates, facts.Tick.Value)
                 });
             }
+            else if (!external.Admitted && external.Failure is null)
+                RecordCoupledSelection(selection, facts.Tick.Value, "no_dispatchable_activity");
             return;
         }
         Player.Current(call, epoch);

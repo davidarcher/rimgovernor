@@ -64,7 +64,8 @@ internal static class BurialFacts
     /// </summary>
     internal static RoomDemand BurialDemand(ColonyReading facts, LayoutPlan plan)
     {
-        var tomb = TombStep(facts).Kind == TombStepKind.Full ? plan.TombRooms() + 1 : 0;
+        // Replanning has already read the held plan; the review's facts may not yet carry it.
+        var tomb = TombStep(facts with { Facts = facts.Facts with { LayoutPlan = plan } }).Kind == TombStepKind.Full ? plan.TombRooms() + 1 : 0;
         var morgue = MorgueRules.MorgueWaiting(facts.Facts.Waste) ? 1 : 0;
         return new RoomDemand { Tomb = tomb, Morgue = morgue };
     }

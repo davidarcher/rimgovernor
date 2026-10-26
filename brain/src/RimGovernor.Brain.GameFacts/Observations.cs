@@ -6952,8 +6952,7 @@ public abstract record BiotechSection
 /// which turn into pollution when they dissolve. atomizers: Building_WastepackAtomizer. gestators, chargers:
 /// Building_MechGestator and Building_MechCharger, the producers of wastepacks. gene_banks: buildings with
 /// CompGenepackContainer; gene_assemblers: Building_GeneAssembler; genepacks: each Genepack held in a bank or spawned
-/// loose. babies: the pawn ids of the player's humanlike pawns whose developmental stage is Newborn or Baby;
-/// breastfeeders: the pawn ids ChildcareUtility.CanBreastfeedPlayerPawns lists on the map. Id lists are sorted.
+/// loose. Baby care uses the canonical needs census, including carried babies.
 /// </summary>
 public sealed record BiotechColonyFacts
 {
@@ -6980,11 +6979,6 @@ public sealed record BiotechColonyFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<GenepackState>))]
     public required EquatableArray<GenepackState> Genepacks { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public required EquatableArray<string> Babies { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public required EquatableArray<string> Breastfeeders { get; init; }
 }
 
 /// <summary>

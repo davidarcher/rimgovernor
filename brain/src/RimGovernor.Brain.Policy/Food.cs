@@ -73,8 +73,8 @@ public sealed record FoodFacts
 /// waits to be taken down. Cooking is part of food, not a Once: a lost kitchen reopens the Need on the next review.
 /// Its campfire, paste dispenser, kitchen and stove are building work the runtime's work step commits under the
 /// Need; the cooking bills are the work ledger's.</item>
-/// <item><c>food/baby-feeding</c> is met while a colonist can breastfeed or the baby-edible stock reaches the game's
-/// low-baby-food floor. Its one remedy is the baby food bill, which the work ledger places.</item>
+/// <item><c>food/baby-feeding</c> remains unmet while a baby is hungry, care is unobserved or suitable provision is short.
+/// Vanilla feeds; shared Method release makes room and the work ledger arranges missing provision.</item>
 /// <item><c>food/blight</c> is met while no blighted plant stands. Its Method is one batch of at most
 /// <see cref="BlightCutLimit"/> cut designations, <c>cut-&lt;hash of the plants&gt;</c>, each plant a claim, so a
 /// second batch of other plants runs beside an open one.</item>
@@ -165,12 +165,11 @@ public static class FoodRules
     public static readonly NeedId BlightNeed = NeedId.Of(FoodFamilyId, "blight");
 
     /// <summary>
-    /// The baby feeding Need, a plain threshold: unmet while no colonist can breastfeed and the baby-edible stock is
-    /// below the game's low-baby-food floor (<see cref="BabyFeeding.IsShort"/>), met otherwise (no babies included).
+    /// The baby feeding Need: hungry babies remain unmet even during care or with stocked food.
     /// Its deficit is whole while unmet.
     /// </summary>
     public static Need BabyFeedingNeedOf(FoodFacts f) =>
-        WholeNeed(BabyFeedingNeed, NeedTier.Wellbeing, !f.BabyFeeding.IsShort);
+        WholeNeed(BabyFeedingNeed, NeedTier.Wellbeing, !f.BabyFeeding.IsShort && !f.BabyFeeding.Care.Any(b => b.Hungry));
 
     /// <summary>
     /// The blight Need, a plain threshold over the census: unmet while any blighted plant stands, designated or not

@@ -8,9 +8,9 @@ namespace RimGovernor.Native
 {
     // Biotech colony facts: the polluted cells the cleanup crew does not
     // cover, the wastepacks and the atomizers, gestators and chargers around
-    // them, the gene banks, assemblers and genepacks, and the babies and
-    // breastfeeders. Every verdict is the game's own (comps, buildings,
-    // ChildcareUtility); nothing is a def-name list. The section is inactive
+    // them, the gene banks, assemblers and genepacks. Baby care is in the
+    // canonical needs census. Every verdict is the game's own (comps and buildings);
+    // nothing is a def-name list. The section is inactive
     // without Biotech, and a failed read throws and fails the colony read.
     internal static class NativeBiotechColony
     {
@@ -54,10 +54,6 @@ namespace RimGovernor.Native
                     })],
                 GeneAssemblers = [.. buildings.OfType<Building_GeneAssembler>().Select(a => new RimGovernor.Brain.GameFacts.Observations.GeneAssemblerState { Position = Cell(a.Position) })],
                 Genepacks = [.. held, .. loose],
-                Babies = [.. map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.RaceProps.Humanlike
-                    && (p.DevelopmentalStage.Baby() || p.DevelopmentalStage.Newborn())).Select(p => Id(p.GetUniqueLoadID())).OrderBy(i => i, StringComparer.Ordinal)],
-                Breastfeeders = [.. ChildcareUtility.CanBreastfeedPlayerPawns.Where(p => p.Spawned && p.Map == map)
-                    .Select(p => Id(p.GetUniqueLoadID())).OrderBy(i => i, StringComparer.Ordinal)],
             });
         }
 

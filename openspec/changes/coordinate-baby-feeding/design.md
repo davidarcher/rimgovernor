@@ -1,5 +1,7 @@
 # Design
 
+> Superseded on 2026-10-26 by the [native-led labor design](../native-led-labor-execution/design.md). The advance-release and caregiver allocation decisions below are retained as historical design, not current implementation instructions. The labor change owns their removal and the native feeding proof; confirmed food requirements remain unchanged.
+
 ## Context
 
 See [proposal.md](proposal.md) and [the food delta](specs/food-security/spec.md).

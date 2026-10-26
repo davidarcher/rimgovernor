@@ -1,5 +1,13 @@
 # Method continuation
 
+An actual native job takeover detaches the old execution handle. The existing
+pawn-fact invalidation wakes the worker, which re-reads all Method participants.
+A positively absent or different owner ends that coordinated attempt: remaining
+exact owners are released with their observed assignment revisions; the new owner
+is never released. Missing participant observations defer cleanup. The journal
+retains the attempted Method as history, with no stale task restart, food credit
+or refund of partial work and carried inputs. Fresh observations govern recovery.
+
 [Contracts](README.md) · [Control loop](../architecture/control-loop.md)
 
 A Method owns an attempt at an observed outcome. Applied intent proves the write,

@@ -124,6 +124,7 @@ Need is `economy/resource`, and the goal asks three existing channels for help; 
 - **Research.** While the goal is unmet, the stuff's research joins the research-wanted set. It is found through the
   plant definitions: the plant whose `HarvestedThingDef` is the stuff gives its `Research` (devilstrand cloth to the
   Devilstrand project), unfinished projects only. Sowing and tailoring then follow the field and clothing channels.
+  Definitions with no harvested product, including researched buildings, do not contribute to this mapping.
 
 `NoMethod` `no_wearer` when no colonist is eligible; a missing gear census raises `RequiredFactException` (`gear census`). The
 deficit is `Count` less the wearers.

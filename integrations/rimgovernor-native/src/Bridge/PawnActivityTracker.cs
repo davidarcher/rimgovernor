@@ -94,7 +94,7 @@ namespace RimGovernor.Native
             else if (moving) activity = carrying ? "carrying" : "travel";
             else if (job == null) activity = "idle";
             else if (job.def == JobDefOf.Ingest || job.def == JobDefOf.LayDown || job.def.joyKind != null) activity = "needs";
-            else if (job.def == JobDefOf.Wait || NativePawnActivities.IsHold(job)) activity = "waiting";
+            else if (job.def == JobDefOf.Wait) activity = "waiting";
             else if (job.def == JobDefOf.AttackMelee || job.def == JobDefOf.AttackStatic || job.def == JobDefOf.Wait_Combat) activity = "combat";
             else if (driver?.ActiveSkill != null && driver.GetType().Assembly == typeof(JobDriver).Assembly) activity = "work";
             // A stationary haul, an unnamed/modded toil and a standing pawn are not proof of work or input waiting.

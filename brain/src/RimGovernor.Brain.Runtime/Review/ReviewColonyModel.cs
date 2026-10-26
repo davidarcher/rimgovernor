@@ -147,13 +147,12 @@ internal static class ReviewColonyModel
 
         var wildlife = HuntSquadRules.Herds(colony.Facts.Acquisition);
 
-        var otherDemand = ForecastStockScope.OtherDemand(colony.Facts.CombinedFoodSupply, facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []);
-
         var land = LandOf(colony, gaps);
         var crops = CropsOf(colony, gaps);
         var research = ResearchOf(facts.Research, facts.NeedsAlternatives?.Observation, gaps);
         var stocks = StocksOf(colony);
         var pawns = PawnsOf(colony, gaps);
+        var otherDemand = ForecastStockScope.OtherDemand(colony.Facts.CombinedFoodSupply, pawns.Select(p => p.Pawn));
         if (gaps.Count > 0)
         {
             return new ColonyModelInputRead.Unready(gaps);
@@ -363,8 +362,12 @@ internal static class ReviewColonyModel
         // A colony with no bench has no research speed; its bench count of 0 keeps anyone from researching.
         var bestBench = review.Observation.ResearchBenches.Count == 0 ? 0 : review.Observation.ResearchBenches.Max(b => b.Factor);
         var pawns = new List<ModelPawn>();
+        // Babies consume food but supply no independent labor cycle. Their actual care is coordinated by Food;
+        // the existing OtherDemand path keeps their nutrition without inventing a self-feeding service or joy need.
+        var babies = review.Observation.Babies.Babies.Select(b => b.Pawn).ToHashSet(StringComparer.Ordinal);
         foreach (var pawn in review.Observation.Pawns)
         {
+            if (babies.Contains(pawn.Pawn)) continue;
             var needs = new List<ModelNeed>();
             foreach (var need in pawn.Needs)
             {

@@ -452,6 +452,18 @@ namespace RimGovernor.Native
             IReadOnlyList<string>? entityIds = null, CellRectangle? cells = null) =>
             Publish(new ObservationInvalidated(Origin(s), "Observed facts changed: " + reason + ".", families, reason,
                 entityIds ?? Array.Empty<string>(), cells));
+        // One event per actual lost execution handle, never per driver/toil tick. The existing
+        // invalidation consumer hints the worker, which re-reads ownership before journal cleanup.
+        internal static void ActivityTakenOver(Pawn pawn)
+        {
+            lock (Gate)
+            {
+                if (_state is not { } s || pawn.Map != s.Map) return;
+                Invalidate(s, "native job took over " + pawn.GetUniqueLoadID(),
+                    new[] { RimGovernor.Brain.GameFacts.Clock.FactFamily.Pawns },
+                    new[] { pawn.GetUniqueLoadID() });
+            }
+        }
         private static readonly RimGovernor.Brain.GameFacts.Clock.FactFamily[] ColonyFamily = { RimGovernor.Brain.GameFacts.Clock.FactFamily.Colony };
         /// A growing zone turning ripe (any sown plant harvestable now) or
         /// fully harvested appends one colony row narrowed to those zones

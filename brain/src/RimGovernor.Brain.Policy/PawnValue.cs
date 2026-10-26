@@ -216,13 +216,16 @@ public static class PawnValueRules
         NeedsForecastRead needs, WorkSpeedFacts work, FoodWorkFacts food)
     {
         var context = candidates.Context;
+        // Dependent babies consume food but have no independent labor cycle or free working hours.
+        var babies = needs.Babies.Babies.Select(b => b.Pawn).ToHashSet(StringComparer.Ordinal);
+        var workers = needs.Pawns.Where(p => !babies.Contains(p.Pawn)).ToArray();
         var speeds = needs.Pawns.ToDictionary(p => p.Pawn, p => (IReadOnlyDictionary<string, double>)p.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), StringComparer.Ordinal);
         var shortfall = WorkShortfallRules.Of(context, [.. candidates.Alternatives, .. candidates.Incumbents], selection.Selection.Selected.ToHashSet(StringComparer.Ordinal),
             selection.Selected.Plan.Allocations, selection.Horizon, work, speeds);
         if (context.FoodHaul is not { } haul) return (shortfall, [], AwaitingLayoutPlan);
         var hours = FreeHoursOf(selection.Selected, context);
         var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = haul, HorizonDays = context.InvestmentHorizonDays };
-        var values = needs.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal).Select(p => Of(new PawnValueFacts(p.Pawn)
+        var values = workers.OrderBy(p => p.Pawn, StringComparer.Ordinal).Select(p => Of(new PawnValueFacts(p.Pawn)
         {
             Speeds = speeds[p.Pawn], Incapable = p.Upkeep.IncapableWork, FoodPerDay = p.Upkeep.FoodPerDay, Mood = p.Upkeep.Mood,
             FreeTicksPerDay = (hours.TryGetValue(p.Pawn, out var free) ? free : throw new RequiredFactException("free hours of " + p.Pawn)) * GameTime.TicksPerHour,

@@ -46,6 +46,9 @@ public sealed class BrainHost : IAsyncDisposable
     private OtlpFileWriter? _writer;
     private TelemetryEmitter _emitter = new(NullTelemetrySink.Instance);
     public TelemetryEmitter Telemetry => _emitter;
+    // The native acceptance assembly stages a Method, never its dispatch/receipt. Admission
+    // retains the real enabled-review, claims and safeguards; the normal worker owns execution.
+    internal StoreJournal Journal => _journal ?? throw new InvalidOperationException("Host journal is not ready.");
     private HostLog _log;
     private StoreJournal? _journal;
     private Session? _session;

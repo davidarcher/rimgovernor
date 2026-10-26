@@ -12,7 +12,7 @@ public sealed record ActivitySocialJobRead(PawnActivityKind Kind, string Job, Ac
 /// <summary>The two effects of one interaction: its native selection weight and eligible mood memory on its recipient.
 /// NegativeOpinionWeight multiplies the observed opinion-factor curve; the other weights stay constant.</summary>
 public sealed record BabyInteractionRead(string Interaction, double Weight, bool NegativeOpinionWeight,
-    EquatableArray<SocialMemoryDefRead> Moods);
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SocialMemoryDefRead>))] EquatableArray<SocialMemoryDefRead> Moods);
 
 /// <summary>A memory's native duration, global and per-other-pawn limits, stacking and final-duration fade.</summary>
 public sealed record SocialMemoryDefRead(string Def, double Offset, double DurationTicks, int StackLimit,

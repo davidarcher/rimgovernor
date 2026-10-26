@@ -1052,6 +1052,7 @@ The tomb and the morgue are room nodes of the station graph
 (`LayoutPlan.OutskirtsRoomNodes`) only while the burial asks for them or the plan
 holds one, so a first plan with no dead holds neither. The review's burial demand
 (`BurialFacts.BurialDemand`, into `RoomDemand.Tomb` and `RoomDemand.Morgue`)
+uses the held plan supplied by replanning, even before the review facts carry it. It
 asks for one more tomb than the plan holds while a dead colonist is owed a
 sarcophagus no planned tomb has room for (`TombStepKind.Full`), and for a morgue
 while a human corpse waits (`MorgueWaiting`); the burial step waits on

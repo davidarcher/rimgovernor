@@ -10,5 +10,7 @@ public static class ChildCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(ChildFirstChild.Case());
+        registry.Register(ChildFeedingResponse.Case(false));
+        registry.Register(ChildFeedingResponse.Case(true));
     }
 }

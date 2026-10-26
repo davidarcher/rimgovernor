@@ -41,13 +41,14 @@ internal static class ControlActivities
     {
         yield return Case(
             "pawn-activities",
-            "Installed Hands executions bypass hunger and rest arbitration and native overrides: the producer harvests, then "
+            "A bounded initial harvest yields to native hunger and rest selection: the producer harvests, then "
                 + "eats and sleeps, never player-forced. A unit test cannot prove the native selection boundary.",
             SettleTicks + SequenceTicks,
             [ReadTool],
             RunSequenceAsync);
         yield return Lifecycle("batch-atomic", "atomic", "A batch with one invalid order is refused whole: the producer's valid revision is not applied.");
-        yield return Lifecycle("hold-deadline", "deadline", "A bounded hold ends at its deadline (hold_deadline), and the failed task-backed hold holds the clock.");
+        yield return Lifecycle("native-takeover", "takeover", "Considering a native alternative preserves the exact running handle; actually installing a replacement detaches it, and ending the replacement never reinstalls the stale attempt.");
+        yield return Lifecycle("dependency-yields-native", "deadline", "A waiting dependency installs no eternal bot wait; native work starts and invalidates the stale execution handle.");
         yield return Lifecycle("work-refusal", "refusal", "Work the native job tracker refuses (repairing an undamaged bed) fails the execution visibly.");
         yield return Lifecycle("emergency-preempts", "preemption", "Selected recreation starts as a normal, unforced job, and a selected fire-fighting emergency preempts it.");
         yield return Lifecycle(
@@ -58,8 +59,8 @@ internal static class ControlActivities
         yield return Lifecycle(
             "native-overrides",
             "overrides",
-            "Native involuntary sleep, vomiting and an imposed sleep each release voluntary ownership, and the imposed effect's "
-                + "permission ends with its source.");
+            "Native involuntary sleep, vomiting and an imposed sleep each invalidate the old execution, and ordinary replacement "
+                + "also runs without retaining the old handle.");
         yield return Lifecycle("player-takeover", "player", "A player's ordered job and a direct native menu command each take the pawn from Hands ownership.");
         yield return Case(
             "activity-reload",

@@ -9,12 +9,13 @@ public sealed partial class ColonyReview
     /// </summary>
     internal ColonyReading ReviewBabyFeeding(ColonyReading p)
     {
-        if (p.Snapshot.Biotech is not RimGovernor.Brain.GameFacts.Observations.BiotechSection.Active { Facts: var biotech })
+        if (p.Snapshot.Biotech is not RimGovernor.Brain.GameFacts.Observations.BiotechSection.Active)
         {
             return p with { Facts = p.Facts with { BabyFeeding = new BabyFeeding() } };
         }
-        var babies = biotech.Babies.Select(b => new PawnId(b)).ToList();
-        var review = BabyFeedingRules.ReviewBabyFeeding(babies, biotech.Breastfeeders.Count, p.Facts.FoodSupply, Seasonal(p.Facts).FoodTargetDays);
+        var needs = p.Facts.ForecastObserved.Needs ?? throw new RequiredFactException("baby care observation");
+        var babies = needs.Babies.Babies.Select(b => new PawnId(b.Pawn)).ToList();
+        var review = BabyFeedingRules.ReviewBabyFeeding(babies, BabyCareRules.AssessBabyCare(needs), p.Facts.FoodSupply, Seasonal(p.Facts).FoodTargetDays);
         return p with { Facts = p.Facts with { BabyFeeding = review } };
     }
 }

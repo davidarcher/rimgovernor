@@ -135,7 +135,8 @@ namespace RimGovernor.Native
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 if (map == null || !ModsConfig.BiotechActive) return Refuse("A Biotech map is required.");
-                var baby = map.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == babyId);
+                var baby = map.mapPawns.AllPawnsSpawned.Concat(map.mapPawns.AllPawnsSpawned
+                    .Select(p => p.carryTracker?.CarriedThing).OfType<Pawn>()).FirstOrDefault(p => p.GetUniqueLoadID() == babyId);
                 var bench = map.listerBuildings.allBuildingsColonist.OfType<Building_WorkTable>().FirstOrDefault(b => b.GetUniqueLoadID() == benchId);
                 if (baby == null) return Refuse("The baby is not on the map.");
                 var bills = bench == null ? new List<object>() : bench.BillStack.Bills.OfType<Bill_Production>()

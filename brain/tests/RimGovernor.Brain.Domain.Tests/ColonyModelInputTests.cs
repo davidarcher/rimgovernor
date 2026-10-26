@@ -30,6 +30,34 @@ public sealed class ColonyModelInputTests
     }
 
     [Fact]
+    public void ABabyRetainsFoodDemandWithoutAnIndependentLaborOrMealCycle()
+    {
+        var colony = ColonyModelFixtures.Reading();
+        var review = colony.Facts.NeedsAlternatives!;
+        var baby = NeedsFixtures.Pawn("baby") with
+            { Needs = EquatableArray.From(review.Observation.Pawns[0].Needs.Where(n => n.Kind == "food")) };
+        var care = new RimGovernor.Brain.GameFacts.Observations.BabyRead
+        {
+            Pawn = "baby", Care = new() { Active = null, Food = new(.2, .00001, .0002) { WantsFeeding = true }, Play = null, Opportunities = [] },
+            CribMood = null, Fits = [], Play = null, InNursery = false, Hearers = [], SleepHearers = [],
+            SleepWithoutNursery = new("", false, true, .00003, 0, 21),
+        };
+        var before = ColonyModelFixtures.ReadyOf(colony);
+        colony = colony with { Facts = colony.Facts with
+        {
+            NeedsAlternatives = review with { Observation = review.Observation with
+                { Pawns = [.. review.Observation.Pawns, baby], Babies = NeedsFixtures.NoBabies with { Babies = [care] } } },
+            CombinedFoodSupply = colony.Facts.CombinedFoodSupply with
+                { Consumers = [.. colony.Facts.CombinedFoodSupply.Consumers,
+                    new() { Id = new("baby"), NutritionPerDay = .6, HumanMeatAcceptable = false }] },
+        } };
+        var input = ColonyModelFixtures.ReadyOf(colony);
+        Assert.Equal(before.Pawns, input.Pawns);
+        Assert.Equal(before.OtherNutritionPerDay + .6, input.OtherNutritionPerDay);
+        Assert.True(input.Valid());
+    }
+
+    [Fact]
     public void AFrameMissingTheRequiredGearCensusRefusesTheModel()
     {
         var projection = ColonyModelFixtures.Reading();

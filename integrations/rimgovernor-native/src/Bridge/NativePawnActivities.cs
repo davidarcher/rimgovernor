@@ -40,11 +40,10 @@ namespace RimGovernor.Native
         private static int installing;
         private const string HarmonyOwner = "rimgovernor.activity-execution";
         private static volatile bool installed;
-        private static JobDef? holdDef;
         // One Kind-to-native-job owner for both execution and service-toil observation.
         internal static JobDef? ServiceJob(PawnActivityKind kind) => kind switch
         {
-            PawnActivityKind.Hold => holdDef, PawnActivityKind.Eat => JobDefOf.Ingest,
+            PawnActivityKind.Eat => JobDefOf.Ingest,
             PawnActivityKind.Sleep => JobDefOf.LayDown, PawnActivityKind.Recipe => recipeDef,
             _ => null,
         };
@@ -52,9 +51,6 @@ namespace RimGovernor.Native
         private static JobDef? recipeDef;
         private static JobDef? tendDef;
         private static bool replacing;
-        // Ephemeral native call context, never assignment ownership or a retained permission.
-        [ThreadStatic] private static Pawn? imposedEffectPawn;
-        internal static bool IsHold(Job job) => job.def == holdDef;
         /// <summary>
         /// Whether <paramref name="site"/> is a committed coupled order's construction site (#3537): the blueprint or frame of
         /// its selected task's definition at the task's cell, whatever stage it has reached, while the order is not released.
@@ -69,7 +65,7 @@ namespace RimGovernor.Native
         /// <summary>Holds a committed coupled order: native offers it only that order's jobs.</summary>
         internal static bool Owned(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release;
         /// <summary>Controlled with no committed order (#3669): it runs vanilla job selection and is free to any coupled order.</summary>
-        internal static bool Standing(Pawn pawn) => Controlled(pawn) && !Owned(pawn);
+        internal static bool Standing(Pawn pawn) => Controlled(pawn) && !Owned(pawn) && !NativeBabyCare.Occupied(pawn);
         /// <summary>
         /// Whether the colonist's carry would outlast a new order (#3537): a standing colonist's vanilla job that drops its carry
         /// when it ends (not carryThingAfterJob, not player-forced) is ended by the order (Apply), and the carry with it.
@@ -97,8 +93,6 @@ namespace RimGovernor.Native
         internal static void Install()
         {
             if (System.Threading.Interlocked.CompareExchange(ref installing, 1, 0) != 0) return;
-            holdDef = new JobDef { defName = "RimGovernorWait", driverClass = typeof(JobDriver_GovernorWait), reportString = "Waiting for the colony plan.", casualInterruptible = false };
-            DefDatabase<JobDef>.Add(holdDef);
             deliveryDef = new JobDef { defName = "RimGovernorDeliver", driverClass = typeof(JobDriver_GovernorDeliver), reportString = "Delivering to the colony plan's destination.", casualInterruptible = false };
             DefDatabase<JobDef>.Add(deliveryDef);
             recipeDef = new JobDef { defName = "RimGovernorRecipe", driverClass = typeof(JobDriver_GovernorRecipe), reportString = "Making the colony plan's selected recipe.", casualInterruptible = false };
@@ -110,25 +104,13 @@ namespace RimGovernor.Native
                 before == null ? null : new HarmonyMethod(typeof(NativePawnActivities), before),
                 after == null ? null : new HarmonyMethod(typeof(NativePawnActivities), after));
             Patch(typeof(Pawn_JobTracker), "DetermineNextJob", nameof(Select));
-            Patch(typeof(Pawn_JobTracker), "DetermineNextConstantThinkTreeJob", nameof(Constant));
-            Patch(typeof(Pawn_JobTracker), "CheckForJobOverride", nameof(Override));
-            Patch(typeof(Pawn_JobTracker), "TryOpportunisticJob", nameof(Opportunistic));
             Patch(typeof(Pawn_JobTracker), "StartJob", nameof(Starting), nameof(Started));
-            Patch(typeof(Pawn_JobTracker), "EndCurrentJob", nameof(Ending), nameof(Ended));
+            Patch(typeof(Pawn_JobTracker), "EndCurrentJob", nameof(Ending));
             Patch(typeof(Pawn_JobTracker), "TryTakeOrderedJob", nameof(Ordered));
             Patch(typeof(JobDriver), "DriverTick", after: nameof(DriverTick));
-            Patch(typeof(JobDriver), "GetFinalizerJob", nameof(Finalizer));
             Patch(typeof(Pawn), "DeSpawn", nameof(Despawn));
             Patch(typeof(TickManager), nameof(TickManager.DoSingleTick), after: nameof(HomeFireTick));
             h.Patch(AccessTools.PropertySetter(typeof(Current), "Game"), prefix: new HarmonyMethod(typeof(NativePawnActivities), nameof(WorldChanging)));
-            h.Patch(AccessTools.Method(typeof(HediffComp_Disorientation), nameof(HediffComp_Disorientation.CompPostTickInterval),
-                    new[] { typeof(float).MakeByRefType(), typeof(int) }),
-                prefix: new HarmonyMethod(typeof(NativePawnActivities), nameof(DisorientationStarting)),
-                finalizer: new HarmonyMethod(typeof(NativePawnActivities), nameof(ImposedEffectEnded)));
-            foreach (var type in new[] { typeof(CompAbilityEffect_PutToSleep), typeof(CompAbilityEffect_ForceJob) })
-                h.Patch(AccessTools.Method(type, "Apply", new[] { typeof(LocalTargetInfo), typeof(LocalTargetInfo) }),
-                    prefix: new HarmonyMethod(typeof(NativePawnActivities), nameof(ImposedAbilityStarting)),
-                    finalizer: new HarmonyMethod(typeof(NativePawnActivities), nameof(ImposedEffectEnded)));
             NativeControlAuthority.GenerationChanged += AuthorityChanged;
             installed = true;
         }
@@ -149,6 +131,7 @@ namespace RimGovernor.Native
             {
                 var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == order.Pawn);
                 if (pawn == null || (!order.Release && (!pawn.IsColonistPlayerControlled || pawn.Downed || pawn.InMentalState || pawn.Drafted))) return Refuse("Activity pawn is unavailable.");
+                if (!order.Release && NativeBabyCare.Occupied(pawn)) return Refuse("Native baby care is still occupied.");
                 Entries.TryGetValue(pawn, out var old);
                 if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
                 var vacant = old == null || old.Order.Release;
@@ -453,13 +436,16 @@ namespace RimGovernor.Native
         {
             // No committed order: vanilla job selection under the colonist's work priorities (#3669, voluntary-control.md).
             if (!TryOwned(___pawn, out var e)) return true;
+            // Install the requested first job, then let native selection decide replacements and
+            // work at job boundaries. Considering a replacement does not itself end ownership.
+            if (e.Running != null || e.Step != 0 || e.State is "completed" or "failed") return true;
             thinkTree = ___pawn.thinker.MainThinkTree;
             __result = ThinkResult.NoJob;
-            if (e.Running != null && ReferenceEquals(e.Running, ___pawn.CurJob)) return false;
             try
             {
                 if (___pawn.Downed || ___pawn.InMentalState || ___pawn.Drafted) { Fault(e, "involuntary_or_combat_state"); Release(e); return true; }
                 var job = OfferJob(e);
+                if (job == null) return true;
                 Offers.Remove(job); Offers.Add(job, new Offer(e, e.Step, job.loadID));
                 if (e.State == "installed") { e.State = "offered"; e.Tick = Find.TickManager.TicksGame; Emit(e); }
                 __result = new ThinkResult(job, ___pawn.thinker.MainThinkNodeRoot, JobTag.Misc);
@@ -467,14 +453,14 @@ namespace RimGovernor.Native
             catch (Exception ex) { Fault(e, ex.Message); }
             return false;
         }
-        private static Job OfferJob(Entry e)
+        private static Job? OfferJob(Entry e)
         {
             if (e.Step >= e.Order.Steps.Length || e.State == "failed")
-            return JobMaker.MakeJob(holdDef);
+                return null;
             var step = e.Order.Steps[e.Step];
-            if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "deadline"); return JobMaker.MakeJob(holdDef); }
+            if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "deadline"); return null; }
             var p = e.Pawn;
-            if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return JobMaker.MakeJob(holdDef);
+            if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return null;
             if (step.Kind == PawnActivityKind.Approach)
                 return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3(((CellActivityStep)step).Destination.X, 0, ((CellActivityStep)step).Destination.Z));
             if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
@@ -609,71 +595,49 @@ namespace RimGovernor.Native
             return job;
         }
         private static bool Ready(Entry e) => Find.TickManager.TicksGame >= e.Order.Steps[e.Step].NotBefore;
-        // A pawn with no committed order runs every vanilla think path (#3669); a committed one runs only its order's jobs.
-        private static bool Constant(Pawn ___pawn, ref ThinkResult __result)
-        { if (!TryOwned(___pawn, out _)) return true; __result = ThinkResult.NoJob; return false; }
-        private static bool Override(Pawn ___pawn) => !TryOwned(___pawn, out _);
-        private static bool Opportunistic(Pawn ___pawn, ref Job? __result)
-        { if (!TryOwned(___pawn, out _)) return true; __result = null; return false; }
-        private static bool Finalizer(JobDriver __instance, ref Job? __result)
-        { if (!TryOwned(__instance.pawn, out _)) return true; __result = null; return false; }
-        private static void DisorientationStarting(HediffComp_Disorientation __instance, out Pawn? __state)
-        { __state = imposedEffectPawn; imposedEffectPawn = __instance.Pawn; }
-        private static void ImposedAbilityStarting(LocalTargetInfo target, out Pawn? __state)
-        { __state = imposedEffectPawn; imposedEffectPawn = target.Pawn; }
-        private static Exception? ImposedEffectEnded(Exception? __exception, Pawn? __state)
-        { imposedEffectPawn = __state; return __exception; }
         private static bool Starting(Pawn ___pawn, Job newJob, ref bool preToilReservationsCanFail)
         {
-            // Exhaustion starts LayDown directly from Need_Rest, before the pawn becomes downed.
-            // Hediff symptoms likewise start the exact Vomit job directly. Neither is voluntary.
-            // Player jobs likewise
-            // take ownership before TryTakeOrderedJob's authority-revocation postfix runs.
-            if (newJob.startInvoluntarySleep || newJob.def == JobDefOf.Vomit || newJob.playerForced || ReferenceEquals(imposedEffectPawn, ___pawn))
-            {
-                if (Entries.TryGetValue(___pawn, out var interrupted) && !interrupted.Order.Release)
-                {
-                    interrupted.State = "failed";
-                    interrupted.Reason = newJob.startInvoluntarySleep ? "involuntary_sleep"
-                        : newJob.def == JobDefOf.Vomit ? "involuntary_vomit" : newJob.playerForced ? "player_order" : "imposed_native_effect";
-                    interrupted.Tick = Find.TickManager.TicksGame;
-                    Emit(interrupted);
-                    Release(interrupted);
-                }
-                return true;
-            }
             if (!TryOwned(___pawn, out var e)) return true;
             if (___pawn.Downed || ___pawn.InMentalState || ___pawn.Drafted) { Fault(e, "involuntary_or_combat_state"); Release(e); return true; }
             var offered = Offers.TryGetValue(newJob, out var offer) && offer.Entry == e && offer.Step == e.Step && offer.JobId == newJob.loadID;
             if (!offered)
-            { Fault(e, "unauthorized_job_substitution"); return false; }
+                return true; // Started observes whether native actually takes over; a refused candidate changes nothing.
             if (e.Step < e.Order.Steps.Length && e.Order.Steps[e.Step].Kind == PawnActivityKind.Recipe && newJob.bill == null)
             {
                 if (!NativeActivityRecipe.Resolve(___pawn, newJob.targetA.Thing, e.Order.Steps[e.Step], out var bill, out _, out var reason, create: true))
                 { Fault(e, reason); return false; }
                 newJob.bill = bill;
             }
-            e.Running = newJob; e.RunningId = newJob.loadID;
             preToilReservationsCanFail = true;
             return true;
         }
         private static void Started(Pawn ___pawn)
         {
-            if (!Entries.TryGetValue(___pawn, out var e) || e.Running == null || !ReferenceEquals(___pawn.CurJob, e.Running)) return;
+            if (!Entries.TryGetValue(___pawn, out var e) || e.Order.Release || ___pawn.CurJob == null) return;
+            var job = ___pawn.CurJob;
+            if (Offers.TryGetValue(job, out var offer) && offer.Entry == e && offer.Step == e.Step && offer.JobId == job.loadID)
+            { e.Running = job; e.RunningId = job.loadID; }
+            if (!ReferenceEquals(___pawn.CurJob, e.Running) || ___pawn.CurJob.loadID != e.RunningId)
+            {
+                // The native job has now been installed. Detach the old attempt without ending
+                // the replacement or its finalizer. The worker reconciles the journal from this loss.
+                Fault(e, "native_job_takeover");
+                e.Running = null;
+                Release(e);
+                Supervisor.ActivityTakenOver(___pawn);
+                return;
+            }
             if (e.State is "failed" or "completed") return;
-            var state = e.Running.def == holdDef ? "holding" : "started";
-            e.State = state; e.Tick = Find.TickManager.TicksGame; Emit(e);
+            e.State = "started"; e.Tick = Find.TickManager.TicksGame; Emit(e);
         }
-        private static void Ending(Pawn ___pawn, JobCondition condition, ref bool startNewJob, out bool __state)
+        private static void Ending(Pawn ___pawn, JobCondition condition)
         {
-            __state = !replacing && Owned(___pawn) && startNewJob;
-            if (__state) startNewJob = false;
             if (replacing || !Entries.TryGetValue(___pawn, out var e) || e.Running == null || !ReferenceEquals(e.Running, ___pawn.CurJob) || e.RunningId != ___pawn.CurJob.loadID) return;
-            var hold = e.Running.def == holdDef;
-            NativeActivityRecipe.Cleanup(e.Running.bill);
+            var ended = e.Running;
             e.Running = null;
+            NativeActivityRecipe.Cleanup(ended.bill);
             if (e.State == "failed") return;
-            if (condition == JobCondition.Succeeded && !hold)
+            if (condition == JobCondition.Succeeded)
             {
                 // A Sow step stays current until its cell count is sown and a set step until its member count is done (#3613);
                 // every other step is done with its job.
@@ -693,32 +657,15 @@ namespace RimGovernor.Native
             }
             e.Tick = Find.TickManager.TicksGame; Emit(e);
         }
-        private static void Ended(Pawn ___pawn, bool __state)
-        {
-            if (!__state || !Owned(___pawn) || ___pawn.CurJob != null) return;
-            var result = ThinkResult.NoJob; ThinkTreeDef tree = ___pawn.thinker.MainThinkTree;
-            Select(___pawn, ref result, ref tree);
-            if (result.IsValid) ___pawn.jobs.StartJob(result.Job, JobCondition.None, result.SourceNode, thinkTree: tree, tag: result.Tag);
-        }
         private static void Ordered(Pawn ___pawn)
         {
             if (Entries.TryGetValue(___pawn, out var e)) Release(e);
         }
-        internal static void WaitTick(Pawn pawn)
-        {
-            if (!TryOwned(pawn, out var e)) { pawn.jobs.EndCurrentJob(JobCondition.InterruptForced); return; }
-            // A terminal assignment retains ownership for continuation, not permission to advance time.
-            if (e.State == "failed" || e.Step >= e.Order.Steps.Length) return;
-            var step = e.Order.Steps[e.Step];
-            if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "hold_deadline"); return; }
-            if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return;
-            e.State = "installed";
-            pawn.jobs.EndCurrentJob(JobCondition.Succeeded);
-        }
         private static void DriverTick(JobDriver __instance)
         {
             var p = __instance.pawn;
-            if (!Entries.TryGetValue(p, out var e) || e.Running == null || e.Running.def == holdDef || e.Step >= e.Order.Steps.Length) return;
+            if (!Entries.TryGetValue(p, out var e) || !ReferenceEquals(e.Running, __instance.job)
+                || e.RunningId != __instance.job.loadID || e.Step >= e.Order.Steps.Length) return;
             var step = e.Order.Steps[e.Step];
             if (step.Kind == PawnActivityKind.Deliver && step.SupportDemand.Length != 0
                 && (__instance.job.targetA.Thing ?? p.carryTracker.CarriedThing) is { } source
@@ -782,17 +729,6 @@ namespace RimGovernor.Native
         private static void WorldChanging() { foreach (var e in Entries.Values.ToArray()) Release(e); }
         private static void Despawn(Pawn __instance) { if (Entries.TryGetValue(__instance, out var e)) Release(e); }
         private static void Emit(Entry e) { PawnActivityTracker.Execution(Row(e), e.Pawn); }
-    }
-    public sealed class JobDriver_GovernorWait : JobDriver
-    {
-        public override bool TryMakePreToilReservations(bool errorOnFailed) => true;
-        protected override IEnumerable<Toil> MakeNewToils()
-        {
-            var toil = ToilMaker.MakeToil("GovernorWait");
-            toil.defaultCompleteMode = ToilCompleteMode.Never;
-            toil.tickAction = () => NativePawnActivities.WaitTick(pawn);
-            yield return toil;
-        }
     }
     /// <summary>Native walking/reservation/carrying mechanics, with no storage search or nearby-drop fallback.</summary>
     public sealed class JobDriver_GovernorDeliver : JobDriver

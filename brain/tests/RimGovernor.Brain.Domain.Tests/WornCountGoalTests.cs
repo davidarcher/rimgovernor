@@ -97,9 +97,12 @@ public sealed class WornCountGoalTests
     {
         var plant = new PlanningDefinition { Research = ["Devilstrand"] ,Harvest=new PlanningHarvest {HarvestedThingDef = Devilstrand.Value}};
         var other = new PlanningDefinition { Harvest=new PlanningHarvest {HarvestedThingDef = "RawRice"}};
-        var map = GoalsReview.StuffResearch([plant, other]);
+        // The real planning catalog also contains researched buildings with no harvested product.
+        var building = new PlanningDefinition { Name = "Cooler", Research = ["Electricity"] };
+        var map = GoalsReview.StuffResearch([plant, other, building]);
         Assert.Equal(["Devilstrand"], map[Devilstrand.Value]);
         Assert.False(map.ContainsKey("RawRice"));
+        Assert.Single(map);
     }
 
     [Fact]

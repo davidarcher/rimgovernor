@@ -35,8 +35,9 @@ public static class ActivityContinuationRules
         var owned = batch.Orders.Where(o => !o.Release && MatchesActivityOwner(o, rows[o.Pawn])).ToArray();
         if (owned.Length == 0) return new(null, true);
         var failed = owned.Any(o => rows[o.Pawn].State == "failed");
+        var takenOver = batch.Orders.Any(o => !o.Release && !MatchesActivityOwner(o, rows[o.Pawn]));
         var expired = owned.Any(o => o.Steps.Length > 0 && o.Steps.Max(s => s.Deadline) <= tick);
-        if (needed != ActivityNeed.Ended && !failed && !expired) return new(null, false);
+        if (needed != ActivityNeed.Ended && !takenOver && !failed && !expired) return new(null, false);
         if (owned.Any(o => o.Revision == long.MaxValue)) return new(null, false);
         var releases = owned.Select(o => o with { ExpectedRevision = o.Revision, Revision = o.Revision + 1, Release = true, Steps = [] }).ToArray();
         return new(new(batch.AuthorityGeneration, releases), false);

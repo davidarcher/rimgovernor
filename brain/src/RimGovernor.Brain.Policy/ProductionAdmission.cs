@@ -65,6 +65,7 @@ public static partial class ProductionRules
     {
         var promises = WorkRules.CreditCarriedBillInputs(ProductionPromisesOf(batches, facts.WorkAdmission.Recipes, facts.WorkAdmission.Bills), facts.Census.WorkResources);
         var construction = facts.CurrentConstruction;
+        var care = BabyCareRules.CarePawns(facts.ForecastObserved.Needs);
         return new()
         {
             Tick = facts.Tick, Buildings = facts.WorkAdmission.Buildings, WorkResources = facts.Census.WorkResources,
@@ -72,7 +73,7 @@ public static partial class ProductionRules
                     .Concat(construction.Buildings.Where(b => b.Building is not null).Select(b => b.Building!))),
                     // Standing blueprints are optional work, not reservations: admitted actions below own stock.
                     new Dictionary<Resource, long>()),
-            Pawns = EquatableArray.From(facts.ForecastObserved.WorkPawns.Pawns.Select(p => new WorkPawnAvailability(p.Id.Value, p.Available, p.Applies,
+            Pawns = EquatableArray.From(facts.ForecastObserved.WorkPawns.Pawns.Select(p => new WorkPawnAvailability(p.Id.Value, p.Available && !care.Contains(p.Id.Value), p.Applies,
                     ForecastCurrentWork.ForecastCurrentWorkOf(p).Occupied, p.Job.Target.Thing)
                     { Schedule = p.Schedule, Preemptible = p.Job.Preemptible, LocalHour = facts.Census.WorkResources.SingleOrDefault(n => n.Pawn == p.Id.Value)?.LocalHour
                         ?? throw new RequiredFactException("work_resources.local_hour:" + p.Id.Value) })),

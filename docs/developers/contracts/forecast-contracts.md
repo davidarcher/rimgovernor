@@ -1123,6 +1123,12 @@ bound nursery exposure; they do not choose or reserve the eventual native servic
 
 ### Baby care occupancy
 
+These are conditional exposure bounds. The separate current care response uses
+observed hunger and `ReadyToFeed` to make room through shared Method release
+([baby feeding](support-work.md#baby-feeding)); it does not turn these bounds into
+a promised future allocation. Food level changes and active carrying/safe return
+are observed separately, so an intake does not free a still occupied caregiver.
+
 `BabyRead.Care` observes the active carer and native feeding and play opportunities. The canonical needs census retains carried free-colonist babies from their native carry tracker, with state `carried`; they receive no voluntary work or unspawned path queries. Their default sleeping surface uses the carrier as RestUtility's traveler, as Childcare does. `NurseryGeometryRead.BedSlots` carries native first-slot offsets for every planned bed definition and rotation; the catalog owns only definition stats. `NeedSleep.Position` names the actual sleeping slot, including the alternate crib; a carried, bedless baby's random safe drop has no fixed location and remains explicitly unprojected.
 
 Clamor and social checks read the baby's raw `Position`, even while `MapHeld` follows its carrier. The active snapshot therefore keeps the pickup cell and the carer's separate current cell. A current snapshot occupies one forecast tick; subsequent native service is conditional and bounded. An observed pure carry has no recovery budget: until its native drop is observed, the remaining horizon encloses the pickup source, later drop positions and regional carer locations, with unprojected future social mode. Feeding uses the native normalized recovery of 1/5000 per tick, the maximum observed hunger-category decay, and actual lactation charge or native selected baby food. Play uses the existing BabyPlay gain-factor bounds, including walking and toy-drop uncertainty and planned decoration factors. For a horizon H, total gross recovery cannot exceed the initial need deficit plus decay times H; dividing this by the least service gain bounds the occupied share. This does not average random job choices or assign carers.
