@@ -279,15 +279,7 @@ public static class ColonyCommand
             throw new AcceptanceException($"{config}: the game has no workingDir");
         }
 
-        IReadOnlyDictionary<string, string>? files = null;
-        try
-        {
-            files = Harness.StampFiles(game);
-        }
-        catch (AcceptanceException)
-        {
-            // The package hash stays "".
-        }
+        var files = Harness.StampFiles(game);
 
         return new Fingerprint(Checkpoints.PackageHash(files), Checkpoints.StartHash(start.Describe()), Expansions.FromEnvironment() ?? []);
     }

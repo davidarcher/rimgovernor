@@ -258,13 +258,14 @@ public static class RunAt
         {
             await h.PauseClockAsync(label + "-pause", pauseBound.Token).ConfigureAwait(false);
         }
-        catch (AcceptanceException) when (failure is not null)
+        catch (Exception pauseFailure) when (failure is not null && pauseFailure is AcceptanceException or OperationCanceledException)
         {
-            // Reported through the wait's error.
-        }
-        catch (OperationCanceledException) when (failure is not null)
-        {
-            // Reported through the wait's error.
+            var primary = failure.SourceException;
+            var joined = new AggregateException(primary, pauseFailure);
+            var detail = $"{primary.Message}; pause after wait failed: {pauseFailure.Message}";
+            failure = ExceptionDispatchInfo.Capture(primary is OperationCanceledException cancelled
+                ? new OperationCanceledException(detail, joined, cancelled.CancellationToken)
+                : new AcceptanceException(detail, joined));
         }
 
         failure?.Throw();

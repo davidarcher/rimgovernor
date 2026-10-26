@@ -178,7 +178,7 @@ public static class MetricSeries
         file.Write(line);
     }
 
-    /// <summary>Reads every row of <paramref name="path"/> in file order; a missing file is an empty series and a corrupt line is skipped.</summary>
+    /// <summary>Reads every row in file order; a missing file is an empty series, while a corrupt line makes the prior evidence unreadable.</summary>
     public static IReadOnlyList<SeriesRow> ReadSeries(string path)
     {
         var rows = new List<SeriesRow>();
@@ -189,8 +189,10 @@ public static class MetricSeries
 
         using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         using var reader = new StreamReader(file, Encoding.UTF8);
+        var lineNumber = 0;
         while (reader.ReadLine() is { } line)
         {
+            lineNumber++;
             try
             {
                 if (SeriesRow.FromJson(line) is { } row)
@@ -198,8 +200,9 @@ public static class MetricSeries
                     rows.Add(row);
                 }
             }
-            catch (JsonException)
+            catch (JsonException e)
             {
+                throw new IOException($"read metric series {path} line {lineNumber}: {e.Message}", e);
             }
         }
 

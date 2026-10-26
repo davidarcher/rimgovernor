@@ -34,6 +34,7 @@ public static class Postmortems
     {
         ArgumentNullException.ThrowIfNull(dir);
         ArgumentNullException.ThrowIfNull(store);
+        string? reportReadError = null;
         if (report is null)
         {
             report = [];
@@ -43,15 +44,23 @@ public static class Postmortems
                 {
                     report = read;
                 }
+                else
+                {
+                    reportReadError = $"read {Path.Combine(dir, "result.json")}: expected a report object";
+                }
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
             {
-                // A report that cannot be read leaves every report-derived section noting its absence.
+                reportReadError = $"read {Path.Combine(dir, "result.json")}: {e.Message}";
             }
         }
 
         var facts = ReportFacts.Of(report);
         var sections = new List<DigestSection>();
+        if (reportReadError is not null)
+        {
+            sections.Add(new DigestSection("report") { Note = reportReadError });
+        }
         var rows = LogRows(dir);
         sections.Add(Revision(facts.InstalledPackage, cancellationToken));
         sections.Add(PostmortemCrash.CrashDumps(dir, facts.Error ?? ""));

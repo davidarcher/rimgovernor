@@ -35,15 +35,7 @@ public sealed partial class CheckpointRing
         // for a save; a periodic capture waits for the next cadence, a forced one tries.
         if (!force)
         {
-            ServiceApiReply? state = null;
-            try
-            {
-                state = await service.ApiAsync("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
-            }
-            catch (AcceptanceException)
-            {
-                // Treated as not capturable below.
-            }
+            var state = await service.ApiAsync("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
 
             if (state is not { Status: 200 } || !ServiceCanCapture(state.Body))
             {
@@ -100,7 +92,8 @@ public sealed partial class CheckpointRing
         JsonObject? identity,
         string token,
         string prefix,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TimeProvider? time = null)
     {
         ArgumentNullException.ThrowIfNull(hold);
         ArgumentNullException.ThrowIfNull(apiCall);
@@ -120,7 +113,7 @@ public sealed partial class CheckpointRing
             string src = "";
             try
             {
-                src = await ServiceSaveWhilePausedAsync(cfg, name, apiCall, token, prefix, stamp, cancellationToken).ConfigureAwait(false);
+                src = await ServiceSaveWhilePausedAsync(cfg, name, apiCall, token, prefix, stamp, time ?? TimeProvider.System, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e) when (e is AcceptanceException or OperationCanceledException or IOException)
             {
@@ -162,10 +155,11 @@ public sealed partial class CheckpointRing
     }
 
     /// <summary>Waits for manual control, posts the save and checks the file; <see cref="ServiceSaveAsync"/> resumes play afterwards whatever it returns.</summary>
-    private static async Task<string> ServiceSaveWhilePausedAsync(Config cfg, string name, ServiceApiCall apiCall, string token, string prefix, long stamp, CancellationToken cancellationToken)
+    private static async Task<string> ServiceSaveWhilePausedAsync(Config cfg, string name, ServiceApiCall apiCall, string token, string prefix, long stamp, TimeProvider time, CancellationToken cancellationToken)
     {
         // The pause is acknowledged before the mode reads manual; wait for it.
-        var manualDeadline = Now() + ToTimestamp(TimeSpan.FromSeconds(30));
+        var manualStarted = time.GetTimestamp();
+        AcceptanceException? lastFailure = null;
         using var pace = Wait.Pace(TimeSpan.FromMilliseconds(500));
         while (true)
         {
@@ -175,10 +169,11 @@ public sealed partial class CheckpointRing
             {
                 state = await apiCall("GET", "/api/state", null, "", cancellationToken).ConfigureAwait(false);
                 manual = state.Status == 200 && ServiceJson.State(state.Body)?.Mode == "manual";
+                lastFailure = null;
             }
-            catch (AcceptanceException)
+            catch (AcceptanceException e)
             {
-                // Polled again until the deadline.
+                lastFailure = e;
             }
 
             if (manual)
@@ -186,9 +181,9 @@ public sealed partial class CheckpointRing
                 break;
             }
 
-            if (Now() > manualDeadline)
+            if (time.GetElapsedTime(manualStarted) > TimeSpan.FromSeconds(30))
             {
-                throw new AcceptanceException($"service did not reach manual control after pause: {state?.Body.ToJson() ?? "null"}");
+                throw new AcceptanceException($"service did not reach manual control after pause: {lastFailure?.Message ?? state?.Body.ToJson() ?? "null"}", lastFailure);
             }
 
             await pace.NextAsync(cancellationToken).ConfigureAwait(false);

@@ -138,41 +138,40 @@ public static class EvidenceBudget
         }
     }
 
-    /// <summary>Writes one evidence row to <paramref name="path"/>, capped; under <see cref="EvidenceMode.Full"/> a cut row is also written untouched to <c>&lt;dir&gt;/full/&lt;name&gt;</c>. Write failures are dropped.</summary>
-    public static void WriteEvidence(string path, JsonObject row)
+    /// <summary>Writes one evidence row, capped and optionally full. False and a path-specific diagnostic mean incomplete evidence; the native call's outcome is preserved.</summary>
+    public static bool WriteEvidence(string path, JsonObject row, TextWriter? diagnostics = null)
     {
+        var complete = true;
+        var fullPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path)) ?? "", FullEvidenceDir, Path.GetFileName(path));
         var (capped, cut) = CapEvidenceRow(row);
         if (cut && CurrentEvidenceMode() == EvidenceMode.Full)
         {
             try
             {
-                var fullDir = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path)) ?? "", FullEvidenceDir);
-                Directory.CreateDirectory(fullDir);
-                WriteJsonFile(Path.Combine(fullDir, Path.GetFileName(path)), row);
+                Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+                WriteJsonFile(fullPath, row);
             }
-            catch (IOException)
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
-            }
-            catch (UnauthorizedAccessException)
-            {
+                (diagnostics ?? Console.Error).WriteLine($"write full evidence {fullPath}: {e.Message}; artifact missing");
+                complete = false;
             }
         }
-
-        WriteJsonFile(path, capped);
+        try
+        {
+            WriteJsonFile(path, capped);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            (diagnostics ?? Console.Error).WriteLine($"write evidence {path}: {e.Message}; artifact missing");
+            return false;
+        }
+        return complete;
     }
 
     private static void WriteJsonFile(string path, JsonNode value)
     {
-        try
-        {
-            File.WriteAllText(path, value.ToJsonString(WriteOptions), new UTF8Encoding(false));
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        File.WriteAllText(path, value.ToJsonString(WriteOptions), new UTF8Encoding(false));
     }
 
     /// <summary>Whether <paramref name="relative"/> (slash-separated, relative to a case or suite output) is a capped evidence file: a .json file outside <see cref="FullEvidenceDir"/>.</summary>
@@ -246,19 +245,22 @@ public static class EvidenceBudget
         }
         catch (ArgumentException)
         {
+            return; // A report's arbitrary text value is not a file reference.
         }
         catch (NotSupportedException)
         {
+            return;
         }
         catch (PathTooLongException)
         {
+            return;
         }
     }
 
     /// <summary>
     /// Hashes (sha256 hex, keyed by slash-separated path relative to <paramref name="output"/>) every capped evidence
     /// file under output and every file the report names; other files (log segments, service databases, logs, saves,
-    /// the full rows) are skipped without being read. An unreadable file ends the walk with what was hashed so far.
+    /// the full rows) are skipped without being read. Unreadable files are named in the report and other hashes continue.
     /// </summary>
     public static IReadOnlyDictionary<string, string>? Artifacts(string output, Report report)
     {
@@ -274,14 +276,19 @@ public static class EvidenceBudget
                     continue;
                 }
 
-                hashes[relative] = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path)));
+                try
+                {
+                    hashes[relative] = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(path)));
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    report.NoteEvidenceFailure("hash artifact", path, e);
+                }
             }
         }
-        catch (IOException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-        }
-        catch (UnauthorizedAccessException)
-        {
+            report.NoteEvidenceFailure("enumerate artifacts", output, e);
         }
 
         return hashes;

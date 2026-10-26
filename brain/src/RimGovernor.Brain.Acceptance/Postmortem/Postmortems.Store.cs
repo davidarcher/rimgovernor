@@ -375,9 +375,9 @@ public static class PostmortemStore
                     s.Lines.Add(new DigestLine(text, string.Create(CultureInfo.InvariantCulture, $"service.sqlite transitions#{sequence}")));
                 }
             }
-            catch (SqliteException)
+            catch (SqliteException e)
             {
-                // A row read that fails ends the listing with what was read.
+                s.Note = "read service.sqlite transitions: " + e.Message + "; listing incomplete";
             }
 
             if (total > s.Lines.Count)
@@ -385,7 +385,7 @@ public static class PostmortemStore
                 s.Lines.Add(new DigestLine(string.Create(CultureInfo.InvariantCulture, $"... {total - s.Lines.Count} more"), "service.sqlite transitions"));
             }
 
-            if (total == 0)
+            if (total == 0 && s.Note.Length == 0)
             {
                 s.Note = "no unsuccessful observation or refused receipt in transitions";
             }

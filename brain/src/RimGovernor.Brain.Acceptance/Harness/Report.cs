@@ -177,7 +177,7 @@ public sealed partial class Report
 
     /// <summary>
     /// Writes the report as <c>output/result.json</c>. Finalize calls it; a runner that adds bookkeeping after
-    /// Finalize (the series' drift flags) calls it again. A failure to write is not reported.
+    /// Finalize (the series' drift flags) calls it again. A write failure is retained and printed without changing the case verdict.
     /// </summary>
     public void Write(string output)
     {
@@ -187,8 +187,20 @@ public sealed partial class Report
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // The report is evidence, not a result of the run itself.
+            NoteEvidenceFailure("write report", Path.Combine(output, "result.json"), e);
         }
+    }
+
+    /// <summary>Evidence completeness belongs to this report; it never replaces the case's error or verdict.</summary>
+    internal void NoteEvidenceFailure(string operation, string path, Exception failure)
+    {
+        if (Raw("evidence_errors") is not JsonArray errors)
+        {
+            errors = [];
+            Data.Set("evidence_errors", errors);
+        }
+        errors.Add(new JsonObject { { "operation", operation }, { "path", path }, { "error", failure.Message } });
+        Console.Error.WriteLine($"{operation} {path}: {failure.Message}; evidence incomplete");
     }
 
     /// <summary>

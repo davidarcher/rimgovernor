@@ -28,7 +28,7 @@ public sealed class Metrics
 
     /// <summary>
     /// Derives the block from a finalized report (its timing fields and wait_stats) and the output directory's
-    /// recordings and evidence. It is total: a missing recording or unreadable directory leaves that part at zero.
+    /// recordings and evidence. Unreadable artifact sizes are a partial count with named evidence errors on the report.
     /// </summary>
     public static Metrics Compute(Report report, string output)
     {
@@ -61,7 +61,7 @@ public sealed class Metrics
         }
 
         m.Values["service_launches"] = launches;
-        m.Values["evidence_bytes"] = EvidenceBytes(output);
+        m.Values["evidence_bytes"] = EvidenceBytes(output, report);
         return m;
     }
 
@@ -127,7 +127,7 @@ public sealed class Metrics
     }
 
     // The size of every file under output; result.json is written after the block, so it never counts.
-    private static long EvidenceBytes(string output)
+    private static long EvidenceBytes(string output, Report report)
     {
         long total = 0;
         try
@@ -138,16 +138,15 @@ public sealed class Metrics
                 {
                     total += new FileInfo(path).Length;
                 }
-                catch (IOException)
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                 {
+                    report.NoteEvidenceFailure("measure artifact", path, e);
                 }
             }
         }
-        catch (IOException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-        }
-        catch (UnauthorizedAccessException)
-        {
+            report.NoteEvidenceFailure("enumerate artifact sizes", output, e);
         }
 
         return total;

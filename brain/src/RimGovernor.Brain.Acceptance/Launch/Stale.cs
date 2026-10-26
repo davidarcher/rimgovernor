@@ -190,9 +190,9 @@ public static class StalePackage
         {
             known = FixtureInputs.FixtureNames(repo);
         }
-        catch (AcceptanceException)
+        catch (AcceptanceException e)
         {
-            // An unreadable fixture root keeps every installed name.
+            Console.Error.WriteLine($"discover fixture names under {repo}: {e.Message}; rebuild hint retains installed names");
         }
 
         foreach (var name in installed)
@@ -215,7 +215,7 @@ public static class StalePackage
         }
         catch (Exception e) when (e is AcceptanceException or IOException or UnauthorizedAccessException)
         {
-            // Ops no fixture registers add nothing.
+            Console.Error.WriteLine($"discover fixture operations under {repo}: {e.Message}; rebuild hint may be incomplete");
         }
 
         return [.. seen.Order(StringComparer.Ordinal)];

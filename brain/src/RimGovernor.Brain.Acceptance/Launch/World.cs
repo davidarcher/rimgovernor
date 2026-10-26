@@ -29,6 +29,10 @@ public sealed record WorldRecord
     [JsonPropertyName("save_sha256")]
     public string SaveSha256 { get; init => field = value ?? ""; } = "";
 
+    /// <summary>The failed save-read operation when the hash and saved seed could not be observed.</summary>
+    [JsonPropertyName("save_read_error")]
+    public string SaveReadError { get; init => field = value ?? ""; } = "";
+
     /// <summary>The start's fixture op.</summary>
     public string Fixture { get; init => field = value ?? ""; } = "";
 
@@ -41,6 +45,7 @@ public sealed record WorldRecord
         .AddIfPresent("pinned", Pinned ? JsonValue.Create(true) : null)
         .AddIfPresent("save", Present(Save))
         .AddIfPresent("save_sha256", Present(SaveSha256))
+        .AddIfPresent("save_read_error", Present(SaveReadError))
         .AddIfPresent("fixture", Present(Fixture))
         .AddIfPresent("fixture_hash", Present(FixtureHash));
 
@@ -74,7 +79,7 @@ public static class WorldRecords
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
-                // The record never fails a run: the start's own knowledge stands.
+                record = record with { SaveReadError = $"read {config.ProfileSave(source.Save)}: {e.Message}" };
             }
         }
 

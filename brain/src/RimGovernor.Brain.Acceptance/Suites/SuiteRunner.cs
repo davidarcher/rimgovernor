@@ -424,9 +424,9 @@ public static class SuiteRunner
         {
             readError = ex.Message;
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
-            // An unreadable result.json leaves the row failed with the error the run reported, if any.
+            readError = "decode " + resultPath + ": " + ex.Message;
         }
 
         if (parsed is not null)

@@ -13,6 +13,18 @@ configuration. A service handle records a failed final routine read in its launc
 entry as `routine_read_error` and still completes its own shutdown. These tool
 diagnostics do not replace the case's primary failure.
 
+Evidence writes report the failed artifact and return an incomplete outcome;
+full-row failure still permits the capped row to be written. Report, diagnosis,
+artifact hash and size failures are retained in the report's `evidence_errors`
+with operation, path and error; an unwritable report also prints that diagnostic.
+The manifest contains only completed hashes and continues past an unreadable
+file. Partial size totals must be read with those errors. A corrupt metric-series
+line records `series_error` instead of treating the prior series as complete.
+World records carry `save_read_error` when the save hash or seed cannot be read.
+Checkpoint control polls retain the latest failed read for their unchanged
+deadline, and a successful read replaces that failure. Cleanup after a failed
+wait retains both the wait and pause causes, with the wait first.
+
 Every case follows these rules. Each one can be checked from the case declaration or its body.
 
 1. **One native claim.** `Scope` names one native read, operation or simulation outcome, and the case asserts

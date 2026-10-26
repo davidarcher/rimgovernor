@@ -134,6 +134,7 @@ public static class SustainedFood
         var diagDeadline = DateTimeOffset.UtcNow.AddSeconds(60);
         var sawAutomate = false;
         ulong revision = 0;
+        AcceptanceException? lastRevisionFailure = null;
         using (var pace = Wait.Pace(RunInterval))
         {
             while (DateTimeOffset.UtcNow < diagDeadline)
@@ -146,14 +147,15 @@ public static class SustainedFood
                 try
                 {
                     revision = await verifyStore.RevisionAsync(cancellationToken).ConfigureAwait(false);
+                    lastRevisionFailure = null;
                     if (revision > 0)
                     {
                         break;
                     }
                 }
-                catch (AcceptanceException)
+                catch (AcceptanceException e)
                 {
-                    // Not persisted yet.
+                    lastRevisionFailure = e;
                 }
 
                 await pace.NextAsync(cancellationToken).ConfigureAwait(false);
@@ -167,7 +169,7 @@ public static class SustainedFood
 
         if (revision == 0)
         {
-            throw new AcceptanceException("service reached automate mode but the ReviewState pass was never persisted");
+            throw new AcceptanceException("service reached automate mode but the ReviewState pass was never persisted" + (lastRevisionFailure is null ? "" : ": " + lastRevisionFailure.Message), lastRevisionFailure);
         }
 
         // The observation window: sample the goal's state and the stage of every one of its committed methods' plans,

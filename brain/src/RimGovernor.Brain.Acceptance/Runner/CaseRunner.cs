@@ -272,7 +272,7 @@ public sealed class CaseRunner
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // The digest is on the report too.
+            report.NoteEvidenceFailure("write diagnosis", Path.Combine(output, "diagnosis.txt"), e);
         }
 
         return digest;

@@ -316,6 +316,7 @@ public sealed class HttpNativeTransport : IAsyncDisposable
         catch (JsonException)
         {
             // A non-JSON failure body is reported as it is.
+            return ("", text.Trim());
         }
 
         return ("", text.Trim());
