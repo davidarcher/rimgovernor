@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Runtime;
 
 namespace RimGovernor.Launcher;
 
@@ -333,7 +334,7 @@ public static partial class NewColony
             new("all", "All pawns"),
             new("non_player", "Non-colonists"),
         ],
-        ThingOptions(DefTablesRules.ScenarioThingChoices),
+        ThingOptions(ScenarioSupplies.Suggestions),
         [
             new("NaturalMood", 2, "Sanguine"),
             new("NaturalMood", 1, "Optimist"),
@@ -439,7 +440,7 @@ public static partial class NewColony
     /// </summary>
     private static NewColonySpec Rhadamant()
     {
-        var d = DefTablesRules.RhadamantThings;
+        var d = ScenarioSupplies.Rhadamant;
         StartingThingPart Thing(string placement, string def, uint count) => new() { Placement = placement, ThingDef = def, Count = count };
         ForcedTraitPart Trait(string def, int degree) => new() { Trait = def, Degree = degree, Chance = 1, Context = "player_starter" };
         return new NewColonySpec

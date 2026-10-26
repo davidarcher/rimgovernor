@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.GameFacts.Common;
 using RimGovernor.Brain.GameFacts.Lifecycle;
 using RimGovernor.Brain.GameOrders.Lifecycle;
@@ -330,7 +331,7 @@ public static class ScenarioParts
     public static NewColonySpec ApplyRhadamant(NewColonySpec spec)
     {
         ArgumentNullException.ThrowIfNull(spec);
-        var d = DefTablesRules.RhadamantThings;
+        var d = ScenarioSupplies.Rhadamant;
         var things = new List<StartingThing>(spec.StartingThings);
         var traits = new List<ForcedTrait>(spec.ForcedTraits);
         void Thing(StartingThingPlacement placement, string def, uint count) =>

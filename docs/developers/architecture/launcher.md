@@ -119,7 +119,10 @@ cancels the run; Close game ends the game it left open. See the
 
 [NewColony.cs](../../../tools/launcher/NewColony.cs) supplies the option lists,
 ranges, DLC requirements and the Rhadamant preset; the page renders them without
-inventing or filtering them. The runner
+inventing or filtering them. The launcher and new-colony route share the authored
+scenario supplies, with game symbols checked at compile time and no game assembly
+needed to load the lists. Starting-thing suggestions remain typing shortcuts;
+the composer accepts any installed definition name. The runner
 ([NewColonyRunner.cs](../../../tools/launcher/NewColonyRunner.cs)) returns a
 reusable running game to the main menu (`POST /api/lifecycle/menu`, polled, a
 busy game's 503 asked again for up to 90 s), or closes the game and starts it

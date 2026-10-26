@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Reflection;
+using System.Runtime.Loader;
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.PlayerApi;
@@ -9,6 +11,32 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class LauncherPresetTests
 {
+    private sealed class GameFreeContext() : AssemblyLoadContext(nameof(GameFreeContext), isCollectible: true)
+    {
+        protected override Assembly? Load(AssemblyName assemblyName)
+        {
+            if (assemblyName.Name is "Assembly-CSharp" or "UnityStubs" or "Waylith" || assemblyName.Name?.StartsWith("UnityEngine", StringComparison.Ordinal) == true)
+                throw new FileNotFoundException("Launcher must not load game assemblies: " + assemblyName.Name);
+            if (assemblyName.Name?.StartsWith("RimGovernor", StringComparison.Ordinal) != true) return null;
+            var path = Path.Combine(Path.GetDirectoryName(typeof(NewColony).Assembly.Location)!, assemblyName.Name + ".dll");
+            return File.Exists(path) ? LoadFromAssemblyPath(path) : null;
+        }
+    }
+
+    [Fact]
+    public void ScenarioChoicesLoadWithoutGameAssemblies()
+    {
+        var context = new GameFreeContext();
+        try
+        {
+            var assembly = context.LoadFromAssemblyPath(typeof(NewColony).Assembly.Location);
+            var colony = assembly.GetType(typeof(NewColony).FullName!, throwOnError: true)!;
+            Assert.NotNull(colony.GetProperty(nameof(NewColony.Choices))!.GetValue(null));
+            Assert.NotNull(colony.GetProperty(nameof(NewColony.Presets))!.GetValue(null));
+        }
+        finally { context.Unload(); }
+    }
+
     [Fact]
     public void RhadamantPresetSelectsTheSeaIceBiome()
     {
@@ -16,6 +44,19 @@ public sealed class LauncherPresetTests
 
         Assert.Equal(["SeaIce"], preset.Spec.Biomes);
         Assert.Equal(["SeaIce"], preset.Spec.ForWire("any-seed").Biomes);
+    }
+
+    [Fact]
+    public void LauncherAndRouteKeepTheSameAuthoredRhadamantStartingSupplies()
+    {
+        var preset = Assert.Single(NewColony.Presets, p => p.Name == "rhadamant");
+        var launcher = NewColony.WireSpec("preset", preset.Spec, "seed");
+        var route = ScenarioParts.ApplyRhadamant(NewColony.WireSpec("preset", NewColonySpec.Default, "seed"));
+        Assert.Equal(launcher.StartingThings, route.StartingThings);
+        Assert.Equal(["Silver", "MealSurvivalPack", "WoodLog", "Steel", "ComponentIndustrial", "MedicineIndustrial", "Gun_BoltActionRifle", "Steel", "MealSurvivalPack", "ShipChunk"],
+            route.StartingThings.Select(thing => thing.ThingDef));
+        Assert.Equal([800u, 50u, 300u, 450u, 30u, 30u, 1u, 720u, 7u, 3u], route.StartingThings.Select(thing => thing.Count));
+        Assert.Equal(14, NewColony.Choices.Things.Count);
     }
 
     [Fact]
