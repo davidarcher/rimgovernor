@@ -227,6 +227,8 @@ public enum DeliveryKind
     Fish,
     Forage,
     AnimalProduct,
+    /// <summary>Actual recipe output at creation; Source is the exact native bill load ID.</summary>
+    Recipe,
 }
 
 /// <summary>

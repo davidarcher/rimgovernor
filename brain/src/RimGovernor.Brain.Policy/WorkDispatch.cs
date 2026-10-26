@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // The bench dispatcher is the decision half of the work ledger: how many benches should carry
 // each stock-target order (the rate model, BenchesWanted), whether production keeps up with that prediction (a
-// rolling one-day window of measured stock gain) and, when it does not, whether one more bench would help or what
+// rolling one-day window of actual recipe output) and, when it does not, whether one more bench would help or what
 // stops it. buildingruntime only feeds it observations and keeps the memory it returns.
 
 /// <summary>Says why a kind's throughput stays unmet.</summary>
@@ -83,7 +83,11 @@ public sealed record ThroughputWindow
 
     public long Start { get; init; }
 
-    public long StartStock { get; init; }
+    public long StartProduced { get; init; }
+
+    public string LoadToken { get; init; } = "";
+
+    public ThroughputBasis? Basis { get; init; }
 
     /// <summary>The units short of target at Start.</summary>
     public long Deficit { get; init; }
@@ -113,6 +117,11 @@ public sealed record ThroughputObservation
 
     public long Stock { get; init; }
 
+    /// <summary>Cumulative product units from this order's exact bills; absent means production is unread.</summary>
+    public ProductionOutput Output { get; init; } = new ProductionOutput.CensusUnread();
+
+    public ThroughputBasis? Basis { get; init; }
+
     public long Target { get; init; }
 
     /// <summary>The benches with a standing bill of the order.</summary>
@@ -134,6 +143,21 @@ public sealed record ThroughputObservation
     public ThroughputIngredients Ingredients { get; init; }
 }
 
+/// <summary>Only stable production inputs; current stock, job changes and elapsed time do not reset a rate.</summary>
+public sealed record ThroughputBasis(OrderSpec Order, EquatableArray<ThroughputBench> Benches, EquatableArray<ThroughputWorker> Workers);
+public sealed record ThroughputBench(string Id, bool Usable, double Speed, GearRecipe? Recipe, EquatableArray<ThroughputBill> Bills);
+public sealed record ThroughputBill(string Id, bool Active, string Worker);
+public sealed record ThroughputWorker(PawnId Id, bool Available, bool Applies, EquatableArray<WorkPriority> Priorities,
+    EquatableArray<RimGovernor.Brain.GameFacts.Observations.WorkSpeedRead> Speeds,
+    EquatableArray<RimGovernor.Brain.GameFacts.Observations.Skill> Skills);
+
+public abstract record ProductionOutput
+{
+    private protected ProductionOutput() { }
+    public sealed record Observed(string LoadToken, long Units) : ProductionOutput;
+    public sealed record CensusUnread : ProductionOutput;
+}
+
 /// <summary>The observed recipe stock, or the absence of a bench offering that recipe.</summary>
 public enum ThroughputIngredients { NoRecipe, Missing, Stocked }
 
@@ -143,7 +167,7 @@ public sealed record Calibration
     /// <summary>A full window ended this Round.</summary>
     public bool Closed { get; init; }
 
-    /// <summary>Its stock gain was under ShortfallFraction of the prediction.</summary>
+    /// <summary>Its actual recipe output was under ShortfallFraction of the prediction.</summary>
     public bool IsShort { get; init; }
 
     /// <summary>One more bench should carry the order. Otherwise a Short window has Reason.</summary>
@@ -151,16 +175,27 @@ public sealed record Calibration
 
     public UnmetReason Reason { get; init; }
 
-    /// <summary>The predicted minus measured gain per day.</summary>
+    /// <summary>The predicted minus realized recipe output per day.</summary>
     public double ShortPerDay { get; init; }
 }
 
 public static partial class WorkRules
 {
+    /// <summary>Compare only production inputs, without volatile stock/job state or native snapshot tokens.</summary>
+    public static bool SameThroughputBasis(ThroughputBasis? a, ThroughputBasis? b) => a is not null && b is not null
+        && a.Order == b.Order && a.Benches.Count == b.Benches.Count && a.Workers.Count == b.Workers.Count
+        && a.Benches.Zip(b.Benches).All(p => p.First.Id == p.Second.Id && p.First.Usable == p.Second.Usable
+            && p.First.Speed == p.Second.Speed && p.First.Recipe == p.Second.Recipe
+            && p.First.Bills.Count == p.Second.Bills.Count && p.First.Bills.Zip(p.Second.Bills).All(q =>
+                q.First.Id == q.Second.Id && q.First.Active == q.Second.Active && q.First.Worker == q.Second.Worker))
+        && a.Workers.Zip(b.Workers).All(p => p.First.Id == p.Second.Id && p.First.Available == p.Second.Available
+            && p.First.Applies == p.Second.Applies && p.First.Priorities == p.Second.Priorities
+            && p.First.Speeds == p.Second.Speeds && p.First.Skills == p.Second.Skills);
+
     /// <summary>The calibration window: one game day.</summary>
     public const long ThroughputWindowTicks = GameTime.TicksPerDay;
 
-    /// <summary>The share of predicted stock gain below which a full window counts as far below the prediction.</summary>
+    /// <summary>The share of predicted output below which a full window counts as far below the prediction.</summary>
     public const double ShortfallFraction = 0.5;
 
     /// <summary>The ingredient stock at or below which a recipe is ingredient-bound.</summary>
@@ -347,7 +382,7 @@ public static partial class WorkRules
     {
         var stock = o.Stock;
         var capacity = o.Capacity;
-        if (o.Carrying == 0)
+        if (o.Carrying == 0 || o.Output is not ProductionOutput.Observed(var loadToken, var produced) || loadToken.Length == 0 || o.Basis is null)
         {
             return (new ThroughputWindow(), new Calibration());
         }
@@ -356,14 +391,17 @@ public static partial class WorkRules
             {
                 Open = true,
                 Start = o.Tick,
-                StartStock = stock,
+                StartProduced = produced,
+                LoadToken = loadToken,
+                Basis = o.Basis,
                 Deficit = Math.Max(o.Target - stock, 0),
                 PerDay = capacity * o.Carrying,
                 Carrying = o.Carrying,
                 Met = stock >= o.Target,
                 Samples = 0,
             };
-        if (!w.Open || w.Carrying != o.Carrying || o.Tick < w.Start)
+        if (!w.Open || w.Carrying != o.Carrying || o.Tick < w.Start || w.LoadToken != loadToken
+            || !SameThroughputBasis(w.Basis, o.Basis) || produced < w.StartProduced || w.PerDay != capacity * o.Carrying)
         {
             return (Fresh(), new Calibration());
         }
@@ -383,7 +421,7 @@ public static partial class WorkRules
         var days = (double)(o.Tick - w.Start) / GameTime.TicksPerDay;
         var expected = Math.Min(w.PerDay * days, (double)w.Deficit);
         var cal = new Calibration { Closed = true };
-        var gain = (double)(stock - w.StartStock);
+        var gain = (double)(produced - w.StartProduced);
         if (!w.Met && expected > 0 && gain < ShortfallFraction * expected)
         {
             cal = cal with { IsShort = true, ShortPerDay = (expected - gain) / days };

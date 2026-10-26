@@ -156,12 +156,14 @@ namespace RimGovernor.Native
         // it places or merges them. A butcher recipe over one corpse is one Butcher at the end.
         private static IEnumerable<Thing> Butchered(IEnumerable<Thing> __result, RecipeDef __0, Pawn __1, List<Thing> __2)
         {
+            var bill = PlayerWork(__1) && __1.CurJob?.bill?.recipe == __0 ? __1.CurJob.bill.GetUniqueLoadID() : null;
             var butcher = NativeRecipeRoles.ButcherFlesh(__0) && PlayerWork(__1) && __2 != null && __2.Count == 1 && __2[0] is Corpse;
             var corpseId = butcher ? (__2 ?? throw new System.InvalidOperationException("Required native value is unavailable: __2."))[0].GetUniqueLoadID() : null;
             long meat = 0, leather = 0;
             double nutrition = 0;
             foreach (var product in __result)
             {
+                if (bill != null) Count(RimGovernor.Brain.GameFacts.Observations.DeliveryKind.Recipe, bill, product, __1);
                 if (butcher && product?.def != null)
                 {
                     if (product.def.IsMeat) { meat += product.stackCount; nutrition += product.stackCount * product.def.GetStatValueAbstract(StatDefOf.Nutrition); }

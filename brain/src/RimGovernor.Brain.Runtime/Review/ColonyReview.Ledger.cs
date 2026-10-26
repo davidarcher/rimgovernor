@@ -261,7 +261,7 @@ public sealed partial class ColonyReview
             else
             {
                 EquatableArray<WorkPawn> pawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
-                var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = ResourceStockRules.Count(projection.Snapshot.Resources), Tick = projection.Identity.Tick.Value });
+                var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs { Declared = declared, Benches = benches, Pawns = pawns, Stock = ResourceStockRules.Count(projection.Snapshot.Resources), Tick = projection.Identity.Tick.Value, Production = projection.Snapshot.DeliveryLedger });
                 var plan = WorkRules.ReconcileLedger(declared, actual, l.Orphans ?? new Dictionary<string, int>(), copies);
                 l.Orphans = plan.Orphans;
                 var (placed, unplaced) = WorkRules.PlaceLedgerOrders(plan.Place, benches);

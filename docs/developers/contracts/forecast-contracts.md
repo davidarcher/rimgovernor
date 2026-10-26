@@ -15,6 +15,17 @@ thoughts nor authorize execution. Selected input provenance extends only the
 existing disposable Method task payload; no save preference or progress owner
 is added.
 
+## Observed native production
+
+The shared bill dispatcher composes current canonical workers, recipe/bench facts,
+stock demand and realized output. Its [derived throughput window](work-assignment.md)
+uses the existing native creation counters, in product units per game day. Stock
+delivery and consumption do not count as production. An unread counter census is
+`ProductionOutput.CensusUnread`; no zero rate or widening decision is inferred.
+The existing world reset and typed production basis invalidate obsolete evidence.
+This is observed output over a completed window, not a predicted native job
+trajectory or a guarantee that native workers will meet a timetable's hours.
+
 ## Combat exposure states
 
 `NeedsForecastPawn.ViolenceCapable` reads `!pawn.WorkTagIsDisabled(WorkTags.Violent)`.

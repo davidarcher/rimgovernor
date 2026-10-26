@@ -13,6 +13,8 @@ public sealed record DispatchInputs
     public IReadOnlyDictionary<Resource, long> Stock { get; init; } = new Dictionary<Resource, long>();
 
     public long Tick { get; init; }
+
+    public RimGovernor.Brain.GameFacts.Observations.DeliveryLedger? Production { get; init; }
 }
 
 /// <summary>
@@ -45,15 +47,32 @@ public sealed class DispatchMemory
             copies[k] = d.Copies;
             if (!order.Stocked())
             {
+                Windows.Remove(k);
+                Widen.Remove(k);
+                Shortfalls.Remove(k);
                 continue;
             }
             if (d.Sizing is not DispatchSizing.Sized sized)
             {
                 // An unsized order has no prediction to calibrate against: its window starts over.
                 Windows[k] = new ThroughputWindow();
+                Widen.Remove(k);
+                Shortfalls.Remove(k);
                 continue;
             }
-            var (window, cal) = WorkRules.CalibrateThroughput(Windows.GetValueOrDefault(k) ?? new ThroughputWindow(), WorkRules.ObserveOrder(order, d.Eligible, sized, input));
+            var previous = Windows.GetValueOrDefault(k) ?? new ThroughputWindow();
+            var observation = WorkRules.ObserveOrder(order, d.Eligible, sized, input);
+            if (observation.Output is not ProductionOutput.Observed(var token, var units) || previous.LoadToken != token || !WorkRules.SameThroughputBasis(previous.Basis, observation.Basis)
+                || observation.Tick < previous.Start || units < previous.StartProduced
+                || previous.PerDay != observation.Capacity * observation.Carrying)
+            {
+                Widen.Remove(k);
+                Shortfalls.Remove(k);
+                d = WorkRules.DispatchOrder(order, input.Stock, input.Benches, input.Pawns, 0);
+                dispatch[k] = d;
+                copies[k] = d.Copies;
+            }
+            var (window, cal) = WorkRules.CalibrateThroughput(previous, observation);
             Windows[k] = window;
             if (cal.Closed && cal.Widen)
             {
@@ -129,6 +148,7 @@ public static partial class WorkRules
             Ingredients = ThroughputIngredients.NoRecipe,
         };
         var carrying = new List<string>();
+        var bills = new List<string>();
         foreach (var b in input.Benches)
         {
             foreach (var bill in b.Bills)
@@ -136,6 +156,7 @@ public static partial class WorkRules
                 if (!bill.Spent && bill.Spec.Key() == key)
                 {
                     carrying.Add(b.Id);
+                    bills.Add(bill.Id);
                     if (!bill.Active)
                     {
                         o = o with { Active = false };
@@ -143,7 +164,21 @@ public static partial class WorkRules
                 }
             }
         }
-        o = o with { Carrying = carrying.Count, Busy = BenchesBusy(input.Pawns, carrying) };
+        o = o with { Carrying = carrying.Distinct(StringComparer.Ordinal).Count(), Busy = BenchesBusy(input.Pawns, carrying) };
+        o = o with
+        {
+            Output = input.Production is { } production ? new ProductionOutput.Observed(production.LoadToken, production.Counts
+                .Where(c => c.Kind == RimGovernor.Brain.GameFacts.Observations.DeliveryKind.Recipe
+                    && c.Def == order.Product.Value && bills.Contains(c.Source, StringComparer.Ordinal)).Sum(c => c.Units))
+                : new ProductionOutput.CensusUnread(),
+            Basis = new(order,
+                EquatableArray.From(EligibleBenches(order, input.Benches)
+                    .Select(b => new ThroughputBench(b.Id, b.Usable, b.WorkSpeed, RecipeOf(b, order.Recipe), EquatableArray.From(b.Bills
+                        .Where(bill => bills.Contains(bill.Id, StringComparer.Ordinal)).OrderBy(bill => bill.Id, StringComparer.Ordinal)
+                        .Select(bill => new ThroughputBill(bill.Id, bill.Active, bill.Worker)))))),
+                EquatableArray.From(input.Pawns.OrderBy(p => p.Id).Select(p => new ThroughputWorker(p.Id, p.Available, p.Applies,
+                    EquatableArray.From(p.Work.Priorities()), p.WorkSpeeds, p.Skills))))
+        };
         var eligible = EligibleBenches(order, input.Benches);
         if (eligible.Count > 0)
         {

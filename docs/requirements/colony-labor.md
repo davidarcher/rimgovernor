@@ -45,6 +45,24 @@ exception is tracked as [#4041](https://github.com/davidarcher/rimgovernor/issue
 
 ## Routine execution migration inventory
 
+Task 3.1 uses the existing shared demand and worker census plus the bill
+dispatcher's derived window. `NativeDeliveryLedger` now counts each recipe's
+products by bill identity at creation. `ObserveOrder` reads only that order's
+exact bills and product; food acquisition credit excludes recipe transformations.
+`NativeThroughputTests` covers consumption versus production, imported/delivered
+stock, missing observations and rebaselining on load, rewind, counter regression,
+order, bench, bill, worker availability, priority and speed changes. Rates are
+product units per game day; the existing world reset owns derived windows and the
+existing native load token owns counter epochs. No new durable ledger or model
+run was added. The gate passed 4,114 domain tests and 30 workflow tests (1m23s),
+native production/fixture compilation, contract probes and the orphan sweep;
+strict OpenSpec validation passed five items on 2026-10-26. This is policy/boundary
+evidence; no new native gameplay case is claimed for these counters yet. Routine
+settings/output acceptance remains in group 5. Rules 7–9: policy owns calibration;
+Runtime passes the canonical ledger; missing production is `CensusUnread`, never
+zero. Complexity: added one recipe-output kind and typed derived production basis /
+removed net-stock-as-production inference / orphans left: none.
+
 The next capacity increment removes interruptibility-as-free accounting and
 reservation-holder eviction. Useful observed native work is occupied; without a
 remaining-time estimate its capacity is unread. Every observed job target stays

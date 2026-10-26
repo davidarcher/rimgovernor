@@ -409,13 +409,23 @@ stands on one bench, as does one whose positive demand meets zero capacity
 puts each copy on the fastest eligible bench (work speed, then fewest bills, then
 id) that does not already carry it and has fewer than `LedgerBenchSlots` readback
 bills; a copy no bench takes is unplaced. Calibration keeps a rolling one-game-day
-window per stock target, restarted when the number of carrying benches changes and
-reset with the world: a full window whose stock gain is under half of the predicted
-gain (and whose stock never reached the target) widens by one bench, capped at the
+window per stock target. The existing native delivery ledger counts actual recipe
+products when the iterator yields them, keyed by exact bill and product, before
+storage, merges or consumption. A full window whose product creation is under half
+of predicted output (and whose stock never reached the target) widens by one bench, capped at the
 usable benches, unless the recipe's ingredient stock is at or below one unit
 (`ingredient_bound`) or every carrying bill is active, ingredients are present and
 no pawn's job targeted a carrying bench all window (`haul_bound`); with a bill on
-every eligible bench it reports `benches_exhausted`. `ReviewFacts.UnmetThroughput`
+every eligible bench it reports `benches_exhausted`. Stock reaching the target
+stops shortfall calibration; changes in stock otherwise measure neither production
+nor its absence. Counts from other bills, products or acquisition channels do not
+credit the order. An absent census is `ProductionOutput.CensusUnread`, so it
+cannot widen a prediction. Each derived window
+rebaselines on world/load change, tick rewind, counter regression or changed order,
+eligible benches, carrying bill identity/configuration, worker availability,
+priorities, skills or measured speed. Stale widening and shortfall evidence is
+discarded with that basis. Units are product units per game day.
+`ReviewFacts.UnmetThroughput`
 is one row per bench kind (`policy.UnmetThroughput`: units a day short and the
 reason, also `no_bench` when the model wants more benches than exist and
 `bench_slots_full` for an unplaced copy with capable benches), the demand signal the

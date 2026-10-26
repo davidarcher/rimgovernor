@@ -78,7 +78,8 @@ public sealed class WorkUpkeepTotalTests
     [InlineData(ThroughputIngredients.NoRecipe, UnmetReason.None, true)]
     public void IngredientStatesControlThroughputCalibration(ThroughputIngredients ingredients, UnmetReason expected, bool widen)
     {
-        var start = new ThroughputObservation { Tick = 1, Target = 100, Carrying = 1, Eligible = 2, Capacity = 10, Active = true, Ingredients = ingredients };
+        var start = new ThroughputObservation { Tick = 1, Target = 100, Carrying = 1, Eligible = 2, Capacity = 10, Active = true, Ingredients = ingredients,
+            Output = new ProductionOutput.Observed("load", 0), Basis = new(new(), [], []) };
         var (window, _) = WorkRules.CalibrateThroughput(new(), start);
         var (_, result) = WorkRules.CalibrateThroughput(window, start with { Tick = 1 + WorkRules.ThroughputWindowTicks });
         Assert.True(result.Closed);

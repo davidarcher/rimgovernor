@@ -256,6 +256,8 @@ partial class ColonyReview
         var delivered = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var count in ledger.Counts)
         {
+            // Recipe output transforms existing food; it is not another acquisition channel.
+            if (count.Kind == RimGovernor.Brain.GameFacts.Observations.DeliveryKind.Recipe) continue;
             var k = Wire.Name(count.Kind) + ":" + count.Source;
             delivered[k] = delivered.GetValueOrDefault(k) + count.Nutrition;
         }
