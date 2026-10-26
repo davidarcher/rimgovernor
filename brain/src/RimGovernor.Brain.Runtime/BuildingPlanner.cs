@@ -262,7 +262,7 @@ public sealed partial class BuildingPlanner
         }
         if (r.Concern == RoomsFamily.Flooring.FilingKey)
         {
-            definitions = r.FlooringDefinitions();
+            definitions = [];
         }
         if (r.Concern == LayoutFamily.Routes.FilingKey)
         {

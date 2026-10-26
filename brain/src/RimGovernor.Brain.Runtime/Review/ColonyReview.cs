@@ -378,11 +378,6 @@ public sealed partial class ColonyReview
         {
             readDefinitions = [.. readDefinitions, .. RoomQualityRules.RoomBeautyDefinitions()];
         }
-        if (Needs.Contains(RoomsFamily.Flooring))
-        {
-            // The traffic tier prices its floor in the review.
-            readDefinitions = [.. readDefinitions, .. Policy.Flooring.Floors];
-        }
         if (Needs.Contains(AdminFamily.Burial))
         {
             readDefinitions = [.. readDefinitions, .. BurialFacts.BurialDefinitions];
@@ -506,7 +501,7 @@ public sealed partial class ColonyReview
         reading = reading.WithReading(ReviewBabyFeeding(reading.Reading));
         if (Needs.Contains(RoomsFamily.Flooring))
         {
-            reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Flooring = BuildingPlanner.TrafficFlooringFacts(reading.Reading, Policy.Flooring) } });
+            reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Flooring = BuildingPlanner.TrafficFlooringFacts(reading.Reading) } });
             reading = reading.WithColonySection(c => c with { Facts = c.Facts with { Upkeep = c.Facts.Upkeep with { Flooring = reading.Reading.Facts.Upkeep.Flooring } } });
         }
         fine.Lap("d_stock/meals");

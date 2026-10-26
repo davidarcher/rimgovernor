@@ -33,9 +33,6 @@ public static class FloorTierExtensions
 
 public sealed record FlooringPolicy
 {
-    /// <summary>The floor definitions the planner may choose from; the native planning census reports each one's availability and stats.</summary>
-    public IReadOnlyList<string> Floors { get; init; } = [];
-
     /// <summary>Bounds the cells one admitted plan floors.</summary>
     public int MaxCellsPerPlan { get; init; }
 
@@ -61,13 +58,12 @@ public sealed record FlooringPolicy
     {
         get
         {
-            if (Floors.Count == 0 || MaxCellsPerPlan < 1 || MaxCellsPerPlan > 256 || !Clean.IsValid || !Living.IsValid || !Traffic.IsValid
+            if (MaxCellsPerPlan < 1 || MaxCellsPerPlan > 256 || !Clean.IsValid || !Living.IsValid || !Traffic.IsValid
                 || !FlooringRules.FloorNumber(PaybackDays) || PaybackDays < 0 || !FlooringRules.FloorNumber(MaterialTicksPerUnit) || MaterialTicksPerUnit < 0)
             {
                 return false;
             }
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            return Floors.All(f => FoodForecastRules.FoodId(f) && seen.Add(f));
+            return true;
         }
     }
 }
@@ -108,7 +104,7 @@ public sealed record FlooringObservation
     public uint TrafficSamples { get; init; }
 
     /// <summary>
-    /// The planning census row of every policy floor the traffic tier may price, null when the census was not
+    /// The planning census row of every buildable floor the traffic tier may price, null when the census was not
     /// read: the tier is then unknown.
     /// </summary>
     public IReadOnlyDictionary<string, FloorDefinition>? Floors { get; init; }
@@ -355,12 +351,6 @@ public static class FlooringRules
     public static FlooringPolicy DefaultFlooringPolicy() =>
         new()
         {
-            Floors =
-            [
-                TierStyleRules.StrawMatting, "SterileTile", "TileSandstone", "TileGranite", "TileLimestone", "TileSlate", "TileMarble",
-                "FlagstoneSandstone", "FlagstoneGranite", "FlagstoneLimestone", "FlagstoneSlate", "FlagstoneMarble",
-                TierStyleRules.Carpet, "PavedTile", "Concrete", "WoodPlankFloor",
-            ],
             MaxCellsPerPlan = 24,
             Clean = new FloorWeights { Cleanliness = 10, Beauty = 1, PathCost = 1, Flammability = 1, Cost = 0.2 },
             Living = new FloorWeights { Cleanliness = 1, Beauty = 3, PathCost = 1, Flammability = 3, Cost = 0.2 },
@@ -534,12 +524,11 @@ public static class FlooringRules
         var (name, why) = StyledFloor(new FloorDeficit { Tier = FloorTier.Traffic }, facts, batch, p.Traffic);
         if (name.Length != 0)
         {
-            return (name, FloorPriced(v.Floors.GetValueOrDefault(name) ?? new FloorDefinition()));
+            return (name, true);
         }
         return ("", true);
     }
 
-    internal static bool FloorPriced(FloorDefinition d) => true;
 
     /// <summary>One cell's one-time cost in colony work ticks: the native WorkToBuild plus MaterialTicksPerUnit for every unit of its cost list.</summary>
     private static double FloorTicks(FloorDefinition d, FlooringPolicy p)

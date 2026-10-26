@@ -143,7 +143,7 @@ public sealed partial record ForecastCoupledCandidates
         }
         var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
         var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources,
-            FlooringRules.DefaultFlooringPolicy().Floors.ToHashSet(StringComparer.Ordinal),
+            facts.Definitions.Where(definition => definition.Terrain && definition.Floor is not null).Select(definition => definition.Name).ToHashSet(StringComparer.Ordinal),
             urgent.Count == 0 ? Methods.Generation.ConstructionMethodCandidates.SiteBound : int.MaxValue);
         var shelterRooms = (shelterEnabled ? facts.PlannedShelters : [])
             .Where(r => urgent.Count == 0 || PlannedRules.RectCells(PlannedRoom.RoomWalls(r)).Any(c => urgent.Any(u => u.Cell == c)));

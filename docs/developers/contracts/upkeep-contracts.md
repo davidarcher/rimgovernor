@@ -538,6 +538,12 @@ service state from the catalog and building rows).
 `rooms/flooring` is a plain threshold over the terrain under each room cell and its native stats
 (`UpkeepFacts.flooring`).
 
+The ordinary planning census includes every player-buildable terrain in the installed catalog,
+with its research availability, costs, work and floor stats. Flooring selection, traffic pricing,
+room beauty upgrades and construction relief share those rows. Tier styles remain authored
+preferences; where a tier compares alternatives, it considers the whole measured set with ordinal
+definition ordering for ties. Research-locked rows cannot win an available build proposal.
+
 - A clean workspace (an enclosed kitchen, hospital, laboratory or cooking-bench room, never a butchery) is deficient while any cell's cleanliness is
   negative; a living room (bedroom, barracks, dining, recreation) while any cell is natural
   ground. Other roles carry no requirement. No hysteresis; an ordered floor still counts as

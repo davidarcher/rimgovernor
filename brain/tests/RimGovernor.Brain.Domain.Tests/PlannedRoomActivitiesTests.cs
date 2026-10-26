@@ -647,11 +647,12 @@ public sealed class PlannedRoomActivitiesTests
         // bound before placement, no order went out and the builder stood on standby beside an open blueprint it could work.
         // The floor blueprint and shell do not both fit the builder's horizon; the cheaper shell serves first.
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 100), Ring(OpKind.DoorIn, "WoodLog", 40)]);
-        var floor = new Row("blueprint/floor", FlooringRules.DefaultFlooringPolicy().Floors[0], new(2, 2), Pawn,
+        var floor = new Row("blueprint/floor", "InstalledFloor", new(2, 2), Pawn,
             "WoodLog", "stack-WoodLog", StackCell("WoodLog"), 1, 1, "FinishFrames", 0d, 10d, 200d)
             { SiteApproachTicks = 0d, AvailableInput = 10d };
         facts = facts with
         {
+            Definitions = [.. facts.Definitions, new() { Name = "InstalledFloor", Terrain = true, Floor = new() }],
             Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "WoodLog", Units = 10 }] },
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
                 { Construction = facts.ForecastObserved.Coupled.Construction! with { Options = [floor] } } },

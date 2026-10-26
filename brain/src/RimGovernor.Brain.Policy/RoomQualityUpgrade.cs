@@ -80,13 +80,12 @@ public static partial class RoomQualityRules
 
     /// <summary>
     /// The definitions the closer may place beside the furniture rules' (RoomFurniture.Definitions, read with
-    /// every catalog): the standing lamp, the plant pot and the floors, the beauty levers. The planning census
-    /// must read them for availability and stuff.
+    /// every catalog): the standing lamp and the plant pot. The planning census reads them for availability
+    /// and stuff; all buildable floors already join the ordinary catalog composition.
     /// </summary>
     public static IReadOnlyList<string> RoomBeautyDefinitions()
     {
         var output = new List<string> { InteriorHelpersRules.StandingLampDef, PlantPotDefinition };
-        output.AddRange(FlooringRules.DefaultFlooringPolicy().Floors);
         return output;
     }
 

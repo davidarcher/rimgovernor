@@ -108,10 +108,6 @@ public sealed class RoomsReview
         {
             definitions.AddRange(_lighting.LightingDefinitions());
         }
-        if (_flooring is not null)
-        {
-            definitions.AddRange(_flooring.FlooringDefinitions());
-        }
         if (ComfortComposed)
         {
             definitions.Add(PartySpotRules.PartySpotDefinition);
@@ -155,7 +151,7 @@ public sealed class RoomsReview
     internal static RoomsFacts Facts(ColonyReading projection, PlannerSettings policy, ComfortHistory history, NeedOwner? spot, BuildingPlanner? flooring)
     {
         var lighting = BuildingPlanner.LightingReviewOf(projection, policy.Lighting);
-        var census = flooring is not null ? flooring.FlooringCensus(projection) : BuildingPlanner.TrafficFlooringFacts(projection, policy.Flooring);
+        var census = flooring is not null ? flooring.FlooringCensus(projection) : BuildingPlanner.TrafficFlooringFacts(projection);
         var floorReview = FlooringRules.ReviewFlooring(census, projection.Facts.Upkeep.Rooms, policy.Flooring);
         var profiles = projection.Facts.WorkProfiles;
         var hosting = ComfortRules.ReviewComfort(projection.Facts.RequireComfort(), history, projection.Identity.Tick);

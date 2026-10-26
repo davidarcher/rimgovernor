@@ -181,8 +181,7 @@ public static class FirebreakRules
         {
             return null;
         }
-        if (!floors.TryGetValue(style, out var def)
-            || !FlooringRules.FloorPriced(def))
+        if (!floors.TryGetValue(style, out var def))
         {
             throw new RequiredFactException("firebreak floor " + style);
         }

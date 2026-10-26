@@ -51,8 +51,8 @@ public sealed class CoordinatedConstructionTests
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
-        var option = Option("producer", 0, 20, 20) with { Definition = floor ? FlooringRules.DefaultFlooringPolicy().Floors[0] : "Wall" };
-        facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
+        var option = Option("producer", 0, 20, 20) with { Definition = floor ? "InstalledFloor" : "Wall" };
+        facts = facts with { Definitions = [new() { Name = "InstalledFloor", Terrain = true, Floor = new() }], WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
             Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = [option] } }

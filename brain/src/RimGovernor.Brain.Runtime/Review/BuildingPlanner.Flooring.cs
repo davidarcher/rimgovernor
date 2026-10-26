@@ -20,7 +20,7 @@ public sealed partial class BuildingPlanner
             throw new ControlException("NewReviewFlooringPlanner: native is not a rounds source");
         }
 
-        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Flooring.FilingKey, Need = RoomsFamily.Flooring, Definition = "WoodPlankFloor" };
+        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Flooring.FilingKey, Need = RoomsFamily.Flooring };
     }
 
     /// <summary>
@@ -29,13 +29,10 @@ public sealed partial class BuildingPlanner
     /// </summary>
     public void SetFirebreakPave(Func<IReadOnlyList<Cell>> pave) => FirebreakPave = pave;
 
-    /// <summary>Lists every floor the policy may choose so the census read carries each one's availability, stats and cost list.</summary>
-    internal IReadOnlyList<string> FlooringDefinitions() => Reviewer.Policy.Flooring.Floors;
-
     /// <summary>The flooring census the traffic tier prices, with the firebreak ring's pave cells when composed: the rooms/flooring Need's evidence.</summary>
     internal FlooringObservation FlooringCensus(ColonyReading facts)
     {
-        var census = TrafficFlooringFacts(facts, Reviewer.Policy.Flooring);
+        var census = TrafficFlooringFacts(facts);
         return FirebreakPave is not null ? census with { Firebreak = FirebreakPave() } : census;
     }
 
@@ -178,17 +175,17 @@ partial class BuildingPlanner
     }
 
     /// <summary>
-    /// Adds what the traffic tier prices its floor from to the flooring census: every policy floor's planning
+    /// Adds what the traffic tier prices its floor from to the flooring census: every buildable floor's planning
     /// row, the accessible stock and the tier style's aisle floor.
     /// </summary>
-    internal static FlooringObservation TrafficFlooringFacts(ColonyReading facts, FlooringPolicy p)
+    internal static FlooringObservation TrafficFlooringFacts(ColonyReading facts)
     {
         var v = facts.Facts.Upkeep.Flooring;
 
         var floors = new Dictionary<string, FloorDefinition>();
         foreach (var d in facts.Facts.Definitions)
         {
-            if (p.Floors.Contains(d.Name) && d.Floor is not null)
+            if (d.Terrain && d.Floor is not null)
             {
                 floors[d.Name] = new FloorDefinition
                 {

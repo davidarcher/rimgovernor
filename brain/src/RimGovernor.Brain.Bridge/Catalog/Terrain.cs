@@ -8,6 +8,10 @@ namespace RimGovernor.Brain.Bridge;
 
 public sealed partial class DefinitionCatalog
 {
+    /// <summary>Every player-buildable terrain, sorted; research availability is resolved in the ordinary planning row.</summary>
+    public IReadOnlyList<string> BuildableFloors() =>
+        [.. _terrainDefs.Values.Where(TerrainBuildable).Select(row => row.defName).Order(StringComparer.Ordinal)];
+
     // The affordance the ground of a light site must support (SiteCell.SupportsLight).
     private const string AffordanceLight = "Light";
 
