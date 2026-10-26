@@ -497,6 +497,8 @@ under it; it has no latch, and unknown temperature or room facts leave it unknow
   Claimed fuel heaters read their auto-refuel switch from the canonical building
   fuel service, including heaters with no bill stack. Their draw reaches the
   `power/basic` Need as pending demand while open and is measured once built.
+  Room reconciliation carries every discovered thermal definition as infrastructure;
+  it does not remove a selected installed heater/cooler as stale furniture.
 - Solar flare: while a `SolarFlare` condition with a native remaining-duration read is
   observed (`policy.PowerOutageHold`) the power family holds `power/basic` without a
   Method (`power_outage`; its open work is kept, never cancelled), and

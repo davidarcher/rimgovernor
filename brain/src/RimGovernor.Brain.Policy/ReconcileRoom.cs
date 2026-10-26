@@ -154,7 +154,7 @@ public static partial class ReconcileRules
     /// infrastructure the power and climate planners run through rooms (conduits, generators, batteries, vents,
     /// the temperature planner's campfire and passive cooler), which is no furniture.
     /// </summary>
-    public static Func<string, bool> CarriedOver(IEnumerable<string> lamps, ComfortObservation comfort, ItemFacts items, IEnumerable<string> generators)
+    public static Func<string, bool> CarriedOver(IEnumerable<string> lamps, ComfortObservation comfort, ItemFacts items, IEnumerable<string> generators, IEnumerable<string> thermal)
     {
         var defs = new HashSet<string>(lamps, StringComparer.Ordinal)
         {
@@ -162,9 +162,8 @@ public static partial class ReconcileRules
             RoomQualityRules.PlantPotDefinition,
             LayoutPowerDeriveRules.PowerConduitDefinition,
             ClimateRules.ClimateDefs().VentDef,
-            Wire.Name(TemperatureMethod.Heat),
-            Wire.Name(TemperatureMethod.Cool),
         };
+        defs.UnionWith(thermal);
         defs.UnionWith(PowerRules.PowerFamilyDefinitions(generators));
         defs.UnionWith(comfort.Furniture.Definitions());
         defs.UnionWith(comfort.WatchBuildings);

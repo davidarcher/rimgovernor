@@ -105,7 +105,7 @@ public sealed class GeneratorCandidatePipelineTests(ITestOutputHelper output)
         }
         var intent = Assert.IsType<RimGovernor.Brain.GameOrders.Operations.ActionIntent.BuildingCase>(IntentActionRules.IntentAction("generator", action).Intent).Value;
         Assert.Equal(selected, intent.Placement!.DefName);
-        Assert.True(ReconcileRules.CarriedOver([], ComfortTests.NoComfortObservation, new ItemFacts(), facts.GeneratorRows.Keys)(proposal.Definition));
+        Assert.True(ReconcileRules.CarriedOver([], ComfortTests.NoComfortObservation, new ItemFacts(), facts.GeneratorRows.Keys, [])(selected));
         output.WriteLine($"Supported generator candidates: {names.Count}; planning rows: {definitions.Count}; ranked available: {proposal.Alternatives.Count + 1}");
     }
 

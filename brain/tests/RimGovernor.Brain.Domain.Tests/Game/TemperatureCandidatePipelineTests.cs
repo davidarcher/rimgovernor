@@ -90,6 +90,9 @@ public sealed class TemperatureCandidatePipelineTests(ITestOutputHelper output)
             new(costs, stats, all.ToDictionary(heater => (BuildableDef)heater, _ => (IReadOnlyList<string>)[]), new HashSet<CatalogStat>(CatalogStats.All)), new(nameof(ThingDefOf.Silver), "Wort", 10f));
         var candidates = catalog.TemperatureDefinitions();
         Assert.Equal(count + 1, candidates.Count);
+        var carried = ReconcileRules.CarriedOver([], ComfortTests.NoComfortObservation, new ItemFacts(), [], candidates.Select(candidate => candidate.Name));
+        Assert.All(candidates, candidate => Assert.True(carried(candidate.Name)));
+        Assert.False(carried("UnrecognizedFurniture"));
         var definitions = new DefinitionFacts { Catalog = catalog, Finished = new HashSet<string>(), Crops = new Dictionary<string, RimGovernor.Brain.GameFacts.Observations.EdibleCrop>() }
             .AppendDefinitions([], candidates.Select(candidate => candidate.Name));
         var supply = PowerBuildingFixtures.Trader("generator", "source", new(10, 10), 1000, 1000, true);
