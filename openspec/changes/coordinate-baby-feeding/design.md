@@ -2,236 +2,183 @@
 
 ## Context
 
-See [proposal.md](proposal.md) for motivation and [the delta](specs/food-security/spec.md)
-for acceptance scenarios. Inspection was refreshed at `9a38be6f9`.
+See [proposal.md](proposal.md) and [the food delta](specs/food-security/spec.md).
+The confirmed feeding requirements and the delta's outcome scenarios are unchanged.
+The maintainer explicitly requested vanilla-owned feeding, observation and reactive
+coordination, with additional prediction or execution constraints justified by
+concrete failures. This replaces the earlier design's exact-input approach.
 
-- `BabyFeedingRules.ReviewBabyFeeding` accepts a breastfeeding-pawn count and
-  sets `IsShort = !Breastfed && stockNutrition < floor`. The Food family's
-  baby-feeding Need represents provisioning; its remedy is a standing bill.
-- `NativeBabyCare` already reads each baby's food level, native feeding
-  eligibility, lactation charge/refill and conditional care opportunities.
-  `BabyCareOpportunityRead` lacks exact food identity, route/service timing and
-  execution binding. `ForecastBabyCare` bounds possible native care for nursery
-  exposure; it explicitly allocates nobody. These bounds cannot authorize work.
-- `SupportMethodCandidates` currently generates medical care/surgery and
-  deliveries. `ForecastNeeds` prices a selected pawn's own ingestion, not a
-  caregiver's work benefiting a different pawn. Babies need recipient food
-  consequences even when they are not eligible productive workers.
-- `NativePawnActivities` already executes exact Work steps through guarded
-  native jobs, but its supported workgivers do not include feeding. For committed
-  workers, vanilla selection is suppressed. Unowned colonists can feed through
-  vanilla, which is useful observed behavior but no allocation guarantee.
-- `ForecastIncumbentPreparation`, `ForecastCoupledExecution` and
-  `CoordinatedActivityBinding` own reconsideration and revisioned release.
-  Supported retained services and productive workers at task boundaries have
-  specific rules. They do not provide a general release for an actively busy
-  caregiver simply because a baby's food is falling.
+The inspected integration has three relevant behaviors:
+
+- `BabyFeedingRules.ReviewBabyFeeding` suppresses a baby-food shortage whenever
+  any breastfeeding-capable pawn exists. That establishes neither available care
+  nor observed intake.
+- `NativeBabyCare` already observes food level, active care and conditional
+  breastfeeding/bottle-feeding opportunities. `ForecastBabyCare` uses those
+  opportunities for nursery exposure bounds; it allocates nobody.
+- `NativePawnActivities` blocks vanilla selection, job overrides and finalizers
+  for committed workers. Unowned colonists run vanilla. Current incumbent release
+  supports particular services and work boundaries; merely adding a care option
+  cannot free a busy caregiver.
+
+Inspection of the installed native drivers also established that bottle-feeding
+can select food from inventory, both feeding modes choose a sitting/standing
+location, and their lifecycle can return the baby to safety afterward. These are
+native mechanics to integrate with, not reasons to reproduce the drivers.
 
 ## Goals / Non-Goals
 
-**Goals:** A single shared assessment must connect a baby's unmet feeding demand,
-legal supply, caregiver time, competing obligations and observed intake. Both
-breastfeeding and bottle-feeding must be executable under ordinary automatic
-control. Planning, journal admission and native guards must agree about resources.
+**Goals:** Make normal automatic control compatible with timely vanilla feeding,
+including when eligible adults are busy. Observe each baby's outcome, make room
+for care when justified, protect the active care lifecycle from conflicting work,
+and react to interruption, inadequate progress and unavailable supply.
 
-**Non-Goals:** Introduce a childcare scheduler, make nursery play an executable
-service, replace RimWorld feeding mechanics, or generalize this milestone into
-all medical, animal or away feeding. Existing native satisfied feeding is credited
-without requiring a redundant governor action. No universal interruption or
-free-capacity assumption is introduced for protected actors or unknown work.
+**Non-Goals:** A new childcare scheduler, copied feeding drivers, exact food-stack
+selection, a milk-allocation solver or detailed chair/path forecasts. Patient,
+animal and away feeding remain outside this on-map baby fix. These boundaries do
+not relax any confirmed requirement or certify the whole of RG-FOOD-008.
 
 ## Decisions
 
-### 1. Extend the canonical baby-care facts with exact feeding alternatives
+### 1. Observe the need and the outcome with existing facts
 
-Extend the existing GameFacts baby-care boundary, rather than copy its observations
-into a second support census. Keep the conditional nursery exposure view distinct
-from exact executable options, with both derived from one native read. Each exact
-option identifies baby, caregiver, native feeding mode, current eligibility,
-reachable approach/source/service geometry, service duration/gain bounds and the
-source it actually uses. Bottle feeding carries a physical stack identity and
-count with suitability and access observed for that pair. Nursing carries current
-usable charge, refill and native restrictions for that caregiver/baby pair.
+Food remains the owner of feeding demand. Use current hunger and condition,
+active native care, eligible caregivers and usable nursing/food observations.
+Extend GameFacts only for a fact needed by the response or its outcome check.
+A capable nurse, a proposed job or suitable stock is not evidence of intake.
+Existing native feeding that succeeds needs no redundant governor assignment.
 
-Use `ChildcareUtility` and the existing native drivers to derive eligibility and
-effects. Verify the installed assembly's feeding job/workgiver symbols and exact
-target/count/reservation semantics before implementing the adapter or building;
-do not infer them from display names. A native food search may identify an option,
-but execution must preserve that option's selected input rather than silently
-choose a different source. Revalidate current facts at admission/start.
+Policy decides whether the baby needs a response and whether competing work should
+change. Runtime sequences the existing review and Method lifecycle. Keep expected
+supply separate from observed stock and intake. Missing facts leave the relevant
+claim unresolved and visible; do not invent zero travel or guaranteed recovery.
 
-The existing broad roaming position bounds remain valid exposure bounds where
-native positioning is variable; they are not a fabricated exact route. Unsupported
-geometry or service mechanics produce named unavailable options/findings, not
-zero travel. No required fact is defaulted to success. An unavailable option does
-not prevent other completely observed alternatives from being considered.
+Alternative: forecast every feeding alternative and its full timeline. That adds
+precision before a demonstrated need and does not fix the current ownership block.
 
-Alternative: use the current breastfeeding count or conditional occupancy bound.
-Both are cheaper but omit the very capacity and access constraints in #4040.
+### 2. Coordinate a feeding opportunity through the existing shared lifecycle
 
-### 2. Put feeding demand and consequences in the shared comparison
+Use the existing Need/Method, admission, journal and Hands path to make caregiver
+capacity available. Native childcare chooses its legal feeding work and performs
+pickup, food/milk consumption, seating, feeding and safe return. A coarse care
+response may identify the dependent and eligible caregiver; it does not bind a
+food lot, count or chair. Reuse native job creation/selection where a response
+needs to start care, without copying native legality or consumption mechanics.
 
-Food retains ownership of the feeding outcome. Distinguish its provisioning
-subproblem from each baby's immediate assisted-feeding demand; avoid a second
-family or duplicate ledger. Pure feeding policy generates alternatives through
-the existing coordinated candidate composition. Extend the shared food-need
-trajectory/consequence path to credit the recipient's useful nutrition during
-the selected native service, with hunger/starvation exposure while waiting and
-the observed native gain and loss bounds. Keep uncertain effects bounded, not
-invented forecasts of health recovery. The recipient is not added as spare labor.
+Making room is a response with an observed outcome, not proof that care will
+happen. If vanilla does not begin or complete useful feeding, the next assessment
+must retain the need and change the response or expose its blocker. Releasing a
+worker into indefinitely unobserved native work is not a completed response.
 
-Charge the caregiver's approach, obtaining food, carrying/positioning as applicable
-and service time. The baby is an exclusive service target. Bottle inputs enter
-the existing physical material accounting by lot/count, shared with adult eating,
-production and other babies. Nursing uses a caregiver-specific finite charge and
-refill constraint derived from observations, alongside that caregiver's occupied
-time; compare all babies against that same capacity. It is a transient forecast
-constraint, not a stored milk inventory. Compatible sequential feeds are allowed;
-neither input nor service benefit is counted twice.
+Reuse exact assignment revisions for any change to existing governor work.
+Preserve carried inputs, partial work and dependent participants when releasing
+or pausing that work. Keep combat and involuntary protection boundaries. A losing
+response changes no ownership, and replacement work cannot acquire a caregiver
+whose earlier owner has not actually released it.
 
-Integrate resulting demand/consequences into the existing shared comparator and
-Need tiers. Do not create a baby-only score that always wins or a fixed hunger
-threshold that defines adequacy. Feeding competes on projected consequences,
-including the work forgone and native protection boundaries. Add feeding benefit
-to the same schedules used for nursery exposure so selected feeding is not also
-credited as independent possible native care.
+### 3. Account for actual occupation through safe return
 
-Alternative: add feeding to medical support as a completed-service count alone.
-That would miss recipient hunger timing and cannot distinguish timely intake from
-a late feeding after preventable harm.
+During active native feeding, the caregiver and baby are occupied. Shared
+admission and continuation must not assign them incompatible work. Preserve that
+protection while the caregiver is still carrying the baby or performing the
+associated native safe-return job. Food received and care finished are separate
+observations; do not reclaim the worker immediately on a food-level increase.
 
-### 3. Make caregiver release part of the selected, executable response
+Permit the associated native continuation through the current ownership hooks
+without authorizing arbitrary unrelated jobs. Observe the actual native care
+chain and release its protection when cleanup is complete. An interruption must
+leave the baby, caregiver and carried state visible to ordinary recovery, not
+strand a baby under a completed feeding claim.
 
-Reuse the existing conditional incumbent comparison, exact Method journal and
-Hands release path. Include the retained work's remaining consequences when
-comparing a feeding replacement; losing candidates release nothing. A selected
-release must name the observed assignment/revision, preserve independent
-participants and their dependencies, and wait for fresh released ownership
-before replacement admission. CAS mismatch triggers reobservation through the
-existing lifecycle. A forecast that assumes release without an executable release
-must be rejected.
+Native reservations, carried/held resources and current consumption are inputs to
+the existing shared resource view. Do not count a nursing possibility as future
+stock, refund consumed inputs or keep stale stock available after observation.
+Protect known conflicts using that view and current care occupation. Do not build
+a general ledger of every food vanilla might choose. If a real reservation or
+consumption race defeats the existing boundary, reproduce it and add the smallest
+shared correction that resolves that failure.
 
-Extend the current reconsideration boundary for caregiver work as needed to cover
-the issue's busy-caregiver path. In-flight productive work requires an observed
-safe cancellation/continuation description: partial progress, remaining inputs,
-carried items, native reservations and dependent tasks must be reconciled. Do not
-discard these obligations or treat all occupied time as free. Where cancellation
-is not legal, compare a reachable safe boundary or another caregiver/source;
-report a genuine shortfall if none is timely. Protected combat, forced work and
-involuntary states retain their existing owners.
+Alternative: let childcare bypass all ownership checks. That leaves a caregiver
+promised to two activities and can interrupt safe return. The required boundary
+is coordinated occupation, not control of vanilla's internal food selection.
 
-This change cannot stop at adding candidates that are then filtered out because
-every caregiver is claimed. Decision tests must begin with a real modeled
-incumbent and show retained work losing when preventable feeding harm justifies
-replacement, with the same release actually bindable and admitted.
+### 4. React before preventable feeding harm
 
-Alternative: release caregivers into vanilla and hope Childcare is chosen, or
-whitelist native childcare past committed ownership. Both create unpriced work
-outside shared claims and fail to establish who feeds which baby in time.
+Use the existing review/event mechanisms to reassess food received, hunger and
+condition, care starting/ending, caregiver availability and supply changes. A
+feeding animation can precede an increase in food level, especially because the
+bottle driver accumulates nutrition before ingestion. Lack of an increase on one
+sample is not itself a stalled feed. Ground any no-progress check in the native
+phase/mechanics and test it against real progress rather than inventing a timeout.
 
-### 4. Bind an exact native feeding Work service through Hands
+When care is blocked or stops helping, release justified competing work, consider
+another legal caregiver or feeding source, and arrange missing suitable provision.
+Retain an unmet need and explain food versus care/access blockers when no timely
+response exists. A worsening trend must not wait for starvation before it can
+trigger action. Timeliness needs enough native information to act before harm;
+it does not require an exact full-bout forecast.
 
-Reuse the existing Work activity kind with a typed feeding payload for mode,
-recipient and exact source/quantity as required. Add this to GameOrders and the
-existing candidate, binding, journal codec, continuation and native validation
-paths. A typed feeding variant keeps medical fields from being repurposed and
-allows invariants to be checked. No independent order endpoint is needed.
+Multiple babies share real caregiver and feeding capacity. Current occupation and
+unmet demand must remain visible for all of them; serving one must not declare
+another adequately fed. Reassess finite milk and food as they change. Correct the
+blanket breastfeeding-count exemption using usable care/supply and observed
+outcomes, without adding a parallel reserve model or requiring bottle food even
+when nursing is working and can provide usable cover. Keep longer-term reserves
+with the existing food-supply owner.
 
-The selected native feeding driver performs game mechanics. Native validates the
-pair and source again and starts only the authorized feeding job; stale or illegal
-bindings return the existing explicit refusal/failure path. Follow native target
-and reservation semantics for babies carried by a caregiver and babies in beds.
-Starting or accepting the job is not proof of feeding. Observe food-level/intake
-progress, job/ownership state, source change and relevant condition. After
-interruption retain actual nutrition gained, release only the attempt's claims
-and rederive the remaining need. Never replay milk or food consumption from a
-missing receipt. Existing native feeding already in progress must be represented
-as occupied care with observed intake, not a free second feeding opportunity.
+### 5. Add precision only to address a demonstrated failure
 
-### 5. Reconcile alternate provision without the blanket nursing exemption
+Begin with focused tests of the known integration failures: governor work blocks
+care, active care can be reclaimed too soon, and breastfeeding capability can
+mask an unfed baby. Then exercise both native feeding modes under normal bot
+control. Observe interruption, unavailable care and competition between babies.
 
-Replace `Breastfed` as a colony-wide adequacy assertion. Share the finite feasible
-nursing assessment with baby-food provisioning and carry the uncovered demand
-into the existing supply/bill path. A potential nurse with no usable timely
-capacity cannot suppress bottle-food demand. Conversely, feasible nursing may
-reduce the portion of provision it can actually cover; do not unconditionally
-require manufactured food in addition to adequate nursing.
-
-Keep reserve planning and immediate feeding separate. A bounded nursing
-projection cannot claim indefinite reserve coverage; its horizon and refill/time
-constraints must be explicit. Raw ingredients or a promised bill output stay
-future supply until observed. Reassess when nurse, milk, baby count or food source
-changes. Expose unavailable care separately from missing food, so producing more
-baby food does not masquerade as fixing an absent caregiver.
-
-Remove the superseded count-only inputs, fields, comments and tests across their
-actual readers, including native/wire reads that become dead. Preserve lactation
-observations used elsewhere; an orphan sweep determines deletion, not a blanket
-removal of Biotech facts.
-
-### 6. Keep verification tied to distinct claims
-
-Extend nearby policy tests (`FoodFamilyTests`, `SupportMethodTests`, incumbent
-preparation/selection tests and baby-care exposure tests as affected). Exercise
-actual candidate generation, comparison, binding and admission, not just a helper
-with a manually chosen result. Cover finite milk and shared lots across babies,
-no available care, feasible alternates, normal work competition, revisioned
-release and interrupted intake. Ensure native care remains an observation rather
-than double-counted forecast credit.
-
-Register short staged native cases under the existing child case registration:
-one for actual bottle intake after resolving competing governor work and one for
-actual breastfeeding through its exact adapter. Each case owns one claim, starts
-with the precondition observed, enables normal shared work selection, and stops
-as soon as the baby's observed food rises through that feeding path. Assert the
-caregiver's incumbent and selected feeding identity so incidental idle vanilla
-feeding cannot pass the contested-work claim. Setup may stage food, charge and
-work; after setup it must not assign feeding or free the caregiver itself.
-
-Use game ticks and registered telemetry kinds/typed reads. Target about one minute
-wall time per case, under two including startup. Do not wait for ageing or extend
-a failing budget. The old first-child case retains only its original claim; a
-failure there must be diagnosed independently rather than relabeled as #4040.
+For any additional forecast, reservation scheme or native execution constraint,
+record the concrete failure, the smallest regression reproducing it, why the
+current observation/response cannot prevent it, and the narrower fix. A code
+trace can establish an ownership conflict; a hypothetical inventory choice or
+uncertain route alone does not justify an exact-input adapter. No extension is
+required solely to restore the previous design's precision. Any real gap against
+the confirmed scenarios remains in scope and must be fixed, not relabeled as
+acceptable uncertainty.
 
 ## Risks / Trade-offs
 
-- Native feeding may select secondary targets or move a baby -> inspect exact
-  driver semantics and retain source/recipient/position ownership through the
-  existing activity lifecycle; do not allow hidden source reselection.
-- Releasing productive work can strand inputs or other workers -> make dependent
-  claims, partial progress and safe release explicit, and test the real binding
-  path before trusting a favorable forecast.
-- Future milk and native routing are bounded -> expose limits, admit only options
-  with sufficient known mechanics, and reobserve; possible service is not success.
-- A finite source or caregiver may serve several dependents -> use one shared
-  resource/time constraint and validate admission as well as forecast feasibility.
-- Broad food-spec support could be overstated -> update only the inspected baby
-  paths in the evidence page; keep registered, executed and passed distinct.
+- Reactive care could respond too late -> test a hungry baby with an occupied
+  eligible adult and assert intake before staged harmful deterioration; wake the
+  existing review when the necessary observed state changes.
+- A native care opportunity may not be taken -> observe actual work and progress;
+  retain the need and respond again rather than equating release with success.
+- Feeding may finish while the baby is still carried -> protect and observe the
+  native safe-return continuation before ordinary work can reclaim the caregiver.
+- Native consumption may differ from a supply estimate -> reconcile current
+  reservations, held inputs and actual stock; add tighter constraints only for a
+  demonstrated conflicting commitment or preventable feeding failure.
+- Simpler planning trades scheduling precision for observation and adjustment ->
+  accept conservative current capacity, test response timeliness, and avoid
+  claiming sustained or universal feeding coverage from isolated cases.
 
 ## Migration Plan
 
-No persistent feeding store or save-owned intent is added. Native facts stay in
-GameFacts, selected requests in GameOrders, derived forecasts in memory and
-attempt progress in the existing session journal. Amend the persistence contract
-if that ownership description changes; do not introduce a second copy silently.
-Update the journal codec for the typed service with its normal current-version
-handling; regenerate affected disposable saves/fixtures instead of keeping dead
-wire fields or compatibility shims.
+Keep native observations in GameFacts, any needed intent in the existing typed
+request/action path, Method progress in the session journal and derived assessment
+in memory. No new state store, milk ledger or mandatory feeding-payload/codec
+migration is planned. Change a boundary only where the working response needs it.
 
-Update the owning support-work, pawn-activities, voluntary-control, forecast and
-action-completion contracts alongside implementation, and maintain their links
-from `docs/README.md`. Add the baby audit, issue link and subsequently obtained
-proof to `docs/requirements/food-security.md`. Synchronize the reviewed delta and
-archive only through their explicit workflows after implementation is complete.
-Rollback is a normal code revert of the milestone, not a runtime fallback mode.
+Update the owning support-work, pawn-activities, voluntary-control and affected
+continuation/forecast contracts with the implementation, maintaining links from
+`docs/README.md`. Update the food evidence page with scoped results and provenance.
+Delete superseded count-only assumptions and anything made unread by the fix.
+No code was changed during this planning revision. A later implementation revert
+uses the normal lane; no fallback feeding subsystem is introduced.
 
 ## Architecture Rules 7–9 Review
 
-- Keep decision math in pure Policy; Runtime composes facts and coordinates the
-  existing lifecycle. Hands remains the sole order writer.
-- Shared feeding demand, recipient consequences, caregiver time, baby target,
-  physical food and milk capacity participate in one composition/admission path.
-  No private assignment owner or duplicate material ledger is introduced.
-- Native owns legality and observed mechanics. Missing facts name the unavailable
-  state or remove the option; no zero-duration or assumed-success substitution
-  is permitted. Unmet feeding remains visible.
+- Pure Policy assesses need, urgency and response; Runtime sequences and Hands
+  changes governor orders. Vanilla performs childcare mechanics.
+- Shared demand, admission and current native occupation govern competing work.
+  Existing journal actions own commitments; native reservations and actual stock
+  inform the same resource view without a second food or care ledger.
+- Read the necessary facts or expose a named unavailable state. Possible care is
+  neither completed feeding nor certain future supply. Any additional precision
+  must trace to a concrete failure and its regression.
