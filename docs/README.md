@@ -31,6 +31,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Make and land a change | [Workflow](developers/development-process.md), [agent rules](../AGENTS.md) |
 | Build, test and run the C# brain | [Development workflow](developers/development-process.md), [runbook](developers/agent-runbook.md) |
 | Work safely on the shared machine | [Runbook](developers/agent-runbook.md) |
+| Use OpenSpec with Codex or Claude Code | [OpenSpec setup](developers/agent-runbook.md#openspec) |
 | Choose evidence for a change | [Choose tests](developers/testing/choose-tests.md) |
 | Rules every native case follows | [Acceptance charter](developers/testing/acceptance-guide.md#charter) |
 | Write or iterate on a native case | [Acceptance guide](developers/testing/acceptance-guide.md) |

@@ -21,6 +21,9 @@ nul
 # Claude Code
 .claude/*
 !.claude/skills/
+!.claude/commands/
+.claude/commands/*
+!.claude/commands/opsx/
 
 # Temporary test logs and artifacts
 tmp/

@@ -52,6 +52,32 @@ tools and `RimGovernor.cmd <tool> -help` their flags; flags are single-dash
 their own: the wire is plain records in `brain/src/RimGovernor.Brain.GameFacts`, so nothing
 is generated before a build.
 
+### OpenSpec
+
+OpenSpec uses `openspec/config.yaml` with the `spec-driven` schema. The repository
+includes six OpenSpec skills for each tool: Codex discovers `.agents/skills/`,
+and Claude Code discovers `.claude/skills/` plus six commands under
+`.claude/commands/opsx/`. These planning workflows follow [AGENTS.md](../../AGENTS.md);
+the existing architecture and subsystem contracts remain the current behavior
+documentation. OpenSpec specs and change artifacts live under `openspec/`.
+
+Install the CLI with `npm install -g @fission-ai/openspec@latest` if it is missing,
+then run `openspec --version` and `openspec list --json` from the checkout root.
+The latter reports the resolved project root and its changes. The npm install
+requires Node.js 20.19.0 or newer.
+
+Start a new chat after setup so the tool discovers the generated skills and
+commands. In Codex CLI or IDE, invoke `$openspec-propose "your idea"`; in the
+Codex desktop app, select `openspec-propose` from Skills in the sidebar. In
+Claude Code, invoke `/opsx:propose "your idea"`. Propose creates planning
+artifacts and stops for review; explicitly invoke `$openspec-apply-change`
+(Codex) or `/opsx:apply` (Claude Code) when ready to implement.
+
+To refresh both integrations after a CLI upgrade, run
+`openspec init --tools 'codex,claude'` from the checkout root. Before refreshing,
+inspect legacy OpenSpec command folders, marker blocks and home-directory
+`opsx-*.md` prompts: init can remove those older integration files.
+
 ### Dev Drive (recommended)
 
 Repositories, worktrees and the cache are small-file heavy, which a Windows
