@@ -26,6 +26,11 @@ The bed census reads the required positive `Building_Bed.SleepingSlotsCount`.
 Couples may share beds with at least two observed slots; definition names do not
 establish capacity. Willingness, ownership, reach, temperature and the native
 assignment guard still apply.
+Packed stock uses the native packed-object category (`MinifiedThing` or a
+subclass), across all container definition names. One pass shares one stock
+read and claims each inner building once. Reconciliation, bed reinstall and
+sculpture placement retain that inner identity through the existing relocation
+intent; a packed row without its inner building fails the read.
 The repair structure census includes only native definitions with `useHitPoints`, so
 non-damageable markers such as sleeping spots are never repair targets.
 

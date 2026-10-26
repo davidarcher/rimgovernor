@@ -124,7 +124,7 @@ public sealed partial class SleepingUpkeepPlanner
             {
                 continue;
             }
-            var move = await stock.InstallAsync(CoupleBedRules.PackedFurnitureDefinition, choice.Definition, anchor, rot, call).ConfigureAwait(false);
+            var move = await stock.InstallAsync(choice.Definition, anchor, rot, call).ConfigureAwait(false);
             if (move is null)
             {
                 return none;

@@ -93,6 +93,8 @@ public enum StockCategory
     Buildings = 4,
     [WireName("STOCK_CATEGORY_ALL")]
     All = 5,
+    [WireName("STOCK_CATEGORY_PACKED")]
+    Packed = 6,
 }
 
 [JsonConverter(typeof(WireEnumConverter<StockOwnership>))]

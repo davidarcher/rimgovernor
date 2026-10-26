@@ -485,7 +485,7 @@ public sealed partial class BuildingPlanner
                 var (wanted, kept) = WantedFloorRules.FlooringRoomFloors(_ => rr.Tags, FlooringFactsOf(facts), Reviewer.Policy.Flooring)(rr.Room);
                 input = input with { WantedFloor = wanted, FloorKept = kept };
             }
-            var items = stock is null ? null : await stock.ItemsAsync(CoupleBedRules.PackedFurnitureDefinition, call).ConfigureAwait(false);
+            var items = stock is null ? null : await stock.ItemsAsync(call).ConfigureAwait(false);
             if (items is not null)
             {
                 left = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -727,7 +727,7 @@ public sealed partial class BuildingPlanner
         var id = PlanIds.MintPlanId();
         foreach (var piece in pieces)
         {
-            var move = stock is null ? null : await stock.InstallAsync(CoupleBedRules.PackedFurnitureDefinition, piece.DefName, piece.Anchor(), piece.Rot, call).ConfigureAwait(false);
+            var move = stock is null ? null : await stock.InstallAsync(piece.DefName, piece.Anchor(), piece.Rot, call).ConfigureAwait(false);
             if (move is null)
             {
                 continue;

@@ -41,9 +41,6 @@ public sealed record CoupleBed
 
 public static class CoupleBedRules
 {
-    /// <summary>The packed (minified) item a bed becomes.</summary>
-    public const string PackedFurnitureDefinition = "MinifiedThing";
-
     /// <summary>The bedroom template's bed slot for a DoubleBed in room, and the planned room of plan that room stands in; null when plan has none.</summary>
     private static (PlannedRoom Planned, IReadOnlyList<WantedPiece> Template)? CoupleBedSlot(LayoutPlan plan, FurnitureRoom room, IReadOnlyList<CurrentBuilding> built)
     {

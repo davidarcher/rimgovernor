@@ -10,12 +10,15 @@ dotnet run --project contracts/tests/NativeContractProbes.csproj -- native-proto
 ```
 
 The suite loads the actual adapter, and the Contracts wire records. It
-checks filters, defaults, ownership rules, 64-bit quantities, known-zero versus
-unknown held facts and reply bounds. It does not fabricate game objects or
-establish gameplay outcomes.
+checks filters, defaults, ownership rules, 64-bit quantities and complete stock
+projection. Unspawned game-object fixtures exercise classification and projection;
+they do not establish gameplay outcomes or live traversal correctness.
 
 Defaults follow `HomeThingTools`: category haulable, ownership ours, held included.
-Supported categories are haulable, food, weapons, buildings and all. Exact native
+Supported categories are haulable, food, weapons, buildings, packed objects and all.
+Packed objects use the native MinifiedThing class and subclasses, across container
+definition names; the compiled probe checks unfamiliar names and rejects an ordinary
+thing whose definition happens to be named MinifiedThing. Exact native
 definition filters replace text search. An inclusive rectangle filters by spawned
 root location. Corpses=true restricts to corpse instances; forbiddenOnly filters
 forbidden stacks; excludeChunks follows the existing Chunk definition prefix.
@@ -26,14 +29,11 @@ and trader status. A dead pawn's inventory is not usable colony stock.
 Ownership ours selects definitions with usable stock; every returned row's units,
 stacks and ownership buckets still cover all matching stock of that definition.
 Items are complete instances rather than position samples. Holder entries describe
-each held stack, not a top-holder ranking. Reserved counts whole usable stacks with
-a native reservation, not the reservation's partial quantity. InHomeArea is based
-on the spawned root cell. Held=false omits carried/container/trader counts, marks
-their issues and leaves holder completeness false. Other quantities then describe
-only the explicitly requested spawned scope. No entity CAS snapshots are issued.
+each held stack, not a top-holder ranking. Held=false scopes the read to spawned
+objects. Loose items carry native supply CAS snapshots when eligible; held items
+carry holder-bound snapshots.
 
-Definitions/page, items/holders/corpses per definition are bounded to256. Traversal
-is bounded to65536 thing/holder visits and depth16; overflow/refused reads return
-unavailable rather than partial totals. No frozen
-cursor support is claimed. Native acceptance must verify loose/forbidden/fogged,
+An exact definition filter accepts at most 256 names. Results retain every matching
+definition and stack, including the probe's 300-stack fixture. Holder nesting past
+16 levels fails the read. No frozen cursor support is claimed. Native acceptance must verify loose/forbidden/fogged,
 player/trader-held, corpse and nested-container facts with unchanged ticks.

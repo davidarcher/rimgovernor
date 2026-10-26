@@ -5,16 +5,22 @@ namespace RimGovernor.Brain.Runtime;
 // The supply-census reads of one definition's loose items.
 public sealed partial class GameClient
 {
-    /// <summary>Lists the colony's spawned, unheld packed items of one packed definition.</summary>
-    internal async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.StockItem>> ReadPackedItemsAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, string packedDef, CancellationToken cancellationToken)
+    /// <summary>Lists the colony's spawned, unheld native packed objects, across container definitions.</summary>
+    internal async Task<IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.StockItem>> ReadPackedItemsAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, CancellationToken cancellationToken)
     {
-        var snapshot = await Facade.ListSuppliesAsync(SupplyRequests.OursUnheldSuppliesRequest(identity, packedDef), cancellationToken).ConfigureAwait(false);
+        var request = new RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest
+        {
+            Scope = new() { ExpectedIdentity = identity },
+            Filter = new() { Category = RimGovernor.Brain.GameFacts.Observations.StockCategory.Packed,
+                Ownership = RimGovernor.Brain.GameFacts.Observations.StockOwnership.Ours, IncludeHeld = false },
+        };
+        var snapshot = await Facade.ListSuppliesAsync(request, cancellationToken).ConfigureAwait(false);
         var output = new List<RimGovernor.Brain.GameFacts.Observations.StockItem>();
         foreach (var row in snapshot.Stocks)
         {
             foreach (var item in row.Items)
             {
-                // A packed def's stack is always a packed building.
+                // The native packed-object category requires its inner building.
                 _ = item.Packed ?? throw BridgeContractException.Contract("packed stock without its building");
                 output.Add(item);
             }
@@ -50,7 +56,7 @@ public sealed partial class GameClient
 
     internal static class SupplyRequests
     {
-        /// <summary>The supplies read of one definition's player-owned, unheld stacks (packed items and neuroformers).</summary>
+        /// <summary>The supplies read of one definition's player-owned, unheld stacks.</summary>
         internal static RimGovernor.Brain.GameOrders.Observations.ListSuppliesRequest OursUnheldSuppliesRequest(RimGovernor.Brain.GameFacts.Common.Identity identity, string def) =>
             new()
             {

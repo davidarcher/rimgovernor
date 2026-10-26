@@ -45,7 +45,7 @@ partial class SleepingUpkeepPlanner
         {
             return null;
         }
-        var items = await native.ReadPackedItemsAsync(identity, RoomQualityRules.PackedSculptureDefinition, ct).ConfigureAwait(false);
+        var items = await native.ReadPackedItemsAsync(identity, ct).ConfigureAwait(false);
         var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
         return RoomQualityRules.SaleSculptures(obs!, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.PlanningWindow.Cells), PackedSculptures(items, facts.Facts.Items), facts.Facts.Items);
     }
@@ -91,7 +91,7 @@ public sealed partial class SleepingUpkeepPlanner
             return none;
         }
         var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
-        if (await stock.ItemsAsync(RoomQualityRules.PackedSculptureDefinition, call).ConfigureAwait(false) is not { } items)
+        if (await stock.ItemsAsync(call).ConfigureAwait(false) is not { } items)
         {
             return none;
         }

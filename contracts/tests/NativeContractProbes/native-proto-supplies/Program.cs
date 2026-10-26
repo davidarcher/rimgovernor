@@ -76,6 +76,15 @@ internal static class NativeProtoSuppliesProbe
         // These fixtures exercise projection, not running-game census traversal. Private game fixture fields
         // require reflection; all published records and output members below are compiler-checked.
         object New(string name) => System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(game.GetType(name, true)!);
+        bool PackedDefinition(string name, string nativeClass) {
+            var def = New("Verse.ThingDef"); Set(def, "defName", name);
+            Set(def, "thingClass", game.GetType(nativeClass, true)!);
+            return (bool)tools.GetMethod("MatchesCategory", Flags)!.Invoke(null, new object[] { def, StockCategory.Packed, false })!;
+        }
+        foreach (var count in new[] { 25, 97 })
+            for (var i = 0; i < count; i++)
+                Check(PackedDefinition("InstalledPackedContainer" + i, "Verse.MinifiedThing"), "native packed class accepted outside container names");
+        Check(!PackedDefinition("MinifiedThing", "Verse.Thing"), "a familiar container name cannot establish packed mechanics");
         object Thing(string definition, int count, int id) {
             var def = New("Verse.ThingDef"); Set(def, "defName", definition); Set(def, "label", definition);
             Set(def, "category", Enum.Parse(game.GetType("Verse.ThingCategory", true)!, "Item"));

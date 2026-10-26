@@ -162,6 +162,7 @@ namespace RimGovernor.Native
         }
 
         internal static bool MatchesCategory(ThingDef definition, RimGovernor.Brain.GameFacts.Observations.StockCategory category, bool held) => category == RimGovernor.Brain.GameFacts.Observations.StockCategory.All
+            || category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Packed && definition.thingClass != null && typeof(MinifiedThing).IsAssignableFrom(definition.thingClass)
             || category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Buildings && !held && definition.category == ThingCategory.Building
             || category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Food && definition.IsNutritionGivingIngestible
             || category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Weapons && definition.IsWeapon || category == RimGovernor.Brain.GameFacts.Observations.StockCategory.Haulable && definition.EverHaulable;

@@ -37,13 +37,6 @@ public static partial class RoomQualityRules
     internal const int MaxBeautyFloorCells = 24;
 
     /// <summary>
-    /// The sculpture lever, after pots and floors: a finished packed small sculpture installed on free floor
-    /// in the room. The sculpture itself is the rooms/art Need's pinned bill. Sculptures pack as the generic
-    /// MinifiedThing (Buildings_Art.xml), so the packed read is filtered by inner definition.
-    /// </summary>
-    public const string PackedSculptureDefinition = "MinifiedThing";
-
-    /// <summary>
     /// The first (by room id) beauty upgrade due, false when none. A floor upgrade carries its cells in Cells
     /// (Def placed at each, North); a plant pot is one piece at Anchor.
     /// </summary>
