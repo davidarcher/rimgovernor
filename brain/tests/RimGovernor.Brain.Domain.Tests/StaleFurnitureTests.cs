@@ -116,7 +116,8 @@ public sealed class StaleFurnitureTests
             WatchBuildings = EquatableArray.From(WatchOnly),
             RecreationFoothold = "BilliardsFoothold",
         },
-        new ItemFacts { Sculptures = [new Sculpture("MakeSculptureSmall", "SculptureSmall", new Cell(1, 1), 1, 1)] }
+        new ItemFacts { Sculptures = [new Sculpture("MakeSculptureSmall", "SculptureSmall", new Cell(1, 1), 1, 1)] },
+        ["SolarGenerator", "WindTurbine", "WoodFiredGenerator", "ChemfuelPoweredGenerator"]
     );
 
     [Theory]
@@ -133,7 +134,7 @@ public sealed class StaleFurnitureTests
     [Fact]
     public void ACarriedOverSetWithoutAComfortReadStillCarriesTheFixedDefinitions()
     {
-        var carried = ReconcileRules.CarriedOver([], ComfortTests.NoComfortObservation, new ItemFacts());
+        var carried = ReconcileRules.CarriedOver([], ComfortTests.NoComfortObservation, new ItemFacts(), []);
         Assert.True(carried(PartySpotRules.PartySpotDefinition));
         Assert.True(carried(RoomQualityRules.PlantPotDefinition));
         Assert.False(carried(Stray));

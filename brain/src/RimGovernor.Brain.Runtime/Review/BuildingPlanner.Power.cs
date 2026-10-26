@@ -241,7 +241,7 @@ async
                 return (default!, false);
             }
 
-            if (Definition == PowerRules.WindTurbineDefinition && !PreviewRules.ClearWindTurbine(v))
+            if (v.Wind is RimGovernor.Brain.GameFacts.Observations.BuildingWind.WindTurbine && !PreviewRules.ClearWindTurbine(v))
             {
                 return (default!, false);
             }
@@ -333,17 +333,13 @@ partial class BuildingPlanner
         var output = new List<string>();
         foreach (var h in held)
         {
-            if (h.Progress.Action.Building is not { } b || !PendingWork.IsPending(h.Progress) || PowerRules.PowerFamilyDefinitions().Contains(b.Definition))
+            if (h.Progress.Action.Building is not { } b || !PendingWork.IsPending(h.Progress))
             {
                 continue;
             }
 
-            if (output.Count == 64)
-            {
-                break;
-            }
-
-            output.Add(b.Definition);
+            if (!output.Contains(b.Definition, StringComparer.Ordinal))
+                output.Add(b.Definition);
         }
 
         return output;
@@ -381,7 +377,7 @@ partial class BuildingPlanner
 
         var seen = new HashSet<string>();
         var required = new List<string>();
-        foreach (var name in PowerRules.GeneratorDefinitions)
+        foreach (var name in facts.Facts.GeneratorRows.Keys.Order(StringComparer.Ordinal))
         {
             if (!definitions.TryGetValue(name, out var d))
             {
@@ -406,9 +402,6 @@ partial class BuildingPlanner
 
         return required;
     }
-
-    internal static bool PowerDefinition(string name) =>
-        name is "PowerConduit" or "HiddenConduit" or "WaterproofConduit" || PowerRules.PowerFamilyDefinitions().Contains(name);
 
     internal static bool SameCells(IReadOnlyList<Cell> a, IReadOnlyList<Cell> b)
     {

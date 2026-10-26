@@ -43,7 +43,7 @@ public sealed class ColonyFactsCoreTests
         FoodSupply = new() { Consumers = [], Stocks = [], Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } },
         Forecast = new() { Needs = NeedsFixtures.Empty, Coupled = CoupledFixtures.Empty, CombinedFoodSupply = new() { Consumers = [], Stocks = [], Larder = new() { RawMeatNutrition = 0, CookDemandNutrition = 0, Corpses = [] } }, Patients = [] },
         Upkeep = UpkeepFactsTests.NoUpkeep,
-        Development = new() { Outcome = new() { Networks = [], Geysers = [], ShortCircuit = new ObservedShortCircuit.NoneSeen() } },
+        Development = new() { Outcome = new() { MaintenanceCostFactor = 1, Networks = [], Geysers = [], ShortCircuit = new ObservedShortCircuit.NoneSeen() } },
         Recovery = new() { Restrictions = [], Buildings = [] },
         Waste = new() { Items = [] },
         Blight = new() { Plants = [] },

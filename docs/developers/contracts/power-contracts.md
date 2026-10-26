@@ -44,13 +44,17 @@ whose known stored reserve is under the coming night's deficit (a solar-only net
   (`observation.PlanningDefinition.PowerW`, the def's power comp) of every building action still open
   in other concerns' held reservations, so a workbench about to be built is priced before it turns on.
 - **Supply:** each producer's nominal wattage spread over the day by its profile: constant for
-  fuel-burning, geothermal and watermill generators; a daylight curve for `SolarGenerator` (zero for a
+  native `CompPowerPlant` and steam generators; a daylight curve for `CompPowerPlantSolar` (zero for a
   third of the day and throughout an `Eclipse`); for `WindTurbine`, `policy.WindProfile` over the
   catalog's `WindManager.WindSpeedRange` (0.04-2) and the `Clear` weather's `windSpeedFactor` (1):
   output is nominal times wind speed capped at 1.5 (`CompPowerPlantWind`, a game constant the catalog
   lacks), the speed taken as uniform over the range. That is 0.956 of 2300 W, 2199 W, matching the
   wiki's measured clear-weather average (snow 2622 W and blizzard 3409 W are higher, so clear is the
   conservative figure). The earlier 1200 W figure was about half the catalog's.
+  Class matching is exact: an unfamiliar subclass cannot inherit a continuous-output assumption.
+  Water flow, gravcore substructure, hacked reactors, electroharvester occupants and automatic
+  power/pollution conditions have no delivery model here. Their catalog profile names the unsupported
+  mechanics; comparison and energy budgeting refuse it instead of inventing continuous supply.
 - **Storage:** the summed battery capacity. The wiki figures behind the profiles and the battery
   (600 Wd, 50 % charge efficiency, 5 Wd/day self-discharge) are constants in `PowerBudget.cs`.
 
@@ -84,18 +88,22 @@ check on the model: a consumer that actually loses power is a deficit whatever t
     can reach within `GeothermalReachCells` (48) over buildable cells. The proposal is fixed-site
     (`FixedSite()`), previewed at the geyser's anchor without the site census (which reports the geyser
     cell occupied) and admitted on the native preview's legality and safety alone.
-  - Otherwise one generator chosen by `RankGenerators` over `GeneratorDefinitions` (`SolarGenerator`,
-    `WindTurbine`, `WoodFiredGenerator`, `ChemfuelPoweredGenerator`), natively unavailable ones
+  - Otherwise one generator chosen by `RankGenerators` over every installed player-buildable ordinary
+    generator whose native mechanics have a delivery model, natively unavailable ones
     skipped. Tiers: a fuel-free generator first once a `Battery` can bank its surplus; then a
     generator burning a fuel the colony can grow, stocked to the fuel tank (`fuelCapacity` of its
-    refuelable comp; a crop that harvests the fuel is sowable now, `policy.ResourceGrowable`, so a
+    refuelable comp, divided by its item-to-fuel multiplier with the census's measured difficulty
+    maintenance factor, rounded up to whole items; a crop that harvests the fuel is sowable now, `policy.ResourceGrowable`, so a
     tree plantation counts and wild trees or chemfuel do not); then one burning a finite fuel,
     stocked; fuel-short ones; a renewable last when no battery can be built or (solar) the
     shortfall is night-only or the current twelfth has no daylight at the map's latitude (polar
     night, read from the required gear climate's `DaylightHours`). Within a tier the higher average watts per steel of build cost goes
     first, components priced at the game recipe's steel (`Make_ComponentIndustrial`: 12 steel each,
     `DefinitionCatalog.ProductInputCost`); a component with no recipe (`InputCost.NoRecipe`) prices nothing and list order breaks
-    ties. Cost, nominal watts and fuel come from the catalog (`DefinitionCatalog.GeneratorRow`).
+    ties in ordinal definition order. Cost, nominal watts and accepted fuels come from the catalog
+    (`DefinitionCatalog.GeneratorRow`). A multi-fuel plant chooses a stocked full-tank fuel first,
+    then renewable fuel, then greater stock, with ordinal identity breaking ties. All candidates join
+    the ordinary planning census, research gate, pending-work correlation and room reconciliation.
     Renewability is read from the colony's sowable crops rather than the Round's supply plan: that
     plan holds rows only for unmet `economy/resource` floors, so a stocked fuel has none. Ranked
     runners-up travel as `Alternatives`: a definition no site accepts yields to the next under the

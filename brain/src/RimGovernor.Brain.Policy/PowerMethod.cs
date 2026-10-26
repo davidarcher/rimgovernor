@@ -93,7 +93,7 @@ public sealed record GeneratorOption
 
 /// <summary>
 /// The catalog's description of one generator definition: nominal watts, build cost and, for a refuelable
-/// one, the fuel it burns and the tank a full load takes (the stock floor below which the planner will not
+    /// one, the accepted fuels and the tank a full load takes (the stock floor below which the planner will not
 /// commit to that fuel).
 /// </summary>
 public sealed record GeneratorRow
@@ -102,7 +102,7 @@ public sealed record GeneratorRow
 
     public IReadOnlyList<Amount> Costs { get; init; } = [];
 
-    public Resource Fuel { get; init; }
+    public IReadOnlyList<Resource> Fuels { get; init; } = [];
 
     public long FuelCapacity { get; init; }
 }
@@ -217,15 +217,8 @@ public sealed record PowerProposal
 public static partial class PowerRules
 {
     /// <summary>
-    /// Every generator definition RankGenerators may choose, in the order that breaks ties among equal tiers
-    /// and yields. Planners request these planning definitions and Hands correlate completed work against
-    /// them. The wind turbine follows the solar generator: both are fuel-free, but a turbine needs an
-    /// unobstructed catch zone the placement preview reports, so a site that has none falls back to the next
-    /// ranked definition.
+    /// The ranked generator whose placement preview must report a clear catch zone.
     /// </summary>
-    public static readonly IReadOnlyList<string> GeneratorDefinitions = ["SolarGenerator", WindTurbineDefinition, "WoodFiredGenerator", "ChemfuelPoweredGenerator"];
-
-    /// <summary>The ranked generator whose placement preview must report a clear catch zone.</summary>
     public const string WindTurbineDefinition = "WindTurbine";
 
     /// <summary>
@@ -238,8 +231,8 @@ public static partial class PowerRules
     public const int GeothermalReachCells = 48;
 
     /// <summary>Every definition the power family compiles: the conduit, each generator, the geothermal generator and the battery.</summary>
-    public static IReadOnlyList<string> PowerFamilyDefinitions() =>
-        [Wire.Name(PowerMethod.Connect), .. PowerRules.GeneratorDefinitions, PowerRules.GeothermalDefinition, PowerRules.BatteryDefinition];
+    public static IReadOnlyList<string> PowerFamilyDefinitions(IEnumerable<string> generators) =>
+        [Wire.Name(PowerMethod.Connect), .. generators, PowerRules.GeothermalDefinition, PowerRules.BatteryDefinition];
 
     /// <summary>The margin the storage target carries over the night deficit.</summary>
     public const double DefaultStorageMargin = 0.25;
@@ -258,21 +251,22 @@ public static partial class PowerRules
         IReadOnlyDictionary<string, PowerSourceProfile> sources,
         IReadOnlyDictionary<string, GeneratorRow> rows)
     {
-        var options = new List<GeneratorOption>(PowerRules.GeneratorDefinitions.Count);
-        foreach (var name in PowerRules.GeneratorDefinitions)
+        var options = new List<GeneratorOption>(rows.Count);
+        foreach (var (name, row) in rows.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             if (!sources.TryGetValue(name, out var profile))
             {
                 throw new DomainException($"generator {name} has no catalog power source profile");
             }
-            if (!rows.TryGetValue(name, out var row))
-            {
-                throw new DomainException($"generator {name} has no catalog row");
-            }
+            RequirePowerProfile(profile);
             var option = new GeneratorOption { Definition = name, Available = available(name), Profile = profile, NominalW = row.NominalW, Costs = row.Costs };
-            if (!row.Fuel.IsEmpty)
+            if (row.Fuels.Count != 0)
             {
-                option = option with { Fuel = row.Fuel, MinimumFuel = row.FuelCapacity, FuelStock = stock(row.Fuel), FuelRenewable = renewable(row.Fuel) };
+                var fuel = row.Fuels.Select(fuel => new { Fuel = fuel, Stock = stock(fuel), Renewable = renewable(fuel) })
+                    .OrderByDescending(fuel => fuel.Stock >= row.FuelCapacity)
+                    .ThenByDescending(fuel => fuel.Renewable).ThenByDescending(fuel => fuel.Stock)
+                    .ThenBy(fuel => fuel.Fuel.Value, StringComparer.Ordinal).First();
+                option = option with { Fuel = fuel.Fuel, MinimumFuel = row.FuelCapacity, FuelStock = fuel.Stock, FuelRenewable = fuel.Renewable };
             }
             options.Add(option);
         }
@@ -339,6 +333,7 @@ public static partial class PowerRules
             }
             int tier;
             var profile = o.Profile;
+            RequirePowerProfile(profile);
             if ((polarNight && profile.Solar) || (profile.Night < 1 && (!battery || (ranking.NightOnly && profile.Night == 0))))
             {
                 tier = 4;
@@ -585,6 +580,7 @@ public static partial class PowerRules
                     {
                         throw new DomainException($"power producer {b.Definition} has no catalog power source profile");
                     }
+                    RequirePowerProfile(profile);
                     budgetProducers.Add(new PowerProducer { NominalW = w, Profile = profile });
                     disabledProducer = disabledProducer || b.Forbidden || !b.SwitchedOn;
                     var empty = b.Unfueled;

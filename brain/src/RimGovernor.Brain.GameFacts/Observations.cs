@@ -5262,6 +5262,9 @@ public sealed record SteamGeyser
 
 public sealed record DevelopmentFacts
 {
+    /// <summary>The current difficulty's maintenance cost factor, used by refuelable fuel multipliers.</summary>
+    public required double MaintenanceCostFactor { get; init; }
+
     [JsonConverter(typeof(EquatableArrayJsonConverter<PowerNetwork>))]
     public required EquatableArray<PowerNetwork> Networks { get; init; }
 

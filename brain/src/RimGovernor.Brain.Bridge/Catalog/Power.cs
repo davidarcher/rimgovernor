@@ -15,8 +15,8 @@ public sealed partial class DefinitionCatalog
     private const string ClearWeather = "Clear";
 
     /// <summary>
-    /// The delivery profile of every def whose power comp generates (a negative draw): a solar plant by its comp class
-    /// delivers nothing at night, a wind plant the weather average, every other plant its nominal watts around the clock.
+    /// The delivery profile of every producer, including an explicit reason for unsupported mechanics.
+    /// Only exact native classes with a modeled output function receive a priced profile.
     /// </summary>
     public IReadOnlyDictionary<string, P.PowerSourceProfile> PowerSources() => _powerSources.Value;
 
@@ -30,24 +30,27 @@ public sealed partial class DefinitionCatalog
                 continue;
             }
 
-            var profile = PowerRules.ConstantPowerProfile;
-            if (comp.compClass is { } kind)
+            var kind = comp.compClass;
+            if (row.comps.Any(comp => comp.compClass == typeof(CompAutoPowered)) || HasComp<CompProperties_Toxifier>(row))
             {
-                if (typeof(CompPowerPlantSolar).IsAssignableFrom(kind))
-                {
-                    profile = PowerRules.SolarPowerProfile;
-                }
-                else if (typeof(CompPowerPlantWind).IsAssignableFrom(kind))
-                {
-                    profile = WindProfile();
-                }
+                sources[name] = new(0, 0, false) { UnsupportedReason = "conditional automatic power or pollution capacity" };
+                continue;
             }
-
-            sources[name] = profile;
+            sources[name] = kind == typeof(CompPowerPlantSolar) ? PowerRules.SolarPowerProfile
+                : kind == typeof(CompPowerPlantWind) ? WindProfile()
+                : kind == typeof(CompPowerPlant) || kind == typeof(CompPowerPlantSteam) ? PowerRules.ConstantPowerProfile
+                : new(0, 0, false) { UnsupportedReason = "unmodeled generation comp " + (kind?.FullName ?? "absent") };
         }
 
         return sources;
     }
+
+    /// <summary>Buildable producers whose output and ordinary placement the existing power model evaluates.</summary>
+    public IReadOnlyList<string> GeneratorDefinitions() => [.. _thingDefs.Values
+        .Where(row => Buildable(row) && PowerSources().TryGetValue(row.defName, out var profile)
+            && profile.UnsupportedReason.Length == 0
+            && row.GetCompProperties<CompProperties_Power>()!.compClass != typeof(CompPowerPlantSteam))
+        .Select(row => row.defName).Order(StringComparer.Ordinal)];
 
     // The wind turbine profile: the WindManager speed range and the clear weather's wind factor.
     private P.PowerSourceProfile WindProfile()
@@ -57,14 +60,14 @@ public sealed partial class DefinitionCatalog
         var profile = P.PowerRules.WindProfile(speeds.min, speeds.max, weather.windSpeedFactor);
         return profile == default
             ? throw new CatalogException($"wind speed range {speeds.min}-{speeds.max} and {ClearWeather} factor {weather.windSpeedFactor} give no wind profile")
-            : profile;
+            : profile with { Wind = true };
     }
 
     /// <summary>
     /// The named generator def's nominal watts (its power comp's negative draw), build cost and, for a refuelable one,
-    /// the single fuel its filter accepts and the tank a full load takes.
+    /// every fuel its filter accepts and the tank a full load takes.
     /// </summary>
-    public P.GeneratorRow GeneratorRow(string name)
+    public P.GeneratorRow GeneratorRow(string name, double maintenanceCostFactor)
     {
         var row = ThingRow(name);
         if (PowerDraw(row) is not { } watts || watts >= 0)
@@ -77,16 +80,18 @@ public sealed partial class DefinitionCatalog
             NominalW = -watts,
             Costs = [.. AdjustedCosts(name, string.Empty).Select(q => new P.Amount(new P.Resource(q.Def), q.Units))],
         };
+        if (row.GetCompProperties<CompProperties_Refuelable>() is not { } fuel)
+            return generator;
         var fuels = RefuelFuels(name);
-        switch (fuels.Count)
-        {
-            case 0:
-                return generator;
-            case 1:
-                return generator with { Fuel = new P.Resource(fuels[0]), FuelCapacity = (long)row.GetCompProperties<CompProperties_Refuelable>()!.fuelCapacity };
-            default:
-                throw new CatalogException($"generator {name} accepts {fuels.Count} fuels");
-        }
+        if (fuels.Count == 0 || !float.IsFinite(fuel.fuelCapacity) || fuel.fuelCapacity <= 0)
+            throw new CatalogException($"generator {name} has no accepted fuel or valid capacity");
+        // FuelMultiplierCurrentDifficulty's exact law, with the same-frame observed difficulty rather than Find state.
+        if (!double.IsFinite(maintenanceCostFactor) || maintenanceCostFactor <= 0)
+            throw new CatalogException("unread maintenance cost factor");
+        var multiplier = GameMembers.FuelMultiplier(fuel) / (fuel.factorByDifficulty ? maintenanceCostFactor : 1);
+        if (!double.IsFinite(multiplier) || multiplier <= 0)
+            throw new CatalogException($"generator {name} has no valid item-to-fuel multiplier");
+        return generator with { Fuels = [.. fuels.Select(name => new P.Resource(name))], FuelCapacity = checked((long)Math.Ceiling(fuel.fuelCapacity / multiplier)) };
     }
 
     /// <summary>
@@ -119,7 +124,7 @@ public sealed partial class DefinitionCatalog
         var profiles = PowerSources();
         P.SupplyRow Supply(string name) => new()
         {
-            NominalW = GeneratorRow(name).NominalW,
+            NominalW = -PowerDraw(ThingRow(name))!.Value,
             Build = CheapestCostValue(name),
             Profile = profiles.GetValueOrDefault(name),
         };

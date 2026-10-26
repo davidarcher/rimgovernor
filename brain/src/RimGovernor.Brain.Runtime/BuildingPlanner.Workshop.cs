@@ -197,7 +197,7 @@ public sealed partial class BuildingPlanner
             return (null, BuildingReasonWorkshopUnavailable);
         }
         selection.Candidates = [.. gated.OrderBy(n => n, StringComparer.Ordinal)];
-        selection.Candidates.AddRange(PowerRules.GeneratorDefinitions);
+        selection.Candidates.AddRange(defs.Catalog.GeneratorDefinitions());
         return (selection, new Verdict());
     }
 
@@ -265,7 +265,7 @@ public sealed partial class BuildingPlanner
                     Benches = [.. Workshop.Benches],
                     Hosts = product.Hosts,
                     Definitions = definitions,
-                    Power = FacilityPlanningRules.GeneratorAvailable(available),
+                    Power = FacilityPlanningRules.GeneratorAvailable(available, facts.Facts.GeneratorRows.Keys),
                     BuilderSkill = WorkRules.BuilderSkill(facts.Facts.ForecastObserved.WorkPawns),
                     Further = Workshop.Further,
                 };

@@ -108,7 +108,7 @@ public static partial class ColonyPlanningReads
         var f = new ReviewFacts
         {
             EssentialInputs = new() { Benches = productionBenches },
-            Definitions = definitions.AppendDefinitions([], DefinitionsReads.StarterDefinitions.Concat(defs.SowableCrops()).Concat(defs.BuildableFloors())),
+            Definitions = definitions.AppendDefinitions([], DefinitionsReads.StarterDefinitions.Concat(defs.SowableCrops()).Concat(defs.BuildableFloors()).Concat(defs.GeneratorDefinitions())),
             FoodSupply = foodSupply,
             CombinedFoodSupply = combinedFoodSupply,
             Books = defs.Books(),
@@ -131,13 +131,9 @@ public static partial class ColonyPlanningReads
                 PowerSources = catalog.PowerSources(),
             };
             var generatorRows = new Dictionary<string, GeneratorRow>(StringComparer.Ordinal);
-            foreach (var name in PowerRules.GeneratorDefinitions)
+            foreach (var name in catalog.GeneratorDefinitions())
             {
-                if (catalog.FindThing(name) is null)
-                {
-                    continue;
-                }
-                generatorRows[name] = catalog.GeneratorRow(name);
+                generatorRows[name] = catalog.GeneratorRow(name, development.MaintenanceCostFactor);
             }
             f = f with
             {

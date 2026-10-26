@@ -289,7 +289,7 @@ namespace RimGovernor.Native
                 var occupied = geyser.harvester != null || cells.Any(c => c.GetThingList(map).Any(t => t != geyser && (t.def.category == ThingCategory.Building || t.def.IsBlueprint || t.def.IsFrame)));
                 geyserRows.Add(new RimGovernor.Brain.GameFacts.Observations.SteamGeyser { Id = geyser.GetUniqueLoadID(), Cell = new RimGovernor.Brain.Domain.Cell(geyser.Position.x, geyser.Position.z), Occupied = occupied, Cells = [.. cells.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))] });
             }
-            return new RimGovernor.Brain.GameFacts.Observations.DevelopmentFacts { ShortCircuit = shortCircuit, Networks = [.. networks], Geysers = [.. geyserRows] };
+            return new RimGovernor.Brain.GameFacts.Observations.DevelopmentFacts { MaintenanceCostFactor = Finite(Find.Storyteller.difficulty.maintenanceCostFactor), ShortCircuit = shortCircuit, Networks = [.. networks], Geysers = [.. geyserRows] };
         }
 
         private static string NetId(PowerNet net) => NativeBuildingObservationTools.NetId(net);

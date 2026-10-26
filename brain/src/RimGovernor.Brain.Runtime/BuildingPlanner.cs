@@ -250,7 +250,7 @@ public sealed partial class BuildingPlanner
             // The consumers other goals' admitted plans are about to build join the census request so the budget can price their draw.
             var held = p.Journal.BuildingReservations(state.Snapshot, call);
             pendingConsumers = PendingBuildingDefinitions(held);
-            definitions = [.. new[] { "Wall", "Door" }, .. PowerRules.PowerFamilyDefinitions(), .. pendingConsumers];
+            definitions = [.. new[] { "Wall", "Door" }, .. PowerRules.PowerFamilyDefinitions([]), .. pendingConsumers];
         }
         if (r.Concern == ShelterFamily.Temperature.FilingKey)
         {
@@ -534,7 +534,7 @@ public sealed partial class BuildingPlanner
                 }
                 if (pendingPlanner.Concern == PowerFamily.Basic.FilingKey)
                 {
-                    foreach (var name in PowerRules.PowerFamilyDefinitions())
+                    foreach (var name in PowerRules.PowerFamilyDefinitions(facts.Facts.GeneratorRows.Keys))
                     {
                         if (PendingFacility(progress, name))
                         {
@@ -902,7 +902,7 @@ public sealed partial class BuildingPlanner
         if (Power is not null)
         {
             searchRequest = searchRequest with { Center = Power.Center, Radius = 6 };
-            if (Definition == PowerRules.WindTurbineDefinition)
+            if (facts.Facts.PowerSources.TryGetValue(Definition, out var source) && source.Wind)
             {
                 // A turbine wants open ground its 7x16 catch zone can lie on, which the cells right beside a consumer rarely offer.
                 searchRequest = searchRequest with { Radius = 12 };
@@ -951,7 +951,7 @@ public sealed partial class BuildingPlanner
             {
                 return (null, false, SiteBlocked(Definition, "stuff_differs_from_native"));
             }
-            if (Definition == PowerRules.WindTurbineDefinition)
+            if (preview.Preview.Wind is RimGovernor.Brain.GameFacts.Observations.BuildingWind.WindTurbine)
             {
                 // Only a site whose native catch zone is clear makes the turbine's nominal output; an obstructed one is no site.
                 if (!Pol.PreviewRules.ClearWindTurbine(preview.Preview))

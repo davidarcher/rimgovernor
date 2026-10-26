@@ -14,7 +14,13 @@ public readonly record struct PowerBattery(double CapacityWD, double Efficiency)
 /// across 24 h; Night is the share delivered while the sun is down. Solar marks a source that stops in an
 /// eclipse. The default value is no profile.
 /// </summary>
-public readonly record struct PowerSourceProfile(double Daily, double Night, bool Solar);
+public readonly record struct PowerSourceProfile(double Daily, double Night, bool Solar)
+{
+    /// <summary>Names mechanics the budget cannot evaluate; such a source must never be priced.</summary>
+    public string UnsupportedReason { get; init; } = "";
+
+    public bool Wind { get; init; }
+}
 
 /// <summary>One producer's nominal wattage and delivery profile as the budget sees it.</summary>
 public sealed record PowerProducer
@@ -67,6 +73,14 @@ public sealed record PowerBudget
 
 public static partial class PowerRules
 {
+    private static void RequirePowerProfile(PowerSourceProfile profile)
+    {
+        if (!string.IsNullOrEmpty(profile.UnsupportedReason))
+            throw new DomainException("unsupported power source: " + profile.UnsupportedReason);
+        if (!double.IsFinite(profile.Daily) || profile.Daily <= 0 || !double.IsFinite(profile.Night) || profile.Night < 0)
+            throw new DomainException("invalid power source profile");
+    }
+
     /// <summary>The share of a day a solar generator makes nothing (about eight hours near the equator).</summary>
     public const double SolarNightFraction = 8.0 / 24.0;
 
@@ -134,6 +148,7 @@ public static partial class PowerRules
         foreach (var p in input.Producers)
         {
             var profile = p.Profile;
+            RequirePowerProfile(profile);
             if (profile.Solar && input.Eclipse)
             {
                 continue;

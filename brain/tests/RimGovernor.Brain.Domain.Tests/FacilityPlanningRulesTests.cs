@@ -49,12 +49,13 @@ public sealed class FacilityPlanningRulesTests
     [Fact]
     public void EveryGeneratorRowMustBeReadEvenAfterABuildableGenerator()
     {
-        var available = PowerRules.GeneratorDefinitions.ToDictionary(x => x, _ => false);
-        Assert.False(FacilityPlanningRules.GeneratorAvailable(available));
-        available[PowerRules.GeneratorDefinitions[0]] = true;
-        Assert.True(FacilityPlanningRules.GeneratorAvailable(available));
-        available.Remove(PowerRules.GeneratorDefinitions[^1]);
-        Assert.Throws<RequiredFactException>(() => FacilityPlanningRules.GeneratorAvailable(available));
+        string[] generators = ["InstalledGeneratorA", "InstalledGeneratorB"];
+        var available = generators.ToDictionary(x => x, _ => false);
+        Assert.False(FacilityPlanningRules.GeneratorAvailable(available, generators));
+        available[generators[0]] = true;
+        Assert.True(FacilityPlanningRules.GeneratorAvailable(available, generators));
+        available.Remove(generators[^1]);
+        Assert.Throws<RequiredFactException>(() => FacilityPlanningRules.GeneratorAvailable(available, generators));
     }
 
     [Fact]

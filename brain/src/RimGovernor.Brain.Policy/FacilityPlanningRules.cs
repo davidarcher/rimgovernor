@@ -290,10 +290,10 @@ public static partial class FacilityPlanningRules
     /// Whether any generator definition the power family compiles is buildable now, so a powered bench can be
     /// staged and connected; a generator row the census did not describe leaves it unknown.
     /// </summary>
-    public static bool GeneratorAvailable(IReadOnlyDictionary<string, bool> available)
+    public static bool GeneratorAvailable(IReadOnlyDictionary<string, bool> available, IEnumerable<string> generators)
     {
         var result = false;
-        foreach (var name in PowerRules.GeneratorDefinitions)
+        foreach (var name in generators)
         {
             if (!available.TryGetValue(name, out var value))
                 throw new RequiredFactException("generator definition:" + name);
