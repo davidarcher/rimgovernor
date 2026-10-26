@@ -22,6 +22,12 @@ the catalog's adult-bed membership and actual native footprint. They share the
 room geometry and walkability checks; a known bed with an unread shape fails
 the affected pass. A replacement keeps its selected definition through the
 existing bedroom reconciliation and native construction intent.
+Couple-bed construction walks the catalog's ranked, available costed two-slot
+beds and requires the selected bed itself to fit the bedroom template. Before
+packing, that check removes only the couple's old beds from the observed
+occupancy; unrelated furniture still blocks placement. Replaced beds are
+stored when native marks their definition packable, otherwise retired through
+the existing building owner.
 The bed census reads the required positive `Building_Bed.SleepingSlotsCount`.
 Couples may share beds with at least two observed slots; definition names do not
 establish capacity. Willingness, ownership, reach, temperature and the native

@@ -39,8 +39,8 @@ public sealed partial class SleepingUpkeepPlanner
         {
             return new BuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "old_bed_removal") };
         }
-        // A real bed is packed, not deconstructed: the stored bed furnishes the next bedroom or bed spot (ReinstallStoredBed).
-        if (rep.Def == "Bed" || rep.Def == SleepingRules.SleepingCoupleBedDefinition)
+        // Native packability decides whether the replaced bed can furnish another room from stock.
+        if (reading.Reading.Facts.Packable.Contains(rep.Def))
         {
             var value = new MoveBuilding(rep.Bed, rep.Def, rep.Cell, Rotation.South);
             var id = PlanIds.MintPlanId();

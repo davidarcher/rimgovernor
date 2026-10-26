@@ -47,9 +47,8 @@ public sealed partial class SleepingUpkeepPlanner
             return none;
         }
         var packed = CouplePacked(goal, call);
-        var buildable = ColonyPlanningRules.DefinitionAvailable(facts.Facts, SleepingRules.SleepingCoupleBedDefinition);
         var plan = facts.Facts.LayoutPlan;
-        if (CoupleBedRules.NextCoupleBed(obs!, plan!, CoupleBedRules.CoupleBedRooms(rooms!, census, facts.PlanningWindow.Cells), packed, census.Buildings, buildable) is not { } step)
+        if (CoupleBedRules.NextCoupleBed(obs!, plan!, CoupleBedRules.CoupleBedRooms(rooms!, census, facts.PlanningWindow.Cells), packed, census.Buildings, def => ColonyPlanningRules.DefinitionAvailable(facts.Facts, def)) is not { } step)
         {
             return none;
         }

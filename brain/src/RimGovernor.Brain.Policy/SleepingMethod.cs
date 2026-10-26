@@ -76,9 +76,6 @@ public sealed record SleepingChoice
 
 public static partial class SleepingRules
 {
-    /// <summary>Staged first when a waiting colonist has a couple partner.</summary>
-    public const string SleepingCoupleBedDefinition = "DoubleBed";
-
     public const string SleepingBedrollDefinition = "Bedroll";
     public const string SleepingCoupleBedrollDefinition = "BedrollDouble";
     public const string SleepingSpotDefinition = "SleepingSpot";

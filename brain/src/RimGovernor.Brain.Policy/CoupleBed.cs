@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // the census:
 //   - pack: the single beds the two own (the couple's room's first) are uninstalled; vanilla hauling stores the
 //     packed items, and the uninstall frees the partner's old room;
-//   - install: the couple's room, found from the cell of its packed bed, gets a DoubleBed in the template's
+//   - install: the couple's room, found from the cell of its packed bed, gets a catalog couple bed in the template's
 //     bed slot: a stored one reinstalled, else a new one built.
 //
 // The ordinary assignment then gives both partners the double bed (ReviewSleeping offers a couple's double bed
@@ -41,8 +41,8 @@ public sealed record CoupleBed
 
 public static class CoupleBedRules
 {
-    /// <summary>The bedroom template's bed slot for a DoubleBed in room, and the planned room of plan that room stands in; null when plan has none.</summary>
-    private static (PlannedRoom Planned, IReadOnlyList<WantedPiece> Template)? CoupleBedSlot(LayoutPlan plan, FurnitureRoom room, IReadOnlyList<CurrentBuilding> built)
+    /// <summary>The first available catalog couple bed that fits the room's bedroom template.</summary>
+    private static (PlannedRoom Planned, IReadOnlyList<WantedPiece> Template)? CoupleBedSlot(LayoutPlan plan, FurnitureRoom room, IReadOnlyList<CurrentBuilding> built, Func<string, bool> available)
     {
         foreach (var planned in plan.Rooms)
         {
@@ -50,8 +50,14 @@ public static class CoupleBedRules
             {
                 continue;
             }
-            var template = SleepingRules.BedroomFurnishing(planned, room.Room.Shapes, SleepingRules.SleepingCoupleBedDefinition, built, null).Pieces;
-            return template.Count > 0 ? (planned, template) : null;
+            foreach (var bed in room.Room.Shapes.Furniture.Beds.Where(b => b.Slots == 2 && !b.Free))
+            {
+                if (!available(bed.Def)) continue;
+                if (!room.Room.Shapes.Get(bed.Def).Ok) throw new RequiredFactException("couple bed shape:" + bed.Def);
+                var template = SleepingRules.BedroomFurnishing(planned, room.Room.Shapes, bed.Def, built, null).Pieces;
+                if (template.Any(p => p.DefName == bed.Def)) return (planned, template);
+            }
+            return null;
         }
         return null;
     }
@@ -59,8 +65,8 @@ public static class CoupleBedRules
     /// <summary>
     /// The first couple (by lower pawn id) bed step due, null when none. rooms are the furniture rooms, each of
     /// which must stand in a planned room of plan (its install is reconciled); packed are the cells of the beds
-    /// this Episode's completed pack steps uninstalled, the couple's room's bed first; buildable reports that a
-    /// DoubleBed can be built, without which nothing is packed.
+    /// this Episode's completed pack steps uninstalled, the couple's room's bed first. Nothing is packed
+    /// without an available couple bed that fits after removing precisely those beds.
     /// </summary>
     public static CoupleBed? NextCoupleBed(
         SleepingObservation obs,
@@ -68,7 +74,7 @@ public static class CoupleBedRules
         IReadOnlyList<FurnitureRoom> rooms,
         IReadOnlyList<Cell> packed,
         IReadOnlyList<CurrentBuilding> built,
-        bool buildable)
+        Func<string, bool> available)
     {
         var couples = SleepingRules.SleepingCouples(obs.People);
         var owned = new Dictionary<PawnId, string>();
@@ -139,7 +145,8 @@ public static class CoupleBedRules
             }
             if (pack.Count > 0)
             {
-                if (CoupleBedSlot(plan, home!, built) is null || !buildable)
+                var remaining = built.Where(b => !pack.Any(piece => piece.Thing == b.Id)).ToArray();
+                if (CoupleBedSlot(plan, home!, remaining, available) is null)
                 {
                     continue;
                 }
@@ -153,7 +160,7 @@ public static class CoupleBedRules
             {
                 if (CellInRect(r.Room.Interior, packed[0]))
                 {
-                    if (CoupleBedSlot(plan, r, built) is not var (planned, template))
+                    if (CoupleBedSlot(plan, r, built, available) is not var (planned, template))
                     {
                         break;
                     }

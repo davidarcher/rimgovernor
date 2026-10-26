@@ -50,7 +50,6 @@ Runtime/BuildingPlanner.cs|BuildingPlanner.StepBodyAsync|"NutrientPasteDispenser
 Runtime/BuildingPlanner.cs|BuildingPlanner.StepBodyAsync|"PowerConduit"
 Runtime/BuildingPlanner.cs|BuildingPlanner.StepBodyAsync|"TableButcher"
 Runtime/BuildingPlanner.cs|BuildingPlanner.StepBodyAsync|"Wall"
-Runtime/SleepingUpkeepPlanner.SleepingUpgrade.cs|SleepingUpkeepPlanner.RemoveOldBedAsync|"Bed"
 Runtime/TierStyle.cs|TierStyle.ShellStyleOf|"WoodLog"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.PrepareWorkshopAsync|"FermentingBarrel"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.SelectWorkshop|"FermentingBarrel"
