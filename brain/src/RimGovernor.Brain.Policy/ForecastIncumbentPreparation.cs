@@ -154,7 +154,7 @@ public static class ForecastIncumbentPreparation
                 .Select(m => m.Row with { Action = DomainAction.NewPawnActivitiesAction(m.Row.Action.Id, m.Kept) });
             var conditional = WorkRules.WorkResourcesOf(evidence, batches,
                 actions.Actions.Where(a => !omitted.Contains((a.Plan, a.Action.Id))).Concat(kept), actions.Truncated);
-            return ForecastCoupledCandidates.GenerateCoupledActivities(facts with { WorkView = conditional, WorkClaims = conditional.Claims });
+            return ForecastCoupledCandidates.GenerateCoupledActivities(facts with { WorkView = conditional });
         }
         if (chosen.Length == 0 && methods.Count == 0) return Protected();
         var generated = Generate();

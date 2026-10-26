@@ -107,6 +107,22 @@ unread inputs name a state and cannot finance work. Complexity: added one shared
 conditional estimate / removed timetable-only sizing, the profile-hour property
 and its extension / orphans left: none.
 
+The next settings increment removes the execution-claim exemption from ordinary
+priority planning. An open execution Method does not freeze its pawn's settings;
+the settings Method continues to claim its separate settings resource. The journal
+regression admits priorities and a 24-slot timetable for the same pawn while its
+execution Method remains open. Numeric-mode readback still gates planning. The
+unused duplicate `ReviewFacts.WorkClaims` view was removed; canonical shared
+claims remain in `WorkView`. Native `SetPriority` can interrupt ordinary matching
+work when a priority becomes zero; observed takeover reconciles that result.
+Applied settings are not output. Task 3.4 remains incomplete pending the remaining
+comparison, stale-read and retry integration. The required gate passed 4,120
+domain tests, 30 workflow tests, native compilation, probes and the orphan check
+(1m38s). No new native gameplay claim is made. Rules 7–9: policy chooses settings,
+Runtime supplies facts and admits Methods, and occupation remains independently
+observed. Complexity: added same-pawn settings admission evidence / removed the
+claim-based priority freeze and duplicate claims view / orphans left: none.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. Every activity family below currently feeds the shared exact binding/admission path. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |

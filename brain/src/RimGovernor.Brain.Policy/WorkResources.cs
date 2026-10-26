@@ -146,7 +146,6 @@ public static partial class WorkRules
         {
             ProductionPromises = actions.Truncated ? new ProductionPromiseSet.Blocked(ProductionPromiseBlock.TruncatedWork)
                 : production is ProductionPromiseSet.Assessed(var rows) ? new ProductionPromiseSet.Assessed(MergeWorkMaterialPromises(rows.Concat(claims.Materials))) : production,
-            WorkClaims = claims,
             WorkView = view,
             NeedsAlternatives = ForecastNeeds.ReviewNeedsAlternatives(facts.ForecastObserved.Needs, view),
         };

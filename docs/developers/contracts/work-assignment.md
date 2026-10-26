@@ -152,6 +152,20 @@ at priority 2, including when every candidate is occupied. This avoids disabling
 work merely because its preferred worker is currently busy. Both live review and
 dispatch call the same `PlanWork`, so readback comparison uses this rule too.
 
+Execution ownership does not freeze work settings. `PlanWork` uses observed work,
+capabilities and current demand; it no longer consumes Method pawn claims or a
+truncated claim census. Settings claim `settings/<pawn>`, independently of an
+execution Method's pawn/target claims. A priority/timetable Method can therefore
+be admitted for the same pawn while its execution Method remains open. This does
+not release ownership or claim that the new settings completed any work.
+
+The native writer retains vanilla semantics. Positive priority changes mark its
+work-giver order dirty. Setting a work type to zero calls vanilla
+`Notify_WorkTypeDisabled`: matching ordinary current/queued jobs can end, while a
+player-forced job is preserved unless the pawn actually loses that capability.
+The existing actual-job observation and shared continuation reconcile any such
+change. No settings-specific job cancellation or ownership exemption is added.
+
 This is current-role protection, not timed scheduling. Idle pawns can still own
 multiple roles; higher-priority work can interrupt, and native job selection owns
 execution. `Capacity` reports primary-role coverage, not proof of completing all

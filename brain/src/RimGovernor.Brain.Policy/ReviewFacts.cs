@@ -265,7 +265,6 @@ public sealed partial record ReviewFacts
     public ProductionPromiseSet ProductionPromises { get; init; } = new ProductionPromiseSet.Blocked(ProductionPromiseBlock.AwaitingReview);
 
     public WorkAdmissionObservation WorkAdmission { get; init; } = new();
-    public WorkResourceClaims? WorkClaims { get; init; }
     public WorkResourceView? WorkView { get; init; }
 
     /// <summary>The sleeping census (people, slaves, guests, beds, room quality); read every tick, so always present.</summary>

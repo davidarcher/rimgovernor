@@ -109,7 +109,7 @@ public sealed class WorkPlanningStatesTests
     }
 
     [Fact]
-    public void ACheckboxModeReadbackOrTruncatedClaimsLeaveTheWorkUnplanned()
+    public void ACheckboxModeReadbackLeavesTheWorkUnplannedUntilNativeEnablesNumericPriorities()
     {
         var checkbox = PawnFixtures.Worker("pawn") with { Work = PawnFixtures.WorkTable(false, [new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Cooking", Priority = 3, Disabled = false }, Skill = "Cooking", Order = 1 }]) };
         var waiting = WorkRules.PlanWork([checkbox], [], new());
@@ -117,9 +117,8 @@ public sealed class WorkPlanningStatesTests
         Assert.False(waiting.Planned);
         Assert.Empty(waiting.Assignments);
 
-        var truncated = WorkRules.PlanWork([checkbox with { Work = PawnFixtures.WorkTable(true, []) }], [], new() { WorkClaimsTruncated = true });
-        Assert.Equal(WorkDecisionState.ClaimsTruncated, truncated.State);
-        Assert.False(truncated.Planned);
+        var numbered = WorkRules.PlanWork([checkbox with { Work = PawnFixtures.WorkTable(true, []) }], [], new());
+        Assert.True(numbered.Planned);
     }
 
     [Fact]

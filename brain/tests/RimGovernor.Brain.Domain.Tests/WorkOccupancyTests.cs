@@ -120,41 +120,6 @@ public sealed class WorkOccupancyTests
     }
 
     [Fact]
-    public void CoupledClaimComingAndGoingDoesNotReprioritizeTheOtherPawns()
-    {
-        // #3348: a coupled activity under admin/work-assignments claims the cook and releases it on alternate reviews.
-        // The Need's step admits a work Method whenever the plan has something to write and refuses field_unavailable
-        // otherwise. The claim alone must not hand the claimed pawn's roles to the others and back.
-        var pawns = new[] { Pawn("cook", cooking: 15, building: 5), Pawn("builder", cooking: 5, building: 15) };
-        string Step(string[] claimed)
-        {
-            var decision = WorkRules.PlanWork(pawns, [], new() { CommittedPawns = EquatableArray.From(claimed) });
-            var wrote = false;
-            for (var i = 0; i < pawns.Length; i++)
-            {
-                var assignment = decision.Assignments.SingleOrDefault(a => a.Pawn == pawns[i].Id);
-                if (assignment is null) continue;
-                var (changed, ok) = WorkRules.WorkChanges(pawns[i], assignment);
-                Assert.True(ok);
-                if (changed.Count == 0) continue;
-                Assert.DoesNotContain(pawns[i].Id.Value, claimed);
-                pawns[i] = Apply(pawns[i], decision);
-                wrote = true;
-            }
-            return wrote ? "admitted" : "field_unavailable";
-        }
-        Assert.Equal("admitted", Step([]));
-        Assert.Equal("field_unavailable", Step([]));
-        // Two reviews per claim state: before the fix each toggle admitted a write and the repeat refused it.
-        var rounds = Enumerable.Range(0, 8).Select(i => Step(i / 2 % 2 == 0 ? ["cook"] : [])).ToList();
-        Assert.All(rounds, r => Assert.Equal("field_unavailable", r));
-        Assert.Equal(1, pawns[0].Work.Priorities().Single(w => w.Work == WorkType.Cooking).Priority);
-        var claimed = WorkRules.PlanWork(pawns, [], new() { CommittedPawns = ["cook"] });
-        Assert.True(claimed.Matches);
-        Assert.Equal(1, claimed.Coverage.Single(c => c.Work == WorkType.Cooking).Owners);
-    }
-
-    [Fact]
     public void HigherNativePriorityAndMedicalRestCanOverrideOngoingWork()
     {
         var pawn = Cooking(Pawn("doctor"));

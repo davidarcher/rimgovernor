@@ -51,7 +51,7 @@ public sealed class ForecastIncumbentPreparationTests
         var needs = facts.ForecastObserved.Needs!;
         facts = facts with
         {
-            WorkView = view, WorkClaims = view.Claims, Census = facts.Census with { WorkResources = native },
+            WorkView = view, Census = facts.Census with { WorkResources = native },
             ForecastObserved = facts.ForecastObserved with { Needs = needs with { Pawns = [needs.Pawns[0] with
             {
                 Location = new(1, 1),
@@ -206,7 +206,7 @@ public sealed class ForecastIncumbentPreparationTests
             Targets = [NeedsFixtures.Service("bed", "rest", 10d, .001) with
                 { Location = task.Location }]
         };
-        return (facts with { WorkView = view, WorkClaims = view.Claims, Census = facts.Census with { WorkResources = evidence.WorkResources },
+        return (facts with { WorkView = view, Census = facts.Census with { WorkResources = evidence.WorkResources },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs! with { Pawns = [pawn] } } }, new([row]));
     }
 
@@ -307,7 +307,7 @@ public sealed class ForecastIncumbentPreparationTests
         if (busy.Length != 0) native.Add(new("busy", "busy-assignment", 1, "started", "", "", 0) { LocalHour = 12, Bill = busy == "shares" ? recipe.Bill : "bill/Other" });
         var evidence = facts.WorkView.Evidence with { WorkResources = EquatableArray.From(native) };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, rows);
-        return (facts with { WorkView = view, WorkClaims = view.Claims, Census = facts.Census with { WorkResources = evidence.WorkResources } }, new(EquatableArray.From(rows)));
+        return (facts with { WorkView = view, Census = facts.Census with { WorkResources = evidence.WorkResources } }, new(EquatableArray.From(rows)));
     }
 
     [Fact]
@@ -436,7 +436,7 @@ public sealed class ForecastIncumbentPreparationTests
         }
         var evidence = facts.WorkView!.Evidence with { Pawns = EquatableArray.From(capacity), WorkResources = EquatableArray.From(native) };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, rows);
-        facts = facts with { WorkView = view, WorkClaims = view.Claims, ForecastObserved = facts.ForecastObserved with
+        facts = facts with { WorkView = view, ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(needs) },
             Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled!.Food with { Options = [] }, FoodUses = [] }

@@ -72,8 +72,6 @@ public sealed partial class WorkPlanner
         required = WorkDemandRules.MergeWorkRequirements([.. required], FieldPlanner.FishingWork(read.Reading));
         required = WorkDemandRules.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(read.Reading.Facts.Containment));
         var demand = Disease.DiseaseDemand(read.Reading, definitions, review, state.Snapshot);
-        var sharedWork = p.Journal.WorkResources(state.Snapshot, call);
-        demand = demand with { CommittedPawns = sharedWork.Claims.Pawns, WorkClaimsTruncated = sharedWork.Claims.Truncated };
         var decision = WorkRules.PlanWork(pawns, required, demand);
         if (!decision.Planned)
         {

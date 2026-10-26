@@ -26,7 +26,7 @@ public sealed class QuestPawnsTests
     [Fact]
     public void AnUnplannedWorkDecisionLeavesTheRosterUnplanned()
     {
-        var roster = new WorkDecision { State = WorkDecisionState.ClaimsTruncated, Matches = false };
+        var roster = new WorkDecision { State = WorkDecisionState.CheckboxMode, Matches = false };
 
         var split = QuestCapacity.QuestRosterOf(new WorkPawnsRead([]), [], roster);
 

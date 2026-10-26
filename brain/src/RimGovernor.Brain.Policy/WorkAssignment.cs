@@ -332,8 +332,6 @@ public enum WorkDecisionState
     /// <summary>A pawn's work tab is still in checkbox mode: native has not yet switched it to numbered priorities.</summary>
     CheckboxMode,
 
-    /// <summary>The open Methods' work claims were truncated, so which pawns they hold is unread.</summary>
-    ClaimsTruncated,
 }
 
 public sealed record WorkDecision
@@ -357,8 +355,6 @@ public sealed record WorkDecision
 /// <summary>The colony census the baseline owner table scales by. The default value asks for the baseline alone.</summary>
 public sealed record WorkDemand
 {
-    public EquatableArray<string> CommittedPawns { get; init; }
-    public bool WorkClaimsTruncated { get; init; }
     /// <summary>Temporarily replaces the roster with medical rest until immunity.</summary>
     public IReadOnlyList<DiseaseRest> Resting { get; init; } = [];
 
@@ -404,8 +400,6 @@ internal sealed class WorkWorker(WorkPawn pawn, PawnProfile profile)
     /// <summary>Marks an unarmed colonist the plan is arming: Hunting is assignable before the weapon exists.</summary>
     public bool Arming { get; set; }
 
-    /// <summary>Marks a pawn an open Method claims: it keeps its observed priorities and they count as its roles.</summary>
-    public bool Committed { get; init; }
 
     public int Owned(WorkType work) => Owns.GetValueOrDefault(work);
 }
@@ -475,7 +469,6 @@ public static partial class WorkRules
     /// </summary>
     public static WorkDecision PlanWork(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<WorkRequirement> required, WorkDemand demand)
     {
-        if (demand.WorkClaimsTruncated) return new() { State = WorkDecisionState.ClaimsTruncated, Matches = false };
         DiseaseRestRules.ValidateDiseaseRest(demand.Resting);
         var resting = new HashSet<PawnId>();
         foreach (var row in demand.Resting)
@@ -499,7 +492,6 @@ public static partial class WorkRules
         var numbered = true;
         foreach (var pawn in pawns)
         {
-            var committed = demand.CommittedPawns.Contains(pawn.Id.Value);
             if (!AdmissionRules.ValidResource(new Resource(pawn.Id.Value)) || !seen.Add(pawn.Id))
             {
                 throw new DomainException("invalid work pawn");
@@ -513,7 +505,7 @@ public static partial class WorkRules
             // A checkbox-mode readback (native not yet flipped) waits: no plan until it is numbered.
             if (!manual)
             {
-                numbered &= committed;
+                numbered = false;
                 continue;
             }
             var names = new HashSet<string>();
@@ -528,7 +520,7 @@ public static partial class WorkRules
                     throw new DomainException("duplicate work skill");
                 }
             }
-            var w = new WorkWorker(pawn, PawnRules.BuildProfile(pawn)) { Committed = committed };
+            var w = new WorkWorker(pawn, PawnRules.BuildProfile(pawn));
             foreach (var value in work)
             {
                 if (!AdmissionRules.ValidResource(new Resource(Wire.Name(value.Work))) || value.Priority < 0 || value.Priority > 4)
@@ -664,7 +656,6 @@ public static partial class WorkRules
                     }
                     continue;
                 }
-                if (w.Committed) continue;
                 w.Arming = true;
                 if (Able(w, WorkType.Hunting))
                 {
@@ -708,7 +699,7 @@ public static partial class WorkRules
         foreach (var w in workers)
         {
             var current = currentWork[w.Pawn.Id];
-            if (!w.Committed && current.Work is var work
+            if (current.Work is var work
                 && types.Contains(work) && DemandOf(work) > 0 && Able(w, work)
                 && w.Work[work].Priority > 0)
                 ongoing.Add(w.Pawn.Id, work);
@@ -730,24 +721,6 @@ public static partial class WorkRules
                     continue;
                 }
                 coverage = coverage with { Capable = coverage.Capable + 1 };
-                if (w.Committed)
-                {
-                    // A claimed pawn is not reprioritized under its Method; the role it already holds stays its own,
-                    // so a claim coming and going does not hand that role to the others and back.
-                    switch (w.Work[work].Priority)
-                    {
-                        case 1:
-                            w.Owns[work] = 1;
-                            w.Load++;
-                            workOwners.Add(w);
-                            coverage = coverage with { Owners = coverage.Owners + 1 };
-                            break;
-                        case 2:
-                            backupChosen = true;
-                            break;
-                    }
-                    continue;
-                }
                 candidates.Add(new WorkCandidate(w, Fitness(w, work), w.Profile.Skill(SkillOf(work)).Level));
             }
             if (coverage.Capable == 0 && want > 0)
@@ -757,7 +730,7 @@ public static partial class WorkRules
                 var floor = requirements.TryGetValue(work, out var r) ? r.Minimum : 0;
                 foreach (var w in workers)
                 {
-                    if (!w.Committed && AbleAt(w, work, floor))
+                    if (AbleAt(w, work, floor))
                     {
                         candidates.Add(new WorkCandidate(w, Fitness(w, work), w.Profile.Skill(SkillOf(work)).Level));
                     }
@@ -809,7 +782,7 @@ public static partial class WorkRules
             foreach (var goal in demand.Training)
             {
                 if (goal.Skill != SkillOf(work) || workers.FirstOrDefault(w => w.Pawn.Id == goal.Pawn) is not { } trainee
-                    || trainee.Committed || trainee.Owned(work) == 1 || !Able(trainee, work))
+                    || trainee.Owned(work) == 1 || !Able(trainee, work))
                 {
                     continue;
                 }
@@ -844,7 +817,7 @@ public static partial class WorkRules
                 demand.Help,
                 workers,
                 owners.GetValueOrDefault(WorkType.Construction) ?? [],
-                w => !w.Committed && w.Owned(WorkType.Construction) == 0 && !Able(w, WorkType.Construction) && AbleAt(w, WorkType.Construction, nativeFloor));
+                w => w.Owned(WorkType.Construction) == 0 && !Able(w, WorkType.Construction) && AbleAt(w, WorkType.Construction, nativeFloor));
             var byId = workers.ToDictionary(w => w.Pawn.Id);
             foreach (var id in rec.Helpers)
             {
@@ -864,11 +837,7 @@ public static partial class WorkRules
                     continue;
                 }
                 var priority = 0;
-                if (w.Committed)
-                {
-                    priority = observed.Priority;
-                }
-                else if (PinnedWork(name))
+                if (PinnedWork(name))
                 {
                     if (!w.Profile.Forbidden(name))
                     {
@@ -898,7 +867,7 @@ public static partial class WorkRules
                         }
                     }
                 }
-                if (!w.Committed && resting.Contains(w.Pawn.Id))
+                if (resting.Contains(w.Pawn.Id))
                 {
                     priority = 0;
                     if (name is WorkType.Patient or WorkType.PatientBedRest or WorkType.BedRest)
@@ -968,8 +937,6 @@ public static partial class WorkRules
         var jobs = HerdPlanRules.PlanHerd(facts.HerdPlanInput()).Jobs;
         var demand = new WorkDemand
         {
-            CommittedPawns = facts.WorkClaims?.Pawns ?? [],
-            WorkClaimsTruncated = facts.WorkClaims?.Truncated ?? false,
             Construction = building,
             Arming = HuntPrerequisiteRules.HuntArming(facts.FoodPlan),
             Handling = jobs.ContainsKey(HerdJob.Milk) || jobs.ContainsKey(HerdJob.Wool),

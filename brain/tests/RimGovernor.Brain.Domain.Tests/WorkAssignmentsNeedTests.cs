@@ -104,7 +104,7 @@ public sealed class WorkAssignmentsNeedTests
     }
 
     [Fact]
-    public void ACoupledMethodUnderTheNeedIsNotThePlannersExistingWork()
+    public void WorkSettingsCanChangeThePawnWhoseExecutionMethodRemainsOpen()
     {
         // #3557: the coupled Methods share the Need; counting their open plans as the Work planner's own
         // left it "already working" for whole reviews, so no priorities or finishing-skill choices were written.
@@ -124,10 +124,14 @@ public sealed class WorkAssignmentsNeedTests
 
         var work = PlanIds.MintPlanId();
         var committed = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId("work-a"), "", new PlanSpec(work, new PlanRevision(1),
-            [DomainAction.NewWorkAssignmentAction(new ActionId(work.Value + "-0"), WorkAssignment.NewWorkAssignment(new("b"), [new WorkSetting("TestWork", 1)]))]), ct);
+            [DomainAction.NewWorkAssignmentAction(new ActionId(work.Value + "-0"), WorkAssignment.NewScheduleAssignment(new("a"),
+                [new WorkSetting("TestWork", 1)], Enumerable.Repeat(PawnRules.ScheduleAnything, 24).ToArray()))]), ct);
         Assert.Equal(ClaimOutcome.Admitted, committed.Outcome);
         var open = Assert.Single(Runtime.WorkPlanner.OpenWorkPlans(journal, committed.Owner, ct));
         Assert.Equal(work, open.Spec.Id);
+        Assert.True(StorePackage.PlanOpen(journal.LoadPlan(held.Owner.Methods[0].Plan, ct)));
+        Assert.Equal("a", Assert.Single(open.Spec.Actions).WorkAssignment!.Pawn.Value);
+        Assert.Equal(24, Assert.Single(open.Spec.Actions).WorkAssignment!.Schedule.Count);
     }
 
     [Fact]
