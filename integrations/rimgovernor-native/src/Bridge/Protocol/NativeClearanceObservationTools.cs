@@ -67,6 +67,7 @@ namespace RimGovernor.Native
             long dangerTicks = 0, roofTicks = 0, salvageTicks = 0, salvageRows = 0;
             began = Now();
             var triggers = TempleTriggers(map);
+            var hives = map.listerThings.GetThingsOfType<Hive>().ToList();
             dangerTicks += Now() - began;
             foreach (var building in buildings.Values.OrderBy(b => b.thingIDNumber)) {
                 var rect = building.OccupiedRect();
@@ -76,7 +77,7 @@ namespace RimGovernor.Native
                 if (!building.DeconstructibleBy(player)) continue;
                 var designated = map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null;
                 var phase = Now();
-                var danger = AncientDanger(map, building, player, triggers);
+                var danger = AncientDanger(map, building, player, triggers, hives);
                 dangerTicks += Now() - phase;
                 var own = building.Faction == player;
                 phase = Now();
@@ -358,15 +359,13 @@ namespace RimGovernor.Native
 
         private const int HiveDangerRadius = 14;
 
-        internal static bool AncientDanger(Map map, Building building, Faction player) => AncientDanger(map, building, player, TempleTriggers(map));
-
         // TempleTriggers lists the map's ancient-temple approach triggers once so
         // a census judging many buildings scans AllThings once.
         internal static List<RectTrigger> TempleTriggers(Map map) =>
             map.listerThings.AllThings.OfType<RectTrigger>().Where(t => t.destroyIfUnfogged
                 && t.signalTag?.StartsWith("ancientTempleApproached-", StringComparison.Ordinal) == true).ToList();
 
-        internal static bool AncientDanger(Map map, Building building, Faction player, List<RectTrigger> triggers)
+        internal static bool AncientDanger(Map map, Building building, Faction player, List<RectTrigger> triggers, List<Hive> hives)
         {
             var occupied = building.OccupiedRect();
             // The warning trigger can disappear when a colonist approaches,
@@ -376,7 +375,7 @@ namespace RimGovernor.Native
             // fogged: colonists sent to deconstruct beside one wake it and are
             // wrecked at close range. Unfogging or an open roof must not clear it.
             var center = building.Position;
-            foreach (var hive in map.listerThings.ThingsOfDef(ThingDefOf.Hive))
+            foreach (var hive in hives)
                 if (hive.Spawned && hive.Position.DistanceToSquared(center) <= HiveDangerRadius * HiveDangerRadius) return true;
             var rooms = new HashSet<Room>();
             foreach (var cell in occupied)

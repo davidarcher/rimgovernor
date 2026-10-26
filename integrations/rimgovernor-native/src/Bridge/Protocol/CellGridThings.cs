@@ -43,6 +43,7 @@ namespace RimGovernor.Native
         private readonly HashSet<IntVec3> foundationRemovals = new HashSet<IntVec3>();
         private readonly HashSet<Thing> reserved = new HashSet<Thing>();
         private List<RectTrigger>? triggers;
+        private List<Hive>? hives;
 
         /// A reader for a whole-map read, against the map's last whole read.
         internal static ThingReader Whole(Map map)
@@ -153,7 +154,8 @@ namespace RimGovernor.Native
                 if (def.Minifiable) flags |= P.ThingMarks.Minifiable;
                 if (building.ClaimableBy(player).Accepted) flags |= P.ThingMarks.Claimable;
                 if ((flags & P.ThingMarks.Deconstructible) != 0 && building.Faction != player && !def.building.isNaturalRock && !def.mineable
-                    && NativeClearanceObservationTools.AncientDanger(map, building, player, triggers ??= NativeClearanceObservationTools.TempleTriggers(map)))
+                    && NativeClearanceObservationTools.AncientDanger(map, building, player, triggers ??= NativeClearanceObservationTools.TempleTriggers(map),
+                        hives ??= map.listerThings.GetThingsOfType<Hive>().ToList()))
                     flags |= P.ThingMarks.AncientDanger;
             }
             if (designatedThings.Contains(thing) || (map.edificeGrid[cell] == thing && designatedCells.Contains(cell))) flags |= P.ThingMarks.Designated;

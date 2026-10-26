@@ -56,6 +56,7 @@ internal static class EmergencyFixtures
         Snapshot = "building-token",
         NearestColonist = new RimGovernor.Brain.GameFacts.Observations.ColonistDistance.Nearest(12),
         Passive = false,
+        Hive = true,
         Fogged = false,
         Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = new(20, 20), Maximum = new(21, 21) },
     };

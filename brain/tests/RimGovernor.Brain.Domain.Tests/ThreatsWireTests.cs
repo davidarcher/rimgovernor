@@ -14,6 +14,14 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ThreatsWireTests
 {
     [Fact]
+    public void HiveClassificationIsRequiredNativeEvidence()
+    {
+        var json = OrdersJson.Serialize(EmergencyFixtures.ThreatBuilding("custom-hive"));
+        Assert.True(OrdersJson.Deserialize<ThreatBuilding>(json).Hive);
+        Assert.Throws<System.Text.Json.JsonException>(() => OrdersJson.Deserialize<ThreatBuilding>(json.Replace(",\"hive\":true", "", StringComparison.Ordinal)));
+    }
+
+    [Fact]
     public void ThreatCensusJsonRoundTripIsExact()
     {
         var cell = new RimGovernor.Brain.Domain.Cell { X = 5, Z = 6 };
@@ -43,6 +51,7 @@ public sealed class ThreatsWireTests
                     Snapshot = "tok",
                     NearestColonist = new ColonistDistance.NoColonist(),
                     Passive = true,
+                    Hive = true,
                     Fogged = true,
                     Occupied = new Rectangle { Minimum = cell, Maximum = cell },
                 },
@@ -52,7 +61,7 @@ public sealed class ThreatsWireTests
         var json = OrdersJson.Serialize(threats);
 
         Assert.Equal(
-            """{"pawns":[{"pawn":{"id":"Wolf_7"},"prey":{"ours":false},"ours":false,"passive":false,"nearestColonist":{"type":"nearest","cells":14},"mentalState":null,"factionHostile":false,"prisonBreak":false,"predatorHunt":true,"predator":true,"downed":false}],"hostileBuildings":[{"building":{"id":"Hive_3","defName":"Hive","label":"hive","place":{"type":"on_map","mapId":1,"cell":{"x":5,"z":6}}},"snapshot":"tok","nearestColonist":{"type":"no_colonist"},"passive":true,"fogged":true,"occupied":{"minimum":{"x":5,"z":6},"maximum":{"x":5,"z":6}}}]}""",
+            """{"pawns":[{"pawn":{"id":"Wolf_7"},"prey":{"ours":false},"ours":false,"passive":false,"nearestColonist":{"type":"nearest","cells":14},"mentalState":null,"factionHostile":false,"prisonBreak":false,"predatorHunt":true,"predator":true,"downed":false}],"hostileBuildings":[{"building":{"id":"Hive_3","defName":"Hive","label":"hive","place":{"type":"on_map","mapId":1,"cell":{"x":5,"z":6}}},"snapshot":"tok","nearestColonist":{"type":"no_colonist"},"passive":true,"hive":true,"fogged":true,"occupied":{"minimum":{"x":5,"z":6},"maximum":{"x":5,"z":6}}}]}""",
             json);
         Assert.Equal(threats, OrdersJson.Deserialize<ThreatsSnapshot>(json));
     }

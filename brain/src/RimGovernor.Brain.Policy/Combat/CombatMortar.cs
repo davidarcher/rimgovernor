@@ -57,20 +57,22 @@ public sealed record MortarShells
 
 /// <summary>
 /// A standing hostile building in the census: a crashed ship part, a mech-cluster piece, a siege or mech
-/// mortar, a hive. Def is its ThingDef; Cell one occupied cell; Mortar the native def fact, a turret whose
+/// mortar, a hive. The native census owns identity, geometry and hive classification; Mortar is the catalog fact, a turret whose
 /// verb fires mortar shells.
 /// </summary>
 public sealed record HostileStructure
 {
-    public PawnId Id { get; init; }
+    public required RimGovernor.Brain.GameFacts.Observations.ThreatBuilding Observed { get; init; }
 
-    public string Def { get; init; } = "";
+    public PawnId Id => new(Observed.Building.Id);
 
-    public Cell Cell { get; init; }
+    public string Def => Observed.Building.DefName;
+
+    public Cell Cell => Observed.Occupied.Minimum;
 
     public bool Mortar { get; init; }
 
-    internal bool Hive => Def == "Hive";
+    internal bool Hive => Observed.Hive;
 }
 
 /// <summary>A mortar stood down: its aim is gone, so its forced target is cleared and Crew, its last crew, is released to its role.</summary>

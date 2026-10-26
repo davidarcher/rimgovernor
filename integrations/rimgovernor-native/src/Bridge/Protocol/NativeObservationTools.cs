@@ -117,6 +117,7 @@ namespace RimGovernor.Native
                         : new RimGovernor.Brain.GameFacts.Observations.ColonistDistance.Nearest(colonists.Min(p => Math.Max(Math.Abs(p.Position.x-building.Position.x),Math.Abs(p.Position.z-building.Position.z)))),
                     Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
                     Passive = building is Hive ? !HiveEngaging(building, colonists, spawned, player) : Dormant(building),
+                    Hive = building is Hive,
                     Fogged = building.Position.Fogged(map),
                 });
             }
@@ -165,7 +166,7 @@ namespace RimGovernor.Native
         private static Pawn? HuntedPawn(Pawn pawn) { var target = pawn.CurJob?.targetA.Thing; return target as Pawn ?? (target as Corpse)?.InnerPawn; }
 
         // A hostile building is a combat target in its own right: an insect
-        // hive (RimWorld.Hive is a ThingWithComps, so it is read by def, not
+        // hive (RimWorld.Hive is a ThingWithComps, so it is read by type, not
         // from the building lister) or any hostile-faction building with hit
         // points and combat power (crashed ship parts, mech-cluster pieces),
         // or a mortar (a siege's). Walls and other inert hostile
@@ -179,12 +180,12 @@ namespace RimGovernor.Native
         // hostile-faction building or frame with hit points (a ship part's
         // cluster walls, a siege's sandbag or mortar frame).
         internal static Thing? HostileBuildingThing(Map map, Faction player, string id) =>
-            map.listerThings.ThingsOfDef(ThingDefOf.Hive).Concat(map.listerBuildings.allBuildingsNonColonist)
+            map.listerThings.GetThingsOfType<Hive>().Concat<Thing>(map.listerBuildings.allBuildingsNonColonist)
                 .ById(id) is Thing t && HostileThing(t, player) ? t : null;
         internal static List<Thing> HostileBuildings(Map map, Faction player)
         {
             var found = new List<Thing>();
-            foreach (var hive in map.listerThings.ThingsOfDef(ThingDefOf.Hive)) if (HostileBuilding(hive, player)) found.Add(hive);
+            foreach (var hive in map.listerThings.GetThingsOfType<Hive>()) if (HostileBuilding(hive, player)) found.Add(hive);
             foreach (var building in map.listerBuildings.allBuildingsNonColonist) if (!(building is Hive) && HostileBuilding(building, player)) found.Add(building);
             return found.OrderBy(t => t.thingIDNumber).ToList();
         }

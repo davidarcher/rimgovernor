@@ -7157,6 +7157,9 @@ public sealed record ThreatBuilding
 
     public required bool Passive { get; init; }
 
+    /// <summary>The spawned native instance is a Hive, independent of its definition name.</summary>
+    public required bool Hive { get; init; }
+
     /// <summary>The building's position cell stands in fog the colony has not explored.</summary>
     public required bool Fogged { get; init; }
 

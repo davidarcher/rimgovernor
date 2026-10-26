@@ -616,7 +616,8 @@ partial class DefensePlanner
         {
             if (!b.Dead && b.Cells.Count > 0)
             {
-                structures.Add(new HostileStructure { Id = b.Id, Def = b.Definition, Cell = b.Cells[0], Mortar = b.Mortar });
+                if (b is not Pol.EmergencyThreat.BuildingThreat building) throw new RequiredFactException("hostile building census:" + b.Id);
+                structures.Add(new HostileStructure { Observed = building.ObservedBuilding, Mortar = b.Mortar });
             }
         }
         var damaged = new List<Cell>();

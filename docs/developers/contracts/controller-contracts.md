@@ -506,6 +506,14 @@ before the event-driven emergency read, then `Quiet` or `Active(count)`; awaitin
 evidence cannot certify safety. Danger seeds and haulers are observed collections,
 and the danger window retains its cooldown after the observed threat clears.
 
+The hostile-building census carries the required native `Hive` classification.
+Discovery and attack-target lookup enumerate native hive instances across definitions;
+combat retains the census row and uses that fact for melee and mortar targeting.
+A definition's name does not establish hive behavior. Existing hostility, dormancy,
+fog, ranged safety and native target preconditions still apply. Clearance and site
+reads use the same native hive types for ancient-danger checks, sharing their
+discovered hive list within the read rather than scanning the map per building.
+
 The native threat section supplies the wealth split and the current raid points (the
 story watcher's adaptation and the difficulty's threat scale are inside them); the section is
 required, and a threat read the native cannot complete fails the census. They are
