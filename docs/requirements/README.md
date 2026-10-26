@@ -9,6 +9,14 @@ changes and preserve intended behavior as the implementation evolves.
 The governor has full autonomy. Research goals are excluded by the user's
 direction. Detailed behavior inferred from code remains a candidate until reviewed.
 
+Food is the [OpenSpec pilot](../../openspec/README.md). Its
+[standing specification](../../openspec/specs/food-security/spec.md) owns
+documented requirements RG-FOOD-001–004 and RG-FOOD-006 and their proposed
+acceptance scenarios. The [food page](food-security.md) retains implementation
+status, evidence and inferred candidates RG-FOOD-005/007/008. All eight IDs remain
+in use. Other capabilities still own their requirements on these pages.
+OpenSpec migration changes neither intent approval nor gameplay evidence.
+
 **Repository revision examined:** the epic #3650 requirements update examined
 `d0fe7897d`, on 2026-10-25. It updates room selection, clothing/facility value,
 dependent occupants, supply timing, combat exposure and their diagnostic limits.
@@ -116,6 +124,10 @@ limits where they affect a decision and consolidate shared caveats here.
 Before implementation, identify affected requirement IDs and acceptance claims.
 Afterward, update behavior and evidence together. AI may propose changes and flag
 drift; changing approved intent requires a deliberate product decision.
+For food, propose requirement deltas in OpenSpec, synchronize the reviewed result
+into the standing spec and update the linked evidence here in the same milestone.
+Keep candidate behavior outside the standing spec until its intent is adopted;
+OpenSpec validation and archive status do not establish execution or a pass.
 
 Assign stable `RG-<capability>-<number>` IDs. Preserve them when files move and
 never reuse retired IDs. Record retirements with a reason and any replacement;

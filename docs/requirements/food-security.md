@@ -1,10 +1,16 @@
 # Keep the colony fed
 
-[Collection](README.md) · [Review queue and recommended checks](review-queue.md)
+[Collection](README.md) · [Standing food specification](../../openspec/specs/food-security/spec.md) · [Review queue and recommended checks](review-queue.md)
 
 The governor handles the colony's food supply: finding food, preparing it when
 useful, feeding colonists and replacing what they consume. It makes these decisions
 from the colony's condition and the options available in the game.
+
+The standing specification owns documented requirements RG-FOOD-001–004 and
+RG-FOOD-006 and their proposed scenarios. This page owns implementation status,
+evidence and inferred candidates RG-FOOD-005/007/008. Migration preserves intent
+status and evidence limits; it adds no gameplay verification. Existing section
+anchors remain entry points to each requirement's evidence.
 
 The initial trace follows an unarmed colonist obtaining and eating wild berries,
 with cooking and recovery as supporting examples. Its code revision was:
@@ -12,28 +18,11 @@ with cooking and recovery as supporting examples. Its code revision was:
 Growing, preservation, hunting choices and special feeding were sampled at the
 [collection revisions](README.md). Evidence F7–F14 records that added inspection.
 
-## Requirements
+## Requirement evidence and inferred candidates
 
 ### RG-FOOD-001 — Feed colonists autonomously
 
-**Statement:** While Auto is on, the governor should notice hunger and arrange
-food acquisition, preparation and eating as needed. Completion requires observed
-consumption.
-
-**Purpose:** Keep colonists alive and able to work while the governor manages meals.
-
-**Conditions:** Automatic control and the food/work features are enabled. The
-inspected path covers mobile colonists, ordinary edible food and usable food
-sources. Special feeding situations are listed in the coverage inventory below.
-
-**Acceptance examples:**
-
-- An unarmed colonist with no food and reachable ripe berry bushes obtains berries
-  and eats them autonomously.
-- A hungry colonist with suitable food available eats while the governor also
-  arranges future supplies.
-- When every available source is unusable, report the obstacle and retain the
-  food shortfall.
+**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-001--feed-colonists-autonomously).
 
 **Intent status:** Documented intent in the [player guide](../players/README.md),
 [controls](../players/controls.md#planned-work-and-needs) and
@@ -54,25 +43,7 @@ execution descriptions.
 
 ### RG-FOOD-002 — Replace food before the colony runs out
 
-**Statement:** The governor should compare food on hand with expected consumption
-and arrange replacement food early enough to be useful. Planning should account
-for delivery time, labor and spoilage, with separate records of expected and
-observed supply.
-
-**Purpose:** Keep the colony fed while crops mature and other sources take time
-to deliver.
-
-**Conditions:** Food stocks, consumers and relevant production conditions can be
-read. Reserve quantities follow the owning policy and contracts.
-
-**Acceptance examples:**
-
-- If stored food will run out before a crop matures, arrange a source that can
-  deliver sooner.
-- An unarmed start with usable wild plants can forage.
-- Falling stocks or disrupted production trigger a fresh assessment.
-- Missing information leaves adequacy unresolved. Harvest designations remain
-  expected supply until output is observed.
+**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-002--replace-food-before-the-colony-runs-out).
 
 **Intent status:** Documented intent in the [supply model](../developers/architecture/supply-model.md#demands)
 and [food observation contract](../developers/contracts/controller-contracts.md#observation).
@@ -93,23 +64,7 @@ sufficiency.
 
 ### RG-FOOD-003 — Turn available ingredients into useful food
 
-**Statement:** When cooking is a suitable way to feed the colony, the governor
-should arrange preparation and cooking through to food produced in the game.
-
-**Purpose:** Make ingredients useful to hungry colonists.
-
-**Conditions:** A supported recipe, usable equipment, eligible cook and suitable
-ingredients are available or can be provided. The governor chooses these details
-and can choose raw food when that better meets the need.
-
-**Acceptance examples:**
-
-- With a usable stove and ingredients, cooking consumes the chosen quantities
-  and produces the expected food.
-- A lost ingredient or unusable stove triggers failure reporting and reassessment
-  of the remaining inputs.
-- Losing a kitchen renews the need for cooking capacity. Recovery is complete
-  when useful cooking becomes available again.
+**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-003--turn-available-ingredients-into-useful-food).
 
 **Intent status:** Documented intent in [food work](../developers/contracts/pawn-activities.md#live-one-iteration-cooking)
 and [cooking evidence](../developers/contracts/pawn-activities.md#observation-and-tests).
@@ -127,23 +82,7 @@ to a meal eaten.
 
 ### RG-FOOD-004 — Reassess interrupted food work
 
-**Statement:** When food work fails or conditions change, the governor should read
-the actual outcome, reassess the remaining need and continue with a suitable plan.
-Progress records must distinguish work in progress, completed output and food eaten.
-
-**Purpose:** Keep plans responsive and food accounting accurate during disruption.
-
-**Conditions:** Automatic control remains active and fresh observations are available.
-The inspected behavior covers task continuation within a running session.
-
-**Acceptance examples:**
-
-- After harvesting or cooking, the next step uses the output observed in the game.
-- Failed cooking ends that attempt. Further work uses a fresh assessment of the
-  remaining ingredients.
-- A colonist whose hunger has been satisfied has future meal work reconsidered.
-- A missing observation produces an explicit limitation and leaves the shortfall
-  unresolved.
+**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-004--reassess-interrupted-food-work).
 
 **Intent status:** Documented intent in [food continuation](../developers/contracts/pawn-activities.md#live-one-iteration-cooking)
 and the [food progress contract](../developers/contracts/controller-contracts.md#priority-evaluation).
@@ -180,15 +119,7 @@ a complete growing season is an evidence gap. Evidence F7/F11; proposed T3/T5.
 
 ### RG-FOOD-006 — Preserve food that the colony will need
 
-The governor should arrange suitable storage and cooling for food at risk, while
-keeping food accessible when it is needed. The purpose is to turn acquired food
-into usable reserves. Actual storage and temperature should determine whether
-preservation needs remain open.
-
-Warm perishable stock above the policy threshold should create cooling work.
-Food left exposed should create storage demand. If power fails or a storage route
-becomes unusable, reassessment should retain the threatened supply and seek useful
-work. A planned cooler alone should leave the temperature outcome pending.
+**Requirement and proposed scenarios:** [Standing specification](../../openspec/specs/food-security/spec.md#requirement-rg-food-006--preserve-food-that-the-colony-will-need).
 
 **Intent:** Documented in the storage family and
 [spatial contract](../developers/contracts/spatial-contracts.md).

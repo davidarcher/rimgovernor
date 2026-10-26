@@ -9,6 +9,10 @@ For recovered player outcomes and their implementation/evidence limits, see the
 code and test evidence, mechanical room-value requirements, qualified combat
 estimates, and a prioritized review queue.
 
+The [OpenSpec food pilot](../openspec/README.md) separates
+[standing food requirements](../openspec/specs/food-security/spec.md) from
+[implementation evidence and inferred candidates](requirements/food-security.md).
+
 | Task | Guide |
 | --- | --- |
 | Install and prepare the game | [Setup](players/setup.md) |

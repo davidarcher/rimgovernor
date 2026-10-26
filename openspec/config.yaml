@@ -1,32 +1,24 @@
 schema: spec-driven
 
-# Project context (optional)
-# Add only constraints that should guide OpenSpec artifacts and workflows.
-# Include constraints an agent cannot infer by reading the code.
-# Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
+context: |
+  Food security is the only migrated capability. Read openspec/README.md and
+  docs/requirements/food-security.md before planning food changes. Other
+  capabilities remain in docs/requirements. AGENTS.md governs work and landing.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always state what is out of scope
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  specs:
+    - Preserve stable RG requirement IDs and existing intent provenance.
+    - Do not promote inferred candidates or proposed scenarios to human-approved intent without an explicit decision and source.
+    - Keep implementation status and execution evidence in the owning requirements evidence page, linked from the spec.
+  design:
+    - Trace changed behavior through facts, pure policy, shared demand and Method admission, Hands, native orders and observed outcomes; review architecture rules 7–9.
+  tasks:
+    - Include appropriate tests, owning contract updates and evidence updates with the behavior change; distinguish registered cases from executed passes.
 
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+operations:
+  apply:
+    guidance:
+      - Follow AGENTS.md for verification and landing; use RimGovernor.cmd test and the landing lane.
+  archive:
+    guidance:
+      - Preserve intent provenance and evidence limits when synchronizing; archive completion is not gameplay proof.

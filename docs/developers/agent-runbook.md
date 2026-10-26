@@ -60,6 +60,8 @@ and Claude Code discovers `.claude/skills/` plus six commands under
 `.claude/commands/opsx/`. These planning workflows follow [AGENTS.md](../../AGENTS.md);
 the existing architecture and subsystem contracts remain the current behavior
 documentation. OpenSpec specs and change artifacts live under `openspec/`.
+The [food pilot guide](../../openspec/README.md) defines requirement ownership,
+intent provenance and the relationship between specs and existing test evidence.
 
 Install the CLI with `npm install -g @fission-ai/openspec@latest` if it is missing,
 then run `openspec --version` and `openspec list --json` from the checkout root.
