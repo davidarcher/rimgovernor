@@ -27,7 +27,7 @@ internal static class TierStyle
     {
         bool Guarded(string stuff) => stuff == TierStyleRules.GuardedWallStuff && !SteelResupplied(facts);
         var bulk = ColonyPlanningRules.BulkBuildStuffExcept(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), ContainmentCellRules.ShellWallDefinition, TierStyleRules.ShellWallBudget, Guarded);
-        return bulk != "" ? bulk : "WoodLog";
+        return bulk != "" ? bulk : nameof(RimWorld.ThingDefOf.WoodLog);
     }
 
     /// <summary>An observed source of steel (a deposit or salvage).</summary>

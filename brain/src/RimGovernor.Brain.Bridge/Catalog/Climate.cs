@@ -50,9 +50,9 @@ public sealed partial class DefinitionCatalog
 
     // The comfortable temperature range of the colonists' race, its ComfyTemperatureMin and ComfyTemperatureMax stat bases;
     // the zero band when the race states neither.
-    private P.Band LivingBand(P.ClimateTable table)
+    private P.Band LivingBand()
     {
-        if (FindThing(table.RaceDef) is not { } race)
+        if (FindThing(nameof(ThingDefOf.Human)) is not { } race)
         {
             return new P.Band();
         }
@@ -60,11 +60,11 @@ public sealed partial class DefinitionCatalog
         double? min = null, max = null;
         foreach (var modifier in race.statBases.Seq())
         {
-            if (modifier.stat?.defName == table.ComfyMinStat)
+            if (modifier.stat?.defName == nameof(StatDefOf.ComfyTemperatureMin))
             {
                 min = Decimal32(modifier.value);
             }
-            else if (modifier.stat?.defName == table.ComfyMaxStat)
+            else if (modifier.stat?.defName == nameof(StatDefOf.ComfyTemperatureMax))
             {
                 max = Decimal32(modifier.value);
             }
@@ -136,7 +136,7 @@ public sealed partial class DefinitionCatalog
         {
             Heater = new P.ClimatePlant { HeatPerSecond = control?.energyPerSecond ?? 0, PowerW = power is null ? 0 : GameMembers.BasePowerConsumption(power) },
             HeldC = control?.defaultTargetTemperature ?? 0,
-            Living = LivingBand(table),
+            Living = LivingBand(),
         };
 
         var cooler = stations.BestCoolerByPower();

@@ -29,8 +29,8 @@ public sealed class ClimateException(string message) : DomainException("climate 
 /// The defs are the buildings the options are priced in; SunPhase is the phase of
 /// GenTemperature.OffsetFromSunCycle, cos(2pi(dayPct+SunPhase)) times
 /// TemperatureTuning.DailyTempVariationAmplitude: a literal in the game's code that no def or constant states.
-/// RaceDef and its two stats are where a room people live in takes its band (the race's comfortable range; the
-/// stat def's own base is the unclothed 0..40 and not the range a colonist is comfortable in). A neighbouring
+/// The native human race's comfortable range supplies the living-room band; the stat def's own base is the
+/// unclothed 0..40 and not the range a colonist is comfortable in. A neighbouring
 /// room is held at the default target of the catalog's heater (ClimateModel.HeldC): the game's own default for
 /// a heated room.
 /// </summary>
@@ -41,12 +41,6 @@ public sealed record ClimateTable
     public string DoorDef { get; init; } = "";
 
     public string WallDef { get; init; } = "";
-
-    public string RaceDef { get; init; } = "";
-
-    public string ComfyMinStat { get; init; } = "";
-
-    public string ComfyMaxStat { get; init; } = "";
 
     public double SunPhase { get; init; }
 
@@ -430,9 +424,6 @@ public static class ClimateRules
         VentDef = "Vent",
         DoorDef = ContainmentCellRules.ShellDoorDefinition,
         WallDef = ContainmentCellRules.ShellWallDefinition,
-        RaceDef = "Human",
-        ComfyMinStat = "ComfyTemperatureMin",
-        ComfyMaxStat = "ComfyTemperatureMax",
         SunPhase = 0.32,
         CellMoveTicks = DefenseCorridorRoutes.PathMoveCardinal,
     };

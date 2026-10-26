@@ -47,14 +47,12 @@ Runtime/BuildingPlanner.cs|BuildingPlanner.StepBodyAsync|"NutrientPasteDispenser
 Runtime/BuildingPlanner.cs|BuildingPlanner.StepBodyAsync|"PowerConduit"
 Runtime/BuildingPlanner.cs|BuildingPlanner.StepBodyAsync|"TableButcher"
 Runtime/BuildingPlanner.cs|BuildingPlanner.StepBodyAsync|"Wall"
-Runtime/TierStyle.cs|TierStyle.ShellStyleOf|"WoodLog"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.PrepareWorkshopAsync|"FermentingBarrel"
 Runtime/BuildingPlanner.Workshop.cs|BuildingPlanner.SelectWorkshop|"FermentingBarrel"
 Runtime/Client/GameClient.Defense.cs|GameClient.DefenseSpatialAccessBudgetMs|2500
 PlayerApi/LifecycleRoutes.cs|LifecycleRoutes.MaxLoadTimeoutMs|120000
 Policy/ChildRooms.cs|FurnitureRole.DeathrestCasket|"DeathrestCasket"
 Policy/ClearanceGround.cs|ClearanceGroundRules.StandInBed|"SleepingSpot"
-Policy/Climate.cs|ClimateRules._climateTable|"Human"
 Policy/Climate.cs|ClimateRules._climateTable|"Vent"
 Policy/Combat/CombatMortar.cs|HostileStructure.Hive|"Hive"
 Policy/Combat/CombatWait.cs|CombatWaitRules.WaitDoorStuff|"Plasteel"
