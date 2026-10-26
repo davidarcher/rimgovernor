@@ -32,7 +32,7 @@ public abstract record FishingCrew
 public static class FishingFactsRules
 {
     /// <summary>The planning assumption for one fisher or researcher day: eight work hours of 2500 ticks.</summary>
-    public const int FishingWorkTicksPerDay = 8 * 2500;
+    public const int FishingWorkTicksPerDay = 8 * GameTime.TicksPerHour;
 
     /// <summary>
     /// Proposes the zone footprint: the reachable fishable cells grown by cardinal

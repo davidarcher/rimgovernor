@@ -109,16 +109,16 @@ internal static class LayoutPlanning
     /// house waits an hour instead of re-reading the map every review. A first plan that waits for a fact with the
     /// clock held retries every review (<see cref="ColonyReview.FirstPlanUnread"/>).
     /// </summary>
-    public static readonly Tick ReplanEvery = new(2500);
+    public static readonly Tick ReplanEvery = new(GameTime.TicksPerHour);
 
     /// <summary>The terrain check: every game hour a review re-reads the survey and replans the layout when it changed.</summary>
-    public static readonly Tick TerrainCheckEvery = new(2500);
+    public static readonly Tick TerrainCheckEvery = new(GameTime.TicksPerHour);
 
     /// <summary>How often an unchanged plan's overlay is redrawn (one game day).</summary>
-    public static readonly Tick OverlayRedrawEvery = new(60000);
+    public static readonly Tick OverlayRedrawEvery = new(GameTime.TicksPerDay);
 
     /// <summary>How often the traffic heat layers are redrawn (one game hour).</summary>
-    public static readonly Tick HeatRedrawEvery = new(2500);
+    public static readonly Tick HeatRedrawEvery = new(GameTime.TicksPerHour);
 
     /// <summary>What a recorded first plan holds the clock for until a review starts with it in hand (#3652).</summary>
     public const string FirstPlanPending = "layout plan";

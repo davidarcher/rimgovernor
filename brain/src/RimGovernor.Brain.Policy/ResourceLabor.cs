@@ -14,7 +14,7 @@ public static partial class ResourceRules
             throw new SupplyPlanFactsException();
         }
         var plan = food;
-        var budget = (double)count * 20000;
+        var budget = (double)count * 8 * GameTime.TicksPerHour;
         var charged = new HashSet<(string, string)>();
         foreach (var rows in new[] { plan.Portfolio, plan.Unknown })
         {

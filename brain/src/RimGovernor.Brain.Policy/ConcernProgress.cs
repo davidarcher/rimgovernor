@@ -183,7 +183,7 @@ public sealed record ProgressContract
 public static class ConcernProgressRules
 {
     /// <summary>Bounds every cooldown to three game days: a failed situation is retried, never banned.</summary>
-    public static readonly Tick ProgressCooldownMax = new(180000);
+    public static readonly Tick ProgressCooldownMax = new(3 * GameTime.TicksPerDay);
 
     /// <summary>
     /// The hunt stall policy as a contract: a hunt designation the census reports untaken for HuntStallTicks

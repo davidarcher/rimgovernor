@@ -11,6 +11,17 @@ not a silent exemption.
 
 ## Kept, with the reason
 
+Calendar quantities use the catalog-checked `GameTime` units. Layout replan,
+terrain and defense rechecks and heat redraws use one game hour; overlay redraws
+use one day; salvage freshness uses four hours and progress cooldowns at most
+three days. A gear curve twelfth is one twelfth of `TicksPerYear`, and the injury
+bleed-out threshold is two game hours. Recreation's gain rate is per game hour.
+The food and supply planning priors remain authored estimates: one hour for
+foraging, three for hunting, eight per worker/cook/fisher/researcher day, and six
+per fisher day in the separate day-flow simulator. Expressing them in hours does
+not turn them into measured native work. Ideoligion reform's increment guard
+uses `int.MaxValue`, the integer range limit.
+
 | Constant | Where | Value | Why it stays |
 | --- | --- | --- | --- |
 | `ScheduleHours` | `WorkAssignment.cs`, `NativeWorkSettings.cs` | 24 | A game day is 24 hours; the timetable has one `TimeAssignmentDef` per hour. See [work assignment](work-assignment.md). |

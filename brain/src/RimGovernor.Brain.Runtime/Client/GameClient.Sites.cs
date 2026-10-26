@@ -100,7 +100,7 @@ public sealed partial class GameClient
         // SalvageMaxAgeTicks (four game hours) is recomputed, the frame refresher spends SalvageFrameBudgetMs per
         // update, a read computes rows with no cache entry up to SalvageInlineBudgetMs, and the first read (empty
         // cache) up to SalvageCensusBudgetMs. Rows past the budget carry the skipped salvage case.
-        internal const int SalvageMaxAgeTicks = 4 * 2500;
+        internal const int SalvageMaxAgeTicks = 4 * GameTime.TicksPerHour;
         internal const double SalvageFrameBudgetMs = 1.5;
         internal const double SalvageInlineBudgetMs = 5;
         internal const double SalvageCensusBudgetMs = 250;

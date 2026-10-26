@@ -25,7 +25,7 @@ public static class HazardThresholdsRules
     public const float MeleeReachCells = 1.5f;
 
     /// <summary>A new wound that bleeds the colonist out within this many game ticks (two in-game hours) keeps the stop.</summary>
-    public const uint InjurySeverityFloorTicks = 5000;
+    public const uint InjurySeverityFloorTicks = 2 * GameTime.TicksPerHour;
 
     /// <summary>
     /// A colony-mode run holds when an unacknowledged colonist's food reaches this category: urgently hungry is the

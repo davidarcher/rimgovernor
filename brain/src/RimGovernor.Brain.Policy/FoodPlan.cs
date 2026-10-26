@@ -272,8 +272,8 @@ public static class FoodPlanRules
     // pawn ticks, not native measurements. Designation alone does not prove delivery (Open).
     public const double FoodForageCycleDays = 1.0;
     public const double FoodHuntCycleDays = 1.0;
-    public const double FoodForageWorkTicks = 2500.0;
-    public const double FoodHuntWorkTicks = 7500.0;
+    public const double FoodForageWorkTicks = GameTime.TicksPerHour;
+    public const double FoodHuntWorkTicks = 3 * GameTime.TicksPerHour;
 
     /// <summary>
     /// A zero-contribution Hold row: a supporting method (cooking capacity,
@@ -314,7 +314,7 @@ public static class FoodPlanRules
     }
 
     /// <summary>The work one cook gives a bench per day, the same budget convention as the plan's labor (eight hours a worker).</summary>
-    public const double CookTicksPerDay = 20000.0;
+    public const double CookTicksPerDay = 8 * GameTime.TicksPerHour;
 
     /// <summary>
     /// Prices each field as the better of raw and cooked nutrition. Cooked nutrition is

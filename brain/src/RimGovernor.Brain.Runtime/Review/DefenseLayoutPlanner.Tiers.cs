@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Runtime;
 public sealed partial class DefenseLayoutPlanner
 {
     internal const string DefenseTurretReplacePrefix = "turrets-replace-";
-    internal const long DefenseReverifyTicks = 2500;
+    internal const long DefenseReverifyTicks = GameTime.TicksPerHour;
 
     internal static string DefenseTurretRung(ReviewReading read)
     {

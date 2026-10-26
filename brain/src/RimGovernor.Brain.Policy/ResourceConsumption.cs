@@ -84,7 +84,7 @@ public sealed class ConsumptionLedger
 public static partial class ResourceRules
 {
     /// <summary>One ring hour.</summary>
-    public const int ConsumptionHourTicks = 2500;
+    public const int ConsumptionHourTicks = GameTime.TicksPerHour;
 
     /// <summary>The ring's depth: 60 days.</summary>
     public const int ConsumptionWindowHours = 60 * 24;

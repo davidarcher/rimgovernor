@@ -26,5 +26,5 @@ public static class GearClimateExtensions
 
 public static class GearClimateRules
 {
-    internal const long GearTwelfthTicks = 300000;
+    internal const long GearTwelfthTicks = GameTime.TicksPerYear / 12;
 }

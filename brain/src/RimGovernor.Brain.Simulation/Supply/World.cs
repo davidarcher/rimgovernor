@@ -33,15 +33,15 @@ public readonly record struct Good(string Value)
 public static class SupplyConstants
 {
     /// <summary>The planning labor per worker per game day in pawn ticks (eight hours of a day).</summary>
-    public const double LaborPerWorkerDay = 20000.0;
+    public const double LaborPerWorkerDay = 8 * GameTime.TicksPerHour;
 
     // Runway forecast constants.
     public const int ForecastHistoryDays = 15;
     public const double ForecastHorizonDays = 5.0;
 
     // Work estimates per unit in pawn ticks.
-    public const double ForageWorkTicks = 2500.0;
-    public const double HuntWorkTicks = 7500.0;
+    public const double ForageWorkTicks = GameTime.TicksPerHour;
+    public const double HuntWorkTicks = 3 * GameTime.TicksPerHour;
 
     // Labor priors in pawn ticks per unit yielded.
     // Trade is 0.
@@ -77,7 +77,8 @@ public static class SupplyConstants
     // Per-unit constants for the food source constructors.
     public const double FishingRegenFraction = 0.025; // of Max per day
     public const double FishPerFisherDay = 3.0;
-    public const double FishLaborPerFisher = 15000.0;
+    /// <summary>The simulator's authored six-hour labor estimate per fisher day.</summary>
+    public const double FishLaborPerFisher = 6 * GameTime.TicksPerHour;
     public const double CropHarvestWork = 400.0; // pawn ticks per cell harvested
     public const double KillsPerHunterDay = 1.0;
     public const double ProductWork = 300.0; // pawn ticks per animal per day

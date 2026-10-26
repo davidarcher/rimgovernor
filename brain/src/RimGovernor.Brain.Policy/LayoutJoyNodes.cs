@@ -105,7 +105,7 @@ public static partial class LayoutJoyNodesRules
         Need = "Joy",
         IntervalTicks = 150,
         FallPerInterval = 0.0015,
-        GainPerTick = 0.36 / 2500,
+        GainPerTick = 0.36 / GameTime.TicksPerHour,
         OutdoorGivers = ["GoForWalk"],
     };
 

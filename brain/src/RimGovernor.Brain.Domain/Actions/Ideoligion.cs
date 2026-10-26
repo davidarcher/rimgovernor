@@ -39,7 +39,7 @@ public sealed record IdeoligionReform : IActionPayload
     public IdeoligionReform(string ideo, IdeoligionDesign expected, IdeoligionDesign design, int count)
     {
         DomainException.Require(
-            IdText.IsValidText(ideo) && count >= 0 && count < 2147483647 && expected.Fluid && design.Fluid,
+            IdText.IsValidText(ideo) && count >= 0 && count < int.MaxValue && expected.Fluid && design.Fluid,
             "invalid fluid ideoligion reform"
         );
         var canonicalExpected = IdeoligionDesign.CanonicalIdeoligionDesign(expected);
