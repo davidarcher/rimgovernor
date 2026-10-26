@@ -204,9 +204,16 @@ public static class Postmortems
         {
             process.Kill(entireProcessTree: true);
         }
-        catch (Exception e) when (e is InvalidOperationException or Win32Exception)
+        catch (InvalidOperationException)
         {
-            // Already exited.
+            return;
+        }
+        catch (Win32Exception e)
+        {
+            if (!process.HasExited)
+            {
+                Console.Error.WriteLine($"postmortem git pid {process.Id}: tree kill failed: {e.Message}; cleanup incomplete");
+            }
         }
     }
 

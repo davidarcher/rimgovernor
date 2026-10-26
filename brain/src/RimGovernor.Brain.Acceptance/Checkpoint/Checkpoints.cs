@@ -111,20 +111,16 @@ public static class Checkpoints
         }
     }
 
-    /// <summary>Removes a directory tree, ignoring failures (a prune must not fail a capture).</summary>
-    internal static void TryDeleteTree(string path)
+    /// <summary>Removes a directory tree, reporting failed pruning without failing a capture.</summary>
+    internal static void TryDeleteTree(string path, TextWriter? diagnostics = null)
     {
         try
         {
             DeleteTree(path);
         }
-        catch (IOException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // Best effort: a leftover directory is overwritten by the next capture of that label.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Same.
+            (diagnostics ?? Console.Error).WriteLine($"checkpoint prune {path}: {e.Message}; directory retained");
         }
     }
 }

@@ -1,6 +1,5 @@
 # Rule 4 (no swallowed errors): file|Type.Member with an empty catch block. Delete a line when fixed; never add one.
 Acceptance/CaseKit/SustainedFood.cs|SustainedFood.WatchAsync
-Acceptance/Checkpoint/Checkpoints.cs|Checkpoints.TryDeleteTree
 Acceptance/Checkpoint/ServiceSave.cs|CheckpointRing.ServiceSaveCoreAsync
 Acceptance/Checkpoint/ServiceSave.cs|CheckpointRing.ServiceSaveWhilePausedAsync
 Acceptance/Colony/ColonyCommand.cs|ColonyCommand.Fingerprint
@@ -10,26 +9,12 @@ Acceptance/Evidence/EvidenceBudget.cs|EvidenceBudget.WriteEvidence
 Acceptance/Evidence/EvidenceBudget.cs|EvidenceBudget.WriteJsonFile
 Acceptance/Evidence/Metrics.cs|Metrics.EvidenceBytes
 Acceptance/Evidence/MetricSeries.cs|MetricSeries.ReadSeries
-Acceptance/GameHost/GameProcess.cs|GameProcess.KillTree
-Acceptance/GameHost/GameProcess.cs|GameProcess.RemoveEndpoint
-Acceptance/GameHost/GameProcess.cs|GameProcess.StartDetached
-Acceptance/GameHost/GameProcess.cs|GameProcess.TryDelete
 Acceptance/Harness/Report.cs|Report.Write
 Acceptance/Launch/RunAt.cs|RunAt.RunUntilAsync
 Acceptance/Launch/Stale.cs|StalePackage.FixtureFlags
-Acceptance/Launch/Warm.cs|Game.TryDelete
 Acceptance/Launch/World.cs|WorldRecords.Record
 Acceptance/Native/HttpNativeTransport.cs|HttpNativeTransport.ReadFailure
 Acceptance/Postmortem/Postmortems.cs|Postmortems.Collect
-Acceptance/Postmortem/Postmortems.cs|Postmortems.TryKill
 Acceptance/Postmortem/Postmortems.Store.cs|PostmortemStore.UnsuccessfulStages
 Acceptance/Runner/CaseRunner.cs|CaseRunner.Diagnose
-Acceptance/Service/Serve.cs|ServiceProcess.AssertStoppedAsync
-Acceptance/Service/Serve.cs|ServiceProcess.StopAsync
-Acceptance/Setup/SetupDiscovery.cs|SetupDiscovery.AbsClean
-Acceptance/Setup/SetupDiscovery.cs|SetupDiscovery.ReadSteamRegistry
-Acceptance/Setup/SetupEnvironment.cs|SetupEnvironment.BridgeRoot
-Acceptance/Setup/SetupEnvironment.cs|SetupEnvironment.InstallModAsync
-Acceptance/Setup/SetupProcesses.cs|SetupProcesses.StopPids
-Acceptance/Suites/ChildProcess.cs|ChildProcess.KillTree
 Acceptance/Suites/SuiteRunner.cs|SuiteRunner.RunEntryOnceAsync

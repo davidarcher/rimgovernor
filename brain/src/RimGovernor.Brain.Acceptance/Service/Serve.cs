@@ -452,9 +452,9 @@ public sealed partial class ServiceProcess
             {
                 await ApiAsync("GET", "/api/routines", null, "", CancellationToken.None).ConfigureAwait(false);
             }
-            catch (AcceptanceException)
+            catch (AcceptanceException e)
             {
-                // Evidence only: a brain that stopped answering is recorded by its absence.
+                lock (_gate) { _entry.Set("routine_read_error", e.Message); }
             }
         }
 
@@ -571,6 +571,7 @@ public sealed partial class ServiceProcess
         catch (NativeTransportException)
         {
             // Not answering is the expected state.
+            return;
         }
     }
 

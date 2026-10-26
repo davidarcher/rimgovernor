@@ -152,9 +152,11 @@ public static class SetupProcesses
             catch (ArgumentException)
             {
                 // Already gone.
+                continue;
             }
             catch (InvalidOperationException)
             {
+                continue; // The process exited before Kill reached it.
             }
         }
     }

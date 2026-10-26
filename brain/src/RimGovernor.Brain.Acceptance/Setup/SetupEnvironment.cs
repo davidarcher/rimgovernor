@@ -352,7 +352,7 @@ public static class SetupEnvironment
     /// Prepare trims either) and a ModsConfig.xml for the core game plus Harmony and our package. The baseline save is
     /// generated into profile/Saves on first use.
     /// </summary>
-    private static void BridgeRoot(SetupLayout l, SetupInputs inputs, Action<string> note)
+    internal static void BridgeRoot(SetupLayout l, SetupInputs inputs, Action<string> note)
     {
         var configPath = Path.Combine(l.Root, "config", "config.json");
         var want = RenderConfig(l);
@@ -361,8 +361,9 @@ public static class SetupEnvironment
         {
             current = File.ReadAllText(configPath);
         }
-        catch (IOException)
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
         {
+            note($"configuration absent at {configPath}: {e.Message}; creating it");
         }
 
         if (!string.Equals(current, want, StringComparison.Ordinal))
@@ -398,8 +399,9 @@ public static class SetupEnvironment
             {
                 version = File.ReadAllText(Path.Combine(inputs.RimWorldDir, "Version.txt")).Trim();
             }
-            catch (IOException)
+            catch (IOException e)
             {
+                note($"read game version {inputs.RimWorldDir}: {e.Message}; ModsConfig has no version stamp");
             }
 
             File.WriteAllText(mods, RenderModsConfig(version), new UTF8Encoding(false));
@@ -492,7 +494,7 @@ public static class SetupEnvironment
         }
         catch (Exception e) when (e is IOException or JsonException)
         {
-            // No readable manifest: build.
+            note($"read installed package manifest {installed}: {e.Message}; rebuilding package");
         }
 
         if (manifest is not null)
@@ -562,12 +564,9 @@ public static class SetupEnvironment
             {
                 Directory.Delete(trash, recursive: true);
             }
-            catch (IOException)
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
-                // Leftover trash is harmless.
-            }
-            catch (UnauthorizedAccessException)
-            {
+                note($"remove old package trash {trash}: {e.Message}; trash retained");
             }
         }
 

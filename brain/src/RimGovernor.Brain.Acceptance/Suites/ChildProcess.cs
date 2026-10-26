@@ -167,10 +167,14 @@ internal static class ChildProcess
         catch (InvalidOperationException)
         {
             // Already gone.
+            return;
         }
-        catch (Win32Exception)
+        catch (Win32Exception e)
         {
-            // Access denied for a process that is exiting.
+            if (!process.HasExited)
+            {
+                Console.Error.WriteLine($"suite child pid {process.Id}: tree kill failed: {e.Message}; cleanup incomplete");
+            }
         }
     }
 

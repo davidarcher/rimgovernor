@@ -4,6 +4,15 @@
 
 ## Charter
 
+Harness cleanup distinguishes absence from incomplete cleanup. A missing PID or
+path is already stopped or removed; a failed kill, prune, endpoint removal or
+exit-record write names the owned PID/path in CLI diagnostics. Setup notes report
+registry discovery failures, rebuild reasons and retained package trash. Required
+configuration reads fail on access or I/O errors rather than replacing an unread
+configuration. A service handle records a failed final routine read in its launch
+entry as `routine_read_error` and still completes its own shutdown. These tool
+diagnostics do not replace the case's primary failure.
+
 Every case follows these rules. Each one can be checked from the case declaration or its body.
 
 1. **One native claim.** `Scope` names one native read, operation or simulation outcome, and the case asserts

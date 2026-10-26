@@ -358,11 +358,9 @@ public static partial class SetupDiscovery
                     return value.Replace('/', Path.DirectorySeparatorChar);
                 }
             }
-            catch (System.Security.SecurityException)
+            catch (Exception e) when (e is System.Security.SecurityException or UnauthorizedAccessException)
             {
-            }
-            catch (UnauthorizedAccessException)
-            {
+                Console.Error.WriteLine($"Steam registry {root.Name}\\{path} {name}: {e.Message}; trying remaining discovery sources");
             }
         }
 
@@ -421,11 +419,9 @@ public static partial class SetupDiscovery
                 {
                     name = new DirectoryInfo(current).EnumerateFileSystemInfos(segment).FirstOrDefault()?.Name;
                 }
-                catch (IOException)
+                catch (DirectoryNotFoundException)
                 {
-                }
-                catch (UnauthorizedAccessException)
-                {
+                    return full; // A new setup root has no on-disk casing yet.
                 }
             }
 

@@ -224,12 +224,9 @@ public sealed class GameProcess
                 {
                     WriteFileAtomic(ExitPath(spec.StateDir, spec.GameId), LaunchJson.Exit(new GameExitFile { Generation = generation, Code = code }) + "\n");
                 }
-                catch (IOException)
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
                 {
-                    // The state dir went away under us; nothing records the exit.
-                }
-                catch (UnauthorizedAccessException)
-                {
+                    Console.Error.WriteLine($"gamehost exit record {ExitPath(spec.StateDir, spec.GameId)}: {e.Message}; exit evidence missing");
                 }
             },
             CancellationToken.None,
@@ -353,48 +350,27 @@ public sealed class GameProcess
         }
     }
 
-    /// <summary>Ends <paramref name="pid"/> and its descendants; false when neither taskkill nor TerminateProcess worked.</summary>
+    /// <summary>Ends <paramref name="pid"/> and its descendants; false with a diagnostic when cleanup failed.</summary>
     public static bool KillTree(int pid)
     {
         try
         {
-            var psi = new ProcessStartInfo("taskkill")
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false,
-            };
-            psi.ArgumentList.Add("/T");
-            psi.ArgumentList.Add("/F");
-            psi.ArgumentList.Add("/PID");
-            psi.ArgumentList.Add(pid.ToString(CultureInfo.InvariantCulture));
-            using var kill = Process.Start(psi);
-            if (kill is not null)
-            {
-                kill.WaitForExit();
-                if (kill.ExitCode == 0)
-                {
-                    return true;
-                }
-            }
+            using var process = Process.GetProcessById(pid);
+            process.Kill(entireProcessTree: true);
+            return true;
         }
-        catch (Win32Exception)
+        catch (ArgumentException)
         {
-            // taskkill is missing; fall through to TerminateProcess.
+            return true; // The process no longer exists.
         }
-
-        var h = GameHostNative.OpenProcess(GameHostNative.ProcessTerminate, 0, (uint)pid);
-        if (h == IntPtr.Zero)
+        catch (InvalidOperationException)
         {
+            return true; // It exited before Kill reached it.
+        }
+        catch (Win32Exception e)
+        {
+            Console.Error.WriteLine($"gamehost pid {pid}: tree kill failed: {e.Message}; cleanup incomplete");
             return false;
-        }
-
-        try
-        {
-            return GameHostNative.TerminateProcess(h, 1) != 0;
-        }
-        finally
-        {
-            _ = GameHostNative.CloseHandle(h);
         }
     }
 
@@ -576,9 +552,13 @@ public sealed class GameProcess
 
             File.Delete(EndpointPath(_stateDir, Record.GameId));
         }
+        catch (Exception e) when (e is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return;
+        }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         {
-            // No readable record, nothing to remove.
+            Console.Error.WriteLine($"gamehost endpoint {EndpointPath(_stateDir, Record.GameId)}: {e.Message}; record retained");
         }
     }
 
@@ -588,11 +568,9 @@ public sealed class GameProcess
         {
             File.Delete(path);
         }
-        catch (IOException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-        }
-        catch (UnauthorizedAccessException)
-        {
+            Console.Error.WriteLine($"gamehost remove {path}: {e.Message}; file retained");
         }
     }
 

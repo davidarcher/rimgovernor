@@ -294,12 +294,9 @@ public sealed class Game
         {
             File.Delete(path);
         }
-        catch (IOException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            // Gone or held; the next launch overwrites the record.
-        }
-        catch (UnauthorizedAccessException)
-        {
+            Console.Error.WriteLine($"remove launch record {path}: {e.Message}; record retained");
         }
     }
 

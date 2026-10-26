@@ -5,7 +5,6 @@ namespace RimGovernor.Brain.Acceptance;
 /// <summary>The Win32 surface of the game host.</summary>
 internal static partial class GameHostNative
 {
-    internal const uint ProcessTerminate = 0x0001;
     internal const uint ProcessQueryLimitedInformation = 0x1000;
     internal const uint CreateNewProcessGroup = 0x00000200;
     internal const uint CreateUnicodeEnvironment = 0x00000400;
