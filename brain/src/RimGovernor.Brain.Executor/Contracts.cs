@@ -252,6 +252,8 @@ public sealed record CommsTradeInspection
 
     public long LastRequestTick { get; init; }
 
+    public long? RequestRetirementTick { get; init; }
+
     public bool RequestKnown { get; init; }
 
     public bool MatchingWork { get; init; }

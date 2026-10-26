@@ -12,6 +12,17 @@ public sealed class ForecastMoodResultTests
     private const double Day = GameTime.TicksPerDay;
 
     [Fact]
+    public void BreakForecastUsesTheObservedRecoveryInterval()
+    {
+        var pawn = ForecastConditionalMoodTests.PawnProbe();
+        pawn = pawn with { Mood = pawn.Mood! with { Level = 0, Target = 0, UnclampedTarget = 0 } };
+        var shortRecovery = ForecastMood.ForecastMoodTimeline(pawn with { Mood = pawn.Mood! with { BreakRecoveryTicks = 0 } }, Day, []).Assessed();
+        var longRecovery = ForecastMood.ForecastMoodTimeline(pawn with { Mood = pawn.Mood! with { BreakRecoveryTicks = GameTime.TicksPerDay } }, Day, []).Assessed();
+        Assert.True(shortRecovery.Risk > longRecovery.Risk);
+        Assert.Throws<RequiredFactException>(() => ForecastMood.ForecastMoodTimeline(pawn with { Mood = pawn.Mood! with { BreakRecoveryTicks = -1 } }, Day, []));
+    }
+
+    [Fact]
     public void AnObservedThresholdAssessesTheBreaksWithEveryShift()
     {
         var mood = ForecastMood.ForecastMoodTimeline(ForecastConditionalMoodTests.PawnProbe(), Day, [], breakShifts: [.1]);

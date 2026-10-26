@@ -24,7 +24,7 @@ internal static class PricedFixtures
         return candidates with { Context = context with
         {
             CapacityPenalties = context.CapacityPenalties.Malnutrition.Valid() ? context.CapacityPenalties : Tables(),
-            MoodBreaks = context.MoodBreaks.Tiers.Count != 0 ? context.MoodBreaks : new() { Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
+            MoodBreaks = context.MoodBreaks.Tiers.Count != 0 ? context.MoodBreaks : new() { Threshold = 0.3, Recovery = new MoodRecovery.Measured(.25), Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             Value = context.Value with { TieResolution = context.Value.TieResolution * horizon / GameTime.TicksPerDay },
         } };
     }

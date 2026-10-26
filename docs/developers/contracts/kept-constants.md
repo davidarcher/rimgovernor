@@ -476,3 +476,40 @@ A combat event row's `Detail` is cut to 256 characters. A cut value is the
 first 242 characters followed by the marker `...[truncated]`, so the text is
 exactly 256 characters and a reader recognises a cut value by the suffix. The
 marker is in the text, not a field: no proto change.
+
+## Rule 6 numeric provenance (#4038)
+
+Calendar intervals use `GameTime`: layout replan/terrain/heat checks and defense
+reverification are hourly; salvage is four hours; overlay is daily; progress
+cooldown is three days; injury severity's minimum horizon is two hours. Gear's
+twelfth is a twelfth of the year. Fishing and cooking allow eight work hours a
+day, foraging one hour and hunting three. The simulator retains its authored
+six-hour fishing prior. Joy's hourly gain is converted through `TicksPerHour`.
+These are planner judgments expressed in calendar units, not mirrored game costs.
+Reform-count bounds use the integer representation's maximum.
+
+Mood recovery and worship-room minimum score read the private game fields
+`MentalBreaker.MinTicksSinceRecoveryToBreak` and `RoomRoleWorker_WorshipRoom.MinScore`.
+The catalog raid wait window takes the maximum of `LordJob_AssaultColony`'s
+assault, sap and breach give-up ranges. Missing or retyped members fail the read.
+Native trade observation owns the request retirement tick: its arrival maximum
+plus the retry duration passed by `FactionDialogMaker` to the incident queue.
+Orbital arrival uses that class's private `OrbitalTraderDelayHours` range; caravan
+arrival and retry are inline two-day and four-day mechanics. Queue and seller
+observations take precedence over the bound. This neither authorizes another
+request nor creates a second cooldown owner.
+
+The following 17 numeric baseline entries are retained after review against the
+installed RimWorld 1.7 assembly. No analyzer rule or allowlist is changed.
+
+| Baseline member | Values | Provenance |
+| --- | --- | --- |
+| `RoomSpaceRules.WealthScale` | 1500 | Inline divisor in `RoomStatWorker_Impressiveness.GetScore`; no field exposes it. Invoking the worker needs a live room. |
+| `ClockValidation.ClockPolicy`, `NewColonyBounds.MaxTimeoutMs` | 1800000 each | Independent 30-minute wall-time input bounds. |
+| `GameClient.DefenseSpatialAccessBudgetMs` | 2500 | Main-thread wall-time audit budget in milliseconds. |
+| `LifecycleRoutes.MaxLoadTimeoutMs` | 120000 | Two-minute wall-time request bound. |
+| `HuntPrerequisiteRules.HunterWeaponCraftTicks` | 6000 | Authored prerequisite labor prior, not a native recipe cost. |
+| `PlanWeights.FieldGain` | 2000 | Authored layout preference weight. |
+| `OrganHarvestRules.SilverPerCapacity` | 1500 | Authored exchange valuation. |
+| `MetricAggregator.s_defaultBounds` | 2500, 5000, 7500 | OTLP histogram bounds. |
+| `TelemetryMetrics.SchedulerBuckets` | 2500, 5000, 30000, 60000, 120000, 300000 | Wall-time histogram bounds in milliseconds. |

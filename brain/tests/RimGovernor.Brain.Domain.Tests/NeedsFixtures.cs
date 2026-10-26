@@ -100,7 +100,7 @@ internal static class NeedsFixtures
     public static NeedMood Mood => new()
     {
         Level = .5, Target = .5, UnclampedTarget = .5, RisePerTick = .12 / 2500, FallPerTick = .08 / 2500, FreezesWhileAsleep = false,
-        BreakThreshold = .35, Conditional = new ConditionalMood.Modeled([]), Memories = [],
+        BreakThreshold = .35, BreakRecoveryTicks = 15000, Conditional = new ConditionalMood.Modeled([]), Memories = [],
     };
 
     /// <summary>A need <paramref name="kind"/> with no unserved gain and no unsupported changes.</summary>

@@ -626,6 +626,7 @@ partial class DefensePlanner
         }
         return new CombatView
         {
+            RaidWait = new RaidWaitWindow.Measured(catalog.RaidGiveUpTicks),
             SiteExit = QuestReads.CombatSiteExitOf(combat.World, new MapId(identity.MapId)),
             Hunt = inp.Prey.Count > 0,
             HuntHunters = [.. inp.Hunters.Select(h => new PawnId(h))],

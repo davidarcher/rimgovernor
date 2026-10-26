@@ -49,6 +49,9 @@ public sealed record RaceGameFacts(IReadOnlyList<string> EdibleDefs, float TameC
 /// <summary>One definition catalog over a game's Def objects.</summary>
 public sealed partial class DefinitionCatalog
 {
+    /// <summary>The latest native assault/sapper/breacher give-up window end.</summary>
+    public int RaidGiveUpTicks { get; } = GameConstants.RaidGiveUpTicks;
+
     private readonly Dictionary<string, ThingDef> _thingDefs = [];
     private readonly Dictionary<string, TerrainDef> _terrainDefs = [];
     private readonly Dictionary<Type, Dictionary<string, Def>> _rows = [];

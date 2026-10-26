@@ -134,6 +134,10 @@ public sealed partial class DefinitionCatalog
     {
         if (P.StationCatalogRules.TryRoomRoleScore(role, when, out var score))
         {
+            if (role == RoomRole.WorshipRoom)
+            {
+                score = score with { Floor = GameConstants.WorshipRoomMinScore };
+            }
             into.Add(score);
         }
     }

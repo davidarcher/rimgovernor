@@ -923,7 +923,7 @@ public sealed class PlannedRoomActivitiesTests
             PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }) }],
             PlannedRoomPredictions = EquatableArray.From(stages.Select(s => PlannedRoomPredictionTests.Closed("1", s.Key, "Bedroom", 30d, s.Value, 9, 0, false)
                 with { Beds = inside ? ["bed"] : [] })),
-            MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
+            MoodBreak = new() { Threshold = .3, Recovery = new MoodRecovery.Measured(.25), Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
         };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Priced()!;
@@ -1111,7 +1111,7 @@ public sealed class PlannedRoomActivitiesTests
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * (room - 1)), Z = 5, Width = 3, Height = 3 }) })],
             PlannedRoomPredictions = EquatableArray.From(occupants.Keys.Select(room => PlannedRoomPredictionTests.Closed(
                 room.ToString(System.Globalization.CultureInfo.InvariantCulture), "WoodLog", "Bedroom", 30d, 2, 9, 0, false))),
-            MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
+            MoodBreak = new() { Threshold = .3, Recovery = new MoodRecovery.Measured(.25), Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
         };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!.Priced()!;

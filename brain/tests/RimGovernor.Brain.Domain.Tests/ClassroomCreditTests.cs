@@ -16,7 +16,7 @@ public sealed class ClassroomCreditTests
     private const double Horizon = 30;
     private const double Price = 0.01;
 
-    private static readonly MoodBreakModel Breaks = new() { Threshold = 0.35, Tiers = [new(1, 2), new(1, 3), new(1, 5)] };
+    private static readonly MoodBreakModel Breaks = new() { Threshold = 0.35, Recovery = new MoodRecovery.Measured(.25), Tiers = [new(1, 2), new(1, 3), new(1, 5)] };
 
     private static readonly FoodHaulLegs Legs = new() { Field = true, Bench = true, FieldToStore = 20, SourceToBench = 10, BenchToDish = 5 };
 

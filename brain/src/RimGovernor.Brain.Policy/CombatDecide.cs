@@ -203,6 +203,9 @@ public sealed partial record CombatView
 
     public Tick Tick { get; init; }
 
+    /// <summary>The catalog's native raid give-up window; required only when waiting out a humanoid raid.</summary>
+    public RaidWaitWindow RaidWait { get; init; } = new RaidWaitWindow.Unread();
+
     public EquatableArray<CombatPawnState> Pawns { get; init; }
 
     public EquatableArray<SquadDefenderFacts> Defenders { get; init; }
@@ -1791,4 +1794,11 @@ public static partial class CombatDecideRules
         var present = new HashSet<PawnId>(view.Threats.Items.Select(t => ThreatPawn(t)));
         return [.. refusals.Where(r => cells.TryGetValue(r.Pawn, out var c) && c == r.From && present.Contains(r.Target))];
     }
+}
+
+/// <summary>The native assault window; unread frames cannot choose to wait out a raid.</summary>
+public abstract record RaidWaitWindow
+{
+    public sealed record Unread : RaidWaitWindow;
+    public sealed record Measured(int Ticks) : RaidWaitWindow;
 }

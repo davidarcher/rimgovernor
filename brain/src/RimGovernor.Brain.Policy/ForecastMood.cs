@@ -390,7 +390,7 @@ public static class ForecastMood
         }
         unknown.Add("mood_response_interval_phase_unassessed");
         ForecastMoodBreaks breaks = breakKnown
-            ? new ForecastMoodBreaks.Assessed(MoodBreakModel.Breaks(tierTicks), EquatableArray.From(tierTicks.ToArray()),
+            ? new ForecastMoodBreaks.Assessed(MoodBreakModel.Breaks(tierTicks, mood.BreakRecoveryTicks / (double)GameTime.TicksPerDay), EquatableArray.From(tierTicks.ToArray()),
                 EquatableArray.From(shifts.Select((shift, k) => new ForecastShiftedBreaks(shift,
                     EquatableArray.From(shiftedTicks.AsSpan(k * LayoutMoodRules.MoodTierCount, LayoutMoodRules.MoodTierCount).ToArray())))))
             : new ForecastMoodBreaks.Unassessed();

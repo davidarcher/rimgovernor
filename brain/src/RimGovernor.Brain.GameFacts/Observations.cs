@@ -4721,6 +4721,9 @@ public sealed record TradeRequestOption
 
     public required long ArrivalMaxTicks { get; init; }
 
+    /// <summary>Native upper bound on arrival and retry retirement after the last request.</summary>
+    public required long RetirementTick { get; init; }
+
     public required bool Eligible { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]

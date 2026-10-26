@@ -837,6 +837,8 @@ public sealed record NeedMood
     public required double FallPerTick { get; init; }
     public required bool FreezesWhileAsleep { get; init; }
     public required double BreakThreshold { get; init; }
+    /// <summary>MentalBreaker's native minimum ticks after recovery before another break.</summary>
+    public required int BreakRecoveryTicks { get; init; }
     public required ConditionalMood Conditional { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
     public required EquatableArray<NeedMemory> Memories { get; init; }

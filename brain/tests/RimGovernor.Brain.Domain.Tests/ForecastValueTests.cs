@@ -61,7 +61,7 @@ public sealed class ForecastValueTests
 
     private static MoodBreakModel Breaks() => new()
     {
-        Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)],
+        Threshold = 0.3, Recovery = new MoodRecovery.Measured(.25), Tiers = [new(1, 2), new(1, 3), new(1, 5)],
     };
 
     // By default the schedule expects no raids, so the harm term is a known 0 and every other term is read alone.
@@ -332,7 +332,7 @@ public sealed class ForecastValueTests
     {
         // A day at the minor tier and half a day at the major: breaks per day are 1 / (MTB + cooldown) of the tier.
         var game = LayoutMoodRules.MoodGame();
-        var expected = 1 / (game.MTBDays[0] + game.CooldownDays) * 2 + 0.5 / (game.MTBDays[1] + game.CooldownDays) * 3;
+        var expected = 1 / (game.MTBDays[0] + Breaks().RecoveryDays()) * 2 + 0.5 / (game.MTBDays[1] + Breaks().RecoveryDays()) * 3;
         var needs = Calm(tiers: [Day, Day / 2, 0]);
 
         var value = ForecastValue.Of(Outcome(needs), Context(Pawn()), Day, Outcome(needs));

@@ -93,7 +93,6 @@ Domain/StockpileFilter.cs|StockpileFilter.MealShelfFilter|"MealSurvivalPack"
 Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"MealSurvivalPack"
 Domain/StockpileFilter.cs|StockpileFilter.PerishablesFilter|"Pemmican"
 Domain/TradeMission.cs|TradeMission.Validate|"Silver"
-Executor/Flows.cs|Executor.CommsTradeRequestEffect|360000
 Runtime/Client/GameClient.Defense.cs|GameClient.DefenseSpatialAccessBudgetMs|2500
 Runtime/Client/GameClient.Placement.cs|PlacementRequests.BuildingPreviewRow|"HiddenConduit"
 Runtime/Client/GameClient.Placement.cs|PlacementRequests.BuildingPreviewRow|"PowerConduit"
@@ -104,7 +103,6 @@ Policy/ClearanceGround.cs|ClearanceGroundRules.StandInBed|"SleepingSpot"
 Policy/Climate.cs|ClimateRules._climateTable|"Human"
 Policy/Climate.cs|ClimateRules._climateTable|"Vent"
 Policy/Combat/CombatMortar.cs|HostileStructure.Hive|"Hive"
-Policy/Combat/CombatWait.cs|CombatWaitRules.RaidGiveUpTicks|38000
 Policy/Combat/CombatWait.cs|CombatWaitRules.WaitDoorStuff|"Plasteel"
 Policy/CombatCast.cs|CombatCastRules._psycastFamilies|"Flashstorm"
 Policy/ConstructionDemand.cs|ConstructionDemandRules.ConstructionWoodLog|"WoodLog"
@@ -163,7 +161,6 @@ Policy/LayoutDefense.cs|LayoutDefenseRules.PerimeterLightStuff|"WoodLog"
 Policy/LayoutFieldReplan.cs|LayoutFieldReplanRules.FieldCrops|"Plant_Potato"
 Policy/LayoutLight.cs|LayoutLightRules.LightTableValue|"StandingLamp"
 Policy/LayoutLight.cs|LayoutLightRules.LightTableValue|"WallLamp"
-Policy/LayoutMood.cs|LayoutMoodRules.MoodGameValue|15000
 Policy/LayoutPowerDerive.cs|LayoutPowerDeriveRules.SiteConduit|"PowerConduit"
 Policy/LayoutScore.cs|PlanWeights.FieldGain|2000
 Policy/LayoutUtility.cs|LayoutUtilityRules.SolarDefinition|"SolarGenerator"
@@ -195,7 +192,6 @@ Policy/SleepingUpkeep.cs|SleepingRules.SleepingDoubleBeds|"RoyalBed"
 Policy/SocialCrops.cs|SocialCropsRules.HayResource|"Hay"
 Policy/StationCatalog.cs|StationCatalogRules.RoomRoleNamedDefs|"DeathrestCasket"
 Policy/StationCatalog.cs|StationCatalogRules.RoomRoleNamedDefs|"PsychicRitualSpot"
-Policy/StationCatalog.cs|StationCatalogRules.RoomRoleScores|2000
 Policy/StorageShelves.cs|StorageRules.ShelfDefinition|"Shelf"
 Policy/TemperatureMethod.cs|TemperatureCooling.WallCoolerBeside|"Cooler"
 Policy/TemperatureMethod.cs|TemperatureMethodRules.SelectTemperatureMethod|"Campfire"

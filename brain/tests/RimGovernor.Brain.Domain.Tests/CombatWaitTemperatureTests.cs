@@ -7,6 +7,17 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class CombatWaitTemperatureTests
 {
+    [Fact]
+    public void AWeatherWaitEndsAtTheCatalogRaidWindow()
+    {
+        var view = Raid(new OutdoorTemperature.Measured(-20)) with { RaidWait = new RaidWaitWindow.Measured(10) };
+        var (_, _, waiting) = CombatDecideRules.DecideCombat(view, new() { Answered = true }, new(), Fighting());
+        Assert.True(waiting.Wait);
+        var (_, _, finished) = CombatDecideRules.DecideCombat(view with { Tick = new(110) }, new() { Answered = true }, new(), waiting);
+        Assert.False(finished.Wait);
+        Assert.Throws<RequiredFactException>(() => CombatDecideRules.DecideCombat(view with { RaidWait = new RaidWaitWindow.Unread() }, new() { Answered = true }, new(), Fighting()));
+    }
+
     private static CombatView Raid(OutdoorTemperature temperature) => CombatPawnFixtures.View() with
     {
         Tick = new(100),

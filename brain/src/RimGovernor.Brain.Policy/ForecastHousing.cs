@@ -327,7 +327,7 @@ public static class ForecastHousing
     {
         if (BedroomMoodDelta(pawn, stage, observed, barracks) is not RoomMoodDelta.Priced { Delta: var delta }
             || pawn.Mood is not { UnclampedTarget: var target, BreakThreshold: var threshold } || !double.IsFinite(target)
-            || !QuestCapacityForecast.FinitePositive(threshold)) return null;
+            || !QuestCapacityForecast.FinitePositive(threshold) || !breaks.Valid()) return null;
         var model = new MoodBreakModel { Threshold = threshold };
         var horizon = ForecastCoupled.TierOneHorizonDays * GameTime.TicksPerDay;
         double[] TierTicks(double level)
@@ -338,7 +338,7 @@ public static class ForecastHousing
             return ticks;
         }
         var flat = TierTicks(target);
-        var mood = new ForecastMoodBreaks.Assessed(MoodBreakModel.Breaks(flat), EquatableArray.From(flat),
+        var mood = new ForecastMoodBreaks.Assessed(MoodBreakModel.Breaks(flat, breaks.RecoveryDays()), EquatableArray.From(flat),
             [new(delta / 100, EquatableArray.From(TierTicks(target + delta / 100)))]);
         return GainPerDay(delta, mood, breaks, wellbeingWeight, ForecastCoupled.TierOneHorizonDays);
     }

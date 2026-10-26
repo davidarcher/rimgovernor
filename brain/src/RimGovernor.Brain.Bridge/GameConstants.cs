@@ -1,6 +1,7 @@
 using System.Reflection;
 using RimWorld;
 using Verse;
+using Verse.AI;
 
 namespace RimGovernor.Brain.Bridge;
 
@@ -25,6 +26,13 @@ internal static class GameConstants
     internal static float MinDeconstructWork => Read<float>(typeof(JobDriver_Deconstruct), "MinDeconstructWork");
 
     internal static float MaxDeconstructWork => Read<float>(typeof(JobDriver_Deconstruct), "MaxDeconstructWork");
+
+    // These members are private; neither DefOf nor a public typed field exposes them.
+    internal static int WorshipRoomMinScore => Read<int>(typeof(RoomRoleWorker_WorshipRoom), "MinScore");
+    internal static int MoodBreakRecoveryTicks => Read<int>(typeof(MentalBreaker), "MinTicksSinceRecoveryToBreak");
+    internal static int RaidGiveUpTicks => Math.Max(Read<IntRange>(typeof(LordJob_AssaultColony), "AssaultTimeBeforeGiveUp").max,
+        Math.Max(Read<IntRange>(typeof(LordJob_AssaultColony), "SapTimeBeforeGiveUp").max,
+            Read<IntRange>(typeof(LordJob_AssaultColony), "BreachTimeBeforeGiveUp").max));
 
     internal static T Read<T>(Type owner, string name)
     {

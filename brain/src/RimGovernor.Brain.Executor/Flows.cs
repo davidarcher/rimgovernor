@@ -283,8 +283,7 @@ public sealed partial class Executor
         }
         // Native's queue owns the arrival and retry deadline. These bounds only retire a lost attempt after the
         // complete queue and seller reads are empty; they never create a second cooldown fact or authorize resend.
-        long expiry = request.Kind == TradeRequestKind.Orbital ? 5001 : 360000;
-        if (read.LastRequestTick > request.ExpectedLastRequestTick && !read.MatchingArrival && !read.MatchingSeller && read.Tick.Value > read.LastRequestTick + expiry)
+        if (read.LastRequestTick > request.ExpectedLastRequestTick && !read.MatchingArrival && !read.MatchingSeller && read.Tick.Value > (read.RequestRetirementTick ?? throw new InvalidOperationException("Trade request retirement is unread.")))
         {
             return (Effect.Unsuccessful, UnsuccessfulReason.NativeExpired);
         }

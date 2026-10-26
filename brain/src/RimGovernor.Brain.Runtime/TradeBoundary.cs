@@ -76,6 +76,7 @@ internal sealed class TradeBoundary(IClock clock, TradeCapabilities trade) : ITr
                 {
                     RequestKnown = true,
                     LastRequestTick = row.LastRequestTick,
+                    RequestRetirementTick = row.RetirementTick,
                     Eligible = row.Eligible && row.NegotiatorIds.Contains(request.Negotiator)
                         && facts.Consoles.Any(c => c.Id == request.Console && c.NegotiatorIds.Contains(request.Negotiator)),
                 };

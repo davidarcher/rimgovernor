@@ -285,7 +285,7 @@ public static partial class StationCatalogRules
         new() { Role = RoomRole.PrisonBarracks, When = RoleCondition.BedPrisoner, Weight = 100100, Additive = true },
         new() { Role = RoomRole.PrisonBarracks, When = RoleCondition.BedPrisonerMedical, Weight = 50001, Additive = true },
         new() { Role = RoomRole.ThroneRoom, Weight = 10000 },
-        new() { Role = RoomRole.WorshipRoom, When = RoleCondition.IdeoAltar, Weight = 75, Additive = true, Floor = 2000 },
+        new() { Role = RoomRole.WorshipRoom, When = RoleCondition.IdeoAltar, Weight = 75, Additive = true },
         new() { Role = RoomRole.Classroom, Weight = 8, Additive = true },
         new() { Role = RoomRole.Playroom, Weight = 8, Additive = true },
         new() { Role = RoomRole.DeathrestChamber, Weight = 100, Additive = true },

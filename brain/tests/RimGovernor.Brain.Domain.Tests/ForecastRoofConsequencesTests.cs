@@ -85,7 +85,7 @@ public sealed class ForecastRoofConsequencesTests
             Mood = (facts.ForecastObserved.Needs!.Pawns[0].Mood ?? NeedsFixtures.Mood) with
             {
                 UnclampedTarget = .5, RisePerTick = .12 / GameTime.TicksPerHour, FallPerTick = .08 / GameTime.TicksPerHour,
-                FreezesWhileAsleep = true, BreakThreshold = .3, Conditional = new ConditionalMood.Modeled([]), Memories = [],
+                FreezesWhileAsleep = true, BreakThreshold = .3, BreakRecoveryTicks = 15000, Conditional = new ConditionalMood.Modeled([]), Memories = [],
             },
             Needs = [NeedsFixtures.Rate("food", 1d, 0d, .3), NeedsFixtures.Rate("rest", .2, 0d, .3)],
             // 0.8 rest at 0.00005 a tick: a 16000-tick sleep, long enough that ApplyBedThoughts always runs at the wake.

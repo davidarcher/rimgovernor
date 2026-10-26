@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using RimWorld;
 using Verse;
+using Verse.AI;
 using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Native;
@@ -11,6 +12,10 @@ namespace RimGovernor.Native;
 /// <summary>Read native sleep and mood mechanics, never choose a sleep schedule. Only the verified native owl workers are modeled.</summary>
 internal static class NativeConditionalMood
 {
+    // The constant is private; there is no public typed route to this native mechanic.
+    private static int MoodBreakRecoveryTicks => typeof(MentalBreaker).GetField("MinTicksSinceRecoveryToBreak", BindingFlags.Static | BindingFlags.NonPublic)
+        ?.GetRawConstantValue() is int ticks && ticks >= 0 ? ticks : throw new InvalidOperationException("MentalBreaker recovery interval is unreadable.");
+
     /// <summary>The pawn's sleep mechanics (NeedsForecastPawn's sleep members).</summary>
     internal readonly record struct SleepMechanics(double SleepThreshold, double WakeThreshold, bool Blocked, double BlockedUntilTicks, bool WhileStarving);
 
@@ -65,6 +70,7 @@ internal static class NativeConditionalMood
             UnclampedTarget = Finite(baseline, "unclamped mood target"),
             RisePerTick = (double)mood.def.seekerRisePerHour / GenDate.TicksPerHour, FallPerTick = (double)mood.def.seekerFallPerHour / GenDate.TicksPerHour,
             FreezesWhileAsleep = mood.def.freezeWhileSleeping, BreakThreshold = breaker.BreakThresholdMinor,
+            BreakRecoveryTicks = MoodBreakRecoveryTicks,
             Conditional = unmodeled.Count == 0 ? new RimGovernor.Brain.GameFacts.Observations.ConditionalMood.Modeled(EquatableArray.From(modeled))
                 : new RimGovernor.Brain.GameFacts.Observations.ConditionalMood.Unmodeled(EquatableArray.From(unmodeled)),
             Memories = memories,

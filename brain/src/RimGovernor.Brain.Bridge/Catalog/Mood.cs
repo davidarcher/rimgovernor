@@ -56,7 +56,7 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        return new P.MoodModel { Break = new P.MoodBreakModel { Threshold = Decimal32(stat.defaultBaseValue), Tiers = tiers }, Stages = stages, SleepDisturbed = SleepDisturbed() };
+        return new P.MoodModel { Break = new P.MoodBreakModel { Threshold = Decimal32(stat.defaultBaseValue), Recovery = new P.MoodRecovery.Measured(GameConstants.MoodBreakRecoveryTicks / (double)GameTime.TicksPerDay), Tiers = tiers }, Stages = stages, SleepDisturbed = SleepDisturbed() };
     }
 
     // The SleepDisturbed memory a sleeping colonist gains when another pawn disturbs it (Pawn.CheckForDisturbedSleep):

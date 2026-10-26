@@ -74,7 +74,7 @@ public sealed class TradeFamilyWireTests
             {
                 ConsoleId = "Console_1", ConsoleCell = new(1, 2), FactionId = "Faction_3", Kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan, TraderKind = "Caravan_Outlander_BulkGoods",
                 Goodwill = 40, GoodwillCost = 15, RelationAfterPayment = "Neutral", LastRequestTick = 0,
-                CooldownRemainingTicks = 0, ArrivalMaxTicks = 60000, Eligible = true, NegotiatorIds = ["Human1"],
+                CooldownRemainingTicks = 0, ArrivalMaxTicks = 60000, RetirementTick = 300000, Eligible = true, NegotiatorIds = ["Human1"],
             },
         ],
         OrbitalAvailable = true, Pack = null,

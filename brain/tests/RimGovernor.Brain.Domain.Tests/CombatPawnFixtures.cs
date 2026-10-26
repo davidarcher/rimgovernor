@@ -49,6 +49,7 @@ internal static class CombatPawnFixtures
     /// <summary>A view off any quest site, with no stored layout, no pod arrival, no doors and no colonists.</summary>
     internal static CombatView View() => new()
     {
+        RaidWait = new RaidWaitWindow.Measured(38000),
         SiteExit = null,
         Layout = null,
         Pods = null,

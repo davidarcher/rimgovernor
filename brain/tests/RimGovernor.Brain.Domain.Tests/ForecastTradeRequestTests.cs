@@ -10,7 +10,7 @@ public sealed class ForecastTradeRequestTests
     {
         ConsoleId = "console", ConsoleCell = new(1, 1), FactionId = faction, TraderKind = kind, Kind = RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan,
         Goodwill = 80, GoodwillCost = 15, RelationAfterPayment = "Ally", LastRequestTick = -240000,
-        CooldownRemainingTicks = 0, ArrivalMaxTicks = 120000, Eligible = true, NegotiatorIds = ["pawn"],
+        CooldownRemainingTicks = 0, ArrivalMaxTicks = 120000, RetirementTick = 360000, Eligible = true, NegotiatorIds = ["pawn"],
     };
 
     internal static TraderOffer Offer(double value = 1, int count = 1) => new()

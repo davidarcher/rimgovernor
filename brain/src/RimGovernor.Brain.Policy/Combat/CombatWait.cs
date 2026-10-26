@@ -15,13 +15,6 @@ public sealed record WaitDoorCell
 
 public static partial class CombatWaitRules
 {
-    /// <summary>
-    /// Bounds a humanoid raid's wait: raiders give up and leave 26k-38k ticks after they arrive (sappers
-    /// 33k-38k), so a raid still here past the window's end is not leaving and the fight re-forms. Kept: the
-    /// vanilla window's end (docs/developers/contracts/kept-constants.md).
-    /// </summary>
-    internal const int RaidGiveUpTicks = 38000;
-
     // Extreme outdoor temperatures: past these a fight shelters indoors and lets hypothermia or heatstroke
     // wear the raiders down.
     internal const double ExtremeColdC = -20.0;
@@ -120,7 +113,7 @@ public static partial class CombatWaitRules
         {
             m = m with { WaitSince = view.Tick };
         }
-        if (raid && view.Tick.Value - m.WaitSince.Value >= RaidGiveUpTicks)
+        if (raid && wait && view.Tick.Value - m.WaitSince.Value >= (view.RaidWait is RaidWaitWindow.Measured { Ticks: > 0 } window ? window.Ticks : throw new RequiredFactException("raid give-up window")))
         {
             wait = false;
         }

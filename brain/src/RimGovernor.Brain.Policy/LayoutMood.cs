@@ -36,7 +36,7 @@ public enum MoodTier
 /// <summary>
 /// The game's mood-break numbers that its defs do not carry: the literals of MentalBreaker and MentalState, plus
 /// the defs they name. Fractions are each tier's share of the MentalBreakThreshold stat, MTBDays the tier's break
-/// MTB, CooldownDays the ticks without a break after a recovery, PointsPerLevel Need_Mood's divisor. Unpriced are
+/// MTB, PointsPerLevel Need_Mood's divisor. Unpriced are
 /// the breaks the game gives no duration for. HediffBreaks are the breaks that are a hediff (Catatonic) and the
 /// hediff whose disappear time is the break's length.
 /// </summary>
@@ -47,8 +47,6 @@ public sealed record MoodGameTable
     public IReadOnlyList<double> Fractions { get; init; } = [];
 
     public IReadOnlyList<double> MTBDays { get; init; } = [];
-
-    public double CooldownDays { get; init; }
 
     public double PointsPerLevel { get; init; }
 
@@ -79,10 +77,20 @@ public readonly record struct MoodTierModel(double Weight, double Days)
     }
 }
 
-/// <summary>The break cost curve of a colonist: the break threshold and each tier's mix. The default value is unknown.</summary>
+/// <summary>The native recovery interval, or an explicit unread state.</summary>
+public abstract record MoodRecovery
+{
+    public sealed record Unread : MoodRecovery;
+    public sealed record Measured(double Days) : MoodRecovery;
+}
+
+/// <summary>The break cost curve: observed threshold, recovery interval and each tier's mix.</summary>
 public sealed record MoodBreakModel
 {
     public double Threshold { get; init; }
+
+    /// <summary>The observed recovery interval, or an explicit unread state.</summary>
+    public MoodRecovery Recovery { get; init; } = new MoodRecovery.Unread();
 
     /// <summary>The tier mixes, mildest first; empty is unknown.</summary>
     public IReadOnlyList<MoodTierModel> Tiers { get; init; } = [];
@@ -90,7 +98,7 @@ public sealed record MoodBreakModel
     /// <summary>Reports a model with a threshold and a priced break in every tier.</summary>
     public bool Valid()
     {
-        if (!QuestCapacityForecast.FinitePositive(Threshold) || Tiers.Count != LayoutMoodRules.MoodTierCount)
+        if (!QuestCapacityForecast.FinitePositive(Threshold) || Recovery is not MoodRecovery.Measured { Days: >= 0 } recovery || !double.IsFinite(recovery.Days) || Tiers.Count != LayoutMoodRules.MoodTierCount)
         {
             return false;
         }
@@ -119,7 +127,7 @@ public sealed record MoodBreakModel
             return 0;
         }
         var days = Tiers[(int)tier].Days;
-        return days / (LayoutMoodRules.MoodJudgment.MTBDays[(int)tier] + LayoutMoodRules.MoodJudgment.CooldownDays + days);
+        return days / (LayoutMoodRules.MoodJudgment.MTBDays[(int)tier] + RecoveryDays() + days);
     }
 
     /// <summary>
@@ -154,11 +162,12 @@ public sealed record MoodBreakModel
     }
 
     /// <summary>The expected breaks of the ticks spent in each tier.</summary>
-    internal static double Breaks(ReadOnlySpan<double> byTier)
+    internal static double Breaks(ReadOnlySpan<double> byTier, double cooldownDays)
     {
+        if (!double.IsFinite(cooldownDays) || cooldownDays < 0) throw new RequiredFactException("mood break recovery interval");
         double breaks = 0;
         for (var tier = MoodTier.Minor; tier <= MoodTier.Extreme; tier++)
-            breaks += byTier[(int)tier] / GameTime.TicksPerDay * BreaksPerDay(tier);
+            breaks += byTier[(int)tier] / GameTime.TicksPerDay / (LayoutMoodRules.MoodJudgment.MTBDays[(int)tier] + cooldownDays);
         return breaks;
     }
 
@@ -193,8 +202,11 @@ public sealed record MoodBreakModel
         return days;
     }
 
-    private static double BreaksPerDay(MoodTier tier) =>
-        1 / (LayoutMoodRules.MoodJudgment.MTBDays[(int)tier] + LayoutMoodRules.MoodJudgment.CooldownDays);
+    private double BreaksPerDay(MoodTier tier) =>
+        1 / (LayoutMoodRules.MoodJudgment.MTBDays[(int)tier] + RecoveryDays());
+
+    internal double RecoveryDays() => Recovery is MoodRecovery.Measured { Days: >= 0 } recovery && double.IsFinite(recovery.Days)
+        ? recovery.Days : throw new RequiredFactException("mood break recovery interval");
 }
 
 /// <summary>One stage of a ThoughtDef; a null stage (the game keeps unused ones null) is not Present and carries no mood.</summary>
@@ -291,7 +303,6 @@ public static partial class LayoutMoodRules
         ThresholdStat = "MentalBreakThreshold",
         Fractions = [1, 0.5714286, 1.0 / 7],
         MTBDays = [4, 0.8, 0.5],
-        CooldownDays = 15000.0 / GameTime.TicksPerDay,
         PointsPerLevel = 100,
         Unpriced = ["RunWild", "GiveUpExit"],
         HediffBreaks = new Dictionary<string, string> { ["Catatonic"] = "CatatonicBreakdown" },

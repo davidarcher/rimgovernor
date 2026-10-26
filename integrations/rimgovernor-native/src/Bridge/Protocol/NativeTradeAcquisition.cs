@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using RimGovernor.Brain.GameAccess;
 using RimGovernor.Host.Sdk;
 using RimWorld;
@@ -21,7 +22,13 @@ namespace RimGovernor.Native
         {
             internal static int GoodwillDelta(bool orbital) => orbital ? -30 : -15;
             internal static int CooldownTicks(bool orbital) => orbital ? 900000 : 240000;
-            internal static int ArrivalMaxTicks(bool orbital) => orbital ? 5000 : 120000;
+            // The orbital delay has a private field and no public typed route.
+            private static FloatRange OrbitalDelay => typeof(FactionDialogMaker)
+                .GetField("OrbitalTraderDelayHours", BindingFlags.Static | BindingFlags.NonPublic)?.GetValue(null) is FloatRange range
+                ? range : throw new InvalidOperationException("Orbital trader delay is unreadable.");
+            internal static int ArrivalMaxTicks(bool orbital) => orbital ? (int)(OrbitalDelay.max * GenDate.TicksPerHour) : 2 * GenDate.TicksPerDay;
+            // FactionDialogMaker passes these retry durations inline to IncidentQueue.Add.
+            internal static int RetryTicks(bool orbital) => orbital ? (int)OrbitalDelay.min : 4 * GenDate.TicksPerDay;
         }
 
         internal static bool ConsoleNegotiator(Building_CommsConsole console, Pawn pawn) =>
@@ -80,7 +87,7 @@ namespace RimGovernor.Native
                             Kind = orbital ? RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Orbital : RimGovernor.Brain.GameFacts.Common.TradeRequestKind.Caravan,
                             TraderKind = kind.defName, Goodwill = faction.PlayerGoodwill, GoodwillCost = -delta,
                             RelationAfterPayment = relation, LastRequestTick = last, CooldownRemainingTicks = cooldown,
-                            ArrivalMaxTicks = TraderRequest.ArrivalMaxTicks(orbital), Eligible = ready, NegotiatorIds = [.. negotiators],
+                            ArrivalMaxTicks = TraderRequest.ArrivalMaxTicks(orbital), RetirementTick = (long)last + TraderRequest.ArrivalMaxTicks(orbital) + TraderRequest.RetryTicks(orbital), Eligible = ready, NegotiatorIds = [.. negotiators],
                             ConsoleId = console?.GetUniqueLoadID() ?? "", ConsoleCell = console is null ? default : new(console.InteractionCell.x, console.InteractionCell.z) });
                     }
                 }

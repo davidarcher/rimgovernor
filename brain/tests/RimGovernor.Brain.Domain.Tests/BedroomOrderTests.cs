@@ -43,7 +43,7 @@ public sealed class BedroomOrderTests
     {
         Pawns = pawns.ToDictionary(p => p.Pawn, StringComparer.Ordinal),
         Thoughts = pawns.ToDictionary(p => p.Pawn, _ => EquatableArray.From(Array.Empty<MoodThought>()), StringComparer.Ordinal),
-        Breaks = new() { Threshold = 0.35, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
+        Breaks = new() { Threshold = 0.35, Recovery = new MoodRecovery.Measured(.25), Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
         WellbeingWeight = 0.1,
         PlannedStages = new Dictionary<int, RoomStage> { [Bedroom.Id] = new RoomStage.Staged(2) },
     };

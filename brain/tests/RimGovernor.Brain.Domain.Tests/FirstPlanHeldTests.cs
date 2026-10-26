@@ -130,7 +130,7 @@ public sealed class FirstPlanHeldTests
     private static EquatableArray<SleeperGains>? FreshSleepers(bool nullStageRow) => LayoutClusterRules.SleeperGainsOf(new BedroomGainFacts
     {
         Pawns = FreshIds.ToDictionary(p => p, p => FreshColonist(p, nullStageRow), StringComparer.Ordinal),
-        Breaks = new() { Threshold = 0.35, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
+        Breaks = new() { Threshold = 0.35, Recovery = new MoodRecovery.Measured(.25), Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
         WellbeingWeight = 0.1,
     }, BedMergePriceTests.Levels);
 
