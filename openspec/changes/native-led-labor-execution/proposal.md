@@ -46,3 +46,8 @@ that boundary explicit across the existing artifacts; it preserves meaningful
 preventive intervention, all routine migrations and the confirmed food
 requirements. It establishes no additional implementation completion or native
 gameplay evidence.
+
+During apply, the maintainer chose generated regular sleep/recreation/work
+blocks, explicitly accepting policy and calibration without guaranteeing
+execution. Timetables are native preferences, recalibrated from observed service
+mechanics through the existing work-settings Method and Hands path.

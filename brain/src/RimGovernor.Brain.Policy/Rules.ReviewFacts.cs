@@ -26,6 +26,7 @@ public static partial class Rules
             || f.NamesOwed
             || f.MedicineCarryOwed
             || f.MedicalCareOwed
+            || PawnRules.TimetableChanges(f.ForecastObserved.WorkPawns.Pawns, f.ForecastObserved.Needs).Count > 0
             || f.WorkCoverage == WorkCoverageState.Unmatched;
         if (owed)
         {

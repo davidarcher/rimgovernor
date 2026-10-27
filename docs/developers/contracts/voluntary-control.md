@@ -278,7 +278,7 @@ Additional affected-case disposition:
 
 | Case | Disposition |
 | --- | --- |
-| schedule/timetables, schedule/meditate | Deleted obsolete automatic timetable expectations; shared activity ownership replaces that writer. |
+| schedule/timetables, schedule/meditate | The old template cases remain deleted. Current mechanics-based regular preferences are covered by `NativeTimetableTests` and settings journal/Hands regressions; they do not prove service execution. See [work schedules](work-assignment.md#schedules). |
 | pawn/self-tend | Explicit setting/readback, followed by ordinary review preserving the permission; no automatic treatment claim. |
 | production/coupled-thermal | Prepared physical room; normal shared planner must close its roof, improve observed temperature and support occupied sleep. |
 | wall/door-swap | Keep: explicit native deconstruction/build mechanics; normal door-to-wall labor reports unsupported until shared forecast support. |

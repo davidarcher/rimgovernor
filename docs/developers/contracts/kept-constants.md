@@ -419,6 +419,12 @@ factors are read (`NeedsForecastRead.Prison`).
 
 ## Policy constants (#3469)
 
+`PawnRules` in `NativeTimetable.cs` uses a regular sleep start of 22:00 and two
+flexible hours after sleep for meals, travel and native choices. These are
+initial timetable policy choices, not native requirements or guaranteed
+capacity. Observed recovery rates size sleep/recreation blocks; supported
+awake-mood windows can shift their phase. See [schedules](work-assignment.md#schedules).
+
 `ForecastValuePolicy` (`brain/src/RimGovernor.Brain.Policy/ForecastValue.cs`)
 carries the constants of the capability-days currency
 ([forecast value](../architecture/forecast-value.md#capability-days)). They are

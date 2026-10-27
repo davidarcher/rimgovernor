@@ -16,6 +16,29 @@ public sealed class WorkAssignmentsNeedTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
+    [Fact]
+    public void GeneratedTimetableTravelsThroughSharedAdmissionJournalAndTypedIntent()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        IntentActionRules.RegisterIntentKinds();
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-generated-schedule-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a") }, ct);
+        var change = Assert.Single(WorkRules.NativeSettingsChanges([PawnFixtures.Worker("a")], [new(new("a"), [])],
+            NeedsFixtures.Read(100, NativeTimetableTests.Needs())));
+        var action = DomainAction.NewWorkAssignmentAction(new("schedule-0"), change);
+        var plan = new PlanSpec(new("schedule"), new(1), [action]);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new("work-schedule"), "", plan, ct).Outcome);
+        journal.Prepare(plan.Id, action.Id, World with { Plan = plan.Id }, new(101), ct);
+        journal.Dispatch(plan.Id, action.Id, World with { Plan = plan.Id }, new(101), ct);
+        var intent = IntentActionRules.IntentAction(action.Id.Value, action).Intent!.WorkSettings!;
+        Assert.Empty(intent.Work);
+        Assert.Equal(change.Schedule, intent.Schedule!.AssignmentDefs);
+        Assert.Equal(Stage.Dispatched, Assert.Single(journal.LoadPlan(plan.Id, ct).Progress).View.Stage);
+        // Dispatch is still pending observed application, never a claim that the pawn slept or produced.
+        Assert.True(StorePackage.PlanOpen(journal.LoadPlan(plan.Id, ct)));
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]

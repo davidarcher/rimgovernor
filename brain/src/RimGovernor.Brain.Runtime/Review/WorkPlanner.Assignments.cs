@@ -77,22 +77,7 @@ public sealed partial class WorkPlanner
         {
             return Existing(FieldUnavailable("work_capacity"));
         }
-        var byId = pawns.ToDictionary(pawn => pawn.Id);
-        var work = new List<WorkAssignment>();
-        foreach (var assignment in decision.Assignments)
-        {
-            var pawn = byId[assignment.Pawn];
-            if (pawn.Work is not PawnWorkTable.Works { Manual: true })
-            {
-                continue;
-            }
-            var (changed, changedOk) = WorkRules.WorkChanges(pawn, assignment);
-            if (!changedOk)
-            {
-                throw new ControlException("step: !ok");
-            }
-            if (changed.Count > 0) work.Add(WorkAssignment.NewWorkAssignment(assignment.Pawn, changed));
-        }
+        var work = WorkRules.NativeSettingsChanges(pawns, decision.Assignments, read.Reading.Facts.ForecastObserved.Needs).ToList();
         var settings = new List<PawnSettings>(HostilityRules.HostilityChanges(HostilityRows(pawns), read.Emergency.Threats));
         var reserve = MedicalRules.ReviewMedicalReserve(read.Reading.Facts.MedicalReserve, false, _reviewer.Policy.MedicalReserve);
         settings.AddRange(MedicineCarryRules.MedicineCarryChanges(MedicineCarryRules.MedicineCarryRows(pawns), reserve.Stock, reserve.Target));

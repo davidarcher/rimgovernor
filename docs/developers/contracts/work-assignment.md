@@ -298,16 +298,24 @@ hunter on a known roster.
 
 ## Schedules
 
-Supported rest and recreation timing comes from the shared needs trajectory and
-portfolio comparison, followed by exact PawnActivities through Hands. The old
-role, trait and need-band timetable writer is deleted. A timetable is observed
-native state, not a competing instruction to a controlled pawn.
+`PawnRules.RoutineTimetable` generates regular native preferences. Whole-hour
+sleep and recreation budgets use observed fall/recovery rates plus one approach
+per block; improved beds and recreation change these budgets. Two flexible hours
+after sleep allow meals, travel and other native choices. Remaining hours prefer
+Work. Sleep starts at 22:00 unless modeled awake-only mood windows favor another
+phase; ties preserve the regular night. This is policy calibration, not an exact
+native trajectory. Current category/tolerance uncertainty remains uncertainty;
+neither a planned nor applied block proves recovery, intake or output.
 
-The existing WorkSettings schedule operation remains for explicit operations and
-player-authority mechanics. Quest/rate consumers use the shared conditional
-labor estimate and preserve unread timetables; these observations do not schedule
-supported colony work. The layout comfort estimate has a fixed occupancy
-assumption, explicitly separate from the selected needs timeline.
+Missing needs capture or unavailable service leaves the timetable unwritten;
+independent priorities can still change. Pawns without a given need require no
+block for it. Unavailable workers and checkbox-mode readback wait. Every review
+compares the exact hourly arrangement; a timetable-only difference wakes the
+work-assignments Need even with matched work coverage. `NativeSettingsChanges`
+combines schedule and priority differences into one existing settings action per
+pawn through shared Method admission, journal and Hands. No schedule state store
+is added. The layout comfort estimate's fixed occupancy assumption remains
+separate from these preferences and selected what-if needs timelines.
 ## Mech control
 
 `policy.PlanMechControl` (`MechControl.cs`) puts each mechanitor's
@@ -648,11 +656,12 @@ kitchen with the other cook backing it at 2; Pyromaniac/Brawler/Abrasive
 never fight fires, hunt or warden while Industrious wins a tied Construction
 sheet; every core role is owned once and the written matrix replans
 unchanged; two pawns under the Construction floor help at 4 beside six walls.
-Generated NightOwl/QuickSleeper timetable templates are not an acceptance oracle
-for ordinary needs. Shared forecast tests cover needs choices and actual occupied
-time; native activity cases cover selected sleep/recreation completion and
-protection. Explicit schedule writes remain a native operation, not an automatic
-ordinary-pawn scheduler. See the [case disposition](voluntary-control.md#acceptance-disposition).
+`NativeTimetableTests` covers mechanics-based budgets, known awake-mood windows,
+unavailable service and timetable-only review/readback. `WorkAssignmentsNeedTests`
+covers generated settings through shared journal admission and typed intent, and
+stale undispatched timetable replacement. These do not prove a native pawn obeys
+the preferences or that the remaining routine activity migration is complete.
+See the [case disposition](voluntary-control.md#acceptance-disposition).
 
 ## Drug policy
 
@@ -684,9 +693,10 @@ shared by every priority consumer; see [kept constants](kept-constants.md).
 
 ## Shared Method availability
 
-Routine assignment excludes pawns already owned by activity Methods, using the
-same journal projection consumed by food selection and material admission.
-It does not assign a second role by counting that pawn's timetable again.
+Settings changes can apply to pawns whose activity Methods remain open: settings
+claims do not acquire or release execution ownership. Actual execution admission
+still uses the journal projection consumed by food and material admission. It
+does not acquire free labor by counting that pawn's timetable again.
 Existing construction skill/tier checks remain in force. See
 [shared live work resources](../architecture/colony-forecast.md#shared-live-work-resources)
 for reconciliation, unknown durations, bounds and remaining consumer exceptions.
@@ -697,8 +707,8 @@ uses the same work-resource view and occupancy union. Its explicit
 comparison, but never actual current work, player authority or journal claims.
 Selected need effects return productive windows to the existing activity search;
 there is no independent needs labor budget. Existing routine assignment consumers
-may still inspect timetable availability, but the automatic timetable writer is
-removed and those observations cannot start a competing voluntary job.
+may still inspect timetable availability. Automatic timetable writes express
+native preferences and cannot start a competing voluntary job.
 
 Pawn profiles retain native timetable slots, gene effects and work minimum ages.
 The old computed `WorkHours` property and `WorkPawnProfileExtensions` are removed.

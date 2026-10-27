@@ -34,6 +34,13 @@ The governor SHALL autonomously adjust labor priorities and schedules, and the w
 - **THEN** the governor can revise numbered priorities, schedules and relevant work settings without seeking approval for each reassignment
 - **AND** unchanged or previously assigned settings receive no ownership exemption
 
+#### Scenario: Regular daily timetable
+
+- **WHEN** current service mechanics support a timetable for an ordinary worker
+- **THEN** the governor generates regular sleep, recreation and work blocks, adjusting their budgets to observed mechanics and known time-of-day effects
+- **AND** the blocks remain native preferences, without guaranteeing execution, intake, recovery or output
+- **AND** missing service evidence does not fabricate a timetable or prevent independent supported priority changes
+
 ### Requirement: RG-LABOR-003 — Compare demand with realistic available capacity
 
 The governor SHALL assess demand, bottlenecks and capacity across colony goals from observed needs, care, supply/reserves, access, native activity, travel, interruptions and realized output. It SHALL distinguish conditional estimates from unassessed future behavior. Timetable hours SHALL NOT guarantee production. An empty modeled schedule SHALL NOT predict native inactivity; missing evidence SHALL establish neither failure nor success.

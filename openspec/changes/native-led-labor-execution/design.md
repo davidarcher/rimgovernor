@@ -123,6 +123,17 @@ credit completed production.
 
 Work settings may change freely under full bot control. A routine priority reshuffle does not require the materiality rule for direct orders, and an old player setting is not exempt. Compare desired settings to current readback and dispatch differences through the existing writer.
 
+Generate regular sleep, recreation and work blocks, as confirmed during apply.
+Size service blocks in whole hours from observed fall/recovery rates and approach
+time, retaining two flexible hours for meals, travel and other native choices.
+Use a regular 22:00 sleep start unless modeled awake-only mood windows favor a
+different phase. Recompute from fresh mechanics; do not shift the whole day to
+chase a transient need level. Missing service mechanics leave that timetable
+unassessed while independent priority changes remain possible. Current-rate
+category/tolerance limits remain limits on prediction: a timetable preference
+neither predicts exact service nor guarantees work. No schedule history store,
+extra model call or exclusive execution commitment is introduced.
+
 Alternative: retain the empty exact-activity portfolio as the native baseline.
 Rejected because omitted native service can manufacture a crisis and justify
 redundant control. Alternative: reconstruct vanilla's full future job sequence

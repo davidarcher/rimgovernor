@@ -31,10 +31,29 @@ priority and total sleep slots constant: stale Pending/Prepared writes cancel,
 their claims release, and a fresh Method dispatches the new typed timetable and
 numeric priorities. Unchanged writes retain their claims. The required gate
 passed 4,141 domain tests, 30 workflow tests, native compilation, probes and the
-orphan check (2m17s). This is partial task 3.4 evidence. The automatic work planner
-still chooses priorities only; automatic timetable selection and the remaining
-fresh-read/refusal integration remain in task 3.4. No new native gameplay result
-is claimed.
+orphan check (2m17s). This is partial task 3.4 evidence.
+
+The automatic planner now generates regular sleep/recreation/work preferences
+through `PawnRules.RoutineTimetable` and `WorkRules.NativeSettingsChanges`.
+Observed recovery rates and approach time size whole-hour service blocks;
+modeled awake-mood windows can shift their phase. Missing service evidence leaves
+the timetable unassessed while independent priorities remain available.
+`NativeTimetableTests` covers sizing, phase, exact readback, numeric mode and a
+timetable-only difference waking the existing Need. `WorkAssignmentsNeedTests`
+passes generated preferences through shared admission, journal dispatch and
+typed intent, without claiming completion from dispatch. `NativeSettingsHandsTests`
+exercises real Hands and `ExecutorJournal` with boundary fault injection: a stale
+generation inspection writes nothing, a fresh retry inspects again, an exact
+accepted settings receipt completes without duplicate writing, and a transient
+refusal releases the claim so the same Method can admit recalibrated preferences.
+Existing `WorkOccupancyTests` covers changing work demand and useful existing
+assignments. Native authority enables numeric mode; policy waits for its readback.
+Native `WorkSettingsActionHandler` already validates live prerequisites and
+reads back exact timetable application; the settings intent has no separate
+settings CAS field. Stale world/generation guards remain in Hands. These checks
+complete task 3.4, not native execution or the general migration. The required
+gate passed 4,149 domain tests and 30 workflow tests, native compilation, contract
+probes and the orphan check (52s). No new native gameplay result is claimed.
 
 The first implementation removes advance caregiver release and holds capacity only
 for actual care. It removes the strict constant/override/opportunistic/finalizer

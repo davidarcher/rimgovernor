@@ -95,13 +95,24 @@ cooking and hunting among other available workers before sharing intermittent me
 roles. Extra hunters exclude the primary grower and cook; additional growers exclude
 assigned hunters and player-disabled Growing. Small workforces may share roles;
 assignments alone never establish sowing or food replacement. Capability reads, native
-checkbox/manual-priority mode and explicit player overrides still apply.
+checkbox/manual-priority mode and native legality still apply. Automatic control
+enables numeric priorities; existing assignments have no ownership exemption.
 
 An open assignment plan does not freeze the decision: each work-planner step recomputes
-the allocation and cancels any undispatched assignment whose premise moved (settings
-token or manual mode changed, pawn left the decision, or policy wants a different
-priority). The method identity carries the before-token, so the same settings against a
-moved pawn are a fresh method.
+the allocation and cancels any undispatched assignment whose written priorities,
+exact timetable or area are no longer wanted. Routine sleep/recreation/work
+blocks use observed service mechanics and modeled awake-mood windows, as defined
+in [work schedules](work-assignment.md#schedules). A timetable-only difference
+wakes the same work-settings Need. Method identity hashes the requested settings;
+it is not a pawn ownership or settings-token marker.
+
+Hands checks a fresh world/generation inspection before dispatch. A stale read
+cannot write and a later attempt inspects again. Native validates settings
+against the live pawn and reads back their exact application. A refused action
+does not establish settings or output; it releases its completed attempt's claim
+so a fresh review can derive and admit the current preference. Lost replies
+remain uncertain under the existing receipt lifecycle. Applied settings prove
+only configuration, never actual sleep, recreation or production.
 
 ### Royalty facts
 
