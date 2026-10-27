@@ -36,7 +36,19 @@ The governor SHALL autonomously adjust labor priorities and schedules, and the w
 
 ### Requirement: RG-LABOR-003 — Compare demand with realistic available capacity
 
-The governor SHALL assess labor demand, useful production, bottlenecks and available capacity across colony goals. It SHALL account for native work, needs, care, travel and interruptions in relevant estimates, distinguish observed outcomes from conditional forecasts, and expose missing evidence. Timetable hours SHALL NOT constitute guaranteed productive labor.
+The governor SHALL assess demand, bottlenecks and capacity across colony goals from observed needs, care, supply/reserves, access, native activity, travel, interruptions and realized output. It SHALL distinguish conditional estimates from unassessed future behavior. Timetable hours SHALL NOT guarantee production. An empty modeled schedule SHALL NOT predict native inactivity; missing evidence SHALL establish neither failure nor success.
+
+#### Scenario: Eating is absent from the modeled schedule
+
+- **WHEN** usable food is accessible and the governor selects no exact eating activity for a pawn eligible for native self-service
+- **THEN** omission of modeled eating alone does not establish starvation or authorize a direct eating order
+- **AND** actual intake remains observed rather than presumed successful
+
+#### Scenario: Future native progress cannot be established
+
+- **WHEN** current native activity or realized output is observed but its future timing or yield cannot be supported
+- **THEN** the affected future estimate remains explicitly unassessed and is not credited as guaranteed stock or idle labor
+- **AND** the uncertainty does not by itself establish a crisis, adequate service or a reason to stop unrelated supported decisions
 
 #### Scenario: Scheduled labor is interrupted
 
@@ -58,7 +70,7 @@ The governor SHALL assess labor demand, useful production, bottlenecks and avail
 
 ### Requirement: RG-LABOR-004 — Reserve direct orders for meaningful interventions
 
-The governor SHALL justify direct orders by a meaningful shortfall, credible risk, stalled essential work or worthwhile opportunity, accounting for disruption and competing uses of labor. It SHALL consider native progress and available setting changes. A small predicted efficiency gain alone SHALL NOT justify direct orders; preventive action SHALL NOT require waiting for harm.
+The governor SHALL justify direct orders by a concrete meaningful shortfall, credible risk, stalled essential work or worthwhile opportunity, assessing native progress, settings responses, disruption, displaced labor and uncertainty. A small efficiency gain or improvement over a no-modeled-service counterfactual SHALL NOT alone justify orders. Preventive action SHALL NOT require harm or an exact prediction of vanilla's future jobs.
 
 #### Scenario: A marginally faster worker exists
 
@@ -71,6 +83,18 @@ The governor SHALL justify direct orders by a meaningful shortfall, credible ris
 - **WHEN** observed conditions indicate a meaningful shortfall before routine work or setting changes can adequately respond
 - **THEN** the governor considers a bounded direct intervention before harm occurs
 - **AND** compares the work and disruption needed against other colony needs
+
+#### Scenario: Reserves support preventive action
+
+- **WHEN** usable reserves, known upcoming demand or loss of supply, and supported recovery lead time indicate a meaningful risk before routine settings can adequately respond
+- **THEN** the governor may justify a bounded intervention before an observed need causes harm
+- **AND** it does not need to manufacture an exact future native job schedule or treat all unmodeled work as absent
+
+#### Scenario: Native progress changes the intervention premise
+
+- **WHEN** useful native progress or changed availability materially alters the premise of a proposed or interrupted direct order
+- **THEN** fresh admission reassesses that premise against the current native baseline
+- **AND** an old winning forecast or Method does not alone authorize dispatch or reissue
 
 ### Requirement: RG-LABOR-005 — Bound direct work and preserve native order semantics
 

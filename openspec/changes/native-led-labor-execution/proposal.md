@@ -8,6 +8,7 @@ Routine bot assignments currently suppress RimWorld's native job selection, over
 
 - Make numbered work priorities, timetables, bills, designations, policies and facilities the normal means of directing colony labor. The bot retains full control of these settings and may change assignments freely.
 - Compare demand, reserves, observed throughput, bottlenecks and estimated capacity across colony goals. Account for native work already happening; a preemptible pawn is not an idle pawn and a timetable is not guaranteed labor.
+- Use observed native conditions as the execution baseline. Keep supported future estimates conditional and unsupported future behavior unassessed. Detailed activity forecasts inform what-if comparisons; omitting eating or work from a modeled schedule does not predict vanilla inactivity or authorize direct orders.
 - Require a meaningful shortfall, credible risk, stalled essential work or worthwhile opportunity to justify a direct order. Permit preventive action; a small scheduling efficiency gain alone is insufficient.
 - **BREAKING:** Replace exclusive routine `PawnActivities` control with native-led execution and explicit bounded interventions. Native selection, interruptions and finalizers must operate at the intended boundaries; observed takeover invalidates bot execution ownership and triggers shared Method reconciliation.
 - Use native prioritized orders and short queues where their semantics fit. Preserve actual vanilla forced-order behavior rather than claiming ordinary work can always interrupt a forced order.
@@ -36,3 +37,12 @@ This proposal supersedes the conflicting execution design in [coordinate-baby-fe
 In this chat on 2026-10-26, the maintainer requested exploration of native takeover and described numbered priorities, schedules and occasional forced/queued work as the desired play style. They confirmed the proposed outcome/capacity/native-execution model with “that fits,” reserved direct orders for “meaningful” reasons, and confirmed unrestricted bot control over routine priority changes: “bot has 100% control so sure, shuffle away.” Their explicit request to propose `native-led-labor-execution` authorizes these planning artifacts.
 
 The requirements formalize that confirmed direction. Concrete algorithms, thresholds, signal choices, migration milestones and acceptance scenarios below are proposed implementation decisions for review, not separately confirmed product policy or execution evidence. Other existing requirements collections are not migrated by this change.
+
+During apply, inspection found that the exact-activity comparison could treat
+omitted future eating as a no-service hunger trajectory. The maintainer then
+authorized revising the design/tasks around the distinction between an observed
+native execution baseline and detailed what-if forecasts. This revision makes
+that boundary explicit across the existing artifacts; it preserves meaningful
+preventive intervention, all routine migrations and the confirmed food
+requirements. It establishes no additional implementation completion or native
+gameplay evidence.

@@ -4,7 +4,10 @@
 
 See [proposal.md](proposal.md) for motivation and authority, and [the labor delta](specs/colony-labor/spec.md) for behavior. This is a cross-cutting control-contract change, so a design is required.
 
-Inspection of the current worktree established:
+Inspection at the proposal checkpoint established the following starting behavior.
+Some of that behavior has since been replaced by the completed tasks; the
+[labor evidence page](../../../docs/requirements/colony-labor.md) records landed
+behavior and verification separately from this migration design.
 
 | Existing owner | Behavior relevant to this change |
 | --- | --- |
@@ -20,7 +23,17 @@ Inspection of the current worktree established:
 
 Installed vanilla code inspection found default Childcare feeding through work givers and Urgent autofeeding through the main think tree. Feeding is not in the constant think tree. A research work bout lasts 4,000 ticks before normal selection; simply allowing `CheckForJobOverride` misses selection at job completion. Native forced orders have their own interruption and queue semantics. These are code findings, not executed gameplay passes.
 
-Current contracts describe exclusive routine ownership and exact future self-service; that conflicts with the confirmed new direction. Update those contracts as their behavior changes. Existing food outcome requirements do not conflict and remain unchanged. No code, older change artifacts or standing specifications are modified by this proposal.
+The starting contracts described exclusive routine ownership and exact future self-service; update those contracts as their readers migrate. Existing food outcome requirements do not conflict and remain unchanged.
+
+Implementation inspection also exposed a comparison gap. `ForecastCoupledSelection`
+builds its baseline from request commitments and retained incumbents;
+`ForecastCoupledScenarioOf` includes their explicit activity completions. In
+`ForecastNeeds.NeedsCoreOf`, food decays unless a modeled eating choice supplies
+it. That is a valid conditional no-service calculation, but it does not predict
+what vanilla will select next. Observed sleep is already retained in supported
+cases; that does not supply a general native future trajectory. The revised
+comparison must preserve this distinction rather than treating the empty
+activity portfolio as evidence that native pawns will stop eating or working.
 
 ## Goals / Non-Goals
 
@@ -56,23 +69,82 @@ Resolve the old Method when ownership is positively absent. A missing observatio
 
 Integrate meaningful execution changes with existing event/review invalidation and the worker's continuation loop. Reuse existing signals where they carry the necessary fact; otherwise add one typed event and its registered signal reader. Telemetry alone does not wake the worker. Do not replan on every movement/toil tick or automatically reissue an interrupted order from the same stale justification.
 
-### 4. Compare settings and interventions against useful native activity
+### 4. Use observed native conditions as the execution baseline
 
 Use existing canonical observations, Food supply/runway, Work requirements/roster, current job/activity facts, needs and shared resource views to derive demand and capacity. Preserve physical units: useful nutrition or output per day, remaining work, travel effort and available worker time. Distinguish native observed progress, a conditional mechanical estimate and an unavailable estimate; neither unavailable nor preemptible means zero output or cost.
 
 Start with observed current work, realized output and existing mechanical estimates. Use bounded, in-memory observation windows where throughput needs comparison across frames; reset them on load/world changes and invalidating production changes. Do not derive a production rate from net stock changes alone: consumption, trading and deliveries can change stock without production. When output attribution cannot be established, name that limitation and use observed runway/current bottlenecks rather than fabricating a rate. These derived windows are not a new stored accounting owner.
 
-Use the existing shared forecast/comparator to compare useful settings changes, investments and interventions. Its native-work baseline must include supported ongoing production and displaced work, and must expose unsupported effects instead of treating all unassigned labor as idle. Avoid simulating every native future job. Replace authoritative uses of raw timetable-hour counts with estimates that account for native schedule preferences, current needs/care, travel and other known commitments. Retain such counts only where explicitly labeled as a rough descriptor with no guaranteed production credit.
+The execution baseline is the colony as observed under its current native
+settings: current needs and care, usable supply and reserves, access, useful
+native activity, realized output, known upcoming demand and supported recovery
+lead times. Preserve useful ongoing work and its opportunity cost without
+claiming its unobserved output. This is a shared policy assessment over canonical
+facts, not another simulator, demand owner or dispatch loop.
+
+Keep three kinds of evidence distinct in the existing comparison:
+
+| Evidence | Permitted use | Limit |
+| --- | --- | --- |
+| Observed needs, access, reserves, activity and realized output | Establish current adequacy, unmet demand, progress and actual blockers | Applied settings, a running job and unconsumed inputs do not establish completion |
+| Supported conditional estimates of demand, throughput, recovery and lead time | Compare settings, investments and preventive interventions, stating assumptions and displaced work | No guarantee of native job order, exact service time, future stock or idle labor |
+| Detailed activity forecasts | Explore what a proposed service or finite intervention could achieve and its dependencies/costs | An empty modeled schedule is a no-modeled-service counterfactual, not the execution baseline; a better forecast is not dispatch authority |
+
+Retain detailed forecasts where a current decision uses them. They may inform
+benefits and costs, but do not nominate or hold every routine pawn job. A
+forecasted hunger deficit caused solely by omitting future eating, or a work
+deficit caused solely by omitting future native production, cannot establish a
+meaningful intervention. Likewise, do not repair that counterfactual by
+manufacturing an exact vanilla eating/work schedule or guaranteed product lots.
+
+Unsupported future native service or production remains explicitly unassessed.
+It establishes neither failure nor adequate service. Carry the uncertainty
+through the affected ranking and explanations; do not silently substitute zero
+output, zero cost or a successful future service. An unassessed component must
+not defeat unrelated decisions supported by current evidence or prevent a
+credible preventive response. Compare the alternatives on supported outcomes,
+known risks and costs, naming what could not be compared. A direct order still
+needs the justification in decision 5; uncertainty alone supplies none.
+
+For example, accessible stored meals and an eligible pawn do not become a
+starvation forecast merely because the governor selected no eating activity.
+They also do not prove future intake. Observe need/intake and reassess access or
+other blockers if service does not occur. Conversely, inadequate usable reserves,
+a known loss of supply or a recovery lead time exceeding supported runway can
+justify preventive action before anyone starves, without predicting each job.
+
+Extend the existing shared comparison/admission boundary with this evidence
+distinction. Reuse existing conditional mechanics and aggregate estimates where
+they answer the decision; add prediction or execution constraints only for a
+concrete demonstrated failure. Replace authoritative uses of raw timetable-hour
+counts with estimates accounting for needs/care, travel, native activity and
+other commitments. Timetable descriptors and supported capacity bounds never
+credit completed production.
 
 Work settings may change freely under full bot control. A routine priority reshuffle does not require the materiality rule for direct orders, and an old player setting is not exempt. Compare desired settings to current readback and dispatch differences through the existing writer.
 
-Alternative: a complete deterministic daily pawn schedule. Rejected as the default because exact execution is fragile under native needs and events. Alternative: wait for stock failure before acting. Rejected because reserves, known upcoming demand and recovery lead time require preventive decisions.
+Alternative: retain the empty exact-activity portfolio as the native baseline.
+Rejected because omitted native service can manufacture a crisis and justify
+redundant control. Alternative: reconstruct vanilla's full future job sequence
+to fill that portfolio. Rejected because it restores the prediction and
+micromanagement burden this change removes. Alternative: wait for stock failure
+before acting. Rejected because reserves, known upcoming demand and recovery
+lead time require preventive decisions.
 
 ### 5. Admit direct orders only for a concrete meaningful reason
 
-Pure policy derives an intervention justification from current shared Needs and observations: a relevant shortfall, credible risk, stalled essential work or worthwhile time-sensitive opportunity. Compare no direct action, useful settings changes and the proposed intervention, including displaced useful work, travel and disruption. This is an extension of the existing comparison, not an adviser writing orders or a hard-coded second food selector.
+Pure policy derives an intervention justification from current shared Needs and observations: a relevant shortfall, credible risk, stalled essential work or worthwhile time-sensitive opportunity. Compare continuing native operation under current settings, useful settings/work-creation changes and the proposed intervention, including displaced useful work, travel and disruption. Use decision 4's execution baseline; never substitute the optimizer's empty activity schedule for continuing native operation. This is an extension of the existing comparison, not an adviser writing orders or a hard-coded second food selector.
 
 A small speed improvement while outcomes are adequate is not sufficient. No universal numeric materiality threshold or fixed wait timeout is assumed; use domain outcomes, deadlines and consequence comparison. Settings changes need not be tried and allowed to fail first when their known response time is inadequate. Missing evidence is an explicit blocker to the affected comparison, not permission to assume a colony crisis or adequate service.
+
+Record the concrete premise separately from any forecasted benefit: what observed
+deficit, credible risk, demonstrated stall or worthwhile opportunity makes the
+order meaningful now, what native/settings response is supported, and what
+uncertainty remains. Do not require proof of an exact future vanilla failure or
+wait for harm. Do not authorize or reissue an intervention solely because its
+exact forecast beats a no-service counterfactual, a settings write succeeded or
+the previous Method existed. Reassess the premise after material native progress
+or changed availability before fresh admission.
 
 Give each admitted intervention a bounded outcome and cancellation condition, fresh native prerequisites, concrete claims and an observable completion. Prefer existing prioritized native work operations. Extend the existing typed order path for finite queue ordering, readback, idempotency and cancellation only where existing supported operations lack required plumbing; do not assume the current `EnqueueFirst` helper supplies those guarantees. Cancel only exact remaining jobs belonging to the intervention, preserving unrelated/new native work. Use short queues; later jobs must not depend on unobserved products or retain a pawn through speculative future work. If an exceptional exact adapter remains necessary, justify its current reader and native cleanup behavior; it does not restore exclusive routine control.
 
@@ -91,6 +163,8 @@ Code inspection already proves today's selection obstruction. Do not write or ru
 ## Risks / Trade-offs
 
 - Native work is less predictable than exact schedules -> keep forecasts conditional, compare observed progress and retain unmet demand when supply cannot be established.
+- An empty activity forecast can manufacture starvation or stalled work -> use observed native conditions as the execution baseline; keep unsupported future behavior unassessed and require a separate concrete intervention premise.
+- Uncertainty can either disappear from ranking or stall the whole colony -> propagate it through affected comparisons and explanations while retaining unrelated supported decisions and credible preventive action.
 - A direct order can itself delay care -> use actual native forced-order semantics, current care admission and meaningful-risk reassessment; do not claim all forced work automatically yields to feeding.
 - Restoring selection only partially causes restart loops -> change and test selection, start/end, finalizer and worker reconciliation as one complete execution path.
 - Migration can leave two competing routine selectors -> inventory every coupled dispatch caller and close each migration entry before claiming this change complete; temporary milestones remain explicitly partial.
@@ -102,7 +176,7 @@ Code inspection already proves today's selection obstruction. Do not write or ru
 1. Inventory and reconcile the unlanded `coordinate-baby-feeding` checkpoint and later edits. Retain useful observations, boundary regressions and independently justified fixes; remove superseded caregiver preallocation/release. Preserve the confirmed food spec and historical evidence. Capture the supersession explicitly when applying; do not blindly reset the branch or mark the old tasks complete.
 2. Deliver the first coherent milestone: native selection/takeover compatible with ordinary bot work, existing Method reconciliation, active-care admission, native nursing/bottle intake and safe return. Any legacy exclusive caller remaining must be identified; this milestone alone is not completion of the general change.
 3. Migrate ordinary food acquisition/preparation/eating, self-service, production/clothing, construction/delivery and support callers to native work availability/settings. Retain exact tasks only as justified bounded interventions, with physical dependency checks. Remove routine binding/holding hooks and helpers after the last reader migrates; no permanent feature flag or shadow execution lane.
-4. Complete shared demand/capacity/native-baseline comparisons, intervention materiality and native queue identity/recovery across the affected supported paths. Do not substitute documentation or follow-up issues for required plumbing.
+4. Replace the empty-portfolio execution baseline with decision 4's observed/conditional/unassessed assessment, isolate detailed what-if forecasts from dispatch authority, and complete intervention materiality and native queue identity/recovery across supported paths. Do not substitute documentation or follow-up issues for required plumbing. The existing completed capacity/output tasks remain valid preparation; they do not establish this remaining baseline change.
 5. Update contracts/evidence and complete scoped verification, orphan removal and the normal commit/landing lane for each coherent milestone. Roll back through ordinary versioned changes if required; no compatibility shim or alternate scheduler is introduced.
 
 ## Evidence and completion
@@ -111,7 +185,17 @@ Implementation will create `docs/requirements/colony-labor.md` as the owning lab
 
 Use focused xUnit tests for intervention decisions, native-work opportunity cost, bounded capacity, takeover ownership/claims, partial outcomes and stale-order rejection. Use short staged native cases for actual selection/takeover and cleanup, both feeding modes, native forced/queue lifecycle and representative ordinary production. Native cases use typed reads and registered telemetry, one physical claim each, about a minute expected wall time and under two including startup. No planner lottery, inflated tick budget or post-setup harness rescue.
 
-Run `openspec validate --all --strict --no-interactive` and the required `RimGovernor.cmd test > test.out 2>&1` on each finished implementation milestone. Registering cases or passing the code gate does not close #4040. Required feeding outcome verification must pass before claiming its acceptance met. Completion of this change additionally requires migration of all affected routine callers, working labor/intervention decisions and no unexplained obsolete readers. No tests or game runs are executed as part of this planning request.
+Baseline regressions must exercise the shared comparison through admission:
+accessible food plus no selected eating activity must not alone authorize forced
+eating or report certain starvation; omitted native production must not alone
+establish a stall. Also cover a concrete access/supply blocker, reserves and
+recovery lead time supporting prevention, useful native progress invalidating a
+stale premise, and uncertainty that neither becomes zero nor suppresses an
+unrelated supported decision. Prove the false-baseline error analytically and
+with focused policy tests; do not spend a native run merely to rediscover vanilla
+self-service. Scoped native runs still establish actual execution and outcomes.
+
+Run `openspec validate --all --strict --no-interactive` and the required `RimGovernor.cmd test > test.out 2>&1` on each finished implementation milestone. Registering cases or passing the code gate does not close #4040. Required feeding outcome verification must pass before claiming its acceptance met. Completion of this change additionally requires migration of all affected routine callers, working labor/intervention decisions and no unexplained obsolete readers. Planning validation and repository checks do not establish the newly specified runtime behavior; no new gameplay run is required for this artifact revision.
 
 ## Architecture Rules 7–9 Review
 
