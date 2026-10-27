@@ -898,8 +898,13 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   excess, the break-risk excess and the goal terms at evaluation, and the remaining ledger terms on the first read of the
   explanation, which a comparison forces only when it reaches the ledger (`LossAgainst` over the terms both sides assess, with
   `TieResolution`) and a consumer forces when it needs the complete vector. The reference's harm (`ForecastValue.ReferenceHarm`)
-  is priced once per search and shared by every outcome's death floor. A missing term or an unknown floor is never a failed floor
-  or a zero loss, and a comparison that needs a term evaluates it; a skipped term never shrinks the assessed set. Rejected-subset
+  is priced once per search and shared by every outcome's death floor. A floor participates in ranking only when both sides
+  assess it. An unassessed floor's numeric placeholder establishes neither safety nor failure and cannot outrank a known
+  risk as zero. Floor telemetry retains `assessed: false`, with `passed` and `excess` absent of values. The comparison continues
+  through supported floors and ledger terms, retaining uncertainty. A supported violation can prove a goal route unsafe even
+  when another floor is unread. Otherwise, a route with an unassessed floor is not certified safe or used to prove every route
+  infeasible; unless another evaluated route is known open, findings retain `goal_route_unassessed:<goal>`. A comparison that needs a term evaluates it;
+  a skipped term never shrinks the assessed set. Rejected-subset
   evidence (`ForecastPortfolioEvidence.Reason`) is `infeasible_or_unassessed`, `construction_without_supported_service_relief:<ids>`
   or `lost_to_leader:<stage>`; `StageOf` reads the stage (`urgent_zero`, `death_risk_floor`, `break_risk_cap`, `ledger`, an
   unconverted term, `incumbent`, `labor`), and a subset decided at a floor has no `Consequences` (`Assessed` is still true).

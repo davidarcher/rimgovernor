@@ -360,7 +360,8 @@ public sealed partial class ColonyReview
         }
     };
 
-    private static Dictionary<string, object?> FloorAttrs(ForecastFloor floor) => new() { ["assessed"] = floor.Assessed, ["passed"] = floor.Passed, ["excess"] = floor.Excess };
+    private static Dictionary<string, object?> FloorAttrs(ForecastFloor floor) => new()
+        { ["assessed"] = floor.Assessed, ["passed"] = floor.Assessed ? floor.Excess <= 0 : null, ["excess"] = floor.Assessed ? floor.Excess : null };
 
     private static Dictionary<string, object?> ConsequenceAttrs(ForecastConsequenceVector vector) => new()
     {

@@ -33,7 +33,7 @@ public sealed class RoomSharingCreditTests
             var shared = candidate.Layout.Clustering.Groups.Any(g => LayoutRegroupRules.HoldsNode(g, beds) && LayoutRegroupRules.HoldsNode(g, bench));
             var vector = new ForecastConsequenceVector([], [new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0)], new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), 0, [])
             {
-                Value = new(new(new LedgerTerm.Priced(shared ? -1000 : 0), []), new()) { Death = new(shared, shared ? 1 : 0) },
+                Value = new(new(new LedgerTerm.Priced(shared ? -1000 : 0), []), new()) { Death = new(true, shared ? 1 : 0) },
             };
             return (RegroupValuation)new RegroupValuation.Priced(candidate.Id, vector, shared ? ["death_risk_floor"] : []);
         })]), TestContext.Current.CancellationToken);

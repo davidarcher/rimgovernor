@@ -191,4 +191,37 @@ public sealed class GoalValueTests
         Assert.Equal("break_risk_cap", Assert.Single(infeasible).Value);
         Assert.Equal("goals/research-project/4", Assert.Single(infeasible).Key);
     }
+
+    [Fact]
+    public void AGoalRouteWithAnUnassessedFloorIsNeitherCertifiedNorDeclaredInfeasible()
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0, horizon: GameTime.TicksPerDay);
+        var read = facts.ForecastObserved.Coupled!;
+        facts = facts with
+        {
+            AvailableNeeds = EquatableArray.From(facts.AvailableNeeds.Append(EconomyFamily.Research).Distinct()),
+            ForecastObserved = facts.ForecastObserved with { Coupled = read with
+            {
+                Food = read.Food with { Options = [] }, FoodUses = [],
+                Research = new() { Workers = [new("pawn", "bench", new(1, 1), "Smithing", "Research", "Research", 1)
+                    { ServicePosition = new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Located(new(1, 1)) }], Findings = [] },
+                Routes = [new("pawn", new(0, 0), new(1, 1), new RimGovernor.Brain.GameFacts.Observations.RouteTicks.Reachable(10)) { FromStart = true }],
+            } },
+        };
+        var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Priced();
+        const string goal = "goals/research-project/1";
+        candidates = candidates with { Context = candidates.Context with
+            { GoalValues = [new(goal, Importance.Normal, new GoalDeadline.Open()) { Research = [new("Smithing", 1.0 / 5000)] }] } };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+
+        Assert.True(selected.Selection.Selected.Any(id => id.StartsWith("research/", StringComparison.Ordinal)),
+            string.Join(";", selected.Selection.Findings.Concat(selected.Rejected.Select(r => r.Reason))));
+        Assert.False(selected.SelectedVector.Value.Death.Assessed);
+        Assert.Contains(ForecastCoupledSelection.GoalRouteUnassessedPrefix + goal, selected.Selection.Findings);
+        Assert.DoesNotContain(selected.Selection.Findings, finding => finding.StartsWith(ForecastCoupledSelection.GoalInfeasiblePrefix, StringComparison.Ordinal));
+        Assert.Empty(GoalRules.InfeasibleOf(selected));
+    }
 }

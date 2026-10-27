@@ -12,6 +12,18 @@ Inspection at local checkpoint `ff5cfc77b` plus the existing worktree edits esta
 
 The existing `ActivityContinuationTests.LostParticipantDoesNotAuthorizeReleasingItsNewOwner` and `KnownOwnershipEndRetiresIntentWithoutTouchingAnotherAssignment` exercise pure ownership/journal semantics. They do not prove that the native hooks permit takeover or that worker invalidation reaches the live game. Existing numeric priority, bill and designation operations establish available mechanisms, not their successful composition under this new design.
 
+The shared consequence comparator ranks a safety floor only when both outcomes
+assess it. An unread urgent-zero, death or break-risk floor cannot win as a zero
+risk or prevent supported investment comparisons. Goal-route findings distinguish
+an unassessed route from a proven open or infeasible route. `ForecastValueTests`
+covers both ranking directions for all three floors; `GoalValueTests` exercises
+goal selection and explicit route uncertainty through the production comparator.
+This corrects uncertainty handling within task 3.3; it does not yet replace the
+empty-portfolio execution baseline or complete intervention admission. No new
+native gameplay claim follows from these policy checks. The required gate passed
+4,136 domain tests, 30 workflow tests, native compilation, contract probes and
+the orphan check (1m39s); strict OpenSpec validation passed five items.
+
 The first implementation removes advance caregiver release and holds capacity only
 for actual care. It removes the strict constant/override/opportunistic/finalizer
 interception and indefinite dependency-wait driver. An actual replacement job

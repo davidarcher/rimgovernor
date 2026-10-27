@@ -20,7 +20,7 @@ public sealed class ForecastComparatorTests
         };
         var value = new ForecastValueExplanation(ledger, new())
         {
-            UrgentZero = new(true, zeroExcess), BreakRisk = new(breakAssessed, breakExcess), Death = new(deathExcess > 0, deathExcess),
+            UrgentZero = new(true, zeroExcess), BreakRisk = new(breakAssessed, breakExcess), Death = new(true, deathExcess),
         };
         return new(EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat<ForecastTerm>(new ForecastTerm.Assessed(0d), 6).ToArray()),
             new ForecastTerm.Assessed(0d), new ForecastTerm.Assessed(0d), labor, []) { Value = value };
@@ -64,7 +64,6 @@ public sealed class ForecastComparatorTests
         // No threshold supports the risk: the floor holds nothing against it, so the ledger and tiebreakers decide.
         var unassessed = Vector(breakAssessed: false, breaks: null);
         Assert.False(unassessed.Value.BreakRisk.Assessed);
-        Assert.True(unassessed.Value.BreakRisk.Passed);
         Assert.True(ForecastCoupledSelection.CompareConsequences(unassessed, Vector(breaks: .3)) == 0);
     }
 

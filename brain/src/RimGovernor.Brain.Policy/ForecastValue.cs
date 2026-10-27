@@ -174,11 +174,8 @@ public abstract record LedgerTerm
 /// XP, medicine consumed) or of a construction material (#3653) and its loss in capability-days, negative for a gain.</summary>
 public sealed record ForecastInvestmentContribution(string Activity, string Pawn, string Key, double Units, double Value);
 
-/// <summary>One safety floor of an outcome: whether it could be assessed, and by how much it is broken (0 when it holds).</summary>
-public readonly record struct ForecastFloor(bool Assessed, double Excess)
-{
-    public bool Passed => Excess <= 0;
-}
+/// <summary>One safety floor of an outcome. Excess is meaningful only when Assessed; an unassessed floor establishes neither safety nor failure.</summary>
+public readonly record struct ForecastFloor(bool Assessed, double Excess);
 
 /// <summary>
 /// Why an outcome ranks where it does (#3522): its capability-days ledger, the three safety floors and the constants used.

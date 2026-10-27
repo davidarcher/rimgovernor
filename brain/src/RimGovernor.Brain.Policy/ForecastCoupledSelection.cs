@@ -178,6 +178,7 @@ public sealed partial record ForecastCoupledSelection
 
     /// <summary>A selection finding <c>goal_infeasible:&lt;goal need id&gt;:&lt;floor&gt;</c> (#3503): every evaluated route that progresses the goal breaks that floor where the baseline holds it.</summary>
     public const string GoalInfeasiblePrefix = "goal_infeasible:";
+    public const string GoalRouteUnassessedPrefix = "goal_route_unassessed:";
 
     /// <summary>The ExclusiveOutcome prefix of a placed site's construction root, before the site's thing id.</summary>
     internal const string ConstructionOutcome = "construction/";
@@ -314,16 +315,27 @@ public sealed partial record ForecastCoupledSelection
         }
         // Per goal, the least-broken floor over the evaluated outcomes that progress it, while no such outcome holds every floor the baseline holds (#3503).
         var goalRoutes = new Dictionary<string, (bool Open, string Floor, double Excess)>(StringComparer.Ordinal);
+        var unassessedGoalRoutes = new SortedSet<string>(StringComparer.Ordinal);
         void NoteGoalRoutes(StagedConsequences vector, StagedConsequences against)
         {
-            var zero = vector.UrgentZero.Excess - against.UrgentZero.Excess;
-            var cap = vector.BreakRisk.Excess - against.BreakRisk.Excess;
-            var death = vector.Death.Excess - against.Death.Excess;
+            // A supported violation remains evidence even if another floor is unread.
+            // Without such a violation, missing evidence cannot certify a safe route.
+            var zeroKnown = vector.UrgentZero.Assessed && against.UrgentZero.Assessed;
+            var deathKnown = vector.Death.Assessed && against.Death.Assessed;
+            var capKnown = vector.BreakRisk.Assessed && against.BreakRisk.Assessed;
+            var route = (Floor: "", Excess: 0d);
+            if (zeroKnown && vector.UrgentZero.Excess - against.UrgentZero.Excess >= UrgentZeroResolutionTicks)
+                route = (UrgentZeroStage, vector.UrgentZero.Excess - against.UrgentZero.Excess);
+            else if (deathKnown && vector.Death.Excess > against.Death.Excess)
+                route = (DeathFloorStage, vector.Death.Excess - against.Death.Excess);
+            else if (capKnown && vector.BreakRisk.Excess > against.BreakRisk.Excess)
+                route = (BreakRiskStage, vector.BreakRisk.Excess - against.BreakRisk.Excess);
             foreach (var contribution in vector.GoalContributions)
             {
-                var route = zero >= UrgentZeroResolutionTicks ? (UrgentZeroStage, zero) : death > 0 ? (DeathFloorStage, death) : cap > 0 ? (BreakRiskStage, cap) : ("", 0d);
-                if (!goalRoutes.TryGetValue(contribution.Goal, out var seen) || route.Item1 == "" || !seen.Open && route.Item2 < seen.Excess)
-                    goalRoutes[contribution.Goal] = (route.Item1 == "" || seen.Open, route.Item1, route.Item2);
+                if (route.Floor == "" && (!zeroKnown || !deathKnown || !capKnown))
+                    unassessedGoalRoutes.Add(contribution.Goal);
+                else if (!goalRoutes.TryGetValue(contribution.Goal, out var seen) || route.Floor == "" || !seen.Open && route.Excess < seen.Excess)
+                    goalRoutes[contribution.Goal] = (route.Floor == "" || seen.Open, route.Floor, route.Excess);
             }
         }
         var baselineVector = Consequences(baseline, baselineCommitments);
@@ -488,8 +500,8 @@ public sealed partial record ForecastCoupledSelection
         // bound, where it is skipped again or, if the leader's excess has since grown (ties within the tick resolution can move it by
         // less than a tick), evaluated. A skipped subset counts in the sweep's mean cost per subset, so the pruned search affords
         // the sweep whenever the unpruned one does.
-        // Domain. The claim needs every plan of S to carry an assessed urgent-zero floor, since an unassessed floor reads as excess 0
-        // and would pass: food is assessed iff the pawn's mechanics are observed (plan-independent), and rest likewise while no plan
+        // Domain. The claim needs every plan of S to carry an assessed urgent-zero floor: an unassessed floor cannot decide
+        // a comparison, so cannot prove a loss at this stage. Food is assessed iff the pawn's mechanics are observed (plan-independent), and rest likewise while no plan
         // sleeps the pawn (SleepServiceEnds reads the sleep choices' times and nutrition, so a rest service in the closure can leave rest
         // unassessed in some plans), hence the bound is unavailable when the closure holds a rest need task, or when any pawn's
         // baseline zero time is unknown. It also needs a feasible leader with an assessed floor, and a context without goal values,
@@ -843,7 +855,9 @@ public sealed partial record ForecastCoupledSelection
         if (truncated) findings.Add("portfolio_search_truncated");
         if (candidates.Truncated) findings.Add("portfolio_generation_truncated");
         foreach (var (goal, route) in goalRoutes)
-            if (!route.Open) findings.Add(GoalInfeasiblePrefix + goal + ":" + route.Floor);
+            if (!route.Open && !unassessedGoalRoutes.Contains(goal)) findings.Add(GoalInfeasiblePrefix + goal + ":" + route.Floor);
+        foreach (var goal in unassessedGoalRoutes)
+            if (!goalRoutes.TryGetValue(goal, out var route) || !route.Open) findings.Add(GoalRouteUnassessedPrefix + goal);
         findings.Add("beyond_horizon_unassessed");
         // The selected and baseline vectors are public and complete (#3723): priced here when no comparison reached their ledgers.
         var selectedVector = bestVector.Vector;
@@ -1088,12 +1102,17 @@ public sealed partial record ForecastCoupledSelection
     internal static int CompareConsequences(StagedConsequences a, StagedConsequences b, out string stage)
     {
         stage = UrgentZeroStage;
-        var zero = a.UrgentZero.Excess - b.UrgentZero.Excess;
-        if (Math.Abs(zero) >= UrgentZeroResolutionTicks) return zero.CompareTo(0);
+        if (a.UrgentZero.Assessed && b.UrgentZero.Assessed)
+        {
+            var zero = a.UrgentZero.Excess - b.UrgentZero.Excess;
+            if (Math.Abs(zero) >= UrgentZeroResolutionTicks) return zero.CompareTo(0);
+        }
         stage = DeathFloorStage;
-        var floor = a.Death.Excess.CompareTo(b.Death.Excess); if (floor != 0) return floor;
+        if (a.Death.Assessed && b.Death.Assessed)
+        { var floor = a.Death.Excess.CompareTo(b.Death.Excess); if (floor != 0) return floor; }
         stage = BreakRiskStage;
-        floor = a.BreakRisk.Excess.CompareTo(b.BreakRisk.Excess); if (floor != 0) return floor;
+        if (a.BreakRisk.Assessed && b.BreakRisk.Assessed)
+        { var floor = a.BreakRisk.Excess.CompareTo(b.BreakRisk.Excess); if (floor != 0) return floor; }
         stage = LedgerStage;
         if (a.Vector.Value.Ledger.LossAgainst(b.Vector.Value.Ledger) is var delta && Math.Abs(delta) > a.Policy.TieResolution)
             return delta.CompareTo(0);

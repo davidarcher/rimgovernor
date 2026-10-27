@@ -762,14 +762,14 @@ public sealed class ForecastValueTests
         var stripped = ForecastValue.Explain(reference, new ForecastTerm.Assessed(0d), context, Day, reference, [Wears([])]);
 
         Assert.True(same.Death.Assessed);
-        Assert.True(same.Death.Passed);
+        Assert.Equal(0, same.Death.Excess);
         Assert.True(stripped.Death.Assessed);
-        Assert.False(stripped.Death.Passed);
+        Assert.True(stripped.Death.Excess > 0);
         Assert.Equal(stripped.Ledger.HarmDetail!.DeathsPerDay - same.Ledger.HarmDetail!.DeathsPerDay - context.Value.DeathRiskFloor, stripped.Death.Excess, 9);
     }
 
     [Fact]
-    public void TheDeathFloorIsUnassessedAndPassesWhileHarmIsUnknown()
+    public void TheDeathFloorRemainsUnassessedWhileHarmIsUnknown()
     {
         var context = HarmContext(Cloth, RaidDay(Exposure(raids: 5)));
         var reference = Outcome(Calm());
@@ -777,7 +777,8 @@ public sealed class ForecastValueTests
         var explained = ForecastValue.Explain(reference, new ForecastTerm.Assessed(0d), context, Day, reference);
 
         Assert.False(explained.Death.Assessed);
-        Assert.True(explained.Death.Passed);
+        Assert.False(explained.Ledger.Harm.IsPriced());
+        Assert.Contains("exposure_layout_unassessed", explained.Ledger.Findings);
     }
 
     // ----- lazy evaluation (#3723): the staged value and comparison price the floors first and the ledger only when a comparison reaches it.
@@ -875,6 +876,44 @@ public sealed class ForecastValueTests
         Assert.True(sleep.LedgerPriced);
         Assert.True(ForecastCoupledSelection.CompareConsequences(work, sleep, out _) > 0);
         Assert.True(ForecastCoupledSelection.CompareConsequences(sleep.Vector, work.Vector) < 0);
+    }
+
+    [Theory]
+    [InlineData("urgent", 0)]
+    [InlineData("urgent", 9000)]
+    [InlineData("death", 0)]
+    [InlineData("death", 9000)]
+    [InlineData("break", 0)]
+    [InlineData("break", 9000)]
+    public void AnUnassessedFloorNeitherWinsAsZeroNorBlocksSupportedComparison(string floor, double placeholder)
+    {
+        var context = Context(Pawn());
+        var reference = Outcome(Calm());
+        var vector = Staged(reference, context, reference).Vector;
+        ForecastValueExplanation WithFloor(bool assessed, double excess) => floor switch
+        {
+            "urgent" => vector.Value with { UrgentZero = new(assessed, excess) },
+            "death" => vector.Value with { Death = new(assessed, excess) },
+            "break" => vector.Value with { BreakRisk = new(assessed, excess) },
+            _ => throw new InvalidOperationException(floor),
+        };
+        var supported = vector with { Value = WithFloor(true, 4000) };
+        var unknown = vector with { Value = WithFloor(false, placeholder) with
+            { Ledger = vector.Value.Ledger with { Investment = vector.Value.Ledger.Investment + 1 } } };
+
+        // The unknown floor has no numerical advantage or disadvantage. Supported
+        // investment still decides in either direction, with uncertainty preserved.
+        Assert.True(ForecastCoupledSelection.CompareConsequences(unknown, supported) > 0);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(supported, unknown) < 0);
+        unknown = unknown with { Value = unknown.Value with
+            { Ledger = unknown.Value.Ledger with { Investment = vector.Value.Ledger.Investment - 1 } } };
+        Assert.True(ForecastCoupledSelection.CompareConsequences(unknown, supported) < 0);
+        Assert.False((floor switch
+        {
+            "urgent" => unknown.Value.UrgentZero,
+            "death" => unknown.Value.Death,
+            _ => unknown.Value.BreakRisk,
+        }).Assessed);
     }
 
     [Fact]

@@ -11,6 +11,32 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class CoupledSelectionReaderTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FloorEvidencePreservesUnassessedInsteadOfReportingAZeroOrPass(bool assessed)
+    {
+        var facts = ForecastCoupledSelectionTests.Review();
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, new(1, Traversal: 500));
+        var value = selection.SelectedVector.Value with
+            { UrgentZero = new(assessed, 42), Death = new(assessed, 42), BreakRisk = new(assessed, 42) };
+        selection = selection with { SelectedVector = selection.SelectedVector with { Value = value } };
+        var attrs = ColonyReview.CoupledSelectionAttrs(selection, 100, false, null);
+        var vector = Assert.IsType<Dictionary<string, object?>>(attrs["selected"]);
+        var ledger = Assert.IsType<Dictionary<string, object?>>(vector["value"]);
+        var floors = Assert.IsType<Dictionary<string, object?>>(ledger["floors"]);
+        foreach (var name in new[] { "urgent_zero", "death_risk_floor", "break_risk_cap" })
+        {
+            var floor = Assert.IsType<Dictionary<string, object?>>(floors[name]);
+            Assert.Equal(assessed, floor["assessed"]);
+            if (assessed) { Assert.Equal(false, floor["passed"]); Assert.Equal(42d, floor["excess"]); }
+            else { Assert.Null(floor["passed"]); Assert.Null(floor["excess"]); }
+        }
+        Assert.Equal(assessed ? 42d : (double?)null, CoupledSelections.Row(new LogRow { Payload = attrs }).Selected.UrgentZeroExcess);
+    }
+
     [Fact]
     public void OtlpIntegerRoomSurvivesTimelineNumericNormalization()
     {
