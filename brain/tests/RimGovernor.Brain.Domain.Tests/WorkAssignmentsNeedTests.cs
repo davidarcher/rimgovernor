@@ -16,6 +16,59 @@ public sealed class WorkAssignmentsNeedTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void FreshTimetableChangesCancelOnlyStaleUndispatchedSettingsAndReleaseTheirClaim(bool prepared, bool changed)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        IntentActionRules.RegisterIntentKinds();
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-schedule-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a") }, ct);
+        var schedule = Enumerable.Repeat(PawnRules.ScheduleAnything, 24).ToArray();
+        schedule[22] = PawnRules.ScheduleSleep;
+        var fresh = (string[])schedule.Clone();
+        if (changed) { fresh[22] = PawnRules.ScheduleAnything; fresh[9] = PawnRules.ScheduleSleep; }
+        var old = WorkAssignment.NewScheduleAssignment(new("a"), [new WorkSetting("TestWork", 1)], schedule);
+        var wanted = WorkAssignment.NewScheduleAssignment(new("a"), [new WorkSetting("TestWork", 1)], fresh);
+        var plan = new PlanSpec(new("old"), new(1), [DomainAction.NewWorkAssignmentAction(new("old-0"), old)]);
+        TestNeed.Commit(journal, World, new("work-old"), plan, ct);
+        if (prepared) journal.Prepare(plan.Id, plan.Actions[0].Id, World with { Plan = plan.Id }, new(100), ct);
+
+        WorkPlanner.CancelStaleWorkActions(journal, journal.LoadPlan(plan.Id, ct), [wanted], [], [], ct);
+
+        var progress = Assert.Single(journal.LoadPlan(plan.Id, ct).Progress).View;
+        Assert.Equal(changed ? Stage.Cancelled : prepared ? Stage.Prepared : Stage.Pending, progress.Stage);
+        var action = DomainAction.NewWorkAssignmentAction(new("fresh-0"), wanted);
+        var next = new PlanSpec(new("fresh"), new(1), [action]);
+        var admitted = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new("work-fresh"), "", next, ct);
+        Assert.Equal(changed ? ClaimOutcome.Admitted : ClaimOutcome.Conflict, admitted.Outcome);
+        if (!changed) return;
+        journal.Prepare(next.Id, action.Id, World with { Plan = next.Id }, new(101), ct);
+        journal.Dispatch(next.Id, action.Id, World with { Plan = next.Id }, new(101), ct);
+        var intent = IntentActionRules.IntentAction(action.Id.Value, action).Intent!.WorkSettings!;
+        Assert.Equal(fresh, intent.Schedule!.AssignmentDefs);
+        Assert.Equal(1, Assert.Single(intent.Work).Priority);
+    }
+
+    [Fact]
+    public void StalenessChecksEveryWrittenSettingWithoutRequiringUnwrittenFieldsToMatch()
+    {
+        var area = WorkAssignment.NewAreaAssignment(new("a"), false, "old-area");
+        Assert.True(WorkRules.WorkAssignmentStale(area, new Dictionary<PawnId, WorkAssignment>
+            { [new("a")] = WorkAssignment.NewAreaAssignment(new("a"), false, "new-area") }));
+        Assert.True(WorkRules.WorkAssignmentStale(area, new Dictionary<PawnId, WorkAssignment>
+            { [new("a")] = WorkAssignment.NewAreaAssignment(new("a"), true, "") }));
+        var priorities = WorkAssignment.NewWorkAssignment(new("a"), [new WorkSetting("TestWork", 1)]);
+        Assert.False(WorkRules.WorkAssignmentStale(priorities, new Dictionary<PawnId, WorkAssignment>
+            { [new("a")] = WorkAssignment.NewScheduleAssignment(new("a"), priorities.Settings,
+                Enumerable.Repeat(PawnRules.ScheduleAnything, 24).ToArray()) }));
+        Assert.True(WorkRules.WorkAssignmentStale(priorities, new Dictionary<PawnId, WorkAssignment>()));
+    }
+
     [Fact]
     public void TheNeedRequiresACompletedWorkPlannerReview()
     {

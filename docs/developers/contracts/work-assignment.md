@@ -10,6 +10,15 @@ a pawn's settings; the work review dispatches the differences as a
 `WorkSettingsIntent` on Actions/Apply. The plan owns every
 priority: no player edit is exempt, and a differing readback is replaced.
 
+Before dispatch, an open settings Method is reconciled against the fresh desired
+assignment. `WorkRules.WorkAssignmentStale` compares every field the old action
+writes: priority values, the hour-indexed timetable and any allowed-area change.
+An unchanged field remains valid when the fresh assignment adds other changes.
+Runtime cancels stale Pending or Prepared actions through the journal, releasing
+their settings claims so a replacement can be admitted. Dispatched actions retain
+the normal receipt/readback lifecycle. Applying settings does not establish
+completed pawn work.
+
 The admin work-assignment review names its lifecycle: `AwaitingPlanner` before
 coverage is planned, `Settled` when no assignment, setting or coupled activity is
 owed, and `Owed` otherwise. A known owed setting remains owed before coverage is

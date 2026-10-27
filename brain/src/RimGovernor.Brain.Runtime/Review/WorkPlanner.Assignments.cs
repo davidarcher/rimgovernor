@@ -313,7 +313,7 @@ partial class WorkPlanner
             var isSetting = staleSettings.TryGetValue(v.Action, out var stale);
             if (assignments.TryGetValue(v.Action, out var w))
             {
-                stale = WorkActionStale(w, wanted);
+                stale = WorkRules.WorkAssignmentStale(w, wanted);
             }
             else if (!isSetting)
             {
@@ -325,28 +325,6 @@ partial class WorkPlanner
             }
             journal.Cancel(plan.Spec.Id, v.Action, ct);
         }
-    }
-
-    /// <summary>Whether a planned assignment differs from the fresh one for its pawn (or the pawn has none).</summary>
-    internal static bool WorkActionStale(WorkAssignment w, Dictionary<Domain.PawnId, WorkAssignment> wanted)
-    {
-        if (!wanted.TryGetValue(w.Pawn, out var now))
-        {
-            return true;
-        }
-        var values = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (var setting in now.Settings)
-        {
-            values[setting.Definition] = setting.Priority;
-        }
-        foreach (var setting in w.Settings)
-        {
-            if (!values.TryGetValue(setting.Definition, out var want) || want != setting.Priority)
-            {
-                return true;
-            }
-        }
-        return false;
     }
 
     internal static List<HostilityPawn> HostilityRows(IReadOnlyList<WorkPawn> pawns) => [.. pawns.Select(p => p.HostilityPawn()).OfType<HostilityPawn>()];

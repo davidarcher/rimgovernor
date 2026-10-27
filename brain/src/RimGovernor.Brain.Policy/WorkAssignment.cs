@@ -985,4 +985,14 @@ public static partial class WorkRules
         }
         return (changed, true);
     }
+
+    /// <summary>Every field an undispatched assignment writes must still be wanted. Additional fresh changes do not invalidate an unchanged field.</summary>
+    public static bool WorkAssignmentStale(WorkAssignment assignment, IReadOnlyDictionary<PawnId, WorkAssignment> wanted)
+    {
+        if (!wanted.TryGetValue(assignment.Pawn, out var now)) return true;
+        if (assignment.HasSchedule && !assignment.Schedule.SequenceEqual(now.Schedule)) return true;
+        if (assignment.HasArea && (!now.HasArea || assignment.AreaClear != now.AreaClear || assignment.Area != now.Area)) return true;
+        var priorities = now.Settings.ToDictionary(s => s.Definition, s => s.Priority, StringComparer.Ordinal);
+        return assignment.Settings.Any(s => !priorities.TryGetValue(s.Definition, out var priority) || priority != s.Priority);
+    }
 }

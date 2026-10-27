@@ -24,6 +24,18 @@ native gameplay claim follows from these policy checks. The required gate passed
 4,136 domain tests, 30 workflow tests, native compilation, contract probes and
 the orphan check (1m39s); strict OpenSpec validation passed five items.
 
+Settings reconciliation checks all written fields, including the exact timetable
+and allowed-area intent, in pure `WorkRules.WorkAssignmentStale`. The journal
+regression in `WorkAssignmentsNeedTests` changes a timetable while keeping its
+priority and total sleep slots constant: stale Pending/Prepared writes cancel,
+their claims release, and a fresh Method dispatches the new typed timetable and
+numeric priorities. Unchanged writes retain their claims. The required gate
+passed 4,141 domain tests, 30 workflow tests, native compilation, probes and the
+orphan check (2m17s). This is partial task 3.4 evidence. The automatic work planner
+still chooses priorities only; automatic timetable selection and the remaining
+fresh-read/refusal integration remain in task 3.4. No new native gameplay result
+is claimed.
+
 The first implementation removes advance caregiver release and holds capacity only
 for actual care. It removes the strict constant/override/opportunistic/finalizer
 interception and indefinite dependency-wait driver. An actual replacement job
