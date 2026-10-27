@@ -15,6 +15,30 @@ thoughts nor authorize execution. Selected input provenance extends only the
 existing disposable Method task payload; no save preference or progress owner
 is added.
 
+## Current native need response
+
+`Methods.Binding.NativeNeedServices` distinguishes a missing pawn observation,
+an ineligible pawn, no captured service, a currently legal target and an observed
+service in progress. Legal targets already passed native diet, reservation and
+reachability checks. Their detailed-forecast `Unsupported` markers do not revoke
+that current legality. Conversely, no captured target proves neither failure nor
+absence of ground rest or spontaneous recreation. Neither access nor a running
+service proves future intake or recovery.
+
+A portfolio consisting solely of ordinary food/rest/recreation services with
+current native response is rejected by shared comparison with
+`native_service_response_without_intervention_premise`; the binding entry point
+also refuses that portfolio. A no-modeled-service trajectory cannot, by itself,
+justify those redundant orders. Exact service scenarios remain available as
+conditional what-if evidence. This guard does not complete the general native
+execution baseline: productive dependency graphs, reserve/recovery comparisons,
+and general intervention materiality remain in the active labor change.
+
+Stored food explicitly observed as `FoodFreshness.Never` has infinite expiry in
+the conditional inventory calculation, matching harvested non-rotting food.
+This describes the captured conditions; it does not predict that a freezer
+will remain powered. Missing freshness remains unread and cannot finance intake.
+
 ## Observed native production
 
 The shared bill dispatcher composes current canonical workers, recipe/bench facts,
@@ -1865,8 +1889,8 @@ recreation building at bind, `needs/recreation-shared-seat` (#3570).
 Exclusivity is still real for a one-slot bed and for recreation objects with a single
 participant (pawn-owned for the whole service); it is now a capacity of 1 rather than a
 separate rule. Tests that pin the evaluator side:
-`ForecastCoupledSelectionTests.TwoParticipantsCannotSelectTheSameObservedServiceTarget`
-(joy), `ForecastIncumbentSelectionTests.SyntheticRetainedTargetCannotBeAssignedToAnotherParticipant`
+`ForecastCoupledSelectionTests.SharedNativeServiceDoesNotAuthorizeRedundantParticipantOrders`
+(joy capacity conflicts remain what-if findings; ordinary service issues no order), `ForecastIncumbentSelectionTests.SyntheticRetainedTargetCannotBeAssignedToAnotherParticipant`
 (joy), `FutureNeedTargetClaimsTests` (Hands claims for sleep/recreation) and
 `PortfolioSearchDiagnosisTests` (the four-worker food case, now accepted). The rule was
 introduced in #3135 (e05747f10) as Hands ownership of exact targets for the whole Method,

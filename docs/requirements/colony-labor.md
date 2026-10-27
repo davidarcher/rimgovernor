@@ -8,6 +8,23 @@ The maintainer confirmed native-led routine execution, full control of settings 
 
 ## Current evidence
 
+The shared selector and binding entry point now refuse a portfolio consisting
+solely of ordinary eating/rest/recreation when current observations show native
+access or service in progress. `NativeNeedServicesTests` exercises shared
+comparison, direct binding and a supplied detailed counterfactual, including
+unsupported future mechanics, absent observations and actual current service.
+Detailed service scenarios remain conditional search evidence for complementary
+investments; they cannot independently justify these redundant service orders.
+The meal regressions retain nutrition, expiry and repeated-intake calculations
+as what-if evidence. Explicitly non-rotting stored food now participates in that
+calculation; missing expiry still refuses intake. The required gate passed
+4,154 domain tests, 30 workflow tests, native compilation, contract probes and
+the orphan check (1m20s). These are partial task 3.3 checks, with no new native
+gameplay claim: general native baseline, productive dependencies, incumbent
+migration and intervention materiality remain incomplete. Shared malformed native
+reference-cache files encountered during verification were repaired; the tooling
+defect is tracked separately in [#4042](https://github.com/davidarcher/rimgovernor/issues/4042).
+
 Inspection at local checkpoint `ff5cfc77b` plus the existing worktree edits established native settings and work-creation operations, strict coupled-job interception, passive activity observations and shared lost-owner continuation. The first milestone below replaces the strict lifecycle interception and proves scoped feeding outcomes. All general routine migration entries remain pending. [Food evidence](food-security.md) retains earlier fixture failures and the distinct executed bottle/nursing results. #4040 remains open until the verified implementation lands.
 
 The existing `ActivityContinuationTests.LostParticipantDoesNotAuthorizeReleasingItsNewOwner` and `KnownOwnershipEndRetiresIntentWithoutTouchingAnotherAssignment` exercise pure ownership/journal semantics. They do not prove that the native hooks permit takeover or that worker invalidation reaches the live game. Existing numeric priority, bill and designation operations establish available mechanisms, not their successful composition under this new design.

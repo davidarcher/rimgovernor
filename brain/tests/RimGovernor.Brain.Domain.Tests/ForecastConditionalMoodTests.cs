@@ -3,6 +3,7 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
+using Methods = RimGovernor.Brain.Policy.Methods;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -278,21 +279,21 @@ public sealed class ForecastConditionalMoodTests
     }
 
     [Fact]
-    public void OrdinarySharedSelectorChoosesGeneratedDaySleepFromConditionalEffectsAndUrgencyOverridesIt()
+    public void DaySleepAndUrgentRecoveryRemainWhatIfEvidenceWithoutRedundantNativeOrders()
     {
         var (generated, selected) = SelectObserved(Pawn());
         Assert.Contains(generated.Context.Activities.Activities, t => t.NotBefore == 5 * Hour);
         Assert.Contains(generated.Context.Activities.Activities, t => t.NotBefore == 17 * Hour);
-        var sleep = Assert.Single(selected.Selected.Plan.Allocations);
-        Assert.Equal(5 * Hour, sleep.Start, 6);
-        Assert.Equal(12 * Hour, sleep.End, 6);
-        Assert.True(selected.SelectedVector.BreakRisk.Number() < selected.BaselineVector.BreakRisk.Number());
+        Assert.Empty(selected.Selection.Selected);
+        var sleep = Assert.Single(selected.Rejected, r => r.Reason == Methods.Binding.NativeNeedServices.RoutineResponse).Consequences!;
+        Assert.True(sleep.BreakRisk.Number() < selected.BaselineVector.BreakRisk.Number());
         var (_, control) = SelectObserved(Pawn(false));
         Assert.Empty(control.Selection.Selected);
         // Rest that reaches zero within minutes breaks the zero floor unless a sleep starts before it does.
         var (_, urgent) = SelectObserved(Pawn() with { Needs = [NeedsFixtures.Rate("rest", .27, .00054, .28)] });
-        Assert.InRange(Assert.Single(urgent.Selected.Plan.Allocations).Start, 0, .27 / .00054);
-        Assert.Equal(0d, urgent.SelectedVector.Value.UrgentZero.Excess);
+        Assert.Empty(urgent.Selection.Selected);
+        var recovery = Assert.Single(urgent.Rejected, r => r.Reason == Methods.Binding.NativeNeedServices.RoutineResponse).Consequences!;
+        Assert.Equal(0d, recovery.Value.UrgentZero.Excess);
         Assert.True(urgent.BaselineVector.Value.UrgentZero.Excess > 0);
         var (_, shortHorizon) = SelectObserved(Pawn(), 2 * Hour);
         Assert.Empty(shortHorizon.Selection.Selected);

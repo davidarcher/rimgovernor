@@ -9,12 +9,12 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ForecastObservedMealTests
 {
     private const double Day = GameTime.TicksPerDay;
-    private static ForecastCoupledSelection Select(int count, double expiry)
+    private static (ForecastCoupledSelection Selection, ColonyForecastRequest Request, ForecastCoupledCandidates Candidates) Select(int count, double expiry, bool neverRots)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: .2, fall: 1.5 / Day);
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with { Targets =
             [NeedsFixtures.Food("meal-stack", "Meal", count, 0d, 10d, .9) with
-                { Location = new(1, 1), Stock = new NeedStock.Stacked(count, new FoodFreshness.Rots(expiry)) }] };
+                { Location = new(1, 1), Stock = new NeedStock.Stacked(count, neverRots ? new FoodFreshness.Never() : new FoodFreshness.Rots(expiry)) }] };
         facts = facts with
         {
             Census = facts.Census with { Resources = [new RimGovernor.Brain.GameFacts.Observations.Quantity { DefName = "Meal", Units = count }] },
@@ -28,20 +28,34 @@ public sealed class ForecastObservedMealTests
         facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Day)!;
         Assert.Contains(candidates.Context.NeedTasks, n => n.Target == "meal-stack");
-        return ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100), 1, facts,
-            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), candidates);
+        facts = facts with { CoupledAlternatives = candidates };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        return (ForecastCoupledSelection.CompareActivityOutcomes(request, candidates), request, candidates);
     }
 
-    [Fact]
-    public void OrdinarySelectorUsesTwoObservedMealsAtDifferentTimesWithoutProducingMoreFood()
+    private static ForecastCoupledOutcome Counterfactual(int count, double expiry, bool neverRots = false)
     {
-        var result = Select(2, Day + 1);
-        Assert.True(result.Selected.Feasible);
-        Assert.Equal(2, result.Selected.Plan.Allocations.Length);
-        var meals = result.Selected.Plan.Allocations.OrderBy(a => a.Start).ToArray();
+        var (selection, request, candidates) = Select(count, expiry, neverRots);
+        Assert.Empty(selection.Selection.Selected);
+        var rejected = Assert.Single(selection.Rejected, r => r.Reason == RimGovernor.Brain.Policy.Methods.Binding.NativeNeedServices.RoutineResponse);
+        var commitments = candidates.Alternatives.Where(a => rejected.Commitments.Contains(a.Id)).ToArray();
+        return ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(commitments)).Coupled!
+            .Alternatives.Where(a => a.Feasible).OrderBy(a => a.Needs["pawn"].Needs.Single(n => n.Kind == "food").ZeroTicks.Number()).First();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TwoObservedMealsFinanceConditionalRecoveryWithoutAuthorizingRoutineOrders(bool neverRots)
+    {
+        var result = Counterfactual(2, Day + 1, neverRots);
+        Assert.True(result.Feasible);
+        Assert.Equal(2, result.Plan.Allocations.Length);
+        var meals = result.Plan.Allocations.OrderBy(a => a.Start).ToArray();
         Assert.True(meals[1].Start > meals[0].End + 10000);
         Assert.All(meals, meal => Assert.StartsWith("need/pawn/meal-stack/", meal.Activity));
-        var food = result.Selected.Needs["pawn"].Needs.Single(n => n.Kind == "food");
+        var food = result.Needs["pawn"].Needs.Single(n => n.Kind == "food");
         Assert.Equal(0, food.ZeroTicks.Number());
         Assert.True(food.FinalLevel.Number() > 0);
     }
@@ -51,10 +65,10 @@ public sealed class ForecastObservedMealTests
     [InlineData(2, 1000)]
     public void InsufficientOrExpiredObservedStockCannotFinanceRepeatedRecovery(int count, double expiry)
     {
-        var result = Select(count, expiry);
-        Assert.True(result.Selected.Feasible);
-        Assert.True(result.Selected.Plan.Allocations.Length <= count);
-        Assert.True(result.Selected.Needs["pawn"].Needs.Single(n => n.Kind == "food").ZeroTicks.Number() > 0);
-        Assert.All(result.Selected.Plan.Allocations, meal => Assert.True(meal.End <= expiry));
+        var result = Counterfactual(count, expiry);
+        Assert.True(result.Feasible);
+        Assert.True(result.Plan.Allocations.Length <= count);
+        Assert.True(result.Needs["pawn"].Needs.Single(n => n.Kind == "food").ZeroTicks.Number() > 0);
+        Assert.All(result.Plan.Allocations, meal => Assert.True(meal.End <= expiry));
     }
 }

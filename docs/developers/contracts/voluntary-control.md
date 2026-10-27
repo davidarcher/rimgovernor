@@ -16,6 +16,14 @@ intent is not completed work. Native job selection remains available after the
 requested first job. The labor migration
 still has exact routine callers; their comparison and binding are pending migration.
 
+For a service-only eating/rest/recreation portfolio, current native service
+availability or observed service in progress supplies no reason for takeover.
+The comparator can explore it as a what-if complement to productive investments,
+but a service-only winner is not dispatched; the binding entry point enforces
+the same rule. Missing observation or no captured target establishes neither
+failure nor future recovery. The general native baseline and intervention
+assessment remain incomplete; see [current service evidence](forecast-contracts.md#current-native-need-response).
+
 The [pawn activity contract](pawn-activities.md) owns exact execution and the
 [continuation contract](method-continuation.md) owns release after the originating
 Concern completes. [Portfolio selection](../architecture/portfolio-selection.md) owns comparison;

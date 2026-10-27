@@ -13,6 +13,14 @@ windows and remaining obligations. It has no separate scheduler or workflow stor
 Food acquisition and material delivery/building use the same ColonyForecast search,
 binding, journal continuation and native ownership contract.
 
+A standalone portfolio of ordinary eating, rest or recreation is not installed
+when current native observations show usable service or service already in
+progress. Shared comparison retains its conditional consequences as rejected
+what-if evidence; `StartCoupledActivity` independently checks the current context
+before binding. Access and current service are not proof of future recovery.
+Productive dependency graphs and incumbent migration remain incomplete in the
+[native-led labor change](../../../openspec/changes/native-led-labor-execution/design.md).
+
 Exact cell assignments use `CellActivityStep`, which carries a required canonical
 `Cell` destination. Deliver, Approach, BuildRoof and Sow require that form; other
 steps cannot carry a destination. The candidate form follows the same distinction,

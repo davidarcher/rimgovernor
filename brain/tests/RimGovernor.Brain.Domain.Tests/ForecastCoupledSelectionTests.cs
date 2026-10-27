@@ -4,6 +4,7 @@ using RimGovernor.Brain.GameFacts.Common;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
+using Methods = RimGovernor.Brain.Policy.Methods;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -68,7 +69,7 @@ public sealed class ForecastCoupledSelectionTests
         .Single(t => t.Inputs.Count == 0 && t.Outputs.Any(o => o.Lot == "harvest/" + target)).Id;
 
     [Fact]
-    public void TwoParticipantsCannotSelectTheSameObservedServiceTarget()
+    public void SharedNativeServiceDoesNotAuthorizeRedundantParticipantOrders()
     {
         var facts = Review();
         var roster = WorkResourceTestFacts.Create("pawn", "helper");
@@ -88,13 +89,11 @@ public sealed class ForecastCoupledSelectionTests
         facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
         var selected = Select(facts);
-        Assert.NotEmpty(selected.Selected.Plan.Allocations);
-        Assert.Single(selected.Selected.Plan.Allocations.Select(a => a.Pawn).Distinct());
+        Assert.Empty(selected.Selection.Selected);
+        Assert.Contains(selected.Rejected, r => r.Reason == Methods.Binding.NativeNeedServices.RoutineResponse);
         Assert.Contains(selected.Selection.Findings, f => f.StartsWith("conflicting_selected_target_owners:", StringComparison.Ordinal));
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, facts.CoupledAlternatives!, 1, "service-method", 100);
-        Assert.NotNull(batch);
-        Assert.True(WorkRules.WorkResourcesFit(facts.WorkView!, new(new("selected-service"), new(1),
-            [DomainAction.NewPawnActivitiesAction(new("service-action"), batch)])));
+        Assert.Null(batch);
     }
     private static ForecastCoupledSelection Select(ReviewFacts facts, ForecastSearchBudget? budget = null, params ForecastCommitment[] incumbent)
     {
@@ -546,7 +545,7 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     [Fact]
-    public void AHungryBlockedPawnIsFedRatherThanHeldOnStandby()
+    public void AHungryPawnWithAnUnsupportedChemicalNeedRetainsNativeFoodResponse()
     {
         // #3557: two colonists with chemical needs stood on standby at food 0 beside 13.9 nutrition: a blocked pawn had no
         // need targets, no capacity and so no eat to select; its urgent-zero excess was the same in every outcome.
@@ -568,16 +567,13 @@ public sealed class ForecastCoupledSelectionTests
         var candidates = facts.CoupledAlternatives!;
         Assert.Contains("unsupported_voluntary_state:pawn:chemical_need:Chemical_Smokeleaf", candidates.Findings);
         var selected = Select(facts);
-        var why = string.Join(";", candidates.Findings.Concat(selected.Selection.Findings))
-            + " tasks=" + string.Join(",", candidates.Context.NeedTasks.Select(n => n.Task))
-            + " selected=" + string.Join(",", selected.Selection.Selected);
-        Assert.True(selected.Selected.Plan.Allocations.Any(a => a.Pawn == "pawn"
-            && candidates.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "food")), why);
+        Assert.Empty(selected.Selection.Selected);
+        Assert.Contains(selected.Rejected, r => r.Reason == Methods.Binding.NativeNeedServices.RoutineResponse);
         Assert.Empty(selected.Deferred);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, candidates, 1, "fed-method", 100);
-        Assert.NotNull(batch);
-        Assert.Contains(batch.Orders, o => o.Pawn == "pawn" && !o.Release);
-        Assert.True(selected.SelectedVector.Value.UrgentZero.Excess < selected.BaselineVector.Value.UrgentZero.Excess, why);
+        Assert.Null(batch);
+        Assert.Equal(Methods.Binding.NativeNeedService.Available,
+            Methods.Binding.NativeNeedServices.Observe(facts.ForecastObserved.Needs!, "pawn", "food"));
     }
 
     [Theory]

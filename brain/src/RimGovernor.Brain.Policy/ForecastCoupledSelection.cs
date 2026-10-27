@@ -1,3 +1,5 @@
+using RimGovernor.Brain.Policy.Methods.Binding;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Inspectable consequences of one outcome. The ranking reads <see cref="Value"/> (floors, then the capability-days ledger)
@@ -858,6 +860,16 @@ public sealed partial record ForecastCoupledSelection
             if (!route.Open && !unassessedGoalRoutes.Contains(goal)) findings.Add(GoalInfeasiblePrefix + goal + ":" + route.Floor);
         foreach (var goal in unassessedGoalRoutes)
             if (!goalRoutes.TryGetValue(goal, out var route) || !route.Open) findings.Add(GoalRouteUnassessedPrefix + goal);
+        // Keep service counterfactuals during search: they may expose a useful complementary investment.
+        // A service-only winner, however, supplies no independent reason to take over native execution.
+        if (!bestIsBaseline && NativeNeedServices.RoutineOnly(best.Plan, candidates.Context))
+        {
+            evidence.Add(new(EquatableArray.From(selected), bestVector.Vector, NativeNeedServices.RoutineResponse));
+            best = baseline;
+            bestVector = baselineVector;
+            selected = [];
+            selectedPhase = "baseline";
+        }
         findings.Add("beyond_horizon_unassessed");
         // The selected and baseline vectors are public and complete (#3723): priced here when no comparison reached their ledgers.
         var selectedVector = bestVector.Vector;
@@ -1164,6 +1176,7 @@ public sealed partial record ForecastCoupledSelection
     {
         if (selection.Selection.Selected.Any(id => candidates.Incumbents.Any(c => c.Id == id)))
             throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
+        if (NativeNeedServices.RoutineOnly(selection.Selected.Plan, candidates.Context)) return null;
         return Methods.Binding.CoordinatedActivityBinding.StartSelected(selection.Selection,
             candidates.Context.Bindings, authority, method, tick, candidates.Context.PlannedSites, candidates.Context);
     }

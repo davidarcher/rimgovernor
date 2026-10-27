@@ -513,6 +513,7 @@ public static partial class ForecastCoupled
             {
                 lots.Add((l.Lot, l.Location, l.Resource), l.Count);
                 if (l.Freshness is FoodFreshness.Rots(var keeps)) expiry.TryAdd(l.Lot, keeps);
+                else if (l.Freshness is FoodFreshness.Never) expiry.TryAdd(l.Lot, double.PositiveInfinity);
             }
             InitializeCensus(request);
             InitializeMedicine(request, plan);
