@@ -90,7 +90,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Select and execute comms, dated current trader openings and settlement missions with cheapest-carried medicine purchases and exact visitor adult-group probability | [Controllable trade](developers/contracts/controllable-trade.md), [stock arrival per outcome](developers/contracts/forecast-contracts.md#stock-arrival-3868) |
 | Read conditional major-threat rates and native biome incident eligibility | [Threat schedule](developers/contracts/forecast-contracts.md#threat-schedule-3539) |
 | Preserve or reconsider issued work | [Method continuation](developers/contracts/method-continuation.md) |
-| Add or change a Family with Needs and claimed Methods | [Model](developers/architecture/control-loop.md#target-model-needs-families-and-claimed-methods), [family notes and map](developers/architecture/control-loop.md#migration) |
+| Add or change a Family with Needs and claimed Methods | [Model](developers/architecture/control-loop.md#target-model-needs-families-and-claimed-methods), [first-layout prerequisites](developers/architecture/control-loop.md#first-layout-prerequisites), [family notes and map](developers/architecture/control-loop.md#migration) |
 | Trace observed harvest through cooking and meal delivery | [Live food Method](developers/contracts/pawn-activities.md#live-one-iteration-cooking) |
 | Trace shared helper coordination through supply and finishing | [Live construction Method](developers/contracts/pawn-activities.md#live-material-delivery-and-building) |
 | Choose care, demand-driven deliveries and useful chunk work | [Support work](developers/contracts/support-work.md), [case disposition](developers/contracts/support-work.md#execution-and-evidence) |

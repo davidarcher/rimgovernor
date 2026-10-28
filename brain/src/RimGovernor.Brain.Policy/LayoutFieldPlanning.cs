@@ -71,13 +71,18 @@ public static class LayoutFieldPlanning
         var trees = new HashSet<string>(StringComparer.Ordinal);
         foreach (var d in facts.Definitions)
         {
-            var edible = (d.Harvest ?? throw new RequiredFactException("planning Harvest")).Edible;
-            if (!edible)
+            // The catalog includes buildings and plants with no harvest product.
+            // Only actual harvests classify a growing crop as edible or as a tree.
+            if (d.Harvest is not { } harvest)
+            {
+                continue;
+            }
+            if (!harvest.Edible)
             {
                 inedible.Add(d.Name);
             }
             var blocksSow = (d.Plant ?? throw new RequiredFactException("planning Plant")).BlockAdjacentSow;
-            var destroys = (d.Harvest ?? throw new RequiredFactException("planning Harvest")).HarvestDestroysPlant;
+            var destroys = harvest.HarvestDestroysPlant;
             if (blocksSow && destroys)
             {
                 trees.Add(d.Name);

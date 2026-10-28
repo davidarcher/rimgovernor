@@ -1,5 +1,22 @@
 # Control loop
 
+## First layout prerequisites
+
+Before the first layout plan is derived, plan-dependent burial, climate envelope,
+room lighting/chairs and animal containment/ward Needs remain unmet and held on
+`layout_plan`. Their family reads name that derived prerequisite explicitly and
+do not evaluate absent plan results. Other Needs in the same family, including
+work assignments and bill maintenance, still run. A fresh read with the plan
+reassesses the normal predicates; unread native observations still fail the read.
+This pending state is review-local and creates no persisted owner or scheduler.
+The family runner honors a pure `NeedMethod.Held` result by skipping runtime work
+for that Need. Other ready Needs still run; runtime work cannot strengthen a hold
+into an admission or bypass its missing prerequisite.
+The same-tick native census may predate the plan's derivation. Cached reads receive
+the existing remembered layout for the same colony/map/load, just as fresh reads
+do, so a Need's work read retains the intent its family read saw. This overlay
+performs no native read or model run and preserves the observed census.
+
 [Architecture](overview.md) · [Controller contracts](../contracts/controller-contracts.md)
 
 The governor inspects the colony, selects bounded work, issues orders and observes

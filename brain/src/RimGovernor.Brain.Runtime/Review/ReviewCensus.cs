@@ -220,7 +220,9 @@ internal sealed class CensusStore
                 }
             }
         }
-        reading = census.Reading;
+        // The layout can be derived after this same-tick native census was retained.
+        // A cache hit must receive the same remembered intent as a fresh read.
+        reading = census.Reading.WithReading(ServeLayout(census.Reading.Reading));
         return true;
     }
 

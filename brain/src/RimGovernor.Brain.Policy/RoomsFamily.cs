@@ -9,6 +9,8 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record RoomsFacts
 {
+    /// <summary>Plan-dependent lighting and chair work await the first layout plan.</summary>
+    public bool LayoutPlanPending { get; init; }
     /// <summary>The work-cell lighting review with the plan's unlit rooms folded in; missing lighting inputs raise RequiredFactException.</summary>
     public LightingReview Lighting { get => field ?? throw new RequiredFactException("lighting census"); init; }
 
@@ -125,13 +127,15 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
 
     /// <summary>A ready gatherings Need is held: nothing starts a party until participation is forecast. Every other Method is the runtime's building work or the ledger's bills.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, RoomsFacts facts) =>
-        ready.Any(n => n.Id == Gatherings)
-            ? [NeedMethod.Held(Gatherings, UnsupportedGathering, "Gathering participation requires shared forecast occupancy and need effects.")]
-            : [];
+        ready.Where(n => facts.LayoutPlanPending && (n.Id == Lighting || n.Id == WorkChairs))
+            .Select(n => NeedMethod.Held(n.Id, "layout_plan", "Room work awaits the first layout plan."))
+            .Concat(ready.Any(n => n.Id == Gatherings)
+                ? [NeedMethod.Held(Gatherings, UnsupportedGathering, "Gathering participation requires shared forecast occupancy and need effects.")]
+                : Array.Empty<NeedMethod>()).ToArray();
 
     /// <summary>A plain threshold over the lighting review: unmet while a work cell is dark or a planned lamp unbuilt; an unread census raises <see cref="RequiredFactException"/>.</summary>
     public static Need LightingNeed(RoomsFacts f) =>
-        FoodRules.WholeNeed(Lighting, NeedTier.Development, !f.Lighting.Active);
+        FoodRules.WholeNeed(Lighting, NeedTier.Development, !f.LayoutPlanPending && !f.Lighting.Active);
 
     /// <summary>A plain threshold over the flooring review: unmet while any room or cell is owed its floor; an unread census raises <see cref="RequiredFactException"/>.</summary>
     public static Need FlooringNeed(RoomsFacts f) =>
@@ -182,7 +186,7 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
 
     /// <summary>After comfort: unmet while a standing bench's chosen work chair is missing; an unread census or plan raises <see cref="RequiredFactException"/>.</summary>
     public static Need WorkChairsNeed(RoomsFacts f) =>
-        FoodRules.WholeNeed(WorkChairs, NeedTier.Development, !f.WorkChairsOwed) with { Preconditions = [Comfort] };
+        FoodRules.WholeNeed(WorkChairs, NeedTier.Development, !f.LayoutPlanPending && !f.WorkChairsOwed) with { Preconditions = [Comfort] };
 
     /// <summary>
     /// Unmet while the mood census owes a party; an unread census raises <see cref="RequiredFactException"/>. The PartySpot Need is its precondition

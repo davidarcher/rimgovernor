@@ -107,7 +107,9 @@ public sealed partial class AdminReview
         }
         if (_needs.Burial)
         {
-            facts = facts with { Burial = BurialFacts.BurialOwed(reading.Reading) ? AdminWorkReview.Owed : AdminWorkReview.Settled };
+            facts = reading.Reading.Facts.LayoutPlan is null
+                ? facts with { BurialPlanPending = true }
+                : facts with { Burial = BurialFacts.BurialOwed(reading.Reading) ? AdminWorkReview.Owed : AdminWorkReview.Settled };
         }
         if (_needs.WorkLedger)
         {

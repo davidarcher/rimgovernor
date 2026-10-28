@@ -10,6 +10,8 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record AnimalsFacts
 {
+    /// <summary>Containment and ward geometry await the first layout plan.</summary>
+    public bool LayoutPlanPending { get; init; }
     public EquatableArray<UpkeepAnimal> Animals { get; init; }
 
     public EquatableArray<UpkeepAnimal> Wild { get; init; }
@@ -110,7 +112,11 @@ public sealed class AnimalsFamily(bool herd = true, bool containment = true) : I
         var output = new List<NeedMethod>();
         foreach (var need in ready)
         {
-            if (need.Id == Herd)
+            if (facts.LayoutPlanPending && (need.Id == Containment || need.Id == Ward))
+            {
+                output.Add(NeedMethod.Held(need.Id, "layout_plan", "Animal room work awaits the first layout plan."));
+            }
+            else if (need.Id == Herd)
             {
                 var choice = AnimalsFamilyRules.HerdChoice(facts);
                 if (choice is HusbandryChoice.Unread)
@@ -218,20 +224,20 @@ public static class AnimalsFamilyRules
     {
         var penOwed = f.Pen.Owed();
         var count = f.Uncontained.Count;
-        var owed = count > 0 || penOwed;
+        var owed = count > 0 || penOwed || f.LayoutPlanPending;
         return new Need
         {
             Id = AnimalsFamily.Containment,
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = count + (penOwed ? 1.0 : 0.0),
+            Deficit = count + (penOwed || f.LayoutPlanPending ? 1.0 : 0.0),
         };
     }
 
     /// <summary>The ward Need: unmet while a ward step is owed or its bed definition is unavailable; met once no step remains.</summary>
     public static Need WardNeedOf(AnimalsFacts f)
     {
-        var owed = f.Ward.Owed() || f.Ward.Kind == HerdStepKind.BedUnavailable;
+        var owed = f.LayoutPlanPending || f.Ward.Owed() || f.Ward.Kind == HerdStepKind.BedUnavailable;
         return new Need
         {
             Id = AnimalsFamily.Ward,

@@ -18,6 +18,8 @@ public sealed record LayoutCandidate(MethodId Method, string Reason, Func<PlanId
 /// </summary>
 public sealed record LayoutFacts
 {
+    /// <summary>The current review has not derived its first layout plan.</summary>
+    public bool LayoutPlanPending { get; init; }
     /// <summary>The home-area diff toward the planned coverage (PlanHomeArea).</summary>
     public HomeAreaPlan? HomeCoverage { get; init; }
 
@@ -141,7 +143,9 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
         }
         if (composed.ClimateEnvelope)
         {
-            needs.Add(ClimateEnvelopeNeed(facts.ClimateEnvelope ?? throw new RequiredFactException("climate envelope")));
+            needs.Add(facts.LayoutPlanPending
+                ? FoodRules.WholeNeed(ClimateEnvelope, NeedTier.Wellbeing, false)
+                : ClimateEnvelopeNeed(facts.ClimateEnvelope ?? throw new RequiredFactException("climate envelope")));
         }
         if (composed.Firebreak)
         {
@@ -176,7 +180,11 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
         var output = new List<NeedMethod>();
         foreach (var need in ready)
         {
-            if (need.Id == HomeCoverage && facts.HomeCoverage is { } diff && !diff.Empty())
+            if (need.Id == ClimateEnvelope && facts.LayoutPlanPending)
+            {
+                output.Add(NeedMethod.Held(ClimateEnvelope, "layout_plan", "Climate work awaits the first layout plan."));
+            }
+            else if (need.Id == HomeCoverage && facts.HomeCoverage is { } diff && !diff.Empty())
             {
                 output.Add(new NeedMethod(HomeCoverage, diff.MethodId(),
                     string.Create(CultureInfo.InvariantCulture, $"home coverage set {diff.Set.Count} cells, clear {diff.Clear.Count}"),

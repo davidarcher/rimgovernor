@@ -702,3 +702,44 @@ bill/material demand and existing native execution filter remain the owners;
 no helper scheduler, capacity fallback or new persisted state. Complexity: added
 composed native-delivery assertions and callback-local verification / removed
 routine support-delivery dispatch / orphans left: none.
+
+## First-layout prerequisites
+
+Plan-dependent burial, climate envelope, room lighting/chairs and animal rooms
+now remain unmet and held on `layout_plan` before the first plan is derived.
+Other Needs in their families can proceed. Missing actual observations still
+raise required-fact errors after that prerequisite is satisfied. These facts are
+derived within the review, with no new persisted state. Field planning examines
+harvest data only for definitions that actually have a harvest product; buildings
+and non-harvestable plants do not require an invented harvest record.
+
+The first retry cleared the animal/climate/harvest reports and again observed two
+native meals with no exact owner, but still failed admin/rooms required-fact rows
+under `.rimgovernor/native-food-production-prerequisites-20261028/production/productive-cooking/`.
+The census cache returned before applying the remembered layout, whereas a fresh
+read received it. Cached reads now apply the same existing layout overlay for
+the same colony/map/load. The native census remains unchanged and no additional
+read/model run is needed. `FirstLayoutPrerequisiteTests` covers that real cache
+boundary, named pending holds, independent admin work, reassessment and retained
+required-fact refusal. The next native retry still reported the two plan errors:
+the family runner filed each pure hold and then invoked runtime work anyway.
+It now skips runtime work for held Needs while other ready Needs proceed. A real
+journal/family-runner regression proves the hold cannot reach the work delegate.
+The finished native run **passed** `production/productive-cooking` in 52.014s,
+including its required-fact audit, under
+`.rimgovernor/native-food-production-held-needs-20261028/production/productive-cooking/result.json`.
+Source is `0c3b01138` plus this milestone's dirty source tree, recorded by the
+installed-package metadata. At tick 16800 there were two distinct native jobs,
+two completed recipes by one cook, actual meal output, Cooking level 6, no learning
+failures and no exact owners. This verifies the normal cooking/bill/priority path;
+formation hunting, other routine migrations and general intervention justification
+remain pending. No OpenSpec checkbox or #4040 closure follows from this one case.
+
+Verification: final gate PASS (1m4s), 4,221 domain and 30 workflow tests, native
+builds/probes and contract orphan checks; strict OpenSpec 5/5 and diff check pass.
+Rules 7–9: pure families name prerequisites, the shared runner honors their holds,
+and existing census/layout owners supply intent without new reads/model runs.
+No new persistence, scheduler or capacity fallback. Complexity: added explicit
+first-plan prerequisites and six boundary regressions / removed held-Need runtime
+bypass and invalid harvest-section requirements / orphans left: none. Overall
+progress remains 13/24; confirmed food requirements are unchanged.

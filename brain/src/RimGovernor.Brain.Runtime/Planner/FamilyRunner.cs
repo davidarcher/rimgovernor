@@ -354,6 +354,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         {
             var readyIds = ready.Select(n => n.Id).ToHashSet();
             var proposed = new HashSet<NeedId>();
+            var held = new HashSet<NeedId>();
             foreach (var candidate in _family.Propose(ready, facts.Facts))
             {
                 if (!readyIds.Contains(candidate.Need))
@@ -361,6 +362,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
                     throw new ControlException($"family {_family.Id} proposed for {candidate.Need}, which is not ready");
                 }
                 var (verdict, method) = await Task.Run(() => Commit(step, candidate, call), call).ConfigureAwait(false);
+                if (candidate.Hold is not null) held.Add(candidate.Need);
                 if (method is { } committed)
                 {
                     methods.Add(committed);
@@ -371,7 +373,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             }
             if (_work is not null)
             {
-                foreach (var need in ready)
+                foreach (var need in ready.Where(n => !held.Contains(n.Id)))
                 {
                     Verdict verdict;
                     IReadOnlyList<FamilyMethod> worked;

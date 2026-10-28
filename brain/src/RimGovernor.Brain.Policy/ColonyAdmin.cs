@@ -53,6 +53,9 @@ public sealed record AdminFacts
     /// <summary>Whether a tomb, grave or morgue step is due.</summary>
     public AdminWorkReview Burial { get; init; }
 
+    /// <summary>Burial room work awaits the first layout plan; other admin work can proceed.</summary>
+    public bool BurialPlanPending { get; init; }
+
     /// <summary>The work ledger's reconcile diff (LedgerDiffOwed): Unread unless the ledger has declarers and read every bench's bills.</summary>
     public LedgerDiff WorkLedger { get; init; } = LedgerDiff.Unread;
 
@@ -152,13 +155,13 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         }
         if (composed.Burial)
         {
-            needs.Add(BurialNeed(facts.Burial switch
+            needs.Add(BurialNeed(facts.BurialPlanPending || (facts.Burial switch
             {
                 AdminWorkReview.Owed => true,
                 AdminWorkReview.Settled => false,
                 AdminWorkReview.NotComposed => throw new RequiredFactException("burial steps"),
                 var invalid => throw new ArgumentOutOfRangeException(nameof(facts), facts.Burial, "Invalid burial review."),
-            }));
+            })));
         }
         if (composed.WorkLedger)
         {
@@ -187,6 +190,8 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, AdminFacts facts)
     {
         var output = new List<NeedMethod>();
+        if (facts.BurialPlanPending && ready.Any(n => n.Id == Burial))
+            output.Add(NeedMethod.Held(Burial, "layout_plan", "Burial room work awaits the first layout plan."));
         if (ready.Any(n => n.Id == CreepJoiners) && facts.CreepJoiners is { Drops.Count: > 0 })
         {
             output.Add(NeedMethod.Held(CreepJoiners, UnsupportedDisarm, UnsupportedDisarmDetail));

@@ -146,20 +146,24 @@ public sealed class RoomsReview
     /// </summary>
     internal static RoomsFacts Facts(ColonyReading projection, PlannerSettings policy, ComfortHistory history, NeedOwner? spot, BuildingPlanner? flooring)
     {
-        var lighting = BuildingPlanner.LightingReviewOf(projection, policy.Lighting);
+        var pending = projection.Facts.LayoutPlan is null;
         var census = flooring is not null ? flooring.FlooringCensus(projection) : BuildingPlanner.TrafficFlooringFacts(projection);
         var floorReview = FlooringRules.ReviewFlooring(census, projection.Facts.Upkeep.Rooms, policy.Flooring);
         var profiles = projection.Facts.WorkProfiles;
         var hosting = ComfortRules.ReviewComfort(projection.Facts.RequireComfort(), history, projection.Identity.Tick);
-        return new RoomsFacts
+        var facts = new RoomsFacts
         {
-            Lighting = lighting,
+            LayoutPlanPending = pending,
             Flooring = floorReview,
             Profiles = profiles,
             SculptureRoomsOwed = SleepingUpkeepPlanner.SculptureRoomsOwedOf(projection),
             BasicComfort = projection.Facts.BasicComfort,
             Hosting = hosting,
             PartySpotOwed = ColonyReview.PartySpotOwed(spot, projection),
+        };
+        return pending ? facts : facts with
+        {
+            Lighting = BuildingPlanner.LightingReviewOf(projection, policy.Lighting),
             WorkChairsOwed = WorkChairsOwed(projection),
         };
     }

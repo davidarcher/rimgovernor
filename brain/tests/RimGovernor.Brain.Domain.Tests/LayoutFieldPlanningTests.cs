@@ -67,7 +67,7 @@ public sealed class LayoutFieldPlanningTests
         var facts = ColonyFactsCoreTests.Reading().Facts with
         {
             LayoutPlan = new() { Zones = [new() { Kind = LayoutZoneKind.Field, Runs = [new(0, 0, 4)] }] },
-            Definitions = [],
+            Definitions = [new() { Name = "Wall" }, new() { Name = "Grass", Plant = new() }],
         };
         var cells = Enumerable.Range(0, 4).Select(x => SiteCellFixtures.At(new(x, 0), fertility: 1)).ToArray();
         var census = new RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot

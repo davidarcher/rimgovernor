@@ -127,7 +127,8 @@ public sealed partial class LayoutReview
             if (_needs.ClimateEnvelope)
             {
                 var (owed, known) = EnvelopeWork(rooms.Reading);
-                facts = facts with { ClimateEnvelope = known ? owed : throw new RequiredFactException("climate envelope") };
+                facts = known ? facts with { ClimateEnvelope = owed }
+                    : facts with { LayoutPlanPending = true };
             }
             if (_needs.Routes)
             {

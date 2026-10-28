@@ -55,8 +55,9 @@ public sealed class AnimalsReader
         var f = projection.Facts;
         var handlers = projection.Facts.WorkProfiles;
         var uncontained = AnimalUpkeepRules.ReviewAnimalUpkeep(f.AnimalUpkeep).Containment;
-        var pen = HerdRooms.PenStepOf(projection);
-        var ward = HerdRooms.WardStepOf(projection);
+        var pending = f.LayoutPlan is null;
+        var pen = pending ? new HerdStep() : HerdRooms.PenStepOf(projection);
+        var ward = pending ? new HerdStep() : HerdRooms.WardStepOf(projection);
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
         {
@@ -64,6 +65,7 @@ public sealed class AnimalsReader
         }
         return new AnimalsFacts
         {
+            LayoutPlanPending = pending,
             Animals = f.AnimalUpkeep.Animals,
             Wild = f.AnimalUpkeep.WildAnimals,
             Herd = f.HerdPolicy(),
@@ -73,7 +75,7 @@ public sealed class AnimalsReader
             Uncontained = uncontained,
             Pen = pen,
             Ward = ward,
-            WardRoom = f.AnimalWard with { Ready = HerdRooms.WardReadyOf(projection) },
+            WardRoom = f.AnimalWard with { Ready = !pending && HerdRooms.WardReadyOf(projection) },
         };
     }
 
