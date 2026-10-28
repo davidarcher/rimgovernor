@@ -355,6 +355,10 @@ public sealed record WorkDecision
 /// <summary>The colony census the baseline owner table scales by. The default value asks for the baseline alone.</summary>
 public sealed record WorkDemand
 {
+    public NativeFoodAssessment Food { get; init; } = new NativeFoodAssessment.Unassessed("food_assessment_not_provided");
+    /// <summary>Work types of currently observed native harvest/cooking options; priorities do not target a particular job or promise its output.</summary>
+    public IReadOnlyList<WorkType> FoodWork { get; init; } = [];
+
     /// <summary>Temporarily replaces the roster with medical rest until immunity.</summary>
     public IReadOnlyList<DiseaseRest> Resting { get; init; } = [];
 
@@ -829,6 +833,7 @@ public static partial class WorkRules
         var assignments = new List<PawnWorkAssignment>();
         foreach (var w in workers)
         {
+            var foodWorker = demand.Food.NeedsResponse && demand.FoodWork.Any(work => Able(w, work));
             var priorities = new List<WorkPriority>();
             foreach (var (name, observed) in w.Work)
             {
@@ -865,6 +870,20 @@ public static partial class WorkRules
                         {
                             priority = 3;
                         }
+                    }
+                }
+                // Adjust ordinary native preferences under a concrete food risk. Do not cancel
+                // the current job or displace pinned needs/care or the doctor's primary role.
+                if (foodWorker && !PinnedWork(name) && name != WorkType.Doctor && priority > 0)
+                {
+                    var wasPrimary = priority == 1;
+                    if (demand.FoodWork.Contains(name) && Able(w, name)) priority = 1;
+                    else if (priority == 1) priority = 2;
+                    var coverageIndex = coverageRows.FindIndex(row => row.Work == name);
+                    if (coverageIndex >= 0 && wasPrimary != (priority == 1))
+                    {
+                        var coverage = coverageRows[coverageIndex];
+                        coverageRows[coverageIndex] = coverage with { Owners = coverage.Owners + (priority == 1 ? 1 : -1) };
                     }
                 }
                 if (resting.Contains(w.Pawn.Id))
@@ -937,6 +956,7 @@ public static partial class WorkRules
         var jobs = HerdPlanRules.PlanHerd(facts.HerdPlanInput()).Jobs;
         var demand = new WorkDemand
         {
+            Food = NativeFoodAssessment.Of(facts.FoodDays, facts.FoodPlan, facts.FoodReserve),
             Construction = building,
             Arming = HuntPrerequisiteRules.HuntArming(facts.FoodPlan),
             Handling = jobs.ContainsKey(HerdJob.Milk) || jobs.ContainsKey(HerdJob.Wool),
@@ -952,7 +972,25 @@ public static partial class WorkRules
                 stacks++;
             }
         }
-        return demand with { HaulBacklog = stacks >= HaulBacklogStacks };
+        return demand with { HaulBacklog = stacks >= HaulBacklogStacks,
+            FoodWork = demand.Food.NeedsResponse && facts.AvailableNeeds.Contains(FoodRules.FoodSupplyNeed) ? ReadyFoodWork(facts) : [] };
+    }
+
+    private static WorkType[] ReadyFoodWork(ReviewFacts facts)
+    {
+        if (facts.ForecastObserved.Coupled is not { } read) return [];
+        var givers = read.Food.Options.Where(o => o.HarvestAllowed && o.Count > 0).Select(o => o.WorkGiver)
+            .Concat(read.FoodConversions.Where(o => o.Cooking is RimGovernor.Brain.GameFacts.Observations.FoodCooking.Cook)
+                .Select(o => o.WorkGiver));
+        var work = new HashSet<WorkType>();
+        foreach (var giver in givers)
+        {
+            // Without the catalog's native mapping this option cannot justify a priority change.
+            if (!facts.WorkSpeeds.GiverWork.TryGetValue(giver, out var definition)) continue;
+            var type = WorkTypeOf(definition);
+            if (type is not (WorkType.None or WorkType.Unrecognized)) work.Add(type);
+        }
+        return work.Order().ToArray();
     }
 
     /// <summary>

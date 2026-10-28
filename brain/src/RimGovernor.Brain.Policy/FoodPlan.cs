@@ -59,6 +59,9 @@ public sealed record FoodPlanEntry
 
 public sealed record FoodPlan
 {
+    /// <summary>The seasonal stock-runway minimum used by this plan, in days; named unassessed before a plan has supplied it.</summary>
+    public ForecastTerm MinimumDays { get; init; } = new ForecastTerm.Unassessed("food_minimum_unobserved");
+
     /// <summary>The shared allocation behind this portfolio, including animals.</summary>
     public FoodForecast Forecast { get; init; } = new();
 
@@ -253,6 +256,7 @@ public static class FoodPlanRules
         }
         return new FoodPlan
         {
+            MinimumDays = new ForecastTerm.Assessed(r.MinDays),
             Forecast = r.Demand,
             GapPerDay = plan.Gap(SupplyPlanRules.NutritionKey),
             DeliveredPerDay = plan.Delivered(SupplyPlanRules.NutritionKey),

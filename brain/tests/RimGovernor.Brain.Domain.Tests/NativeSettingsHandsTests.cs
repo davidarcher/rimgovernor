@@ -22,6 +22,7 @@ public sealed class NativeSettingsHandsTests
         public bool Stale, Refuse;
         public int Reads, Writes;
         public IReadOnlyList<string> Applied = [];
+        public Dictionary<string, int> AppliedWork = new();
         public Task<IntentInspection> InspectIntentAsync(Target target, CancellationToken ct)
         {
             Reads++;
@@ -34,7 +35,11 @@ public sealed class NativeSettingsHandsTests
             var placement = Assert.Single(placements);
             var intent = IntentActionRules.IntentAction(placement.Action.Id.Value, placement.Action).Intent!.WorkSettings!;
             Assert.Equal("a", intent.PawnId);
-            if (!Refuse) Applied = intent.Schedule!.AssignmentDefs;
+            if (!Refuse)
+            {
+                Applied = intent.Schedule?.AssignmentDefs ?? [];
+                AppliedWork = intent.Work.ToDictionary(w => w.WorkTypeDef!, w => w.Priority, StringComparer.Ordinal);
+            }
             return Task.FromResult<IReadOnlyList<NativeReceipt>>([new() { Action = placement.Action.Id, Attempt = placement.Attempt,
                 Snapshot = placement.Snapshot, Kind = Refuse ? Receipt.Refused : Receipt.Accepted,
                 Refusal = Refuse ? new("precondition", "pawn became drafted", RefusalClass.Transient) : null }]);
@@ -59,6 +64,10 @@ public sealed class NativeSettingsHandsTests
         public PlanSpec Admit(string id, RimGovernor.Brain.GameFacts.Observations.NeedsForecastPawn needs)
         {
             var settings = Assert.Single(WorkRules.NativeSettingsChanges([PawnFixtures.Worker("a")], [new(new("a"), [])], NeedsFixtures.Read(100, needs)));
+            return Admit(id, settings);
+        }
+        public PlanSpec Admit(string id, WorkAssignment settings)
+        {
             var plan = new PlanSpec(new(id), new(1), [DomainAction.NewWorkAssignmentAction(new(id + "-0"), settings)]);
             Assert.Equal(ClaimOutcome.Admitted, Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new("work-settings"), "", plan, Ct).Outcome);
             return plan;
@@ -66,6 +75,27 @@ public sealed class NativeSettingsHandsTests
         public Task<IReadOnlyList<BatchItem>> Run(PlanSpec plan) => Hands.RunBatchAsync(plan.Id, [plan.Actions[0].Id], Ct);
         public Stage Stage(PlanSpec plan) => Assert.Single(Journal.LoadPlan(plan.Id, Ct).Progress).View.Stage;
         public void Dispose() { Hands.Dispose(); Journal.Dispose(); }
+    }
+
+    [Fact]
+    public async Task SupportedFoodRecoveryRiskChangesNativePrioritiesThroughAdmissionAndHands()
+    {
+        using var rig = new Rig();
+        var facts = NativeFoodAssessmentTests.Facts();
+        var worker = NativeFoodAssessmentTests.Worker();
+        var demand = WorkRules.WorkDemand(facts, true);
+        Assert.True(demand.Food.NeedsResponse);
+        var decision = WorkRules.PlanWork([worker], [], demand);
+        var settings = Assert.Single(WorkRules.NativeSettingsChanges([worker], decision.Assignments, facts.ForecastObserved.Needs));
+        var plan = rig.Admit("food-priorities", settings);
+        Assert.Null(Assert.Single(await rig.Run(plan)).Error);
+        Assert.Equal(Stage.Completed, rig.Stage(plan));
+        Assert.Equal(1, rig.Native.AppliedWork[Wire.Name(WorkType.Cooking)]);
+        Assert.Equal(2, rig.Native.AppliedWork[Wire.Name(WorkType.Construction)]);
+        Assert.Null(plan.Actions[0].PawnActivities);
+        // A completed settings action is not completed production or a cleared food risk.
+        Assert.True(demand.Food.NeedsResponse);
+        Assert.Equal(10, Assert.IsType<NativeFoodAssessment.Reviewed>(demand.Food).RunwayDays);
     }
 
     [Fact]

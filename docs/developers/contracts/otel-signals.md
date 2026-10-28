@@ -352,6 +352,13 @@ Conditional vectors retain their numeric service/delivery consequences. The
 OTLP timeline reads these attributes; current demand, a selected what-if and
 actual completion remain separate evidence.
 
+The same vectors carry `native_food`: an explicit unassessed reason, no-consumers
+state, or reviewed `runway_days`, `minimum_days`, `risk`, `needs_response`,
+`recovery_timing`, nullable `conditional_recovery_days` and `reserve_release`.
+These are current stock/reserve and conditional recovery evidence, not projected
+native output. Conditional investment vectors name `conditional_food_scenario`
+instead. The OTLP timeline reads these attrs through the existing vector payload.
+
 The existing `coupled_selection` vectors withhold deprivation attributed solely
 to omitting a captured native response. `uncertainty` names
 `native_response_unprojected:<pawn>:<kind>`; affected need/mood/break values are

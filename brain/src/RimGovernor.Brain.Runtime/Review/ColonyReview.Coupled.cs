@@ -366,6 +366,21 @@ public sealed partial class ColonyReview
     private static Dictionary<string, object?> FloorAttrs(ForecastFloor floor) => new()
         { ["assessed"] = floor.Assessed, ["passed"] = floor.Assessed ? floor.Excess <= 0 : null, ["excess"] = floor.Assessed ? floor.Excess : null };
 
+    private static Dictionary<string, object?> NativeFoodAttrs(NativeFoodAssessment assessment)
+    {
+        if (assessment is NativeFoodAssessment.Unassessed(var reason)) return new() { ["state"] = "unassessed", ["reason"] = reason };
+        if (assessment is NativeFoodAssessment.NoConsumers) return new() { ["state"] = "no_consumers" };
+        if (assessment is NativeFoodAssessment.Reviewed food) return new()
+        {
+            ["state"] = "reviewed", ["runway_days"] = food.RunwayDays, ["minimum_days"] = food.MinimumDays,
+            ["risk"] = food.Risk.ToString(), ["needs_response"] = food.NeedsResponse,
+            ["recovery_timing"] = FoodReserveRules.RecoveryAtRunway(food.RunwayDays, food.Recovery).ToString(),
+            ["conditional_recovery_days"] = food.Recovery is FoodDeliveries.Confirmed(var leads) ? leads.ToArray() : null,
+            ["reserve_release"] = food.Reserve is FoodReserveState.Reviewed(var reserve) ? reserve.Release.ToArray() : null,
+        };
+        throw new RequiredFactException("native food assessment:" + assessment);
+    }
+
     private static Dictionary<string, object?> ConsequenceAttrs(ForecastConsequenceVector vector)
     {
         var support = (vector.Support as ForecastSupportAssessment.Conditional)?.Consequences;
@@ -381,6 +396,7 @@ public sealed partial class ColonyReview
             .OfType<ForecastTerm.Unassessed>().Select(t => t.Reason)
             .Concat(observed is null ? [] : new[] { ForecastSupportAssessment.NativeResponseUnprojected }).Distinct().ToArray(),
         ["thermal_occupancy"] = vector.ThermalOccupancy,
+        ["native_food"] = NativeFoodAttrs(vector.NativeFood),
         ["support_projection"] = support is null ? "native_unprojected" : "conditional_scenario",
         ["support_observed_demands"] = observed?.Demands.Select(d => new { d.Id, d.Kind, d.Target }).ToArray(),
         ["support_observed_deliveries"] = observed?.Deliveries.Select(d => new { d.Demand, d.Bill, d.Required }).Distinct().ToArray(),

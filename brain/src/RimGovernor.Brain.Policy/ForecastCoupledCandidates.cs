@@ -382,6 +382,7 @@ public sealed partial record ForecastCoupledCandidates
             },
             Truncated = truncated,
             Needs = needs,
+            NativeFood = NativeFoodAssessment.Of(facts.FoodDays, facts.FoodPlan, facts.FoodReserve),
             Resources = resources,
             Construction = read.Construction,
             MaintenanceRequirements = practice.Requirements, PracticeTasks = practice.Practice,

@@ -54,6 +54,8 @@ public abstract record FoodDeliveries
     public sealed record Unconfirmed : FoodDeliveries;
 }
 
+public enum FoodRecoveryTiming { Unconfirmed, NoCapturedRecovery, BeforeRunway, AtOrAfterRunway }
+
 /// <summary>
 /// What one standing target-count food bill wants: the products of its family, the product count that
 /// satisfies it (native counts the product's stock toward the bill), and optionally one product ranked ahead of
@@ -72,6 +74,17 @@ internal sealed record TargetBillSpec
 
 public static class FoodReserveRules
 {
+    /// <summary>Compare supported recovery leads with usable stock. No captured channel is not proof of future native failure.</summary>
+    public static FoodRecoveryTiming RecoveryAtRunway(double days, FoodDeliveries deliveries)
+    {
+        if (!FoodForecastRules.FoodNumber(days)) throw new FoodFactsException();
+        if (deliveries is FoodDeliveries.Unconfirmed) return FoodRecoveryTiming.Unconfirmed;
+        if (deliveries is not FoodDeliveries.Confirmed(var leads)) throw new FoodFactsException();
+        if (leads.Any(lead => !FoodForecastRules.FoodNumber(lead))) throw new FoodFactsException();
+        if (leads.Count == 0) return FoodRecoveryTiming.NoCapturedRecovery;
+        return leads.Any(lead => lead < days) ? FoodRecoveryTiming.BeforeRunway : FoodRecoveryTiming.AtOrAfterRunway;
+    }
+
     public const double DefaultFoodReserveDays = 5.0;
 
     public static bool ReserveFoodDefinition(Resource def) => FoodPolicyRules.TravelReserve.Contains(def);
@@ -147,25 +160,11 @@ public static class FoodReserveRules
         }
         // A positive target means some consumer eats, so the forecast has a runway.
         var days = forecast.RunwayDays is FoodRunway.Days { Value: var runway } ? runway : throw new FoodFactsException();
-        var complete = deliveries is FoodDeliveries.Confirmed;
-        var arriving = false;
-        var recoveryKnown = false;
-        if (deliveries is FoodDeliveries.Confirmed { Days: var leads })
-        {
-            recoveryKnown = leads.Count > 0;
-            foreach (var lead in leads)
-            {
-                if (!FoodForecastRules.FoodNumber(lead))
-                {
-                    throw new FoodFactsException();
-                }
-                arriving = arriving || lead < days;
-            }
-        }
+        var recovery = RecoveryAtRunway(days, deliveries);
         var isShort = days < minimumDays;
         // Known recovery arriving only after the usable runway is a reason to expose insurance before harm,
         // even above the seasonal minimum. No captured recovery alone does not prove future native failure.
-        var emergency = complete && !arriving && (isShort || recoveryKnown);
+        var emergency = recovery == FoodRecoveryTiming.AtOrAfterRunway || isShort && recovery == FoodRecoveryTiming.NoCapturedRecovery;
         var ordered = supply.Stocks.OrderBy(s => supply.IsReserved(s) ? 0 : 1).ThenBy(s => s.Id, StringComparer.Ordinal).ToList();
         double stockNutrition = 0;
         var byDefinition = new Dictionary<Resource, double>();

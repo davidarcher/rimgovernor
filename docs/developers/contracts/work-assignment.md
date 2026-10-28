@@ -173,6 +173,17 @@ at priority 2, including when every candidate is occupied. This avoids disabling
 work merely because its preferred worker is currently busy. Both live review and
 dispatch call the same `PlanWork`, so readback comparison uses this rule too.
 
+A concrete stock/reserve shortfall or supported recovery gap can adjust these
+preferences preventively. `WorkDemand` reuses the food plan's assessment and
+current observed harvest/cooking offers, mapped through native work-giver
+metadata. Capable food workers receive priority 1 for those work types; their
+other ordinary primary roles move to 2. Pinned needs/childcare, Doctor and medical
+rest retain their protections. Coverage owner counts follow the resulting
+matrix. Missing food evidence or work-type metadata does not invent a boost or
+prevent unrelated settings. Settings do not target a particular harvest or bill,
+cancel a current job, guarantee a start time or count as completed food. Actual
+output and the next stock read determine whether the risk has changed.
+
 Execution ownership does not freeze work settings. `PlanWork` uses observed work,
 capabilities and current demand; it no longer consumes Method pawn claims or a
 truncated claim census. Settings claim `settings/<pawn>`, independently of an

@@ -90,6 +90,24 @@ excludes roots whose completions are need services; independently demanded
 deliveries and other productive roots still compete for supported capacity.
 The food family and stock-target bills retain provisioning demand ownership.
 
+`NativeFoodAssessment` carries that owner's current usable stock runway,
+seasonal minimum, reserve review and conditional recovery leads into both native
+comparison vectors and `WorkDemand`. Current runway is read afresh rather than
+reconstructed from the plan's older stock scenario. A stock shortfall or captured
+recovery arriving at/after runway supports a preventive response. Reserve
+shortfall/emergency findings remain relevant while insurance is released. Missing
+plans/runway/minimums are explicitly unassessed; unconfirmed recovery and no
+captured recovery do not alone establish failure. `NoDemonstratedShortfall` does
+not certify future service. The same `RecoveryAtRunway` rule classifies leads for
+this assessment and reserve release; neither caller adds a native trajectory.
+
+This evidence can change available native work priorities without crediting
+production or intake. Both native comparison sides retain the current assessment;
+a hypothetical cooking allocation cannot clear it. Exact intervention materiality
+and evidenced delivery-versus-cooking bottlenecks remain pending in the labor
+change. Conditional investment vectors retain a named unassessed native-food
+state rather than presenting their scenario as a fresh native observation.
+
 Food harvest and raw-food delivery operations also carry `NativeExecution`.
 Their yields, travel and dependent intake remain conditional what-if evidence;
 normal dispatch omits the operations and their dependent work. Existing food-plan

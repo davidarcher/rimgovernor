@@ -376,6 +376,45 @@ call, durable state or second demand owner. Complexity: added a typed two-state
 support assessment and ten regression cases / removed native authority from
 routine care scenarios and false final-support ranking / orphans left: none.
 
+## Native food stock and recovery assessment
+
+`NativeFoodAssessment` shares the food owner's current usable runway, seasonal
+minimum, reserve findings and conditional recovery leads with normal comparison
+vectors and work-demand planning. It uses the latest stock read even when a
+cached plan still contains an older stock scenario. Unsupported leads remain
+unconfirmed; absence of a captured recovery channel alone establishes neither
+failure nor success. The reserve release and assessment use the same timing
+classification. An outstanding reserve shortfall remains visible when insurance
+has been released.
+
+A supported stock/recovery risk can raise capable workers' observed harvest or
+cooking work types to priority 1 and move competing ordinary primary roles to 2.
+Native work-giver metadata supplies the mapping; missing metadata does not invent
+an option or block unrelated settings. Pinned needs, childcare, Doctor, medical
+rest and existing capability floors retain their protections. Coverage follows
+the actual priority matrix. Vanilla still chooses jobs, and accepting settings
+does not count as output or resolve the risk.
+
+`NativeFoodAssessmentTests` covers stock/recovery thresholds, fresh stock against
+an older plan, unconfirmed/absent recovery, missing facts/mappings, capability and
+protected roles, coverage consistency and shared native comparison without an
+invented exact rescue. `NativeSettingsHandsTests` takes the preventive priority
+change through shared journal admission and real Hands into a fault-injected
+typed settings boundary. It proves the settings path, not future vanilla output.
+No native gameplay run is claimed for this increment.
+
+Verification: required gate PASS (39s), 4,258 domain tests and 30 workflow tests,
+native production/fixture builds, contract probes and no contract orphans.
+Strict OpenSpec validation passes 5/5; confirmed food requirements are unchanged.
+
+General intervention materiality, delivery-versus-cooking bottleneck assessment
+and the remaining migrations remain in scope. Tasks 3.3 and 4.1 remain unchecked;
+overall progress remains 13/24. Rules 7–9: food demand/reserve owners remain
+authoritative, the shared assessment is pure derived evidence, and no model run,
+native trajectory, durable state or execution lane is added. Complexity: added
+shared stock/recovery assessment and preventive settings regressions / removed
+duplicate recovery-timing classification / orphans left: none.
+
 ## Routine execution migration inventory
 
 Task 3.1 uses the existing shared demand and worker census plus the bill

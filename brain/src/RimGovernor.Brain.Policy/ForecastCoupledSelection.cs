@@ -16,6 +16,7 @@ public sealed record ForecastConsequenceVector(EquatableArray<ForecastTerm> Urge
     public string ThermalOccupancy { get; init; } = "";
     public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
     public ForecastSupportAssessment Support { get; init; } = new ForecastSupportAssessment.Conditional(new());
+    public NativeFoodAssessment NativeFood { get; init; } = new NativeFoodAssessment.Unassessed("conditional_food_scenario");
 }
 
 public enum ForecastComparisonBasis { NativeOperation, ConditionalScenario }
@@ -327,7 +328,8 @@ public sealed partial record ForecastCoupledSelection
             var staged = StagedConsequences.Of(outcome, commitments, candidates.Context, horizonTicks, reference, referenceHarm,
                 basis == ForecastComparisonBasis.ConditionalScenario ? outcome
                     : NativeExecutionOutcome(outcome, candidates.Context, nativeBounds) with { Support = reference.Support },
-                basis == ForecastComparisonBasis.ConditionalScenario ? null : new ForecastSupportAssessment.NativeUnprojected(candidates.Context.Support));
+                basis == ForecastComparisonBasis.ConditionalScenario ? null : new ForecastSupportAssessment.NativeUnprojected(candidates.Context.Support),
+                basis == ForecastComparisonBasis.ConditionalScenario ? null : candidates.Context.NativeFood);
             if (eager) _ = staged.Vector;
             return staged;
         }
@@ -1131,9 +1133,10 @@ public sealed partial record ForecastCoupledSelection
 
         internal static StagedConsequences Of(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments, ForecastCoupledContext context,
             double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm, ForecastCoupledOutcome? execution = null,
-            ForecastSupportAssessment? support = null)
+            ForecastSupportAssessment? support = null, NativeFoodAssessment? nativeFood = null)
         {
             var terms = ConsequenceTerms(execution ?? outcome, support);
+            if (nativeFood is not null) terms = terms with { NativeFood = nativeFood };
             return new(terms, ForecastValue.Stage(outcome, terms.Urgent[0], context, horizonTicks, reference, referenceHarm, commitments, execution));
         }
 

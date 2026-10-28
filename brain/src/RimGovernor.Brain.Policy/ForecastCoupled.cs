@@ -49,6 +49,7 @@ public sealed record ForecastCoupledContext
     public JoinerBasis? Joiners { get; init; }
     public bool Truncated { get; init; }
     public required NeedsForecastRead Needs { get; init; }
+    public NativeFoodAssessment NativeFood { get; init; } = new NativeFoodAssessment.Unassessed("food_assessment_not_provided");
     public EquatableArray<ForecastMaintenanceRequirement> MaintenanceRequirements { get; init; }
     public EquatableArray<ForecastPracticeTask> PracticeTasks { get; init; }
     public required WorkResourceView Resources { get; init; }
