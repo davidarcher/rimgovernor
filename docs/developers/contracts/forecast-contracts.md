@@ -34,6 +34,32 @@ conditional what-if evidence. This guard does not complete the general native
 execution baseline: productive dependency graphs, reserve/recovery comparisons,
 and general intervention materiality remain in the active labor change.
 
+The shared comparison also withholds deprivation attributed solely to omitting
+an observed available/running native service. Its need exposure, hunger/rest
+losses and dependent mood/break terms are unassessed, with
+`native_response_unprojected:<pawn>:<kind>` findings. The starvation pruning
+bound cannot use that omitted service as proof that an unserved pawn will starve.
+If even the no-service bound never crosses a need threshold under the captured
+mechanics, no artificial deprivation needs removing. That conditional bound
+remains useful; it does not predict a job order or exact future need level.
+Possible native sleep can change awake-only mood before exhaustion starts:
+that all-awake mood trajectory remains conditional even when the no-service
+physiological bound proves zero deprivation.
+
+`Baseline` and `Selected` retain the detailed conditional scenarios for
+investment mechanics and inspection. The vectors used by shared comparison
+carry the native-response uncertainty. Conditional room/recruitment effects
+still use their supported mechanics; native uncertainty does not erase those
+independent estimates. Direct scenario evaluation retains its what-if values.
+Uncaptured responses, productive dependency graphs and concrete preventive
+assessment still need the general migration; this is not its completion.
+
+An unselected self-service scenario also does not establish productive demand
+for every harvest/cook/delivery dependency in that scenario. `WorkShortfallRules`
+excludes roots whose completions are need services; independently demanded
+deliveries and other productive roots still compete for supported capacity.
+The food family and stock-target bills retain provisioning demand ownership.
+
 Stored food explicitly observed as `FoodFreshness.Never` has infinite expiry in
 the conditional inventory calculation, matching harvested non-rotting food.
 This describes the captured conditions; it does not predict that a freezer

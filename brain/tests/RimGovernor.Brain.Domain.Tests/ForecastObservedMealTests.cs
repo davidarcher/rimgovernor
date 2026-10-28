@@ -38,10 +38,11 @@ public sealed class ForecastObservedMealTests
     {
         var (selection, request, candidates) = Select(count, expiry, neverRots);
         Assert.Empty(selection.Selection.Selected);
-        var rejected = Assert.Single(selection.Rejected, r => r.Reason == RimGovernor.Brain.Policy.Methods.Binding.NativeNeedServices.RoutineResponse);
-        var commitments = candidates.Alternatives.Where(a => rejected.Commitments.Contains(a.Id)).ToArray();
-        return ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(commitments)).Coupled!
-            .Alternatives.Where(a => a.Feasible).OrderBy(a => a.Needs["pawn"].Needs.Single(n => n.Kind == "food").ZeroTicks.Number()).First();
+        Assert.False(selection.BaselineVector.Value.UrgentZero.Assessed);
+        return selection.Rejected.Where(r => r.Commitments.Count > 0)
+            .SelectMany(r => ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(
+                candidates.Alternatives.Where(a => r.Commitments.Contains(a.Id)))).Coupled!.Alternatives)
+            .Where(a => a.Feasible).OrderBy(a => a.Needs["pawn"].Needs.Single(n => n.Kind == "food").ZeroTicks.Number()).First();
     }
 
     [Theory]

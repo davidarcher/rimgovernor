@@ -121,7 +121,7 @@ public sealed class PlannedShelterTests
         var pruned = ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!);
         var unpruned = ForecastCoupledSelection.CompareActivityOutcomesUnpruned(request, facts.CoupledAlternatives!);
         ForecastCoupledSelectionTests.AssertPrunedEquivalent(unpruned, pruned);
-        Assert.Contains(ForecastCoupledSelection.UrgentZeroUnservedBound + ":rest_service_in_closure", pruned.BoundsUnavailable);
+        Assert.Contains(ForecastCoupledSelection.UrgentZeroUnservedBound + ":baseline_zero_unassessed", pruned.BoundsUnavailable);
         Assert.True(pruned.SearchPhases.Sum(p => p.Unbounded) > 0);
         // A subset the bound did skip holds no sleep of the pawn's: the shelter bundles, which do, were all evaluated.
         var sleeps = facts.CoupledAlternatives!.Context.NeedTasks.Where(t => t.Kind == "rest").Select(t => t.Task).ToHashSet(StringComparer.Ordinal);

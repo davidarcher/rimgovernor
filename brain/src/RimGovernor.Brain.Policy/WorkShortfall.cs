@@ -41,7 +41,7 @@ public static class WorkShortfallRules
     /// <summary>
     /// The work an outcome leaves unscheduled (#3825; per outcome since #3805): the outcome chose the <paramref name="chosen"/> roots
     /// and allocates <paramref name="allocations"/> over <paramref name="horizon"/> ticks. Every candidate root (<paramref name="roots"/>,
-    /// the alternatives and incumbents) is one outcome among those
+    /// the alternatives and incumbents, excluding roots completed solely by need services) is one outcome among those
     /// sharing its <see cref="ForecastCommitment.ExclusiveOutcome"/> (its own id without one); an outcome the selection serves with
     /// none of its roots is unserved, and costs its cheapest root's work: the activities of that root's completions and their
     /// prerequisites the plan does not allocate, each counted once over all outcomes. An activity is work by its binding: a
@@ -100,7 +100,11 @@ public static class WorkShortfallRules
         }
 
         var unscheduled = new SortedDictionary<string, string>(StringComparer.Ordinal);
-        foreach (var outcome in roots.GroupBy(r => r.ExclusiveOutcome.Length == 0 ? r.Id : r.ExclusiveOutcome, StringComparer.Ordinal))
+        // Service scenarios offer possible ways to recover a need, not independent productive demand.
+        // In particular, omitting a modeled meal cannot demand every harvest/cook dependency as missing native work.
+        // Ordinary provisioning demand remains owned by the food family and its stock-target bills.
+        var productive = roots.Where(root => !root.ActivityCompletions.All(id => context.NeedTasks.Any(n => n.Task == id)));
+        foreach (var outcome in productive.GroupBy(r => r.ExclusiveOutcome.Length == 0 ? r.Id : r.ExclusiveOutcome, StringComparer.Ordinal))
         {
             if (outcome.Any(r => chosen.Contains(r.Id))) continue;
             var cheapest = outcome.Select(r => (Work: Unscheduled(r).ToArray(), r.Id))

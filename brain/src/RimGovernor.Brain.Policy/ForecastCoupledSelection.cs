@@ -23,6 +23,8 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     ForecastConsequenceVector BaselineVector, ForecastConsequenceVector SelectedVector,
     EquatableArray<ForecastPortfolioEvidence> Rejected, double Horizon, bool GenerationTruncated)
 {
+    // Baseline and Selected retain conditional activity scenarios for investment mechanics and inspection.
+    // Their comparison vectors additionally withhold deprivation attributed only to omitted observed native response.
     public int CompositionExpansions { get; init; }
     public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
     /// <summary>The eligible colonists the selection left unassigned while their needs stand above every threshold: they run vanilla work
@@ -311,7 +313,8 @@ public sealed partial record ForecastCoupledSelection
         // it or a consumer needs the complete vector. The eager test control prices the ledger here instead.
         StagedConsequences Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
         {
-            var staged = StagedConsequences.Of(outcome, commitments, candidates.Context, horizonTicks, reference, referenceHarm);
+            var staged = StagedConsequences.Of(outcome, commitments, candidates.Context, horizonTicks, reference, referenceHarm,
+                NativeExecutionOutcome(outcome, candidates.Context));
             if (eager) _ = staged.Vector;
             return staged;
         }
@@ -354,6 +357,8 @@ public sealed partial record ForecastCoupledSelection
         var bestIsBaseline = true;
         var findings = new SortedSet<string>(candidates.Findings, StringComparer.Ordinal);
         findings.UnionWith(baselineScenario.Findings);
+        findings.UnionWith(NativeExecutionOutcome(baseline, candidates.Context).Needs.Values.SelectMany(n => n.Findings)
+            .Where(f => f.StartsWith(NativeResponseUnprojectedPrefix, StringComparison.Ordinal)));
         if (!baseline.Feasible) findings.Add("baseline_unassessed_or_infeasible");
         var evidence = new List<ForecastPortfolioEvidence>();
         // A construction root rejected only for lacking supported service relief is not a leader, yet it is the one a service root completes.
@@ -547,10 +552,11 @@ public sealed partial record ForecastCoupledSelection
         Summarize(fixedClosure, fixedServed, ref fixedRest, ref fixedConstruction);
         var servedScratch = new ulong[pawnWords];
         // Each pawn's zero time in the baseline, the larger of food and rest; the bound is unavailable while any is unknown.
+        var nativeBaseline = NativeExecutionOutcome(baseline, candidates.Context);
         var baselineZero = new double[pawnRows.Count]; var baselineZeroKnown = pawnRows.Count > 0;
         for (var p = 0; p < pawnRows.Count && baselineZeroKnown; p++)
         {
-            if (!baseline.Needs.TryGetValue(pawnRows[p].Pawn, out var row)) { baselineZeroKnown = false; break; }
+            if (!nativeBaseline.Needs.TryGetValue(pawnRows[p].Pawn, out var row)) { baselineZeroKnown = false; break; }
             foreach (var metric in row.Needs)
             {
                 if (metric.Kind is not ("food" or "rest")) continue;
@@ -956,6 +962,42 @@ public sealed partial record ForecastCoupledSelection
     public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome)
         => ConsequenceTerms(outcome);
 
+    /// <summary>Captured native response defeats a no-service assumption; its timing remains unprojected.
+    /// Exact scenarios remain conditional investment evidence. Uncaptured response and productive/dependent
+    /// execution still require the general native-baseline migration.</summary>
+    internal static ForecastCoupledOutcome NativeExecutionOutcome(ForecastCoupledOutcome conditional, ForecastCoupledContext context)
+    {
+        var rows = new Dictionary<string, ForecastNeedsResult>(StringComparer.Ordinal);
+        foreach (var (pawn, result) in conditional.Needs)
+        {
+            var findings = new List<string>();
+            var metrics = result.Needs.Select(metric =>
+            {
+                if (metric.Kind is not ("food" or "rest" or "joy")
+                    || NativeNeedServices.Observe(context.Needs, pawn, metric.Kind) is not (NativeNeedService.Available or NativeNeedService.InProgress)
+                    || context.NeedTasks.Any(task => task.Pawn == pawn && task.Kind == metric.Kind
+                        && conditional.Plan.Allocations.Any(a => a.Pawn == pawn && a.Activity == task.Task))) return metric;
+                // A no-service bound that never reaches deprivation still bounds that penalty at zero.
+                // Native sleep can nevertheless change awake-only mood before exhaustion begins.
+                var bounded = metric.ThresholdExposureTicks is ForecastTerm.Assessed(0) && metric.ZeroTicks is ForecastTerm.Assessed(0);
+                if (bounded && (metric.Kind != "rest" || metric.FinalLevel is ForecastTerm.Assessed(var level)
+                    && level > context.Needs.Pawns.Single(p => p.Pawn == pawn).SleepThreshold)) return metric;
+                var reason = NativeResponseUnprojectedPrefix + pawn + ":" + metric.Kind;
+                findings.Add(reason);
+                if (bounded) return metric;
+                var unread = new ForecastTerm.Unassessed(reason);
+                return metric with { FinalLevel = unread, ZeroTicks = unread, ThresholdExposureTicks = unread,
+                    ThresholdDepthTicks = unread, ZeroSpans = [], StageSpans = [] };
+            }).ToArray();
+            rows.Add(pawn, findings.Count == 0 ? result : result with { Needs = EquatableArray.From(metrics),
+                Mood = new ForecastMoodResult.Unprojected(EquatableArray.From(findings)),
+                Findings = EquatableArray.From(result.Findings.Concat(findings)) });
+        }
+        return conditional with { Needs = rows };
+    }
+
+    internal const string NativeResponseUnprojectedPrefix = "native_response_unprojected:";
+
     private enum Term { ZeroTicks, ThresholdDepthTicks, ThresholdExposureTicks, ZeroAtHorizon }
 
     /// <summary>One need term over the outcome's pawns, in order, as Enumerable.Sum adds and Enumerable.Max (a NaN gives way to
@@ -1057,10 +1099,10 @@ public sealed partial record ForecastCoupledSelection
         private StagedConsequences(ForecastConsequenceVector vector, ForecastValue.Staged? staged) { this.vector = vector; this.staged = staged; }
 
         internal static StagedConsequences Of(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments, ForecastCoupledContext context,
-            double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm)
+            double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm, ForecastCoupledOutcome? execution = null)
         {
-            var terms = ConsequenceTerms(outcome);
-            return new(terms, ForecastValue.Stage(outcome, terms.Urgent[0], context, horizonTicks, reference, referenceHarm, commitments));
+            var terms = ConsequenceTerms(execution ?? outcome);
+            return new(terms, ForecastValue.Stage(outcome, terms.Urgent[0], context, horizonTicks, reference, referenceHarm, commitments, execution));
         }
 
         /// <summary>A vector already priced, as the comparator reads it.</summary>

@@ -5,7 +5,8 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What a joiner's value is priced from beside <see cref="ForecastCoupledContext.ModelBasis"/> (#3805): the candidate roots an
-/// outcome chooses among (the alternatives and incumbents, whose unchosen work is the outcome's shortfall), the defs' work map and
+/// outcome chooses among (productive alternatives and incumbents contribute unchosen work to its shortfall;
+/// service-only completions do not establish productive demand), the defs' work map and
 /// the catalog's food work. Set by the review beside the model basis; null before tier 2 ran.
 /// </summary>
 public sealed record JoinerBasis

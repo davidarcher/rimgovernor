@@ -69,8 +69,11 @@ public sealed class ForecastThermalPortfolioTests
         Assert.Contains(result.Selected.CompletedConstructionSites, id => id.StartsWith("roof/", StringComparison.Ordinal));
         // Idle and travel ticks take the last located temperature, else outdoors (#3673): none is left unassessed.
         Assert.Equal(0, result.Selected.ThermalExposure.Single().UnknownTicks);
-        // Without the bed the pawn's rest reaches zero; the bed (with the shelter's relief on top) does not.
-        Assert.True(result.SelectedVector.Value.UrgentZero.Excess < result.BaselineVector.Value.UrgentZero.Excess);
+        // Omitted native sleep does not prove collapse. The explicit no-service scenario still provides
+        // conditional rest evidence, while the shared comparison keeps the independent thermal benefit.
+        Assert.False(result.BaselineVector.Value.UrgentZero.Assessed);
+        Assert.True(ForecastCoupledSelection.CoupledConsequences(result.Selected).Urgent[0].Number()
+            < ForecastCoupledSelection.CoupledConsequences(result.Baseline).Urgent[0].Number());
         Assert.True(result.Selected.Shelters.Single().Scheduled().CompleteAt < 200);
     }
 

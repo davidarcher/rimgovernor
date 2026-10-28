@@ -8,6 +8,30 @@ The maintainer confirmed native-led routine execution, full control of settings 
 
 ## Current evidence
 
+Shared comparison now withholds future deprivation attributed solely to omitting
+captured available/running native need service, rather than using a final binding
+guard alone. `NativeNeedServicesTests` checks food/rest/recreation uncertainty
+through the real selector while preserving the explicit conditional no-service
+scenario and rejecting supplied redundant bindings. Physiological zero-penalty
+bounds remain usable; possible native sleep can still invalidate all-awake mood
+before exhaustion. `ForecastConditionalMoodTests` and `ForecastObservedMealTests`
+exercise the separate conditional calculations. Native rest uncertainty disables
+the starvation search bound; the pruning equivalence and thermal investment
+regressions retain independent supported comparisons. Room, recruitment, pawn,
+classroom and productive-learning checks pass without deleting their conditional
+investment mechanics.
+
+`WorkShortfallRules` no longer treats a need-service alternative's whole
+harvest/cook/delivery chain as independently demanded production merely because
+the service was unselected. `NativeWorkShortfallTests` covers that false demand
+and retains independently demanded delivery competing for capacity. The food
+family and stock-target bills remain demand owners. The required gate passed
+4,155 domain tests, 30 workflow tests, native compilation, contract probes and
+the orphan check (1m27s). This remains partial task 3.3: uncaptured responses,
+supply/runway and recovery-time comparison, productive/dependent execution and
+the meaningful-intervention boundary remain unfinished. No additional native
+gameplay result is claimed, and confirmed food requirements are unchanged.
+
 The shared selector and binding entry point now refuse a portfolio consisting
 solely of ordinary eating/rest/recreation when current observations show native
 access or service in progress. `NativeNeedServicesTests` exercises shared

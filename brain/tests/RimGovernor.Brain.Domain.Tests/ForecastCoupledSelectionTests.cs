@@ -90,8 +90,8 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
         var selected = Select(facts);
         Assert.Empty(selected.Selection.Selected);
-        Assert.Contains(selected.Rejected, r => r.Reason == Methods.Binding.NativeNeedServices.RoutineResponse);
-        Assert.Contains(selected.Selection.Findings, f => f.StartsWith("conflicting_selected_target_owners:", StringComparison.Ordinal));
+        Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + "pawn:joy", selected.Selection.Findings);
+        Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + "helper:joy", selected.Selection.Findings);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, facts.CoupledAlternatives!, 1, "service-method", 100);
         Assert.Null(batch);
     }
@@ -346,7 +346,7 @@ public sealed class ForecastCoupledSelectionTests
     // #3724: where no sound bound exists the search evaluates within the #3722 allowance and names why: a rest service in the closure
     // (the plan's sleep can leave rest unassessed), a baseline zero time unknown, goal values (every evaluated outcome reports its routes).
     [Theory]
-    [InlineData("rest", "rest_service_in_closure")]
+    [InlineData("rest", "baseline_zero_unassessed")]
     [InlineData("goals", "goal_routes")]
     public void AnUnavailableBoundIsReportedAndPrunesNothing(string graph, string reason)
     {
@@ -364,20 +364,10 @@ public sealed class ForecastCoupledSelectionTests
         AssertPrunedEquivalent(unpruned, pruned);
         Assert.Contains(ForecastCoupledSelection.UrgentZeroUnservedBound + ":" + reason, pruned.BoundsUnavailable);
         Assert.True(pruned.SearchPhases.Sum(p => p.Unbounded) > 0);
-        if (graph != "rest")
-        {
-            // Unavailable for every subset: the pruned search is the unpruned search to the count.
-            Assert.Equal(0, pruned.SearchPhases.Sum(p => p.Pruned));
-            Assert.Equal((unpruned.OutcomeEvaluations, unpruned.Selection.Expansions, unpruned.Rejected.Count), (pruned.OutcomeEvaluations, pruned.Selection.Expansions, pruned.Rejected.Count));
-        }
-        else
-        {
-            // Unavailable for the subsets whose closure sleeps the worker, which are evaluated; the others are bounded as before.
-            var restRoots = facts.CoupledAlternatives!.Alternatives.Where(c => c.ExclusiveOutcome.Contains("/rest", StringComparison.Ordinal)).Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
-            Assert.NotEmpty(restRoots);
-            Assert.All(pruned.Rejected.Where(r => ForecastPortfolioEvidence.BoundOf(r.Reason) is not null), r => Assert.DoesNotContain(r.Commitments, restRoots.Contains));
-            Assert.True(pruned.SearchPhases.Sum(p => p.Pruned) > 0);
-        }
+        // Native rest is not a predicted starvation bound for any subset; goal routes also need every evaluation.
+        Assert.Equal(0, pruned.SearchPhases.Sum(p => p.Pruned));
+        Assert.Equal((unpruned.OutcomeEvaluations, unpruned.Selection.Expansions, unpruned.Rejected.Count),
+            (pruned.OutcomeEvaluations, pruned.Selection.Expansions, pruned.Rejected.Count));
     }
 
     // #3724: a pruned row names its bound and the pawn left starving, carries no vector, and counts as assessed (it was ranked, by proof).
@@ -568,7 +558,8 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Contains("unsupported_voluntary_state:pawn:chemical_need:Chemical_Smokeleaf", candidates.Findings);
         var selected = Select(facts);
         Assert.Empty(selected.Selection.Selected);
-        Assert.Contains(selected.Rejected, r => r.Reason == Methods.Binding.NativeNeedServices.RoutineResponse);
+        Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + "pawn:food", selected.Selection.Findings);
+        Assert.False(selected.BaselineVector.Value.UrgentZero.Assessed);
         Assert.Empty(selected.Deferred);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selected, candidates, 1, "fed-method", 100);
         Assert.Null(batch);

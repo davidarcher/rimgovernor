@@ -232,7 +232,11 @@ can be negative. The review computes it for every colonist once tier 2 has run a
 
 **Work shortfall.** The work the tier-1 selection could not schedule is a shared model (`WorkShortfallRules`,
 `Findings.WorkShortfall`, the `work_shortfall` attr), per work type and speed stat, in ticks per day at speed 1.
-Every candidate root belongs to one outcome, the roots sharing its `ExclusiveOutcome`. An outcome the selection serves
+Roots completed solely by need services are conditional service alternatives,
+not independent productive demand. An omitted meal scenario does not demand its
+whole harvest/cook/haul chain as missing native work; food supply and stock-target
+bills retain that demand. Independently demanded deliveries still count.
+Every productive candidate root belongs to one outcome, the roots sharing its `ExclusiveOutcome`. An outcome the selection serves
 with none of its roots is unserved. It costs its cheapest root's unallocated work activities: the root's completions
 and their prerequisites, each counted once over all outcomes. An activity's work type comes from its binding:
 

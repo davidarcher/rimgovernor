@@ -44,7 +44,11 @@ public sealed class NativeNeedServicesTests
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Empty(selection.Selection.Selected);
-        Assert.True(selection.Rejected.Any(e => e.Reason == NativeNeedServices.RoutineResponse), string.Join(";", selection.Selection.Findings));
+        var metric = Assert.Single(ForecastCoupledSelection.NativeExecutionOutcome(selection.Baseline, candidates.Context).Needs["pawn"].Needs);
+        Assert.IsType<ForecastTerm.Unassessed>(metric.ThresholdExposureTicks);
+        Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + "pawn:" + kind, selection.Selection.Findings);
+        if (kind is "food" or "rest") Assert.False(selection.BaselineVector.Value.UrgentZero.Assessed);
+        Assert.IsType<ForecastTerm.Unassessed>(selection.BaselineVector.BreakRisk);
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "ordinary", 100));
 
         // Exact services remain valid what-if evidence. Even a caller supplying that better forecast
@@ -56,5 +60,10 @@ public sealed class NativeNeedServicesTests
             { Selected = [root.Id], Plan = outcome.Plan } };
         Assert.True(NativeNeedServices.RoutineOnly(outcome.Plan, candidates.Context));
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(forged, candidates, 1, "redundant", 100));
+
+        // The original no-service trajectory is still explicit what-if evidence; its positive exposure
+        // cannot become either a predicted native failure or an invented successful response.
+        var counterfactual = Assert.Single(selection.Baseline.Needs["pawn"].Needs);
+        Assert.True(counterfactual.ThresholdExposureTicks.Number() > 0);
     }
 }

@@ -22,6 +22,24 @@ public sealed class NativeWorkShortfallTests
             new Dictionary<string, IReadOnlyDictionary<string, double>>());
 
     [Fact]
+    public void AnOmittedServiceCounterfactualDoesNotCreateProductiveDemand()
+    {
+        var context = Context(new ForecastCapacityWindows.Read([new(0, 100)]));
+        context = context with
+        {
+            Activities = context.Activities with { Activities = [.. context.Activities.Activities, new("eat", "destination", "destination", ["haul"])] },
+            NeedTasks = [new("eat", "worker", "food", "meal", new("Meal"), 1, .5, [])],
+        };
+        var result = WorkShortfallRules.Of(context, [new("service", []) { ActivityCompletions = ["eat"] }],
+            new HashSet<string>(), [], 100, new() { Hauling = "Hauling" }, new Dictionary<string, IReadOnlyDictionary<string, double>>());
+        Assert.Empty(result.Rows);
+        Assert.Empty(result.Unassessed);
+        // An independently demanded delivery still competes for capacity; a service alternative does not erase it.
+        Assert.NotEmpty(Shortfall(context with { Activities = context.Activities with
+            { Pawns = [new("worker", "source", new ForecastCapacityWindows.Read([new(60, 100)]), 1)] } }).Rows);
+    }
+
+    [Fact]
     public void NativeOccupiedTimeCannotFinanceUnselectedWork()
     {
         var context = Context(new ForecastCapacityWindows.Read([new(60, 100)]));

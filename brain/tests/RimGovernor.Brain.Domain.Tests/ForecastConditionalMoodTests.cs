@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
-using Methods = RimGovernor.Brain.Policy.Methods;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -261,7 +260,7 @@ public sealed class ForecastConditionalMoodTests
         Assert.True(ForecastNeeds.ForecastNeedsTimeline(pawn with { SleepWhileStarving = true }, Capacity(), [sleep])
             .Needs.Single(n => n.Kind == "rest").FinalLevel is ForecastTerm.Assessed);
     }
-    private static (ForecastCoupledCandidates Candidates, ForecastCoupledSelection Result) SelectObserved(NeedsForecastPawn pawn, double horizon = Day)
+    private static (ForecastCoupledCandidates Candidates, ForecastCoupledSelection Result, ColonyForecastRequest Request) SelectObserved(NeedsForecastPawn pawn, double horizon = Day)
     {
         var facts = WorkResourceTestFacts.Create("pawn");
         pawn = pawn with { Targets = EquatableArray.From(pawn.Targets.Select(t => t with { Location = new(1, 1) })) };
@@ -275,29 +274,35 @@ public sealed class ForecastConditionalMoodTests
         facts = facts with { CoupledAlternatives = candidates };
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        return (candidates, ForecastCoupledSelection.CompareActivityOutcomes(request, candidates));
+        return (candidates, ForecastCoupledSelection.CompareActivityOutcomes(request, candidates), request);
     }
 
     [Fact]
     public void DaySleepAndUrgentRecoveryRemainWhatIfEvidenceWithoutRedundantNativeOrders()
     {
-        var (generated, selected) = SelectObserved(Pawn());
+        var (generated, selected, request) = SelectObserved(Pawn());
         Assert.Contains(generated.Context.Activities.Activities, t => t.NotBefore == 5 * Hour);
         Assert.Contains(generated.Context.Activities.Activities, t => t.NotBefore == 17 * Hour);
         Assert.Empty(selected.Selection.Selected);
-        var sleep = Assert.Single(selected.Rejected, r => r.Reason == Methods.Binding.NativeNeedServices.RoutineResponse).Consequences!;
-        Assert.True(sleep.BreakRisk.Number() < selected.BaselineVector.BreakRisk.Number());
-        var (_, control) = SelectObserved(Pawn(false));
+        Assert.IsType<ForecastTerm.Unassessed>(selected.BaselineVector.BreakRisk);
+        var sleep = ConditionalOutcomes(generated, request).Min(a => Assert.IsType<ForecastMoodBreaks.Assessed>(a.Needs["pawn"].Mood.Projected().Breaks).Risk);
+        var noService = Assert.IsType<ForecastMoodBreaks.Assessed>(selected.Baseline.Needs["pawn"].Mood.Projected().Breaks);
+        Assert.True(sleep < noService.Risk);
+        var (_, control, _) = SelectObserved(Pawn(false));
         Assert.Empty(control.Selection.Selected);
         // Rest that reaches zero within minutes breaks the zero floor unless a sleep starts before it does.
-        var (_, urgent) = SelectObserved(Pawn() with { Needs = [NeedsFixtures.Rate("rest", .27, .00054, .28)] });
+        var (urgentCandidates, urgent, urgentRequest) = SelectObserved(Pawn() with { Needs = [NeedsFixtures.Rate("rest", .27, .00054, .28)] });
         Assert.Empty(urgent.Selection.Selected);
-        var recovery = Assert.Single(urgent.Rejected, r => r.Reason == Methods.Binding.NativeNeedServices.RoutineResponse).Consequences!;
-        Assert.Equal(0d, recovery.Value.UrgentZero.Excess);
-        Assert.True(urgent.BaselineVector.Value.UrgentZero.Excess > 0);
-        var (_, shortHorizon) = SelectObserved(Pawn(), 2 * Hour);
+        Assert.False(urgent.BaselineVector.Value.UrgentZero.Assessed);
+        Assert.Equal(0d, ConditionalOutcomes(urgentCandidates, urgentRequest).Min(a => a.Needs["pawn"].Needs.Single().ZeroTicks.Number()));
+        Assert.True(urgent.Baseline.Needs["pawn"].Needs.Single().ZeroTicks.Number() > 0);
+        var (_, shortHorizon, _) = SelectObserved(Pawn(), 2 * Hour);
         Assert.Empty(shortHorizon.Selection.Selected);
     }
+
+    private static IEnumerable<ForecastCoupledOutcome> ConditionalOutcomes(ForecastCoupledCandidates candidates, ColonyForecastRequest request) =>
+        candidates.Alternatives.SelectMany(root => ForecastCoupled.ForecastCoupledScenarioOf(request,
+            ColonyForecastRules.ForecastCommitmentsById([root])).Coupled!.Alternatives).Where(a => a.Feasible);
     [Fact]
     public void NativeThresholdAndDisturbanceDelayActivation()
     {

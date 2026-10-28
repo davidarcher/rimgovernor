@@ -269,10 +269,11 @@ public static partial class ForecastValue
     /// two paths produce one ledger.
     /// </summary>
     private static ForecastValueResult Ledger(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index, double horizon,
-        ForecastCoupledOutcome? baseline, HarmTerm harmTerm, List<ForecastGoalContribution> contributions, IEnumerable<ForecastCommitment>? commitments)
+        ForecastCoupledOutcome? baseline, HarmTerm harmTerm, List<ForecastGoalContribution> contributions, IEnumerable<ForecastCommitment>? commitments,
+        ForecastCoupledOutcome? execution = null)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        var pawns = outcome.Needs.ToArray();
+        var pawns = (execution ?? outcome).Needs.ToArray();
         Array.Sort(pawns, static (a, b) => string.CompareOrdinal(a.Key, b.Key));
         var observed = index.Pawns;
         var tables = context.CapacityPenalties;
@@ -567,8 +568,8 @@ public static partial class ForecastValue
 
     /// <summary>One outcome's value in the comparison's order (#3723): the floors and what they need now, the rest of the ledger when it is read.</summary>
     internal static Staged Stage(ForecastCoupledOutcome outcome, ForecastTerm urgentZeroTicks, ForecastCoupledContext context, double horizon,
-        ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments)
-        => new(outcome, urgentZeroTicks, context, horizon, reference, referenceHarm, commitments);
+        ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments, ForecastCoupledOutcome? execution = null)
+        => new(outcome, urgentZeroTicks, context, horizon, reference, referenceHarm, commitments, execution);
 
     /// <summary>
     /// One outcome's value as a lazy comparison reads it (#3723). Construction prices what the comparison's first stages read: the
@@ -581,6 +582,7 @@ public static partial class ForecastValue
     internal sealed class Staged
     {
         private readonly ForecastCoupledOutcome outcome;
+        private readonly ForecastCoupledOutcome execution;
         private readonly ForecastCoupledContext context;
         private readonly LedgerIndex index;
         private readonly double horizon;
@@ -591,17 +593,18 @@ public static partial class ForecastValue
         private ForecastValueExplanation? explanation;
 
         internal Staged(ForecastCoupledOutcome outcome, ForecastTerm urgentZeroTicks, ForecastCoupledContext context, double horizon,
-            ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments)
+            ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments, ForecastCoupledOutcome? execution)
         {
             var chosen = commitments?.ToArray() ?? [];
             context = ForecastTradeRequests.Context(outcome, chosen, context, horizon);
             this.outcome = outcome; this.context = context; this.horizon = horizon; this.reference = reference; this.commitments = chosen;
+            this.execution = execution ?? outcome;
             index = Indexes.GetValue(context, static c => new LedgerIndex(c));
             var policy = context.Value;
             var days = horizon / GameTime.TicksPerDay;
             var worst = 0d;
-            var assessed = days > 0 && outcome.Needs.Count > 0;
-            foreach (var result in outcome.Needs.Values)
+            var assessed = days > 0 && this.execution.Needs.Count > 0;
+            foreach (var result in this.execution.Needs.Values)
             {
                 if (result.Mood is ForecastMoodResult.Projected { Breaks: ForecastMoodBreaks.Assessed { Risk: var risk } } && days > 0) worst = Math.Max(worst, risk / days - policy.BreakRiskCap);
                 else assessed = false;
@@ -624,7 +627,7 @@ public static partial class ForecastValue
         /// <summary>Whether the remaining ledger terms have been priced.</summary>
         public bool LedgerPriced => explanation is not null;
         /// <summary>The complete explanation, pricing the remaining ledger terms on the first read.</summary>
-        public ForecastValueExplanation Explanation => explanation ??= new(Ledger(outcome, context, index, horizon, reference, harm, contributions, commitments), Policy)
+        public ForecastValueExplanation Explanation => explanation ??= new(Ledger(outcome, context, index, horizon, reference, harm, contributions, commitments, execution), Policy)
             { UrgentZero = UrgentZero, BreakRisk = BreakRisk, Death = Death };
     }
 

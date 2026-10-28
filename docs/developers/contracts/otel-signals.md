@@ -343,6 +343,15 @@ boundaries are non-overlapping and captured by native transition hooks; there is
 
 The existing `coupled_selection` vectors also carry `maintenance` rows: actual requirement identity, conditional native XP shortfall and findings. The OTLP timeline reads these attrs; native `production/maintenance-range` and `production/maintenance-sparring` correlate the selected Method with real skills and restoration.
 
+The existing `coupled_selection` vectors withhold deprivation attributed solely
+to omitting a captured native response. `uncertainty` names
+`native_response_unprojected:<pawn>:<kind>`; affected need/mood/break values are
+unassessed, rather than zero risk or predicted failure. `beneficiaries` retains
+the conditional activity scenario used by detailed investment mechanics. Those
+trajectories are what-if evidence, not future native intake or job completion.
+The OTLP timeline and `CoupledSelections` retain their existing vector/uncertainty
+readers; there is no new signal kind or emission path.
+
 ## Forecast residual evidence
 
 `RimGovernor.cmd forecastresiduals -logs <absolute-path-to-logs.jsonl>` reads

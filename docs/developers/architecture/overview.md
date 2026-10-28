@@ -95,12 +95,16 @@ revisions, and Hands remains the order writer. A forecast result does not admit 
 Method, reserve every resource or prove completed pawn work.
 
 Normal review compares supported food, needs, construction, shelter, clothing and
-support alternatives together. It binds selected tasks and bounded no-change
-intervals through the work-assignment Need. Native routine priorities and
-timetable templates do not choose voluntary jobs for controlled colonists.
-An eligible pawn without an authorized activity stops the supervised clock with
-an explicit unavailable-control reason. Unsupported states and remaining
-independent owners are listed in [voluntary control](../contracts/voluntary-control.md).
+support alternatives together. Remaining exact bindings use the work-assignment
+Need while ordinary execution migrates to native settings and work creation.
+The bot writes numeric priorities and regular timetable preferences; RimWorld
+chooses native jobs and can take over ordinary bot work. Observed takeover wakes
+shared Method reconciliation. Current native need response prevents redundant
+standalone service orders and invalidates no-service deprivation as a native
+prediction in the comparison. Productive/dependent bindings and the general
+intervention boundary remain under migration; see the
+[labor evidence](../../requirements/colony-labor.md) and
+[voluntary control](../contracts/voluntary-control.md).
 Hunting is the same comparison: the food plan prices hunt rosters (solos, pairs,
 a third gunner, a retriever) from an analytic estimate of the game's combat
 formulas over the observed pawns, drafts exactly the chosen roster and releases it on
