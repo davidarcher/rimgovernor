@@ -10,8 +10,10 @@ public sealed partial class ColonyReview
         if (review.Needs.CoupledSelection is not { } selection || facts.CoupledAlternatives is not { } candidates) return;
         TradeWaits.Set(snapshot, (ForecastTradeRequests.SelectedWaits(selection, candidates), candidates.Context.Stock.Medicines));
         var forecast = selection;
+        var external = AdmitSelectedProduction(selection, candidates, snapshot, call, epoch);
         void Capture(ForecastAdmission admission, PawnActivities? batch = null) => Player.ForecastEvidence.Capture(snapshot, facts.Tick.Value, review.Review.Revision, forecast,
-            candidates.Context, admission, batch is null ? incumbents.Select(i => i.Batch).ToArray() : [batch, .. incumbents.Select(i => i.Batch)], batch?.Orders.FirstOrDefault()?.Method ?? "");
+            candidates.Context, admission == ForecastAdmission.Refused || external.Failure is not null ? ForecastAdmission.Refused : external.Admitted ? ForecastAdmission.Admitted : admission,
+            batch is null ? incumbents.Select(i => i.Batch).ToArray() : [batch, .. incumbents.Select(i => i.Batch)], batch?.Orders.FirstOrDefault()?.Method ?? "");
         var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
         if (execution.Releases.Count > 0)
         {
@@ -30,7 +32,8 @@ public sealed partial class ColonyReview
         if (execution.Dispatch is not { } dispatch)
         { Capture(ForecastAdmission.Continued); RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return; }
         selection = dispatch;
-        var external = AdmitSelectedTrade(selection, candidates, facts, snapshot, call, epoch);
+        var traded = AdmitSelectedTrade(selection, candidates, facts, snapshot, call, epoch);
+        external = (external.Admitted || traded.Admitted, external.Failure ?? traded.Failure);
         if (selection.Selection.Selected.Length == 0)
         { Capture(ForecastAdmission.Continued); RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive); return; }
         // The activity is the admin/work-assignments Need's Method (#3304); a runtime without the Need starts none.
@@ -42,7 +45,7 @@ public sealed partial class ColonyReview
         {
             Capture(external.Failure is not null ? ForecastAdmission.Refused : external.Admitted ? ForecastAdmission.Admitted : ForecastAdmission.Selected);
             if (external.Admitted || external.Failure is not null)
-                RecordCoupledSelection(selection, facts.Tick.Value, "selected_trade", admissionFailure: external.Failure);
+                RecordCoupledSelection(selection, facts.Tick.Value, "selected_native_work", admissionFailure: external.Failure);
             // Selected planned sites start no order: the room reconcile places them from the review's RoomSelection (#3278).
             if (selection.Selected.PlannedRooms.Count > 0)
             {

@@ -173,7 +173,7 @@ public sealed partial class GameClient
                     Observed = bill,
                     Role = role,
                     Products = billProducts,
-                    Kind = bill.BillClass == "Bill_GovernorRecipe" ? P.LedgerBillKind.ActivityExecution : billKind,
+                    Kind = billKind,
                     Spec = GearBillOrderSpec(bill, recipeName, benchDef),
                 }
             );

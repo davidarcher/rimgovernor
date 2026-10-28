@@ -4,7 +4,7 @@
 
 The `military/equipment` Need (#3259, formerly the `MaintainEquipment` concern) keeps
 gear in the shared ColonyPlan. Hands issues its actions; neither the native read nor an
-adviser independently starts work. Missing required observations fail the read. Selected ordinary tailoring and construction activities are scheduled by policy; bounded Methods
+adviser independently starts work. Missing required observations fail the read. Ordinary tailoring runs through native bills and work settings; construction activities remain scheduled by policy. Bounded Methods
 and pawn/item claims prevent duplicate work. The [pawn profile](work-assignment.md#pawn-profile) exports the
 per-pawn apparel and weapon flags (Nudist, Ascetic, Brawler's `MeleeOnly`) the
 loadout planner consumes. The role apparel policies are the
@@ -17,7 +17,7 @@ Automatic wearing and weapon equipping currently report explicit unsupported
 labor under the [voluntary-control boundary](voluntary-control.md). The loadout
 model below supplies requirements and diagnostics. Its physical-item ranking
 does not authorize a separate pawn job; explicit native operations retain their
-legality and completion contracts. Shared tailoring produces and delivers clothing.
+legality and completion contracts. Selected ordinary bills let vanilla produce clothing and handle output.
 
 Every `observations_read_colony_facts` reply includes the required `gear` census.
 Routine reviews and direct colony reads decode it through the same path, after applying the
@@ -322,7 +322,7 @@ The native gear operation requires a paused game, exact pawn and target identiti
 and a signature covering load, map, outfit/filter, primary weapon, worn identities
 and forced/locked state. It rechecks eligibility at dispatch and starts ordinary
 `Wear` or `Equip` work. Drafted, incapacitated, quest and player-ordered pawns are
-preserved. Selected tailoring rechecks native recipe legality and exact inputs;
+preserved. Selected tailoring bills recheck native recipe legality and the chosen material filter;
 the equipment model owns wearer requirements; automatic physical replacement remains unsupported.
 
 On Actions/Apply the apparel order is a `GiveJobIntent` with job `Wear`
@@ -392,11 +392,22 @@ allowed stuff, eligible worker, ingredient allocation and storage destination ca
 remain an alternative. Existing supported bills are exact start/resume options
 respecting their worker, filter, radius and storage settings; a standing bill is
 not counted as a second product. Running unfinished work supplies a retained
-completion estimate. Unfinished work with no active worker can be selected for
+completion estimate. Unfinished work with no active worker is a conditional forecast of native
 resumption using its exact recipe, stuff, creator and bound bill. No loose inputs
 are charged again after native observation shows their conversion into a UFT.
 Unsupported existing intent remains visible in findings and is not cancelled.
 
+New selected recipe iterations become ordinary finite bills, grouped by bench,
+recipe and stuff, under the existing `admin/work-ledger` Need. No worker, input
+stack or output cell is pinned. Admission holds the existing shared material
+promises; Hands acknowledges bill creation, not garment completion. Existing
+standing bills and unfinished garments create no new request. The gear declarer
+retains active observed clothing bills, while the ordinary ledger reconciles
+spent or unwanted bills. Candidate clothing products contribute to native work
+demand before a bill exists, so tailoring priorities can enable the first job.
+Vanilla owns gathering, timing, unfinished work, worker choice and output handling;
+forecast durations and outfit effects remain conditional estimates, not promises.
+There is no exact tailoring executor or private nonautonomous bill.
 A garment relieves no requirement (#3816): it is priced by the apparel thoughts
 and the armor it changes. Its outfit change (below) overlays the worn outfit from
 its delivery, or from a retained bill's completion; the apparel thoughts the
@@ -479,7 +490,7 @@ Armor, weapons, special products and mixed-resource recipes retain their existin
 owners or an explicit unsupported finding. This does not migrate unrelated
 production. The old local clothing bill/material winner has been removed;
 `DeclareGearOrders` retains already standing intents while new garment production
-is selected through activities.
+is selected by the shared comparison and admitted as ordinary finite bills.
 
 Bounds are explicit: native reading has a 512-operation budget; pure allocation
 seeds every observed starting stack then searches partial splits with a 128-visit
@@ -495,11 +506,11 @@ scarcity is a hard shared budget, not a calibrated market-price valuation.
 
 `ClothingChoiceTests` covers shape/stuff/distance/scarcity reversals, stack splits,
 compatible and conflicting garments, retain/postpone, unfinished work, unknowns,
-and journal/Hands/output continuation. `WorkResourcesTests` covers actual UFT
+and journal/Hands ordinary bill creation without pawn claims or output credit. `WorkResourcesTests` covers actual UFT
 conversion without double charging loose inputs. The prepared native cases
 `production/clothing-activity` and `production/clothing-activity-unfinished`
 enter through normal review without a fixture-selected recipe, bill or material;
-they assert exact selected-stuff creation, conservation, observed release and
+they assert selected-stuff creation, conservation, vanilla execution without a pawn activity and
 interrupted UFT resumption. Registration/compilation is preland evidence; gameplay
 is supplied by the nightly. Existing food, coordination, physical-wear and armory
 cases remain. The former local-winner ClothingChoice tests were replaced because

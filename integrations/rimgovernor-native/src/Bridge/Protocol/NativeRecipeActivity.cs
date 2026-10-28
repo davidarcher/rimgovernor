@@ -13,6 +13,13 @@ namespace RimGovernor.Native;
 
 internal static class NativeRecipeActivity
 {
+    internal static bool TailoringRecipe(Building_WorkTable bench, RecipeDef recipe) =>
+        NativeProductionBills.Recipe(bench, recipe) && recipe.Worker.GetType() == typeof(RecipeWorker)
+        && recipe.specialProducts == null && recipe.products.Count == 1 && recipe.products[0].count == 1
+        && recipe.products[0].thingDef.IsApparel && recipe.products[0].thingDef.MadeFromStuff
+        && recipe.ingredients.Count > 0 && recipe.workSkill == SkillDefOf.Crafting
+        && recipe.products[0].thingDef.stuffCategories != null
+        && recipe.products[0].thingDef.stuffCategories.All(c => c == StuffCategoryDefOf.Fabric || c == StuffCategoryDefOf.Leathery);
     /// <summary>
     /// Every free colonist's tailoring alternatives at every bench, stuff, stack and accepting storage cell (#3341). A
     /// stack's carry and return legs and a bench's output legs are searched once for every colonist (NativePathLegs).
@@ -27,7 +34,7 @@ internal static class NativeRecipeActivity
         foreach (var bench in map.listerThings.AllThings.OfType<Building_WorkTable>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
         foreach (var recipe in bench.def.AllRecipes.Where(r => r.products.Any(p => p.thingDef.IsApparel)).OrderBy(r => r.defName, StringComparer.Ordinal))
         {
-            if (!NativeActivityRecipe.TailoringRecipe(bench, recipe)) continue;
+            if (!TailoringRecipe(bench, recipe)) continue;
             var product = recipe.products[0].thingDef;
             var standing = bench.BillStack.Bills.OfType<Bill_Production>().Where(b => b.recipe == recipe && b.ShouldDoNow())
                 .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();

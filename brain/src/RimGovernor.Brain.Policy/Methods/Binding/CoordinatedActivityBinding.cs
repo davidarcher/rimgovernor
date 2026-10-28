@@ -226,7 +226,8 @@ internal static class CoordinatedActivityBinding
             // Reconcile only at a task boundary, preserving in-flight work. If another participant
             // depends on this participant's remaining work, end the coordinated attempt rather
             // than erase an unobserved prerequisite and accidentally authorize its dependent.
-            if (NativeNeedServices.Routine(read.Needs, order.Pawn, next.Step.Kind))
+            if (next.Step.Recipe is { Stuff.Length: > 0 } || next.ProductStuff.Length > 0
+                || NativeNeedServices.Routine(read.Needs, order.Pawn, next.Step.Kind))
                 return remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p)))
                     ? new(null, true)
                     : new(Release(batch, new HashSet<string>(StringComparer.Ordinal) { order.Pawn }), false);

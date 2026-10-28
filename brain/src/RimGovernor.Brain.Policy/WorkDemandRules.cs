@@ -166,6 +166,10 @@ public static class WorkDemandRules
         {
             output[need] = output.GetValueOrDefault(need) + 1;
         }
+        // A useful clothing alternative needs native tailoring enabled before its bill exists.
+        // These are work-type requirements, not stock reservations or authority to craft every option.
+        foreach (var product in ClothingActivitiesRules.ClothingActivityRequirements(gear).Select(n => new Resource(n.Product)).Distinct())
+            output.TryAdd(product, 1);
         return output;
     }
 

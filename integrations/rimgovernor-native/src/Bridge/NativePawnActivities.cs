@@ -582,12 +582,6 @@ namespace RimGovernor.Native
             var offered = Offers.TryGetValue(newJob, out var offer) && offer.Entry == e && offer.Step == e.Step && offer.JobId == newJob.loadID;
             if (!offered)
                 return true; // Started observes whether native actually takes over; a refused candidate changes nothing.
-            if (e.Step < e.Order.Steps.Length && e.Order.Steps[e.Step].Kind == PawnActivityKind.Recipe && newJob.bill == null)
-            {
-                if (!NativeActivityRecipe.Resolve(___pawn, newJob.targetA.Thing, e.Order.Steps[e.Step], out var bill, out _, out var reason, create: true))
-                { Fault(e, reason); return false; }
-                newJob.bill = bill;
-            }
             preToilReservationsCanFail = true;
             return true;
         }
@@ -614,9 +608,9 @@ namespace RimGovernor.Native
         {
             NativeOrderedWork.Ending(___pawn, condition);
             if (replacing || !Entries.TryGetValue(___pawn, out var e) || e.Running == null || !ReferenceEquals(e.Running, ___pawn.CurJob) || e.RunningId != ___pawn.CurJob.loadID) return;
-            var ended = e.Running;
+
             e.Running = null;
-            NativeActivityRecipe.Cleanup(ended.bill);
+
             if (e.State == "failed") return;
             if (condition == JobCondition.Succeeded)
             {

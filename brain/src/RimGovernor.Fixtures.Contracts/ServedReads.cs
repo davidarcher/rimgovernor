@@ -85,8 +85,8 @@ public sealed record ClothingActivityRead
     /// <summary>Loose, carried and unfinished input equals the prepared stock less the recipe's need.</summary>
     public bool Conserved { get; init; }
 
-    /// <summary>Participants released.</summary>
-    public int Released { get; init; }
+    /// <summary>Vanilla DoBill ran without an exact pawn activity.</summary>
+    public bool NativeExecution { get; init; }
 
     /// <summary>The fixture interrupted the unfinished garment once.</summary>
     public bool Interrupted { get; init; }

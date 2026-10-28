@@ -23,7 +23,7 @@ public static class GearOrdersRules
                 if (bill.Active) orders.Add(bill.Spec);
             }
         }
-        // New ordinary clothing is selected as executable activities, never pre-pinned ledger bills.
+        // The shared comparison chooses new ordinary clothing; selected recipes become unrestricted finite ledger bills.
         return WorkRules.AbstainUnless(null, orders);
     }
     /// <summary>

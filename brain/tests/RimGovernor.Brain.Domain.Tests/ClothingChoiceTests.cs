@@ -4,6 +4,8 @@ using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
+using RimGovernor.Brain.Executor;
+using RimGovernor.Brain.Runtime;
 using Xunit;
 using Amount = RimGovernor.Brain.Policy.Amount;
 using GearStock = RimGovernor.Brain.GameFacts.Observations.GearStock;
@@ -51,8 +53,8 @@ public sealed class ClothingChoiceTests
             Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Clothing = read, Construction = ConstructionFixtures.NoConstruction() }
         } };
     }
-    private static PawnActivities? Start(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
-        out ForecastActivityOutcomeComparison? comparison)
+    private static (ForecastCoupledCandidates Candidates, ForecastCoupledSelection Selection) Compare(GearObservation census,
+        RecipeActivityRead read, WorkResourceView resources)
     {
         var facts = Review(census, read, resources);
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
@@ -61,8 +63,18 @@ public sealed class ClothingChoiceTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        return (generated, selected);
+    }
+    // Material, travel, learning and yield assertions below inspect a conditional scenario.
+    // The production entry leaves routine tailoring to native bills and installs no pawn activity.
+    private static PawnActivities? WhatIf(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
+        out ForecastActivityOutcomeComparison? comparison)
+    {
+        var (generated, selected) = Compare(census, read, resources);
         comparison = selected.Selection;
-        return ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "clothing", 100);
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "clothing", 100));
+        return selected.Selection.Plan is { Allocations.Length: > 0 } plan
+            ? RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(plan, generated.Context.Bindings, 1, "what-if", 100) : null;
     }
     private static PawnActivityRecipe Recipe(PawnActivities batch) => batch.Tasks.Single(t => t.Step.Recipe != null).Step.Recipe!;
 
@@ -87,17 +99,17 @@ public sealed class ClothingChoiceTests
         // Equal coverage and labor: the first stuff by id wins until committed construction takes it (#3330: the warmer wool
         // is no longer a thermal relief).
         var census = Census(0); var read = Read(Option("Cloth"), Option("Wool"));
-        Assert.Equal("Cloth", Recipe(Start(census, read, Resources(), out _)!).Stuff);
+        Assert.Equal("Cloth", Recipe(WhatIf(census, read, Resources(), out _)!).Stuff);
         var facts = Facts() with { CurrentConstruction = CurrentConstruction.Empty with { Deficit = new Dictionary<Resource, long> { [new("Cloth")] = 30 } } };
         var resources = WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, new ProductionBatchCensus.Read([])), new ProductionBatchCensus.Read([]), []);
-        Assert.Equal("Cloth", Recipe(Start(census, read, resources, out _)!).Stuff); // A standing site is optional.
+        Assert.Equal("Cloth", Recipe(WhatIf(census, read, resources, out _)!).Stuff); // A standing site is optional.
         var evidence = ProductionRules.WorkAdmissionEvidenceOf(Facts(), new ProductionBatchCensus.Read([])) with
         { Buildings = [new("TestWall", "Cloth", [new(new("Cloth"), 30)]) { Size = new(1, 1) }] };
         var wall = DomainAction.NewBuildingAction(new("competing-wall"), new("TestWall", new(3, 3), Rotation.North, "Cloth"), ConstructionTier.Survive);
         var committed = WorkRules.WorkResourcesOf(evidence, new ProductionBatchCensus.Read([]),
             [new(new("construction-method"), wall, new() { Action = wall.Id, Stage = Stage.Pending })]);
-        Assert.Equal("Wool", Recipe(Start(census, read, committed, out _)!).Stuff);
-        Assert.Null(Start(census, read, Resources(0, 0), out _));
+        Assert.Equal("Wool", Recipe(WhatIf(census, read, committed, out _)!).Stuff);
+        Assert.Null(WhatIf(census, read, Resources(0, 0), out _));
     }
 
     [Fact]
@@ -107,28 +119,28 @@ public sealed class ClothingChoiceTests
         // parka's warmth, the cheaper shirt wins. ForecastCoupledSelectionTests.ColdParka covers the priced cold case.
         var options = new[] { Garment("Shirt", "Cloth", 2), Garment("Parka", "Cloth", 20) };
         var read = Read(Option("Cloth", "Shirt", 20), Option("Cloth", "Parka", 200));
-        Assert.Equal("MakeShirt", Recipe(Start(Census(0, options), read, Resources(), out _)!).Recipe);
-        Assert.Equal("MakeParka", Recipe(Start(Census(20, options), Read(Option("Cloth", "Shirt", 200), Option("Cloth", "Parka", 20)), Resources(), out _)!).Recipe);
+        Assert.Equal("MakeShirt", Recipe(WhatIf(Census(0, options), read, Resources(), out _)!).Recipe);
+        Assert.Equal("MakeParka", Recipe(WhatIf(Census(20, options), Read(Option("Cloth", "Shirt", 200), Option("Cloth", "Parka", 20)), Resources(), out _)!).Recipe);
     }
 
     [Fact]
     public void IngredientStackAlternativesIncludeSplitInputsAndTravelChangesChoice()
     {
         var row = Option("Cloth") with { Inputs = [Input("a-far", "Cloth", 10, 300), Input("b-near", "Cloth", 6), Input("c-near", "Cloth", 4)] };
-        var selected = Recipe(Start(Census(), Read(row), Resources(), out _)!);
+        var selected = Recipe(WhatIf(Census(), Read(row), Resources(), out _)!);
         Assert.Equal(["b-near", "c-near"], selected.Ingredients.Select(i => i.Thing).Order().ToArray());
         Assert.Equal(10, selected.Ingredients.Sum(i => i.Count));
         row = row with { Inputs = [Input("a-far", "Cloth", 10, 1), Input("b-near", "Cloth", 6, 300), Input("c-near", "Cloth", 4, 300)] };
-        Assert.Equal("a-far", Assert.Single(Recipe(Start(Census(), Read(row), Resources(), out _)!).Ingredients).Thing);
+        Assert.Equal("a-far", Assert.Single(Recipe(WhatIf(Census(), Read(row), Resources(), out _)!).Ingredients).Thing);
     }
 
     [Fact]
     public void RetainingObservedCurrentProductAndPostponingAreRealComparisonResults()
     {
         var read = Read(Option("Cloth")) with { Retained = [new("running-uft", "Shirt", "Cloth", 25.0)] };
-        Assert.Null(Start(Census(), read, Resources(), out var retained));
+        Assert.Null(WhatIf(Census(), read, Resources(), out var retained));
         Assert.StartsWith("retain-", Assert.Single(retained!.Selected));
-        Assert.Null(Start(Census(), Read(Option("Cloth", work: 3000)), Resources(), out var postpone));
+        Assert.Null(WhatIf(Census(), Read(Option("Cloth", work: 3000)), Resources(), out var postpone));
         Assert.Empty(postpone!.Selected);
     }
 
@@ -136,7 +148,7 @@ public sealed class ClothingChoiceTests
     public void UnfinishedWorkUsesRemainingWorkAndDoesNotSpendLooseIngredientsAgain()
     {
         var unfinished = Option("Cloth") with { Bill = "owned-bill", Unfinished = "unfinished-shirt", Inputs = [], WorkTicks = 10.0 };
-        var result = Start(Census(), Read(unfinished), Resources(0, 0), out _)!;
+        var result = WhatIf(Census(), Read(unfinished), Resources(0, 0), out _)!;
         Assert.Equal("unfinished-shirt", Recipe(result).Unfinished);
         Assert.Empty(Recipe(result).Ingredients);
         Assert.Equal("Cloth", result.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver).ProductStuff);
@@ -149,19 +161,19 @@ public sealed class ClothingChoiceTests
         // The former local selector incorrectly accepted a promise even with zero physical stock.
         var empty = Resources(0, 0).Evidence with
         { Promises = AdmissionAssertions.MaterialPromises([("existing", [new(new("Cloth"), new MaterialUnits.Exact(10.0), "standing-bill")])]) };
-        Assert.Null(Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }),
+        Assert.Null(WhatIf(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }),
             WorkRules.WorkResourcesOf(empty, new ProductionBatchCensus.Read([]), []), out _));
         var evidence = Resources(10, 0).Evidence with { Promises = empty.Promises };
         var resources = WorkRules.WorkResourcesOf(evidence, new ProductionBatchCensus.Read([]), []);
-        var selected = Start(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }), resources, out _)!;
+        var selected = WhatIf(Census(), Read(Option("Cloth") with { Bill = "standing-bill" }), resources, out _)!;
         Assert.Equal("standing-bill", Recipe(selected).Bill);
-        Assert.Null(Start(Census(), Read(Option("Cloth")), resources, out _));
+        Assert.Null(WhatIf(Census(), Read(Option("Cloth")), resources, out _));
         evidence = Resources(100, 0).Evidence with
         { Promises = AdmissionAssertions.MaterialPromises([("existing", [new(new("Cloth"), new MaterialUnits.Exact(100.0), "standing-bill")])]) };
         resources = WorkRules.WorkResourcesOf(evidence, new ProductionBatchCensus.Read([]), []);
         var other = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
         { Inputs = [Input("other-stack", "Cloth")], Destination = new(16, 15) };
-        var bundle = Start(Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs")),
+        var bundle = WhatIf(Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs")),
             Read(Option("Cloth") with { Bill = "standing-bill" }, other), resources, out _)!;
         Assert.Single(bundle.Tasks, t => t.Step.Recipe != null);
     }
@@ -173,12 +185,12 @@ public sealed class ClothingChoiceTests
         var shirt = Option("Cloth") with { Inputs = [Input("shared", "Cloth", 20)] };
         var pants = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
         { Inputs = [Input("shared", "Cloth", 20)], Destination = new(16, 15) };
-        var together = Start(census, Read(shirt, pants), Resources(), out _)!;
+        var together = WhatIf(census, Read(shirt, pants), Resources(), out _)!;
         Assert.Equal(2, together.Tasks.Count(t => t.Step.Recipe != null));
         Assert.Equal(20, together.Tasks.Where(t => t.Step.Recipe != null).Sum(t => t.Step.Recipe!.Ingredients.Sum(i => i.Count)));
         var tooSmall = Read(shirt with { Inputs = [Input("shared", "Cloth", 15)] }, pants with { Inputs = [Input("shared", "Cloth", 15)] });
-        Assert.Single(Start(census, tooSmall, Resources(), out _)!.Tasks, t => t.Step.Recipe != null);
-        Assert.Single(Start(census, Read(shirt, pants with { Destination = shirt.Destination }), Resources(), out _)!.Tasks, t => t.Step.Recipe != null);
+        Assert.Single(WhatIf(census, tooSmall, Resources(), out _)!.Tasks, t => t.Step.Recipe != null);
+        Assert.Single(WhatIf(census, Read(shirt, pants with { Destination = shirt.Destination }), Resources(), out _)!.Tasks, t => t.Step.Recipe != null);
     }
 
     [Fact]
@@ -186,7 +198,7 @@ public sealed class ClothingChoiceTests
     {
         var census = Census(0, Garment("Shirt", "Cloth", 5), Garment("Parka", "Cloth", 10));
         var read = Read(Option("Cloth", "Parka")) with { Retained = [new("ongoing", "Shirt", "Cloth", 10.0)] };
-        Start(census, read, Resources(), out var comparison);
+        WhatIf(census, read, Resources(), out var comparison);
         Assert.Single(comparison!.Selected);
     }
 
@@ -296,7 +308,7 @@ public sealed class ClothingChoiceTests
     }
 
     [Fact]
-    public void NormalDemandComparisonJournalAndHandsPreserveExactRecipeAndObservedOutput()
+    public async Task NormalDemandComparisonJournalAndHandsCreateAnUnpinnedNativeBillWithoutCreditingOutput()
     {
         var ct = TestContext.Current.CancellationToken;
         var world = new GenerationSnapshot(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
@@ -309,30 +321,73 @@ public sealed class ClothingChoiceTests
             Tick = new(100),
             Enabled = true,
             Policy = Rules.DefaultPlannerSettings(),
-            Facts = Facts() with { Gear = Census() }
+            Facts = Facts() with { Gear = Census(), WorkAdmission = new()
+                { Recipes = [new("MakeShirt", [[new(new("Cloth"), 10)]], true) { Products = [], WorkAmount = 0 }] } }
         }, ct);
-        var batch = Start(Census(), Read(Option("Cloth")), journal.WorkResources(world, ct), out _)!;
-        Assert.NotNull(batch);
-        var plan = new PlanSpec(new("make-clothing"), new(1), [DomainAction.NewPawnActivitiesAction(new("recipe-action"), batch)]);
-        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(MilitaryFamily.Equipment, world, new("clothing"), "", plan, ct).Outcome);
+        var (generated, selected) = Compare(Census(), Read(Option("Cloth")), journal.WorkResources(world, ct));
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "clothing", 100));
+        var bill = Assert.Single(ForecastCoupledSelection.SelectedProductionBills(selected, generated));
+        Assert.Equal("", bill.Worker);
+        Assert.Equal(["Cloth"], bill.Ingredients);
+        var plan = new PlanSpec(new("make-clothing"), new(1), [DomainAction.NewProductionBillAction(new("bill-action"), bill)]);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.WorkLedger, world, new("clothing"), "", plan, ct).Outcome);
+        Assert.Equal(ClaimOutcome.Continued, journal.CommitClaimedMethod(AdminFamily.WorkLedger, world, new("clothing"), "", plan, ct).Outcome);
         var stored = journal.LoadPlan(plan.Id, ct).Spec.Actions[0];
-        var intent = IntentActionRules.IntentAction(stored.Id.Value, stored).Intent!.PawnActivities!.Batch!;
-        Assert.Equal("Cloth", Recipe(intent).Stuff);
-        Assert.Equal(batch.Tasks, intent.Tasks);
-        var output = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
-        var execution = ConstructionFixtures.NoTasks() with
+        var intent = Assert.IsType<RimGovernor.Brain.GameOrders.Operations.ActionIntent.ProductionBillCase>(IntentActionRules.IntentAction(stored.Id.Value, stored).Intent).Value;
+        Assert.Equal("MakeShirt", intent.RecipeDef);
+        Assert.Null(intent.Settings!.Worker);
+        Assert.Equal(1, Assert.IsType<RimGovernor.Brain.GameOrders.Operations.BillRepetition.Count>(intent.Settings.Repetition).Repetitions);
+        var native = new NativeBill();
+        using var hands = new RimGovernor.Brain.Executor.Executor(new ExecutorJournal(journal), native, new Clock(), new Limits
         {
-            Context = Read().Context! with { Tick = 400 },
-            Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
-                new(o.Assignment, o.Method, o.Revision, 0, "completed", "", 100)))),
-            Bindings = [new ActivityTaskBinding.Bound(output.Id, output.Step with { Target = "actual-cloth-product" })]
-        };
-        var delivery = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, execution)!;
-        Assert.Equal("actual-cloth-product", delivery.Orders.Single().Steps[0].Target);
-        Assert.Null(delivery.Orders.Single().Steps[0].Recipe);
-        var failed = execution with { Pawns = EquatableArray.From(execution.Pawns.Select(p => p with { Execution = p.Execution! with { State = "failed" } })) };
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, failed)!.Orders.Single().Release);
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Ended, execution)!.Orders.Single().Release);
+            MaxAge = TimeSpan.FromSeconds(30), RunTimeout = TimeSpan.FromSeconds(10), JournalTimeout = TimeSpan.FromSeconds(10)
+        }, new PlanAuthorizer(journal, true));
+        hands.UpdateAuthority(new() { Snapshot = world, Enabled = true });
+        Assert.Null(Assert.Single(await hands.RunBatchAsync(plan.Id, [stored.Id], ct)).Error);
+        Assert.Equal(intent, native.Written);
+        Assert.Null(Assert.Single(await hands.RunBatchAsync(plan.Id, [stored.Id], ct)).Error);
+        Assert.Equal(1, native.Writes);
+        Assert.Empty(journal.WorkResources(world, ct).Claims.Pawns);
+        Assert.DoesNotContain(journal.WorkActions(world, ct).Actions, a => a.Action.PawnActivities is not null);
+        Assert.Equal(Stage.Completed, Assert.Single(journal.LoadPlan(plan.Id, ct).Progress).View.Stage);
+        // The receipt acknowledges bill creation, not a completed garment or delivered output.
+        Assert.Equal(30, journal.WorkResources(world, ct).Evidence.Stock.Single(s => s.Resource == new Resource("Cloth")).Count);
+    }
+
+    [Theory]
+    [InlineData("existing-bill", "")]
+    [InlineData("existing-bill", "unfinished")]
+    public void SelectedExistingClothingIntentCreatesNoDuplicateBill(string bill, string unfinished)
+    {
+        var row = Option("Cloth") with { Bill = bill, Unfinished = unfinished };
+        var (generated, selected) = Compare(Census(), Read(row), Resources());
+        Assert.NotEmpty(selected.Selection.Selected);
+        Assert.Empty(ForecastCoupledSelection.SelectedProductionBills(selected, generated));
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "clothing", 100));
+    }
+
+    [Fact]
+    public void ClothingDemandEnablesNativeWorkBeforeABillExists()
+    {
+        Assert.Equal(1, WorkDemandRules.DeficitTargets(new Dictionary<Resource, long>(), false, Census())[new("Shirt")]);
+    }
+
+    private sealed class Clock : IClock { public DateTimeOffset Now() => DateTimeOffset.UtcNow; }
+    private sealed class NativeBill : IBoundary
+    {
+        public int Writes;
+        public RimGovernor.Brain.GameOrders.Operations.ProductionBillIntent? Written;
+        public Task<IntentInspection> InspectIntentAsync(Target target, CancellationToken ct) => Task.FromResult(new IntentInspection
+        { StartedAt = DateTimeOffset.UtcNow, ObservedAt = DateTimeOffset.UtcNow, Current = target.Snapshot, Tick = new(100) });
+        public Task<IReadOnlyList<RimGovernor.Brain.Executor.Receipt>> WriteIntentsAsync(IReadOnlyList<Placement> placements, CancellationToken ct)
+        {
+            Writes++;
+            var placement = Assert.Single(placements);
+            Written = Assert.IsType<RimGovernor.Brain.GameOrders.Operations.ActionIntent.ProductionBillCase>(
+                IntentActionRules.IntentAction(placement.Action.Id.Value, placement.Action).Intent).Value;
+            return Task.FromResult<IReadOnlyList<RimGovernor.Brain.Executor.Receipt>>([new()
+                { Action = placement.Action.Id, Attempt = placement.Attempt, Snapshot = placement.Snapshot, Kind = Receipt.Accepted }]);
+        }
     }
     [Fact]
     public void SelectedGeneratedTailoringLearnsDuringWorkButNotIngredientCarrying()
@@ -340,7 +395,7 @@ public sealed class ClothingChoiceTests
         var work = ProductiveLearningTests.Work() with
         { Recipe = new("Crafting", .1, true), LearnBeforeWork = true,
             Rates = [new(0, 1d), new(1, 1d), new(2, 1d)] };
-        var batch = Start(Census(0), Read(Option("Cloth") with { SkillWork = work }), Resources(), out var comparison);
+        var batch = WhatIf(Census(0), Read(Option("Cloth") with { SkillWork = work }), Resources(), out var comparison);
         Assert.NotNull(batch);
         var learned = Assert.Single(comparison!.Plan!.Allocations, a => a.Learning != null).Learning!;
         Assert.Equal("Crafting", learned.Skill);

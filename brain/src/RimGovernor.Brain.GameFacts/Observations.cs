@@ -1916,9 +1916,6 @@ public sealed record BillState
     /// <summary>The recipe's def name.</summary>
     public required string Recipe { get; init; }
 
-    /// <summary>The bill's runtime class name (Bill_Production, Bill_GovernorRecipe, ...).</summary>
-    public required string BillClass { get; init; }
-
     /// <summary>Forever, Count or Target: a bench bill is always a Bill_Production in one of vanilla's three modes.</summary>
     public required RimGovernor.Brain.GameFacts.Operations.RepeatMode RepeatMode { get; init; }
 

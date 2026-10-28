@@ -70,6 +70,7 @@ internal static class ClothingMethodCandidates
             var benchLocation = ForecastLocations.Of(row.Location);
             activities.Add(new(make, sourceLocation, benchLocation, [])
             {
+                NativeExecution = true,
                 EquipmentLocation = benchLocation,
                 Inputs = EquatableArray.From(row.Inputs.Select(i => new ForecastActivityYield(new(i.Resource), i.Count) { Lot = i.Thing, LotLocation = ForecastLocations.Of(i.Location) })),
                 Outputs = [new(new(row.Product), 1) { Lot = make }]

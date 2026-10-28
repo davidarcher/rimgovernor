@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>production/clothing-activity[-unfinished]</c>: a clothing deficit the served brain meets through Hands. The native
-/// recipe makes one garment of the planner's chosen stuff with its input conserved, and the participants are released;
+/// recipe makes one garment of the planner's chosen stuff with its input conserved, and vanilla executes it without a pawn activity;
 /// the unfinished case supplies one native-minimum quantity of one material, interrupts the unfinished garment once
 /// and needs it resumed. test/clothing_activity_prepare prepares the wearer, bench and materials (no bill, recipe or
 /// assignment) and records the recipe's input and output, which the primitives cannot express.
@@ -23,7 +23,7 @@ internal static class ProductionClothingActivity
     {
         Name = "production/clothing-activity" + (interrupted ? "-unfinished" : ""),
         Scope = "A prepared clothing deficit is met by the served brain through Hands: the native recipe makes one garment of "
-            + "the selected stuff with its input conserved, and the participants are released"
+            + "the selected stuff with its input conserved, and vanilla executes it without a pawn activity"
             + (interrupted ? "; the unfinished garment is interrupted once and resumed" : "")
             + ". A unit test cannot prove native recipe conversion or unfinished-item conservation.",
         Ticks = 12000,
@@ -46,7 +46,7 @@ internal static class ProductionClothingActivity
                 throw new AcceptanceException($"recipe input and product are not conserved: {ServedOps.Json(read)}");
             }
 
-            var done = read.Produced && read.Conserved && read.Released > 0 && (!interrupted || read.Interrupted && read.Resumed > 0);
+            var done = read.Produced && read.Conserved && read.NativeExecution && (!interrupted || read.Interrupted && read.Resumed > 0);
             return (string.Create(CultureInfo.InvariantCulture, $"{read.Tick}"), done);
         }, cancellationToken).ConfigureAwait(false);
     }

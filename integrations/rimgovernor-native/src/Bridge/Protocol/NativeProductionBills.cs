@@ -73,7 +73,7 @@ namespace RimGovernor.Native {
    var fresh=Detached(bill.recipe);
    RimGovernor.Brain.GameOrders.Operations.BillCorpseClass corpses=NativeRecipeRoles.Corpse(bill.recipe)?new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.Selected(CorpseClass(bill)):new RimGovernor.Brain.GameOrders.Operations.BillCorpseClass.NotApplicable();
    ConfigureIngredients(fresh,bill.recipe,null,corpses,bench.Map);
-   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=bill.recipe.defName,BillClass=bill.GetType().Name,Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill),IngredientFilter=IngredientFilter(bill),
+   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=bill.recipe.defName,Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill),IngredientFilter=IngredientFilter(bill),
     Worker=bill.PawnRestriction?.GetUniqueLoadID(),
     DefaultIngredients=FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter),
     UnrestrictedWorker=bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly,

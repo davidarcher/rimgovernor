@@ -8,6 +8,24 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class NativeServiceContinuationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OldTailoringCommitmentReturnsToNativeAtBoundary(bool delivery)
+    {
+        var (batch, read) = AtBoundary("food", true, target: false);
+        var task = batch.Tasks.Single(t => t.Id == "service");
+        task = delivery ? task with { ProductStuff = "Cloth", Step = task.Step with { Kind = PawnActivityKind.Deliver } }
+            : task with { Step = task.Step with { Kind = PawnActivityKind.Recipe,
+                Recipe = new("bill", "MakeShirt", []) { Stuff = "Cloth" } } };
+        batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == task.Id ? task : t)) };
+        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
+        Assert.True(next.Orders[0].Release);
+        Assert.True(PawnActivities.SameOrder(batch.Orders[1], next.Orders[1]));
+        Assert.Equal("independent", Assert.Single(next.Tasks).Id);
+        Assert.Empty(read.SatisfiedTasks);
+    }
+
     private static (PawnActivities Batch, ActivityTaskRead Read) AtBoundary(string kind, bool preparing,
         bool target = true, bool dependent = false)
     {

@@ -184,25 +184,7 @@ internal static class NativeActivityTasks
                     var bench = RefIndex.Thing(map, step.Target);
                     if (bench == null || step.Recipe is not { } recipe) continue;
                     var input = task.Source;
-                    if (recipe.Stuff.Length != 0)
-                    {
-                        // A fresh selected task keeps its exact recipe/stuff. Rebind split/merged inputs only;
-                        // failed consuming work itself is never replayed by the shared continuation.
-                        var left = recipe.Ingredients.Sum(i => i.Count);
-                        var reboundInputs = new List<PawnActivityIngredient>();
-                        foreach (var item in map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
-                            .Where(t => t.Spawned && t.def.defName == recipe.Resource && !t.IsForbidden(pawn)
-                                && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None))
-                            .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal))
-                        {
-                            if (left == 0) break;
-                            if (reboundInputs.Count == 16) { truncated = true; break; }
-                            var take = Math.Min(left, item.stackCount); reboundInputs.Add(new(item.GetUniqueLoadID(), take)); left -= take;
-                        }
-                        var rebound = step with { Recipe = recipe with { Ingredients = EquatableArray.From(reboundInputs) } };
-                        if (left == 0 && NativeActivityRecipe.Resolve(pawn, bench, rebound, out _, out _, out _)) bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, rebound));
-                        continue;
-                    }
+                    if (recipe.Stuff.Length != 0) continue; // Ordinary tailoring belongs to native bills.
                     var count = recipe.Ingredients.Sum(i => i.Count);
                     var ingredients = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
                         .Where(t => t.Spawned && t.def.defName == task.Resource && !t.IsForbidden(pawn) && !t.IsBurning()

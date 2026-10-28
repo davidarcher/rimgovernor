@@ -539,34 +539,22 @@ does not reserve a pawn or authorize native fallback.
 
 Needs choices use the same Method journal and Hands ownership as productive work. Ingestion timing belongs to selected activities; there is no separate food-bar override or native food-seeking threshold writer.
 
-## Exact tailoring recipes
+## Ordinary tailoring
 
-The generic `Recipe` activity carries a `PawnActivityRecipe`: exact recipe, bill
-(if already present), stuff, input identities/counts, or exact unfinished item.
-The ordinary textile/leather path is described in
+Clothing recipe, stuff, input allocation and delivery candidates remain conditional
+forecasts. They do not install a pawn activity. Selected new production becomes
+an unrestricted finite ordinary bill through the work-ledger Need, shared
+material admission, journal and Hands. Existing bills and native unfinished work
+create no duplicate request. Vanilla chooses the worker, gathers ingredients,
+resumes unfinished garments and handles output. The receipt acknowledges bill
+creation; only native observations establish actual production.
+
+The private nonautonomous tailoring bill and exact tailoring executor have been
+removed. Regenerate fixtures/saves containing that retired bill class. Old
+journaled tailoring attempts return participants at task boundaries without
+crediting unobserved work or starting dependent tasks. Exact cooking still uses
+the generic recipe driver pending its migration. See
 [equipment upkeep](equipment-upkeep.md#live-clothing-requirement-selection).
-Hands validates the entire batch before installing it. A new recipe's private
-`Bill_GovernorRecipe` is provisioned only at verified job start; it cannot be
-selected by native priority scanning (`ShouldDoNow` is false). It remains unsuspended
-because native recipe work treats suspension as an interruption. Existing player
-bills are never deleted.
-Provisioning and cleanup use the existing admitted-write attribution scope so these
-operations do not masquerade as player bill edits. Owned bills without unfinished
-work are cleaned up on job termination; actual
-unfinished work retains its native bill, creator, stuff, ingredients and work.
-The native bill class identifies this activity execution anchor to the standing
-production ledger. It neither satisfies a standing bill declaration nor becomes
-an orphan for ledger removal; exact explicit player/native removal remains legal.
-
-Selected task output matching requires both product definition and selected
-stuff. A completed job is not product evidence: delivery binds an actually
-observed stack and an exact empty destination. Failure releases the assignment;
-a later normal equipment review may select the observed unfinished item as a
-new Method. It never replays a consuming operation based on a missing receipt.
-Observed native UFT conversion removes the loose-input claim while preserving
-pawn/bench ownership. The session journal records only the selected attempt;
-all rejected alternatives and forecast graphs are transient.
-
 ## Voluntary ownership and bounded no-change
 
 An installed order offers its first job; it does not own the pawn's future native

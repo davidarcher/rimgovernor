@@ -450,13 +450,13 @@ and demand are reused; Runtime only formats the existing signal; unknown native
 duration cannot finance labor. Complexity: added explicit shortfall uncertainty
 and consumer propagation / removed whole-horizon idle credit / orphans left: none.
 
-The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. Every activity family below currently feeds the shared exact binding/admission path. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
+The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
 | --- | --- | --- | --- |
 | `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Pending |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Partial: fresh routine services and boundary continuation stay native; unresolved access and justified exceptions remain |
-| `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Pending |
+| `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
 | `ConstructionMethodCandidates.Generate`: supply and build | Native blueprints, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Pending |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
 | `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Pending |
@@ -485,3 +485,47 @@ live-journal fixture seam and one takeover invalidation producer; removed advanc
 caregiver release, the indefinite wait driver and five lifecycle interception paths;
 orphans left: none. Existing routine-exclusive readers remain in the inventory,
 not as orphan exemptions or claims of completed migration.
+
+## Ordinary clothing bill milestone
+
+Selected ordinary textile/leather recipes now create finite unrestricted native
+bills through `NativeProductionBinding`, the work-ledger Need, shared admission,
+the Method journal and Hands. The existing gear declarer retains active observed
+bills. Native priorities cover prospective clothing products before a bill exists.
+Existing bills and unfinished work create no duplicate bill. Recipe, material,
+input allocations, learning, travel and outfit effects remain conditional planning
+scenarios; the bill does not pin a worker, input stack or output destination.
+A bill receipt is not garment or delivery evidence.
+
+Fresh routine tailoring and its dependent delivery install no pawn activity.
+Old coordinated attempts hand back at a tailoring boundary while preserving
+independent in-flight work; unobserved dependencies are not marked complete.
+The private nonautonomous bill, exact tailoring resolver, cleanup/provisioning,
+continuation input rebinding, ledger exemption and sole-purpose bill-class wire
+field have been removed through their readers. Ordinary native bills/UFTs remain
+the save's canonical state; regenerate saves containing the retired private class.
+Exact cooking still reads the shared recipe driver and remains in the inventory.
+
+`ClothingChoiceTests` exercises shared generation/comparison, bill binding, journal
+admission, typed Hands dispatch, replay, absence of pawn claims and no output
+credit; existing material/scarcity/unfinished/learning tests now explicitly inspect
+conditional scenarios. Native boundary handback and prospective clothing work
+demand have focused regressions. The two registered clothing cases now observe
+ordinary vanilla `DoBill`, selected-stuff output, conservation and interrupted UFT
+resumption without an exact pawn activity. Compilation is not an executed gameplay
+pass. No native gameplay run is claimed for this milestone.
+
+Verification: `RimGovernor.cmd test > test.out 2>&1` passed 4,210 domain tests,
+30 workflow tests, native production/fixture compilation, contract probes and
+the orphan check (2m6s). Strict OpenSpec validation passed all five items.
+Task 5.3 remains incomplete for the other production paths and meaningful
+intervention integration; overall progress remains 13/24. Confirmed food
+requirements are unchanged and #4040 remains open.
+
+Rules 7–9: the shared comparator still owns the choice; pure binding translates it
+into existing bills, and Runtime only sequences admission. Existing work demand,
+material promises, ledger ownership and save state are reused. Native worker and
+completion timing remain conditional; no trajectory simulator, new optimizer,
+reservation store or duplicate demand owner was added. Complexity: added native
+bill binding and admission plumbing / removed private exact tailoring execution,
+ledger exemption and dead wire field / orphans left: none.

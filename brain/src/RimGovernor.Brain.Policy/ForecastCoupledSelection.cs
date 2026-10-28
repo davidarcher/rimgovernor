@@ -963,6 +963,9 @@ public sealed partial record ForecastCoupledSelection
     public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome)
         => ConsequenceTerms(outcome);
 
+    public static EquatableArray<ProductionBill> SelectedProductionBills(ForecastCoupledSelection selection, ForecastCoupledCandidates candidates) =>
+        NativeProductionBinding.Selected(selection.Selection, candidates.Context);
+
     /// <summary>The existing no-service calculation is a deprivation bound, never a native job prediction.
     /// Compute it once per comparison so selecting a hypothetical service cannot manufacture a safer native baseline.</summary>
     internal static IReadOnlyDictionary<(string Pawn, string Kind), ForecastNeedMetric> NativeNeedBounds(

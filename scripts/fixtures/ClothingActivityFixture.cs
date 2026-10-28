@@ -17,11 +17,11 @@ namespace RimGovernor.Native;
 public sealed partial class PawnControlFixture
 {
     private static bool clothingPatched, clothingActive, clothingInterrupt, clothingInterrupted, clothingConserved, clothingProductObserved;
-    private static string clothingMethod = "", clothingProduct = "", clothingStuff = "";
+    private static string clothingBench = "", clothingBill = "", clothingProduct = "", clothingStuff = "";
     private static string clothingInterruptedUft = "";
-    private static readonly Dictionary<string, PawnActivityOrder> clothingOrders = new(StringComparer.Ordinal);
+    private static bool clothingNative;
     private static int clothingBefore, clothingRequired;
-    private static readonly HashSet<string> clothingReleased = new(StringComparer.Ordinal);
+
     private static readonly HashSet<string> clothingResumed = new(StringComparer.Ordinal);
 
     [Tool("test/clothing_activity_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare naked wearer, tailoring bench, competing materials and split stacks; install no selected recipe, bill or assignment.")]
@@ -53,7 +53,7 @@ public sealed partial class PawnControlFixture
                 // Scarcity is a world precondition, not a selected recipe: exactly one
                 // cheapest supported garment this wearer can wear consumes this sole supply.
                 var stuff = ThingDefOf.Leather_Plain;
-                var quantities = bench.def.AllRecipes.Where(r => NativeActivityRecipe.TailoringRecipe(bench, r)
+                var quantities = bench.def.AllRecipes.Where(r => NativeRecipeActivity.TailoringRecipe(bench, r)
                     && r.products[0].thingDef.apparel.bodyPartGroups.Any(g => g == BodyPartGroupDefOf.Torso || g == BodyPartGroupDefOf.Legs)
                     && r.products[0].thingDef.apparel.developmentalStageFilter.Has(tailor.DevelopmentalStage)
                     && r.products[0].thingDef.apparel.CorrectGenderForWearing(tailor.gender)
@@ -82,15 +82,15 @@ public sealed partial class PawnControlFixture
             var destination = GenRadial.RadialCellsAround(center, 7, false).First(c => c.InBounds(map) && c.Standable(map)
                 && c.GetEdifice(map) == null && c.GetZone(map) == null && c.DistanceTo(center) > 5);
             zone.AddCell(destination);
-            clothingMethod = clothingProduct = clothingStuff = "";
-            clothingReleased.Clear(); clothingResumed.Clear();
-            clothingOrders.Clear(); clothingInterruptedUft = "";
+            clothingBench = bench.GetUniqueLoadID(); clothingBill = clothingProduct = clothingStuff = "";
+            clothingResumed.Clear(); clothingNative = false;
+            clothingInterruptedUft = "";
             clothingInterrupted = clothingConserved = clothingProductObserved = false;
             clothingInterrupt = interrupt;
             if (!clothingPatched)
             {
                 var harmony = new Harmony("rimgovernor.fixture.clothing-activity");
-                harmony.Patch(AccessTools.Method(typeof(NativePawnActivities), "Apply"), postfix: new HarmonyMethod(typeof(PawnControlFixture), nameof(ClothingApplied)));
+
                 harmony.Patch(AccessTools.Method(typeof(Pawn_JobTracker), "JobTrackerTick"), postfix: new HarmonyMethod(typeof(PawnControlFixture), nameof(ClothingTick)));
                 clothingPatched = true;
             }
@@ -98,59 +98,39 @@ public sealed partial class PawnControlFixture
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 
-    private static void ClothingApplied(PawnActivities batch)
-    {
-        if (!clothingActive) return;
-        foreach (var order in batch.Orders)
-        {
-            var pawn = Find.CurrentMap.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == order.Pawn);
-            if (pawn == null) continue;
-            var observed = NativePawnActivities.Read(pawn);
-            if (order.Release)
-            {
-                if (clothingOrders.TryGetValue(order.Pawn, out var previous) && previous.Assignment == order.Assignment
-                    && previous.Method == order.Method && previous.Revision == order.ExpectedRevision && observed == null)
-                    clothingReleased.Add(order.Pawn);
-                continue;
-            }
-            if (observed == null || observed.Assignment != order.Assignment || observed.Method != order.Method || observed.Revision != order.Revision) continue;
-            var step = order.Steps.FirstOrDefault(s => s.Recipe is { Stuff.Length: > 0 });
-            if (step?.Recipe is not { } choice)
-            {
-                if (clothingOrders.TryGetValue(order.Pawn, out var previous) && previous.Method == order.Method && previous.Assignment == order.Assignment)
-                    clothingOrders[order.Pawn] = order;
-                continue;
-            }
-            if (clothingMethod.Length != 0 && order.Method != clothingMethod && choice.Unfinished != clothingInterruptedUft) continue;
-            if (clothingMethod.Length == 0)
-            {
-                clothingMethod = order.Method; clothingStuff = choice.Stuff;
-                clothingProduct = DefDatabase<RecipeDef>.GetNamed(choice.Recipe).products.Single().thingDef.defName;
-                clothingBefore = Find.CurrentMap.listerThings.AllThings.Where(t => t.def.defName == clothingStuff).Sum(t => t.stackCount);
-                clothingRequired = choice.Ingredients.Sum(i => i.Count);
-            }
-            clothingOrders[order.Pawn] = order;
-            clothingReleased.Remove(order.Pawn);
-            if (choice.Unfinished.Length != 0 && choice.Unfinished == clothingInterruptedUft) clothingResumed.Add(choice.Unfinished);
-        }
-    }
-
     private static void ClothingTick(Pawn ___pawn)
     {
-        if (!clothingActive || clothingMethod.Length == 0 || !clothingOrders.TryGetValue(___pawn.GetUniqueLoadID(), out var order)) return;
-        var execution = NativePawnActivities.Read(___pawn);
-        if (execution == null || execution.Assignment != order.Assignment || execution.Method != order.Method || execution.Revision != order.Revision) return;
-        if (clothingInterrupt && !clothingInterrupted && ___pawn.CurJob?.targetB.Thing is UnfinishedThing uft)
+        if (!clothingActive || ___pawn.CurJob is not { } job || job.def != JobDefOf.DoBill
+            || job.targetA.Thing?.GetUniqueLoadID() != clothingBench || job.bill is not Bill_Production bill) return;
+        if (NativePawnActivities.Read(___pawn) != null)
+            throw new InvalidOperationException("Ordinary tailoring acquired an exact pawn activity.");
+        if (clothingBill.Length == 0)
         {
-            clothingInterruptedUft = uft.GetUniqueLoadID();
-            clothingInterrupted = true; ___pawn.jobs.EndCurrentJob(JobCondition.Incompletable, startNewJob: false); return;
+            var stuff = bill.ingredientFilter.AllowedThingDefs.Single();
+            if (bill.PawnRestriction != null || bill.repeatMode != BillRepeatModeDefOf.RepeatCount || bill.repeatCount != 1)
+                throw new InvalidOperationException("Expected an unrestricted finite ordinary clothing bill.");
+            clothingBill = bill.GetUniqueLoadID(); clothingStuff = stuff.defName;
+            clothingProduct = bill.recipe.products.Single().thingDef.defName;
+            clothingBefore = ___pawn.Map.listerThings.AllThings.Where(t => t.def == stuff).Sum(t => t.stackCount)
+                + ___pawn.Map.mapPawns.FreeColonistsSpawned.Select(p => p.carryTracker.CarriedThing).Where(t => t?.def == stuff).Sum(t => t!.stackCount);
+            clothingRequired = (int)bill.recipe.ingredients.Sum(i => i.CountRequiredOfFor(stuff, bill.recipe, bill));
+        }
+        if (bill.GetUniqueLoadID() != clothingBill) return;
+        clothingNative = true;
+        if (job.targetB.Thing is UnfinishedThing uft)
+        {
+            if (clothingInterrupted && uft.GetUniqueLoadID() == clothingInterruptedUft) clothingResumed.Add(clothingInterruptedUft);
+            if (clothingInterrupt && !clothingInterrupted)
+            {
+                clothingInterruptedUft = uft.GetUniqueLoadID();
+                clothingInterrupted = true; ___pawn.jobs.EndCurrentJob(JobCondition.Incompletable, startNewJob: false); return;
+            }
         }
         ObserveClothingOutput(___pawn.Map);
     }
-
     private static void ObserveClothingOutput(Map map)
     {
-        if (!clothingActive || clothingMethod.Length == 0) return;
+        if (!clothingActive || clothingBill.Length == 0) return;
         var products = map.listerThings.AllThings.OfType<Apparel>()
             .Concat(map.mapPawns.FreeColonistsSpawned.SelectMany(p => p.apparel.WornApparel))
             .Concat(map.mapPawns.FreeColonistsSpawned.Select(p => p.carryTracker.CarriedThing).OfType<Apparel>())
@@ -167,26 +147,13 @@ public sealed partial class PawnControlFixture
         }
     }
 
-    [Tool("test/clothing_activity_read", Description = "UNSAFE FOR MODEL EXECUTION. Observe normal-planner exact garment output, input conservation and interrupted unfinished-work recovery.")]
+    [Tool("test/clothing_activity_read", Description = "UNSAFE FOR MODEL EXECUTION. Observe ordinary-bill garment output, input conservation and interrupted unfinished-work recovery.")]
     public async Task<object> ReadClothingActivity(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>    {
         ObserveClothingOutput(Find.CurrentMap);
-        // The ordinary ledger must never orphan the exact interrupted execution anchor.
-        // Read the native forward link; BoundWorker can mutate it when priorities are zero.
-        var interrupted = Find.CurrentMap.listerThings.AllThings.OfType<UnfinishedThing>()
-            .FirstOrDefault(t => t.GetUniqueLoadID() == clothingInterruptedUft);
-        if (interrupted != null)
-        {
-            var anchor = Find.CurrentMap.listerThings.AllThings.OfType<Building_WorkTable>()
-                .SelectMany(b => b.BillStack.Bills).OfType<Bill_GovernorRecipe>()
-                .SingleOrDefault(b => b.BoundUft == interrupted);
-            if (anchor == null || anchor.ShouldDoNow() || anchor.suspended
-                || NativeProductionBills.BillRow(anchor, 0).BillClass != nameof(Bill_GovernorRecipe))
-                throw new InvalidOperationException("Interrupted garment lost its private nonautonomous activity bill anchor.");
-        }
         return FixtureKit.Reply(new Fx.ClothingActivityRead
         {
             Tick = Find.TickManager.TicksGame, Produced = clothingProductObserved, Conserved = clothingConserved,
-            Interrupted = clothingInterrupted, Resumed = clothingResumed.Count, Released = clothingReleased.Count,
+            Interrupted = clothingInterrupted, Resumed = clothingResumed.Count, NativeExecution = clothingNative,
         });
     }, ct).ConfigureAwait(false);
 }

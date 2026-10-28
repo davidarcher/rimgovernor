@@ -15,7 +15,7 @@ internal static class BillWire
     {
         Id = id,
         Recipe = "CookMealSimple",
-        BillClass = "Bill_Production",
+
         Suspended = false,
         ManagedUnchanged = false,
         DefaultIngredients = true,
