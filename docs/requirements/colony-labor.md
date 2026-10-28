@@ -8,6 +8,32 @@ The maintainer confirmed native-led routine execution, full control of settings 
 
 ## Current evidence
 
+Native need assessment now applies the same evidence standard to selected and
+omitted ordinary services. Previously a selected hypothetical meal, sleep or
+recreation allocation could certify recovery while the omitted service remained
+unprojected. `NativeNeedBounds` computes the existing no-service calculation once
+per comparison from current needs and the horizon. Every portfolio uses this
+common deprivation bound: zero exposure remains supported where no service is
+needed, while future need levels and recovery remain unassessed. Unsupported
+service-dependent mood cannot become a rescue, and healthy bounds preserve
+independent supported mood/outfit comparisons. The detailed scenarios remain
+unchanged. Six new `NativeNeedServicesTests` cases compare perfect hypothetical
+recovery against omitted service under safe/unsafe bounds; its three existing
+shared-selector cases now check selected recovery too. The incumbent regression
+retains its exact two-service composition proof while checking that comparison
+keeps only the current commitment. Existing cold-clothing and mood-effect
+selection tests still pass. The final gate passed 4,207 domain tests and 30
+workflow tests, with native build/probe/orphan checks (42s); strict OpenSpec passed
+all five items. No new gameplay result is claimed. Task 3.3 remains incomplete
+for the general productive baseline and settings alternatives; this does not
+implement general intervention materiality or complete a migration checkbox.
+Rules 7–9: comparison owns the pure common bound, binding retains only current
+legality classification, no new model run/state owner/demand owner, and neither
+selected nor omitted future service is credited as observed recovery.
+Complexity: added a once-per-comparison bound and six regressions / removed
+allocation-dependent recovery credit and the redundant future-service selection
+expectation / orphans left: none. Confirmed food requirements remain unchanged.
+
 Existing exact Methods now return ordinary services to native selection at task
 boundaries using the same current-response classifier as fresh binding. A waiting
 or terminal participant releases its exact ownership without retaining later

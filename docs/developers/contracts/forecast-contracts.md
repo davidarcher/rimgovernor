@@ -39,17 +39,27 @@ does not complete the general native execution baseline: productive callers,
 reserve/recovery comparisons and general intervention materiality remain in the
 active labor change.
 
-The shared comparison also withholds deprivation attributed solely to omitting
-an observed available/running native service. For eligible rest and recreation,
+The shared comparison applies the same native-response assessment whether a
+routine service is omitted or appears in a selected hypothetical schedule. A
+modeled meal, sleep or recreation allocation cannot certify native recovery.
+The existing no-service need calculation supplies a common bound, computed once
+per comparison from the captured needs and horizon. It supplies neither a second
+native trajectory nor a new model run. For eligible rest and recreation,
 an empty target census also leaves future response unprojected: native ground
 rest and spontaneous recreation need no captured service object. This does not
 invent a recovery rate or erase a known sleep blocker. Its need exposure, hunger/rest
 losses and dependent mood/break terms are unassessed, with
 `native_response_unprojected:<pawn>:<kind>` findings. The starvation pruning
 bound cannot use that omitted service as proof that an unserved pawn will starve.
-If even the no-service bound never crosses a need threshold under the captured
-mechanics, no artificial deprivation needs removing. That conditional bound
-remains useful; it does not predict a job order or exact future need level.
+If even the common no-service bound never crosses a need threshold under the
+captured mechanics, zero deprivation remains a supported bound for both sides.
+Future need levels remain unassessed; a selected perfect-recovery scenario cannot
+turn its own zero exposure into this bound. Where the common bound stays healthy
+and rest cannot reach its native sleep threshold, independent supported mood
+and outfit effects remain comparable. A possible service need or native sleep
+leaves dependent mood unprojected instead of certifying its future recovery.
+The original conditional scenarios remain intact for inspection and investment
+mechanics; the native assessment does not predict a job order or exact future level.
 Possible native sleep can change awake-only mood before exhaustion starts:
 that all-awake mood trajectory remains conditional even when the no-service
 physiological bound proves zero deprivation.

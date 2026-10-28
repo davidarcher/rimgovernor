@@ -307,6 +307,7 @@ public sealed partial record ForecastCoupledSelection
         // Every outcome's wellbeing is priced against this one outcome, so the deltas between outcomes do not depend on which is the baseline.
         var reference = baseline;
         var horizonTicks = request.HorizonDays * GameTime.TicksPerDay;
+        var nativeBounds = NativeNeedBounds(candidates.Context.Needs, horizonTicks);
         // The death floor of every outcome is measured from this one reference (#3723): priced once, not per outcome.
         var referenceHarm = ForecastValue.ReferenceHarm(reference, candidates.Context, horizonTicks, baselineCommitments);
         // An outcome's consequences are staged (#3723): the floors and the cheap terms at once, the ledger when a comparison reaches
@@ -314,7 +315,7 @@ public sealed partial record ForecastCoupledSelection
         StagedConsequences Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
         {
             var staged = StagedConsequences.Of(outcome, commitments, candidates.Context, horizonTicks, reference, referenceHarm,
-                NativeExecutionOutcome(outcome, candidates.Context));
+                NativeExecutionOutcome(outcome, candidates.Context, nativeBounds));
             if (eager) _ = staged.Vector;
             return staged;
         }
@@ -357,7 +358,7 @@ public sealed partial record ForecastCoupledSelection
         var bestIsBaseline = true;
         var findings = new SortedSet<string>(candidates.Findings, StringComparer.Ordinal);
         findings.UnionWith(baselineScenario.Findings);
-        findings.UnionWith(NativeExecutionOutcome(baseline, candidates.Context).Needs.Values.SelectMany(n => n.Findings)
+        findings.UnionWith(NativeExecutionOutcome(baseline, candidates.Context, nativeBounds).Needs.Values.SelectMany(n => n.Findings)
             .Where(f => f.StartsWith(NativeResponseUnprojectedPrefix, StringComparison.Ordinal)));
         if (!baseline.Feasible) findings.Add("baseline_unassessed_or_infeasible");
         var evidence = new List<ForecastPortfolioEvidence>();
@@ -552,7 +553,7 @@ public sealed partial record ForecastCoupledSelection
         Summarize(fixedClosure, fixedServed, ref fixedRest, ref fixedConstruction);
         var servedScratch = new ulong[pawnWords];
         // Each pawn's zero time in the baseline, the larger of food and rest; the bound is unavailable while any is unknown.
-        var nativeBaseline = NativeExecutionOutcome(baseline, candidates.Context);
+        var nativeBaseline = NativeExecutionOutcome(baseline, candidates.Context, nativeBounds);
         var baselineZero = new double[pawnRows.Count]; var baselineZeroKnown = pawnRows.Count > 0;
         for (var p = 0; p < pawnRows.Count && baselineZeroKnown; p++)
         {
@@ -962,37 +963,49 @@ public sealed partial record ForecastCoupledSelection
     public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome)
         => ConsequenceTerms(outcome);
 
+    /// <summary>The existing no-service calculation is a deprivation bound, never a native job prediction.
+    /// Compute it once per comparison so selecting a hypothetical service cannot manufacture a safer native baseline.</summary>
+    internal static IReadOnlyDictionary<(string Pawn, string Kind), ForecastNeedMetric> NativeNeedBounds(
+        RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead read, double horizon) =>
+        read.Pawns.SelectMany(p => ForecastNeeds.NeedsCoreOf(p, horizon, [], null).Needs.Select(n => (p.Pawn, Metric: n)))
+            .ToDictionary(n => (n.Pawn, n.Metric.Kind), n => n.Metric);
+
     /// <summary>Native response defeats a no-service assumption; its timing remains unprojected.
     /// Ground rest and spontaneous recreation need no captured target. Exact scenarios remain conditional investment evidence; productive/dependent
     /// execution still require the general native-baseline migration.</summary>
-    internal static ForecastCoupledOutcome NativeExecutionOutcome(ForecastCoupledOutcome conditional, ForecastCoupledContext context)
+    internal static ForecastCoupledOutcome NativeExecutionOutcome(ForecastCoupledOutcome conditional, ForecastCoupledContext context,
+        IReadOnlyDictionary<(string Pawn, string Kind), ForecastNeedMetric> unserved)
     {
         var rows = new Dictionary<string, ForecastNeedsResult>(StringComparer.Ordinal);
         foreach (var (pawn, result) in conditional.Needs)
         {
             var findings = new List<string>();
+            var moodUnprojected = false;
             var metrics = result.Needs.Select(metric =>
             {
                 var response = NativeNeedServices.Observe(context.Needs, pawn, metric.Kind);
                 if (metric.Kind is not ("food" or "rest" or "joy")
                     || !(response is NativeNeedService.Available or NativeNeedService.InProgress
-                        || response == NativeNeedService.NoObservedService && metric.Kind is "rest" or "joy")
-                    || context.NeedTasks.Any(task => task.Pawn == pawn && task.Kind == metric.Kind
-                        && conditional.Plan.Allocations.Any(a => a.Pawn == pawn && a.Activity == task.Task))) return metric;
-                // A no-service bound that never reaches deprivation still bounds that penalty at zero.
-                // Native sleep can nevertheless change awake-only mood before exhaustion begins.
-                var bounded = metric.ThresholdExposureTicks is ForecastTerm.Assessed(0) && metric.ZeroTicks is ForecastTerm.Assessed(0);
-                if (bounded && (metric.Kind != "rest" || metric.FinalLevel is ForecastTerm.Assessed(var level)
-                    && level > context.Needs.Pawns.Single(p => p.Pawn == pawn).SleepThreshold)) return metric;
+                        || response == NativeNeedService.NoObservedService && metric.Kind is "rest" or "joy")) return metric;
+                var bound = unserved.TryGetValue((pawn, metric.Kind), out var found) ? found
+                    : throw new RequiredFactException("native need bound:" + pawn + ":" + metric.Kind);
+                // The same no-service upper bound applies to every portfolio. A selected ordinary
+                // service remains hypothetical even when its conditional forecast recovers perfectly.
+                var bounded = bound.ThresholdExposureTicks is ForecastTerm.Assessed(0) && bound.ZeroTicks is ForecastTerm.Assessed(0);
                 var reason = NativeResponseUnprojectedPrefix + pawn + ":" + metric.Kind;
                 findings.Add(reason);
-                if (bounded) return metric;
                 var unread = new ForecastTerm.Unassessed(reason);
-                return metric with { FinalLevel = unread, ZeroTicks = unread, ThresholdExposureTicks = unread,
-                    ThresholdDepthTicks = unread, ZeroSpans = [], StageSpans = [] };
+                // A common bound that never needs service cannot defeat independent supported
+                // mood/outfit effects. Possible sleep before exhaustion still changes awake-only mood.
+                moodUnprojected |= !bounded || metric.Kind == "rest"
+                    && !(bound.FinalLevel is ForecastTerm.Assessed(var level)
+                        && level > context.Needs.Pawns.Single(p => p.Pawn == pawn).SleepThreshold);
+                return metric with { FinalLevel = unread, ZeroTicks = bounded ? bound.ZeroTicks : unread,
+                    ThresholdExposureTicks = bounded ? bound.ThresholdExposureTicks : unread,
+                    ThresholdDepthTicks = bounded ? bound.ThresholdDepthTicks : unread, ZeroSpans = [], StageSpans = [] };
             }).ToArray();
             rows.Add(pawn, findings.Count == 0 ? result : result with { Needs = EquatableArray.From(metrics),
-                Mood = new ForecastMoodResult.Unprojected(EquatableArray.From(findings)),
+                Mood = moodUnprojected ? new ForecastMoodResult.Unprojected(EquatableArray.From(findings)) : result.Mood,
                 Findings = EquatableArray.From(result.Findings.Concat(findings)) });
         }
         return conditional with { Needs = rows };

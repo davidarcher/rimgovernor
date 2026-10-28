@@ -25,7 +25,8 @@ public sealed class NativeNeedServicesTests
         var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Equal(NativeNeedService.NoObservedService, NativeNeedServices.Observe(candidates.Context.Needs, pawn.Pawn, kind));
         Assert.True(Assert.Single(selection.Baseline.Needs[pawn.Pawn].Needs).ThresholdExposureTicks.Number() > 0);
-        var native = ForecastCoupledSelection.NativeExecutionOutcome(selection.Baseline, candidates.Context);
+        var native = ForecastCoupledSelection.NativeExecutionOutcome(selection.Baseline, candidates.Context,
+            ForecastCoupledSelection.NativeNeedBounds(candidates.Context.Needs, horizon));
         Assert.IsType<ForecastTerm.Unassessed>(Assert.Single(native.Needs[pawn.Pawn].Needs).ThresholdExposureTicks);
         Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + pawn.Pawn + ":" + kind, selection.Selection.Findings);
         Assert.Empty(selection.Selection.Selected);
@@ -69,7 +70,8 @@ public sealed class NativeNeedServicesTests
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
         Assert.Empty(selection.Selection.Selected);
-        var metric = Assert.Single(ForecastCoupledSelection.NativeExecutionOutcome(selection.Baseline, candidates.Context).Needs["pawn"].Needs);
+        var bounds = ForecastCoupledSelection.NativeNeedBounds(candidates.Context.Needs, horizon);
+        var metric = Assert.Single(ForecastCoupledSelection.NativeExecutionOutcome(selection.Baseline, candidates.Context, bounds).Needs["pawn"].Needs);
         Assert.IsType<ForecastTerm.Unassessed>(metric.ThresholdExposureTicks);
         Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + "pawn:" + kind, selection.Selection.Findings);
         if (kind is "food" or "rest") Assert.False(selection.BaselineVector.Value.UrgentZero.Assessed);
@@ -81,6 +83,9 @@ public sealed class NativeNeedServicesTests
         var root = candidates.Alternatives[0];
         var scenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById([root])).Coupled!;
         var outcome = scenario.Alternatives.First(a => a.Feasible && a.Plan.Allocations.Length > 0);
+        var nativeSelected = Assert.Single(ForecastCoupledSelection.NativeExecutionOutcome(outcome, candidates.Context, bounds).Needs["pawn"].Needs);
+        Assert.IsType<ForecastTerm.Unassessed>(nativeSelected.FinalLevel);
+        Assert.IsType<ForecastTerm.Unassessed>(nativeSelected.ThresholdExposureTicks);
         var forged = selection with { Selected = outcome, Selection = selection.Selection with
             { Selected = [root.Id], Plan = outcome.Plan } };
         Assert.True(NativeNeedServices.RoutineOnly(outcome.Plan, candidates.Context));
@@ -90,5 +95,43 @@ public sealed class NativeNeedServicesTests
         // cannot become either a predicted native failure or an invented successful response.
         var counterfactual = Assert.Single(selection.Baseline.Needs["pawn"].Needs);
         Assert.True(counterfactual.ThresholdExposureTicks.Number() > 0);
+    }
+
+    [Theory]
+    [InlineData("food", false)]
+    [InlineData("food", true)]
+    [InlineData("rest", false)]
+    [InlineData("rest", true)]
+    [InlineData("joy", false)]
+    [InlineData("joy", true)]
+    public void HypotheticalRecoveryCannotImproveTheNativeAssessmentAndSafeBoundsDoNotRequireRecovery(string kind, bool safe)
+    {
+        const double horizon = 300;
+        var target = kind == "food" ? NeedsFixtures.Food("service", "Rice", 20, 0, 10, .5)
+            : NeedsFixtures.Service("service", kind, 0, .01);
+        var pawn = ForecastValueTests.Pawn() with { Needs = [NeedsFixtures.Rate(kind, safe ? .9 : .2, safe ? .00001 : .003, .3)], Targets = [target] };
+        var context = ForecastValueTests.Context(pawn) with { NeedTasks = [new("service", "pawn", kind, "service", new("Rice"), 1, .5, [])] };
+        var perfect = new ForecastNeedMetric(kind, new ForecastTerm.Assessed(1), new ForecastTerm.Assessed(0))
+            { ZeroTicks = new ForecastTerm.Assessed(0), ThresholdDepthTicks = new ForecastTerm.Assessed(0) };
+        var conditional = new ForecastCoupledOutcome(new([new("service", "pawn", 0, 0, 0, 10, 0, 10, 0, 0)], 10, 0), true,
+            new Dictionary<string, ForecastNeedsResult> { ["pawn"] = ForecastValueTests.Timeline(pawn) with { Needs = [perfect] } }, []);
+        var bounds = ForecastCoupledSelection.NativeNeedBounds(context.Needs, horizon);
+        var native = ForecastCoupledSelection.NativeExecutionOutcome(conditional, context, bounds);
+        var metric = Assert.Single(native.Needs["pawn"].Needs);
+        Assert.IsType<ForecastTerm.Unassessed>(metric.FinalLevel);
+        if (safe)
+        {
+            Assert.Equal(0, metric.ZeroTicks.Number());
+            Assert.Equal(0, metric.ThresholdExposureTicks.Number());
+        }
+        else
+        {
+            Assert.IsType<ForecastTerm.Unassessed>(metric.ZeroTicks);
+            Assert.IsType<ForecastTerm.Unassessed>(metric.ThresholdExposureTicks);
+            Assert.IsType<ForecastMoodResult.Unprojected>(native.Needs["pawn"].Mood);
+        }
+        var omitted = ForecastCoupledSelection.NativeExecutionOutcome(conditional with { Plan = new([], 0, 0) }, context, bounds);
+        Assert.Equal(metric, Assert.Single(omitted.Needs["pawn"].Needs));
+        Assert.Equal(1, Assert.Single(conditional.Needs["pawn"].Needs).FinalLevel.Number());
     }
 }

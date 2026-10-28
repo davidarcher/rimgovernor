@@ -50,7 +50,7 @@ public sealed class ForecastIncumbentSelectionTests
     }
 
     [Fact]
-    public void RetainedServiceCanPrecedeLaterServiceOfTheSameKind()
+    public void RetainedAndFutureServicesRemainComposableWithoutCertifyingNativeRecovery()
     {
         var (request, candidates) = Problem(1, 0, meal: false);
         var context = candidates.Context;
@@ -69,10 +69,14 @@ public sealed class ForecastIncumbentSelectionTests
         };
         candidates = candidates with { Context = context, Alternatives = [new("future-joy", []) { ActivityCompletions = ["future-joy"] }] };
         var result = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
-        Assert.Contains("current-joy", result.Selection.Selected);
-        Assert.Contains("future-joy", result.Selection.Selected);
-        var current = Assert.Single(result.Selected.Plan.Allocations, a => a.Activity == "ongoing-joy");
-        var later = Assert.Single(result.Selected.Plan.Allocations, a => a.Activity == "future-joy");
+        Assert.Equal(["current-joy"], result.Selection.Selected);
+        // The exact what-if still composes both services. Its hypothetical recovery is not
+        // evidence that native needs another exclusive future recreation commitment now.
+        var scenario = CoupledForecastKit.Forecast(request with { Coupled = context, Commitments = candidates.Incumbents },
+            candidates.Alternatives).Proposed.Coupled!;
+        var composed = scenario.Alternatives.First(a => a.Feasible);
+        var current = Assert.Single(composed.Plan.Allocations, a => a.Activity == "ongoing-joy");
+        var later = Assert.Single(composed.Plan.Allocations, a => a.Activity == "future-joy");
         Assert.Equal(0, current.Start);
         Assert.True(later.Start >= current.End);
     }
