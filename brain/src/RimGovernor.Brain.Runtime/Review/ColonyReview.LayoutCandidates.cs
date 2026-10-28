@@ -87,9 +87,10 @@ public sealed partial class ColonyReview
                     RoomSleepDisturbance = context.RoomSleepDisturbance };
                 var request = ForecastCoupled.CoupledForecastRequestOf(new(projected.Tick.Value), ForecastCoupled.TierOneHorizonDays, projected, ResourceRules.ResourceDemandOf(projected, Policy, latches), []);
                 var compared = ForecastCoupledSelection.CompareActivityOutcomes(request, coupled);
-                if (compared.SelectedVector.Value.Ledger.Total is not LedgerTerm.Priced)
-                    throw new RequiredFactException("layout_candidate_ledger:" + trial.Candidate.Candidate.Id);
-                values.Add(new RegroupValuation.Priced(trial.Candidate.Candidate.Id, compared.SelectedVector,
+                // The common comparator compares mutually assessed terms and retains uncertainty.
+                // Requiring a priced total here would hold the first-plan clock until native needs
+                // responses were predictable, preventing ordinary production from starting.
+                values.Add(new RegroupValuation.Evaluated(trial.Candidate.Candidate.Id, compared.SelectedVector,
                     compared.SelectedVector.Value.Ledger.Findings));
                 evaluated.Add(trial.Candidate.Candidate.Id, (trial.Colony with { Facts = projected }, model));
             }

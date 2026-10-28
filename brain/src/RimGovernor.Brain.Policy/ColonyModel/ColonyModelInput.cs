@@ -435,12 +435,14 @@ public sealed record ColonyModelInput
         }
     }
 
-    /// <summary>The pawn cycle (#3526) is derived per twelfth; a pawn whose year has a twelfth that is not a valid day names the twelfths and every unknown rate behind them.</summary>
+    /// <summary>Invalid day mechanics prevent valuation. An observed absence of meal service is a supported
+    /// conditional no-labor state, not an unread fact: requiring a ready meal here would stop the clock before
+    /// native workers could produce one. The engine retains that state's finding and credits no labor.</summary>
     private void CycleGaps(List<string> gaps)
     {
         foreach (var pawn in Pawns)
         {
-            var broken = PawnCycle.Year(this, pawn).Where(c => !c.Valid()).ToList();
+            var broken = PawnCycle.Year(this, pawn).Where(c => c is not PawnCycle.NoMealService && !c.Valid()).ToList();
             if (broken.Count > 0)
             {
                 gaps.Add($"cycle: '{broken[0].Pawn}' has no valid day in twelfths {string.Join(",", broken.Select(c => c.Twelfth))} ({string.Join(", ", broken.SelectMany(c => c.Findings).Distinct())})");

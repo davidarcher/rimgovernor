@@ -611,3 +611,63 @@ output from hypothetical yield. No new execution lane or persistence owner.
 Complexity: added normal-selection regression and passive native-output evidence /
 removed routine harvest/raw-delivery dispatch and the fixture's exact-apply hook /
 orphans left: none. The general change remains 13/24 complete.
+
+## First-meal planning deadlock
+
+The native `production/productive-cooking` attempt at source `2e090cdda` was
+stopped after 41s of unchanged tick 15000. No cooking job or meal occurred.
+`first_plan_fact` named `layout_candidate_model:cycle: ... meal_service_unavailable`
+for all three cooks: layout valuation rejected a known absence of ready meals,
+so the first-plan clock gate prevented the production that would make them.
+Evidence: `.rimgovernor/native-food-production-20261028/production/productive-cooking/result.json`
+and its OTLP `clock_run`/`required_fact` rows. This is a failed attempt, not native
+production evidence.
+
+`ColonyModelInput` now accepts the engine's existing `PawnCycle.NoMealService`
+state. That conditional scenario retains its named finding and supplies no
+forecast labor. No new meal, work rate or execution prediction is invented.
+The layout model can be valued while ordinary native cooking becomes available;
+invalid mechanics continue to prevent valuation. Model-input and cycle tests
+cover the real review boundary and retain the no-labor conditional result.
+The first retry reached model valuation but exposed a second reader error:
+`SkillValue.WorkPerXp` threw `free hours of <pawn>` while pricing the conditional
+cooking learning. It was stopped after 41s at tick 15000, with no production;
+the result is under `.rimgovernor/native-food-production-fixed-20261028/production/productive-cooking/`.
+Skill credit, pawn values and caravan lost work now preserve unassessed hours
+instead of throwing or supplying free labor. Reader regressions exercise those
+boundaries. Native retry and verification are pending.
+The complete reader audit also covers the prospective joiner's served-as cycle:
+unsupported hours yield an unassessed recruitment value and a named finding,
+without asserting that the recruit costs more than it contributes. Supported
+recruitment arithmetic retains its assessed value. No additional state owner,
+fallback service or second execution path was added.
+The next retry cleared those readers, then named `layout_candidate_ledger:regroup:0`
+while still at tick 15000; its stopped result is under
+`.rimgovernor/native-food-production-ready-20261028/production/productive-cooking/`.
+The runtime's redundant fully-priced-total requirement is removed. Evaluated
+layout candidates now retain the existing partially assessed consequence vector
+and use the same canonical term comparison as ordinary selection. The valuation
+variant is named `Evaluated`, replacing the misleading `Priced` name through all
+readers. Shared room-regroup tests cover an unassessed total alongside a supported
+death-risk floor. Native output remains unverified pending retry.
+
+Draft reconciliation now reads outstanding actions rather than evaluating unrelated
+construction without a census. Monument claims similarly inspect only open marker
+moves; the unused generic progress wrapper is removed. Journal/Hands and monument
+regressions cover these boundaries. The preceding native run is recorded under
+`.rimgovernor/native-food-production-evaluated-20261028/production/productive-cooking/`.
+
+The retry under `.rimgovernor/native-food-production-journal-20261028/production/productive-cooking/`
+cleared those faults and failed the no-exact-owner assertion: the journal installed
+an ordinary `support/delivery/bill:Bill_CookMealSimple_0:RawRice` ingredient delivery.
+No meal was produced. That remaining support migration is concrete follow-on work
+within task 5.5, not a successful native cooking result. Overall progress stays
+13/24 and confirmed food requirements remain unchanged.
+
+Verification: the milestone gate passed 4,215 domain and 30 workflow tests, native
+builds, contract probes and orphan checks (1m4s); strict OpenSpec validation passed
+all five items. Rules 7–9: supported conditional states remain explicit, partial
+values use the existing comparator, and journal readers retain their own action
+semantics. No new demand owner, fallback capacity or execution lane. Complexity:
+added uncertainty and journal regression coverage / removed redundant layout-total
+guard, throwing hours adapter and unused progress wrapper / orphans left: none.

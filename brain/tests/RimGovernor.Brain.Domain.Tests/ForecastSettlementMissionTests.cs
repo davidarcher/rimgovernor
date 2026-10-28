@@ -118,6 +118,11 @@ public sealed class ForecastSettlementMissionTests
         Assert.Equal(ForecastSettlementMissions.LostWork(mission with { Days = 10 }, selected.Selected, roots, context, selected.Horizon),
             ForecastSettlementMissions.LostWork(mission with { Days = 100 }, selected.Selected, roots, context, selected.Horizon));
         Assert.Equal(new ForecastTerm.Assessed(0), ForecastSettlementMissions.LostWork(mission, selected.Selected, roots, context with { Joiners = context.Joiners with { Roots = [] } }, selected.Horizon));
+        var noMeals = model with { Pawns = EquatableArray.From(model.Pawns.Select(p => p with
+            { Needs = EquatableArray.From(p.Needs.Select(n => n.Kind == "food" ? n with { Service = new ModelService.NoneObserved() } : n)) })) };
+        Assert.Equal(new ForecastTerm.Unassessed("pawn_free_hours_unassessed:pawn"),
+            ForecastSettlementMissions.LostWork(mission, selected.Selected, roots,
+                context with { ModelBasis = new(noMeals, new() { MedicineTendsPerDay = 0 }) }, selected.Horizon));
         var unavailable = context with { Activities = context.Activities with
             { Pawns = context.Activities.Pawns.Select(p => p with { Windows = new ForecastCapacityWindows.Unread() }).ToArray() } };
         Assert.IsType<ForecastTerm.Unassessed>(ForecastSettlementMissions.LostWork(mission, selected.Selected, roots, unavailable, selected.Horizon));

@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Policy;
 /// outcome's shortfall, <see cref="JoinerMoodRules.ShortfallOf"/>), over the days that level lasts inside the investment horizon
 /// (<see cref="ProjectMarginals.SkillRaises"/>: decay takes it back), over the native XP the level takes. A skill no needed work reads gains
 /// nothing by its level, so its work part is 0; a skill at the top level has no level to gain. A stock tier 2 gave no marginal is
-/// unvalued (null). A fact the part needs and the review lacks (the pawn's upkeep, its free hours, its stock) throws
+/// unvalued (null). Unassessed free hours also leave the work benefit unvalued. A missing upkeep or stock throws
 /// <see cref="RequiredFactException"/>.
 /// </summary>
 internal static class SkillValue
@@ -42,14 +42,9 @@ internal static class SkillValue
         if (raise.Xp <= 0 || !upkeep.SkillSpeeds.Any(r => r.Skill == skill)
             && upkeep.ChildWork?.Ages.Any(a => a.SkillSpeeds.Any(r => r.Skill == skill)) != true) return priced;
         var table = Tables.Of(outcome, commitments, context, horizon);
-        if (table.Shortfall.Unassessed.Count > 0) return null;
-        return priced + table.WorkPerXp.GetOrAdd(key, _ => WorkPerXp(table, context, pawn, skill, upkeep, raise));
-    }
-
-    private static double WorkPerXp(Table table, ForecastCoupledContext context, string pawn, string skill, PawnUpkeepRead upkeep, SkillRaise raise)
-    {
-        var free = (table.Hours.TryGetValue(pawn, out var hours) ? hours : throw new RequiredFactException("free hours of " + pawn)) * GameTime.TicksPerHour;
-        return WorkPerXp(pawn, skill, upkeep, raise, free, table.Shortfall, context.InvestmentHorizonDays);
+        if (table.Shortfall.Unassessed.Count > 0 || !table.Hours.TryGetValue(pawn, out var hours)) return null;
+        return priced + table.WorkPerXp.GetOrAdd(key, _ => WorkPerXp(pawn, skill, upkeep, raise,
+            hours * GameTime.TicksPerHour, table.Shortfall, context.InvestmentHorizonDays));
     }
 
     /// <summary>

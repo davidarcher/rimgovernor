@@ -3,10 +3,10 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A geometrically complete regroup trial. Id travels with its tiled layout and native prediction batch.</summary>
 public sealed record RegroupCandidate(string Id, Regrouping Layout);
 
-/// <summary>The canonical forecast ledger cost of a trial, in capability-days, including shell spend and every hosted function. Effects names its losses.</summary>
+/// <summary>The canonical forecast of a trial, retaining unassessed terms. Effects names its losses.</summary>
 public abstract record RegroupValuation(string Candidate)
 {
-    public sealed record Priced(string Candidate, ForecastConsequenceVector Consequences, IReadOnlyList<string> Effects) : RegroupValuation(Candidate);
+    public sealed record Evaluated(string Candidate, ForecastConsequenceVector Consequences, IReadOnlyList<string> Effects) : RegroupValuation(Candidate);
     public sealed record Unplaceable(string Candidate, string Reason) : RegroupValuation(Candidate);
 }
 
@@ -54,7 +54,7 @@ public static partial class LayoutRegroupRules
         }
         ForecastConsequenceVector Consequences(RegroupTrial trial)
         {
-            var vector = ((RegroupValuation.Priced)values[Id(trial)]).Consequences;
+            var vector = ((RegroupValuation.Evaluated)values[Id(trial)]).Consequences;
             var walk = -(double)trial.Embedding.Score.Walk / PlanWeights.Walk * input.Price.Work.CellWalkDays;
             var ledger = vector.Value.Ledger;
             return vector with { Value = vector.Value with { Ledger = ledger with
@@ -66,8 +66,8 @@ public static partial class LayoutRegroupRules
         }
         bool Better(RegroupTrial a, RegroupTrial b)
         {
-            if (values[Id(a)] is not RegroupValuation.Priced) return false;
-            if (values[Id(b)] is not RegroupValuation.Priced) return true;
+            if (values[Id(a)] is not RegroupValuation.Evaluated) return false;
+            if (values[Id(b)] is not RegroupValuation.Evaluated) return true;
             return ForecastCoupledSelection.CompareConsequences(Consequences(a), Consequences(b)) < 0;
         }
         RegroupDecision Decision(RegroupProposal proposal, RegroupTrial before, RegroupTrial after, bool applied) => new()
@@ -77,10 +77,10 @@ public static partial class LayoutRegroupRules
             Reason = values[Id(after)] is RegroupValuation.Unplaceable unavailable ? unavailable.Reason : applied ? "regroup_canonical_credit_gain" : "regroup_canonical_credit_loss",
             // Diagnostics normalize the incumbent to zero, and show the shared canonical ledger delta.
             Before = 0,
-            After = values[Id(before)] is RegroupValuation.Priced && values[Id(after)] is RegroupValuation.Priced
+            After = values[Id(before)] is RegroupValuation.Evaluated && values[Id(after)] is RegroupValuation.Evaluated
                 ? Consequences(after).Value.Ledger.LossAgainst(Consequences(before).Value.Ledger) : 0,
             Walk = -(double)(after.Embedding.Score.Walk - before.Embedding.Score.Walk) / PlanWeights.Walk * input.Price.Work.CellWalkDays,
-            Effects = values[Id(after)] is RegroupValuation.Priced priced ? priced.Effects : [],
+            Effects = values[Id(after)] is RegroupValuation.Evaluated evaluated ? evaluated.Effects : [],
         };
         await Read([current]).ConfigureAwait(false);
         var random = new SearchRand(current.Embedding.Seed);

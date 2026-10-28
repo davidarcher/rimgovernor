@@ -1388,6 +1388,10 @@ outdoor-capable and indoor labor hours from the pawn's need rates and the twelft
 `NoMealService` when a falling food need has no observed meal service, or `Overbooked` when the measured overheads exceed
 24 hours. The latter states supply no modeled labor and are omitted from free-hours valuation. Missing need mechanics
 or seasonal facts raise `RequiredFactException`; they cannot turn into zero work hours.
+`NoMealService` is valid input to that conditional model with its named finding.
+It does not make layout valuation unread or hold the first-plan clock: native
+workers must be able to produce the first meal. No future native labor or meal
+is guaranteed by accepting the input.
 
 **Event loop.** `ColonyModel.Run` (`ColonyModel.cs`, `ColonyEvent.cs`, `ColonyTrajectory.cs`) steps stocks at piecewise-constant
 rates and jumps from event to event: a twelfth boundary, a scheduled project completion or harvest, a stock reaching zero, the

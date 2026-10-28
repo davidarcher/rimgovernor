@@ -217,12 +217,14 @@ public sealed class PawnCycleTests
     {
         var pawn = Pawn();
         pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "food" ? n with { Service = new ModelService.NoneObserved() } : n)) };
+        Assert.Empty(Input(pawn).Gaps()); // Known absence is a supported scenario, not an unread first-plan fact.
         Assert.IsType<PawnCycle.NoMealService>(PawnCycle.Of(Input(pawn), pawn, 5));
         Assert.Empty(PawnCycle.FreeHoursByPawn(Input(pawn), 30));
-        AssertNoLabor(pawn);
+        var run = AssertNoLabor(pawn);
+        Assert.Contains("meal_service_unavailable:" + pawn.Pawn, run.Findings);
     }
 
-    private static void AssertNoLabor(ModelPawn pawn)
+    private static ColonyTrajectory AssertNoLabor(ModelPawn pawn)
     {
         var input = Input(pawn);
         var policy = new ColonyModelPolicy { MedicineTendsPerDay = 0, HorizonDays = 1,
@@ -230,6 +232,7 @@ public sealed class PawnCycleTests
         var run = ColonyModel.Run(input, [PawnCycle.Year(input, pawn).ToArray()], policy);
         Assert.DoesNotContain(run.Events, e => e.Kind == ModelEventKind.ProjectCompletion);
         Assert.Contains("project_unstaffed:research", run.Findings);
+        return run;
     }
 
     [Fact]

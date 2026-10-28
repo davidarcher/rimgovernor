@@ -469,8 +469,10 @@ public static partial class ForecastValue
         {
             if (!context.Investment.ContainsKey(ProjectGraph.SkillKey(allocation.Pawn, skill))) return;
             var units = xp();
-            if (units > 0 && SkillValue.PerXp(outcome, commitments, context, horizon, allocation.Pawn, skill) is { } perUnit)
+            if (units <= 0) return;
+            if (SkillValue.PerXp(outcome, commitments, context, horizon, allocation.Pawn, skill) is { } perUnit)
                 rows.Add(new(allocation.Activity, allocation.Pawn, ProjectGraph.SkillKey(allocation.Pawn, skill), units, -units * perUnit));
+            else findings.Add("productive_skill_value_unassessed:" + allocation.Pawn + ":" + skill);
         }
         void Material(string activity, string pawn, Resource def, double units)
         {

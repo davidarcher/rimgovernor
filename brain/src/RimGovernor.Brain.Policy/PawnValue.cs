@@ -207,7 +207,7 @@ public static class PawnValueRules
     /// The review's work shortfall and every colonist's value (#3825), the production way: the shortfall of the selection over the
     /// candidates at the colonists' read speeds, each colonist's facts from its needs read (NeedsForecastPawn.Upkeep) and its free hours
     /// from tier 2's input over the investment horizon (<see cref="PawnCycle.FreeHoursByPawn"/>), the colony's from the catalog, the break curve and the bed the
-    /// review priced. A colonist tier 2 gives no free hours throws <see cref="RequiredFactException"/>.
+    /// review priced. Unassessed free hours name a capacity gap and leave pawn values unassessed.
     /// A colony with no layout plan yet (the review before its first plan derives, or one whose derive has not recorded a plan;
     /// <see cref="ForecastCoupledContext.FoodHaul"/> null) has walks for no food haul to price: its shortfall stands, it values no
     /// colonist and names the plan the values await, <see cref="AwaitingLayoutPlan"/> (#3857, awaiting_plan as a building verdict
@@ -226,11 +226,13 @@ public static class PawnValueRules
         if (shortfall.Unassessed.Count > 0) return (shortfall, [], "");
         if (context.FoodHaul is not { } haul) return (shortfall, [], AwaitingLayoutPlan);
         var hours = FreeHoursOf(selection.Selected, context);
+        var missing = workers.Where(p => !hours.ContainsKey(p.Pawn)).Select(p => "pawn_free_hours_unassessed:" + p.Pawn).ToArray();
+        if (missing.Length > 0) return (shortfall with { Unassessed = EquatableArray.From(missing) }, [], "");
         var colony = new PawnValueColony { Shortfall = shortfall, Food = food, Breaks = context.MoodBreaks, Bed = context.Bed, Haul = haul, HorizonDays = context.InvestmentHorizonDays };
         var values = workers.OrderBy(p => p.Pawn, StringComparer.Ordinal).Select(p => Of(new PawnValueFacts(p.Pawn)
         {
             Speeds = speeds[p.Pawn], Incapable = p.Upkeep.IncapableWork, FoodPerDay = p.Upkeep.FoodPerDay, Mood = p.Upkeep.Mood,
-            FreeTicksPerDay = (hours.TryGetValue(p.Pawn, out var free) ? free : throw new RequiredFactException("free hours of " + p.Pawn)) * GameTime.TicksPerHour,
+            FreeTicksPerDay = hours[p.Pawn] * GameTime.TicksPerHour,
         }, colony));
         return (shortfall, EquatableArray.From(values), "");
     }

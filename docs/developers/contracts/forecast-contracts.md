@@ -86,6 +86,26 @@ native grower work. Neither omitted exact work nor forecast output changes
 observed inventory. Tactical formation hunting retains its separate combat path
 pending the meaningful-intervention audit.
 
+The tier-2 model accepts `PawnCycle.NoMealService` as a named conditional state,
+not an unread input. It retains `meal_service_unavailable:<pawn>` and credits no
+labor in that scenario. This neither predicts zero native work nor proves a
+future meal; native capacity remains separately assessed. Layout valuation may
+therefore run before the first meal exists, allowing ordinary workers to cook it.
+Missing/invalid mechanics still reject model input; no replacement meal service
+or invented recovery rate is supplied.
+Readers preserve the same uncertainty: skill credit is unvalued with a named
+finding, pawn values retain `pawn_free_hours_unassessed` in the work assessment,
+and caravan lost work is an unassessed term. They do not throw because a known
+cycle offers no supported free-hours estimate.
+Recruitment likewise leaves the prospective joiner's value unassessed and names
+`prison_joiner_value_unassessed:<pawn>`; it does not classify that pawn as worth
+zero or costing more than it contributes.
+Layout candidates carry the same partially assessed consequence vector into
+`LayoutRegroupRules`; no additional fully priced-total check holds the first-plan
+clock. The canonical comparator compares terms both candidates assess and
+retains each unassessed term and finding. It neither supplies a replacement total
+nor invents predictable native needs behavior.
+
 Stored food explicitly observed as `FoodFreshness.Never` has infinite expiry in
 the conditional inventory calculation, matching harvested non-rotting food.
 This describes the captured conditions; it does not predict that a freezer

@@ -1,6 +1,9 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.GameFacts;
 using RimGovernor.Brain.GameOrders;
+using RimGovernor.Brain.Runtime;
+using RimGovernor.Brain.Store;
+using RimGovernor.Brain.GameAccess;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -38,6 +41,29 @@ public sealed class QuestMonumentHackGiftTests
     private static QuestMonumentMethod Select(RimGovernor.Brain.GameFacts.Observations.QuestMonument marker) => QuestMonumentPolicy.SelectQuestMonument(
         [Ongoing("BuildMonument", Objective with { Monument = marker })],
         new MapId(0), new Dictionary<Resource, long> { [new Resource("Steel")] = 100 }, []);
+
+    [Fact]
+    public void MonumentClaimsReadOnlyOpenMarkerMovesWithoutRequiringUnrelatedConstructionFacts()
+    {
+        IntentActionRules.RegisterIntentKinds();
+        var building = DomainAction.NewBuildingAction(new("wall"),
+            new("Wall", new(5, 5), Rotation.North, "Steel"), ConstructionTier.Survive);
+        var move = DomainAction.NewMoveBuildingAction(new("marker"),
+            new("MonumentMarker1", "MonumentMarker", new(3, 3), Rotation.North));
+        var plan = new PlanSpec(new("monument"), new(1), [building, move]);
+        var scope = new GenerationSnapshot(new("colony"), new(1), new("load"), plan.Id, new(1), new(1));
+        var applied = new Progress(plan, building.Id).Prepare(scope, new(100)).MarkDispatched(scope, new(100));
+        applied = applied.RecordReceipt(applied.View.Attempt, Receipt.Accepted);
+        Assert.Equal(Stage.Completed, applied.View.Stage);
+        var state = new PlanState(false, default, default, plan, [applied, new Progress(plan, move.Id)], []);
+        var quest = Ongoing("BuildMonument", Objective with
+        {
+            Monument = Monument(new RimGovernor.Brain.GameFacts.Observations.QuestMonumentState.Packed([new Cell(3, 3)]),
+                new RimGovernor.Brain.GameFacts.Observations.QuestMonumentPieceSite.Unplaced())
+        });
+        Assert.Equal([new Cell(3, 3)], QuestMonumentClaims.PendingMonumentCells([state], [quest]));
+        Assert.Empty(QuestMonumentClaims.PendingMonumentCells([state with { Retired = true }], [quest]));
+    }
 
     [Fact]
     public void EveryMonumentStateRoundTripsExactly()

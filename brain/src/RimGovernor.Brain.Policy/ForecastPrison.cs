@@ -434,6 +434,7 @@ public static partial class ForecastPrison
         foreach (var (prisoner, person, intent) in recruits)
         {
             var value = JoinerMoodRules.ValueOf(prisoner.Pawn, prisoner.Joiner, shortfall, context, outcome, commitments, horizon);
+            if (value is null) { states.Add("prison_joiner_value_unassessed:" + prisoner.Pawn); continue; }
             states.UnionWith(value.NotModelled);
             if (prisoner.Joiner.Mood is { SituationalTraits.Count: > 0 }) states.Add(SituationalTraits);
             if (value.PerDay <= 0)

@@ -14,15 +14,8 @@ public static class StorePackage
     public static bool PlanWorkOpen(PlanState p, CurrentConstruction? census) =>
         p.Retired ? WorkProgress.Open(p.Progress) : BuildingWorkRules.PlanWorkOpen(p.Progress, census);
 
-    /// <summary>
-    /// A plan's open work without a census: an applied building on a plan not yet retired is still open, since
-    /// retirement is what reads the census.
-    /// </summary>
+    /// <summary>Open plan work; building work requires a construction census via <see cref="PlanWorkOpen"/>.</summary>
     public static bool PlanOpen(PlanState p) => PlanWorkOpen(p, default);
-
-    /// <summary><see cref="PlanOpen"/> for one action of plan <paramref name="p"/>.</summary>
-    public static bool ProgressOpen(PlanState p, Progress progress) =>
-        WorkProgress.Open([progress]) || (!p.Retired && BuildingWorkRules.AppliedBuildingOpen(progress, default));
 
     /// <summary>A planned room's ring method: a build wave of a "&lt;role&gt;-shell-room&lt;id&gt;" reconcile.</summary>
     public static bool IsRoomShellMethod(MethodId method) => GlobMatch(method.Value, "*-shell-*-build-*");

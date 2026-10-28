@@ -1,5 +1,11 @@
 # Planner-owned pawn activities
 
+Draft reconciliation reads outstanding journal actions and combat rosters. Applied
+building intents do not hold a pawn drafted while native construction continues;
+construction completion is assessed separately with its observed census. Pending
+monument placement claims likewise read open marker moves, not unrelated building
+work on the same plan.
+
 ## Finite native ordered work
 
 `OrderedWork` uses the existing GiveJob intent and journal/Hands dispatch path.

@@ -29,6 +29,23 @@ public sealed class SkillValueTests
         SkillValue.WorkPerXp("pawn", skill, Upkeep, new SkillRaise(xp, days), free, shortfall, horizon);
 
     [Fact]
+    public void NoMealCycleLeavesTheSkillWorkBenefitUnassessedWithoutFaultingTheReview()
+    {
+        var model = ColonyModelFixtures.Devilstrand();
+        model = model with { Pawns = EquatableArray.From(model.Pawns.Select(p => p with { Pawn = "pawn",
+            Needs = EquatableArray.From(p.Needs.Select(n => n.Kind == "food" ? n with { Service = new ModelService.NoneObserved() } : n)) })) };
+        var key = ProjectGraph.SkillKey("pawn", "Cooking");
+        var context = ForecastValueTests.Context(ForecastValueTests.Pawn() with { Upkeep = Upkeep }) with
+        {
+            ModelBasis = new(model, new() { MedicineTendsPerDay = 0 }), InvestmentHorizonDays = 30,
+            Investment = new Dictionary<string, double> { [key] = 1 },
+            SkillRaises = new Dictionary<string, SkillRaise> { [key] = new(1000, 30) }, Joiners = new(),
+        };
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>(), []);
+        Assert.Null(SkillValue.PerXp(outcome, [], context, Day, "pawn", "Cooking"));
+    }
+
+    [Fact]
     public void ASkillUsedByAWorkTypeTheColonyIsShortOfIsWorthItsSpeedGainOverTheXpTheLevelTakes()
     {
         // Free 20000 ticks at speed 1 fill 20000 of the 60000 short; at 1.2 they fill 24000: 4000 ticks a day, 4000 / a day capability-days

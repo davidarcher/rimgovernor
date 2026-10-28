@@ -33,12 +33,12 @@ internal static class QuestMonumentClaims
 
             foreach (var progress in plan.Progress)
             {
-                if (!StorePackage.ProgressOpen(plan, progress))
+                if (progress.Action.MoveBuilding is not { } move || !WorkProgress.Open([progress]))
                 {
                     continue;
                 }
 
-                if (progress.Action.MoveBuilding is not { } move || !markers.TryGetValue(move.Thing, out var marker))
+                if (!markers.TryGetValue(move.Thing, out var marker))
                 {
                     continue;
                 }

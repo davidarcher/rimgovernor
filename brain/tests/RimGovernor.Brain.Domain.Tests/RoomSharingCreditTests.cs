@@ -11,8 +11,10 @@ public sealed class RoomSharingCreditTests
 {
     private const double Day = GameTime.TicksPerDay;
 
-    [Fact]
-    public async Task SharedRoomSavingsCannotOverrideTheCanonicalDeathFloorAndTheWinnerRetainsItsEvaluatedGeometry()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SharedRoomSavingsCannotOverrideTheCanonicalDeathFloorAndTheWinnerRetainsItsEvaluatedGeometry(bool totalAssessed)
     {
         const string beds = "Bed/sleep", bench = "ResearchBench/work";
         var station = new StationNode { Id = bench, Def = "ResearchBench", Purpose = StationPurpose.Work, Count = 1, DailyWork = 20000 };
@@ -33,15 +35,16 @@ public sealed class RoomSharingCreditTests
             var shared = candidate.Layout.Clustering.Groups.Any(g => LayoutRegroupRules.HoldsNode(g, beds) && LayoutRegroupRules.HoldsNode(g, bench));
             var vector = new ForecastConsequenceVector([], [new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0)], new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), 0, [])
             {
-                Value = new(new(new LedgerTerm.Priced(shared ? -1000 : 0), []), new()) { Death = new(true, shared ? 1 : 0) },
+                Value = new(new(totalAssessed ? new LedgerTerm.Priced(shared ? -1000 : 0) : new LedgerTerm.Unassessed(), []), new()) { Death = new(true, shared ? 1 : 0) },
             };
-            return (RegroupValuation)new RegroupValuation.Priced(candidate.Id, vector, shared ? ["death_risk_floor"] : []);
+            return (RegroupValuation)new RegroupValuation.Evaluated(candidate.Id, vector, shared ? ["death_risk_floor"] : ["native_response_unassessed"]);
         })]), TestContext.Current.CancellationToken);
 
         Assert.InRange(evaluated.Count, 2, 33);
         Assert.Contains(evaluated, geometry => ReferenceEquals(geometry, result.Embedding));
         Assert.DoesNotContain(result.Clustering.Groups, g => LayoutRegroupRules.HoldsNode(g, beds) && LayoutRegroupRules.HoldsNode(g, bench));
         Assert.Contains(result.Decisions, decision => decision.Effects.Contains("death_risk_floor"));
+        if (!totalAssessed) Assert.Contains(result.Decisions, decision => decision.Effects.Contains("native_response_unassessed"));
     }
 
     [Fact]
@@ -138,7 +141,7 @@ public sealed class RoomSharingCreditTests
                     InvestmentContributions = EquatableArray.From(ledger.InvestmentContributions.Append(new("", "", "material/WoodLog", 1, shell))) };
                 var vector = new ForecastConsequenceVector([], [new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0)], new ForecastTerm.Assessed(0), new ForecastTerm.Assessed(0), 0, [])
                 { Value = new(ledger, context.Value) };
-                return (RegroupValuation)new RegroupValuation.Priced(candidate.Id, vector,
+                return (RegroupValuation)new RegroupValuation.Evaluated(candidate.Id, vector,
                     shared ? disturbed > 0 ? ["lab/1/pawn", "sleep_disturbed", "barracks/1/pawn", "barracks/1/second"] : ["lab/1/pawn"] : []);
             })]));
         }

@@ -125,6 +125,25 @@ public sealed class UndraftJournalTests
     }
 
     [Fact]
+    public async Task AppliedBuildingIntentDoesNotRequireAConstructionCensusToReleaseAnUnneededDraft()
+    {
+        using var rig = new Rig();
+        var action = DomainAction.NewBuildingAction(new("wall"),
+            new("TestWall", new(3, 3), Rotation.North, "Rice"), ConstructionTier.Survive);
+        var plan = new PlanSpec(new("building"), new(1), [action]);
+        TestNeed.Commit(rig.Journal, Root, new("building"), plan, Ct);
+        var scope = Root with { Plan = plan.Id };
+        rig.Journal.Prepare(plan.Id, action.Id, scope, new(100), Ct);
+        var dispatched = rig.Journal.Dispatch(plan.Id, action.Id, scope, new(100), Ct);
+        rig.Journal.RecordReceipt(plan.Id, action.Id, dispatched.View.Attempt, Receipt.Accepted, Ct);
+        Assert.Equal(Stage.Completed, Assert.Single(rig.Journal.LoadPlan(plan.Id, Ct).Progress).View.Stage);
+
+        Assert.Empty(await rig.Journal.PlannedDraftsAsync(Ct));
+        Assert.Null((await rig.Run()).Error);
+        Assert.Equal(1, rig.Native.Writes);
+    }
+
+    [Fact]
     public void DraftReleasePolicyKeepsNeededAndCustodyPawnsDrafted()
     {
         var idle = PawnFixtures.Row("idle") with { Drafted = true };

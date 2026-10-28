@@ -13,7 +13,7 @@ public sealed partial class Store
         var needed = new HashSet<PawnId>();
         foreach (var plan in LoadPlansIn(tx))
         {
-            var open = StorePackage.PlanOpen(plan);
+            var open = WorkProgress.Open(plan.Progress);
             foreach (var progress in plan.Progress)
             {
                 var view = progress.View;

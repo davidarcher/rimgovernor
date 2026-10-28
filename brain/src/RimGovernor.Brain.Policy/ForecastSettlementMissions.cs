@@ -53,7 +53,7 @@ public static class ForecastSettlementMissions
         foreach (var id in mission.Crew)
         {
             var pawn = context.Needs.Pawns.SingleOrDefault(p => p.Pawn == id) ?? throw new RequiredFactException("trade_mission_pawn:" + id);
-            if (!free.TryGetValue(id, out var hours)) throw new RequiredFactException("free hours of " + id);
+            if (!free.TryGetValue(id, out var hours)) return new ForecastTerm.Unassessed("pawn_free_hours_unassessed:" + id);
             days += PawnValueRules.WorkAdded(new(id)
             {
                 Speeds = pawn.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal),

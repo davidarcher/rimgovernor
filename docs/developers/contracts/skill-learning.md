@@ -72,6 +72,9 @@ supply that evidence.
 Pawn and skill valuation share the colony's computed free hours for each evaluated
 outcome over the investment horizon. A different immutable context or outcome
 gets its own computation; joiners still project their distinct needs separately.
+When a known no-meal cycle leaves those hours unassessed, the skill's work
+benefit is unvalued and the ledger names `productive_skill_value_unassessed`.
+It does not grant zero-cost labor or stop unrelated native work from running.
 
 Normal food alternatives attach `ProductiveSkillWork` to supported recipe/pawn/station
 options. `CompareActivityPlans` calls `ForecastProductiveWork` before admitting a

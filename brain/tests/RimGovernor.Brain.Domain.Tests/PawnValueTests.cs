@@ -277,6 +277,20 @@ public sealed class PawnValueTests
         Assert.Equal("pawn", Assert.Single(findings.PawnValues).Pawn);
     }
 
+    [Fact]
+    public void NoMealCycleNamesUnassessedPawnValueWithoutFaultingOtherReviewDecisions()
+    {
+        var model = ColonyModelFixtures.Devilstrand();
+        model = model with { Pawns = EquatableArray.From(model.Pawns.Select(p => p with
+            { Needs = EquatableArray.From(p.Needs.Select(n => n.Kind == "food" ? n with { Service = new ModelService.NoneObserved() } : n)) })) };
+        var findings = Inspected(1, 100, 3 * Day, model);
+        Assert.Empty(findings.PawnValues);
+        Assert.Contains("pawn_free_hours_unassessed:pawn", findings.WorkShortfall!.Unassessed);
+        Assert.NotNull(findings.CoupledSelection);
+        Assert.Null(RimGovernor.Brain.Runtime.ColonyReview.PawnValueAttrs(findings)
+            .Single(a => a.Key == RimGovernor.Brain.Telemetry.ReviewTelemetry.PawnValuesKey).Value);
+    }
+
     private static Findings Inspected(int sites, int stock, double finishTicks, ColonyModelInput? model = null) =>
         Inspected(sites, stock, finishTicks, FreshLegs(), model);
 

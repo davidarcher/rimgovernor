@@ -11,6 +11,29 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ColonyModelInputTests
 {
     [Fact]
+    public void ObservedAbsenceOfReadyMealsDoesNotMakeTheLayoutValuationInputUnread()
+    {
+        var colony = ColonyModelFixtures.Reading();
+        var needs = colony.Facts.NeedsAlternatives!;
+        colony = colony with { Facts = colony.Facts with { NeedsAlternatives = needs with
+        {
+            Observation = needs.Observation with { Pawns = EquatableArray.From(needs.Observation.Pawns.Select(p =>
+                p with { Targets = EquatableArray.From(p.Targets.Where(t => t.Kind != "food")) })) },
+        } } };
+        var input = ColonyModelFixtures.ReadyOf(colony);
+        Assert.Empty(input.Gaps());
+        Assert.All(input.Pawns, p => Assert.All(PawnCycle.Year(input, p), c => Assert.IsType<PawnCycle.NoMealService>(c)));
+        var pawn = Assert.Single(input.Pawns);
+        var context = ForecastValueTests.Context(ForecastValueTests.HarmPawn() with { Pawn = pawn.Pawn },
+            ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(),
+            new Dictionary<string, EquatableArray<GearOption>> { [pawn.Pawn] = ForecastValueTests.Cloth });
+        var model = ReviewColonyModel.Review(colony, context, null);
+        Assert.NotNull(model.Basis); // Layout comparison requires this basis before native work can run.
+        Assert.Empty(model.Unknowns);
+        Assert.Contains(model.Marginals.Trajectory.Findings, f => f.StartsWith("meal_service_unavailable:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void TheReviewFrameYieldsAValidInput()
     {
         var input = ColonyModelFixtures.ReadyOf(ColonyModelFixtures.Reading());

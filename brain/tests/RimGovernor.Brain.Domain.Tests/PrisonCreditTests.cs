@@ -157,13 +157,26 @@ public sealed class PrisonCreditTests
     }
 
     [Fact]
+    public void UnavailableMealCycleLeavesRecruitmentValueUnassessedWithoutFaultingThePortfolio()
+    {
+        var review = Of(c => [Prisoner(c)]);
+        var basis = review.Context.ModelBasis!;
+        var input = basis.Input with { Pawns = EquatableArray.From(basis.Input.Pawns.Select(p => p with
+            { Needs = EquatableArray.From(p.Needs.Select(n => n.Kind == "food" ? n with { Service = new ModelService.NoneObserved() } : n)) })) };
+        review = review with { Context = review.Context with { ModelBasis = basis with { Input = input } } };
+        Assert.Empty(review.Gains());
+        Assert.Contains("prison_joiner_value_unassessed:prisoner", review.Findings());
+        Assert.DoesNotContain(ForecastPrison.CostsMore, review.Findings());
+    }
+
+    [Fact]
     public void ARecruitableResistanceTenPrisonerInADecentCellIsCreditedItsValueOverTheDaysTheRoomSavesLessTheWardensChats()
     {
         var review = Of(c => [Prisoner(c)]);
         var context = review.Context;
         var shortfall = JoinerMoodRules.ShortfallOf(review.Outcome, review.Commitments, context, review.Horizon);
         Assert.NotEmpty(shortfall.Rows);
-        var value = JoinerMoodRules.ValueOf("prisoner", context.Needs.Prison.Prisoners[0].Joiner, shortfall, context, review.Outcome, review.Commitments, review.Horizon).PerDay;
+        var value = Assert.IsType<PawnValue>(JoinerMoodRules.ValueOf("prisoner", context.Needs.Prison.Prisoners[0].Joiner, shortfall, context, review.Outcome, review.Commitments, review.Horizon)).PerDay;
         Assert.True(value > 0);
         // An attempt lowers 1 × curve(0.5) 1 × curve(0) 1: ten jobs to 0, the eleventh recruits, its attempt 1,750 ticks in,
         // jobs half a day apart from the room's service.
@@ -638,7 +651,7 @@ public sealed class PrisonCreditTests
         Assert.Null(PopulationRules.RecruitIntent(person, census.Colony));
         var held = Of(c => [Prisoner(c)], census: census);
         var shortfall = JoinerMoodRules.ShortfallOf(held.Outcome, held.Commitments, held.Context, held.Horizon);
-        Assert.True(JoinerMoodRules.ValueOf("prisoner", held.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, held.Context, held.Outcome, held.Commitments, held.Horizon).PerDay > 0);
+        Assert.True(Assert.IsType<PawnValue>(JoinerMoodRules.ValueOf("prisoner", held.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, held.Context, held.Outcome, held.Commitments, held.Horizon)).PerDay > 0);
         Assert.Empty(held.Gains());
         Assert.Contains(ForecastPrison.NotRecruited, held.Findings());
         Assert.Contains(ForecastPrison.NoRecruit, held.Findings());
@@ -737,8 +750,8 @@ public sealed class PrisonCreditTests
         var withChats = Of(c => [Prisoner(c) with { Resistance = 2.02, Conversion = Conversion(1), Opinions = [Opinion() with { Chitchat = 1.32 }] }], census: census);
         var blocked = Of(c => [Prisoner(c) with { Resistance = 2.02, Conversion = Conversion(1) }], census: census);
         var shortfall = JoinerMoodRules.ShortfallOf(withChats.Outcome, withChats.Commitments, withChats.Context, withChats.Horizon);
-        var value = JoinerMoodRules.ValueOf("prisoner", withChats.Context.Needs.Prison.Prisoners[0].Joiner, shortfall,
-            withChats.Context, withChats.Outcome, withChats.Commitments, withChats.Horizon).PerDay;
+        var value = Assert.IsType<PawnValue>(JoinerMoodRules.ValueOf("prisoner", withChats.Context.Needs.Prison.Prisoners[0].Joiner, shortfall,
+            withChats.Context, withChats.Outcome, withChats.Commitments, withChats.Horizon)).PerDay;
         // One conversion job gives opinion 4, then 3 after daily decay; two attempts remove 2.035 instead of 2 resistance,
         // saving half a day and one recruit job.
         Assert.Equal((0.5 * value) + LostPerJob(withChats), Assert.Single(withChats.Gains()).Once - Assert.Single(blocked.Gains()).Once, 9);
@@ -795,7 +808,7 @@ public sealed class PrisonCreditTests
         // The production census made it a conversion: the autopilot's rule, called.
         Assert.Same(census, review.Context.PrisonerPopulation);
         var shortfall = JoinerMoodRules.ShortfallOf(review.Outcome, review.Commitments, review.Context, review.Horizon);
-        var value = JoinerMoodRules.ValueOf("prisoner", review.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, review.Context, review.Outcome, review.Commitments, review.Horizon).PerDay;
+        var value = Assert.IsType<PawnValue>(JoinerMoodRules.ValueOf("prisoner", review.Context.Needs.Prison.Prisoners[0].Joiner, shortfall, review.Context, review.Outcome, review.Commitments, review.Horizon)).PerDay;
         Assert.True(value > 0);
         // Certainty 0.5 is gone in two attempts; no mood need: the mood curve at 1 (1.5), so seven recruit jobs lower resistance 10 and
         // the eighth, in slot 2 + 7, recruits.

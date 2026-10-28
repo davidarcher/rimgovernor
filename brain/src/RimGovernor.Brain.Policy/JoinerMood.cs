@@ -181,10 +181,10 @@ public static partial class JoinerMoodRules
     /// The joiner's value (#3825's <see cref="PawnValueRules.Of"/>) against <paramref name="shortfall"/>: its read speeds, incapable
     /// work and food, its mood as a colonist (<see cref="MoodOf"/>) and its free hours over the investment horizon, the median over
     /// the colonists of its hours served as each is (<see cref="ServedAs"/>, <see cref="PawnCycle.FreeHoursByPawn"/>), on the colony's
-    /// food work, break curve, bed and planned food walks. A colonist the joiner served as it has no free hours, no colonist, or a
-    /// context without the model basis, the joiner basis or the layout's food walks, throws <see cref="RequiredFactException"/>.
+    /// food work, break curve, bed and planned food walks. Unsupported free hours leave the value unassessed (null).
+    /// No colonist or a context without the model basis, joiner basis or food walks throws <see cref="RequiredFactException"/>.
     /// </summary>
-    public static PawnValue ValueOf(string pawn, JoinerRead joiner, WorkShortfall shortfall, ForecastCoupledContext context,
+    public static PawnValue? ValueOf(string pawn, JoinerRead joiner, WorkShortfall shortfall, ForecastCoupledContext context,
         ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, double horizon)
     {
         var basis = context.ModelBasis ?? throw new RequiredFactException("colony model basis");
@@ -198,7 +198,8 @@ public static partial class JoinerMoodRules
             return modelled.Select(c => ServedAs(pawn + "@" + c.Pawn, joiner, c, rates.GetValueOrDefault(c.Pawn) ?? []));
         });
         if (colonists.Count == 0) throw new RequiredFactException("colony model pawns");
-        var free = Median([.. colonists.Select(c => hours.TryGetValue(pawn + "@" + c, out var h) ? h : throw new RequiredFactException("free hours of " + pawn + " served as " + c))]);
+        if (colonists.Any(c => !hours.ContainsKey(pawn + "@" + c))) return null;
+        var free = Median([.. colonists.Select(c => hours[pawn + "@" + c])]);
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var situation = SelectedSituationTraits(joiner.Mood?.SituationStages ?? [], outcome, commitments, context, horizon, findings);
         var value = PawnValueRules.Of(new PawnValueFacts(pawn)
