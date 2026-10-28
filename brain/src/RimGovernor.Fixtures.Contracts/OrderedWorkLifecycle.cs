@@ -9,4 +9,8 @@ public sealed record OrderedWorkLifecycleRead
     public string[] Outcomes { get; init; } = [];
     public bool TargetsRemoved { get; init; }
     public bool ReturnedToNative { get; init; }
+    public int? CurrentJob { get; init; }
+    public int[] QueuedJobs { get; init; } = [];
+    public int? ForeignJob { get; init; }
+    public string JobDef { get; init; } = "";
 }

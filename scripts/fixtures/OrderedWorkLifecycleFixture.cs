@@ -23,15 +23,18 @@ public sealed partial class PawnControlFixture
     private static Thing[] orderedTargets = [];
     private static readonly List<int> orderedStarts = new();
     private static bool orderedAdmitted, orderedPatched;
+    private static int? orderedForeign;
 
     [Tool("test/ordered_work_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Stage two legal independent deconstruction jobs and a healthy waiting worker. Does not dispatch the intervention.")]
-    public async Task<object> PrepareOrderedWork(INativeContext ctx, CancellationToken ct, string pawn, string first, string second) =>
+    public async Task<object> PrepareOrderedWork(INativeContext ctx, CancellationToken ct, string pawn, string first, string second, string third = "") =>
         await ctx.MainThread.InvokeAsync<object>(() =>
         {
             var map = FixtureKit.PausedMap();
             orderedWorker = FixtureKit.Spawned<Pawn>(map, pawn);
             orderedTargets = [FixtureKit.Spawned<Thing>(map, first), FixtureKit.Spawned<Thing>(map, second)];
+            if (third.Length != 0) orderedTargets = [.. orderedTargets, FixtureKit.Spawned<Thing>(map, third)];
             orderedStarts.Clear(); orderedAdmitted = false;
+            orderedForeign = null;
             if (orderedWorker.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) throw new InvalidOperationException("Worker cannot construct.");
             orderedWorker.drafter.Drafted = false;
             orderedWorker.needs.food.CurLevelPercentage = 1;
@@ -66,22 +69,42 @@ public sealed partial class PawnControlFixture
 
     private static Fx.OrderedWorkLifecycleRead OrderedWorkRead()
     {
-        var pawn = orderedWorker ?? throw new InvalidOperationException("Prepare ordered work first.");
+        var id = orderedWorker?.GetUniqueLoadID() ?? throw new InvalidOperationException("Prepare ordered work first.");
+        // A lifecycle load replaces every Pawn object. Resolve the saved identity against the loaded map.
+        var pawn = FixtureKit.Spawned<Pawn>(FixtureKit.CurrentMap(), id);
+        orderedWorker = pawn;
         var latest = NativeOrderedWork.Observe(pawn);
         return new()
         {
             Admitted = orderedAdmitted,
             IntendedJobs = latest?.Jobs.Select(j => j.JobId).ToArray() ?? [], StartedJobs = orderedStarts.ToArray(),
             Outcomes = latest?.Jobs.Select(j => j.Status.ToString()).ToArray() ?? [],
-            TargetsRemoved = orderedTargets.All(t => t.Destroyed),
+            TargetsRemoved = orderedTargets.All(t => !pawn.Map.listerThings.AllThings.Any(live => live.GetUniqueLoadID() == t.GetUniqueLoadID())),
             ReturnedToNative = latest != null && latest.Jobs.All(j => j.Status == OrderedWorkStatus.Succeeded)
                 && pawn.CurJob is { playerForced: false } && pawn.jobs.jobQueue.Count == 0,
+            CurrentJob = pawn.CurJob?.loadID,
+            QueuedJobs = pawn.jobs.jobQueue.Select(q => q.job.loadID).ToArray(), ForeignJob = orderedForeign,
+            JobDef = JobDefOf.Deconstruct.defName,
         };
     }
 
     [Tool("test/ordered_work_read", Description = "Read actual finite queue identities, start order, end conditions, physical removals and native return. No dispatch.")]
     public async Task<object> ReadOrderedWork(INativeContext ctx, CancellationToken ct) =>
         await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(OrderedWorkRead()), ct).ConfigureAwait(false);
+
+    [Tool("test/ordered_work_foreign", Description = "UNSAFE FOR MODEL EXECUTION. Stage unrelated current or queued work to test exact-identity cancellation; does not cancel the intervention.")]
+    public async Task<object> ForeignOrderedWork(INativeContext ctx, CancellationToken ct, bool replace = false) =>
+        await ctx.MainThread.InvokeAsync<object>(() =>
+        {
+            _ = OrderedWorkRead();
+            var pawn = orderedWorker!;
+            var foreign = JobMaker.MakeJob(JobDefOf.Wait);
+            foreign.expiryInterval = 10000;
+            orderedForeign = foreign.loadID;
+            if (replace) pawn.jobs.StartJob(foreign, JobCondition.InterruptForced);
+            else pawn.jobs.jobQueue.EnqueueLast(foreign);
+            return FixtureKit.Reply(OrderedWorkRead());
+        }, ct).ConfigureAwait(false);
 
     [Tool("test/ordered_work_admit", Description = "UNSAFE FOR MODEL EXECUTION. Admit one staged finite intervention through the live journal. Normal worker and Hands dispatch it; no direct native order from the fixture.")]
     public async Task<object> AdmitOrderedWork(INativeContext ctx, CancellationToken ct) =>

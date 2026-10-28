@@ -19,6 +19,12 @@ current and queued work. An observed successful end is `Succeeded`; a missing jo
 without that evidence is `Gone`. Dispatch acknowledgment is separate from these
 physical outcomes. See [persistence ownership](persistence-contracts.md).
 
+The registered `control/ordered-work-cancel-reload` and
+`control/ordered-work-replaced-reload` cases verify this against actual saved
+native jobs: partial completion survives load, cancellation preserves unrelated
+current/queued jobs, and repeated requests cannot revive cancelled work. The
+[labor evidence](../../requirements/colony-labor.md) records their scoped results.
+
 The needs reader retains physically accessible service targets during forced or
 queued work. The pawn still reports `player_work` and remains ineligible for
 ordinary needs dispatch. Conditional overhead/layout estimates can read meal

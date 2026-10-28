@@ -19,10 +19,29 @@ jobs and a concrete purpose, so this proves native mechanics, not policy choice
 or intervention materiality. Result:
 `.rimgovernor/labor-ordered-work-final/control/ordered-work-lifecycle/result.json`.
 It records dirty source based on `d8e3bc439393`, package file hashes, the `work`
-family and the three named fixture operations. Task 4.4 is complete; 4.1–4.3
-remain open. In particular, full save/reload reconciliation and active partial
-cancellation preserving unrelated work still need their boundary evidence, and
-Method continuation through queue outcomes remains unfinished.
+family and the three named fixture operations. Tasks 4.3 and 4.4 are complete;
+4.1–4.2 remain open, including Method continuation through physical queue outcomes.
+
+Two further native cases establish partial cancellation and actual save/load
+reconciliation. `control/ordered-work-cancel-reload` passed in 19.381s: jobs
+7/8/9 retained `Succeeded`/`Running`/`Queued` across a real save/load, alongside
+unrelated queued job 11. Cancellation retained job 7's success, cancelled only
+8 and 9, and started unrelated job 11. `control/ordered-work-replaced-reload`
+passed in 12.453s: replacement made job 8 `Gone`; reload preserved that outcome,
+job 9 remained queued, and cancellation removed only 9 while unrelated current
+job 11 survived. Repeated cancel and install requests changed neither execution
+nor outcomes. Results are under `.rimgovernor/labor-queue-cancel-reload/` and
+`.rimgovernor/labor-queue-replaced-reload/`, respectively, with package hashes
+and dirty source based on `a2a678e67`. These cases use the typed native order
+boundary and stage unrelated jobs explicitly; the earlier lifecycle case and
+Hands regression establish the journal dispatch route. They make no planner
+selection or intervention-justification claim. The gate passed 4,175 domain and
+30 workflow tests, native builds, probes and the orphan check (2m50s); strict
+OpenSpec validation passed all five items. No production execution or persistence
+owner was added. Rules 7–9 retain the existing owners and distinguish missing
+execution from success. Complexity: added two scoped native cases and fixture
+readback for loaded identities / removed stale fixture object reads / orphans
+left: none.
 
 `OrderedWorkTests` checks immutable request sequencing, stale/altered/reordered
 requests, partial completion, missing/replaced identities, serialized outcome
