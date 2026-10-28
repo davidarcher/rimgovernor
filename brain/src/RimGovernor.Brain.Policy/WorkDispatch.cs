@@ -1,3 +1,5 @@
+using RimGovernor.Brain.GameFacts.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 // The bench dispatcher is the decision half of the work ledger: how many benches should carry
@@ -26,6 +28,14 @@ public enum UnmetReason
     /// <summary>Active bills and stocked ingredients had no observed exact bill job; this does not attribute the missing work to hauling or promise continuous observation.</summary>
     [WireName("work_unstarted")]
     WorkUnstarted,
+
+    /// <summary>Exact bill jobs showed pending ingredients and no actual recipe work in the sampled window. This is not proof of a hauling stall.</summary>
+    [WireName("ingredients_pending")]
+    IngredientsPending,
+
+    /// <summary>Actual recipe work was not observed; the cause of the measured production gap is unassessed.</summary>
+    [WireName("recipe_work_unassessed")]
+    RecipeWorkUnassessed,
 
     /// <summary>Production stays short with a bill on every usable bench; only a new bench can raise it.</summary>
     [WireName("benches_exhausted")]
@@ -106,6 +116,9 @@ public sealed record ThroughputWindow
     /// <summary>Samples with a current job for one of the order's exact bills; this includes ingredient gathering, not just recipe work.</summary>
     public int Busy { get; init; }
 
+    /// <summary>Strongest observed work evidence from this window's exact bill jobs; no completed output is implied.</summary>
+    public BillWorkEvidence BillWork { get; init; }
+
     /// <summary>Set when a carrying bill was not known active.</summary>
     public bool Inactive { get; init; }
 }
@@ -138,6 +151,8 @@ public sealed record ThroughputObservation
 
     /// <summary>A pawn's current job carries one of the order's exact bill identities. Neither a completion nor a particular recipe toil is implied.</summary>
     public bool Busy { get; init; }
+
+    public BillWorkEvidence BillWork { get; init; }
 
     /// <summary>The recipe has stocked alternatives, lacks an ingredient, or has no eligible bench.</summary>
     public ThroughputIngredients Ingredients { get; init; }
@@ -390,6 +405,7 @@ public static partial class WorkRules
                 Met = stock >= o.Target,
                 Samples = 1,
                 Busy = o.Busy ? 1 : 0,
+                BillWork = o.Busy ? o.BillWork : BillWorkEvidence.Unassessed,
                 Inactive = !o.Active,
             };
         if (!w.Open || w.Carrying != o.Carrying || o.Tick < w.Start || w.LoadToken != loadToken
@@ -407,7 +423,8 @@ public static partial class WorkRules
         };
         if (o.Busy)
         {
-            w = w with { Busy = w.Busy + 1 };
+            w = w with { Busy = w.Busy + 1,
+                BillWork = o.BillWork == BillWorkEvidence.RecipeWorkObserved || w.BillWork == BillWorkEvidence.Unassessed ? o.BillWork : w.BillWork };
         }
         if (!o.Active)
         {
@@ -432,6 +449,11 @@ public static partial class WorkRules
             else if (o.Ingredients == ThroughputIngredients.Stocked && !w.Inactive && w.Samples > 0 && w.Busy == 0)
             {
                 cal = cal with { Reason = UnmetReason.WorkUnstarted };
+            }
+            else if (w.BillWork != BillWorkEvidence.RecipeWorkObserved)
+            {
+                cal = cal with { Reason = w.BillWork == BillWorkEvidence.IngredientsPending
+                    ? UnmetReason.IngredientsPending : UnmetReason.RecipeWorkUnassessed };
             }
             else if (o.Carrying < o.Eligible)
             {

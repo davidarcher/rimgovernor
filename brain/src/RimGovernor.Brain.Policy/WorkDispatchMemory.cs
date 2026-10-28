@@ -1,3 +1,5 @@
+using RimGovernor.Brain.GameFacts.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 
@@ -165,8 +167,12 @@ public static partial class WorkRules
                 }
             }
         }
-        o = o with { Carrying = carrying.Distinct(StringComparer.Ordinal).Count(),
-            Busy = input.Pawns.Any(p => p.Job.Observed.BillId is { } bill && bills.Contains(bill, StringComparer.Ordinal)) };
+        var jobs = input.Pawns.Select(p => p.Job.Observed)
+            .Where(job => job.BillId is { } bill && bills.Contains(bill, StringComparer.Ordinal)).ToArray();
+        o = o with { Carrying = carrying.Distinct(StringComparer.Ordinal).Count(), Busy = jobs.Length != 0,
+            BillWork = jobs.Any(job => job.BillWork == BillWorkEvidence.RecipeWorkObserved) ? BillWorkEvidence.RecipeWorkObserved
+                : jobs.Any(job => job.BillWork == BillWorkEvidence.IngredientsPending) ? BillWorkEvidence.IngredientsPending
+                : BillWorkEvidence.Unassessed };
         o = o with
         {
             Output = input.Production is { } production ? new ProductionOutput.Observed(production.LoadToken, production.Counts

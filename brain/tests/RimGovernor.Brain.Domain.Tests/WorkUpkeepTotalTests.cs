@@ -75,7 +75,7 @@ public sealed class WorkUpkeepTotalTests
     [Theory]
     [InlineData(ThroughputIngredients.Missing, UnmetReason.Ingredients, false)]
     [InlineData(ThroughputIngredients.Stocked, UnmetReason.WorkUnstarted, false)]
-    [InlineData(ThroughputIngredients.NoRecipe, UnmetReason.None, true)]
+    [InlineData(ThroughputIngredients.NoRecipe, UnmetReason.RecipeWorkUnassessed, false)]
     public void IngredientStatesControlThroughputCalibration(ThroughputIngredients ingredients, UnmetReason expected, bool widen)
     {
         var start = new ThroughputObservation { Tick = 1, Target = 100, Carrying = 1, Eligible = 2, Capacity = new ForecastTerm.Assessed(10), Active = true, Ingredients = ingredients,

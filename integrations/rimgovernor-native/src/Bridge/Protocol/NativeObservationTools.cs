@@ -189,12 +189,22 @@ namespace RimGovernor.Native
             foreach (var building in map.listerBuildings.allBuildingsNonColonist) if (!(building is Hive) && HostileBuilding(building, player)) found.Add(building);
             return found.OrderBy(t => t.thingIDNumber).ToList();
         }
-        internal static RimGovernor.Brain.GameFacts.Observations.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs)
+        internal static RimGovernor.Brain.GameFacts.Observations.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs, Verse.AI.JobDriver? driver)
         {
             if (queuedJobs < 0) throw new InvalidOperationException("Negative native queued job count.");
             var row = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs };
             if (job != null) {
                 row = row with { DefName = Identifier(job.def.defName), BillId = job.bill?.GetUniqueLoadID() };
+                // The vanilla driver gathers ingredients before recipe work. Its work-tick counter
+                // is actual work already done in this job, not the current toil or finished product.
+                if (job.bill != null && driver?.job == job && driver.GetType() == typeof(Verse.AI.JobDriver_DoBill))
+                {
+                    var billDriver = (Verse.AI.JobDriver_DoBill)driver;
+                    row = row with { BillWork = billDriver.ticksSpentDoingRecipeWork > 0
+                        ? RimGovernor.Brain.GameFacts.Observations.BillWorkEvidence.RecipeWorkObserved
+                        : billDriver.AnyIngredientsQueued ? RimGovernor.Brain.GameFacts.Observations.BillWorkEvidence.IngredientsPending
+                        : RimGovernor.Brain.GameFacts.Observations.BillWorkEvidence.Unassessed };
+                }
                 // The work giver's WorkTypeDef names the labor the job spends
                 // (a cut designation, a bill, a frame); a job no giver issued
                 // (a forced order, rest, a meal, wandering) carries none.

@@ -480,9 +480,17 @@ public sealed record Quantity
 }
 
 /// <summary>
-/// The pawn's job tracker: the current job (def_name, load_id and target_a absent when it has none),
-/// whether the player forced it and how many jobs are queued behind it.
+/// Work evidence from the current vanilla bill driver, distinct from output.
 /// </summary>
+[JsonConverter(typeof(WireEnumConverter<BillWorkEvidence>))]
+public enum BillWorkEvidence
+{
+    Unassessed,
+    IngredientsPending,
+    RecipeWorkObserved,
+}
+
+/// <summary>The pawn's current job, forced flag and queued-job count.</summary>
 public sealed record JobEvidence
 {
     /// <summary>Latest finite intervention, reconciled against exact current/queued identities.</summary>
@@ -492,6 +500,9 @@ public sealed record JobEvidence
 
     /// <summary>The current job's exact bill identity, absent when it has no bill. A bill job may still be gathering ingredients; this is not completed output.</summary>
     public string? BillId { get; init; }
+
+    /// <summary>Evidence from the current vanilla DoBill driver: queued ingredients, actual recipe-work ticks, or unassessed. Recipe work is not completed output or a promise of further work.</summary>
+    public BillWorkEvidence BillWork { get; init; }
 
     public bool PlayerForced { get; init; }
 

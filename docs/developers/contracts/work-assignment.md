@@ -415,6 +415,8 @@ frame or open plan holds it. Powering it is the power concern's (a bank is a 40 
 consumer wired like any other); harvesting, assembly and implanting are other
 concerns.
 
+## Production bills
+
 The `admin/work-ledger` Need (`WorkLedger.cs`, `ColonyAdmin.cs`,
 `Ledger.cs`, #3304) is the bot's production-bill ledger (epic #2590); it replaced the
 `MaintainWorkLedger` Concern. The ledger is memory only
@@ -470,12 +472,24 @@ of predicted output (and whose stock never reached the target) widens by one ben
 usable benches, unless the recipe's ingredient stock is at or below one unit
 (`ingredient_bound`) or every carrying bill is active, ingredients are present and
 no sampled current job carried one of the order's exact bill identities
-(`work_unstarted`). The opening reading counts toward both bill activity and
+(`work_unstarted`). Widening also requires actual recipe-work evidence from
+those exact bill jobs. A window with pending ingredient targets but no observed
+recipe work reports `ingredients_pending`; otherwise missing recipe-work
+evidence reports `recipe_work_unassessed`. Neither reason adds a bench.
+The opening reading counts toward both bill activity and
 job evidence. Refuelling, repair, delivery to the same bench and work on another
 bill do not count as work on this order. `JobEvidence.BillId` is the native
 current job's bill load identity; a job without a bill has no identity.
-An active bill job can still be gathering ingredients: it proves neither cooking
-nor completed output. This does not identify hauling as the cause: stored
+`JobEvidence.BillWork` reads the current vanilla `JobDriver_DoBill`: positive
+`ticksSpentDoingRecipeWork` establishes work already performed in that job;
+otherwise `AnyIngredientsQueued` establishes pending ingredient targets. Other
+drivers or uncaptured stages are unassessed. This neither identifies the current
+toil nor counts completed output. The window retains the strongest sampled
+evidence, clearing it with the existing production basis. A recipe-work sample
+only permits the existing conditional capacity calibration; it does not prove a
+new bench is the sole remedy or guarantee continuous labor.
+An active bill job alone can still be gathering ingredients. This does not
+identify hauling as the cause: stored
 ingredients do not prove delivery, worker selection or bench access, and sampled
 absence does not establish continuous inactivity. With a bill on
 every eligible bench it reports `benches_exhausted`. Stock reaching the target

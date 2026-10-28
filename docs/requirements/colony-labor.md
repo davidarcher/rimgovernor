@@ -376,6 +376,50 @@ call, durable state or second demand owner. Complexity: added a typed two-state
 support assessment and ten regression cases / removed native authority from
 routine care scenarios and false final-support ranking / orphans left: none.
 
+## Exact bill work evidence
+
+Vanilla `JobDriver_DoBill.MakeNewToils` collects ingredients before
+`Toils_Recipe.DoRecipeWork`. The latter resets and increments
+`ticksSpentDoingRecipeWork`; `AnyIngredientsQueued` reads the live ingredient
+queue. These compiler-referenced members were inspected analytically from the
+installed RimWorld assembly before changing native reads. `JobEvidence.BillWork`
+now reports actual recipe work already done in the current vanilla bill job,
+pending ingredients when no recipe work has been observed, or unassessed for
+other drivers/stages. This identifies neither an exact current toil nor finished
+food, and creates no new sampling hook or model call.
+
+The existing dispatch window retains that evidence only from the order's exact
+bills. A measured output shortfall with pending ingredients and no observed recipe
+work reports `ingredients_pending`; without supported recipe-work evidence it
+reports `recipe_work_unassessed`. Neither can widen bench allocation. This fixes
+the prior calibration path where a cook gathering ingredients could justify an
+extra stove merely because its job carried the bill identity. Observed recipe
+work permits the existing conditional capacity calibration; actual bill/product
+creation counters still own output. Stocked ingredients or an idle bench cannot
+prove a hauling bottleneck, and a pending ingredient queue alone does not prove
+a stall. No exact order is authorized by these findings.
+
+`NativeThroughputTests` exercises exact-bill attribution through observation and
+calibration for pending ingredients, unassessed work, observed recipe work and
+another bill. It checks opening evidence, retention across later gathering and
+invalidation with the production basis. Existing production-versus-consumption
+tests remain. The existing `DispatchMemory` owns the derived window, documented
+in the persistence table before adding its evidence field. General shared
+baseline/intervention and migration tasks remain incomplete; task 3.3 stays open.
+
+Rules 7–9: native exposes a current typed fact; pure calibration owns the decision
+and existing dispatch memory owns derived evidence. Unknown work cannot become
+bench-capacity demand; no native trajectory, durable store or execution lane is
+added. Complexity: added one consumed native bill-work fact and calibration
+regressions / removed bill-job identity alone as widening authority / orphans
+left: none. No new native gameplay result is claimed.
+
+Verification: final required gate PASS (50s), 4,259 domain tests and 30 workflow
+tests, native production/fixture builds, contract probes and no contract orphans.
+The exact-bill regression also drives `DispatchMemory` through the next review's
+bill-copy allocation. Strict OpenSpec passes 5/5 and diff checks pass. Confirmed
+food requirements remain unchanged; overall progress remains 13/24.
+
 ## Self-service ownership independent of access
 
 Ordinary eating, rest and recreation remain native even when the captured target

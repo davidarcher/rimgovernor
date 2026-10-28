@@ -11,6 +11,7 @@ public sealed class NativeThroughputTests
     {
         Tick = 100, Stock = 20, Target = 1000, Output = new ProductionOutput.Observed("load", 100), Carrying = 1, Eligible = 2,
         Capacity = new ForecastTerm.Assessed(10), Active = true, Busy = true, Ingredients = ThroughputIngredients.Stocked,
+        BillWork = Obs.BillWorkEvidence.RecipeWorkObserved,
         Basis = new(new(), [new("bench", true, 1, null, [new("bill", true, "")])],
             [new(new("worker"), true, true, [], [], [])]),
     };
@@ -205,22 +206,79 @@ public sealed class NativeThroughputTests
         var (window, _) = WorkRules.CalibrateThroughput(new(), observation);
         var (_, result) = WorkRules.CalibrateThroughput(window, observation with { Tick = input.Tick + GameTime.TicksPerDay });
         Assert.True(result.IsShort);
-        Assert.Equal(busy ? UnmetReason.None : UnmetReason.WorkUnstarted, result.Reason);
-        Assert.Equal(busy, result.Widen);
+        Assert.Equal(busy ? UnmetReason.RecipeWorkUnassessed : UnmetReason.WorkUnstarted, result.Reason);
+        Assert.False(result.Widen);
     }
 
     [Theory]
-    [InlineData(true, true, true)]
-    [InlineData(false, false, true)]
-    [InlineData(false, true, false)]
-    public void OpeningSampleIsPartOfTheEvidenceWindow(bool busyAtStart, bool activeAtStart, bool widen)
+    [InlineData(Obs.BillWorkEvidence.Unassessed, "bill", UnmetReason.RecipeWorkUnassessed, false)]
+    [InlineData(Obs.BillWorkEvidence.IngredientsPending, "bill", UnmetReason.IngredientsPending, false)]
+    [InlineData(Obs.BillWorkEvidence.RecipeWorkObserved, "bill", UnmetReason.None, true)]
+    [InlineData(Obs.BillWorkEvidence.RecipeWorkObserved, "other-bill", UnmetReason.WorkUnstarted, false)]
+    public void ExactBillEvidenceDistinguishesPendingIngredientsFromObservedRecipeWork(
+        Obs.BillWorkEvidence evidence, string billId, UnmetReason reason, bool widen)
+    {
+        var order = new OrderSpec { Recipe = "recipe", BenchKind = "kind", Product = new("meal"), Target = 1000,
+            Mode = BillMode.StockTarget, Class = ResourceClass.Food };
+        var worker = PawnFixtures.Worker("worker");
+        worker = worker with { Work = PawnFixtures.WorkTable(true, [WorkPriority.Planned(WorkType.Cooking, 1)]),
+            Observed = worker.Observed with { Job = new() { BillId = billId, BillWork = evidence, WorkTypeDefName = Wire.Name(WorkType.Cooking) },
+                Settings = worker.Observed.Settings with { Schedule = EquatableArray.From(Enumerable.Range(0, 24)
+                    .Select(hour => new Obs.TimetableSlot { Hour = (uint)hour, AssignmentDefName = PawnRules.ScheduleAnything })) } } };
+        var input = new DispatchInputs { Tick = 100, Pawns = [worker],
+            Declared = [new() { Orders = [order] }],
+            Needs = NeedsFixtures.Read(100, NeedsFixtures.Pawn("worker") with { Needs = [] }),
+            Benches = [new() { Observed = ProductionBenchFixtures.Observed("bench", "kind", "token", true),
+                Bills = [new() { Observed = BillWire.Bill("bill") with { Recipe = order.Recipe }, Spec = order }],
+                Recipes = [new() { Access = ProductionBenchFixtures.Recipe(order.Recipe), RequiredWork = [new() { Work = WorkType.Cooking }], WorkAmount = 1, Ingredients = [] }] }],
+            Production = new() { LoadToken = "load", Kills = [], Butchers = [], Counts = [] } };
+        input = input with { Benches = [input.Benches[0], input.Benches[0] with
+            { Observed = ProductionBenchFixtures.Observed("spare-bench", "kind", "token", true), Bills = [] }] };
+        var observed = WorkRules.ObserveOrder(order, 2, new DispatchSizing.Sized(10, 10), input);
+        var (window, _) = WorkRules.CalibrateThroughput(new(), observed);
+        var (_, result) = WorkRules.CalibrateThroughput(window, observed with { Tick = 100 + GameTime.TicksPerDay });
+        Assert.True(result.IsShort);
+        Assert.Equal(reason, result.Reason);
+        Assert.Equal(widen, result.Widen);
+        Assert.Equal(new ProductionOutput.Observed("load", 0), observed.Output);
+        // Exercise the live dispatch-memory reader too: the evidence changes actual bill-copy
+        // allocation on the next review, rather than stopping at a standalone calibration result.
+        var memory = new DispatchMemory();
+        Assert.Equal(1, memory.Dispatch(input).Copies[order.Key()]);
+        memory.Dispatch(input with { Tick = input.Tick + GameTime.TicksPerDay });
+        Assert.Equal(widen ? 2 : 1, memory.Dispatch(input with { Tick = input.Tick + GameTime.TicksPerDay + 1 }).Copies[order.Key()]);
+        if (!widen) Assert.Equal(reason, memory.Shortfalls[order.Key()].Reason);
+    }
+
+    [Fact]
+    public void RecipeWorkEvidenceSurvivesLaterGatheringButResetsWithTheProductionBasis()
+    {
+        var start = Start();
+        var (window, _) = WorkRules.CalibrateThroughput(new(), start);
+        var next = start with { Tick = start.Tick + GameTime.TicksPerDay,
+            BillWork = Obs.BillWorkEvidence.IngredientsPending };
+        var (_, result) = WorkRules.CalibrateThroughput(window, next);
+        Assert.True(result.Widen);
+        var (reset, discarded) = WorkRules.CalibrateThroughput(window, next with { Basis = next.Basis! with { Order = new() { Target = 2 } } });
+        Assert.False(discarded.Closed);
+        Assert.Equal(Obs.BillWorkEvidence.IngredientsPending, reset.BillWork);
+        var (_, fresh) = WorkRules.CalibrateThroughput(reset, next with { Tick = next.Tick + GameTime.TicksPerDay, Basis = reset.Basis });
+        Assert.Equal(UnmetReason.IngredientsPending, fresh.Reason);
+        Assert.False(fresh.Widen);
+    }
+
+    [Theory]
+    [InlineData(true, true, UnmetReason.None, true)]
+    [InlineData(false, false, UnmetReason.RecipeWorkUnassessed, false)]
+    [InlineData(false, true, UnmetReason.WorkUnstarted, false)]
+    public void OpeningSampleIsPartOfTheEvidenceWindow(bool busyAtStart, bool activeAtStart, UnmetReason reason, bool widen)
     {
         var start = Start() with { Busy = busyAtStart, Active = activeAtStart };
         var (window, _) = WorkRules.CalibrateThroughput(new(), start);
         var (_, result) = WorkRules.CalibrateThroughput(window, start with
             { Tick = start.Tick + GameTime.TicksPerDay, Busy = false, Active = true });
         Assert.True(result.IsShort);
-        Assert.Equal(widen ? UnmetReason.None : UnmetReason.WorkUnstarted, result.Reason);
+        Assert.Equal(reason, result.Reason);
         Assert.Equal(widen, result.Widen);
     }
 

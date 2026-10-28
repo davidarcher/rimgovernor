@@ -111,6 +111,15 @@ and evidenced delivery-versus-cooking bottlenecks remain pending in the labor
 change. Conditional investment vectors retain a named unassessed native-food
 state rather than presenting their scenario as a fresh native observation.
 
+Productive capacity calibration distinguishes exact bill identity from actual
+recipe-work evidence. Vanilla `DoBill` includes collecting ingredients; pending
+targets without observed recipe work cannot justify widening bench allocation.
+Neither an idle stocked bench nor a staging opportunity establishes a hauling
+stall. The existing output window retains these observations with its normal
+basis invalidation; completed bill/product counters remain the output evidence.
+See [calibration](work-assignment.md#production-bills) for the supported conditional
+scope and unassessed states.
+
 Food harvest and raw-food delivery operations also carry `NativeExecution`.
 Their yields, travel and dependent intake remain conditional what-if evidence;
 normal dispatch omits the operations and their dependent work. Existing food-plan

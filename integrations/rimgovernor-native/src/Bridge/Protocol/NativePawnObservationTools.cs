@@ -107,8 +107,8 @@ namespace RimGovernor.Native
             var lordJob = lord?.LordJob;
             // A pawn without a job tracker (a corpse's) has no job.
             var job = pawn.jobs?.jobQueue != null
-                ? NativeObservationTools.JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count)
-                : NativeObservationTools.JobRow(null, 0);
+                ? NativeObservationTools.JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count, pawn.jobs.curDriver)
+                : NativeObservationTools.JobRow(null, 0, null);
             if (pawn.jobs != null) job = job with { OrderedWork = NativeOrderedWork.Observe(pawn) };
             return new RimGovernor.Brain.GameFacts.Observations.PawnState {
                 Pawn = Entity(pawn),
