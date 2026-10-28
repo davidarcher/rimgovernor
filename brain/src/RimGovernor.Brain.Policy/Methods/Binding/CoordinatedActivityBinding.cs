@@ -23,7 +23,7 @@ internal static class CoordinatedActivityBinding
         // planned Deconstruct clearing is bound to its standing building and is not among them (#3557).
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         if (selection.Plan is not { } plan) return null;
-        if (context is not null) plan = BeforeExternalWork(plan, context);
+        if (context is not null) plan = ForDispatch(plan, context);
         var ordered = OrderedAtStart(selection.Selected, plan.Allocations, bindings, unplaced);
         if (ordered.Count == 0) return null;
         var active = Start(plan, bindings, authority, method, tick, unplaced);
@@ -32,23 +32,29 @@ internal static class CoordinatedActivityBinding
             { Tasks = EquatableArray.From(active.Tasks.Where(t => ordered.Contains(t.Pawn))) };
     }
 
-    /// <summary>Only work before the participant's external boundary is installed in PawnActivities. Installing later work
-    /// would interrupt the comms or formation job. Its receipt/native progress releases the claim and the next review replans it.</summary>
-    internal static ForecastActivityPlan BeforeExternalWork(ForecastActivityPlan plan, ForecastCoupledContext context)
+    /// <summary>Only work before the participant's native boundary is installed in PawnActivities. Routine native work
+    /// is a conditional forecast, not an order. External comms/formation has its own executor. Neither can hold later
+    /// work through unobserved progress; a fresh review must establish that work's prerequisites again.</summary>
+    internal static ForecastActivityPlan ForDispatch(ForecastActivityPlan plan, ForecastCoupledContext context)
     {
 
         var external = context.TradeWork.Select(w => (w.Task, w.Pawn)).ToHashSet();
-        var boundaries = plan.Allocations.Where(a => external.Contains((a.Activity, a.Pawn))).GroupBy(a => a.Pawn)
-            .ToDictionary(g => g.Key, g => g.Min(a => a.Depart), StringComparer.Ordinal);
-        var dropped = plan.Allocations.Where(a => boundaries.TryGetValue(a.Pawn, out var start) && a.Depart >= start)
+        var native = context.Activities.Activities.Where(a => a.NativeExecution).Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
+        var dropped = plan.Allocations.Where(a => native.Contains(a.Activity) || external.Contains((a.Activity, a.Pawn)))
             .Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
         for (var grew = true; grew;)
         {
             grew = false;
+            var boundaries = plan.Allocations.Where(a => dropped.Contains(a.Activity)).GroupBy(a => a.Pawn)
+                .ToDictionary(g => g.Key, g => g.Min(a => a.Depart), StringComparer.Ordinal);
+            foreach (var allocation in plan.Allocations)
+                if (boundaries.TryGetValue(allocation.Pawn, out var start) && allocation.Depart >= start)
+                    grew |= dropped.Add(allocation.Activity);
             foreach (var task in context.Activities.Activities)
                 if (task.Prerequisites.Any(dropped.Contains)) grew |= dropped.Add(task.Id);
         }
-        return plan with { Allocations = plan.Allocations.Where(a => !dropped.Contains(a.Activity)).ToArray() };
+        var executable = plan with { Allocations = plan.Allocations.Where(a => !dropped.Contains(a.Activity)).ToArray() };
+        return NativeNeedServices.RoutineOnly(executable, context) ? executable with { Allocations = [] } : executable;
     }
 
     /// <summary>

@@ -31,6 +31,9 @@ public sealed record ForecastActivityYield(Resource Resource, double Units)
 }
 public sealed record ForecastActivity(string Id, string Location, string EndLocation, string[] Prerequisites)
 {
+    /// <summary>Routine work available through native settings/work creation. Its detailed forecast is conditional;
+    /// selecting it does not install a pawn order or hold later work through its unobserved completion.</summary>
+    public bool NativeExecution { get; init; }
     /// <summary>Relative earliest service time; dependencies may require a later start.</summary>
     public double NotBefore { get; init; }
     /// <summary>Additional known service-start bound; infinite declares no bound. Unknown prerequisite evidence is refused by composition.</summary>

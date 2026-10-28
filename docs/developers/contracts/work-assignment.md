@@ -19,6 +19,18 @@ their settings claims so a replacement can be admitted. Dispatched actions retai
 the normal receipt/readback lifecycle. Applying settings does not establish
 completed pawn work.
 
+Routine research and sowing candidates are marked for native execution in the
+transient forecast. Shared `CoordinatedActivityBinding.ForDispatch` removes them
+from direct orders, then removes later allocations on affected pawns and dependent
+tasks to a fixed point. This also removes later work on a pawn whose prerequisite
+was deferred; no participant is held through an unobserved native completion.
+Independent earlier work remains eligible for admission. The same handoff is read
+by forecast interruption accounting, binding and the work-assignment Need. A
+native-only conditional selection does not itself owe a pawn assignment, while
+settings differences and existing active Methods retain their own obligations.
+The post-filter plan is checked again for redundant ordinary need services, so
+mixing research with eating cannot bypass native-service protection.
+
 The admin work-assignment review names its lifecycle: `AwaitingPlanner` before
 coverage is planned, `Settled` when no assignment, setting or coupled activity is
 owed, and `Owed` otherwise. A known owed setting remains owed before coverage is

@@ -13,14 +13,19 @@ public static partial class Rules
 
 
     /// <summary>
-    /// The admin/work-assignments Need's measure (#3304): owed while a coupled activity runs or is selected or deferred,
+    /// The admin/work-assignments Need's measure (#3304): owed while a coupled activity runs, direct dispatch is selected or pawns are deferred,
     /// a hostility, nickname, medicine carry or medical care setting is owed, a work type is uncovered or a cleanup pawn
     /// is idle; AwaitingPlanner until coverage has been planned and nothing else is owed.
     /// </summary>
     public static WorkAssignmentsReview WorkAssignmentsOwed(ReviewFacts f, ForecastCoupledSelection? coupled)
     {
-        var owed = f.CoupledWorkActive
-            || coupled is { Selection.Selected.Length: > 0 } or { Deferred.Count: > 0 }
+        // Only current handoff evidence can discharge selected work; missing context retains the obligation.
+        // A selected conditional native forecast does not itself owe a pawn assignment.
+        var selectedWork = coupled is { Selection.Selected.Length: > 0 }
+            && (f.CoupledAlternatives is not { } candidates
+                || Methods.Binding.CoordinatedActivityBinding.ForDispatch(coupled.Selected.Plan, candidates.Context).Allocations.Length > 0);
+        var owed = f.CoupledWorkActive || selectedWork
+            || coupled is { Deferred.Count: > 0 }
             || f.HostilityOwed
             || f.CleanupPawns
             || f.NamesOwed

@@ -629,7 +629,7 @@ public sealed class PlannedRoomCreditTests
         {
             var plan = new ForecastActivityPlan([sleeping, cooking], sleeping.End, 0);
             var started = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(new(["selected"], plan, [], 0, false),
-                bound.Bindings, 1, "m", 100, bound.PlannedSites);
+                bound.Bindings, 1, "m", 100, bound.PlannedSites, bound);
             Assert.Equal(ordered, started?.Orders.Any(o => o.Pawn == "pawn") == true);
             var outcome = new ForecastCoupled.CoupledSearchCache().Evaluate(request with { Coupled = bound },
                 new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment }, bound.Activities, plan);
@@ -661,7 +661,8 @@ public sealed class PlannedRoomCreditTests
     /// commitments its selection. Each case failed while the forecast read the schedule as given.
     /// - The sleeper is a retained incumbent's pawn: its rest due in 300 ticks is dropped, so only the helper is ordered and the
     ///   sleeper sleeps on.
-    /// - The helper is the incumbent, its retained service unbound in the schedule: dropped, the rest due soon is ordered.
+    /// - The helper is the incumbent, its retained service unbound in the schedule: dropped, only redundant native rest remains,
+    ///   so no new order wakes the sleeper.
     /// - Nothing is selected: the review orders no one, so the rest due soon leaves the sleeper asleep.
     /// A plan the review starts nothing of is refused with a named finding, so the forecast never selects it (#3889, decision B):
     /// - The cooking has no binding: the binding starts none of the dispatch (dispatch_allocation_unbound).
@@ -702,7 +703,7 @@ public sealed class PlannedRoomCreditTests
             var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, EquatableArray.From(incumbents), 100, bound.Activities.Activities);
             Assert.Empty(execution.Releases);
             var started = execution.Dispatch is { } dispatch
-                ? RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(dispatch.Selection, bound.Bindings, 1, "m", 100, bound.PlannedSites) : null;
+                ? RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(dispatch.Selection, bound.Bindings, 1, "m", 100, bound.PlannedSites, bound) : null;
             Assert.Equal(ordered, started?.Orders.Any(o => o.Pawn == "pawn") == true);
             var held = bound with { IncumbentHold = ForecastIncumbentHold.Of(incumbents, 100) };
             var commitments = selected.ToDictionary(id => id, id => id == commitment.Id ? commitment : new ForecastCommitment(id, []) { ActivityCompletions = [id] });
@@ -722,7 +723,7 @@ public sealed class PlannedRoomCreditTests
             Assert.Equal(ordered, !mood.Projected().Response!.Targets[0].Frozen);
         }
         Agree(false, null, [commitment.Id, "incumbent/service"], [Incumbent("pawn")], context, rest, cooking);
-        Agree(true, null, [commitment.Id, "incumbent/service"], [Incumbent("helper")], context, rest, service);
+        Agree(false, null, [commitment.Id, "incumbent/service"], [Incumbent("helper")], context, rest, service);
         Agree(false, null, [], [], context, rest, cooking);
         Agree(false, new("dispatch_allocation_unbound", "cook"), [commitment.Id, "cook"], [], context with { Bindings = request.Coupled!.Bindings }, rest, cooking);
         var unreleasable = Incumbent("helper") with { Ownership = new("helper", "elsewhere", "method", 1, "started") };

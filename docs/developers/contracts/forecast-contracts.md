@@ -1260,6 +1260,15 @@ for the investment credit (#3531: the tier-2 marginal value per research point, 
 points, written to the ledger's `Investment` term). It values nothing itself and never picks the project. Sowing tasks (#3528) carry the
 same metadata in cells per tick, keyed `sow:<zone>`.
 
+Research and sowing tasks carry `ForecastActivity.NativeExecution`: these are
+conditional investment scenarios over already available native work, not direct
+pawn-order proposals. The shared dispatch projection removes those tasks, later
+work on their pawns and transitive dependent work before interruption accounting
+or binding. It repeats participant deferral when a dependent task is removed.
+This preserves useful what-if estimates without claiming native order, future
+completion or idle labor. The work-assignment Need uses that same projection;
+forecast selection alone does not make native-only work an owed assignment.
+
 `HuntAlternatives` (policy, pure) is the hunt comparison. `Propose` makes bounded rosters from that read: solos,
 pairs and a third gunner from the six best-shooting available hunters, for each of up to four nearby prey groups
 (herd-mates within 12 cells are one group, a search aid only); no roster size is required. Each roster is also

@@ -504,7 +504,7 @@ public static partial class ForecastCoupled
             // not start is one the autopilot never runs, so it is refused: the binding starts none of a dispatch with an unbound placed
             // allocation, and a review that releases an incumbent it cannot release dispatches nothing.
             var (dispatchedIds, dispatched) = context.IncumbentHold.Dispatched(commitments.Keys, plan.Allocations, tasks);
-            var ordinary = Methods.Binding.CoordinatedActivityBinding.BeforeExternalWork(plan with { Allocations = dispatched }, context);
+            var ordinary = Methods.Binding.CoordinatedActivityBinding.ForDispatch(plan with { Allocations = dispatched }, context);
             if (Methods.Binding.CoordinatedActivityBinding.Unbound(dispatchedIds, ordinary.Allocations, context.Bindings, pawns.Unplaced) is { } unbound)
                 Refuse("dispatch_allocation_unbound", unbound.Activity);
             foreach (var incumbent in context.IncumbentHold.Unreleased(commitments.Keys, plan.Allocations, context.Bindings))

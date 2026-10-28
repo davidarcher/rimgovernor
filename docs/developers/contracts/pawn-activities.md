@@ -124,6 +124,12 @@ veto exact work. Existing construction demand owns the material budget.
 
 ## Live sowing
 
+Ordinary sowing uses configured native growing zones/planters and work priorities.
+The detailed sowing candidate is a conditional forecast with native execution;
+selection installs no sow order, exclusive pawn claim or future holding. Its
+physical step adapter below remains available to explicit bounded work and
+existing Method reconciliation; its presence does not justify routine dispatch.
+
 Sowing is a cell-targeted Work step through the grower sow giver (`WorkGiver_GrowerSow`), not a
 new activity kind. Native reads, for every free colonist and every growing zone or planter with a
 crop set, the cells the giver would accept now (crop set, cell free, fertility and season, adjacent
@@ -133,9 +139,10 @@ own giver read through a private subclass that sets the giver's shared wanted-pl
 each call and accepts only a Sow job, so a cell the giver would answer with a cut-plant or
 haul-aside job is not sowable and the tree-lattice patch applies. Policy proposes one task per
 (pawn, zone) with as many cells as fit the horizon at that pawn's speed (`sowing_cells_truncated`
-when it cuts); a zone is one exclusive outcome, so one pawn sows it at a time. The zone's crop is
-read, never chosen, and a zone with no crop is reported (`sowing_zone_without_crop`). Nothing
-values the sowing yet: the roots carry no consequence until the project graph credits them.
+when it cuts); a zone is one exclusive outcome in this conditional projection, without
+restricting native workers. The zone's crop is read, never chosen, and a zone with no crop
+is reported (`sowing_zone_without_crop`). Project progress credits the forecast's cells;
+only native observations establish actual sowing.
 
 The step is `Destination` = the first cell, `Target` = the zone's (or planter's) unique load id and
 `Count` = the cells to sow, validated like a BuildRoof step (a cell is required, and a positive

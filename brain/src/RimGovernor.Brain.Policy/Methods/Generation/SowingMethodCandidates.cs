@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy.Methods.Generation;
 
 /// <summary>
 /// Sowing as coupled work (#3528): one task per (pawn, zone) covering the cells that pawn can sow now, as many as fit the horizon
-/// at its speed. A zone is sown by one pawn at a time (the root's exclusive outcome). The zone's crop is read, never chosen; a
+/// at its speed. Options for one zone share an exclusive forecast outcome; this reserves no native pawn or zone. The crop is read, never chosen; a
 /// zone with no crop set has no worker row. Nothing here values the sowing: each task carries the cells its ticks sow as
 /// <see cref="ForecastProjectProgress"/> for the investment credit (#3531).
 /// </summary>
@@ -31,7 +31,7 @@ internal sealed record SowingMethodCandidates(ForecastActivity[] Tasks, Forecast
             var first = worker.Cells[0];
             var location = ForecastLocations.Of(first);
             var id = "sow/" + worker.Zone + "/" + worker.Pawn;
-            tasks.Add(new(id, location, location, []) { ProjectProgress = new(ForecastProjectProgress.SowPrefix + worker.Zone, 1 / perCell) });
+            tasks.Add(new(id, location, location, []) { NativeExecution = true, ProjectProgress = new(ForecastProjectProgress.SowPrefix + worker.Zone, 1 / perCell) });
             options.Add(new(id, worker.Pawn, Math.Min(fitting * perCell, horizon), 0) { SkillWork = worker.SkillWork with { WorkAmount = fitting, WorkQuantum = 1 } });
             routes.Add(new(worker.Pawn, "start", location, new RouteTicks.Reachable(worker.ApproachTicks)));
             bindings[(id, worker.Pawn)] = new CellActivityTaskCandidate(new ActivityTaskCandidate(id, worker.Pawn, [], PawnActivityKind.Work, worker.Zone, worker.WorkGiver, "Sow",

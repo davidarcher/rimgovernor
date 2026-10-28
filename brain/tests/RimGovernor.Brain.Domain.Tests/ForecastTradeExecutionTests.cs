@@ -28,12 +28,12 @@ public sealed class ForecastTradeExecutionTests
         var selected = Selection(request.Id, Allocation("eat", 0, 10), Allocation(work.Task, 10, 20), Allocation("sleep", 20, 30),
             new("after", "other", 30, 30, 30, 40, 0, 10, 10, 0));
         Assert.Empty(ForecastTradeExecution.Ready(selected, context));
-        Assert.Equal("eat", Assert.Single(RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.BeforeExternalWork(selected.Plan!, context).Allocations).Activity);
+        Assert.Equal("eat", Assert.Single(RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.ForDispatch(selected.Plan!, context).Allocations).Activity);
         var fresh = Selection(request.Id, Allocation(work.Task, 0, 10), Allocation("sleep", 10, 20));
         var ready = Assert.Single(ForecastTradeExecution.Ready(fresh, context));
         var action = Assert.IsType<CommsTradeRequest>(ready.Action);
         Assert.Equal(("console", "pawn", "ally", "exotic"), (action.Console, action.Negotiator, action.Faction, action.TraderKind));
-        Assert.Empty(RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.BeforeExternalWork(fresh.Plan!, context).Allocations);
+        Assert.Empty(RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.ForDispatch(fresh.Plan!, context).Allocations);
     }
 
     [Fact]

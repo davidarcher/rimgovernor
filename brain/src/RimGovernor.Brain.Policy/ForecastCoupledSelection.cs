@@ -1220,7 +1220,6 @@ public sealed partial record ForecastCoupledSelection
     {
         if (selection.Selection.Selected.Any(id => candidates.Incumbents.Any(c => c.Id == id)))
             throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
-        if (NativeNeedServices.RoutineOnly(selection.Selected.Plan, candidates.Context)) return null;
         return Methods.Binding.CoordinatedActivityBinding.StartSelected(selection.Selection,
             candidates.Context.Bindings, authority, method, tick, candidates.Context.PlannedSites, candidates.Context);
     }

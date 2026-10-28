@@ -3,10 +3,10 @@ using RimGovernor.Brain.GameOrders.Observations;
 namespace RimGovernor.Brain.Policy.Methods.Generation;
 
 /// <summary>
-/// One block of research work per (pawn, bench) at the current project. The block is one hour: the horizon is at most a
-/// day and every review re-plans, so a longer commitment would only hold the bench against a better choice. The provider
-/// never picks the project (the research Concern owns that) and values nothing: the block's progress rides on the task
-/// as <see cref="ForecastProjectProgress"/> for the investment credit to read.
+/// Conditional research work per (pawn, bench) at the current project, in one-hour slices for investment comparison.
+/// These slices reserve no pawn or bench and install no routine order; native work owns actual execution. The research
+/// Need chooses the project. This provider values nothing: progress rides on the task as
+/// <see cref="ForecastProjectProgress"/> for the investment credit to read.
 /// </summary>
 internal sealed record ResearchMethodCandidates(ForecastActivity[] Tasks, ForecastActivityOption[] Options,
     ForecastCommitment[] Roots, IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> Bindings,
@@ -29,7 +29,7 @@ internal sealed record ResearchMethodCandidates(ForecastActivity[] Tasks, Foreca
             if (tasks.Count >= MaxTasks) { truncated = true; break; }
             var id = "research/" + worker.Pawn + "/" + worker.Bench;
             var location = ForecastLocations.Of(worker.Location);
-            tasks.Add(new(id, location, location, []) { ChoiceIdentity = "research/" + worker.Pawn,
+            tasks.Add(new(id, location, location, []) { NativeExecution = true, ChoiceIdentity = "research/" + worker.Pawn,
                 ProjectProgress = new(worker.Project, worker.PointsPerTick) });
             options.Add(new(id, worker.Pawn, ResearchBlockTicks, 0) { ServicePosition = worker.ServicePosition, Equipment = [worker.Bench], SkillWork = worker.SkillWork });
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Bench, worker.WorkGiver, worker.Job,

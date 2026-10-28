@@ -8,6 +8,25 @@ The maintainer confirmed native-led routine execution, full control of settings 
 
 ## Current evidence
 
+Fresh routine research and sowing bindings now stop at native execution. Project
+selection, configured growing zones/planters and numeric settings make the work
+available; their detailed task graphs remain conditional investment scenarios.
+`NativeExecutionBindingTests` takes both real providers through shared comparison
+and binding: a valuable research/sowing forecast can be selected without a pawn
+order or an owed assignment. Mixed-plan checks retain independent earlier work,
+drop later participant work and transitive dependencies, and reject a redundant
+meal left behind after native work is removed. The same dispatch projection feeds
+forecast interruption accounting and the work-assignment Need. Existing active
+Methods still retain their observation/reconciliation lifecycle; no physical
+research/sowing output, general intervention gate or complete migration is claimed.
+The finished checkpoint passed 4,168 domain tests, 30 workflow tests, native builds,
+contract probes and the orphan check (45s); strict OpenSpec validation passed five
+items. The sleeper dispatch regression now supplies the same context as production
+and retains native rest when only a redundant service remains. Rules 7–9: one pure
+dispatch projection, existing research/field demand owners, no new state store,
+and no assumed native output or completion. The previous external-work projection
+and duplicate public service guard were replaced through every reader.
+
 The shared comparison now also treats eligible rest/recreation with no captured
 target as an unprojected native response. `NativeNeedServicesTests` exercises
 both through the real selector: the explicit no-service scenario still has
@@ -286,8 +305,8 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | `ConstructionMethodCandidates.Generate`: supply and build | Native blueprints, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Pending |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
 | `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Pending |
-| `ResearchMethodCandidates.Generate`: exact research blocks | Existing research goal/current project plus native priorities; direct block only with meaningful justification | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); no forced routine block or research-only fixture dependency | Pending |
-| `SowingMethodCandidates.Generate`: exact sowing work | Crop/zone choices and native growing priorities, with justified deadline intervention | Work assignment, forecast; native-ready sowing and deadline comparison tests | Pending |
+| `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
+| `SowingMethodCandidates.Generate`: conditional sowing work | Crop/zone choices and native growing priorities; fresh routine pawn binding removed | Work assignment, forecast; `NativeExecutionBindingTests` covers native-ready sowing selection without direct orders | Partial: fresh routine binding migrated; deadline intervention and incumbent reconciliation remain |
 | `PracticeMethodCandidates.Generate`: range and sparring | Native practice affordances/settings where available; bounded direct activity only for justified capability need | [Capability maintenance](../developers/contracts/capability-maintenance.md), [facilities](../developers/architecture/facilities.md); capability demand, actual native completion and interruption tests | Pending |
 | Existing observed incumbent retention / `ForecastCoupledExecution` | Account for useful native work and actual intervention ownership; remove routine exclusive waiting/restarts | Pawn activities, forecast, continuation; native opportunity cost and lost-owner/dependency regressions | Pending |
 | `AdmitSelectedTrade` and world/mission alternatives | Keep existing trade/journey decisions; account for unavailable home labor without redesigning travel execution | [Trade](../developers/contracts/controllable-trade.md), forecast; no fabricated home capacity or duplicate inventory promises | Boundary audit pending |

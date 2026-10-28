@@ -113,6 +113,8 @@ proposals; Git and result artifacts retain implementation history and run eviden
 
 - [Pawn activity observations and reports](developers/architecture/pawn-activity.md)
 
+- Native-led routine [research](developers/contracts/research.md), [sowing](developers/contracts/pawn-activities.md#live-sowing) and [work settings](developers/contracts/work-assignment.md): conditional investment forecasts and the shared boundary that prevents routine pawn orders.
+
 - [Planner-owned pawn activities](developers/contracts/pawn-activities.md): [live harvest and delivery](developers/contracts/pawn-activities.md#live-harvest-and-delivery), Method admission, [continuation and release](developers/contracts/method-continuation.md#pawn-activity-methods), exact cooking ingredients and delivery destinations, needs execution, bounded holds and ownership.
 
 The [live work-resource view](developers/architecture/colony-forecast.md#shared-live-work-resources)

@@ -5,6 +5,13 @@
 The `economy/research` Need (#3263; was EnsureResearch) shares ColonyPlan, priority arbitration and Hands. Advisory concerns cannot create
 research orders.
 
+Routine research runs through the selected native project, available benches and
+numeric work priorities/timetable. Detailed one-hour research slices remain
+conditional investment estimates; selecting one creates no `PawnActivities`
+order and reserves no pawn or bench. Actual research progress is observed from
+the native census. A future bounded intervention requires its own concrete
+justification; forecast value alone does not supply it.
+
 Every routine frame carries its research census. Decoding a frame without that
 section fails the read. The review retains a total `ReviewFacts.Research` record;
 an observed empty finished-project list is valid, while a synthetic projection
