@@ -97,21 +97,29 @@ public sealed class CoordinatedConstructionTests
         } };
     }
 
+    private static PawnActivities NativeRemovalScenario(ForecastCoupledSelection selected, ForecastCoupledCandidates generated)
+    {
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "ordinary-removal", 100));
+        // Retain conditional target, set and material mechanics without using them as dispatch authority.
+        return CoordinatedActivityBinding.Start(selected.Selection.Plan!, generated.Context.Bindings, 1, "removal-what-if", 100);
+    }
+
     /// <summary>
     /// #3557, #3612: a removal designation the room reconcile stood (a Deconstruct over an interior ruin, an Uninstall over a
-    /// piece it packs) gets no worker under voluntary control. The construction read reports it as a clearing op of its kind;
-    /// the family binds it as the pawn's Work task of that kind on the building. Completing it serves its planned room,
-    /// and the selection orders it. A row whose finish is unknown binds nothing.
+    /// piece it packs) remains native work. The conditional comparison retains its exact target and room-service credit,
+    /// without installing a routine pawn order. A row whose finish is unknown binds nothing.
     /// </summary>
     [Theory]
     [InlineData(PlannedClearingKind.Deconstruct, "Deconstruct", "Door")]
     [InlineData(PlannedClearingKind.Uninstall, "Uninstall", "Bed")]
-    public void AStandingRemovalDesignationServingAPricedRoomIsWorkTheSelectionOrders(PlannedClearingKind kind, string job, string definition)
+    [InlineData(PlannedClearingKind.Mine, "Mine", "Rock")]
+    public void AStandingRemovalDesignationIsPricedWithoutAnExactWorkerOrder(PlannedClearingKind kind, string job, string definition)
     {
         var building = "Thing_" + definition + "1";
         var row = new Row(building, definition, new(30, 30), "producer", definition, building, new(30, 30), 0, 0, job,
             default, default, 50d) { SiteApproachTicks = 10d };
-        PlannedSiteClearing Removal(params ConstructionActivityOption[] rows) => ConstructionFixtures.Clearing(building, kind) with { Options = EquatableArray.From(rows) };
+        PlannedSiteClearing Removal(params ConstructionActivityOption[] rows) => ConstructionFixtures.Clearing(building, kind) with
+        { Options = EquatableArray.From(rows), Targets = kind == PlannedClearingKind.Mine ? [building] : [] };
         var facts = RemovalFacts(Removal(row, row with { Pawn = "helper", FinishTicks = 80d }));
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == job && b.Pawn == "producer");
@@ -128,7 +136,7 @@ public sealed class CoordinatedConstructionTests
         Assert.Contains(root.Id, selected.Selection.Selected);
         Assert.Equal(1, Assert.Single(selected.Selected.ServedRooms).Room);
         Assert.Contains(selected.SelectedVector.Value.Ledger.InvestmentContributions, r => r.Key == "storage/1/kept-stock" && r.Value < 0);
-        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
+        var batch = NativeRemovalScenario(selected, generated);
         var task = Assert.Single(batch.Tasks);
         Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, building, job), (task.Id, task.Pawn, task.Step.Kind, task.Step.Target, task.Step.Job));
         Assert.Contains(batch.Orders, o => o.Pawn == "producer" && !o.Release && o.Task == task.Id);
@@ -175,10 +183,10 @@ public sealed class CoordinatedConstructionTests
     /// <summary>
     /// #3613: a standing Cut wave (the room reconcile's CutPlant designations over one group of plants) is one removal op
     /// whose Targets are the plants. The family binds it as one Work/CutPlant set step over them (Count the set's size),
-    /// one task per op, and the selection orders it. A Cut op naming no plants binds nothing.
+    /// one hypothetical task per op, without installing an exact order. A Cut op naming no plants binds nothing.
     /// </summary>
     [Fact]
-    public void AStandingCutWaveIsOneSetOrderOverItsPlants()
+    public void AStandingCutWaveKeepsConditionalSetMechanicsWithoutAnExactOrder()
     {
         string[] trees = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"];
         var row = new Row(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
@@ -199,7 +207,7 @@ public sealed class CoordinatedConstructionTests
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
-        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
+        var batch = NativeRemovalScenario(selected, generated);
         var task = Assert.Single(batch.Tasks);
         Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, "CutPlant", 3), (task.Id, task.Pawn, task.Step.Kind, task.Step.Job, task.Step.Count));
         Assert.Equal(trees, task.Step.Targets);
@@ -212,10 +220,10 @@ public sealed class CoordinatedConstructionTests
     /// <summary>
     /// #3615: a standing FloorOut wave (the room reconcile's RemoveFloor designations over one group of cells) is one removal
     /// op whose Cells are the cells. The family binds it as one Work/RemoveFloor set step over them (Cells carried, Count the
-    /// cells), with the removal relief, and the selection orders it. A RemoveFloor op naming no cells binds nothing.
+    /// cells), with conditional removal relief and no routine exact order. A RemoveFloor op naming no cells binds nothing.
     /// </summary>
     [Fact]
-    public void AStandingFloorOutWaveIsOneCellSetOrderOverItsCells()
+    public void AStandingFloorOutWaveKeepsConditionalCellSetMechanicsWithoutAnExactOrder()
     {
         Cell[] cells = [new(30, 30), new(31, 30), new(30, 31), new(31, 31)];
         var id = "removefloor/30/30/x4";
@@ -237,7 +245,7 @@ public sealed class CoordinatedConstructionTests
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
-        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
+        var batch = NativeRemovalScenario(selected, generated);
         var task = Assert.Single(batch.Tasks);
         Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, "RemoveFloor", 4), (task.Id, task.Pawn, task.Step.Kind, task.Step.Job, task.Step.Count));
         Assert.Equal(cells, task.Step.Cells);
@@ -258,7 +266,7 @@ public sealed class CoordinatedConstructionTests
     /// (or a native satisfied task, every member gone) finishes the task and releases the pawn.
     /// </summary>
     [Fact]
-    public void ASetStepRetriesOnTheMembersStillLegalAndCompletesWithThem()
+    public void APlannedPreplacementSetRetriesOnTheMembersStillLegalAndCompletesWithThem()
     {
         string[] trees = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"];
         var row = new Row(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
@@ -268,8 +276,11 @@ public sealed class CoordinatedConstructionTests
         generated = ServingStorageRoom(generated, trees[0], 150);
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated), generated, 1, "construction", 100)!;
-        var task = Assert.Single(batch.Tasks);
+        var batch = NativeRemovalScenario(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated), generated);
+        // Stage an existing preplacement intent: unlike a standing designation, its
+        // native work has not been created, so bounded set reconciliation still applies.
+        var task = Assert.Single(batch.Tasks) with { Id = "planned-clearance" };
+        batch = batch with { Tasks = [task], Orders = [batch.Orders[0] with { Task = task.Id }] };
         ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
         {
             Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),

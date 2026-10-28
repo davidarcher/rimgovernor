@@ -227,7 +227,8 @@ internal static class ConstructionMethodCandidates
         // A standing removal designation (#3557, #3612, #3613, #3614, #3615): the room reconcile stood a Deconstruct over an
         // interior ruin or a stale piece, an Uninstall over a piece it packs, a Haul over a stack it moves out (on an ordinary
         // stack a haul-out record, no designation, #3625), CutPlant over a
-        // wave of plants or RemoveFloor over a wave of wrong-floor cells, and under voluntary control only an order works it.
+        // wave of plants or RemoveFloor over a wave of wrong-floor cells. Ordinary designated work stays native;
+        // custom haul-out and roof prerequisites remain explicit until their migration is complete.
         // Each building is the pawn's Work task of the op's kind on it, each stack the pawn's Deliver of it to the row's
         // storage cell, and each Cut or RemoveFloor wave one Work set step over its members. Its requested relief, like a
         // floor's, exempts it from the thermal gate; its room's service day prices the work. A kind with no job binds nothing.
@@ -238,12 +239,14 @@ internal static class ConstructionMethodCandidates
             .Where(op => op.Rows.Length > 0).OrderBy(op => op.Id, StringComparer.Ordinal).Take(17).ToArray();
         foreach (var op in removals.Take(16))
         {
-            var id = "removal-" + outcomes.Count;
+            var id = NativeConstructionWork.StandingRemovalPrefix + outcomes.Count;
             var first = op.Rows[0].Row;
             var haul = op.Kind == PlannedClearingKind.Haul;
             // A haul is worked from the stack's cell; a building's removal at the building.
             var location = ForecastLocations.Of(haul ? first.Origin : first.Location);
-            activities.Add(new(id, location, location, []));
+            activities.Add(new(id, location, location, [])
+            { NativeExecution = op.Kind is PlannedClearingKind.Uninstall or PlannedClearingKind.Cut or PlannedClearingKind.RemoveFloor or PlannedClearingKind.Mine
+                || op.Kind == PlannedClearingKind.Deconstruct && op.Cells.Count == 0 });
             // The building stands: like a supplied site's finish, the op needs only its observed readiness to compose.
             var ready = "removal-ready/" + id;
             var capability = new Resource("ConstructionReady");

@@ -7,6 +7,14 @@ if another participant depends on its remaining work, the attempt ends and relea
 its exact owners. This supplies no completion evidence or material refund, and
 leaves an unrelated running participant unchanged.
 
+Standing Deconstruct (without roof prerequisites), Uninstall, CutPlant,
+RemoveFloor and Mine designations follow the same boundary handback. Their
+existing `removal-` task identity distinguishes this producer from planned
+footprint clearance, which has not yet created native work. Generation and
+binding share that identity prefix; neither invents completion from handback.
+Planned preplacement clearance, roof-prerequisite demolition and custom haul-out
+remain explicit pending their native-work migration.
+
 An actual native job takeover detaches the old execution handle. The existing
 pawn-fact invalidation wakes the worker, which re-reads all Method participants.
 A positively absent or different owner ends that coordinated attempt: remaining

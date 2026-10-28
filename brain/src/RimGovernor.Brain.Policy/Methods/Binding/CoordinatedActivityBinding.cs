@@ -195,6 +195,11 @@ internal static class CoordinatedActivityBinding
             if (batch.Tasks.Any(t => t.Pawn == order.Pawn && t.Step.Kind == PawnActivityKind.Recipe) || next.ProductStuff.Length > 0
                 || next.Step.Kind == PawnActivityKind.Supply || next.SupportDemand.Length > 0
                 || next.Step.Kind == PawnActivityKind.Work && next.Step.Job is "FinishFrame" or "BuildRoof"
+                // Standing designations carry this producer identity; planned footprint clearance does not.
+                || next.Id.StartsWith(NativeConstructionWork.StandingRemovalPrefix, StringComparison.Ordinal)
+                    && next.Step.Kind == PawnActivityKind.Work
+                    && (next.Step.Job is "Uninstall" or "CutPlant" or "RemoveFloor" or "Mine"
+                        || next.Step.Job == "Deconstruct" && next.PriorSteps.Count == 0)
                 || NativeNeedServices.Routine(next.Step.Kind))
                 return remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p)))
                     ? new(null, true)

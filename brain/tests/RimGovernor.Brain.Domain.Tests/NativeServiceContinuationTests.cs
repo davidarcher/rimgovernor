@@ -9,6 +9,57 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class NativeServiceContinuationTests
 {
     [Theory]
+    [InlineData("Deconstruct", false)]
+    [InlineData("Uninstall", false)]
+    [InlineData("CutPlant", false)]
+    [InlineData("RemoveFloor", false)]
+    [InlineData("Mine", false)]
+    [InlineData("Deconstruct", true)]
+    [InlineData("Uninstall", true)]
+    [InlineData("CutPlant", true)]
+    [InlineData("RemoveFloor", true)]
+    [InlineData("Mine", true)]
+    public void StandingRemovalHandsBackAtBoundaryWithoutCompletingItsDependents(string job, bool dependent)
+    {
+        var (batch, read) = AtBoundary("food", true, target: false, dependent: dependent);
+        const string standing = "removal-0";
+        batch = batch with
+        {
+            Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == "service"
+                ? t with { Id = standing, Step = t.Step with { Kind = PawnActivityKind.Work, Job = job } }
+                : t with { Prerequisites = EquatableArray.From(t.Prerequisites.Select(p => p == "service" ? standing : p)) })),
+            Orders = EquatableArray.From(batch.Orders.Select(o => o.Task == "service" ? o with { Task = standing } : o)).ToArray(),
+        };
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read with
+        { Pawns = EquatableArray.From(read.Pawns.Select(p => p.Pawn == "pawn" ? p with { Execution = p.Execution! with { State = "started" } } : p)) }));
+        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
+        Assert.True(next.Orders[0].Release);
+        Assert.Empty(read.SatisfiedTasks);
+        if (dependent)
+        {
+            Assert.All(next.Orders, order => Assert.True(order.Release));
+            Assert.Empty(next.Tasks);
+        }
+        else
+        {
+            Assert.True(PawnActivities.SameOrder(batch.Orders[1], next.Orders[1]));
+            Assert.Equal("independent", Assert.Single(next.Tasks).Id);
+        }
+    }
+
+    [Fact]
+    public void RoofPrerequisiteDoesNotBecomeUnqualifiedNativeDemolition()
+    {
+        var (batch, read) = AtBoundary("food", true, target: false);
+        batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == "service"
+            ? t with { Id = "removal-0", Step = t.Step with { Kind = PawnActivityKind.Work, Job = "Deconstruct" },
+                PriorSteps = [new(PawnActivityKind.Work, "", "RemoveRoofs", "RemoveRoof", 1, 2000) { Cells = [new(1, 1)] }] }
+            : t with { Prerequisites = EquatableArray.From(t.Prerequisites.Select(p => p == "service" ? "removal-0" : p)) })),
+            Orders = batch.Orders.Select(o => o.Task == "service" ? o with { Task = "removal-0" } : o).ToArray() };
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
+    }
+
+    [Theory]
     [InlineData("TendPatient", false)]
     [InlineData("DoBill", false)]
     [InlineData("", false)]
