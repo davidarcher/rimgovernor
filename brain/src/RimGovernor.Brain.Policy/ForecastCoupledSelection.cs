@@ -962,8 +962,8 @@ public sealed partial record ForecastCoupledSelection
     public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome)
         => ConsequenceTerms(outcome);
 
-    /// <summary>Captured native response defeats a no-service assumption; its timing remains unprojected.
-    /// Exact scenarios remain conditional investment evidence. Uncaptured response and productive/dependent
+    /// <summary>Native response defeats a no-service assumption; its timing remains unprojected.
+    /// Ground rest and spontaneous recreation need no captured target. Exact scenarios remain conditional investment evidence; productive/dependent
     /// execution still require the general native-baseline migration.</summary>
     internal static ForecastCoupledOutcome NativeExecutionOutcome(ForecastCoupledOutcome conditional, ForecastCoupledContext context)
     {
@@ -973,8 +973,10 @@ public sealed partial record ForecastCoupledSelection
             var findings = new List<string>();
             var metrics = result.Needs.Select(metric =>
             {
+                var response = NativeNeedServices.Observe(context.Needs, pawn, metric.Kind);
                 if (metric.Kind is not ("food" or "rest" or "joy")
-                    || NativeNeedServices.Observe(context.Needs, pawn, metric.Kind) is not (NativeNeedService.Available or NativeNeedService.InProgress)
+                    || !(response is NativeNeedService.Available or NativeNeedService.InProgress
+                        || response == NativeNeedService.NoObservedService && metric.Kind is "rest" or "joy")
                     || context.NeedTasks.Any(task => task.Pawn == pawn && task.Kind == metric.Kind
                         && conditional.Plan.Allocations.Any(a => a.Pawn == pawn && a.Activity == task.Task))) return metric;
                 // A no-service bound that never reaches deprivation still bounds that penalty at zero.

@@ -7,6 +7,31 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class NativeNeedServicesTests
 {
+    [Theory]
+    [InlineData("rest")]
+    [InlineData("joy")]
+    public void UncapturedNativeServiceDoesNotProveFutureDeprivation(string kind)
+    {
+        const double horizon = 300;
+        var facts = ForecastCoupledSelectionTests.Review(sourceCount: 0);
+        var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
+        { Needs = [NeedsFixtures.Rate(kind, .2, .003, .3)], Targets = [] };
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { Needs = NeedsFixtures.Read(100, pawn) } };
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
+        var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!.Priced();
+        facts = facts with { CoupledAlternatives = candidates };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        Assert.Equal(NativeNeedService.NoObservedService, NativeNeedServices.Observe(candidates.Context.Needs, pawn.Pawn, kind));
+        Assert.True(Assert.Single(selection.Baseline.Needs[pawn.Pawn].Needs).ThresholdExposureTicks.Number() > 0);
+        var native = ForecastCoupledSelection.NativeExecutionOutcome(selection.Baseline, candidates.Context);
+        Assert.IsType<ForecastTerm.Unassessed>(Assert.Single(native.Needs[pawn.Pawn].Needs).ThresholdExposureTicks);
+        Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + pawn.Pawn + ":" + kind, selection.Selection.Findings);
+        Assert.Empty(selection.Selection.Selected);
+        Assert.IsType<ForecastTerm.Unassessed>(selection.BaselineVector.BreakRisk);
+    }
+
     [Fact]
     public void CurrentNativeAccessDoesNotRequireACompleteFutureForecast()
     {

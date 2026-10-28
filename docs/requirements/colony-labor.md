@@ -8,6 +8,21 @@ The maintainer confirmed native-led routine execution, full control of settings 
 
 ## Current evidence
 
+The shared comparison now also treats eligible rest/recreation with no captured
+target as an unprojected native response. `NativeNeedServicesTests` exercises
+both through the real selector: the explicit no-service scenario still has
+deprivation, while the native comparison retains unassessed exposure and mood
+rather than predicting failure or inventing recovery. The target census enumerates
+beds and recreation objects; `NativeNeedsForecast.SleepOf` separately captures
+the game's bed-or-ground rest choice. Known sleep blockers remain ineligible.
+This closes another uncertainty case within task 3.3, not the general productive
+baseline or intervention migration, and makes no new native gameplay claim.
+Verification passed 4,164 domain tests, 30 workflow tests, native compilation,
+contract probes and the orphan check (1m41s), plus all five strict OpenSpec items.
+Rules 7–9: the shared comparator owns this assessment; no second demand owner,
+store or execution lane was added, and absent targets become neither recovery
+success nor a predicted native failure.
+
 Reserve prevention now uses accessible runway and supported conditional recovery
 leads, including native-committed crops too late for current demand credit.
 `FoodReserveStateTests` covers recovery before/at/after runway, irrelevant closed

@@ -35,7 +35,10 @@ execution baseline: productive dependency graphs, reserve/recovery comparisons,
 and general intervention materiality remain in the active labor change.
 
 The shared comparison also withholds deprivation attributed solely to omitting
-an observed available/running native service. Its need exposure, hunger/rest
+an observed available/running native service. For eligible rest and recreation,
+an empty target census also leaves future response unprojected: native ground
+rest and spontaneous recreation need no captured service object. This does not
+invent a recovery rate or erase a known sleep blocker. Its need exposure, hunger/rest
 losses and dependent mood/break terms are unassessed, with
 `native_response_unprojected:<pawn>:<kind>` findings. The starvation pruning
 bound cannot use that omitted service as proof that an unserved pawn will starve.
