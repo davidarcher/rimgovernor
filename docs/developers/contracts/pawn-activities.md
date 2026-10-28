@@ -74,6 +74,9 @@ an unread pawn or missing need-task metadata cannot supply an intervention
 premise or leave an exact service eligible by default. Shared comparison retains detailed
 conditional what-if evidence; `StartCoupledActivity` checks the current context
 before binding. Access and current service are not proof of future recovery.
+The needs read recognizes supported stationary native recreation without a
+governor assignment. Matching ownership tags are optional observations of the
+exact running governor job; native progress alone grants no release authority.
 Existing exact commitments also hand ordinary service back at a task boundary,
 including when their Need is unlisted. Independent running orders remain exact;
 dependent attempts end without crediting the service as complete. See

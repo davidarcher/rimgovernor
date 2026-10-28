@@ -807,29 +807,36 @@ internal static class NativeNeedsForecast
     }
     private static RimGovernor.Brain.GameFacts.Observations.NeedCurrentService? CurrentService(Pawn pawn)
     {
-        var execution = NativePawnActivities.Read(pawn);
-        var step = NativePawnActivities.ActiveStep(pawn);
         var job = pawn.CurJob;
         var driver = pawn.jobs?.curDriver;
-        if (execution == null || execution.State != "started" || step == null || job == null
-            || NativePawnActivities.RunningJobId(pawn) != job.loadID || job.playerForced || (pawn.jobs ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.jobs.")).jobQueue.Count != 0
-            || pawn.pather.Moving || step.Deadline <= Find.TickManager.TicksGame) return null;
+        if (job == null || job.playerForced || (pawn.jobs ?? throw new System.InvalidOperationException("Required native value is unavailable: pawn.jobs.")).jobQueue.Count != 0
+            || pawn.pather.Moving) return null;
         // A stationary recreation driver's final Delay toil (NativeRecreation.StationaryDriver); billiards' shot loop
         // and sleep's dynamic wake/medical/other-job conditions remain unassessed.
-        if (step.Kind != PawnActivityKind.Recreation || !NativeRecreation.StationaryDriver(driver)
+        if (!NativeRecreation.StationaryDriver(driver)
             || !(driver ?? throw new System.InvalidOperationException("Required native value is unavailable: driver.")).OnLastToil || driver.ticksLeftThisToil <= 0 || job.doUntilGatheringEnded
             || !job.ignoreJoyTimeAssignment && !pawn.GetTimeAssignment().allowJoy
-            || job.targetA.Thing is not Verse.Building target || target.GetUniqueLoadID() != step.Target
+            || job.targetA.Thing is not Verse.Building target
             || job.def != NativeRecreation.GiverFor(target)?.jobDef
             || pawn.needs?.joy is not { } joy || joy.GetType() != typeof(Need_Joy)) return null;
         var gain = NativeRecreation.GainPerTick(pawn, target, job.def);
         if (!double.IsFinite(gain) || gain <= 0) return null;
         // JoyTickCheckEnd ends strictly above 0.9999, not at the need threshold.
         var full = Math.Max(1, Math.Floor((0.9999 - joy.CurLevel) / gain) + 1);
-        var remaining = Math.Min(driver.ticksLeftThisToil, Math.Min(step.Deadline - Find.TickManager.TicksGame, full));
-        return new(execution.Assignment, execution.Method, execution.Revision, step.Target, "joy",
+        var remaining = Math.Min(driver.ticksLeftThisToil, full);
+        // Native progress is observable without a governor owner. Retain ownership tags only
+        // when this exact running job still matches the installed recreation step; a replacement
+        // must never inherit a stale Method's release/reconsideration authority.
+        var execution = NativePawnActivities.Read(pawn);
+        var step = NativePawnActivities.ActiveStep(pawn);
+        var owned = execution?.State == "started" && step?.Kind == PawnActivityKind.Recreation
+            && NativePawnActivities.RunningJobId(pawn) == job.loadID && step.Target == target.GetUniqueLoadID()
+            && step.Deadline > Find.TickManager.TicksGame;
+        if (owned) remaining = Math.Min(remaining, step!.Deadline - Find.TickManager.TicksGame);
+        return new(owned ? execution!.Assignment : "", owned ? execution!.Method : "", owned ? execution!.Revision : 0,
+            target.GetUniqueLoadID(), "joy",
             new(pawn.Position.x, pawn.Position.z), remaining, gain)
-        { Unsupported = ["current_rate_completion_projection", "future_tolerance_changes", "ownership_release_requires_observation"] };
+        { Unsupported = ["current_rate_completion_projection", "future_tolerance_changes", "completion_requires_observation"] };
     }
     /// <summary>Supported-state observation, not a job selector. Exact types prevent a mod subclass with
     /// different mechanics from inheriting a support claim. Additional services have no forecasted onset.</summary>

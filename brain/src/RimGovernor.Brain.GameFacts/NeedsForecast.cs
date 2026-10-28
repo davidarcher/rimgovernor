@@ -843,8 +843,9 @@ public sealed record NeedMood
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
     public required EquatableArray<NeedMemory> Memories { get; init; }
 }
-/// <summary>Exact observed continuous service. RemainingTicks is a current-mechanics projection,
-/// not a release guarantee; journal ownership still requires observed continuation/release.</summary>
+/// <summary>Observed continuous service, including ordinary native recreation. Empty assignment/method
+/// and revision zero mean no matching governor owner. RemainingTicks is a current-mechanics projection,
+/// not a completion or release guarantee; journal ownership still requires observed continuation/release.</summary>
 public sealed record NeedCurrentService(string Assignment, string Method, long Revision, string Target,
     string Kind, Cell Location, double RemainingTicks, double GainPerTick)
 {

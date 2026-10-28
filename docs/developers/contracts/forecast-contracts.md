@@ -33,6 +33,14 @@ that current legality. Conversely, no captured target does not predict future
 food production, ingestion, ground rest or spontaneous recreation. Neither access nor a running
 service proves future intake or recovery.
 
+`NeedsForecastPawn.CurrentService` also observes ordinary vanilla stationary
+recreation in a supported driver's final delay toil. Native job/target, schedule,
+movement and joy mechanics establish the current service. It needs no governor
+assignment. Empty assignment/method tags and revision zero carry no Method
+ownership; tags are retained only for the exact matching governor job and step.
+The remainder is a current-rate projection with explicit uncertainty. It cannot
+finance guaranteed labor, completed recovery or a release of unrelated work.
+
 A portfolio consisting solely of ordinary food/rest/recreation services
 is rejected by shared comparison with
 `native_service_response_without_intervention_premise`. Shared binding also

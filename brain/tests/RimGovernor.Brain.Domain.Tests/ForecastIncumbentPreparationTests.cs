@@ -99,6 +99,7 @@ public sealed class ForecastIncumbentPreparationTests
 
     [Theory]
     [InlineData("revision")]
+    [InlineData("native")]
     [InlineData("carry")]
     [InlineData("stale")]
     [InlineData("unaccepted")]
@@ -110,6 +111,10 @@ public sealed class ForecastIncumbentPreparationTests
     {
         var (facts, actions) = Current();
         var needs = facts.ForecastObserved.Needs!;
+        if (reason == "native")
+            facts = facts with { ForecastObserved = facts.ForecastObserved with
+            { Needs = needs with { Pawns = [needs.Pawns[0] with
+                { CurrentService = needs.Pawns[0].CurrentService! with { Assignment = "", Method = "", Revision = 0 } }] } } };
         if (reason == "revision")
             facts = facts with
             {

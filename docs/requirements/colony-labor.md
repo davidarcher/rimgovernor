@@ -1094,6 +1094,32 @@ remain explicit. Complexity: added native haul-aside cost queries and placement/
 handback regressions / removed the private haul-out operation, record, read,
 completion hook and obsolete case / orphans left: none.
 
+## Observed native recreation
+
+The current-service observer recognizes ordinary stationary vanilla recreation
+without requiring a governor execution handle. It retains the existing supported
+driver, final-delay, movement, schedule, target and joy checks. Its remaining time
+is explicitly a current-rate projection. Ownership tags are populated only when
+the exact running job still matches the installed governor recreation step;
+otherwise assignment/method are empty and revision is zero. Observation adds no
+new store, native job, reservation or promised completion.
+
+`ForecastIncumbentPreparationTests` verifies that native progress cannot lend
+reconsideration/release authority to a journal Method. `NativeLaborCapacityTests`
+verifies that its uncertain remainder cannot finance production capacity.
+Existing service comparison and dispatch-boundary regressions retain the
+separation between observed progress and guaranteed recovery. This is a native
+read eligibility change; no new physical gameplay result is claimed. Task 3.3
+and the overall change remain incomplete at 13/24.
+
+Verification: final gate PASS (3m5s), 4,295 domain tests, 30 workflow tests,
+native builds/probes and contract orphan checks. Strict OpenSpec and diff checks
+passed. Rules 7–9: the existing native read owns activity observation, pure policy
+consumes it, shared demand is unchanged and future timing remains explicitly
+unassessed. Complexity: added native current-service visibility and ownership/
+capacity regressions / removed the governor-owner prerequisite for observing
+stationary recreation / orphans left: none.
+
 ## Native operation and conditional comparison evidence
 
 The shared comparison now records its evidence basis. Normal reviews default to

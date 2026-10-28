@@ -7,6 +7,15 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class NativeLaborCapacityTests
 {
+    [Fact]
+    public void ObservedNativeRecreationDoesNotPromiseItsCompletionOrFreeLabor()
+    {
+        var needs = Needs() with { CurrentService = new("", "", 0, "recreation-building", "joy", new(0, 0), 100, .001)
+            { Unsupported = ["current_rate_completion_projection", "future_tolerance_changes", "completion_requires_observation"] } };
+        Assert.Equal(new ForecastTerm.Unassessed("labor_current_service_unprojected:worker"),
+            NativeLaborCapacity.HoursPerDay(Worker(), NeedsFixtures.Read(0, needs), [WorkType.Crafting]));
+    }
+
     private static PawnState Worker() => StockArrivalTestFacts.Crafter("worker", 10, 1) with
     {
         Settings = StockArrivalTestFacts.Crafter("worker", 10, 1).Settings with
