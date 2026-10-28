@@ -58,10 +58,10 @@ public sealed record SelectedActivityInput(string Resource, string Lot, int Coun
     public EquatableArray<string> Producers { get; init; }
 }
 
-/// <summary>A selected task; a recipe task whose schedule read its learning is a <see cref="BoundRecipeTask"/>.</summary>
+/// <summary>A selected task and its physical dependencies.</summary>
 [System.Text.Json.Serialization.JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [System.Text.Json.Serialization.JsonDerivedType(typeof(SelectedActivityTask), "task")]
-[System.Text.Json.Serialization.JsonDerivedType(typeof(BoundRecipeTask), "bound_recipe")]
+
 public record SelectedActivityTask(string Id, string Pawn, EquatableArray<string> Prerequisites,
     PawnActivityStep Step, Cell Location, long DepartTick)
 {
@@ -88,29 +88,7 @@ public record SelectedActivityTask(string Id, string Pawn, EquatableArray<string
         checked(tick + Math.Max((long)Math.Ceiling(end), (long)Math.Ceiling(depart) + 1));
 }
 
-/// <summary>
-/// A recipe task selected at a learning-dependent duration (#3775): <see cref="ProductiveWorkTicks"/> is the selected
-/// service-time bound, which fresh native mechanics must still support before the recipe runs (a binding whose ticks
-/// exceed it does not continue the task). Only a recipe task has one.
-/// </summary>
-public sealed record BoundRecipeTask : SelectedActivityTask
-{
-    [System.Text.Json.Serialization.JsonConstructor]
-    public BoundRecipeTask(string id, string pawn, EquatableArray<string> prerequisites, PawnActivityStep step, Cell location, long departTick,
-        double productiveWorkTicks) : base(id, pawn, prerequisites, step, location, departTick) => ProductiveWorkTicks = productiveWorkTicks;
-
-    /// <summary><paramref name="task"/> bound to <paramref name="productiveWorkTicks"/>.</summary>
-    public BoundRecipeTask(SelectedActivityTask task, double productiveWorkTicks) : base(task) => ProductiveWorkTicks = productiveWorkTicks;
-
-    public double ProductiveWorkTicks { get; init; }
-}
-
-public sealed record ActivityRecipeContinuation(string Bench, string Bill, string Recipe, string WorkGiver,
-    Cell Origin, string Product, int ProductCount, Cell Destination);
-public sealed record ActivityOutputDelivery(string Resource, Cell Origin, Cell Destination, int Count, long Deadline, int AttemptsLeft)
-{
-    public ActivityRecipeContinuation? Recipe { get; init; }
-}
+public sealed record ActivityOutputDelivery(string Resource, Cell Origin, Cell Destination, int Count, long Deadline, int AttemptsLeft);
 public sealed record PawnActivityOrder(string Pawn, string Assignment, string Method, long ExpectedRevision,
     long Revision, bool Release, PawnActivityStep[] Steps)
 {
@@ -195,10 +173,6 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 DomainException.Require(IdText.IsValidText(output.Resource) && output.Count > 0 && output.Deadline > 0
                     && output.AttemptsLeft is >= 0 and <= 3 && output.Origin is { X: >= 0, Z: >= 0 }
                     && output.Destination is { X: >= 0, Z: >= 0 }, "invalid output delivery obligation");
-                if (output.Recipe is { } cook)
-                    DomainException.Require(IdText.IsValidText(cook.Bench) && IdText.IsValidText(cook.Bill)
-                        && IdText.IsValidText(cook.Recipe) && IdText.IsValidText(cook.WorkGiver) && IdText.IsValidText(cook.Product)
-                        && cook.ProductCount > 0 && cook.Origin is { X: >= 0, Z: >= 0 } && cook.Destination is { X: >= 0, Z: >= 0 }, "invalid cooking continuation");
             }
         }
         DomainException.Require(Tasks.Count <= 32 && Tasks.Select(t => t.Id).Distinct(StringComparer.Ordinal).Count() == Tasks.Count,
@@ -207,8 +181,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
         foreach (var task in Tasks)
             DomainException.Require(IdText.IsValidText(task.Id) && Orders.Any(o => o.Pawn == task.Pawn && !o.Release)
                 && task.Prerequisites.All(p => p != task.Id && taskIds.Contains(p)) && task.AttemptsLeft is >= 0 and <= 3
-                && (task is not BoundRecipeTask bound || task.Step.Kind == PawnActivityKind.Recipe
-                    && double.IsFinite(bound.ProductiveWorkTicks) && bound.ProductiveWorkTicks > 0)
+
                 && task.Inputs.All(i => IdText.IsValidText(i.Resource) && IdText.IsValidText(i.Lot) && i.Count > 0
                     && i.Location is { X: >= 0, Z: >= 0 } && IdText.IsValidText(i.Provenance)
                     && i.Producers.All(p => p != task.Id && IdText.IsValidText(p)))

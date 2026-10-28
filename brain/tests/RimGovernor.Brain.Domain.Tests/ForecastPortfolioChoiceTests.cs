@@ -24,7 +24,12 @@ public sealed class ForecastPortfolioChoiceTests
         Assert.NotEmpty(selected.Selection.Selected);
         // The hungry pawn's food reaches zero without the portfolio: it loses fewer capability-days with it.
         Assert.True(selected.SelectedVector.Value.Ledger.LossAgainst(selected.BaselineVector.Value.Ledger) < 0);
-        return (selected, Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "portfolio-choice", 100)));
+        // Recipe/material/delegation below are conditional planning scenarios. Normal execution
+        // leaves the existing bill to vanilla, including its ingredient gathering and output.
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "portfolio-choice", 100));
+        Assert.Empty(ForecastCoupledSelection.SelectedProductionBills(selected, generated));
+        return (selected, RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(
+            selected.Selected.Plan, generated.Context.Bindings, 1, "what-if", 100));
     }
     internal static ReviewFacts Observed(CoupledFoodConversion[] conversions, CoupledFoodSource[] sources, bool helper = false)
     {

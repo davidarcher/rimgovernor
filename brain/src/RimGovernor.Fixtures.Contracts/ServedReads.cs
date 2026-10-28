@@ -198,8 +198,8 @@ public sealed record ProductiveCookingRead
 {
     public int Tick { get; init; }
 
-    /// <summary>Coupled Methods whose pawns learned Cooking on the prepared bill.</summary>
-    public IReadOnlyList<string> Methods { get; init; } = [];
+    /// <summary>Native cooking job identities whose workers learned on the prepared bill, without exact activities.</summary>
+    public IReadOnlyList<string> NativeJobs { get; init; } = [];
 
     /// <summary>Native learning that differed from the counterfactual rates.</summary>
     public IReadOnlyList<string> LearningFailures { get; init; } = [];
@@ -223,9 +223,6 @@ public sealed record ProductiveCookingRead
 
     /// <summary>Cooking jobs begun while critically tired after the urge.</summary>
     public int TiredCooks { get; init; }
-
-    /// <summary>Tasks already handed out at the urge.</summary>
-    public int CommittedAtUrge { get; init; }
 
     /// <summary>Cooking jobs begun rested after the urge.</summary>
     public int RestedCooksAfterUrge { get; init; }

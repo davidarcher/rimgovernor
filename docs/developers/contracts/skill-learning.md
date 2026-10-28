@@ -104,22 +104,21 @@ mandate; the XP they apply is valued as capability like any other. Each produced
 lot can serve bounded early/later hunger events, with shared conservation preventing
 double consumption. No recipe unlock or current essential-service failure is required.
 
-The Method retains only selected work-time bounds alongside its existing task intent.
-Fresh recipe bindings must still support those bounds; missing/slower mechanics,
-lost inputs and failed work release the attempt for normal reconsideration. Fresh
-needs can retire an ingestion-only investment at a physical work boundary. Unknown
-observations do not certify recovery, and in-progress work is not cancelled solely
-because hunger temporarily improved. Actual skills and output remain native-owned;
-there is no XP ledger or durable training goal.
+Ordinary cooking runs through native bills and work settings. Conditional work-time
+and learning estimates stay in the forecast; they do not bind a cook, ingredient
+delivery or output delivery. Native observations establish actual skills,
+consumption and output. Old recipe attempts hand back at physical task boundaries;
+the exact duration-continuation field and native binding have been removed.
+There is no XP ledger or durable training goal.
 
 `productive_learning` in `coupled_selection.predicted_tasks` explains observed-rate
 versus conditional duration, callback XP, projected before/after levels, accumulated
 gain/decay and native provenance. It is prediction, not completion. Registered
 `production/productive-cooking` starts from prepared demand, verifies native per-level
-rates against actual stat calls, then observes normal journal-owned cooking, real
+rates against actual stat calls, then observes native cooking job identities, real
 learning/output and subsequent work without installing a chosen worker. Pure tests
 cover beneficial/costly no-unlock allocations, deadlines, decay, interruption,
-fresh-demand retirement and journal/wire preservation. Native execution remains
+fresh-demand retirement and native handback. Native execution remains
 separate from registration and compilation.
 
 [Assigned capability maintenance](capability-maintenance.md) combines supported scheduled callbacks with decay against actual held-role requirements. Native practice cycle quotes are conditional execution estimates, not guaranteed completed learning or injury-free work.
@@ -144,8 +143,7 @@ once per completed treatment, before and whatever its quality, depending on the
 patient (humanlike or animal) and medicine, not on skill. Tend learning never changes
 the schedule: the observed tend duration is always kept, and an unprojectable callback
 (outside the window, or after the work starts) yields no evidence with a finding.
-Neither medical allocation is a `BoundRecipeTask`: only a recipe task bound at its
-learning carries `ProductiveWorkTicks` (#3775). `lab/skill-learning-tend` and `lab/skill-learning-surgery` check both native
+Medical learning remains conditional forecast evidence. `lab/skill-learning-tend` and `lab/skill-learning-surgery` check both native
 callbacks against the projection.
 
 ## Skill progress is capability

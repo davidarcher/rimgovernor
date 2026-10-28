@@ -48,7 +48,9 @@ public sealed class SupportMethodTests
     {
         var read = CoupledFixtures.NoSupport with { Demands = [CoupledFixtures.Demand("bench", "bench", "bench", new(1, 1), .02, 0d)] };
         var facts = Facts(read, true); var result = Select(facts);
-        Assert.Contains(Tasks(facts, result), t => t.Step.Kind == PawnActivityKind.Recipe);
+        Assert.Contains(result.Selected.Plan.Allocations, a =>
+            facts.CoupledAlternatives!.Context.Bindings[(a.Activity, a.Pawn)].Kind == PawnActivityKind.Recipe);
+        Assert.DoesNotContain(Tasks(facts, result), t => t.Step.Kind == PawnActivityKind.Recipe);
         Assert.Equal(.02, result.SelectedVector.Support.FoodPoisonExposure, 9);
     }
 
@@ -171,7 +173,6 @@ public sealed class SupportMethodTests
         var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
         Assert.Contains(tasks, t => t.Step.Job == "TendPatient");
         Assert.Contains(tasks, t => t.Step.Job == "DoBill");
-        Assert.All(tasks, t => Assert.IsNotType<BoundRecipeTask>(t));
         var allocations = result.Selected.Plan.Allocations;
         var tend = Assert.Single(allocations, a => a.Pawn == "pawn").Learning!;
         Assert.Equal(("Medicine", 250d, SkillXpPath.NormalTracker), (tend.Skill, tend.Callbacks.Single().RawXp, tend.Callbacks.Single().Path));

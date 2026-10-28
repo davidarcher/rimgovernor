@@ -59,9 +59,9 @@ Real-game runs under the normal planner (no fixture-selected winner) at the #316
 
 | Case | Result | What it establishes |
 | --- | --- | --- |
-| `production/productive-cooking` | passes (ordinary crew, prepared level-5 cooking skill) | the planner plans and cooks, a meal is produced, and the level-5 skill is observed rather than boosted |
-| `production/development-reassignment` | passes (#3167, #3624, #3626) | a far better cook joining takes the bills from the first cook's Method |
-| `production/development-lifecycle` | passes (#3167, #3598) | the claim: a tired cook finishes the current meal, is released at the task boundary (never interrupted mid-task), sleeps, resumes the bill when rested, and the Method retires once the demand is satisfied |
+| `production/productive-cooking` | predecessor passes; native-bill revision unverified in game | the planner plans and cooks, a meal is produced, and the level-5 skill is observed rather than boosted |
+| `production/development-reassignment` | predecessor passes; native-settings revision unverified in game | a far better cook joining takes the bills from the first cook's Method |
+| `production/development-lifecycle` | predecessor passes; native-bill revision unverified in game | the predecessor finished current work, slept, resumed and retired its Method; the revised case checks native work without that ownership |
 | `production/maintenance-range`, `production/maintenance-sparring` | pass | an assigned role floor with a real deficit is maintained by existing range and sparring |
 | `production/coupled-needs`, `lifecycle/load` | pass (coupled-needs 2 runs in 5, #3630) | normal harvest/ingestion and load preserve ownership |
 | `shelter/service-investment` | passes (#3245): the cold-room heater frame is selected, built, powered and warms the room, with the paired decision explained | food/shelter investment is observed. The cause was search order: a construction root rejected for lacking supported service relief was never paired with the sleep that gives it relief, because hundreds of sleep-time roots sorted ahead of it and spent the budget. Need roots now sort last and an unserved construction root seeds the extension |
@@ -88,34 +88,14 @@ at the task boundary while a running task is never interrupted, unless its next 
 sleep or recreation service, or leads to one of its own (harvesting the rice it then eats), which it keeps
 (`ActivityNeedBoundaryTests`),
 and changed skill or decay is covered by `ProductiveLearningTests` and `CapabilityMaintenanceTests`.
-Retirement on changed demand is the lifecycle case's deleted bill. A lost participant is the
-lost-participant unit test above. The brain's own reassignment is `production/development-reassignment`:
-once the cook of the first meal is owned, a far better cook joins (another colonist's Cooking level is
-raised to 15). It passes when the first cook's Method no longer owns that cook, the better cook completes
-a meal under a coupled Method, and every completed repeat is exactly one Method-owned completion. A
-Cooking work priority is not an input: activity cooking ignores work priorities. A worker of a coupled Method
-with bills left is reconsidered at its own boundary (its task completed or holding for the next, nothing
-carried, observed exactly at its order), whatever the Method's other participants are doing (#3624), and only
-while a colonist outside the Method is offered one of its bills faster than its own cooks (#3167): in total ticks, the
-walk to the ingredients (the cheapest delivery of them to the bench, else the walk to the bench) plus the
-work, or equally fast with a lower known chance of poisoning the meal (the game's rule: room chance r plus
-(1 − r) times the cook's `FoodPoisonChance`, on `CoupledFoodConversion.FoodPoisonChance`). The reconsidered
-workers then have no retain commitment: the comparison sees them free and the participants still working
-keep their claims, and only the reconsidered workers are released, when the selection gives one of their bills
-to that colonist; the other participants keep their orders and tasks uninterrupted. A worker some working
-participant's task waits on (a prerequisite, an input it produces, or a bill both hold) is not reconsidered
-alone: releasing it would strand that participant, so it waits for the participant's boundary. A worker
-finishing a task while it has bills left raises that review (`task`, #3624), one event per finished task and
-no timer: the worker loop wakes the scheduler step at once, with the clock running (no hold), and the
-Method binds that worker no next task until a colony review has committed, so the review decides before the
-worker starts. The colonists with no committed order, running vanilla work (#3669), are free to the comparison. A move never happens mid-recipe.
-The assignment search tries for each task the pawns its placed prerequisites went to, then the cheapest
-(its work plus its walk to the task, at its opportunity cost, #3624):
-a truncated search reaches only the plans its first choices lead to, and trying pawns in id order gave
-the first meals to whichever cook sorted first, a level-6 cook beside a level-15 one. A meal that waits on another
-colonist's cooking defers its eater by its planned start, not its immediate departure. Doctors are not
-trained by surgery on prisoners ([capability maintenance](capability-maintenance.md#no-practice-surgery-3344)).
-
+Routine cooking now executes through ordinary bills and numbered work priorities.
+The productive cooking cases observe native job identities and actual learning and
+output without exact pawn activities. The lifecycle case injects urgent rest and
+withdraws the bill; the reassignment case raises another cook's skill and observes
+whether normal work settings shift production to it. These revised cases have no
+current gameplay result until rerun; earlier Method-owned passes below describe
+the predecessor implementation. Forecast worker choices, learning, poison risk and
+travel remain conditional planning estimates, not native execution promises.
 ## Facility choice ownership
 
 `FacilityPlanningRules` owns the existing butcher spot/table ordering, cooking

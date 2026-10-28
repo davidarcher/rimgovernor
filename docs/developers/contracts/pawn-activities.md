@@ -552,9 +552,12 @@ creation; only native observations establish actual production.
 The private nonautonomous tailoring bill and exact tailoring executor have been
 removed. Regenerate fixtures/saves containing that retired bill class. Old
 journaled tailoring attempts return participants at task boundaries without
-crediting unobserved work or starting dependent tasks. Exact cooking still uses
-the generic recipe driver pending its migration. See
+crediting unobserved work or starting dependent tasks. Routine cooking also stays
+native; the explicit fixture-driven recipe primitive still uses the generic driver
+and is not routine forecast dispatch. Its remaining migration is tracked in the
+labor inventory. See
 [equipment upkeep](equipment-upkeep.md#live-clothing-requirement-selection).
+
 ## Voluntary ownership and bounded no-change
 
 An installed order offers its first job; it does not own the pawn's future native

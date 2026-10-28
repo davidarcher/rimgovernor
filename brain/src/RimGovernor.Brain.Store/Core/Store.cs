@@ -67,8 +67,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 61 removes the obsolete Preemptible admission flag: observed native work is occupied, regardless of whether a direct order could interrupt it.
     /// Version 62 adds the finite OrderedWork action codec; older session journals are replaced.
     /// Version 63 freezes exact native queue outcomes in work admission evidence; older session journals are replaced.
+    /// Version 64 removes the exact recipe continuation duration from activity tasks; older session journals are replaced.
     /// </summary>
-    public const int SchemaVersion = 63;
+    public const int SchemaVersion = 64;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

@@ -179,38 +179,6 @@ internal static class NativeActivityTasks
                     else if (giver is WorkGiver_GrowerHarvest ? !giver.HasJobOnCell(pawn, target.Position, false) : !giver.HasJobOnThing(pawn, target, false)) continue;
                     bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step with { Target = target.GetUniqueLoadID() }));
                 }
-                else if (step.Kind == PawnActivityKind.Recipe)
-                {
-                    var bench = RefIndex.Thing(map, step.Target);
-                    if (bench == null || step.Recipe is not { } recipe) continue;
-                    var input = task.Source;
-                    if (recipe.Stuff.Length != 0) continue; // Ordinary tailoring belongs to native bills.
-                    var count = recipe.Ingredients.Sum(i => i.Count);
-                    var ingredients = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
-                        .Where(t => t.Spawned && t.def.defName == task.Resource && !t.IsForbidden(pawn) && !t.IsBurning()
-                            && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.Some)
-                            && t.Position.DistanceToSquared(new(input.X, 0, input.Z)) <= 4)
-                        .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
-                    if (ingredients.Length > 16) truncated = true;
-                    var remainingIngredients = count;
-                    var exactIngredients = new List<PawnActivityIngredient>();
-                    foreach (var ingredient in ingredients.Take(16))
-                    {
-                        var take = Math.Min(remainingIngredients, ingredient.stackCount);
-                        if (take <= 0) break;
-                        exactIngredients.Add(new(ingredient.GetUniqueLoadID(), take)); remainingIngredients -= take;
-                    }
-                    var bound = step with { Recipe = recipe with { Ingredients = EquatableArray.From(exactIngredients) } };
-                    if (remainingIngredients == 0 && NativeActivityRecipe.Resolve(pawn, bench, bound, out _, out _, out _))
-                    {
-                        // A task bound to its recipe's productive work (#3775) binds only with that work's ticks read; any other binds as is.
-                        if (task is not BoundRecipeTask) { bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, bound)); continue; }
-                        var productive = bench is Building_WorkTable table && DefDatabase<RecipeDef>.GetNamedSilentFail(recipe.Recipe) is { } definition
-                            ? NativeProductiveSkill.Read(pawn, definition, table) : null;
-                        if (productive?.Rates.SingleOrDefault(r => productive.Learning.StoredLevel == r.StoredLevel) is { WorkPerTick: > 0 and var rate })
-                            bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Recipe(task.Id, bound, Math.Ceiling(productive.WorkAmount / rate)));
-                    }
-                }
             }
         }
         return new() { Context = context, Truncated = truncated,

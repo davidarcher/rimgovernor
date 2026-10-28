@@ -45,33 +45,12 @@ public sealed class ConstructionActivityWireTests
         var step = new PawnActivityStep(PawnActivityKind.Supply, "stack", "", "", 2, 500) { Container = "frame" };
         var read = ConstructionFixtures.NoTasks(300) with
         {
-            Bindings = [new ActivityTaskBinding.Bound("bound", step), new ActivityTaskBinding.Supply("supply", step, 2),
-                new ActivityTaskBinding.Recipe("recipe", step with { Kind = PawnActivityKind.Recipe }, 120)],
+            Bindings = [new ActivityTaskBinding.Bound("bound", step), new ActivityTaskBinding.Supply("supply", step, 2)],
         };
         var copy = OrdersJson.Deserialize<ActivityTaskRead>(OrdersJson.Serialize(read));
         Assert.Equal(read.Bindings, copy.Bindings);
         Assert.Equal(2, Assert.IsType<ActivityTaskBinding.Supply>(copy.Bindings[1]).RemainingCount);
-        Assert.Equal(120, Assert.IsType<ActivityTaskBinding.Recipe>(copy.Bindings[2]).ProductiveWorkTicks);
+
     }
 
-    /// <summary>Only a recipe task bound at its learning carries work ticks: no other task has the member at all.</summary>
-    [Fact]
-    public void ANonRecipeTaskHasNoWorkTicksMember()
-    {
-        Assert.Null(typeof(SelectedActivityTask).GetProperty(nameof(BoundRecipeTask.ProductiveWorkTicks)));
-        Assert.Null(typeof(ActivityTaskBinding).GetProperty(nameof(ActivityTaskBinding.Recipe.ProductiveWorkTicks)));
-        Assert.Null(typeof(ActivityTaskBinding).GetProperty(nameof(ActivityTaskBinding.Supply.RemainingCount)));
-        Assert.NotNull(typeof(BoundRecipeTask).GetProperty(nameof(BoundRecipeTask.ProductiveWorkTicks)));
-    }
-
-    [Fact]
-    public void ABoundRecipeTaskRoundTripsOnTheWire()
-    {
-        var batch = ActivityContinuationFixtures.Cooking();
-        batch = batch with { Tasks = [.. batch.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe ? new BoundRecipeTask(t, 100d) : t)] };
-        var copy = OrdersJson.Deserialize<ActivityTaskRequest>(OrdersJson.Serialize(new ActivityTaskRequest(ConstructionFixtures.Context().Identity, batch)));
-        Assert.Equal(batch.Tasks, copy.Batch.Tasks);
-        Assert.Equal(100d, Assert.IsType<BoundRecipeTask>(copy.Batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe)).ProductiveWorkTicks);
-        Assert.All(copy.Batch.Tasks.Where(t => t.Step.Kind != PawnActivityKind.Recipe), t => Assert.IsNotType<BoundRecipeTask>(t));
-    }
 }

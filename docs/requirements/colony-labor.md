@@ -454,7 +454,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
 | --- | --- | --- | --- |
-| `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Pending |
+| `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine cooking supply/recipe/output chain stays native; acquisition, intervention and native usable-output evidence remain |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Partial: fresh routine services and boundary continuation stay native; unresolved access and justified exceptions remain |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
 | `ConstructionMethodCandidates.Generate`: supply and build | Native blueprints, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Pending |
@@ -529,3 +529,48 @@ completion timing remain conditional; no trajectory simulator, new optimizer,
 reservation store or duplicate demand owner was added. Complexity: added native
 bill binding and admission plumbing / removed private exact tailoring execution,
 ledger exemption and dead wire field / orphans left: none.
+
+## Native cooking chain milestone
+
+`FoodMethodCandidates.GenerateCoupled` retains ingredient supply, recipe conversion,
+delivery, ingestion and learning as conditional scenarios, but ordinary supply,
+cooking and output-delivery activities are marked for native execution. Shared
+dispatch drops that chain and work depending on its unobserved completion; it
+does not duplicate an existing production bill or claim a cook. The existing
+food declaration/work-ledger/Hands path still owns ordinary cooking bills and
+the normal work-settings path enables their workers. Native capability observations
+no longer require the explicit recipe operation's drop-on-floor setting, and
+cooks can gather ingredients even when independent hauling work is disabled.
+
+Old coordinated recipe chains return a participant at a task boundary, including
+when it is rested or has a valid binding. In-flight work is preserved and missing
+output is not credited. Removed the now-unused exact recipe duration subclass,
+binding read, JSON variants and codec fields through native observations, plus
+the output-recipe continuation that had no producer. Session schema 64 replaces
+older journals; no new persistence owner or compatibility lane was added.
+
+Shared portfolio and productive-learning tests distinguish conditional scenarios
+from normal dispatch and verify no routine cooking orders or duplicate bills.
+Continuation regressions cover completed/failed input work and rested boundaries.
+The productive cooking/lifecycle/reassignment fixtures now record actual native
+job identities and require no exact activity owner. Their previous Method-owned
+gameplay passes do not certify this revised behavior. No native gameplay pass is
+claimed here. The explicit fixture-driven cooking primitive still has a native
+adapter; its final removal or justified-intervention replacement remains in the
+general adapter audit. Acquisition and the short native usable-food result also
+remain pending, so task 5.1 and the overall labor change are incomplete.
+
+Verification: the finished `RimGovernor.cmd test > test.out 2>&1` passed 4,207
+domain tests and 30 workflow tests, native production/fixture builds, contract
+probes and the orphan check (2m3s). Strict OpenSpec validation passed all five
+items. The lifecycle fixture now observes native job starts separately from
+completion XP, allowing only jobs already running when fatigue was staged to
+finish. No native gameplay run is claimed; overall progress remains 13/24,
+confirmed food requirements are unchanged and #4040 remains open.
+
+Rules 7–9: existing food demand and bill/settings owners are reused; pure policy
+controls binding and handback, and native observations name capability without
+predicting the selected worker. No extra optimizer, scheduler or state store was
+introduced. Complexity: added native cooking handoff and outcome-based fixture
+reads / removed exact duration/output continuation plumbing and obsolete exact
+continuation tests / orphans left: none.

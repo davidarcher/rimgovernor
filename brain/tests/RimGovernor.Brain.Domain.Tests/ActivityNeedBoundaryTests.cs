@@ -31,14 +31,14 @@ public sealed class ActivityNeedBoundaryTests
     }
 
     [Fact]
-    public void RestedCookFinishingSupplyStartsTheMealAsBefore()
+    public void RestedCookFinishingSupplyAlsoReturnsToNative()
     {
         var supply = ActivityContinuationFixtures.Cooking();
         var cook = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, ActivityNeed.Owed, Read(supply, "completed", .9) with
         { Bindings = [new ActivityTaskBinding.Bound(cook.Id, cook.Step)] })!;
-        Assert.False(Assert.Single(next.Orders).Release);
-        Assert.Equal(cook.Id, next.Orders[0].Task);
+        Assert.True(Assert.Single(next.Orders).Release);
+        Assert.Empty(next.Tasks);
     }
 
     [Fact]

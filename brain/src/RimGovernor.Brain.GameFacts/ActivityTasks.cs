@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.GameFacts.Observations;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(ActivityTaskBinding.Bound), "bound")]
 [JsonDerivedType(typeof(ActivityTaskBinding.Supply), "supply")]
-[JsonDerivedType(typeof(ActivityTaskBinding.Recipe), "recipe")]
+
 public abstract record ActivityTaskBinding(string Task, PawnActivityStep Step)
 {
     /// <summary>A binding with nothing further read: the step alone.</summary>
@@ -20,9 +20,6 @@ public abstract record ActivityTaskBinding(string Task, PawnActivityStep Step)
     /// <summary>A Supply binding: the frame's <see cref="RemainingCount"/> of the bound stack's material still owed.</summary>
     public sealed record Supply(string Task, PawnActivityStep Step, int RemainingCount) : ActivityTaskBinding(Task, Step);
 
-    /// <summary>A recipe binding of a <see cref="BoundRecipeTask"/>: the pawn's <see cref="ProductiveWorkTicks"/> for the
-    /// bound recipe at its current learning (the work amount over its stored-level rate, rounded up).</summary>
-    public sealed record Recipe(string Task, PawnActivityStep Step, double ProductiveWorkTicks) : ActivityTaskBinding(Task, Step);
 }
 public sealed record ActivityTaskObservation(string Pawn, RimGovernor.Brain.GameFacts.Operations.PawnActivityExecution? Execution);
 public sealed record ActivityTaskRead

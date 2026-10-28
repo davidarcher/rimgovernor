@@ -127,8 +127,13 @@ public sealed class CoupledActivityIntegrationTests
         var valid = kind == PawnActivityKind.Eat ? step with { Target = "actual-meal" } : step;
         var accepted = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Observe(batch, "holding", 120,
             new ActivityTaskBinding.Bound(task.Id, valid)))!;
-        Assert.False(Assert.Single(accepted.Orders).Release);
-        Assert.Equal(valid, Assert.Single(accepted.Orders[0].Steps));
+        if (kind == PawnActivityKind.Recipe)
+            Assert.True(Assert.Single(accepted.Orders).Release); // A legal recipe is still ordinary native work.
+        else
+        {
+            Assert.False(Assert.Single(accepted.Orders).Release);
+            Assert.Equal(valid, Assert.Single(accepted.Orders[0].Steps));
+        }
     }
     [Theory]
     [InlineData(false)]

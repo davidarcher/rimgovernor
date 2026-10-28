@@ -97,6 +97,7 @@ internal static class FoodMethodCandidates
                         var supply = id + "/supply/" + iteration + "/" + native.Source + "/" + quantity;
                         tasks.Add(new(supply, Location(native.SourceCell), Location(native.BenchCell), [])
                         {
+                            NativeExecution = true,
                             Inputs = [new(new(native.Ingredient), quantity) { Lot = lot }],
                             Outputs = [new(new(native.Ingredient), quantity) { Lot = lot }],
                             ChoiceIdentity = id + "/supply-choice/" + iteration + "/" + native.Source,
@@ -125,9 +126,9 @@ internal static class FoodMethodCandidates
                 var products = group.GroupBy(c => c.Product).Select(g => new ForecastActivityYield(new(g.Key), g.First().ProductCount)
                     { Lot = cook, Perishable = true, FreshTicks = Keeping(g.Key) }).ToArray();
                 tasks.Add(new(cook, Location(first.BenchCell), Location(first.BenchCell), previous is null ? [] : [previous])
-                    { Outputs = EquatableArray.From(products), RequiresFoodUse = true });
+                    { NativeExecution = true, Outputs = EquatableArray.From(products), RequiresFoodUse = true });
                 tasks.Add(new(deliver, Location(first.BenchCell), Location(first.Destination), [])
-                    { Inputs = EquatableArray.From(products), Outputs = EquatableArray.From(products) });
+                    { NativeExecution = true, Inputs = EquatableArray.From(products), Outputs = EquatableArray.From(products) });
                 foreach (var row in group.GroupBy(c => c.Pawn).Select(g => g.First()))
                 {
                     if (row.Cooking is FoodCooking.Cook cooking)

@@ -62,6 +62,13 @@ reads each room as it stands; it does not propose cleaning or credit a cleaner r
 
 ## Room consequences
 
+Routine cooking ingredient gathering, recipe work and output handling belong to
+native bills and numbered work priorities. Coupled cooking and delivery scenarios
+remain conditional planning evidence. A missing modeled recipe or delivery is not
+by itself a native production failure, and a forecast product is not actual stock.
+The food plan and work ledger retain bill ownership; no support-work scheduler
+assigns the routine cook.
+
 Native room mechanics bound the supported consequences, read at the room's current
 cleanliness. Food production samples
 the room's food-poison chance when the recipe produces its output. Tending can

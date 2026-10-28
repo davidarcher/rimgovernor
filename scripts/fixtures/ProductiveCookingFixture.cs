@@ -18,10 +18,10 @@ public sealed partial class PawnControlFixture
     private static bool productiveActive, productivePatched, productiveOutput;
     private static int productiveUrgeTick = -1;
     private static bool productiveSlept;
-    private static int productiveCommitted;
     private static readonly HashSet<string> productiveTiredCooks = new(StringComparer.Ordinal), productiveRestedCooks = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, int> productiveCompletions = new(StringComparer.Ordinal);
-    private static readonly HashSet<string> productiveMethods = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> productiveJobs = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> productiveStartedJobs = new(StringComparer.Ordinal);
 
     [Tool("test/productive_cooking_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged cook, stove, simple-meal bill and rice; clear other food; set near-next-level cooks, no selected worker or activity. Verify native counterfactual rates before normal planner starts.")]
     public async Task<object> ProductiveCookingPrepare(INativeContext ctx, CancellationToken ct,
@@ -71,7 +71,7 @@ public sealed partial class PawnControlFixture
                     skill.xpSinceMidnight = before.xpSinceMidnight;
                 }
             }
-            productiveCompletions.Clear(); productiveMethods.Clear(); productiveOutput = false;
+            productiveCompletions.Clear(); productiveJobs.Clear(); productiveStartedJobs.Clear(); productiveOutput = false;
             productiveUrgeTick = -1; productiveSlept = false; productiveTiredCooks.Clear(); productiveRestedCooks.Clear();
             SkillLearningVerifier.Start();
             if (!productivePatched)
@@ -91,14 +91,20 @@ public sealed partial class PawnControlFixture
         if (!productiveActive || xp <= 0 || __instance.def != SkillDefOf.Cooking
             || __instance.Pawn.CurJob?.bill != selectedBill) return;
         var execution = NativePawnActivities.Read(__instance.Pawn);
-        if (execution?.Method.StartsWith("coupled-", StringComparison.Ordinal) != true) return;
-        productiveMethods.Add(execution.Method);
-        if (productiveUrgeTick >= 0) (__instance.Pawn.needs.rest.CurLevel < .15f ? productiveTiredCooks : productiveRestedCooks).Add(__instance.Pawn.GetUniqueLoadID() + ":" + __instance.Pawn.CurJob.loadID);
+        if (execution != null) throw new InvalidOperationException("Ordinary cooking acquired an exact pawn activity.");
+        productiveJobs.Add(__instance.Pawn.GetUniqueLoadID() + ":" + __instance.Pawn.CurJob.loadID);
         var id = __instance.Pawn.GetUniqueLoadID();
         productiveCompletions[id] = productiveCompletions.GetValueOrDefault(id) + 1;
     }
     private static void ProductiveOutput(Pawn ___pawn)
     {
+        // Observe the first tick of actual native work separately from its later XP callback.
+        // Completing while tired is not evidence that the job began after fatigue was staged.
+        if (productiveActive && ___pawn.CurJob?.bill == selectedBill
+            && productiveStartedJobs.Add(___pawn.GetUniqueLoadID() + ":" + ___pawn.CurJob.loadID)
+            && productiveUrgeTick >= 0)
+            (___pawn.needs.rest.CurLevel < .15f ? productiveTiredCooks : productiveRestedCooks)
+                .Add(___pawn.GetUniqueLoadID() + ":" + ___pawn.CurJob.loadID);
         if (productiveActive && productiveUrgeTick >= 0 && ___pawn.CurJobDef == JobDefOf.LayDown && !___pawn.Awake()) productiveSlept = true;
         if (productiveActive && ___pawn == worker && ___pawn.Map.listerThings.AllThings.Any(t => t.def == selectedBill.recipe.products[0].thingDef && t.stackCount > 0))
             productiveOutput = true;
@@ -116,7 +122,8 @@ public sealed partial class PawnControlFixture
                 GenSpawn.Spawn(ThingDefOf.Bed, bedCell, map).SetFaction(Faction.OfPlayer);
             }
             productiveUrgeTick = Find.TickManager.TicksGame; productiveSlept = false; productiveTiredCooks.Clear(); productiveRestedCooks.Clear();
-            productiveCommitted = worker!.Map.mapPawns.FreeColonistsSpawned.Count(p => NativePawnActivities.Read(p) != null); // tasks already handed out may finish
+            foreach (var pawn in worker!.Map.mapPawns.FreeColonistsSpawned.Where(p => p.CurJob?.bill == selectedBill))
+                productiveStartedJobs.Add(pawn.GetUniqueLoadID() + ":" + pawn.CurJob.loadID); // Existing native work may finish.
             selectedBill.repeatCount = Math.Min(selectedBill.repeatCount, 4); // finite demand: tasks already handed out may use up to 3, leaving one to resume and retire
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
@@ -134,11 +141,11 @@ public sealed partial class PawnControlFixture
             var people = worker!.Map.mapPawns.FreeColonistsSpawned;
             return FixtureKit.Reply(new Fx.ProductiveCookingRead
             {
-                Tick = Find.TickManager.TicksGame, Methods = productiveMethods.OrderBy(m => m).ToArray(), Completions = productiveCompletions.Values.Sum(),
+                Tick = Find.TickManager.TicksGame, NativeJobs = productiveJobs.OrderBy(m => m).ToArray(), Completions = productiveCompletions.Values.Sum(),
                 CompletedBy = new Dictionary<string, int>(productiveCompletions, StringComparer.Ordinal),
                 SubsequentWork = productiveCompletions.Values.Any(count => count >= 2), Output = productiveOutput,
                 MaxCookingLevel = people.Max(p => p.skills.GetSkill(SkillDefOf.Cooking).Level),
-                Slept = productiveSlept, TiredCooks = productiveTiredCooks.Count, CommittedAtUrge = productiveCommitted, RestedCooksAfterUrge = productiveRestedCooks.Count,
+                Slept = productiveSlept, TiredCooks = productiveTiredCooks.Count, RestedCooksAfterUrge = productiveRestedCooks.Count,
                 BillActive = cookingBench.BillStack.Bills.Contains(selectedBill), BillRemaining = selectedBill.repeatCount,
                 Owners = people.Select(p => (Pawn: p, Execution: NativePawnActivities.Read(p))).Where(o => o.Execution != null)
                     .ToDictionary(o => o.Pawn.GetUniqueLoadID(), o => o.Execution!.Method, StringComparer.Ordinal),

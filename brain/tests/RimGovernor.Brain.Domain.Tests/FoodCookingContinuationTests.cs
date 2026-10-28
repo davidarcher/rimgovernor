@@ -5,8 +5,8 @@ using RimGovernor.Brain.GameOrders.Observations;
 using RimGovernor.Brain.GameFacts;
 using RimGovernor.Brain.GameOrders;
 using Xunit;
-using System.Text.Json;
-using RimGovernor.Brain.Store.Codec;
+
+
 using RimGovernor.Brain.GameAccess;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -22,88 +22,25 @@ public sealed class FoodCookingContinuationTests
         Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
             new(o.Assignment, o.Method, o.Revision, 0, state, "", 200)))),
     };
-    private static PawnActivities Cooking(PawnActivities supply, string ingredient = "changed-stack")
+    [Theory]
+    [InlineData("completed")]
+    [InlineData("failed")]
+    public void OldRecipeChainReturnsToNativeWithoutRebindingInputsOrCreditingMeals(string state)
     {
-        var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        return CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, ActivityNeed.Owed, Done(supply, bindings:
-            [new ActivityTaskBinding.Bound(task.Id, task.Step with { Recipe = task.Step.Recipe! with { Ingredients = [new(ingredient, 10)] } })]))!;
-    }
-
-    [Fact]
-    public void SupplyRebindsChangedIngredientThenCookingRequiresObservedMealForDelivery()
-    {
-        var supply = ActivityContinuationFixtures.Cooking();
-        var cooking = Cooking(supply);
-        foreach (var batch in new[] { supply, cooking })
-        {
-            IntentActionRules.RegisterIntentKinds();
-            var action = DomainAction.NewPawnActivitiesAction(new("food-action"), batch);
-            using var stream = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, action);
-            using var json = JsonDocument.Parse(stream.ToArray());
-            var decoded = Codecs.Default.Read<DomainAction>(json.RootElement);
-            var intent = IntentActionRules.IntentAction("food-action", decoded).Intent!.PawnActivities!.Batch!;
-            Assert.Equal(batch.Tasks, intent.Tasks);
-            Assert.Equal(batch.Orders[0].Steps, intent.Orders[0].Steps);
-            var wire = OrdersJson.Deserialize<ActivityTaskRequest>(OrdersJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, batch)));
-            Assert.Equal(batch.Tasks, wire.Batch.Tasks);
-        }
-        var step = cooking.Orders[0].Steps[0];
-        Assert.Equal("changed-stack", step.Recipe!.Ingredients.Single().Thing);
-        Assert.Equal("recipe", step.Recipe.Recipe);
-        var delivery = cooking.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver);
-        var delivered = CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, ActivityNeed.Owed, Done(cooking, bindings:
-            [new ActivityTaskBinding.Bound(delivery.Id, delivery.Step with { Target = "observed-meal" })]))!;
-        Assert.Equal("observed-meal", delivered.Orders[0].Steps[0].Target);
-        Assert.Equal(500, delivered.Orders[0].Steps[0].Deadline);
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, ActivityNeed.Owed, Done(cooking))!.Orders[0].Release);
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(delivered, ActivityNeed.Owed, Done(delivered))!.Orders[0].Release);
-    }
-
-    [Fact]
-    public void InterruptedCookingLostBenchAndChangedRecipeCannotReplayConsumption()
-    {
-        var supply = ActivityContinuationFixtures.Cooking();
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, ActivityNeed.Owed, Done(supply))!.Orders[0].Release);
-        var task = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        var wrong = task.Step with { Recipe = task.Step.Recipe! with { Bill = "other-bill" } };
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, ActivityNeed.Owed, Done(supply, bindings: [new ActivityTaskBinding.Bound(task.Id, wrong)]))!.Orders[0].Release);
-        var cooking = Cooking(supply);
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, ActivityNeed.Owed, Done(cooking, "failed"))!.Orders[0].Release);
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, ActivityNeed.Ended, Done(cooking))!.Orders[0].Release);
-        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(cooking, ActivityNeed.Owed, Done(cooking, "started")));
-    }
-
-    [Fact]
-    public void ProductiveDurationSurvivesJournalAndFreshMechanicsMustStillSupportNextWork()
-    {
-        var supply = ActivityContinuationFixtures.Cooking();
-        supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
-            ? new BoundRecipeTask(t, 100d) : t)) };
-        IntentActionRules.RegisterIntentKinds();
-        var action = DomainAction.NewPawnActivitiesAction(new("productive-action"), supply);
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, action);
-        using var json = JsonDocument.Parse(stream.ToArray());
-        var decoded = Codecs.Default.Read<DomainAction>(json.RootElement);
-        var intent = IntentActionRules.IntentAction("productive-action", decoded).Intent!.PawnActivities!.Batch!;
-        Assert.Equal(supply.Tasks, intent.Tasks);
-        var recipe = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        var step = recipe.Step with { Recipe = recipe.Step.Recipe! with { Ingredients = [new("observed-rice", 10)] } };
-        // A bound recipe task needs the pawn's fresh recipe ticks: a binding without them, or slower, retires the work.
-        foreach (var binding in new ActivityTaskBinding[] { new ActivityTaskBinding.Bound(recipe.Id, step), new ActivityTaskBinding.Recipe(recipe.Id, step, 101d) })
-            Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, ActivityNeed.Owed, Done(intent, bindings: [binding]))!.Orders[0].Release);
-        Assert.False(CoordinatedActivitiesRules.ContinueCoordinatedActivity(intent, ActivityNeed.Owed, Done(intent, bindings: [new ActivityTaskBinding.Recipe(recipe.Id, step, 100d)]))!.Orders[0].Release);
-        var wire = OrdersJson.Deserialize<ActivityTaskRequest>(OrdersJson.Serialize(new ActivityTaskRequest(new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, intent)));
-        Assert.Equal(intent.Tasks, wire.Batch.Tasks);
+        var batch = ActivityContinuationFixtures.Cooking();
+        var read = Done(batch, state);
+        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read));
+        Assert.True(Assert.Single(next.Orders).Release);
+        Assert.Empty(next.Tasks);
+        Assert.Empty(read.SatisfiedTasks);
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Done(batch, "started")));
     }
 
     [Fact]
     public void FreshDemandCanRetireProductiveWork()
     {
         var supply = ActivityContinuationFixtures.Cooking();
-        supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
-            ? new BoundRecipeTask(t, 100d) : t).Append(new("eat", "pawn", [],
+        supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Append(new("eat", "pawn", [],
                 new(PawnActivityKind.Eat, "meal", "", "", 1, 500), new(8, 9), 200))) };
         var read = Done(supply) with { Needs = NeedsFixtures.Empty with { Tick = new(200), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", State = "eligible",
             Needs = [NeedsFixtures.Rate("food", 1d, 0d, .3)] }] } };

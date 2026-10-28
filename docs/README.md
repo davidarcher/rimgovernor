@@ -84,7 +84,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Change a subsystem | [Behavior contracts](developers/contracts/README.md) |
 | Inspect selected service investments and observed recovery | [Essential services](developers/contracts/essential-services.md) |
 | See which autonomous-development claims are observed in the real game and which only in pure tests | [Observed evidence](developers/contracts/essential-services.md#observed-evidence-and-remaining-gaps) |
-| Understand useful cooking development and its limits | [Productive skill learning](developers/contracts/skill-learning.md#productive-cooking-in-normal-selection) |
+| Understand native cooking, conditional development and its limits | [Productive skill learning](developers/contracts/skill-learning.md#productive-cooking-in-normal-selection), [native cooking migration evidence](requirements/colony-labor.md#native-cooking-chain-milestone) |
 | Judge whether game mechanics can be extracted into cards (Gate 0 spike, #3218) and read the shipped cards | [Mechanic-card spike](developers/mechanic-card-spike.md), [mechanic cards](developers/contracts/mood-control.md#mechanic-cards) |
 | Select and execute comms, dated current trader openings and settlement missions with cheapest-carried medicine purchases and exact visitor adult-group probability | [Controllable trade](developers/contracts/controllable-trade.md), [stock arrival per outcome](developers/contracts/forecast-contracts.md#stock-arrival-3868) |
 | Read conditional major-threat rates and native biome incident eligibility | [Threat schedule](developers/contracts/forecast-contracts.md#threat-schedule-3539) |

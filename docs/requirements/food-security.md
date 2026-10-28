@@ -4,6 +4,12 @@
 
 ## Intent and evidence ownership
 
+Routine cooking execution now follows the [native cooking chain milestone](colony-labor.md#native-cooking-chain-milestone): ordinary bills and work settings,
+with conditional recipe forecasts kept separate from dispatch. Its revised
+productive-cooking cases have no new gameplay result here; historical exact-Method
+results below do not establish that migration's physical outcome. Confirmed food
+requirements are unchanged.
+
 The [native-led labor change](../../openspec/changes/native-led-labor-execution/proposal.md) supersedes the unlanded baby change's advance caregiver selection/release. Checkpoint `ff5cfc77b` and later worktree edits are implementation evidence only: the executed feeding cases below now establish their scoped outcomes; #4040 remains open until the verified implementation lands. Earlier bottle fixtures never obtained their unrelated owned-research precondition; those results do not establish a feeding failure. The new change owns the remaining proof.
 
 The first deterministic live-journal bottle run (`.rimgovernor/baby-native-bottle/child/coordinated-bottle-feeding/result.json`, 2026-10-26, dirty `ff5cfc77b`, source tree `5eb1ca56eb5d6536cb79c307d0e0b433d2eee633c28c1199bebe21bf68f16900`) observed the competing Method, native takeover, actual intake, no malnutrition and care-time dispatch rejection. It failed the complete case: research occupied the first 4,000 ticks and feeding was still running at the fixed 8,000-tick limit. A safety job observed before feeding is not proof of post-feeding return. The fixture now stages a small harvest and requires return after feeding, without increasing the budget; its executed results follow.

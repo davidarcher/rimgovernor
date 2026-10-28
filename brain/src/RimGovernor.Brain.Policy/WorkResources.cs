@@ -350,8 +350,7 @@ public static partial class WorkRules
                     if (step.Container.Length != 0) Take(step.Container);
                     if (step.Recipe is { } cooking) Take(cooking.Bill);
                 }
-                if (order.OutputDelivery?.Recipe is { } continuation)
-                { Take(continuation.Bench); Take(continuation.Bill); }
+
                 var claims = new List<ForecastMaterialClaim>();
                 if (batch.Tasks.Any(t => t.Id == order.Task && t.Inputs.Count > 0)) continue;
                 foreach (var step in order.Steps)

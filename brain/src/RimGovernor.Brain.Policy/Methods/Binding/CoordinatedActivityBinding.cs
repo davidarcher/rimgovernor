@@ -130,7 +130,7 @@ internal static class CoordinatedActivityBinding
         var selected = plan.Allocations.Where(a => unplaced?.Contains(a.Activity) != true).Select(a =>
         {
             var task = bindings[(a.Activity, a.Pawn)];
-            return Bound(a, task, new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
+            return new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
                 Step(task, new PawnActivityStep(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
                     task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
                     { Practice = task.Practice, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
@@ -138,7 +138,7 @@ internal static class CoordinatedActivityBinding
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
                         Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand,
-                        PriorSteps = PriorSteps(task), UseUntilTick = SelectedActivityTask.UseUntil(tick, a.Depart, a.End) });
+                        PriorSteps = PriorSteps(task), UseUntilTick = SelectedActivityTask.UseUntil(tick, a.Depart, a.End) };
         }).ToArray();
         var orders = selected.GroupBy(t => t.Pawn).Select(group =>
         {
@@ -156,11 +156,6 @@ internal static class CoordinatedActivityBinding
         }).ToArray();
         return new(authority, orders) { Tasks = EquatableArray.From(selected) };
     }
-
-    /// <summary>The selected task, bound to its scheduled duration when it is a recipe whose schedule read its learning: the
-    /// native binding checks a recipe step's learning-dependent duration; support work keeps its own bound.</summary>
-    private static SelectedActivityTask Bound(ForecastActivityAllocation allocation, ActivityTaskCandidate candidate, SelectedActivityTask task) =>
-        allocation.Learning is null || candidate.Kind != PawnActivityKind.Recipe ? task : new BoundRecipeTask(task, allocation.WorkTicks);
 
     private static PawnActivityStep Step(ActivityTaskCandidate task, PawnActivityStep step) =>
         task is CellActivityTaskCandidate cell ? step.At(cell.Destination) : step;
@@ -226,7 +221,7 @@ internal static class CoordinatedActivityBinding
             // Reconcile only at a task boundary, preserving in-flight work. If another participant
             // depends on this participant's remaining work, end the coordinated attempt rather
             // than erase an unobserved prerequisite and accidentally authorize its dependent.
-            if (next.Step.Recipe is { Stuff.Length: > 0 } || next.ProductStuff.Length > 0
+            if (batch.Tasks.Any(t => t.Pawn == order.Pawn && t.Step.Kind == PawnActivityKind.Recipe) || next.ProductStuff.Length > 0
                 || NativeNeedServices.Routine(read.Needs, order.Pawn, next.Step.Kind))
                 return remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p)))
                     ? new(null, true)
@@ -263,8 +258,7 @@ internal static class CoordinatedActivityBinding
                     Task = next.Id, Preparing = true, Steps = PreparationSteps(next), OutputDelivery = null });
                 changed = true; continue;
             }
-            var binding = read.Bindings.Where(b => b.Task == next.Id && CompatibleActivityBinding(next, b.Step)
-                    && (next is not BoundRecipeTask bound || b is ActivityTaskBinding.Recipe recipe && recipe.ProductiveWorkTicks <= Math.Ceiling(bound.ProductiveWorkTicks)))
+            var binding = read.Bindings.Where(b => b.Task == next.Id && CompatibleActivityBinding(next, b.Step))
                 .OrderBy(b => b.Step.Target, StringComparer.Ordinal).FirstOrDefault();
             if (binding is null)
             {

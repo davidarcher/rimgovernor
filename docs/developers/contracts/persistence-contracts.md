@@ -81,6 +81,11 @@ are dropped on load (decision 12).
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second
 copy of a fact is a bug, not a cache.
 
+Version 64 removes exact recipe-duration continuation and the unused output-recipe
+continuation from session-journal activity payloads. Older session journals are
+replaced; conditional recipe and learning estimates remain transient forecast
+data. Ordinary production bills and native unfinished work remain in the save.
+
 | Home | Holds | On reload |
 |---|---|---|
 | Native game-process memory, `NativePawnActivities` | Transient installed assignment and actual running job reference plus load ID. Only an actually installed matching offer acquires the running handle; a different installed job detaches it. SQLite retains the attempted Method and reconciles remaining exact participants from fresh observations. No durable takeover or queue ledger. | Discarded on world/load or authority change; never restored as exclusive native selection permission. |

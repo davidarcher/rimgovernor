@@ -100,7 +100,10 @@ public sealed class ProductiveLearningTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 700d / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
-        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selection, generated, 1, "cooking", 100));
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, generated, 1, "cooking", 100));
+        // Detailed learning remains a what-if estimate; it does not nominate the native cook.
+        var batch = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(
+            selection.Selected.Plan, generated.Context.Bindings, 1, "what-if", 100);
         var recipes = batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Recipe).ToArray();
         Assert.True(recipes.Length == 2, $"recipes={recipes.Length}; selected={string.Join(';', selection.Selection.Selected)}; expansions={selection.Selection.Expansions}; findings={string.Join(';', selection.Selection.Findings)}; alternatives={generated.Alternatives.Count}");
         Assert.All(recipes, t => Assert.Equal(chosen, t.Pawn));

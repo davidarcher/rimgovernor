@@ -41,7 +41,8 @@ internal static class NativeCoupledFood
         var loose = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned && t.def.IsNutritionGivingIngestible)
             .OrderBy(t => t.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
         var sources = plants.Concat(loose);
-        // A governor meal is cooked from the one ingredient its batch is supplied (#3872): a use per product, location and ingredient.
+        // Conditional single-ingredient scenarios (#3872): a use per product, location and ingredient.
+        // A native bill may gather a different allowed mix; these are not observations of future meals.
         var cooked = new List<(ThingDef Product, Cell Location, ThingDef Ingredient)>();
         foreach (var source in sources)
         {
@@ -71,9 +72,14 @@ internal static class NativeCoupledFood
                     var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(g => g.workType == ExtraWorkTypeDefOf.Cooking
                         && g.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(bench));
                     if (giver == null || !bill.IsFixedOrAllowedIngredient(raw)) continue;
-                    var canCook = !pawn.WorkTypeIsDisabled(ExtraWorkTypeDefOf.Cooking)
+                    // Conditional vanilla bill capability, independent of the explicit exact recipe
+                    // adapter's drop-on-floor restriction or its preselected ingredient queue.
+                    var canCook = !pawn.WorkTypeIsDisabled(giver.workType) && !pawn.WorkTagIsDisabled(giver.workTags)
+                        && ((WorkGiver_DoBill)giver.Worker).MissingRequiredCapacity(pawn) == null
+                        && bill.ShouldDoNow() && bill.PawnAllowedToStartAnew(pawn)
                         && recipe.FirstSkillRequirementPawnDoesntSatisfy(pawn) == null
-                        && NativeActivityRecipe.ResolveRecipe(pawn,bench,giver.defName,bill.GetUniqueLoadID(),recipe.defName,out _,out _);
+                        && NativeProductionBills.Recipe(bench, recipe) && recipe.workSkill == SkillDefOf.Cooking
+                        && recipe.Worker.GetType() == typeof(RecipeWorker) && recipe.specialProducts == null;
                     var canHaul = !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) && !pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
                         && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation);
                     if (!canCook && !canHaul) continue;
@@ -113,7 +119,7 @@ internal static class NativeCoupledFood
                                 new(source.Position.x, source.Position.z), new(stage.x, stage.z), new(destination.x, destination.z),
                                 approach, supply, capacity, availableInput)
                             {
-                                WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanSupply = canHaul,
+                                WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanSupply = canCook || canHaul,
                                 ServicePosition = new RimGovernor.Brain.GameFacts.Observations.ServicePositionRead.Located(new(bench.InteractionCell.x, bench.InteractionCell.z)), Cooking = cooking, Delivery = carried
                             });
                             cooked.Add((product.thingDef, new(destination.x, destination.z), raw));
@@ -159,9 +165,8 @@ internal static class NativeCoupledFood
 
     /// <summary>
     /// A fresh unit of a cooked product as GenRecipe.MakeRecipeProducts makes it: CompIngredients.RegisterIngredient for each
-    /// ingredient thing's def. A governor recipe step hands JobDriver_DoBill its batch's ingredient stacks (job.targetQueueB from
-    /// NativeActivityRecipe.Resolve: one def, never a substitute search), so WorkGiver_DoBill's ingredient search never runs and
-    /// the meal holds exactly <paramref name="ingredient"/> (#3872). FoodUtility.ThoughtsFromIngesting then reads that list: the
+    /// ingredient thing's def. This conditional scenario contains only <paramref name="ingredient"/> (#3872),
+    /// without promising what a native bill's ingredient search will gather. FoodUtility.ThoughtsFromIngesting reads that list: the
     /// cannibal and insect ingredient thoughts, the precepts on human meat, fungus and plants, and the meat and vegetarian food
     /// kinds. The unit is shared per product, so the caller reads its thoughts before the next call registers another ingredient.
     /// </summary>
