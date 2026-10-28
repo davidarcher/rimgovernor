@@ -226,9 +226,10 @@ Standing CutPlant, RemoveFloor and Mine designations, Uninstall, and Deconstruct
 without roof prerequisites are ordinary native work. Their conditional selected
 tasks retain the target/set mechanics below but cannot install routine exact
 orders. Existing commitments hand back at an observed boundary without crediting
-completion or satisfying dependents. Planned preplacement clearance still uses
-the exact adapter and partial-set reconciliation; roof-prerequisite demolition
-and custom haul-out also retain explicit coordination pending migration.
+completion or satisfying dependents. Planned preplacement cutting, mining and
+deconstruction without roof prerequisites use the same boundary; reconciliation
+and excavation create the native work. Roof-prerequisite demolition and custom
+haul-out retain explicit coordination pending migration.
 
 A set step (#3613) is a Work step that repeats over a set of things or cells, the Sow step's
 pattern. `PawnActivityStep.Targets` names the members as thing ids and `Cells`
@@ -277,13 +278,11 @@ member in the NoRoof area through `Designator_AreaNoRoof` (which also clears Bui
 the giver and job require; it stands no designation and no guard record. The done count lives on
 the in-memory execution entry with the sow count; a load restarts it.
 
-Continuation rebinds a set step to the members the pawn can still work, nearest first (`Targets` or
-`Cells` the legal members, `Count` their number), and treats a set with no
-member standing (no thing on the map, no cell still to work) as satisfied. The coordinated binding
-handles a set step as it handles a delivery: a completed
-order that carried fewer members than the task leaves the rest, a failed order is retried on the
-members native still finds legal while attempts remain, and a binding is compatible only over a
-non-empty subset of the task's own set.
+Native task reads can identify the members the pawn can still work (`Targets`
+or `Cells`, `Count` their number) and positively report a set with no member
+standing as satisfied. Coordinated continuation no longer retries routine set
+work or replaces its set with a legal subset. An old failed set ends its attempt;
+completion of only a physical subset grants no whole-task completion credit.
 
 ### Prior steps
 

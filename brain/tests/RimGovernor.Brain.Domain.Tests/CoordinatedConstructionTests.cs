@@ -261,12 +261,11 @@ public sealed class CoordinatedConstructionTests
     }
 
     /// <summary>
-    /// #3613: a set step completes partially the way a delivery does. A failed order is retried on the members native still
-    /// finds legal (the binding's Targets and Count); the retried order carries only those, and its completion
-    /// (or a native satisfied task, every member gone) finishes the task and releases the pawn.
+    /// Old routine set work returns to native selection instead of retrying an exact subset.
+    /// A completed physical subset does not establish the whole task's completion.
     /// </summary>
     [Fact]
-    public void APlannedPreplacementSetRetriesOnTheMembersStillLegalAndCompletesWithThem()
+    public void AnOldPreplacementSetHandsBackInsteadOfRetryingItsRemainingMembers()
     {
         string[] trees = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"];
         var row = new Row(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
@@ -277,8 +276,7 @@ public sealed class CoordinatedConstructionTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var batch = NativeRemovalScenario(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated), generated);
-        // Stage an existing preplacement intent: unlike a standing designation, its
-        // native work has not been created, so bounded set reconciliation still applies.
+        // Stage an existing preplacement intent; its identity cannot grant routine control.
         var task = Assert.Single(batch.Tasks) with { Id = "planned-clearance" };
         batch = batch with { Tasks = [task], Orders = [batch.Orders[0] with { Task = task.Id }] };
         ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
@@ -287,18 +285,12 @@ public sealed class CoordinatedConstructionTests
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
         var remaining = task.Step with { Targets = EquatableArray.From(trees.Skip(1)), Count = 2 };
-        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "failed",
+        var released = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "failed",
             new ActivityTaskBinding.Bound(task.Id, remaining)))!;
-        var retried = Assert.Single(retry.Orders);
-        Assert.False(retried.Release);
-        Assert.Equal((2, 2), (retried.Steps[0].Count, retried.Steps[0].Targets.Count));
-        Assert.Equal(trees.Skip(1), retried.Steps[0].Targets);
-        Assert.Equal(2, retry.Tasks.Single().Step.Count);
-        Assert.Equal(2, retry.Tasks.Single().AttemptsLeft);
-        // A binding naming a member outside the set is not this task's.
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "failed",
-            new ActivityTaskBinding.Bound(task.Id, remaining with { Targets = ["Thing_Plant_TreeOak9", trees[2]] })))!.Orders.Single().Release);
-        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, ActivityNeed.Owed, Read(retry, "completed"))!;
+        Assert.True(Assert.Single(released.Orders).Release);
+        Assert.Empty(released.Tasks);
+        batch = batch with { Orders = [batch.Orders[0] with { Steps = [remaining] }] };
+        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed"))!;
         Assert.Empty(done.Tasks);
         Assert.True(done.Orders.Single().Release);
         var cleared = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed") with { SatisfiedTasks = [task.Id] })!;

@@ -8,21 +8,24 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class NativeServiceContinuationTests
 {
+    public static TheoryData<string, bool, string> RemovalBoundaries
+    {
+        get
+        {
+            var data = new TheoryData<string, bool, string>();
+            foreach (var job in new[] { "Deconstruct", "Uninstall", "CutPlant", "RemoveFloor", "Mine" })
+                foreach (var dependent in new[] { false, true })
+                    foreach (var id in new[] { "removal-0", "planned/room1/wall/WoodLog/clearance/composition/0" })
+                        data.Add(job, dependent, id);
+            return data;
+        }
+    }
+
     [Theory]
-    [InlineData("Deconstruct", false)]
-    [InlineData("Uninstall", false)]
-    [InlineData("CutPlant", false)]
-    [InlineData("RemoveFloor", false)]
-    [InlineData("Mine", false)]
-    [InlineData("Deconstruct", true)]
-    [InlineData("Uninstall", true)]
-    [InlineData("CutPlant", true)]
-    [InlineData("RemoveFloor", true)]
-    [InlineData("Mine", true)]
-    public void StandingRemovalHandsBackAtBoundaryWithoutCompletingItsDependents(string job, bool dependent)
+    [MemberData(nameof(RemovalBoundaries))]
+    public void RoutineRemovalHandsBackAtBoundaryWithoutCompletingItsDependents(string job, bool dependent, string standing)
     {
         var (batch, read) = AtBoundary("food", true, target: false, dependent: dependent);
-        const string standing = "removal-0";
         batch = batch with
         {
             Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == "service"
@@ -57,6 +60,28 @@ public sealed class NativeServiceContinuationTests
             : t with { Prerequisites = EquatableArray.From(t.Prerequisites.Select(p => p == "service" ? "removal-0" : p)) })),
             Orders = batch.Orders.Select(o => o.Task == "service" ? o with { Task = "removal-0" } : o).ToArray() };
         Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
+    }
+
+    [Theory]
+    [InlineData("completed")]
+    [InlineData("failed")]
+    public void OldPartialSetCannotCompleteACrossPawnPrerequisite(string state)
+    {
+        var (batch, read) = AtBoundary("food", true, target: false, dependent: true);
+        var set = new PawnActivityStep(PawnActivityKind.Work, "tree", "PlantsCut", "CutPlant", 2, 2000)
+            { Targets = ["tree", "other-tree"] };
+        batch = batch with
+        {
+            Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == "service" ? t with { Step = set } : t)),
+            Orders = batch.Orders.Select(o => o.Pawn == "pawn"
+                ? o with { Preparing = false, Steps = [set with { Count = 1, Targets = ["tree"] }] } : o).ToArray(),
+        };
+        read = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p.Pawn == "pawn"
+            ? p with { Execution = p.Execution! with { State = state } } : p)) };
+        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read));
+        Assert.All(next.Orders, order => Assert.True(order.Release));
+        Assert.Empty(next.Tasks);
+        Assert.Empty(read.SatisfiedTasks);
     }
 
     [Theory]

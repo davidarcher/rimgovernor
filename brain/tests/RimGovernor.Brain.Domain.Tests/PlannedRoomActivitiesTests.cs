@@ -17,6 +17,20 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class PlannedRoomActivitiesTests
 {
+    private static PawnActivities NativeClearanceScenario(ReviewFacts facts, ForecastCoupledSelection selection)
+    {
+        var candidates = facts.CoupledAlternatives!;
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "ordinary-clearance", 100));
+        var record = Assert.IsType<PlannedSelection>(PlannedRules.PlannedSelectionOf(candidates, selection, facts.PlannedSites));
+        var (gate, sites) = PlannedRules.PlannedRoomGateOf(record, new PlannedRoom { Id = 1 }, started: false);
+        Assert.Equal(PlannedRoomGate.Selected, gate);
+        Assert.NotEmpty(sites);
+        // Inspect conditional target mechanics without granting them execution authority.
+        return RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(selection.Selection.Plan!,
+            candidates.Context.Bindings, 1, "clearance-what-if", 100,
+            candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal));
+    }
+
     private const double Horizon = 300;
     private const string Pawn = "pawn";
     private static readonly string[] Plants = ["plant-a", "plant-b"];
@@ -421,12 +435,11 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3557: a planned ring over ruins. Native estimates a deconstructible building under the footprint as a Deconstruct
-    /// clearing with per-pawn rows, so the alternative is valued, and that clearing is the one planned activity bound
-    /// before placement (its building stands, the job targets it): the selection orders the pawn's Deconstruct work while
-    /// the site itself waits for placement.
+    /// clearing with per-pawn rows. The valued investment still selects its site, while reconciliation owns native
+    /// clearance work creation. Its exact target remains conditional evidence without ordering a pawn.
     /// </summary>
     [Fact]
-    public void ARuinUnderTheRingIsValuedAsADeconstructClearingAndItsRemovalIsOrdered()
+    public void ARuinUnderTheRingIsValuedWithoutOrderingItsRemoval()
     {
         const string ruin = "Thing_Door1";
         const string site = "planned/room1/wall/WoodLog";
@@ -449,8 +462,7 @@ public sealed class PlannedRoomActivitiesTests
 
         var result = Select(facts);
         Assert.True(PlannedSelected(result, site), Why(facts, result));
-        var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
-        Assert.NotNull(batch);
+        var batch = NativeClearanceScenario(facts, result);
         var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
         Assert.Equal((binding.Id, PawnActivityKind.Work, ruin, "Deconstruct"), (task.Id, task.Step.Kind, task.Step.Target, task.Step.Job));
         Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
@@ -463,11 +475,11 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3613: a planned ring over trees. Native estimates the plants under the footprint as one Cut clearing naming them
-    /// (Targets), and that clearing binds before placement as the pawn's Work/CutPlant set step over them, one task per
-    /// op; the selection orders it. A Cut clearing naming no plants is valued but binds nothing.
+    /// (Targets). Conditional set mechanics retain the investment's work cost while ordinary cutting stays native.
+    /// A Cut clearing naming no plants is valued but binds nothing.
     /// </summary>
     [Fact]
-    public void ThePlantsUnderTheRingAreOneCutSetOrderBoundBeforePlacement()
+    public void ThePlantsUnderTheRingRemainConditionalSetWorkBeforePlacement()
     {
         const string site = "planned/room1/wall/WoodLog";
         const string clearingId = site + "/cut";
@@ -490,8 +502,7 @@ public sealed class PlannedRoomActivitiesTests
 
         var result = Select(facts);
         Assert.True(PlannedSelected(result, site), Why(facts, result));
-        var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
-        Assert.NotNull(batch);
+        var batch = NativeClearanceScenario(facts, result);
         var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
         Assert.Equal((binding.Id, PawnActivityKind.Work, "CutPlant", 2), (task.Id, task.Step.Kind, task.Step.Job, task.Step.Count));
         Assert.Equal(trees, task.Step.Targets);
@@ -504,12 +515,12 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3616: a planned ring over natural rock. Native estimates the rock under the footprint as one Mine clearing naming
-    /// it (Targets), and that clearing binds before placement as the pawn's Work/Mine set step over the rocks (Count the
-    /// members), beside the Deconstruct, Cut and Haul bindings; the selection orders it. A Mine clearing naming no rock
+    /// it (Targets). Conditional mining retains the exact set and cost while the ordinary excavation path creates native
+    /// work. A Mine clearing naming no rock
     /// is valued but binds nothing.
     /// </summary>
     [Fact]
-    public void TheRockUnderTheRingIsOneMineSetOrderBoundBeforePlacement()
+    public void TheRockUnderTheRingRemainsConditionalSetWorkBeforePlacement()
     {
         const string site = "planned/room1/wall/WoodLog";
         const string clearingId = site + "/mine";
@@ -530,8 +541,7 @@ public sealed class PlannedRoomActivitiesTests
 
         var result = Select(facts);
         Assert.True(PlannedSelected(result, site), Why(facts, result));
-        var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
-        Assert.NotNull(batch);
+        var batch = NativeClearanceScenario(facts, result);
         var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
         Assert.Equal((binding.Id, PawnActivityKind.Work, "Mine", 2), (task.Id, task.Step.Kind, task.Step.Job, task.Step.Count));
         Assert.Equal(rocks, task.Step.Targets);

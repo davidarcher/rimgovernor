@@ -6,6 +6,7 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
+using Ex = RimGovernor.Brain.Executor;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -75,6 +76,20 @@ public sealed class NeedBuildingTests
         public DateTimeOffset Now() => DateTimeOffset.UnixEpoch;
     }
 
+    private sealed class ClearanceBoundary : Ex.IBoundary
+    {
+        public readonly List<DomainAction> Written = [];
+        public Task<Ex.IntentInspection> InspectIntentAsync(Ex.Target target, CancellationToken ct) =>
+            Task.FromResult(new Ex.IntentInspection { StartedAt = DateTimeOffset.UnixEpoch,
+                ObservedAt = DateTimeOffset.UnixEpoch, Current = target.Snapshot, Tick = new(101) });
+        public Task<IReadOnlyList<Ex.Receipt>> WriteIntentsAsync(IReadOnlyList<Ex.Placement> placements, CancellationToken ct)
+        {
+            Written.AddRange(placements.Select(p => p.Action));
+            return Task.FromResult<IReadOnlyList<Ex.Receipt>>(placements.Select(p => new Ex.Receipt
+                { Action = p.Action.Id, Attempt = p.Attempt, Snapshot = p.Snapshot, Kind = Receipt.Accepted }).ToArray());
+        }
+    }
+
     /// <summary>Room a always; room b, whose ring shares room a's west wall, when <see cref="Overlap"/> is set.</summary>
     private sealed class RoomsFamily : IFamily<bool>
     {
@@ -140,6 +155,7 @@ public sealed class NeedBuildingTests
         public required Player Player { get; init; }
         public required FamilyRunner<bool> Runner { get; init; }
         public bool Overlap { get; set; }
+        public Operation? Clearance { get; set; }
 
         /// <summary>The complete construction census the work step reads.</summary>
         public CurrentConstruction Census { get; set; } = CurrentConstruction.Empty;
@@ -322,12 +338,48 @@ public sealed class NeedBuildingTests
             }
             var a = work.Need.Id == RoomA || work.Need.Id == ColdRoom;
             var room = Ring(a ? "test-room-a" : "test-room-b", a ? 4 : 1, roof: a);
+            if (colony!.Clearance is { } clearance)
+            {
+                room = new RoomWork { Rr = room.Rr, Ops = PlannedRules.SelectedPlannedOps([clearance, .. room.Ops],
+                    [new(1, OpKind.WallIn, "Wall", "WoodLog", [new(4, 0)])]) };
+                if (clearance.Kind == OpKind.FurnitureOut)
+                    return planner.CommitRemoval(work.State, work.Owner, room.Rr,
+                        Assert.Single(room.Ops, op => op.Kind == OpKind.FurnitureOut), call, work.Epoch).Verdict;
+                return planner.CommitObstructions(work.State, work.Owner, room, call, work.Epoch).Result.Verdict;
+            }
             var built = await planner.CommitBuildsAsync(work.State, review, work.Owner, read, new LayoutPlan(), room, call, work.Epoch);
             var (roofed, _) = planner.CommitRoof(work.State, work.Owner, room, call, work.Epoch);
             return roofed.Verdict.Outcome == Outcome.Admitted ? roofed.Verdict : built.Verdict;
         });
         colony = new Colony { Journal = journal, Player = player, Runner = runner };
         return colony;
+    }
+
+    [Theory]
+    [InlineData(OpKind.Cut, ActionKind.CoverClearance)]
+    [InlineData(OpKind.FurnitureOut, ActionKind.Deconstruction)]
+    public async Task SelectedFootprintClearanceReachesHandsAsNativeIntentWithoutAPawnOrder(OpKind kind, ActionKind actionKind)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open();
+        colony.Clearance = new() { Kind = kind, Label = GroundPhase.Furniture, Targets = [new() { EntityId = "obstruction",
+            DefName = kind == OpKind.Cut ? "Plant_TreeOak" : "Wall", Minimum = new(4, 0), Maximum = new(4, 0) }] };
+        var first = await colony.RunAsync();
+        Assert.Equal(Outcome.Admitted, Colony.Report(first, RoomA).Outcome);
+        var method = Assert.Single(first.Methods);
+        var progress = Assert.Single(colony.Journal.LoadPlan(method.Plan, ct).Progress);
+        Assert.Equal(actionKind, progress.Action.Kind);
+        IntentActionRules.RegisterIntentKinds();
+        var boundary = new ClearanceBoundary();
+        using var hands = new Ex.Executor(new ExecutorJournal(colony.Journal), boundary, new Clock(), new Ex.Limits
+            { MaxAge = TimeSpan.FromSeconds(30), RunTimeout = TimeSpan.FromSeconds(10), JournalTimeout = TimeSpan.FromSeconds(10) },
+            new PlanAuthorizer(colony.Journal, true));
+        hands.UpdateAuthority(new() { Snapshot = World, Enabled = true });
+        await hands.RunBatchAsync(method.Plan, [progress.Action.Id], ct);
+        Assert.Equal(actionKind, Assert.Single(boundary.Written).Kind);
+        Assert.Equal(Stage.Completed, Assert.Single(colony.Journal.LoadPlan(method.Plan, ct).Progress).View.Stage);
+        // Applied intent is not completed clearance: the still-obstructed footprint is not reissued.
+        Assert.Empty((await colony.RunAsync()).Methods);
     }
 
     [Fact]

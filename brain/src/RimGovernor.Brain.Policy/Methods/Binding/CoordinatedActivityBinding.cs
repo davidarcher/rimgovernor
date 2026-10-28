@@ -148,20 +148,20 @@ internal static class CoordinatedActivityBinding
             if (state == "completed")
             {
                 if (task.CompletionMustBeObserved) return new(null, true);
+                // Old routine set orders hand back; a completed subset is not evidence
+                // that the whole task or any dependent prerequisite was completed.
+                if (task.Step.IsSet) return new(null, true);
                 // The task's own step is the order's last; its prior steps (#3617) run before it.
                 var worked = order.Steps[^1];
                 // Delivery counts come from the exact completed operation, never predicted yield.
                 if (task.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply && worked.Count < task.Step.Count)
                     remaining[remaining.IndexOf(task)] = task with { Step = task.Step with { Count = task.Step.Count - worked.Count } };
-                // A set step's order worked the members native found legal (#3613); the rest of the set remains.
-                else if (task.Step.IsSet && worked.IsSet && worked.Count < task.Step.Count)
-                    remaining[remaining.IndexOf(task)] = task with { Step = RemainingSet(task.Step, worked) };
                 else { remaining.Remove(task); completed.Add(task.Id); }
             }
             else if (state == "failed")
             {
                 // A failed consuming/producing operation cannot be replayed from expected output.
-                if (task.Step.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply) && !task.Step.IsSet || task.AttemptsLeft == 0)
+                if (task.Step.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply) || task.AttemptsLeft == 0)
                     return new(null, true);
                 remaining[remaining.IndexOf(task)] = task with { AttemptsLeft = task.AttemptsLeft - 1 };
             }
@@ -195,9 +195,7 @@ internal static class CoordinatedActivityBinding
             if (batch.Tasks.Any(t => t.Pawn == order.Pawn && t.Step.Kind == PawnActivityKind.Recipe) || next.ProductStuff.Length > 0
                 || next.Step.Kind == PawnActivityKind.Supply || next.SupportDemand.Length > 0
                 || next.Step.Kind == PawnActivityKind.Work && next.Step.Job is "FinishFrame" or "BuildRoof"
-                // Standing designations carry this producer identity; planned footprint clearance does not.
-                || next.Id.StartsWith(NativeConstructionWork.StandingRemovalPrefix, StringComparison.Ordinal)
-                    && next.Step.Kind == PawnActivityKind.Work
+                || next.Step.Kind == PawnActivityKind.Work
                     && (next.Step.Job is "Uninstall" or "CutPlant" or "RemoveFloor" or "Mine"
                         || next.Step.Job == "Deconstruct" && next.PriorSteps.Count == 0)
                 || NativeNeedServices.Routine(next.Step.Kind))
@@ -237,9 +235,7 @@ internal static class CoordinatedActivityBinding
                 return new(null, true);
             }
             if (order.Revision == long.MaxValue) return new(null, false);
-            if (next.Step.IsSet)
-                remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Targets = binding.Step.Targets, Cells = binding.Step.Cells, Count = binding.Step.Count } };
-            else if (binding is ActivityTaskBinding.Supply supply)
+            if (binding is ActivityTaskBinding.Supply supply)
                 remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Count = Math.Min(next.Step.Count, supply.RemainingCount) } };
             orders.Add(order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1, Release = false,
                 Task = next.Id, Preparing = false, Steps = [.. next.PriorSteps, binding.Step],
@@ -272,19 +268,8 @@ internal static class CoordinatedActivityBinding
         read.Needs.Pawns.FirstOrDefault(p => p.Pawn == pawn) is { } observed
         && observed.Needs.Any(n => n.Kind is "rest" or "food" && n.Level <= n.Threshold);
 
-    /// <summary>The set a completed set order leaves (#3613): the members the order did not carry, Count their number.</summary>
-    private static PawnActivityStep RemainingSet(PawnActivityStep step, PawnActivityStep worked)
-    {
-        var targets = EquatableArray.From(step.Targets.Where(t => !worked.Targets.Contains(t)));
-        var cells = EquatableArray.From(step.Cells.Where(c => !worked.Cells.Contains(c)));
-        return step with { Targets = targets, Cells = cells, Count = targets.Count + cells.Count };
-    }
-
     private static bool CompatibleActivityBinding(SelectedActivityTask task, PawnActivityStep bound) =>
         bound.Kind == task.Step.Kind && bound.Deadline == task.Step.Deadline && bound.WorkGiver == task.Step.WorkGiver
-        // A set step binds to a non-empty subset of its own members (#3613).
-        && (!task.Step.IsSet || bound.IsSet && bound.Count == bound.Targets.Count + bound.Cells.Count
-            && bound.Targets.All(task.Step.Targets.Contains) && bound.Cells.All(task.Step.Cells.Contains))
         && bound.Practice == task.Step.Practice && bound.Medicine == task.Step.Medicine && bound.SupportDemand == task.Step.SupportDemand
         && (bound.Kind != PawnActivityKind.Recipe || bound.Target == task.Step.Target)
         && bound.Job == task.Step.Job && (bound.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply)

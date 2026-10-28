@@ -219,14 +219,17 @@ internal static class PlannedRoomCandidates
                         var from = ForecastLocations.Of(haul ? clearingRows[0].Row.Origin : clearingRows[0].Row.Location);
                         var to = ForecastLocations.Of(clearingRows[0].Row.Location);
                         var done = clearing.Id + "/cleared";
-                        roomOperations.Add(new(new(clearing.Id, from, to, []), [],
+                        roomOperations.Add(new(new(clearing.Id, from, to, [])
+                            { NativeExecution = clearing.Kind is PlannedClearingKind.Cut or PlannedClearingKind.Mine
+                                || clearing.Kind == PlannedClearingKind.Deconstruct && clearing.Cells.Count == 0 }, [],
                             [new(done, cleared, 1, siteLocation, 0, horizon)
                             { Producer = clearing.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-clearing:" + site.Id }]));
                         foreach (var (row, work) in clearingRows)
                         {
                             roomOptions.Add(ConstructionMethodCandidates.Option(clearing.Id, row.Pawn, work.Ticks, work.SkillWork) with { ServicePosition = row.ServicePosition });
                             roomRoutes.Add(ConstructionMethodCandidates.Start(row.Pawn, from, work.ApproachTicks));
-                            // The building, stack or plants under the footprint stand now: their removal binds before placement, a
+                            // Conditional targets under the footprint stand now. Reconciliation creates ordinary native
+                            // clearance work before placement; custom hauling and roof prerequisites remain explicit. A
                             // building as Work/Deconstruct on it (#3557; a roof-holder's order removes the roof over the op's
                             // Cells first, #3617), a stack as a Deliver of it to the row's storage cell (#3614; one carry at a
                             // time over a stack larger than one, #3625), the plants as one Work/CutPlant set step

@@ -644,7 +644,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; formation hunting, intervention and native usable-output evidence remain |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Ordinary binding and continuation stay native regardless of missing access; general justified exception admission remains in tasks 4.1–4.2 |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
-| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion, roofing and standing removal designations stay conditional and install no pawn orders; previous commitments hand back at boundaries; planned clearance, roof prerequisites, custom hauling and general intervention audit remain |
+| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; roof prerequisites, custom hauling and general intervention audit remain |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
 | `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine delivery, tending and already-indicated surgery stay conditional and install no pawn orders; old commitments hand back at boundaries; meaningful interventions, native reachability/output evidence and final adapter audit remain |
 | `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
@@ -985,41 +985,51 @@ persistence or a second executor. Complexity: added standalone roof dispatch and
 boundary regressions / removed ordinary exclusive roof-building dispatch /
 orphans left: none.
 
-## Native standing removal designations
+## Native construction clearance
 
-Standing Deconstruct without roof prerequisites, Uninstall, CutPlant, RemoveFloor
-and Mine now stay available to vanilla through their existing designations and
-numeric work priorities. Room reconciliation already commits native removal
-intent through `CommitRemoval` and `GroundActions`; the designation guards still
-recheck enclosure, roof and mining safety during governed clock execution.
+Deconstruct without roof prerequisites, Uninstall, CutPlant, RemoveFloor and
+Mine stay available to vanilla through native designations and numeric work
+priorities. Planned footprint clearing is conditional investment evidence too;
+it cannot reserve a worker merely because its targets already stand. Selected
+sites still reach reconciliation: `CommitRemoval` and `GroundActions` create
+removal intent, `CommitObstructions` creates cutting intent, and
+`DigPlannedRoomAsync` admits room mining before ring placement. The designation
+guards still recheck enclosure, roof and mining safety during governed execution.
 Conditional forecasts retain exact targets, sets, material constraints and room
 service valuation, without installing ordinary exact worker orders or claiming
 unobserved completion.
 
-Existing `removal-` task identities name standing-removal provenance. Generation
-and boundary binding share the prefix as data, while each stage owns its own
-decision. At an observed task boundary, old standing-removal commitments release
-their own participants. Unfinished cross-pawn prerequisites end the coordinated
-attempt; handback neither satisfies them nor refunds consumed inputs. Running
-and unrelated work remain intact.
+At an observed task boundary, old routine removal commitments release their own
+participants regardless of standing/planned task identity. Unfinished cross-pawn
+prerequisites end the coordinated attempt; handback neither satisfies them nor
+refunds consumed inputs. Running and unrelated work remain intact. Old exact
+set failures end the attempt instead of retrying a remaining subset; a completed
+physical subset cannot establish whole-task completion. Native satisfied-task
+evidence remains authoritative. The producer-prefix classifier and partial-set
+retry/rebinding helpers have no current readers and are removed.
 
 `CoordinatedConstructionTests` exercises the shared comparison/dispatch boundary
 for deconstruct, uninstall, mining and plant/floor sets. Conditional binding and
 cell-set wire checks remain. `NativeServiceContinuationTests` covers all five
-jobs with independent and dependent participants, in-flight preservation and the
-roof-prerequisite exclusion. Planned footprint clearance has not yet created
-native work and still uses the exact adapter and partial-set reconciliation;
-roof-prerequisite demolition and custom haul-out also remain to migrate. Task
-5.4 and the overall change remain incomplete at 13/24.
+jobs with standing and planned identities, independent and dependent participants,
+in-flight preservation and the roof-prerequisite exclusion.
+`PlannedRoomActivitiesTests` retains selection and exact conditional target/set
+mechanics without installing routine orders. `NeedBuildingTests` exercises
+selected-footprint cutting/deconstruction through Family admission, the real
+journal and Hands: accepted native intent is recorded once without a pawn order.
+This proves intent plumbing, not physical completed clearance. Roof-prerequisite
+demolition, custom haul-out and general intervention justification remain to
+migrate. Task 5.4 and the overall change remain incomplete at 13/24.
 
-Verification: final gate PASS (1m7s), 4,271 domain tests, 30 workflow tests,
+Verification: final gate PASS (40s), 4,285 domain tests, 30 workflow tests,
 native builds/probes and contract orphan checks. No new native gameplay result
 is claimed. Rules 7–9: existing designations and shared material demand retain
 ownership; pure generation and shared boundary cleanup add no orchestration
-decision math, new state owner or inferred completion. Complexity: added standing
-removal selection/handback regressions / removed ordinary exact standing-removal
-dispatch / orphans left: none. Partial-set helpers retain current planned
-clearance readers; no boundary fields became unread.
+decision math, new state owner or inferred completion. Complexity: added planned
+clearance selection and native intent integration regressions / removed routine
+planned-clearance dispatch, producer classification and partial-set retries /
+orphans left: none. Target/set fields retain conditional and native primitive
+readers; no boundary field became unread.
 
 ## Native operation and conditional comparison evidence
 

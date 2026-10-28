@@ -239,7 +239,7 @@ internal static class ConstructionMethodCandidates
             .Where(op => op.Rows.Length > 0).OrderBy(op => op.Id, StringComparer.Ordinal).Take(17).ToArray();
         foreach (var op in removals.Take(16))
         {
-            var id = NativeConstructionWork.StandingRemovalPrefix + outcomes.Count;
+            var id = "removal-" + outcomes.Count;
             var first = op.Rows[0].Row;
             var haul = op.Kind == PlannedClearingKind.Haul;
             // A haul is worked from the stack's cell; a building's removal at the building.

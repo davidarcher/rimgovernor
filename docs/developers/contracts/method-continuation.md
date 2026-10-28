@@ -7,12 +7,13 @@ if another participant depends on its remaining work, the attempt ends and relea
 its exact owners. This supplies no completion evidence or material refund, and
 leaves an unrelated running participant unchanged.
 
-Standing Deconstruct (without roof prerequisites), Uninstall, CutPlant,
-RemoveFloor and Mine designations follow the same boundary handback. Their
-existing `removal-` task identity distinguishes this producer from planned
-footprint clearance, which has not yet created native work. Generation and
-binding share that identity prefix; neither invents completion from handback.
-Planned preplacement clearance, roof-prerequisite demolition and custom haul-out
+Deconstruct (without roof prerequisites), Uninstall, CutPlant, RemoveFloor and
+Mine follow the same boundary handback, including planned footprint clearance.
+Task identity does not grant routine control. Reconciliation and excavation
+create native work for selected sites. Old exact set work is not rebound to a
+remaining subset: failure ends the attempt, and a completed subset cannot
+satisfy the whole task or its dependents. A positive native satisfied-task read
+still establishes completion. Roof-prerequisite demolition and custom haul-out
 remain explicit pending their native-work migration.
 
 An actual native job takeover detaches the old execution handle. The existing
