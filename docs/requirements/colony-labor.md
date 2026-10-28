@@ -459,7 +459,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
 | `ConstructionMethodCandidates.Generate`: supply and build | Native blueprints, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Pending |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
-| `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Pending |
+| `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine bill ingredient/refill delivery stays conditional and installs no pawn orders; care/surgery, intervention and native output evidence remain |
 | `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
 | `SowingMethodCandidates.Generate`: conditional sowing work | Crop/zone choices and native growing priorities; fresh routine pawn binding removed | Work assignment, forecast; `NativeExecutionBindingTests` covers native-ready sowing selection without direct orders | Partial: fresh routine binding migrated; deadline intervention and incumbent reconciliation remain |
 | `PracticeMethodCandidates.Generate`: range and sparring | Native practice affordances/settings where available; bounded direct activity only for justified capability need | [Capability maintenance](../developers/contracts/capability-maintenance.md), [facilities](../developers/architecture/facilities.md); capability demand, actual native completion and interruption tests | Pending |
@@ -671,3 +671,34 @@ values use the existing comparator, and journal readers retain their own action
 semantics. No new demand owner, fallback capacity or execution lane. Complexity:
 added uncertainty and journal regression coverage / removed redundant layout-total
 guard, throwing hours adapter and unused progress wrapper / orphans left: none.
+
+## Native ingredient handling
+
+Routine support delivery/refill scenarios now retain `NativeExecution` through
+dependency composition. Quantity and travel comparisons remain conditional; normal
+binding installs no exact delivery, dependent service or pawn claim. Native bill
+workers gather ingredients and native hauling follows storage/work settings.
+`SupportMethodTests` covers small/batch quantities, composed native identity,
+no exact tasks, material conservation and competing bill ingredients.
+
+At source `aebfe9bf6` plus this milestone, the first native retry produced one meal
+and a Cooking level gain with no exact owner, then failed the learning verifier.
+The verifier was reading an in-progress enclosing interval while checking a
+synchronous Learn call. Its callback-local clock now excludes that interval;
+raw XP and resulting XP/level must still match, with actual/predicted diagnostics.
+
+The subsequent run is under
+`.rimgovernor/native-food-production-callback-20261028/production/productive-cooking/`.
+Its cooking observations reached tick 16749 with two distinct native jobs, two
+completions by one cook, usable output, Cooking level 6, no learning failures and
+no exact owners. The overall case **failed** its required-fact audit: admin/rooms
+layout-plan prerequisites, animal herd-room planning, layout climate envelope and
+food/economy `planning Harvest` remain to resolve. These physical observations do
+not certify the whole case or finish task 5.1/5.5. Overall progress remains 13/24.
+
+Verification: final gate PASS (55s), 4,215 domain and 30 workflow tests, native
+builds/probes and no contract orphans; strict OpenSpec 5/5. Rules 7–9: canonical
+bill/material demand and existing native execution filter remain the owners;
+no helper scheduler, capacity fallback or new persisted state. Complexity: added
+composed native-delivery assertions and callback-local verification / removed
+routine support-delivery dispatch / orphans left: none.

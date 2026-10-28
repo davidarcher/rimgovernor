@@ -51,9 +51,11 @@ the presence of a baby must not fault the review before childcare can respond.
 ## Shared support methods
 
 Support work serves observed production, care or material demand. Family providers
-offer exact care, surgery and delivery operations to the existing shared composition
-and ColonyForecast comparison. Policy chooses participants, quantities and timing;
-the existing Method journal owns admitted work and Hands issues its orders.
+offer care, surgery and conditional delivery operations to the existing shared
+composition and ColonyForecast comparison. Delivery participants, quantities and
+timing are what-if evidence; ordinary ingredient gathering and hauling remain
+native work. Exact care and surgery still use the existing Method journal and Hands
+and remain subject to the general intervention migration.
 There is no separate helper scheduler, demand ledger or progress store.
 
 Cleaning is not coupled support work (#3662): vanilla cleans the home area under
@@ -115,9 +117,11 @@ quantity. There is no universal full-stack refill threshold: a small urgent
 delivery and a larger routine batch are evaluated against their actual demand and
 participant time.
 
-The current refill provider stages one exact ingredient definition at the observed
-bench interaction cell. This is an outstanding bill requirement, not a generic
-stockpile refill target. Unsupported mixed substitutions remain unassessed.
+The refill scenario values one ingredient definition at the observed bench
+interaction cell against an outstanding bill requirement. It installs no exact
+delivery or pawn claim, including after dependency composition. Native bill workers
+gather their ingredients; native hauling follows storage and work settings.
+Unsupported mixed substitutions remain unassessed.
 
 A chunk is eligible because a supported material or recipe requirement needs it,
 not merely because a stockpile accepts chunks. Unrelated chunks remain outside

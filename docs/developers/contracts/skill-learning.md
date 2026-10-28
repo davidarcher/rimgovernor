@@ -307,3 +307,9 @@ The retained native interval counter is read alongside cadence and hash phase. I
 camera cadence just changed, its first callback can precede hash alignment; the following
 callback can pay a shorter delta. Work, learning, passive decay and terminal rebasing use the
 same callback clock, including both transient callbacks.
+
+The fixture's synchronous `SkillRecord.Learn` verifier brackets one callback,
+not the enclosing pawn interval. It clears elapsed interval time and places decay
+after that zero-tick comparison, so the caller's in-progress interval is not
+replayed. Raw XP and resulting stored level/XP must still match native learning;
+failures report both the prediction and actual state.

@@ -583,7 +583,11 @@ namespace RimGovernor.Native
             busy = true;
             try
             {
-                var evidence = NativeSkillLearning.Read(pawn, __instance) with { ValidForTicks = 2, NextDecay = 200 };
+                // This hook brackets one synchronous Learn call inside the pawn's current
+                // tracker interval. Do not replay that enclosing interval or its pending
+                // decay; tickDelta can equal the cadence until the caller returns.
+                var evidence = NativeSkillLearning.Read(pawn, __instance) with
+                    { ValidForTicks = 2, NextDecay = SkillRecord.IntervalTicks, TrackerElapsedTicks = 0 };
                 var predicted = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(evidence,
                     new[] { new RimGovernor.Brain.Policy.SkillXpEvent("native-callback", 0, raw, path) }, 0);
                 if (Math.Abs(raw - xp) > .01) Failures.Add(kind + "_raw_xp_quote");
@@ -603,7 +607,8 @@ namespace RimGovernor.Native
             }
             if (__state.Prediction is not RimGovernor.Brain.Policy.SkillForecast.Projected { Projection: var predicted }
                 || predicted.StoredLevel != __instance.levelInt || Math.Abs(predicted.Xp - __instance.xpSinceLastLevel) > .1)
-                Failures.Add(__state.Kind + "_projected_state");
+                Failures.Add(__state.Kind + "_projected_state:" + __state.Prediction
+                    + ":actual=" + __instance.levelInt + "/" + __instance.xpSinceLastLevel);
         }
     }
 }

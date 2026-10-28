@@ -86,8 +86,13 @@ public sealed class SupportMethodTests
     [InlineData(8)]
     public void DemandSelectsSmallOrBatchQuantityWithoutFullStackGate(int required)
     {
-        var facts = Facts(Delivery(required)); var result = Select(facts); var delivery = Assert.Single(Tasks(facts, result));
-        Assert.Equal(required, delivery.Step.Count); Assert.Equal("useful-chunk", delivery.Step.Target);
+        var facts = Facts(Delivery(required)); var result = Select(facts);
+        var allocation = Assert.Single(result.Selected.Plan.Allocations);
+        var context = facts.CoupledAlternatives!.Context;
+        var delivery = context.Bindings[(allocation.Activity, allocation.Pawn)];
+        Assert.Equal(required, delivery.Count); Assert.Equal("useful-chunk", delivery.Target);
+        Assert.True(Assert.Single(context.Activities.Activities, a => a.Id == allocation.Activity).NativeExecution);
+        Assert.Empty(Tasks(facts, result));
         Assert.Equal(0d, result.SelectedVector.Support.UnsuppliedDemand);
         Assert.Equal(0d, ForecastActivities.StockChangesOf(facts.CoupledAlternatives!.Context.Activities, result.Selected.Plan).Where(c => c.Resource.Value == "Chunk").Sum(c => c.Units));
         Assert.Equal(0, result.Selected.Terminal!.Drawn.GetValueOrDefault(new Resource("Chunk")));
@@ -188,7 +193,8 @@ public sealed class SupportMethodTests
         read = read with { Deliveries = [read.Deliveries[0], read.Deliveries[0] with
             { Demand = "bill:stone:Rice", Target = "rice", Resource = "Rice", Available = 4 }] };
         var facts = Facts(read); var result = Select(facts);
-        Assert.Single(Tasks(facts, result)); Assert.Equal(0d, result.SelectedVector.Support.UnsuppliedDemand);
+        Assert.Single(result.Selected.Plan.Allocations);
+        Assert.Empty(Tasks(facts, result)); Assert.Equal(0d, result.SelectedVector.Support.UnsuppliedDemand);
         Assert.Equal(1d, result.BaselineVector.Support.UnsuppliedDemand);
     }
 }

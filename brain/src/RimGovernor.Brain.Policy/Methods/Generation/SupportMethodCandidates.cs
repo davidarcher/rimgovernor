@@ -62,7 +62,7 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
                 if (observed.All(s => s.Id != source)) observed.Add(new(source, new(first.Resource), first.Available, Location(first.Source), 0, horizon)
                     { Lot = first.Target, Provenance = "native-demand-source/" + first.Demand });
                 operations.Add(new(new(id, Location(first.Source), Location(first.Destination), [])
-                { Outputs = [new(new(first.Resource), count) { Lot = first.Target }], ChoiceIdentity = "support/delivery/" + Key(first.Demand) + "/" + first.Target },
+                { NativeExecution = true, Outputs = [new(new(first.Resource), count) { Lot = first.Target }], ChoiceIdentity = "support/delivery/" + Key(first.Demand) + "/" + first.Target },
                     [new("source", new(first.Resource), count, Location(first.Source), ForecastRequirementKind.Consumed, [source], 0, horizon)],
                     [new(id + "/yield", new(first.Resource), count, Location(first.Destination), 0, horizon) { Producer = id, Lot = first.Target, Provenance = "native-demand-delivery/" + first.Demand }]));
                 foreach (var row in group.Where(d => d.Capacity >= count && Free(d.Pawn, d.Target)))
