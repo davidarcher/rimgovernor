@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.GameOrders.Operations;
 using Fx = RimGovernor.Fixtures.Contracts;
 
@@ -65,6 +66,10 @@ internal static class OrderedWorkCancellationCase
         await TypedAuthority.GrantAutoAsync(s, ct).ConfigureAwait(false);
         var observed = (await TypedApply.PawnAsync(s, "loaded-pawn", worker, ct).ConfigureAwait(false)).Job.OrderedWork;
         if (observed?.Request != request) throw new AcceptanceException("Loaded pawn lost immutable queue provenance.");
+        var census = await s.CallAsync("loaded-work-census", NativeOps.ReadColonyFacts,
+            new RimGovernor.Brain.GameOrders.Observations.ColonyFactsRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
+        if (census.WorkResources.Single(p => p.Pawn == worker).OrderedWork != observed)
+            throw new AcceptanceException("Admission census lost the loaded native queue outcomes.");
         _ = await TypedApply.AppliedAsync(s, "cancel", new GiveJobIntent { Queue = request with { Cancel = true } }, ct).ConfigureAwait(false);
         var cancelled = await s.FixtureAsync("cancelled", Read, NoArgs.Value, ct).ConfigureAwait(false);
         var expected = new[] { "Succeeded", replaced ? "Gone" : "Cancelled", "Cancelled" };

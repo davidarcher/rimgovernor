@@ -134,7 +134,8 @@ namespace RimGovernor.Native
                         execution?.State ?? "", carried?.GetUniqueLoadID() ?? "", carried?.def.defName ?? "", carried?.stackCount ?? 0)
                         { LocalHour = GenLocalDate.HourFloat(map), Bill = p.CurJob?.bill?.GetUniqueLoadID() ?? "",
                             Target = p.CurJob?.targetA.Thing?.GetUniqueLoadID() ?? "",
-                            Unfinished = (p.CurJob?.targetB.Thing as UnfinishedThing)?.GetUniqueLoadID() ?? "" };
+                            Unfinished = (p.CurJob?.targetB.Thing as UnfinishedThing)?.GetUniqueLoadID() ?? "",
+                            OrderedWork = NativeOrderedWork.Observe(p) };
                 }));
             var eventLoot = EventLootFacts.Read(map, things, reachable);
             Span("cf.eventLoot");

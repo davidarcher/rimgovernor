@@ -16,9 +16,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class StoreSchemaPinTests
 {
-    private const int PinnedSchemaVersion = 62;
-    // Version 62 adds finite native ordered-work requests.
-    private const string PinnedShapeHash = "A5E552A9E524299DEB86252EE368FDE18363F6002DB97DD3FBFB6E7D6DA6BCC1";
+    private const int PinnedSchemaVersion = 63;
+    // Version 63 adds observed native queue outcomes to admission evidence.
+    private const string PinnedShapeHash = "78D8CF9CA66868AC0A3F8F096A41CCB8837D0A460272F94E3FABAD8E5B349E55";
 
     [Fact]
     public void CodecShapeIsPinnedToTheSchemaVersion()

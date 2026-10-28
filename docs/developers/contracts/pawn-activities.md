@@ -19,6 +19,14 @@ current and queued work. An observed successful end is `Succeeded`; a missing jo
 without that evidence is `Gone`. Dispatch acknowledgment is separate from these
 physical outcomes. See [persistence ownership](persistence-contracts.md).
 
+The shared work census includes ordered-work actions after acknowledgment. Its
+claims use the full review's native queue observation: only remaining matching
+job identities hold their targets, and their pawn remains claimed while any of
+those jobs is live. Missing pawn rows, incomplete matching queue records or
+same-tick evidence retain the known claims. A later observation of completed or
+replaced jobs, or a positively read pawn without that queue, releases those claims;
+it does not credit predicted output or certify the owning Need as met.
+
 The registered `control/ordered-work-cancel-reload` and
 `control/ordered-work-replaced-reload` cases verify this against actual saved
 native jobs: partial completion survives load, cancellation preserves unrelated
@@ -31,10 +39,11 @@ ordinary needs dispatch. Conditional overhead/layout estimates can read meal
 mechanics without treating the current order as an absent food source or claiming
 that vanilla will interrupt it.
 
-This adapter does not establish intervention justification or extend the existing
-Method continuation to own a queue through its physical outcome. Those policy
-and lifecycle migrations remain open in the labor change. Routine portfolio
-selection does not produce `OrderedWork` actions.
+Shared admission and retirement retain an observed active queue independently
+of its dispatch acknowledgment. Policy decisions to start, replace or cancel an
+intervention remain in the open labor migration; the adapter does not establish
+intervention justification. Routine portfolio selection does not produce
+`OrderedWork` actions.
 
 Native baby feeding and its associated safe return are occupied work. A standing
 colonist doing that care is not preemptible, including while carrying the baby

@@ -11,6 +11,7 @@ internal static class CodecRegistry
         codecs.Register(new WorkBuildingCostConverter());
         codecs.Register(new WorkPawnAvailabilityConverter());
         codecs.Register(new WorkResourcePawnConverter());
+        codecs.Register(new OrderedWorkObservationConverter());
         codecs.Register(new ProductionRecipeInputConverter());
         codecs.Register(new ProductionPromiseSetConverter());
         codecs.Register(new ForecastMaterialClaimConverter());

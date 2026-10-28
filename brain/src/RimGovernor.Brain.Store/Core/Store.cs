@@ -66,8 +66,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 60 retains each layout room's chosen production loads for workshop Investment (#3801). Older saved layouts rederive through the existing invalid-plan path; other save families keep their format.
     /// Version 61 removes the obsolete Preemptible admission flag: observed native work is occupied, regardless of whether a direct order could interrupt it.
     /// Version 62 adds the finite OrderedWork action codec; older session journals are replaced.
+    /// Version 63 freezes exact native queue outcomes in work admission evidence; older session journals are replaced.
     /// </summary>
-    public const int SchemaVersion = 62;
+    public const int SchemaVersion = 63;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

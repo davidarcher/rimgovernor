@@ -8,6 +8,15 @@ is never released. Missing participant observations defer cleanup. The journal
 retains the attempted Method as history, with no stale task restart, food credit
 or refund of partial work and carried inputs. Fresh observations govern recovery.
 
+For a finite `OrderedWork` intervention, a terminal dispatch receipt acknowledges
+installation. The existing full review retains the Method while matching native
+job identities still hold pawn/target claims, including after partial completion.
+Missing pawn rows or same-tick evidence preserve those claims. A later native observation
+of completed, cancelled or replaced jobs releases their claims; retirement ends
+the attempt when none remain. This neither credits predicted output nor proves
+the owning Need met. New-work and cancellation policy remain separate from that
+observed physical lifetime.
+
 [Contracts](README.md) · [Control loop](../architecture/control-loop.md)
 
 A Method owns an attempt at an observed outcome. Applied intent proves the write,

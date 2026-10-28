@@ -70,5 +70,36 @@ public sealed class OrderedWorkHandsTests
         // Completed here acknowledges dispatch, not physical completion of the intervention.
         Assert.Null(Assert.Single(await hands.RunBatchAsync(plan.Id, [action.Id], Ct)).Error);
         Assert.Equal(1, native.Writes);
+        Assert.Single(journal.WorkActions(World, Ct).Actions);
+        // Frozen admission evidence and its journal codec must preserve the live native queue
+        // after the dispatch receipt has become terminal.
+        var fresh = WorkResourceTestFacts.Create("a", "b");
+        var observed = new OrderedWorkObservation(OrderedWorkTests.Request(),
+            [new(101, OrderedWorkStatus.Succeeded), new(102, OrderedWorkStatus.Running)]);
+        fresh = fresh with { Tick = new(101), Census = fresh.Census with
+            { WorkResources = EquatableArray.From(fresh.Census.WorkResources.Select(p => p.Pawn == "a" ? p with { OrderedWork = observed } : p)) } };
+        var freshWorld = World with { Plan = new("review-2") };
+        journal.Review(new() { Revision = journal.LoadReview(Ct).Revision, Current = freshWorld, Tick = new(101), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = fresh }, Ct);
+        var remaining = journal.WorkResources(freshWorld, Ct).Claims;
+        Assert.False(journal.LoadPlan(plan.Id, Ct).Retired);
+        Assert.Equal(["a"], remaining.Pawns);
+        Assert.Equal(["wall-b"], remaining.Targets);
+        var sharedTarget = new PlanSpec(new("shared-target"), new(1),
+            [DomainAction.NewOrderedWorkAction(new("shared-target-0"), OrderedWorkTests.Request() with { Pawn = new("b"), Jobs = [new("Deconstruct", "wall-b")] })]);
+        Assert.Equal(ClaimOutcome.Refused,
+            journal.CommitClaimedMethod(AdminFamily.WorkAssignments, freshWorld, new("shared-target"), "", sharedTarget, Ct).Outcome);
+
+        observed = OrderedWorkProtocol.Ended(observed, 102, true);
+        fresh = fresh with { Tick = new(102), Census = fresh.Census with
+            { WorkResources = EquatableArray.From(fresh.Census.WorkResources.Select(p => p.Pawn == "a" ? p with { OrderedWork = observed } : p)) } };
+        freshWorld = World with { Plan = new("review-3") };
+        journal.Review(new() { Revision = journal.LoadReview(Ct).Revision, Current = freshWorld, Tick = new(102), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = fresh }, Ct);
+        Assert.Empty(journal.WorkResources(freshWorld, Ct).Claims.Pawns);
+        Assert.Empty(journal.WorkResources(freshWorld, Ct).Claims.Targets);
+        Assert.True(journal.LoadPlan(plan.Id, Ct).Retired);
+        Assert.Equal(ClaimOutcome.Admitted,
+            journal.CommitClaimedMethod(AdminFamily.WorkAssignments, freshWorld, new("shared-target"), "", sharedTarget, Ct).Outcome);
     }
 }

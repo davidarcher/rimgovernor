@@ -42,6 +42,7 @@ public sealed partial class Store
         GenerationSnapshot current,
         Tick tick,
         CurrentConstruction? census,
+        WorkAdmissionEvidence workEvidence,
         Dictionary<(ColonyId Colony, MapId Map), Tick> floors
     )
     {
@@ -73,6 +74,11 @@ public sealed partial class Store
             {
                 continue;
             }
+            var queues = p.Progress.Where(progress => progress.Action.OrderedWork is { Cancel: false }
+                && progress.View.Snapshot.SameWorld(current))
+                .Select(progress => new WorkAction(plan, progress.Action, progress.View)).ToArray();
+            if (queues.Length != 0 && WorkRules.WorkClaimsOf(workEvidence, queues).Pawns.Count != 0)
+                continue;
             // A fight owns its empty plan while open or rostering a drafted defender: retiring it would hide the
             // fight from its goal, and the clock scheduler would stop admitting ticks mid-fight.
             if (CombatFightHolds(tx, plan))

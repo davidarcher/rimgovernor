@@ -31,3 +31,21 @@ public sealed class OrderedWorkConverter : ObjectCodec<OrderedWork>
         w.WriteEndArray();
     }
 }
+
+internal sealed class OrderedWorkObservationConverter : ObjectCodec<OrderedWorkObservation>
+{
+    protected override OrderedWorkObservation Read(JsonElement e, Codecs o) =>
+        new(e.Get<OrderedWork>("Request", o), EquatableArray.From(e.GetProperty("Jobs").EnumerateArray()
+            .Select(j => new OrderedWorkJob(j.I32("JobId"), Enum.Parse<OrderedWorkStatus>(j.Str("Status"))))));
+
+    protected override void WriteFields(Utf8JsonWriter w, OrderedWorkObservation v, Codecs o)
+    {
+        w.Put("Request", v.Request, o);
+        w.WriteStartArray("Jobs");
+        foreach (var job in v.Jobs)
+        {
+            w.WriteStartObject(); w.WriteNum("JobId", job.JobId); w.WriteString("Status", job.Status.ToString()); w.WriteEndObject();
+        }
+        w.WriteEndArray();
+    }
+}

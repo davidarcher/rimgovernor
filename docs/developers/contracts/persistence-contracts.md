@@ -23,6 +23,13 @@ transactions. This extends the existing review row, not a second reservation
 store. Native reservations and carried/embedded inputs are reconciled against
 that observation; dispatch alone cannot release an unobserved cost.
 
+That same frozen admission row retains each pawn's latest native ordered-work
+observation. It is evidence for deriving live pawn/target claims, not another
+queue owner. An acknowledged dispatch retains its claims until a later-tick
+observation identifies remaining native jobs; completed or replaced identities
+release only their own targets. Missing or same-tick evidence retains the known
+claims without inventing an unknown material cost.
+
 The full-review row has a 16 MiB aggregate UTF-8 JSON limit on write and replay.
 Complete native observations can exceed 1 MiB even for seven colonists. Existing
 typed record, identity, history and collection validation still applies; a larger

@@ -68,10 +68,12 @@ internal sealed class WorkPawnAvailabilityConverter : ObjectCodec<WorkPawnAvaila
 internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn>
 {
     protected override RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn Read(JsonElement e, Codecs o) =>
-        new(e.Str("Pawn"), e.Str("Assignment"), e.I64("Revision"), e.Str("State"), e.Str("CarriedThing"), e.Str("CarriedResource"), e.I32("CarriedCount")) { LocalHour = e.Dbl("LocalHour"), Bill = e.Str("Bill"), Target = e.Str("Target"), Unfinished = e.Str("Unfinished") };
+        new(e.Str("Pawn"), e.Str("Assignment"), e.I64("Revision"), e.Str("State"), e.Str("CarriedThing"), e.Str("CarriedResource"), e.I32("CarriedCount")) { LocalHour = e.Dbl("LocalHour"), Bill = e.Str("Bill"), Target = e.Str("Target"), Unfinished = e.Str("Unfinished"),
+            OrderedWork = e.Has("OrderedWork") ? e.Get<OrderedWorkObservation>("OrderedWork", o) : null };
     protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn v, Codecs o)
     { w.WriteString("Pawn", v.Pawn); w.WriteString("Assignment", v.Assignment); w.WriteNum("Revision", v.Revision);
-      w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNum("CarriedCount", v.CarriedCount); w.WriteNum("LocalHour", v.LocalHour); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); w.WriteString("Unfinished", v.Unfinished); }
+      w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNum("CarriedCount", v.CarriedCount); w.WriteNum("LocalHour", v.LocalHour); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); w.WriteString("Unfinished", v.Unfinished);
+      if (v.OrderedWork is { } queue) w.Put("OrderedWork", queue, o); else w.WriteNull("OrderedWork"); }
 }
 
 internal sealed class ProductionRecipeInputConverter : ObjectCodec<ProductionRecipeInput>

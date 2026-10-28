@@ -263,7 +263,8 @@ public sealed partial class Store
         request = request with { Facts = facts };
         if (request.Enabled && !request.Immediate)
         {
-            RetireReviewPlans(tx, request.Current, request.Tick, request.Facts.CurrentConstruction, settled);
+            RetireReviewPlans(tx, request.Current, request.Tick, request.Facts.CurrentConstruction,
+                workEvidence ?? throw new RequiredFactException("review.work_evidence"), settled);
         }
         var r = new ReviewState
         {

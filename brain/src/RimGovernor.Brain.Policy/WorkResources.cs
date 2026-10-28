@@ -217,11 +217,27 @@ public static partial class WorkRules
         {
             var progress = row.Progress;
             if (ActionAbsent(progress)) continue;
-            if (row.Action.OrderedWork is { Cancel: false } ordered
-                && (progress.Unresolved || progress.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation))
+            if (row.Action.OrderedWork is { Cancel: false } ordered)
             {
-                pawns.Add(ordered.Pawn.Value);
-                foreach (var job in ordered.Jobs) Take(job.Target);
+                var pending = progress.Unresolved || progress.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation;
+                var pawn = evidence.WorkResources.SingleOrDefault(p => p.Pawn == ordered.Pawn.Value);
+                var malformed = pawn?.OrderedWork is { } queue && ordered.SameRequest(queue.Request) && queue.Jobs.Count != ordered.Jobs.Count;
+                if (pending || evidence.Tick <= progress.Tick || pawn is null || malformed)
+                {
+                    pawns.Add(ordered.Pawn.Value);
+                    foreach (var job in ordered.Jobs) Take(job.Target);
+                    // These claims consume no material. An unread queue retains its known pawn/targets,
+                    // without inventing an unknown material debit that would block unrelated construction.
+                }
+                else if (pawn.OrderedWork is { } actual && ordered.SameRequest(actual.Request))
+                {
+                    // Dispatch acknowledgment is not completion. Only exact still-live native identities
+                    // retain claims; finished/replaced jobs never reserve their old targets again.
+                    var remaining = actual.Jobs.Select((job, index) => (job, index))
+                        .Where(pair => !OrderedWorkProtocol.Terminal(pair.job.Status)).ToArray();
+                    if (remaining.Length != 0) pawns.Add(ordered.Pawn.Value);
+                    foreach (var (_, index) in remaining) Take(ordered.Jobs[index].Target);
+                }
             }
             if (progress.Unresolved || progress.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation)
             {

@@ -10,4 +10,5 @@ public sealed record WorkResourcePawn(string Pawn, string Assignment, long Revis
     public string Bill { get; init; } = "";
     public string Target { get; init; } = "";
     public string Unfinished { get; init; } = "";
+    public RimGovernor.Brain.Domain.OrderedWorkObservation? OrderedWork { get; init; }
 }

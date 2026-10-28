@@ -8,6 +8,32 @@ The maintainer confirmed native-led routine execution, full control of settings 
 
 ## Current evidence
 
+Ordered-work claims and retirement now follow observed physical execution. The
+shared census previously omitted acknowledged queue actions, and normal review
+retired their Methods from the dispatch receipt. It now freezes canonical native
+queue observations in the existing admission row (journal schema 63), retains
+only remaining matching targets and their pawn, and keeps the Method while those
+claims remain. Missing pawn rows, malformed matching records or same-tick observations retain known claims
+without inventing material consumption. Finished/replaced identities release
+claims; neither that release nor retirement credits food or predicted output.
+`OrderedWorkHandsTests` exercises real admission, dispatch, fresh review/codec
+replay, partial claim retention, competing-target refusal, physical retirement
+and subsequent admission. `OrderedWorkTests` covers partial, stale, missing,
+malformed and replaced observations. The full admission census retained an actual
+loaded queue in `control/ordered-work-cancel-reload` (PASS, 23.420s;
+`.rimgovernor/labor-queue-admission-census/`). The final package passed the normal
+journal/Hands `control/ordered-work-lifecycle` case in 20.635s
+(`.rimgovernor/labor-queue-retirement-final/`); that case proves physical execution,
+while the journal regression proves retirement. Both results retain package
+hashes and dirty source based on `1dbbac4fe`. The gate passed 4,176 domain tests,
+30 workflow tests, native builds, probes and orphan checks (1m23s); strict OpenSpec
+passed all five items. Task 4.2 remains partial: intervention selection and
+policy-driven cancellation/continuation are unfinished. Rules 7–9: policy derives
+claims, the existing journal owns retirement, and native owns actual jobs; no new
+state owner or scheduler. Complexity: added one canonical observed queue field,
+its journal codec and lifetime regressions / removed dispatch-only claim release
+and premature queue Method retirement / orphans left: none.
+
 Finite native queue mechanics are now exercised through normal journal/Hands
 dispatch in `control/ordered-work-lifecycle`. The finished case passed in 28.458s
 on 2026-10-28 UTC: exact jobs 5 and 6 started in that order, both ended
@@ -20,7 +46,8 @@ or intervention materiality. Result:
 `.rimgovernor/labor-ordered-work-final/control/ordered-work-lifecycle/result.json`.
 It records dirty source based on `d8e3bc439393`, package file hashes, the `work`
 family and the three named fixture operations. Tasks 4.3 and 4.4 are complete;
-4.1–4.2 remain open, including Method continuation through physical queue outcomes.
+4.1–4.2 remain open, including intervention premises and policy-driven continuation
+or cancellation.
 
 Two further native cases establish partial cancellation and actual save/load
 reconciliation. `control/ordered-work-cancel-reload` passed in 19.381s: jobs

@@ -91,4 +91,37 @@ public sealed class OrderedWorkTests
         Assert.Empty(cancelled.Pawns);
         Assert.Empty(cancelled.Targets);
     }
+
+    [Fact]
+    public void AcknowledgedQueueClaimsOnlyFreshObservedRemainingJobs()
+    {
+        var action = DomainAction.NewOrderedWorkAction(new("queue"), Request());
+        var progress = new ProgressView { Action = action.Id, Stage = Stage.Completed, Attempt = new(1), Tick = new(100) };
+        var row = new WorkAction(new("method"), action, progress);
+        var evidence = ProductionRules.WorkAdmissionEvidenceOf(WorkResourceTestFacts.Create("a"), new ProductionBatchCensus.Read([])) with { Tick = new(101) };
+        var partial = OrderedWorkProtocol.Observe(OrderedWorkProtocol.Ended(Installed(), 101, true), 102, []);
+        evidence = evidence with { WorkResources = [evidence.WorkResources[0] with { OrderedWork = partial }] };
+        var claims = WorkRules.WorkClaimsOf(evidence, [row]);
+        Assert.Equal(["a"], claims.Pawns);
+        Assert.Equal(["wall-b"], claims.Targets);
+        Assert.Empty(claims.Findings);
+
+        // A review captured before or in the dispatch tick cannot release a claim using old evidence.
+        claims = WorkRules.WorkClaimsOf(evidence with { Tick = new(100) }, [row]);
+        Assert.Equal(2, claims.Targets.Count);
+        Assert.Empty(claims.Findings);
+        claims = WorkRules.WorkClaimsOf(evidence with { WorkResources = [] }, [row]);
+        Assert.Equal(2, claims.Targets.Count);
+        Assert.Empty(claims.Findings);
+        var broken = evidence with { WorkResources = [evidence.WorkResources[0] with { OrderedWork = partial with { Jobs = [] } }] };
+        Assert.Equal(2, WorkRules.WorkClaimsOf(broken, [row]).Targets.Count);
+
+        var ended = OrderedWorkProtocol.Ended(partial, 102, false);
+        foreach (var observed in new OrderedWorkObservation?[] { ended, null, ended with { Request = Request() with { Sequence = 2 } } })
+        {
+            var released = WorkRules.WorkClaimsOf(evidence with { WorkResources = [evidence.WorkResources[0] with { OrderedWork = observed }] }, [row]);
+            Assert.Empty(released.Pawns);
+            Assert.Empty(released.Targets);
+        }
+    }
 }
