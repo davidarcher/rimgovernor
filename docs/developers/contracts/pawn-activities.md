@@ -64,13 +64,14 @@ windows and remaining obligations. It has no separate scheduler or workflow stor
 Food acquisition and material delivery/building use the same ColonyForecast search,
 binding, journal continuation and native ownership contract.
 
-Ordinary eating, rest and recreation allocations with current native response
+Ordinary eating, rest and recreation allocations
 are not installed, including inside productive portfolios. Their participant's
 later work and transitive dependent tasks wait for fresh observed prerequisites;
 the binding installs no future hold on their behalf. Already running native
 service also prevents a modeled earlier task in that portfolio from interrupting
-it now. Independent work remains selectable. A missing captured rest/recreation
-object cannot supply an intervention premise. Shared comparison retains detailed
+it now. Independent work remains selectable. Missing food access, blocked service,
+an unread pawn or missing need-task metadata cannot supply an intervention
+premise or leave an exact service eligible by default. Shared comparison retains detailed
 conditional what-if evidence; `StartCoupledActivity` checks the current context
 before binding. Access and current service are not proof of future recovery.
 Existing exact commitments also hand ordinary service back at a task boundary,
@@ -595,7 +596,8 @@ eat or sleep acquires it from revision zero and interrupts its vanilla job. Work
 candidacy and food/support availability treat it as free (`NativePawnActivities.Standing`).
 The pawn read reports its real vanilla job. Shared capacity counts useful work as
 occupied and target claims protect what it holds, even when a direct order could
-interrupt it. `Standing` permits native legality checks; it does not establish
+interrupt it. Ordinary service forecasts do not acquire an exact order through
+this primitive; the shared binding projection excludes them. `Standing` permits native legality checks; it does not establish
 free labor in the forecast. Changing authority leaves
 an unowned colonist's vanilla job running; it only releases stale orders. Native
 publishes nothing for an unowned colonist (#3556; the `unassigned_voluntary_pawn`

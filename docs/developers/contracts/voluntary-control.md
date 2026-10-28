@@ -16,8 +16,8 @@ intent is not completed work. Native job selection remains available after the
 requested first job. The labor migration
 still has exact routine callers; their comparison and binding are pending migration.
 
-For a service-only eating/rest/recreation portfolio, current native service
-availability or observed service in progress supplies no reason for takeover.
+An ordinary service-only eating/rest/recreation portfolio supplies no independent
+reason for takeover, including with missing access or an ineligible pawn.
 The comparator can explore it as a what-if complement to productive investments,
 but a service-only winner is not dispatched; the binding entry point enforces
 the same rule. Missing observation or no captured target establishes neither

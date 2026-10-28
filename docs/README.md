@@ -96,6 +96,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Trace shared helper coordination through supply and finishing | [Live construction Method](developers/contracts/pawn-activities.md#live-material-delivery-and-building) |
 | Choose care, demand-driven deliveries and useful chunk work | [Support work](developers/contracts/support-work.md), [native support assessment evidence](requirements/colony-labor.md#native-support-assessment), [case disposition](developers/contracts/support-work.md#execution-and-evidence) |
 | Understand ordinary pawn ownership and unsupported voluntary services | [Voluntary control](developers/contracts/voluntary-control.md), [acceptance disposition](developers/contracts/voluntary-control.md#acceptance-disposition) |
+| See why missing needs evidence grants no exact-service control | [Self-service ownership evidence](requirements/colony-labor.md#self-service-ownership-independent-of-access), [continuation](developers/contracts/method-continuation.md#pawn-activity-methods) |
 | Change the native boundary | [Wire contracts](../contracts/README.md) |
 | Measure coupled portfolio allocations and bounded selection quality | [Portfolio allocation baseline](developers/testing/portfolio-allocations.md) |
 

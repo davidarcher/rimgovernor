@@ -173,10 +173,12 @@ participant. Productive rebinding still requires ordinary shared admission,
 fresh native evidence and the original finite deadline; cleanup grants no right
 to take another Method's target.
 
-An existing exact Method does not start or hold a later ordinary service when
-fresh native evidence supports it. At a task boundary, available or ongoing native
-food/rest/recreation service returns that participant to vanilla through exact
-owner cleanup; uncaptured rest/recreation objects do not establish a failure.
+An existing exact Method does not start or hold a later ordinary service.
+At a task boundary, food/rest/recreation service returns that participant to
+vanilla through exact owner cleanup. Missing access, an unread needs census or
+blocked service supplies no authority to continue an old hypothetical task.
+Cleanup still requires the observed execution identity; missing execution
+ownership cannot authorize a release. No service completion is credited.
 Independent running participants keep identical orders. If another participant's
 remaining work depends on the released participant, the coordinated attempt ends
 through the existing exact-owner release path rather than treating an unobserved
@@ -191,6 +193,10 @@ its threshold is released through the same separate-revision cleanup, unless ano
 participant's remaining task depends on one of its remaining tasks. The pawn then serves the
 need, and the Method resumes it afterward if the demand remains. Unknown need evidence never
 releases. The native activity read supplies needs for the batch's own pawns for this check.
+
+A later hypothetical meal does not exempt the pawn's earlier work from this
+needs check. Ordinary service handback itself requires no predicted service
+duration or departure threshold.
 
 Expected productive resource contention returns a typed ResourcesUnavailable
 admission result without replacing the installed Method or advancing its owner

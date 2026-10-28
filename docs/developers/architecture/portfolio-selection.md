@@ -285,14 +285,15 @@ ownership, revision, refusal, interruption and bounded delivery recovery apply.
 Existing Method ownership remains protected during continuation; its unassessed
 remaining duration is not credited as free future capacity. Disjoint new work
 may be admitted alongside installed Methods through the same shared claim guards;
-an active Method does not freeze unrelated participants. A participant whose next
-service (sleep, recreation, a meal) departs more than `DistantServiceTicks` (600)
-ahead, with no other participant waiting on it, is not held for it: the start
-leaves it out (`OrderedAtStart`, the rule the forecast also reads for a sleeper, #3884, on the selection the review
-dispatches without its incumbents' work, `ForecastIncumbentHold.Dispatched`, #3889; an outcome whose dispatch has an unbound
-placed allocation, or that releases an incumbent the review cannot release, starts nothing and is refused,
-`dispatch_allocation_unbound` and `incumbent_release_unavailable`) and every later step boundary releases it to vanilla work (#3669), and a later
-review selects the service again once it is due (#3047, #3598, #3649). Delayed
+an active Method does not freeze unrelated participants. Ordinary sleep,
+recreation and meal scenarios never install a participant or future hold,
+regardless of departure time or missing access evidence. `ForDispatch` removes
+their later participant work and transitive dependencies before both binding and
+forecast interruption accounting call `OrderedAtStart`. An unbound placed
+allocation or unavailable incumbent release still refuses dispatch with
+`dispatch_allocation_unbound` or `incumbent_release_unavailable`. Existing exact
+Methods hand ordinary service back at task boundaries without crediting it as
+completed. Delayed
 variants that run work after a recovery are the recovering colonist's own: no
 colonist's work waits behind another colonist's meal, sleep or recreation (#3649). Independent
 maintenance, building placement, fixed production bills, gear replacement,

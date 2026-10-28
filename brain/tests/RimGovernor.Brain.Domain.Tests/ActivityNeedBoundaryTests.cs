@@ -66,32 +66,31 @@ public sealed class ActivityNeedBoundaryTests
     }
 
     [Theory]
-    [InlineData(PawnActivityKind.Eat, false)]
-    [InlineData(PawnActivityKind.Sleep, true)]
-    [InlineData(PawnActivityKind.Recreation, true)]
-    public void WaitingServiceReturnsToNativeUnlessFoodAccessIsUnobserved(PawnActivityKind kind, bool released)
+    [InlineData(PawnActivityKind.Eat)]
+    [InlineData(PawnActivityKind.Sleep)]
+    [InlineData(PawnActivityKind.Recreation)]
+    public void WaitingServiceReturnsToNativeEvenWhenAccessIsUnobserved(PawnActivityKind kind)
     {
         var batch = Service(kind, 700);
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "holding", .08));
-        if (released) Assert.True(Assert.Single(next!.Orders).Release);
-        else Assert.Null(next);
+        Assert.True(Assert.Single(next!.Orders).Release);
     }
 
     [Fact]
-    public void TiredParticipantWhoseServiceIsDueStartsIt()
+    public void TiredParticipantWhoseServiceIsDueReturnsToNative()
     {
         var batch = Service(PawnActivityKind.Eat, 100);
         var task = batch.Tasks.Single();
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "holding", .08) with { Bindings = [new ActivityTaskBinding.Bound(task.Id, task.Step)] })!;
         var order = Assert.Single(next.Orders);
-        Assert.False(order.Release);
-        Assert.Equal(PawnActivityKind.Eat, Assert.Single(order.Steps).Kind);
+        Assert.True(order.Release);
+        Assert.Empty(order.Steps);
     }
 
     [Fact]
-    public void TiredParticipantHarvestsTheFoodItThenEats()
+    public void HypotheticalLaterMealCannotExemptAWorkersCurrentNeedFromHandback()
     {
-        // Releasing it would have the next review reselect play or sleep first, then this harvest, every review (#3598).
+        // The old exact plan's later meal is not authority to keep a tired pawn harvesting.
         var play = new SelectedActivityTask("play", "pawn", [], new(PawnActivityKind.Recreation, "pin", "", "", 0, 5000), new(1, 1), 0);
         var harvest = new SelectedActivityTask("harvest", "pawn", [], new(PawnActivityKind.Work, "crop", "Harvest", "Harvest", 0, 5000), new(2, 2), 100);
         var haul = new SelectedActivityTask("haul", "pawn", [harvest.Id],
@@ -102,8 +101,8 @@ public sealed class ActivityNeedBoundaryTests
             { Tasks = [play, harvest, haul, eat] };
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed", .08) with { Bindings = [new ActivityTaskBinding.Bound(harvest.Id, harvest.Step)] })!;
         var order = Assert.Single(next.Orders);
-        Assert.False(order.Release);
-        Assert.Equal(harvest.Id, order.Task);
+        Assert.True(order.Release);
+        Assert.Empty(order.Steps);
     }
 
     private static PawnActivities WokeBeforeItsNextService(long playDepart, long sleepEnd = 4000)
@@ -127,17 +126,17 @@ public sealed class ActivityNeedBoundaryTests
     }
 
     [Theory]
-    [InlineData(5000, true)]
-    [InlineData(700, false)]
-    public void AWorkerWhoseOwnMealDepartsFarIsReleasedAndANearOneHeld(long eatDepart, bool released)
+    [InlineData(5000)]
+    [InlineData(700)]
+    public void AWorkerWhoseOwnMealDepartsLaterReturnsToNative(long eatDepart)
     {
         // #3649: a colonist that finished its work was held on "Waiting for the colony plan" for a meal most of a day ahead.
         var cut = new SelectedActivityTask("cut", "pawn", [], new(PawnActivityKind.Work, "brambles", "PlantsCut", "CutPlant", 1, 9000), new(1, 1), 0);
         var eat = new SelectedActivityTask("eat", "pawn", [], new(PawnActivityKind.Eat, "meal", "", "", 1, 9000), new(3, 3), eatDepart);
         var batch = new PawnActivities(1, [new("pawn", "method/pawn", "method", 0, 1, false, [cut.Step]) { Task = cut.Id }]) { Tasks = [cut, eat] };
         var order = Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed", .9))!.Orders);
-        Assert.Equal(released, order.Release);
-        Assert.Equal(!released, order.Preparing);
+        Assert.True(order.Release);
+        Assert.False(order.Preparing);
     }
 
     [Fact]
@@ -150,9 +149,9 @@ public sealed class ActivityNeedBoundaryTests
     }
 
     [Theory]
-    [InlineData(5000, true)]
-    [InlineData(500, false)]
-    public void AnEaterWhoseMealWaitsFarAheadOnTheCookIsReleasedNotHeld(long eatDepart, bool released)
+    [InlineData(5000)]
+    [InlineData(500)]
+    public void AnEaterWhoseMealWaitsOnTheCookIsReleasedNotHeld(long eatDepart)
     {
         // #3167: development-reassignment held both eaters ~9000 ticks for the cook's meals, owned and unreviewable.
         var cook = new SelectedActivityTask("cook", "cook", [], new(PawnActivityKind.Recipe, "stove", "", "", 0, 9000), new(2, 2), 0);
@@ -164,8 +163,8 @@ public sealed class ActivityNeedBoundaryTests
             new("pawn", new("method/pawn", "method", 1, 0, "completed", "", 200))] };
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read)!;
         var order = Assert.Single(next.Orders, o => o.Pawn == "pawn");
-        Assert.Equal(released, order.Release);
-        Assert.Equal(!released, next.Tasks.Any(t => t.Id == eat.Id));
+        Assert.True(order.Release);
+        Assert.DoesNotContain(next.Tasks, t => t.Id == eat.Id);
         Assert.Contains(next.Tasks, t => t.Id == cook.Id);
     }
 

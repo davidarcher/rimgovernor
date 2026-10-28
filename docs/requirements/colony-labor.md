@@ -376,6 +376,51 @@ call, durable state or second demand owner. Complexity: added a typed two-state
 support assessment and ten regression cases / removed native authority from
 routine care scenarios and false final-support ranking / orphans left: none.
 
+## Self-service ownership independent of access
+
+Ordinary eating, rest and recreation remain native even when the captured target
+is absent, a pawn is ineligible, sleep is blocked, or need-task metadata is
+missing. These facts remain relevant to need/access assessment; they cannot make
+an old hypothetical service an exact order. Fresh shared binding removes the
+service, its participant's later work and transitive dependencies. At a task
+boundary, continuation releases its exact owner without asserting intake.
+Independent running participants and execution-identity checks remain intact.
+An earlier task feeding the same pawn's hypothetical meal no longer bypasses
+the pawn's current urgent need check.
+
+Both `StartSelected` and forecast interruption accounting already pass the
+filtered plan to `OrderedAtStart`. The obsolete 600-tick service deferral, its
+departure helper and unreachable continuation service-binding checks are removed.
+The old primitive-only deferral/sleeper expectations no longer describe live
+dispatch; context-aware sleeper, native binding and dependency tests remain.
+`NativeExecutionBindingTests` covers missing access, blocked sleep, downed or
+unread pawns, missing need metadata and unbound partial starts.
+`NativeServiceContinuationTests`, `ActivityNeedBoundaryTests` and
+`CoupledActivityIntegrationTests` cover handback regardless of hypothetical
+provider binding or departure time. `SharedStackRemainderTests` stages historical
+exact intents directly for journal quantity, predecessor receipt and reopen
+invariants; it no longer asks current policy to authorize their routine service.
+
+This closes ordinary service permission through missing evidence, not the general
+intervention path. Tasks 4.1, 4.2 and 5.2 remain open; no new native gameplay result
+or completed overall migration is claimed. Existing support delivery rows describe
+ingredient-staging opportunities, not proof that vanilla cooking is blocked:
+native cooks can collect ingredients themselves. Bottleneck assessment must use
+that distinction in task 3.3.
+
+Rules 7–9: canonical observations still own access and physiological facts; pure
+binding owns permission and existing journal/execution identities own cleanup.
+No new fact, scheduler, prediction or durable state is added. Complexity: added
+missing-evidence binding regressions / removed timed service-deferral and
+own-meal handback bypasses / orphans left: none.
+
+Verification: required gate PASS (40s), 4,254 domain tests and 30 workflow tests,
+native production/fixture builds, contract probes and no contract orphans. Strict
+OpenSpec validation passes 5/5 and diff checks pass. The test-count reduction
+removes obsolete primitive timed-service expectations; the unbound partial-start
+check remains in `NativeExecutionBindingTests`. Confirmed food text is unchanged;
+overall progress remains 13/24.
+
 ## Native food stock and recovery assessment
 
 `NativeFoodAssessment` shares the food owner's current usable runway, seasonal
@@ -553,7 +598,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
 | --- | --- | --- | --- |
 | `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; formation hunting, intervention and native usable-output evidence remain |
-| `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Partial: fresh routine services and boundary continuation stay native; unresolved access and justified exceptions remain |
+| `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Ordinary binding and continuation stay native regardless of missing access; general justified exception admission remains in tasks 4.1–4.2 |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
 | `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion and roofing stay conditional and install no pawn orders; previous commitments hand back at boundaries; removal safety, clearance hauling and general intervention audit remain |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |

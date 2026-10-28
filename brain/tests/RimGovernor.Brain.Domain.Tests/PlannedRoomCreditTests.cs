@@ -557,27 +557,6 @@ public sealed class PlannedRoomCreditTests
         Assert.Equal(state == "sunlit", baseline.Findings.Any(f => f.Reason == "deathrest_sunlight_lightning_not_modelled"));
     }
 
-    /// <summary>
-    /// #3882: whether the outcome wakes a pawn asleep now is the binding's (CoordinatedActivityBinding.OrderedAtStart, #3884). A
-    /// sleep it departs for at once is an order now, which wakes the pawn at tick 0 (its mood, which freezes while asleep, moves
-    /// from there); one departing more than DistantServiceTicks ahead is left to vanilla, so the observed lie-down goes on (0.2
-    /// rest gaining 0.00002 a tick, below the wake threshold) and the mood holds until it leaves.
-    /// </summary>
-    [Fact]
-    public void AnOrderWakesASleeperAndADistantSleepLeavesItAsleep()
-    {
-        var (facts, outcomes) = SleeperRests();
-        var context = facts.CoupledAlternatives!.Context;
-        bool Ordered(ForecastCoupledOutcome o) => RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(
-            ["selected"], o.Plan.Allocations, context.Bindings, context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal)).Contains("pawn");
-        var woken = outcomes.First(Ordered).Needs["pawn"].Mood!;
-        Assert.False(woken.Projected().Response!.Targets[0].Frozen);
-        var distant = outcomes.First(o => !Ordered(o));
-        var asleep = distant.Needs["pawn"].Mood!;
-        asleep.Assessed();
-        Assert.True(asleep.Projected().Response!.Targets[0].Frozen);
-    }
-
     /// <summary>The builder asleep in its bed gaining 0.00002 rest a tick, its bed thoughts given, and the forecast outcomes of each
     /// rest alone, as its own exclusive alternative.</summary>
     private static (ReviewFacts Facts, ForecastCoupledOutcome[] Outcomes) SleeperRests()

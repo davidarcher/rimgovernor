@@ -83,7 +83,8 @@ public sealed class SharedStackRemainderTests
     }
     private static string Open() => Path.Combine(Path.GetTempPath(), "rg-shared-stack-" + Guid.NewGuid().ToString("N") + ".db");
 
-    /// <summary>Installs the first Method, observes its first bite completed and continues to the owed later bite.</summary>
+    /// <summary>Stages historical exact intents to test journal quantity ownership and predecessor receipts.
+    /// This does not ask current policy to authorize a routine eating continuation.</summary>
     private static (PlanSpec First, PlanSpec Second, PawnActivities Batch, PawnActivities Next, ReviewState Review) Install(Journal journal, CancellationToken ct, Receipt continuation = Receipt.Accepted)
     {
         IntentActionRules.RegisterIntentKinds();
@@ -95,7 +96,14 @@ public sealed class SharedStackRemainderTests
         Send(journal, first, 100, ct);
         // The owed count is the two tasks' units, counted once across the task row and its order.
         Assert.Equal(16, Owed(journal.WorkResources(Root, ct)));
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Observe(batch, "completed", 200))!;
+        var firstOrder = Assert.Single(batch.Orders);
+        var next = batch with
+        {
+            Tasks = [batch.Tasks[1]],
+            Orders = [firstOrder with { ExpectedRevision = 1, Revision = 2, Preparing = true, Task = "eat-later",
+                Steps = [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 20000) { NotBefore = 700 }.At(new(2, 2)),
+                    new(PawnActivityKind.Hold, "", "", "", 0, 20000)] }],
+        };
         var order = Assert.Single(next.Orders);
         Assert.True(order.Preparing);
         Assert.Equal("eat-later", Assert.Single(next.Tasks).Id);
@@ -171,7 +179,7 @@ public sealed class SharedStackRemainderTests
     }
 
     [Fact]
-    public void ServiceBindsOnlyTheOwedCountAndAShrunkSplitMergedOrMovedStackReleases()
+    public void HistoricalServiceReturnsToNativeWithoutRebindingAnOwnedStack()
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Open(), ct);
@@ -179,10 +187,9 @@ public sealed class SharedStackRemainderTests
         var later = Assert.Single(next.Tasks);
         var bound = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Observe(next, "holding", later.DepartTick, new ActivityTaskBinding.Bound(later.Id, Eat(15))))!;
         var order = Assert.Single(bound.Orders);
-        Assert.False(order.Release);
-        Assert.Equal(Eat(15), Assert.Single(order.Steps));
-        // Native binds an Eat only to the observed lot holding at least the owed count: a stack that shrank below it, or
-        // that was split, merged or moved into another thing, yields no binding; a short binding is malformed. Both release.
+        Assert.True(order.Release);
+        Assert.Empty(order.Steps);
+        // A missing or malformed stack binding cannot turn this cleanup into another eating order.
         Assert.True(Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Observe(next, "holding", later.DepartTick))!.Orders).Release);
         Assert.True(Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed,
             Observe(next, "holding", later.DepartTick, new ActivityTaskBinding.Bound(later.Id, Eat(14))))!.Orders).Release);

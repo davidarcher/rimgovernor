@@ -31,25 +31,15 @@ internal static class NativeNeedServices
         return NativeNeedService.NoObservedService;
     }
 
-    /// <summary>Current native self-service is a dispatch boundary even inside productive portfolios.
-    /// A missing captured rest/recreation object does not establish a native failure.</summary>
+    /// <summary>Ordinary self-service is a dispatch boundary even when current access is blocked or unread.
+    /// A what-if binding has no intervention authority, regardless of its forecasted benefit.</summary>
     internal static bool RoutineTask(string activity, string pawn, ForecastCoupledContext context)
     {
-        if (!context.Bindings.TryGetValue((activity, pawn), out var task)
-            || task.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)) return false;
-        var kind = task.Kind == PawnActivityKind.Eat ? "food" : task.Kind == PawnActivityKind.Sleep ? "rest" : "joy";
-        if (!context.NeedTasks.Any(n => n.Task == activity && n.Pawn == pawn && n.Kind == kind)) return false;
-        return Routine(context.Needs, pawn, task.Kind);
+        return context.Bindings.TryGetValue((activity, pawn), out var task) && Routine(task.Kind);
     }
 
-    internal static bool Routine(NeedsForecastRead read, string pawn, PawnActivityKind activity)
-    {
-        if (activity is not (PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)) return false;
-        var kind = activity == PawnActivityKind.Eat ? "food" : activity == PawnActivityKind.Sleep ? "rest" : "joy";
-        var response = Observe(read, pawn, kind);
-        return response is NativeNeedService.Available or NativeNeedService.InProgress
-            || response == NativeNeedService.NoObservedService && kind is "rest" or "joy";
-    }
+    internal static bool Routine(PawnActivityKind activity) =>
+        activity is PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation;
 
     /// <summary>A pure native-service portfolio supplies no independent intervention premise.</summary>
     internal static bool RoutineOnly(ForecastActivityPlan plan, ForecastCoupledContext context) =>

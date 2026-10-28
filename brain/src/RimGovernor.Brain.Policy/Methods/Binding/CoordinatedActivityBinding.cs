@@ -70,33 +70,14 @@ internal static class CoordinatedActivityBinding
     /// selected (retaining observed baseline work requires no new orders) or when a placed allocation has no binding
     /// (<see cref="Unbound"/>); a planned
     /// site's work has no action template, so it orders no one (#3278). Otherwise <see cref="Start"/> orders each pawn with a
-    /// placed task its first, by departure then id. A pawn is left out, like any unselected pawn, when that first task is
-    /// a distant service: an installed Method is protected from reselection, so holding a pawn for a service far ahead would
-    /// freeze the colony until the hold ends (#3047). It runs vanilla work (#3669) and a later review starts the service once it is due. Such a service is one the pawn
-    /// prepares for (a prerequisite, or a later departure) that it leaves for (<see cref="Leave"/>) more than
-    /// DistantServiceTicks ahead, every prerequisite another pawn's task, with no other pawn's task waiting on one of its own. So
-    /// is a meal waiting only on other pawns' work (#3167): holding the eater until the cook's last meal froze it for most of a
-    /// day; left out, it eats from what the work has stocked by then.
+    /// placed task its first, by departure then id. Both production callers supply the ordinary-service-filtered dispatch
+    /// plan, so no timed meal/sleep/recreation hold is installed here.
     /// </summary>
     internal static IReadOnlySet<string> OrderedAtStart(IReadOnlyCollection<string> selected, IReadOnlyList<ForecastActivityAllocation> allocations,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, IReadOnlySet<string> unplaced)
     {
         if (selected.Count == 0 || Unbound(selected, allocations, bindings, unplaced) is not null) return new HashSet<string>();
-        var placed = new List<(ForecastActivityAllocation Allocation, ActivityTaskCandidate Task)>();
-        foreach (var a in allocations)
-            if (!unplaced.Contains(a.Activity)) placed.Add((a, bindings[(a.Activity, a.Pawn)]));
-        var ordered = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var own in placed.GroupBy(t => t.Task.Pawn, StringComparer.Ordinal))
-        {
-            var (first, task) = own.OrderBy(t => Math.Ceiling(t.Allocation.Depart)).ThenBy(t => t.Task.Id, StringComparer.Ordinal).First();
-            var distant = (task.Prerequisites.Count != 0 || Math.Ceiling(first.Depart) > 0)
-                && task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation or PawnActivityKind.Eat
-                && Leave(first, allocations) > DistantServiceTicks
-                && task.Prerequisites.All(p => placed.Any(t => t.Task.Id == p && t.Task.Pawn != own.Key))
-                && !placed.Any(t => t.Task.Pawn != own.Key && t.Task.Prerequisites.Any(p => own.Any(r => r.Task.Id == p)));
-            if (!distant) ordered.Add(own.Key);
-        }
-        return ordered;
+        return allocations.Where(a => !unplaced.Contains(a.Activity)).Select(a => a.Pawn).ToHashSet(StringComparer.Ordinal);
     }
 
     /// <summary>The placed allocation of a selection that has no binding (#3889), by which the binding starts none of it: null when
@@ -110,16 +91,6 @@ internal static class CoordinatedActivityBinding
             if (!unplaced.Contains(a.Activity) && !bindings.ContainsKey((a.Activity, a.Pawn))) return a;
         return null;
     }
-
-    /// <summary>The tick, from now, a schedule has a pawn leave for <paramref name="a"/>: its departure, or later when the
-    /// scheduler departs it at once to wait at the site, the activity's planned start less its travel.</summary>
-    private static double Leave(ForecastActivityAllocation a, IReadOnlyList<ForecastActivityAllocation> allocations)
-    {
-        var start = double.PositiveInfinity;
-        foreach (var row in allocations) if (row.Activity == a.Activity) start = Math.Min(start, row.Start - row.TravelTicks);
-        return Math.Max(Math.Ceiling(a.Depart), Math.Floor(start));
-    }
-    private const long DistantServiceTicks = 600;
 
     /// <summary>The orders of a schedule <see cref="OrderedAtStart"/> orders someone of, so every placed allocation is bound: each
     /// pawn is ordered its first task, by departure then id.</summary>
@@ -224,7 +195,7 @@ internal static class CoordinatedActivityBinding
             if (batch.Tasks.Any(t => t.Pawn == order.Pawn && t.Step.Kind == PawnActivityKind.Recipe) || next.ProductStuff.Length > 0
                 || next.Step.Kind == PawnActivityKind.Supply || next.SupportDemand.Length > 0
                 || next.Step.Kind == PawnActivityKind.Work && next.Step.Job is "FinishFrame" or "BuildRoof"
-                || NativeNeedServices.Routine(read.Needs, order.Pawn, next.Step.Kind))
+                || NativeNeedServices.Routine(next.Step.Kind))
                 return remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p)))
                     ? new(null, true)
                     : new(Release(batch, new HashSet<string>(StringComparer.Ordinal) { order.Pawn }), false);
@@ -232,16 +203,9 @@ internal static class CoordinatedActivityBinding
             if (!startWork) { orders.Add(order); continue; }
             // A task in flight is never interrupted; at this boundary (a task just ended, or the pawn is waiting to depart) a participant already at or below a rest or food
             // threshold is not handed more work. Its order is released and the next review compares the need service
-            // against the remaining work. Tasks others wait on stay, so no participant is stranded. A next task that is
-            // itself an unresolved exact service keeps the existing checks; ordinary native response was handled above.
-            // So is a task that leads to the pawn's own remaining service, such as harvesting the rice it then eats (#3598).
-            // As at the start (OrderedAtStart, #3047), a participant at a boundary is not held for a next service departing
-            // far ahead, owned and unreviewable: a pawn that woke early (#3598), finished its work or waits on other pawns' work,
-            // such as an eater held for the cook's last meal for most of a day (#3167), is released to vanilla work (#3669), and a later review
-            // starts the service once it is due (#3649).
-            var distant = IsService(next) && next.DepartTick - tick > DistantServiceTicks
-                && next.Prerequisites.All(p => remaining.Any(t => t.Id == p && t.Pawn != order.Pawn));
-            if ((distant || !IsService(next) && !FeedsOwnService(remaining, next) && NeedsService(read, order.Pawn))
+            // against the remaining work. Tasks others wait on stay, so no participant is stranded.
+            // A hypothetical later meal does not exempt its earlier work from native needs handback.
+            if (NeedsService(read, order.Pawn)
                 && !remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p))))
             {
                 if (order.Revision == long.MaxValue) return new(null, false);
@@ -299,24 +263,6 @@ internal static class CoordinatedActivityBinding
         };
     }
 
-    private static bool IsService(SelectedActivityTask task) =>
-        task.Step.Kind is PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation;
-
-    /// <summary>Whether a remaining service task of the same pawn depends on <paramref name="task"/>, directly or through
-    /// the pawn's other remaining tasks.</summary>
-    private static bool FeedsOwnService(List<SelectedActivityTask> remaining, SelectedActivityTask task)
-    {
-        var own = remaining.Where(t => t.Pawn == task.Pawn).ToDictionary(t => t.Id, StringComparer.Ordinal);
-        var pending = new Stack<string>(own.Values.Where(IsService).SelectMany(t => t.Prerequisites));
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        while (pending.TryPop(out var id))
-        {
-            if (id == task.Id) return true;
-            if (seen.Add(id) && own.TryGetValue(id, out var prerequisite)) foreach (var p in prerequisite.Prerequisites) pending.Push(p);
-        }
-        return false;
-    }
-
     private static bool NeedsService(ActivityTaskRead read, string pawn) =>
         read.Needs.Pawns.FirstOrDefault(p => p.Pawn == pawn) is { } observed
         && observed.Needs.Any(n => n.Kind is "rest" or "food" && n.Level <= n.Threshold);
@@ -335,9 +281,7 @@ internal static class CoordinatedActivityBinding
         && (!task.Step.IsSet || bound.IsSet && bound.Count == bound.Targets.Count + bound.Cells.Count
             && bound.Targets.All(task.Step.Targets.Contains) && bound.Cells.All(task.Step.Cells.Contains))
         && bound.Practice == task.Step.Practice && bound.Medicine == task.Step.Medicine && bound.SupportDemand == task.Step.SupportDemand
-        && (bound.Kind is not (PawnActivityKind.Recipe or PawnActivityKind.Sleep or PawnActivityKind.Recreation)
-            || bound.Target == task.Step.Target)
-        && (bound.Kind != PawnActivityKind.Eat || bound.Count == task.Step.Count)
+        && (bound.Kind != PawnActivityKind.Recipe || bound.Target == task.Step.Target)
         && bound.Job == task.Step.Job && (bound.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply)
             || bound.Count > 0 && bound.Count <= task.Step.Count)
         && bound.FullLoad == task.Step.FullLoad && bound.Collect.All(task.Step.Collect.Contains)

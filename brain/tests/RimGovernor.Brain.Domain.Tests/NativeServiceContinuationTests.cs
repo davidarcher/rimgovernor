@@ -153,10 +153,11 @@ public sealed class NativeServiceContinuationTests
     }
 
     [Fact]
-    public void UnobservedAccessCannotBeReclassifiedAsUsefulNativeFoodService()
+    public void UnobservedAccessDoesNotAuthorizeHoldingOrStartingAnExactFoodService()
     {
         var (batch, read) = AtBoundary("food", true, target: false);
-        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read));
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read)!.Orders[0].Release);
+        // Without an execution census the cleanup itself still cannot claim ownership.
         Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read with { Pawns = [] }));
     }
 
@@ -182,8 +183,8 @@ public sealed class NativeServiceContinuationTests
         Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read)!.Orders[0].Release);
         var service = batch.Tasks.Single(t => t.Id == "service") with { DepartTick = 100 };
         batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == service.Id ? service : t)) };
-        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted,
-            read with { Needs = NeedsFixtures.Read(300) }));
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted,
+            read with { Needs = NeedsFixtures.Read(300) })!.Orders[0].Release);
     }
 
     [Fact]

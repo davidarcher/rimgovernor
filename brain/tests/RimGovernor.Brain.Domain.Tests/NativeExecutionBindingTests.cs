@@ -73,6 +73,49 @@ public sealed class NativeExecutionBindingTests
         new(task, pawn, start, start, start, end, 0, end - start, end - start, 0);
 
     [Fact]
+    public void AnUnboundPlacedAllocationStillPreventsPartialStart()
+    {
+        var rows = new[] { Allocation("bound", "pawn", 0, 10), Allocation("unbound", "helper", 0, 10) };
+        var bindings = new Dictionary<(string, string), ActivityTaskCandidate>
+        {
+            [("bound", "pawn")] = new("bound", "pawn", [], PawnActivityKind.Work, "site", "Build", "FinishFrame", 0, 1000, new(0, 0)),
+        };
+        Assert.Empty(CoordinatedActivityBinding.OrderedAtStart(["selected"], rows, bindings, new HashSet<string>()));
+    }
+
+    [Theory]
+    [InlineData(PawnActivityKind.Eat)]
+    [InlineData(PawnActivityKind.Sleep)]
+    [InlineData(PawnActivityKind.Recreation)]
+    public void MissingOrBlockedServiceEvidenceCannotGrantExactControl(PawnActivityKind kind)
+    {
+        var pawn = ForecastValueTests.Pawn() with { Targets = [], SleepBlocked = true };
+        var rows = new[] { Allocation("service", "pawn", 0, 10), Allocation("after", "pawn", 10, 20),
+            Allocation("independent", "helper", 0, 10) };
+        var bindings = new Dictionary<(string, string), ActivityTaskCandidate>
+        {
+            [("service", "pawn")] = new("service", "pawn", [], kind, "hypothetical-target", "", "", 1, 1000, new(0, 0)),
+            [("after", "pawn")] = new("after", "pawn", ["service"], PawnActivityKind.Work, "site", "Build", "FinishFrame", 0, 1000, new(0, 0)),
+            [("independent", "helper")] = new("independent", "helper", [], PawnActivityKind.Work, "site", "Build", "FinishFrame", 0, 1000, new(0, 0)),
+        };
+        var context = ForecastValueTests.Context(pawn) with
+        {
+            Activities = new() { Deadline = 100, Activities = [new("service", "start", "start", []),
+                new("after", "start", "start", ["service"]), new("independent", "start", "start", [])] },
+            Bindings = bindings, NeedTasks = [],
+        };
+        foreach (var needs in new[] { NeedsFixtures.Read(100, pawn), NeedsFixtures.Read(100, pawn with { State = "downed" }), NeedsFixtures.Read(100) })
+        {
+            var observed = context with { Needs = needs };
+            Assert.True(NativeNeedServices.RoutineOnly(new([rows[0]], 10, 0), observed));
+            var batch = Assert.IsType<PawnActivities>(CoordinatedActivityBinding.StartSelected(
+                new(["mixed"], new(rows, 20, 0), [], 0, false), bindings, 1, "no-invented-authority", 100, observed));
+            Assert.Equal("helper", Assert.Single(batch.Orders).Pawn);
+            Assert.Equal("independent", Assert.Single(batch.Tasks).Id);
+        }
+    }
+
+    [Fact]
     public void MixedBindingStopsAtNativeWorkAndDropsDependentWorkWithoutHoldingOtherPawns()
     {
         var tasks = new ForecastActivity[] { new("before", "start", "start", []),

@@ -33,15 +33,18 @@ that current legality. Conversely, no captured target does not predict future
 food production, ingestion, ground rest or spontaneous recreation. Neither access nor a running
 service proves future intake or recovery.
 
-A portfolio consisting solely of ordinary food/rest/recreation services with
-current native response is rejected by shared comparison with
+A portfolio consisting solely of ordinary food/rest/recreation services
+is rejected by shared comparison with
 `native_service_response_without_intervention_premise`. Shared binding also
 removes those service allocations inside productive portfolios. It stops the
 participant's later work and transitive dependents at that native boundary,
 preserving independent work. If service is already in progress, that boundary
 is now; a later what-if allocation cannot authorize earlier work that interrupts
 it. Eligible rest/recreation need no captured target to remain native. Exact
-service scenarios remain conditional what-if evidence, and the same dispatch
+service scenarios remain conditional what-if evidence. Missing access, an
+ineligible pawn or missing need-task metadata grants no exact-service authority;
+the binding recognizes the service kind independently of that evidence. Known
+blockers still inform assessment and provisioning. The same dispatch
 projection governs interruption accounting and the work-assignment Need. This
 does not complete the general native execution baseline: productive callers,
 reserve/recovery comparisons and general intervention materiality remain in the
