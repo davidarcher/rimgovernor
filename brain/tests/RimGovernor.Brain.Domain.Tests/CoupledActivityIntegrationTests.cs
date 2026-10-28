@@ -24,8 +24,10 @@ public sealed class CoupledActivityIntegrationTests
             { Food = observed.Food with { Options = [observed.Food.Options[0] with { Destination = new(2, 1) }] },
                 FoodUses = EquatableArray.From(observed.FoodUses.Select(u => u with { Location = new(2, 1) })) } } };
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)?.Priced() };
-        var findings = Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings());
-        var selection = Assert.IsType<ForecastCoupledSelection>(findings.CoupledSelection);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!,
+            basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.NotEmpty(selection.Selection.Selected);
         Assert.True(selection.SelectedVector.Urgent[0].Number() < selection.BaselineVector.Urgent[0].Number());
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-observed", 100));
@@ -93,8 +95,10 @@ public sealed class CoupledActivityIntegrationTests
         Assert.Contains("pawn", facts.WorkView!.Claims.Pawns);
         Assert.Contains("plant-a", facts.WorkView.Claims.Targets);
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)?.Priced() };
-        var inspected = Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings());
-        var choice = Assert.IsType<ForecastCoupledSelection>(inspected.CoupledSelection);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var choice = ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!,
+            basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100));
         var next = CoordinatedActivityBinding.Start(choice.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings,
             1, "coupled-independent", 100);

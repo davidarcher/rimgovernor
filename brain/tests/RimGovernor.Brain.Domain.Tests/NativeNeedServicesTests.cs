@@ -7,7 +7,30 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class NativeNeedServicesTests
 {
+    [Fact]
+    public void ConditionalFoodComparisonRetainsItsMechanicsButCannotBecomeExecutionAuthority()
+    {
+        var facts = ForecastCoupledSelectionTests.Review();
+        var candidates = facts.CoupledAlternatives!;
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var native = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        var conditional = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates,
+            basis: ForecastComparisonBasis.ConditionalScenario);
+        Assert.Equal(ForecastComparisonBasis.NativeOperation, native.Basis);
+        Assert.False(native.BaselineVector.Value.UrgentZero.Assessed);
+        Assert.Equal(ForecastComparisonBasis.ConditionalScenario, conditional.Basis);
+        Assert.NotEmpty(conditional.Selection.Selected);
+        Assert.True(conditional.SelectedVector.Urgent[0].Number() < conditional.BaselineVector.Urgent[0].Number());
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(conditional, candidates, 1, "conditional", 100));
+        var execution = ForecastCoupledExecution.ReviewCoupledExecution(conditional, [], 100, candidates: candidates);
+        Assert.Null(execution.Dispatch);
+        Assert.Empty(execution.Releases);
+        Assert.Empty(ForecastCoupledSelection.SelectedProductionBills(conditional, candidates));
+    }
+
     [Theory]
+    [InlineData("food")]
     [InlineData("rest")]
     [InlineData("joy")]
     public void UncapturedNativeServiceDoesNotProveFutureDeprivation(string kind)
@@ -31,6 +54,9 @@ public sealed class NativeNeedServicesTests
         Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + pawn.Pawn + ":" + kind, selection.Selection.Findings);
         Assert.Empty(selection.Selection.Selected);
         Assert.IsType<ForecastTerm.Unassessed>(selection.BaselineVector.BreakRisk);
+        Assert.Empty(candidates.Context.Needs.Pawns[0].Targets);
+        Assert.Equal(.2, Assert.Single(candidates.Context.Needs.Pawns[0].Needs).Level);
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "unobserved-response", 100));
     }
 
     [Fact]

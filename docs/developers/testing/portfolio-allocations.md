@@ -13,6 +13,13 @@ the default budget, scheduler bound, roots, options and unknowns are unchanged. 
 sections before it record the plain-cardinality measurements as history. This is
 pure-policy allocation/choice evidence; it makes no native gameplay or completion claim.
 
+The optimizer's food-service reference graphs are conditional scenarios. Their
+lazy/pruned comparisons explicitly select `ConditionalScenario`; deprivation
+without the modeled meals is part of that stated what-if. These measurements
+qualify the shared search implementation, not native eating/production behavior
+or permission to issue orders. Native-operation uncertainty and execution
+authorization have separate policy regressions.
+
 ## Reproduce
 
 From the worktree root in PowerShell:

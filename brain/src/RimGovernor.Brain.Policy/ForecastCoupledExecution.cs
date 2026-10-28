@@ -18,6 +18,7 @@ public sealed partial record ForecastCoupledExecution
         EquatableArray<ForecastObservedIncumbent> incumbents, long tick, IReadOnlyList<ForecastActivity>? activities = null,
         ForecastCoupledCandidates? candidates = null)
     {
+        if (selection.Basis == ForecastComparisonBasis.ConditionalScenario) return new([], null);
         if (incumbents.Count == 0) return new([], selection);
         var retained = selection.Selection.Selected.ToHashSet(StringComparer.Ordinal);
         var releases = new List<ForecastIncumbentRelease>();

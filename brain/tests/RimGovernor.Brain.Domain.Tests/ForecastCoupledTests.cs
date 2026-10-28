@@ -179,6 +179,8 @@ public sealed class ForecastCoupledTests
             {
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
+                    // Construction-only comparisons have no incidental forage opportunity.
+                    Food = CoupledFixtures.NoFood, FoodSources = [], FoodUses = [],
                     Construction = ConstructionFixtures.NoConstruction() with
                     {
                         Context = Context,

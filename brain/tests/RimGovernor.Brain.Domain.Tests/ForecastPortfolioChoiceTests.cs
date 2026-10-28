@@ -19,7 +19,7 @@ public sealed class ForecastPortfolioChoiceTests
         var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 150d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated, basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.True(selected.Selected.Feasible);
         Assert.NotEmpty(selected.Selection.Selected);
         // The hungry pawn's food reaches zero without the portfolio: it loses fewer capability-days with it.
@@ -127,7 +127,7 @@ public sealed class ForecastPortfolioChoiceTests
         generated = generated with { Alternatives = EquatableArray.From(roots) };
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []) with { Coupled = generated.Context };
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated, basis: ForecastComparisonBasis.ConditionalScenario);
         // The oracle ranks every subset's schedules by the comparator's two leading levels: the zero-time floor, then capability-days.
         ForecastValueExplanation? best = null;
         var horizon = 300d;

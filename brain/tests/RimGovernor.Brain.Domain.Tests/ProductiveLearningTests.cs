@@ -99,7 +99,7 @@ public sealed class ProductiveLearningTests
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!;
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 700d / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated },  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, generated, basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, generated, 1, "cooking", 100));
         // Detailed learning remains a what-if estimate; it does not nominate the native cook.
         var batch = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(

@@ -18,13 +18,17 @@ public sealed record ForecastConsequenceVector(EquatableArray<ForecastTerm> Urge
     public ForecastSupportConsequences Support { get; init; } = new();
 }
 
+public enum ForecastComparisonBasis { NativeOperation, ConditionalScenario }
+
 public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeComparison Selection,
     ForecastCoupledOutcome Baseline, ForecastCoupledOutcome Selected,
     ForecastConsequenceVector BaselineVector, ForecastConsequenceVector SelectedVector,
     EquatableArray<ForecastPortfolioEvidence> Rejected, double Horizon, bool GenerationTruncated)
 {
+    /// <summary>Conditional investment evidence cannot authorize execution or incumbent replacement.</summary>
+    public ForecastComparisonBasis Basis { get; init; } = ForecastComparisonBasis.NativeOperation;
     // Baseline and Selected retain conditional activity scenarios for investment mechanics and inspection.
-    // Their comparison vectors additionally withhold deprivation attributed only to omitted observed native response.
+    // Native-operation vectors withhold unsupported future response; conditional vectors price their stated scenario.
     public int CompositionExpansions { get; init; }
     public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
     /// <summary>The eligible colonists the selection left unassigned while their needs stand above every threshold: they run vanilla work
@@ -212,36 +216,41 @@ public sealed partial record ForecastCoupledSelection
     /// and vanilla work is the fallback only when nothing startable is worth selecting (#3669). Both comparisons spend one
     /// <paramref name="budget"/> (#3722; <see cref="ForecastSearchBudget.Default"/> when null) through one ledger.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null, Func<double>? clockMs = null)
-        => CompareActivityOutcomes(request, candidates, budget, warmStart, clockMs, eager: false, prune: true);
+        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null, Func<double>? clockMs = null,
+        ForecastComparisonBasis basis = ForecastComparisonBasis.NativeOperation)
+        => CompareActivityOutcomes(request, candidates, budget, warmStart, clockMs, eager: false, prune: true, basis);
 
-    /// <summary>The test control of lazy evaluation (#3723): <see cref="CompareActivityOutcomes(ColonyForecastRequest, ForecastCoupledCandidates, ForecastSearchBudget?, IReadOnlyList{string}?, Func{double}?)"/>
+    /// <summary>The test control of lazy evaluation (#3723): <see cref="CompareActivityOutcomes"/>
     /// with every evaluated outcome's ledger priced as soon as the outcome is, so a paired test can prove the lazy search returns the same
     /// selection and evidence. Production always runs lazily.</summary>
     internal static ForecastCoupledSelection CompareActivityOutcomesEagerly(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null)
-        => CompareActivityOutcomes(request, candidates, budget, warmStart, null, eager: true, prune: true);
+        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null,
+        ForecastComparisonBasis basis = ForecastComparisonBasis.NativeOperation)
+        => CompareActivityOutcomes(request, candidates, budget, warmStart, null, eager: true, prune: true, basis);
 
     /// <summary>The test control of pruning (#3724): the same search with every subset scheduled and evaluated, no bound applied, so a
     /// paired test can prove the pruned search selects what the exhaustive one selects while scheduling less. Production always prunes.</summary>
     internal static ForecastCoupledSelection CompareActivityOutcomesUnpruned(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null)
-        => CompareActivityOutcomes(request, candidates, budget, warmStart, null, eager: false, prune: false);
+        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null,
+        ForecastComparisonBasis basis = ForecastComparisonBasis.NativeOperation)
+        => CompareActivityOutcomes(request, candidates, budget, warmStart, null, eager: false, prune: false, basis);
 
     private static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager, bool prune)
+        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager, bool prune,
+        ForecastComparisonBasis basis)
     {
         budget ??= ForecastSearchBudget.Default;
         if (budget.Evaluations < 0 || budget.Traversal < 0) throw new DomainException("negative portfolio budget");
         var ledger = new ForecastSearchLedger(budget);
-        var selection = CompareOnce(request, candidates, ledger, warmStart, clockMs, eager, prune);
+        DomainException.Require(basis is ForecastComparisonBasis.NativeOperation or ForecastComparisonBasis.ConditionalScenario, "forecast comparison basis");
+        var selection = CompareOnce(request, candidates, ledger, warmStart, clockMs, eager, prune, basis);
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var allocations = selection.Selected.Plan.Allocations;
         if (unplaced.Count == 0 || allocations.Length == 0 || !allocations.All(a => unplaced.Contains(a.Activity))) return selection;
         var reaching = ReachingActivities(candidates.Context.Activities.Activities, unplaced);
         var placed = candidates with { Alternatives = EquatableArray.From(candidates.Alternatives.Where(c => !c.ActivityCompletions.Any(reaching.Contains))) };
         if (placed.Alternatives.Count == candidates.Alternatives.Count) return selection;
-        var orders = CompareOnce(request, placed, ledger, warmStart: null, clockMs, eager, prune);
+        var orders = CompareOnce(request, placed, ledger, warmStart: null, clockMs, eager, prune, basis);
         var findings = new SortedSet<string>(selection.Selection.Findings, StringComparer.Ordinal) { PlannedUnplacedReselected };
         findings.UnionWith(orders.Selection.Findings);
         return selection with
@@ -283,7 +292,8 @@ public sealed partial record ForecastCoupledSelection
     }
 
     private static ForecastCoupledSelection CompareOnce(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, ForecastSearchLedger ledger, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager, bool prune)
+        ForecastCoupledCandidates candidates, ForecastSearchLedger ledger, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager, bool prune,
+        ForecastComparisonBasis basis)
     {
         // The in-game cost of the comparator: the review runs its planners in parallel, so only this span times it.
         using var span = Spans.StartActivity("coupled.select");
@@ -315,7 +325,7 @@ public sealed partial record ForecastCoupledSelection
         StagedConsequences Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
         {
             var staged = StagedConsequences.Of(outcome, commitments, candidates.Context, horizonTicks, reference, referenceHarm,
-                NativeExecutionOutcome(outcome, candidates.Context, nativeBounds));
+                basis == ForecastComparisonBasis.ConditionalScenario ? outcome : NativeExecutionOutcome(outcome, candidates.Context, nativeBounds));
             if (eager) _ = staged.Vector;
             return staged;
         }
@@ -553,7 +563,7 @@ public sealed partial record ForecastCoupledSelection
         Summarize(fixedClosure, fixedServed, ref fixedRest, ref fixedConstruction);
         var servedScratch = new ulong[pawnWords];
         // Each pawn's zero time in the baseline, the larger of food and rest; the bound is unavailable while any is unknown.
-        var nativeBaseline = NativeExecutionOutcome(baseline, candidates.Context, nativeBounds);
+        var nativeBaseline = basis == ForecastComparisonBasis.ConditionalScenario ? baseline : NativeExecutionOutcome(baseline, candidates.Context, nativeBounds);
         var baselineZero = new double[pawnRows.Count]; var baselineZeroKnown = pawnRows.Count > 0;
         for (var p = 0; p < pawnRows.Count && baselineZeroKnown; p++)
         {
@@ -869,7 +879,7 @@ public sealed partial record ForecastCoupledSelection
             if (!goalRoutes.TryGetValue(goal, out var route) || !route.Open) findings.Add(GoalRouteUnassessedPrefix + goal);
         // Keep service counterfactuals during search: they may expose a useful complementary investment.
         // A service-only winner, however, supplies no independent reason to take over native execution.
-        if (!bestIsBaseline && NativeNeedServices.RoutineOnly(best.Plan, candidates.Context))
+        if (basis == ForecastComparisonBasis.NativeOperation && !bestIsBaseline && NativeNeedServices.RoutineOnly(best.Plan, candidates.Context))
         {
             evidence.Add(new(EquatableArray.From(selected), bestVector.Vector, NativeNeedServices.RoutineResponse));
             best = baseline;
@@ -896,7 +906,7 @@ public sealed partial record ForecastCoupledSelection
         span?.SetTag("rimgovernor.truncated", truncated);
         return new(new(selected, best.Plan, findings.ToArray(), ledger.Expansions, truncated), baseline, best,
             baselineVector.Vector, selectedVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
-        { CompositionExpansions = candidates.CompositionExpansions,
+        { Basis = basis, CompositionExpansions = candidates.CompositionExpansions,
             ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
             Deferred = deferred,
             SearchPhases = EquatableArray.From(phases), SelectedPhase = selectedPhase, WarmStart = warmStartState,
@@ -964,7 +974,7 @@ public sealed partial record ForecastCoupledSelection
         => ConsequenceTerms(outcome);
 
     public static EquatableArray<ProductionBill> SelectedProductionBills(ForecastCoupledSelection selection, ForecastCoupledCandidates candidates) =>
-        NativeProductionBinding.Selected(selection.Selection, candidates.Context);
+        selection.Basis == ForecastComparisonBasis.ConditionalScenario ? [] : NativeProductionBinding.Selected(selection.Selection, candidates.Context);
 
     /// <summary>The existing no-service calculation is a deprivation bound, never a native job prediction.
     /// Compute it once per comparison so selecting a hypothetical service cannot manufacture a safer native baseline.</summary>
@@ -974,7 +984,7 @@ public sealed partial record ForecastCoupledSelection
             .ToDictionary(n => (n.Pawn, n.Metric.Kind), n => n.Metric);
 
     /// <summary>Native response defeats a no-service assumption; its timing remains unprojected.
-    /// Ground rest and spontaneous recreation need no captured target. Exact scenarios remain conditional investment evidence; productive/dependent
+    /// A missing current target does not predict future production or recovery. Exact scenarios remain conditional investment evidence; productive/dependent
     /// execution still require the general native-baseline migration.</summary>
     internal static ForecastCoupledOutcome NativeExecutionOutcome(ForecastCoupledOutcome conditional, ForecastCoupledContext context,
         IReadOnlyDictionary<(string Pawn, string Kind), ForecastNeedMetric> unserved)
@@ -988,8 +998,7 @@ public sealed partial record ForecastCoupledSelection
             {
                 var response = NativeNeedServices.Observe(context.Needs, pawn, metric.Kind);
                 if (metric.Kind is not ("food" or "rest" or "joy")
-                    || !(response is NativeNeedService.Available or NativeNeedService.InProgress
-                        || response == NativeNeedService.NoObservedService && metric.Kind is "rest" or "joy")) return metric;
+                    || response is not (NativeNeedService.Available or NativeNeedService.InProgress or NativeNeedService.NoObservedService)) return metric;
                 var bound = unserved.TryGetValue((pawn, metric.Kind), out var found) ? found
                     : throw new RequiredFactException("native need bound:" + pawn + ":" + metric.Kind);
                 // The same no-service upper bound applies to every portfolio. A selected ordinary
@@ -1234,6 +1243,7 @@ public sealed partial record ForecastCoupledSelection
     public static PawnActivities? StartCoupledActivity(ForecastCoupledSelection selection,
         ForecastCoupledCandidates candidates, ulong authority, string method, long tick)
     {
+        if (selection.Basis == ForecastComparisonBasis.ConditionalScenario) return null;
         if (selection.Selection.Selected.Any(id => candidates.Incumbents.Any(c => c.Id == id)))
             throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
         return Methods.Binding.CoordinatedActivityBinding.StartSelected(selection.Selection,

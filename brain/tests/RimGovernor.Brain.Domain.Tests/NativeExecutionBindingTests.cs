@@ -19,7 +19,12 @@ public sealed class NativeExecutionBindingTests
         var deliveries = made.Context.Activities.Activities.Where(t => t.Inputs.Count > 0 && t.Outputs.Count > 0).ToArray();
         Assert.NotEmpty(deliveries);
         Assert.All(deliveries, t => Assert.True(t.NativeExecution));
-        var selected = Assert.IsType<ForecastCoupledSelection>(Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings()).CoupledSelection);
+        var native = Assert.IsType<ForecastCoupledSelection>(Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings()).CoupledSelection);
+        Assert.Empty(native.Selection.Selected);
+        Assert.False(native.BaselineVector.Value.UrgentZero.Assessed);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, made, basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.NotEmpty(selected.Selection.Selected);
         Assert.Contains(selected.Selected.Plan.Allocations, a => harvests.Any(t => t.Id == a.Activity));
         Assert.True(selected.SelectedVector.Urgent[0].Number() < selected.BaselineVector.Urgent[0].Number());
@@ -27,7 +32,7 @@ public sealed class NativeExecutionBindingTests
         Assert.Empty(facts.Census.Resources); // A conditional yield has not become observed stock.
         var settingsSettled = facts with { WorkCoverage = WorkCoverageState.Matched,
             ForecastObserved = facts.ForecastObserved with { WorkPawns = new([]) } };
-        Assert.Equal(WorkAssignmentsReview.Settled, Rules.WorkAssignmentsOwed(settingsSettled, selected));
+        Assert.Equal(WorkAssignmentsReview.Settled, Rules.WorkAssignmentsOwed(settingsSettled, native));
     }
 
     [Theory]

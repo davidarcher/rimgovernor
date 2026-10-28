@@ -7,8 +7,17 @@ coupled ColonyForecast consequences, then binds the selected graph through
 the WorkAssignments Concern and existing Method journal. Hands remains the
 only order writer. The path is enabled for observed food, needs, existing
 construction sites, planned shelter completion, planned rooms and clothing
-production. Planned rooms are compared and selected; binding skips their
+production. Binding filters migrated routine work at native execution boundaries.
+Remaining caller migration and intervention justification are tracked by the
+active native-led labor change. Planned rooms are compared and selected; binding skips their
 allocations and the room reconcile places them (see [planned rooms](#planned-rooms)).
+
+The normal comparison uses `NativeOperation` evidence. Missing current food
+targets establish a current access gap without certifying future starvation;
+native future recovery remains unassessed. Detailed layout/investment what-ifs use
+`ConditionalScenario` explicitly through the same comparison. Their service and
+production assumptions can inform investment values but cannot install pawn
+orders, replace incumbents or supply executable production bills.
 
 Supported cooking alternatives carry native learning and per-level work-rate
 evidence into the shared allocator. Subsequent demanded meals can take less time

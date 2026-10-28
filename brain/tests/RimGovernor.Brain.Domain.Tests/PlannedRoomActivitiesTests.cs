@@ -149,11 +149,12 @@ public sealed class PlannedRoomActivitiesTests
         },
     } };
 
-    private static ForecastCoupledSelection Select(ReviewFacts facts, double horizon = Horizon, ForecastSearchBudget? budget = null)
+    private static ForecastCoupledSelection Select(ReviewFacts facts, double horizon = Horizon, ForecastSearchBudget? budget = null,
+        ForecastComparisonBasis basis = ForecastComparisonBasis.NativeOperation)
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
+        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget, basis: basis);
     }
 
     private static string Why(ReviewFacts facts, ForecastCoupledSelection result) =>
@@ -235,11 +236,11 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     [Fact]
-    public void UrgentHungerOutranksTheRoomForTheCookBuilder()
+    public void ConditionalUrgentHungerOutranksTheRoomForTheCookBuilder()
     {
         // The room takes nearly the whole horizon: a hungry pawn eats first and the room is left partial.
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 240), Ring(OpKind.DoorIn, "WoodLog", 50)], level: .2, fall: .003);
-        var result = Select(facts);
+        var result = Select(facts, basis: ForecastComparisonBasis.ConditionalScenario);
         var needs = facts.CoupledAlternatives!.Context.NeedTasks;
         Assert.Contains(result.Selected.Plan.Allocations, a => needs.Any(n => n.Task == a.Activity && n.Kind == "food"));
         Assert.True(result.SelectedVector.Urgent[0].Number() < result.BaselineVector.Urgent[0].Number(), Why(facts, result));

@@ -231,10 +231,13 @@ public sealed class ForecastIncumbentSelectionTests
         Assert.DoesNotContain(beyond, f => f.Reason == "conflicting_selected_target_owners");
     }
     [Fact]
-    public void NewlyUrgentFoodCanReleaseCurrentJoyThroughTheSameConsequenceComparison()
+    public void ConditionalUrgentFoodCanBeatJoyWithoutProvingNativeDeprivation()
     {
         var (request, candidates) = Problem(.1, .001);
-        var result = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        var native = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        Assert.Contains("current-joy", native.Selection.Selected);
+        Assert.False(native.BaselineVector.Value.UrgentZero.Assessed);
+        var result = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.True(result.Baseline.Feasible);
         Assert.Equal("ongoing-joy", Assert.Single(result.Baseline.Plan.Allocations).Activity);
         Assert.Contains("eat", result.Selection.Selected);

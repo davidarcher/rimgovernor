@@ -827,7 +827,8 @@ public sealed class PlannedRoomCreditTests
         if (investment is not null) generated = generated with { Context = (generated.Context with { Investment = investment }).Priced() };
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated,
+            basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.NotEmpty(selected.Selection.Selected);
         return (generated.Context, selected.Selected);
     }

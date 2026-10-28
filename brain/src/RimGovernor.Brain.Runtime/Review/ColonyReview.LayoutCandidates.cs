@@ -86,7 +86,8 @@ public sealed partial class ColonyReview
                 var projected = trial.Colony.Facts with { CoupledAlternatives = coupled, ClothingStuff = model.ClothingStuff,
                     RoomSleepDisturbance = context.RoomSleepDisturbance };
                 var request = ForecastCoupled.CoupledForecastRequestOf(new(projected.Tick.Value), ForecastCoupled.TierOneHorizonDays, projected, ResourceRules.ResourceDemandOf(projected, Policy, latches), []);
-                var compared = ForecastCoupledSelection.CompareActivityOutcomes(request, coupled);
+                var compared = ForecastCoupledSelection.CompareActivityOutcomes(request, coupled,
+                    basis: ForecastComparisonBasis.ConditionalScenario);
                 // The common comparator compares mutually assessed terms and retains uncertainty.
                 // Requiring a priced total here would hold the first-plan clock until native needs
                 // responses were predictable, preventing ordinary production from starting.

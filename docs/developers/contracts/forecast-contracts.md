@@ -17,12 +17,20 @@ is added.
 
 ## Current native need response
 
+The shared comparison records its `ForecastComparisonBasis`. `NativeOperation`
+is the normal review default and withholds unsupported future native service.
+`ConditionalScenario` ranks the detailed activity assumptions for investment
+analysis, including projected layout candidates. Both use the same scheduler,
+search budget and comparator. Conditional results cannot install pawn activities,
+release incumbents through coupled execution or supply production bills. A better
+conditional scenario is evidence about its assumptions, never dispatch authority.
+
 `Methods.Binding.NativeNeedServices` distinguishes a missing pawn observation,
 an ineligible pawn, no captured service, a currently legal target and an observed
 service in progress. Legal targets already passed native diet, reservation and
 reachability checks. Their detailed-forecast `Unsupported` markers do not revoke
-that current legality. Conversely, no captured target proves neither failure nor
-absence of ground rest or spontaneous recreation. Neither access nor a running
+that current legality. Conversely, no captured target does not predict future
+food production, ingestion, ground rest or spontaneous recreation. Neither access nor a running
 service proves future intake or recovery.
 
 A portfolio consisting solely of ordinary food/rest/recreation services with
@@ -44,10 +52,14 @@ routine service is omitted or appears in a selected hypothetical schedule. A
 modeled meal, sleep or recreation allocation cannot certify native recovery.
 The existing no-service need calculation supplies a common bound, computed once
 per comparison from the captured needs and horizon. It supplies neither a second
-native trajectory nor a new model run. For eligible rest and recreation,
-an empty target census also leaves future response unprojected: native ground
-rest and spontaneous recreation need no captured service object. This does not
-invent a recovery rate or erase a known sleep blocker. Its need exposure, hunger/rest
+native trajectory nor a new model run. For an eligible pawn, an empty target
+census also leaves future response unprojected. Missing food access is a current
+blocker; it establishes no future production rate or exact starvation trajectory.
+Native ground rest and spontaneous recreation need no captured service object.
+Current need levels and access observations remain intact. Supply/runway and
+supported recovery leads remain the food plan and reserve review's inputs to
+preventive provisioning and reserve release. This does not invent a recovery
+rate, declare supply adequate or erase a known sleep blocker. Its need exposure, hunger/rest
 losses and dependent mood/break terms are unassessed, with
 `native_response_unprojected:<pawn>:<kind>` findings. The starvation pruning
 bound cannot use that omitted service as proof that an unserved pawn will starve.

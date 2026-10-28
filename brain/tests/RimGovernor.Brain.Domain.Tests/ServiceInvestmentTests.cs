@@ -98,7 +98,8 @@ public sealed class ServiceInvestmentTests
     {
         var facts = ForecastCoupledSelectionTests.Review();
         ForecastCoupledSelection Select(ReviewFacts f) => ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100),
-            300d / GameTime.TicksPerDay, f,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(f) }, []), f.CoupledAlternatives!);
+            300d / GameTime.TicksPerDay, f,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(f) }, []), f.CoupledAlternatives!,
+            basis: ForecastComparisonBasis.ConditionalScenario);
         var proposal = Assert.Single(Select(facts).ServiceInvestments);
         Assert.Equal(FoodRules.FoodSupplyNeed.FilingKey, proposal.Target.Owner);
         Assert.Equal("pawn", Assert.Single(proposal.Beneficiaries));

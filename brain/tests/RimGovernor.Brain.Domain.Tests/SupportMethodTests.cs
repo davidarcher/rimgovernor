@@ -37,9 +37,10 @@ public sealed class SupportMethodTests
         facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
-    private static ForecastCoupledSelection Select(ReviewFacts facts, ForecastSearchBudget? budget = null) => ForecastCoupledSelection.CompareActivityOutcomes(
+    private static ForecastCoupledSelection Select(ReviewFacts facts, ForecastSearchBudget? budget = null,
+        ForecastComparisonBasis basis = ForecastComparisonBasis.NativeOperation) => ForecastCoupledSelection.CompareActivityOutcomes(
         ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts,
-            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!, budget);
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!, budget, basis: basis);
     private static SelectedActivityTask[] Tasks(ReviewFacts facts, ForecastCoupledSelection selection) =>
         ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "method", 100)?.Tasks.ToArray() ?? [];
 
@@ -47,7 +48,7 @@ public sealed class SupportMethodTests
     public void ACookedMealIsExposedToItsBenchRoomsPoisonChance()
     {
         var read = CoupledFixtures.NoSupport with { Demands = [CoupledFixtures.Demand("bench", "bench", "bench", new(1, 1), .02, 0d)] };
-        var facts = Facts(read, true); var result = Select(facts);
+        var facts = Facts(read, true); var result = Select(facts, basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.Contains(result.Selected.Plan.Allocations, a =>
             facts.CoupledAlternatives!.Context.Bindings[(a.Activity, a.Pawn)].Kind == PawnActivityKind.Recipe);
         Assert.DoesNotContain(Tasks(facts, result), t => t.Step.Kind == PawnActivityKind.Recipe);

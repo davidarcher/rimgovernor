@@ -88,7 +88,7 @@ public sealed class ForecastCoupledSelectionTests
         } };
         facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
-        var selected = Select(facts);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts), facts.CoupledAlternatives!);
         Assert.Empty(selected.Selection.Selected);
         Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + "pawn:joy", selected.Selection.Findings);
         Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + "helper:joy", selected.Selection.Findings);
@@ -99,14 +99,14 @@ public sealed class ForecastCoupledSelectionTests
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent));
-        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
+        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget, basis: ForecastComparisonBasis.ConditionalScenario);
     }
     private static readonly string[] NoSuchRoot = ["no/such/root"];
     private static ForecastCoupledSelection SelectWarm(ReviewFacts facts, IReadOnlyList<string> warmStart, ForecastSearchBudget? budget = null)
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget, warmStart);
+        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget, warmStart, basis: ForecastComparisonBasis.ConditionalScenario);
     }
 
     // #3723: the losing-stage hook. Evidence names the comparator stage a subset lost at; a floor loss carries no vector.
@@ -131,7 +131,7 @@ public sealed class ForecastCoupledSelectionTests
             var atFloor = ForecastPortfolioEvidence.StageOf(rejected.Reason) is ForecastCoupledSelection.UrgentZeroStage or ForecastCoupledSelection.DeathFloorStage or ForecastCoupledSelection.BreakRiskStage;
             Assert.Equal(!atFloor, rejected.Consequences is not null);
         }
-        LazyEvaluationTests.AssertPaired(ForecastCoupledSelection.CompareActivityOutcomesEagerly(RequestOf(Review()), Review().CoupledAlternatives!), result);
+        LazyEvaluationTests.AssertPaired(ForecastCoupledSelection.CompareActivityOutcomesEagerly(RequestOf(Review()), Review().CoupledAlternatives!, basis: ForecastComparisonBasis.ConditionalScenario), result);
     }
 
     private static ColonyForecastRequest RequestOf(ReviewFacts facts, double horizon = Horizon) => ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
@@ -237,9 +237,10 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal(unpruned.Rejected.Count, i);
     }
 
-    private static (ForecastCoupledSelection Unpruned, ForecastCoupledSelection Pruned) Both(ReviewFacts facts, ForecastSearchBudget? budget = null, double horizon = Horizon) =>
-        (ForecastCoupledSelection.CompareActivityOutcomesUnpruned(RequestOf(facts, horizon), facts.CoupledAlternatives!, budget),
-            ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts, horizon), facts.CoupledAlternatives!, budget));
+    private static (ForecastCoupledSelection Unpruned, ForecastCoupledSelection Pruned) Both(ReviewFacts facts, ForecastSearchBudget? budget = null, double horizon = Horizon,
+        ForecastComparisonBasis basis = ForecastComparisonBasis.ConditionalScenario) =>
+        (ForecastCoupledSelection.CompareActivityOutcomesUnpruned(RequestOf(facts, horizon), facts.CoupledAlternatives!, budget, basis: basis),
+            ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts, horizon), facts.CoupledAlternatives!, budget, basis: basis));
 
     // #3724: the urgent-zero unserved-pawn bound skips the subsets that leave a pawn starving longer than the leader's worst, without
     // changing the selection, and the search spends fewer evaluations and expansions for it.
@@ -276,7 +277,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Equal(pruned.BaselineEvaluations, unpruned.BaselineEvaluations);
         Assert.Equal(pruned.OutcomeEvaluations, pruned.SearchPhases.Sum(p => p.OutcomeEvaluations));
         // Repeating the comparison yields the same counts (#3722).
-        var again = ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts), facts.CoupledAlternatives!);
+        var again = ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts), facts.CoupledAlternatives!, basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.Equal((pruned.OutcomeEvaluations, pruned.Selection.Expansions, pruned.SearchPhases), (again.OutcomeEvaluations, again.Selection.Expansions, again.SearchPhases));
     }
 
@@ -360,7 +361,7 @@ public sealed class ForecastCoupledSelectionTests
             facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives!.Context with
                 { GoalValues = [new("goals/worn-count/2", Importance.Normal, new GoalDeadline.Open())] } } };
         if (graph == "rest") Assert.Contains(facts.CoupledAlternatives!.Context.NeedTasks, t => t.Kind == "rest" && t.Pawn == "worker");
-        var (unpruned, pruned) = Both(facts);
+        var (unpruned, pruned) = Both(facts, basis: ForecastComparisonBasis.NativeOperation);
         AssertPrunedEquivalent(unpruned, pruned);
         Assert.Contains(ForecastCoupledSelection.UrgentZeroUnservedBound + ":" + reason, pruned.BoundsUnavailable);
         Assert.True(pruned.SearchPhases.Sum(p => p.Unbounded) > 0);
@@ -410,7 +411,7 @@ public sealed class ForecastCoupledSelectionTests
         // 16,384 evaluations with budget left (the review fixture above has too many roots for any budget to finish its sweep).
         var original = ProductiveLearningTests.NormalFoodFacts();
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(original, 700)!.Priced(700);
-        var exhaustive = ForecastCoupledSelection.CompareActivityOutcomes(PortfolioAllocationTests.Request(original, generated), generated, new(16384));
+        var exhaustive = ForecastCoupledSelection.CompareActivityOutcomes(PortfolioAllocationTests.Request(original, generated), generated, new(16384), basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.Equal("sweep", exhaustive.SearchPhases[^1].Phase);
         Assert.True(exhaustive.OutcomeEvaluations - exhaustive.BaselineEvaluations < 16384);
         Assert.True(exhaustive.Selection.Expansions < ForecastSearchBudget.DefaultTraversal);
@@ -556,7 +557,7 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
         var candidates = facts.CoupledAlternatives!;
         Assert.Contains("unsupported_voluntary_state:pawn:chemical_need:Chemical_Smokeleaf", candidates.Findings);
-        var selected = Select(facts);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts), candidates);
         Assert.Empty(selected.Selection.Selected);
         Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + "pawn:food", selected.Selection.Findings);
         Assert.False(selected.BaselineVector.Value.UrgentZero.Assessed);

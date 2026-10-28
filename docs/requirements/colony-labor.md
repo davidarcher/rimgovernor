@@ -797,3 +797,45 @@ native flag and shared continuation path enforce handback without new prediction
 persistence or a second executor. Complexity: added standalone roof dispatch and
 boundary regressions / removed ordinary exclusive roof-building dispatch /
 orphans left: none.
+
+## Native operation and conditional comparison evidence
+
+The shared comparison now records its evidence basis. Normal reviews default to
+`NativeOperation`; a currently uncaptured food target leaves future native
+production, intake and recovery unassessed, just as unsupported future rest or
+recreation does. Current need levels and service/access facts remain available.
+No-service trajectories remain explicit counterfactuals, and a common bound that
+needs no recovery can still establish zero deprivation. This neither declares
+food provision adequate nor substitutes for the food plan's runway, reserves and
+conditional recovery evidence.
+
+`ConditionalScenario` uses the same comparison, scheduler, budget and cache
+lifetime to rank detailed investment assumptions. Layout candidate valuation now
+requests it explicitly. Conditional results cannot install pawn activities,
+replace incumbents through coupled execution or supply production bills. The
+portfolio mechanics, learning, ingredient thoughts, journal/material adapters and
+optimizer qualification tests now identify their conditional scope explicitly.
+Current native-operation regressions still cover uncertainty and retained work.
+Faster hypothetical cooking or a missing modeled meal is not authority to replace
+an incumbent. Generic exact-owner cleanup remains separately tested, including
+preserving unrelated working participants.
+
+Construction-only fixtures no longer inherit incidental forage opportunities
+from a food fixture. This keeps their required facts and work-shortfall scenarios
+about the construction they actually exercise. The missing-food-target regression
+and a paired native/conditional comparison prove the new boundary without a
+native gameplay run. General productive baseline assessment, concrete intervention
+premises and the remaining caller migrations are still incomplete; task 3.3 and
+task 4.1 remain unchecked and overall progress stays 13/24.
+
+Rules 7–9: existing food demand, reserve review, observed-output accounting and
+shared comparison remain the owners. Evidence basis changes the permitted use
+of the existing forecast rather than adding a second optimizer, model call,
+native trajectory, persistence owner or execution lane. Complexity: added explicit
+comparison basis and authorization regressions / removed uncaptured-service
+starvation authority and conditional incumbent-replacement permission / orphans
+left: none.
+
+Verification: final gate PASS (1m5s), 4,232 domain tests and 30 workflow tests,
+native builds/probes and contract orphan checks; strict OpenSpec 5/5 and diff
+check pass. No new native gameplay result is claimed.

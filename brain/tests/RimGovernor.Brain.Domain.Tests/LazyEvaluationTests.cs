@@ -51,8 +51,8 @@ public sealed class LazyEvaluationTests
     public void TheLazySearchReturnsTheEagerSelectionEvidenceAndCountsOnTheFourWorkerFixture()
     {
         var (request, generated) = FourWorkers.Value;
-        var lazy = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
-        var eager = ForecastCoupledSelection.CompareActivityOutcomesEagerly(request, generated);
+        var lazy = ForecastCoupledSelection.CompareActivityOutcomes(request, generated, basis: ForecastComparisonBasis.ConditionalScenario);
+        var eager = ForecastCoupledSelection.CompareActivityOutcomesEagerly(request, generated, basis: ForecastComparisonBasis.ConditionalScenario);
         AssertPaired(eager, lazy);
         // A started evaluation costs one unit wherever its comparison stops (#3722): the counts match the eager search's and the phases'.
         Assert.Equal(lazy.OutcomeEvaluations, lazy.SearchPhases.Sum(p => p.OutcomeEvaluations));
@@ -63,7 +63,7 @@ public sealed class LazyEvaluationTests
     public void AFloorDecidedLoserIsReportedUnevaluatedAndTheLedgerIsPricedOnlyWhereAComparisonReachedIt()
     {
         var (request, generated) = FourWorkers.Value;
-        var lazy = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var lazy = ForecastCoupledSelection.CompareActivityOutcomes(request, generated, basis: ForecastComparisonBasis.ConditionalScenario);
         var ranked = lazy.Rejected.Where(r => ForecastPortfolioEvidence.StageOf(r.Reason) is not null).ToArray();
         var atFloor = ranked.Where(r => Floors.Contains(ForecastPortfolioEvidence.StageOf(r.Reason))).ToArray();
         var beyond = ranked.Where(r => !Floors.Contains(ForecastPortfolioEvidence.StageOf(r.Reason))).ToArray();
@@ -86,8 +86,8 @@ public sealed class LazyEvaluationTests
     public void ThePrunedSearchIsTheUnprunedSearchOnTheFourWorkerFixture()
     {
         var (request, generated) = FourWorkers.Value;
-        var pruned = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
-        var unpruned = ForecastCoupledSelection.CompareActivityOutcomesUnpruned(request, generated);
+        var pruned = ForecastCoupledSelection.CompareActivityOutcomes(request, generated, basis: ForecastComparisonBasis.ConditionalScenario);
+        var unpruned = ForecastCoupledSelection.CompareActivityOutcomesUnpruned(request, generated, basis: ForecastComparisonBasis.ConditionalScenario);
         ForecastCoupledSelectionTests.AssertPrunedEquivalent(unpruned, pruned);
         Assert.Empty(pruned.BoundsUnavailable);
         Assert.Equal((3138, 12736), (unpruned.OutcomeEvaluations, unpruned.Selection.Expansions));

@@ -211,7 +211,7 @@ public sealed class ForecastIncumbentPreparationTests
     }
 
     [Fact]
-    public void FutureHoldCompetesWithFoodUsingOccupiedWaitAndFreshServiceMechanics()
+    public void ConditionalFutureHoldCompetesWithFoodWithoutAuthorizingRelease()
     {
         var (facts, actions) = FutureRest();
         var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
@@ -225,13 +225,13 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Equal(160d, Assert.Single(candidates.Context.Activities.Activities, a => a.Id == incumbent.Commitment).LatestStart);
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
             prepared,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.True(selected.Baseline.Feasible);
         Assert.DoesNotContain(incumbent.Commitment, selected.Selection.Selected);
         Assert.Contains(selected.Selected.Plan.Allocations, a => a.Activity.Contains("/eat/", StringComparison.Ordinal));
         var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value);
-        Assert.Single(execution.Releases);
-        Assert.Null(execution.Dispatch); // Replacement cannot create a second native owner before release.
+        Assert.Empty(execution.Releases);
+        Assert.Null(execution.Dispatch); // A conditional ranking cannot replace a native owner.
         Assert.Same(facts.WorkView, prepared.WorkView);
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
     }
@@ -311,7 +311,7 @@ public sealed class ForecastIncumbentPreparationTests
     }
 
     [Fact]
-    public void ABoundaryMethodIsReconsideredAndReleasedWhenAFasterFreeCookTakesItsBill()
+    public void AConditionalFasterCookDoesNotAuthorizeReleasingABoundaryMethod()
     {
         // #3167: a better cook joined, but the first cook's Method stayed protected and its pawns' capacity unknown.
         var (facts, actions) = BoundaryCooking(10);
@@ -325,18 +325,14 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns); // Admission claims stay until the release is observed.
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
             prepared, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        var native = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        Assert.Empty(ForecastCoupledExecution.ReviewCoupledExecution(native, incumbents, facts.Tick.Value,
+            candidates.Context.Activities.Activities, candidates).Releases);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.Contains(selected.Selected.Plan.Allocations, a => a.Pawn == "helper" && candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Kind == PawnActivityKind.Recipe);
         var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
-        var release = Assert.Single(execution.Releases);
-        Assert.True(Assert.Single(release.Batch.Orders).Release);
-        var dispatch = Assert.IsType<ForecastCoupledSelection>(execution.Dispatch);
-        Assert.DoesNotContain(dispatch.Selection.Plan!.Allocations, a => a.Pawn == "pawn");
-        Assert.Contains(dispatch.Selection.Plan!.Allocations, a => a.Pawn == "helper");
-        // The same selection without the move keeps the Method: its owner stays and only the rest is dispatched.
-        var kept = ForecastCoupledExecution.ReviewCoupledExecution(selected with { Selection = selected.Selection with { Plan = selected.Selection.Plan! with
-            { Allocations = selected.Selection.Plan!.Allocations.Where(a => a.Pawn != "helper").ToArray() } } }, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
-        Assert.Empty(kept.Releases);
+        Assert.Empty(execution.Releases);
+        Assert.Null(execution.Dispatch);
     }
 
     [Theory]
@@ -378,7 +374,7 @@ public sealed class ForecastIncumbentPreparationTests
     }
 
     [Fact]
-    public void AReconsideredWorkerAloneIsReleasedAndTheWorkingParticipantKeepsItsOrderAndTasks()
+    public void ConditionalReassignmentCannotReleaseAWorkerAndExplicitCleanupPreservesItsWorkingParticipant()
     {
         // #3624: the review re-decides only the finished worker's next task; the Method is not released as a whole.
         var (facts, actions) = BoundaryCooking(10, "completed", finished: true, busy: "independent");
@@ -386,10 +382,13 @@ public sealed class ForecastIncumbentPreparationTests
         var candidates = prepared.CoupledAlternatives!.Priced();
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
             prepared, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, []);
-        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.Contains(selected.Selected.Plan.Allocations, a => a.Pawn == "helper" && candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Kind == PawnActivityKind.Recipe);
         var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
-        var release = Assert.Single(execution.Releases).Batch;
+        Assert.Empty(execution.Releases);
+        Assert.Null(execution.Dispatch);
+        // Exercise exact-owner cleanup separately; the what-if comparison did not authorize it.
+        var release = Assert.IsType<PawnActivities>(ForecastIncumbentHold.Release(Assert.Single(incumbents), facts.Tick.Value));
         var pawn = Assert.Single(release.Orders, o => o.Pawn == "pawn");
         Assert.True(pawn.Release);
         Assert.Equal((1L, 2L), (pawn.ExpectedRevision, pawn.Revision));

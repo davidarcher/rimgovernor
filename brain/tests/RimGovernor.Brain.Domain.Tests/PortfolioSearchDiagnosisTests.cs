@@ -37,7 +37,7 @@ public sealed class PortfolioSearchDiagnosisTests
         }
 
         public ForecastCoupledSelection Select(ForecastCommitment[] universe, int evaluations) =>
-            ForecastCoupledSelection.CompareActivityOutcomes(Request, Generated with { Alternatives = EquatableArray.From(universe) }, new(evaluations));
+            ForecastCoupledSelection.CompareActivityOutcomes(Request, Generated with { Alternatives = EquatableArray.From(universe) }, new(evaluations), basis: ForecastComparisonBasis.ConditionalScenario);
     }
 
     /// <summary>Subset order and pruning of the production search, rebuilt from public data for counting only.</summary>
