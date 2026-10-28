@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods.Binding;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.GameFacts.Observations;
@@ -13,7 +14,9 @@ public sealed class CoupledActivityIntegrationTests
 {
     private static readonly GenerationSnapshot Root = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
 
-    private static (ReviewFacts Facts, PawnActivities Batch) SelectObserved()
+    // Explicit what-if graphs exercise the generic journal/material boundary below.
+    // Normal food selection must never install this graph as a pawn assignment.
+    private static (ReviewFacts Facts, PawnActivities Batch) BindConditionalFoodGraph()
     {
         var facts = ForecastCoupledSelectionTests.Review(level: .1, fall: .00001, expiry: 100000);
         var observed = facts.ForecastObserved.Coupled!;
@@ -25,8 +28,9 @@ public sealed class CoupledActivityIntegrationTests
         var selection = Assert.IsType<ForecastCoupledSelection>(findings.CoupledSelection);
         Assert.NotEmpty(selection.Selection.Selected);
         Assert.True(selection.SelectedVector.Urgent[0].Number() < selection.BaselineVector.Urgent[0].Number());
-        var batch = ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-observed", 100);
-        Assert.NotNull(batch);
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-observed", 100));
+        var batch = CoordinatedActivityBinding.Start(selection.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings,
+            1, "coupled-observed", 100);
         Assert.Equal(2, Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver).Step.Count);
         Assert.Equal(PawnActivityKind.Work, Assert.Single(batch.Orders).Steps[0].Kind);
         return (facts, batch);
@@ -62,10 +66,10 @@ public sealed class CoupledActivityIntegrationTests
     }
 
     [Fact]
-    public void InstalledGraphRetainsClaimsWhileIndependentSelectedMethodUsesAnotherPawn()
+    public void ExplicitGraphRetainsClaimsWhileIndependentConditionalGraphUsesAnotherPawn()
     {
         var ct = TestContext.Current.CancellationToken;
-        var (facts, first) = SelectObserved();
+        var (facts, first) = BindConditionalFoodGraph();
         var roster = WorkResourceTestFacts.Create("pawn", "helper");
         facts = facts with { Census = facts.Census with { WorkResources = roster.Census.WorkResources },
             ForecastObserved = facts.ForecastObserved with { WorkPawns = roster.ForecastObserved.WorkPawns } };
@@ -91,8 +95,9 @@ public sealed class CoupledActivityIntegrationTests
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)?.Priced() };
         var inspected = Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings());
         var choice = Assert.IsType<ForecastCoupledSelection>(inspected.CoupledSelection);
-        var next = ForecastCoupledSelection.StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100);
-        Assert.NotNull(next);
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100));
+        var next = CoordinatedActivityBinding.Start(choice.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings,
+            1, "coupled-independent", 100);
         Assert.All(next.Orders, order => Assert.Equal("helper", order.Pawn));
         Assert.DoesNotContain(next.Tasks, task => task.Step.Target == "plant-a" || task.Step is CellActivityStep { Destination: var destination } && destination == new Cell(2, 1));
         var secondPlan = new PlanSpec(new("second"), new(1), [DomainAction.NewPawnActivitiesAction(new("second-action"), next)]);
@@ -138,10 +143,10 @@ public sealed class CoupledActivityIntegrationTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void OrdinarySelectedGraphSurvivesJournalAndRebindsChangedOutputBeforeDeliveryOrRelease(bool withdrawn)
+    public void ExplicitConditionalGraphSurvivesJournalAndRebindsChangedOutputBeforeDeliveryOrRelease(bool withdrawn)
     {
         var ct = TestContext.Current.CancellationToken;
-        var (facts, batch) = SelectObserved();
+        var (facts, batch) = BindConditionalFoodGraph();
         Assert.Contains(batch.Tasks.SelectMany(t => t.Inputs), input => input.Producers.Count > 0);
         IntentActionRules.RegisterIntentKinds();
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-coupled-integration-" + Guid.NewGuid().ToString("N") + ".db"), ct);

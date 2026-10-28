@@ -8,6 +8,28 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class NativeExecutionBindingTests
 {
+    [Fact]
+    public void SelectedHarvestAndRawDeliveryStayConditionalWithoutOwningTheWorkerOrFutureFood()
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: .1, fall: .00001, expiry: 100000);
+        var made = facts.CoupledAlternatives!;
+        var harvests = made.Context.Activities.Activities.Where(t => t.Inputs.Count == 0 && t.Outputs.Count > 0).ToArray();
+        Assert.NotEmpty(harvests);
+        Assert.All(harvests, t => Assert.True(t.NativeExecution));
+        var deliveries = made.Context.Activities.Activities.Where(t => t.Inputs.Count > 0 && t.Outputs.Count > 0).ToArray();
+        Assert.NotEmpty(deliveries);
+        Assert.All(deliveries, t => Assert.True(t.NativeExecution));
+        var selected = Assert.IsType<ForecastCoupledSelection>(Rules.InspectReview(facts, new(), Rules.DefaultPlannerSettings()).CoupledSelection);
+        Assert.NotEmpty(selected.Selection.Selected);
+        Assert.Contains(selected.Selected.Plan.Allocations, a => harvests.Any(t => t.Id == a.Activity));
+        Assert.True(selected.SelectedVector.Urgent[0].Number() < selected.BaselineVector.Urgent[0].Number());
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, made, 1, "routine-food", 100));
+        Assert.Empty(facts.Census.Resources); // A conditional yield has not become observed stock.
+        var settingsSettled = facts with { WorkCoverage = WorkCoverageState.Matched,
+            ForecastObserved = facts.ForecastObserved with { WorkPawns = new([]) } };
+        Assert.Equal(WorkAssignmentsReview.Settled, Rules.WorkAssignmentsOwed(settingsSettled, selected));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

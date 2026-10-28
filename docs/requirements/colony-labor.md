@@ -454,7 +454,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
 | --- | --- | --- | --- |
-| `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine cooking supply/recipe/output chain stays native; acquisition, intervention and native usable-output evidence remain |
+| `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; formation hunting, intervention and native usable-output evidence remain |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Partial: fresh routine services and boundary continuation stay native; unresolved access and justified exceptions remain |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
 | `ConstructionMethodCandidates.Generate`: supply and build | Native blueprints, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Pending |
@@ -574,3 +574,40 @@ predicting the selected worker. No extra optimizer, scheduler or state store was
 introduced. Complexity: added native cooking handoff and outcome-based fixture
 reads / removed exact duration/output continuation plumbing and obsolete exact
 continuation tests / orphans left: none.
+
+## Native food acquisition
+
+Plant harvest and raw-food delivery in `FoodMethodCandidates.GenerateCoupled`
+are conditional native operations. Normal dispatch installs neither operation,
+their dependent intake nor later work held behind their predicted completion.
+The existing food plan still selects wild forage and lone hunting sources;
+`AcquisitionPlanner` creates native designations through shared Method admission
+and Hands. Growing zones expose routine grower work. The work-settings policy
+already provides plant-cutting/hunting coverage. Formation hunting retains its
+separate combat execution and still needs the intervention audit.
+
+`NativeExecutionBindingTests` checks real generated harvest/delivery selection,
+retained conditional benefit, no normal pawn order and no work-assignment
+obligation once settings are settled. Existing forage, claim-admission and food
+family tests retain designation selection and source/cell claims. Generic journal
+and output-binding regressions explicitly install hypothetical graphs; they also
+assert that normal food selection cannot install those graphs. This distinction
+does not authorize a new exact food intervention.
+
+`production/coupled-needs` now observes actual usable harvested rice, native job
+identities and actual native intake/rest/recreation instead of exact Method
+binding. Preparation removes loose, carried and inventory food; carried output
+also counts as usable harvested food. The revised case is registered; its prior
+exact-Method results do not certify these assertions. Native usable-output
+execution and general intervention/baseline work remain pending. Confirmed food
+requirements and task checkboxes are unchanged.
+
+Verification: `RimGovernor.cmd test > test.out 2>&1` passed 4,208 domain tests,
+30 workflow tests, production/fixture native builds, contract probes and the
+orphan check (57s). Strict OpenSpec validation passed all five items. Rules 7–9:
+existing food demand, designation, bill and settings owners remain authoritative;
+pure binding policy removes redundant orders and observations distinguish actual
+output from hypothetical yield. No new execution lane or persistence owner.
+Complexity: added normal-selection regression and passive native-output evidence /
+removed routine harvest/raw-delivery dispatch and the fixture's exact-apply hook /
+orphans left: none. The general change remains 13/24 complete.

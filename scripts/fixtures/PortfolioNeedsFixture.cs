@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
-using RimGovernor.Brain.Domain;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -16,10 +15,10 @@ namespace RimGovernor.Native;
 
 public sealed partial class PawnControlFixture
 {
-    private static bool portfolioPatched, portfolioActive, portfolioRebound, portfolioAte, portfolioSlept, portfolioWoke, portfolioPlayed;
+    private static bool portfolioPatched, portfolioActive, portfolioHarvested, portfolioAte, portfolioSlept, portfolioWoke, portfolioPlayed;
     private static int portfolioLastEatingTick;
     private static float portfolioFood, portfolioRestAtSleep;
-    private static readonly HashSet<string> portfolioMethods = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> portfolioNativeJobs = new(StringComparer.Ordinal);
 
     [Tool("test/portfolio_needs_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged worker and ripe rice and leave them the colony's only food: no loose, carried or other growing food. Install no chosen task, bill, Method or assignment.")]
     public async Task<object> PortfolioNeedsPrepare(INativeContext ctx, CancellationToken ct,
@@ -35,18 +34,19 @@ public sealed partial class PawnControlFixture
             {
                 pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
                 foreach (var item in pawn.inventory.innerContainer.Where(t => t.def.IsNutritionGivingIngestible).ToArray()) item.Destroy();
+                if (pawn.carryTracker.CarriedThing is { } carried && carried.def.IsNutritionGivingIngestible) carried.Destroy();
             }
             foreach (var thing in map.listerThings.AllThings.Where(t => t.Spawned && t.def.IsNutritionGivingIngestible && t is not Plant).ToArray()) thing.Destroy();
             foreach (var plant in map.listerThings.AllThings.OfType<Plant>().Where(p => p != PawnControlFixture.crop
                 && p.def.plant.harvestedThingDef?.IsNutritionGivingIngestible == true).ToArray()) plant.Destroy();
-            portfolioMethods.Clear();
-            portfolioRebound = portfolioAte = portfolioSlept = portfolioWoke = portfolioPlayed = false;
+            portfolioNativeJobs.Clear();
+            portfolioHarvested = portfolioAte = portfolioSlept = portfolioWoke = portfolioPlayed = false;
             portfolioLastEatingTick = -1000;
             portfolioFood = PawnControlFixture.worker.needs.food.CurLevelPercentage; portfolioRestAtSleep = -1;
             if (!portfolioPatched)
             {
                 var harmony = new Harmony("rimgovernor.fixture.portfolio-needs");
-                harmony.Patch(AccessTools.Method(typeof(NativePawnActivities), "Apply"), postfix: new HarmonyMethod(typeof(PawnControlFixture), nameof(PortfolioApplied)));
+
                 harmony.Patch(AccessTools.Method(typeof(Pawn_JobTracker), "JobTrackerTick"), postfix: new HarmonyMethod(typeof(PawnControlFixture), nameof(PortfolioTick)));
                 portfolioPatched = true;
             }
@@ -54,36 +54,28 @@ public sealed partial class PawnControlFixture
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 
-    private static void PortfolioApplied(PawnActivities batch)
-    {
-        if (!portfolioActive) return;
-        foreach (var order in batch.Orders.Where(o => !o.Release && o.Method.StartsWith("coupled-", StringComparison.Ordinal)))
-        {
-            portfolioMethods.Add(order.Method);
-            foreach (var step in order.Steps.Where(s => s.Kind is PawnActivityKind.Deliver or PawnActivityKind.Eat))
-            {
-                var actual = RefIndex.Thing(Find.CurrentMap, step.Target);
-                if (actual?.def == ThingDef.Named("RawRice") && (crop!.Destroyed || ((Plant)crop).Growth < 1))
-                    portfolioRebound = true;
-            }
-        }
-    }
     private static void PortfolioTick(Pawn ___pawn)
     {
         if (!portfolioActive || ___pawn != worker) return;
         var tick = Find.TickManager.TicksGame;
         var execution = NativePawnActivities.Read(___pawn);
-        var owned = execution?.Method.StartsWith("coupled-", StringComparison.Ordinal) == true;
-        if (owned && ___pawn.CurJobDef == JobDefOf.Ingest) portfolioLastEatingTick = tick;
+        var owned = execution != null;
+        if (!owned && ___pawn.CurJob is { } job) portfolioNativeJobs.Add(job.loadID + ":" + job.def.defName);
+        var product = crop!.def.plant.harvestedThingDef;
+        if (!owned && (crop.Destroyed || ((Plant)crop).Growth < 1)
+            && (___pawn.Map.listerThings.AllThings.Any(t => t.def == product && t.stackCount > 0)
+                || ___pawn.Map.mapPawns.AllPawnsSpawned.Any(p => p.carryTracker.CarriedThing?.def == product
+                    || p.inventory.innerContainer.Any(t => t.def == product && t.stackCount > 0)))) portfolioHarvested = true;
+        if (!owned && ___pawn.CurJobDef == JobDefOf.Ingest) portfolioLastEatingTick = tick;
         if (tick - portfolioLastEatingTick <= 2 && ___pawn.needs.food.CurLevelPercentage > portfolioFood + .01f) portfolioAte = true;
         portfolioFood = ___pawn.needs.food.CurLevelPercentage;
-        if (owned && ___pawn.CurJobDef == JobDefOf.LayDown && !___pawn.Awake())
+        if (!owned && ___pawn.CurJobDef == JobDefOf.LayDown && !___pawn.Awake())
         {
             if (portfolioRestAtSleep < 0) portfolioRestAtSleep = ___pawn.needs.rest.CurLevelPercentage;
             if (___pawn.needs.rest.CurLevelPercentage > portfolioRestAtSleep + .05f) portfolioSlept = true;
         }
         if (portfolioSlept && ___pawn.Awake()) portfolioWoke = true;
-        if (owned && ___pawn.CurJobDef?.defName == "Play_Horseshoes" && ___pawn.needs.joy.CurLevelPercentage > .2f) portfolioPlayed = true;
+        if (!owned && ___pawn.CurJobDef?.defName == "Play_Horseshoes" && ___pawn.needs.joy.CurLevelPercentage > .2f) portfolioPlayed = true;
     }
     [Tool("test/portfolio_needs_repeat", Description="UNSAFE FOR MODEL EXECUTION. Once the first cycle's meal and sleep were observed, introduce new hunger and independent observed rice lots for the crew. Install no selected task, Method or order.")]
     public async Task<object> PortfolioNeedsRepeat(INativeContext ctx, CancellationToken ct)
@@ -92,7 +84,7 @@ public sealed partial class PawnControlFixture
             if (!portfolioAte || !portfolioSlept)
                 throw new InvalidOperationException("First normal-planner meal and sleep have not been observed.");
             // This phase proves repeated needs execution with independent physical lots;
-            // needs/shared-stack proves two Methods sharing one stack (#3194).
+            // needs/shared-stack covers shared physical food capacity separately.
             var map = worker!.Map;
             var count = map.mapPawns.FreeColonistsSpawned.Count;
             var cells = GenRadial.RadialCellsAround(worker.Position, 12, true)
@@ -102,18 +94,18 @@ public sealed partial class PawnControlFixture
             if (cells.Length != count) throw new InvalidOperationException("Repeat-cycle independent food lots need distinct legal cells.");
             foreach (var cell in cells)
             {
-                var rice = ThingMaker.MakeThing(ThingDef.Named("RawRice")); rice.stackCount = 20;
+                var rice = ThingMaker.MakeThing(crop!.def.plant.harvestedThingDef); rice.stackCount = 20;
                 GenSpawn.Spawn(rice, cell, map);
             }
             worker.needs.food.CurLevelPercentage = .2f;
             portfolioFood = .2f; portfolioAte = false; portfolioLastEatingTick = -1000;
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
-    [Tool("test/portfolio_needs_read", Description="UNSAFE FOR MODEL EXECUTION. Observe actual normal-planner coupled batches, harvested output rebinding, ingestion and sleep/wake; writes no orders.")]
+    [Tool("test/portfolio_needs_read", Description="UNSAFE FOR MODEL EXECUTION. Observe actual native jobs, harvested usable food, ingestion and sleep/wake; writes no orders.")]
     public async Task<object> PortfolioNeedsRead(INativeContext ctx, CancellationToken ct)
         => await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new Fx.PortfolioNeedsRead
         {
-            Tick = Find.TickManager.TicksGame, Methods = portfolioMethods.OrderBy(x => x).ToArray(), Rebound = portfolioRebound,
+            Tick = Find.TickManager.TicksGame, NativeJobs = portfolioNativeJobs.OrderBy(x => x).ToArray(), Harvested = portfolioHarvested,
             Ate = portfolioAte, Slept = portfolioSlept, Woke = portfolioWoke, Played = portfolioPlayed,
         }), ct).ConfigureAwait(false);
 }

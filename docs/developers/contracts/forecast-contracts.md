@@ -78,6 +78,14 @@ excludes roots whose completions are need services; independently demanded
 deliveries and other productive roots still compete for supported capacity.
 The food family and stock-target bills retain provisioning demand ownership.
 
+Food harvest and raw-food delivery operations also carry `NativeExecution`.
+Their yields, travel and dependent intake remain conditional what-if evidence;
+normal dispatch omits the operations and their dependent work. Existing food-plan
+acquisition opens native forage/lone-hunt designations and crop zones expose
+native grower work. Neither omitted exact work nor forecast output changes
+observed inventory. Tactical formation hunting retains its separate combat path
+pending the meaningful-intervention audit.
+
 Stored food explicitly observed as `FoodFreshness.Never` has infinite expiry in
 the conditional inventory calculation, matching harvested non-rotting food.
 This describes the captured conditions; it does not predict that a freezer

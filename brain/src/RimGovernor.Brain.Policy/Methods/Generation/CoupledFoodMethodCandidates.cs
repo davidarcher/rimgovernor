@@ -51,7 +51,8 @@ internal static class FoodMethodCandidates
             var row = group.First(); var id = "harvest/" + group.Key;
             if (Fresh(row.Resource) is not { } keeps) { findings.Add("food_shelf_life_unread:" + row.Resource); continue; }
             if (!Space(1)) break;
-            tasks.Add(new(id, Location(row.Origin), Location(row.Origin), []) { Outputs = [new(new(row.Resource), row.SourceCount) { Lot = id, Perishable = true, FreshTicks = keeps }] });
+            tasks.Add(new(id, Location(row.Origin), Location(row.Origin), []) { NativeExecution = true,
+                Outputs = [new(new(row.Resource), row.SourceCount) { Lot = id, Perishable = true, FreshTicks = keeps }] });
             harvests[group.Key] = id;
             foreach (var pawn in group.GroupBy(o => o.Pawn).Select(g => g.First()))
             {
@@ -157,7 +158,7 @@ internal static class FoodMethodCandidates
             if (!harvests.TryGetValue(group.Key.Target, out var harvest) || !Space(1)) continue;
             var first = group.First(); var id = "raw/" + alternatives.Count; var count = group.Max(o => o.Count);
             tasks.Add(new(id, Location(first.Origin), Location(first.Destination), [harvest])
-            { Inputs = [new(new(first.Resource), count) { Lot = harvest }], Outputs = [new(new(first.Resource), count) { Lot = harvest }] });
+            { NativeExecution = true, Inputs = [new(new(first.Resource), count) { Lot = harvest }], Outputs = [new(new(first.Resource), count) { Lot = harvest }] });
             foreach (var row in group.GroupBy(o => o.Pawn).Select(g => g.First()).Where(o => o.Count >= count))
             {
                 Option(id, row.Pawn, row.DeliveryTicks);

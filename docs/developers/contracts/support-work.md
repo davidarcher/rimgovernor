@@ -62,8 +62,9 @@ reads each room as it stands; it does not propose cleaning or credit a cleaner r
 
 ## Room consequences
 
-Routine cooking ingredient gathering, recipe work and output handling belong to
-native bills and numbered work priorities. Coupled cooking and delivery scenarios
+Routine food harvest, ingredient gathering, recipe work and output handling belong
+to native growing zones/designations, bills, storage and numbered work priorities.
+Coupled harvest, cooking and delivery scenarios
 remain conditional planning evidence. A missing modeled recipe or delivery is not
 by itself a native production failure, and a forecast product is not actual stock.
 The food plan and work ledger retain bill ownership; no support-work scheduler

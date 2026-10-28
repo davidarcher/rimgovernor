@@ -391,15 +391,17 @@ collection outside the assertions.
 [SowingProviderTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SowingProviderTests.cs)
 checks eligible workers, exact cells, work time and invalid mechanics.
 [NativeSowingActivities](../../integrations/rimgovernor-native/src/Bridge/NativeSowingActivities.cs)
-provides legal per-cell work to NativePawnActivities, which repeats sowing and
-dispatches harvest and ingestion. Registered OnDemand
+provides legal per-cell work for the explicit NativePawnActivities sowing
+primitive; routine sowing, harvest and ingestion remain native. Registered OnDemand
 [production/sow-block](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionSowBlock.cs)
 requires exactly four planted cells and completed execution for a fixture-installed
 order. Registered OnDemand
 [production/coupled-needs](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionCoupledNeeds.cs)
-runs the governor against ripe rice and requires output binding, eating and sleep,
-then a new method and another meal. The fixture injects rested state and a fresh
-shortage between cycles. Crop maturation and seasonal survival are separate claims.
+runs the governor against ripe rice and now requires actual usable harvest output
+and unowned native ingestion, sleep and recreation, followed by another native
+meal. The fixture injects rested state and a fresh shortage between cycles.
+This revised native-job assertion is registered and compiled; earlier exact-Method
+results do not verify it. Crop maturation and seasonal survival are separate claims.
 
 **F12 — Cooler construction through chilling.**
 [Refrigeration](../../brain/src/RimGovernor.Brain.Runtime/Review/BuildingPlanner.Refrigeration.cs)

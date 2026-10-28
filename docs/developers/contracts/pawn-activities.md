@@ -112,10 +112,14 @@ alternative is known. These are bounded forecast assumptions, not evidence of
 expert play. The [portfolio contract](../architecture/portfolio-selection.md)
 defines coupled consequences, comparison and current search bounds.
 
-Raw delivery and eligible cooking remain alternatives until shared comparison.
-After observed harvest completion the selected Method rebinds actual output;
-continuation does not locally choose another recipe. Selected recipe, bench,
-bill, ingredient definition and counts remain policy decisions.
+Harvest, raw delivery and eligible cooking remain conditional alternatives until
+shared comparison. Routine harvest and raw-food delivery are marked for native
+execution. Dispatch removes them and work depending on their unobserved completion;
+it reserves neither the worker nor the future output. The food plan opens wild
+plant and lone-hunt channels through native designations, while growing zones
+provide native growers' work. Numbered priorities provide worker coverage.
+Only actual observed output becomes usable stock. The explicit graph/binding
+tests below exercise generic material continuation, not normal food dispatch.
 
 ## Live one-iteration cooking
 
@@ -128,10 +132,11 @@ combine partial native-certified stacks of the same ingredient definition.
 Heterogeneous ingredient substitution and hypothetical benches without observed
 bill intent remain unsupported.
 
-Supply completion permits fresh exact ingredient rebinding at the selected bench
-staging area. Recipe completion permits only observed matching output delivery.
-Failed consuming work releases; nearby food cannot authorize replay, refund or
-inferred consumption. Nominal nutrition is not eater-specific survival value.
+Ordinary ingredient collection, cooking and output handling run through native
+bills and work settings. These conditional graphs install no routine pawn order.
+The explicit native recipe primitive remains fixture-driven pending the general
+intervention/adapter audit; it does not establish normal execution authority.
+Nominal nutrition is not eater-specific survival value.
 
 ## Live material delivery and building
 

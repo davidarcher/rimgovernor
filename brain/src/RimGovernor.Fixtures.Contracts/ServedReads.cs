@@ -244,11 +244,11 @@ public sealed record PortfolioNeedsRead
 {
     public int Tick { get; init; }
 
-    /// <summary>Coupled Methods the native activities applied.</summary>
-    public IReadOnlyList<string> Methods { get; init; } = [];
+    /// <summary>Observed native job identities, without exact activity ownership.</summary>
+    public IReadOnlyList<string> NativeJobs { get; init; } = [];
 
-    /// <summary>A delivery or meal step bound to the harvested rice.</summary>
-    public bool Rebound { get; init; }
+    /// <summary>The prepared crop yielded actual usable raw food.</summary>
+    public bool Harvested { get; init; }
 
     public bool Ate { get; init; }
 
