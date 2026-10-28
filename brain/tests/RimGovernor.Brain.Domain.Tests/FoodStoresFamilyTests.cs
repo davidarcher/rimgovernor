@@ -1,6 +1,10 @@
 using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
+using RimGovernor.Brain.Executor;
+using RimGovernor.Brain.GameAccess;
+using Hands = RimGovernor.Brain.Executor.Executor;
+using NativeReceipt = RimGovernor.Brain.Executor.Receipt;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
 
@@ -154,7 +158,11 @@ public sealed class FoodStoresFamilyTests
         {
             Census = (WorkResourceTestFacts.Create("a", "b", "c")).Census with { ColonistCount = 3, IndoorSleepingCapacity = 3, BedCapacity = 3 },   FieldCoverage = 1.0,
             FoodStorageUpkeep = census,
+            Items = ItemFactsFixtureRules.CoreItemFacts(),
             FoodReserve = new FoodReserveState.Reviewed(Reserve("pem-1")),
+            FoodPlan = new FoodPlan { Portfolio = [new FoodPlanEntry {
+                Channel = CandidateRules.FoodCandidate(CandidateKind.Reserve, "stock-protection", new YieldSupply.Steady(0),
+                    CandidateState.Closed, new CandidateLead.Days(0), new CandidateWork.PerDay(0)), Decision = FoodPlanDecision.Open }] },
         };
         journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
         Colony? colony = null;
@@ -194,6 +202,55 @@ public sealed class FoodStoresFamilyTests
         var again = colony.Run();
         Assert.Equal(Verdict.BuildingReasonExistingWork, Colony.Report(again));
         Assert.Single(colony.Journal.LoadNeed(FoodStoresRules.FoodStorageNeed, World, ct).Methods);
+    }
+
+    private sealed class Clock : IClock { public DateTimeOffset Now() => DateTimeOffset.UtcNow; }
+
+    // Exercise the real journal and Hands; the boundary acknowledges access, not pawn consumption.
+    private sealed class ReserveBoundary : IBoundary
+    {
+        public int Writes;
+        public Task<IntentInspection> InspectIntentAsync(Target target, CancellationToken ct) => Task.FromResult(new IntentInspection
+        { StartedAt = DateTimeOffset.UtcNow, ObservedAt = DateTimeOffset.UtcNow, Current = target.Snapshot, Tick = new(102) });
+        public Task<IReadOnlyList<NativeReceipt>> WriteIntentsAsync(IReadOnlyList<Placement> placements, CancellationToken ct)
+        {
+            Writes++;
+            var placement = Assert.Single(placements);
+            Assert.Equal(ActionKind.SupplyAllow, placement.Action.Kind);
+            Assert.Equal("pem-1", placement.Action.SupplyAllow!.Thing);
+            return Task.FromResult<IReadOnlyList<NativeReceipt>>([new() { Action = placement.Action.Id, Attempt = placement.Attempt,
+                Snapshot = placement.Snapshot, Kind = Receipt.Accepted }]);
+        }
+    }
+
+    [Fact]
+    public async Task ARecoveryGapReleasesReserveThroughAdmissionAndHandsWithoutStockProtection()
+    {
+        IntentActionRules.RegisterIntentKinds();
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open(larder: false);
+        var supply = FoodReserveStateTests.Provision();
+        var reserve = FoodReserveRules.ReviewFoodReserve(supply, null, 5, 3,
+            FoodReserveRules.FoodDeliveryDays(FoodReserveStateTests.RecoveryPlan(supply, 12)));
+        var review = Assert.IsType<FoodReserveState.Reviewed>(reserve).Review;
+        Assert.False(review.IsShort);
+        Assert.True(review.Emergency);
+        var storage = Census(new FoodStorageStock(supply.Stocks.Single(s => s.Id == "pem-1")));
+        colony.Journal.Review(new() { Current = World, Tick = new(101), Enabled = true,
+            Revision = colony.Journal.LoadReview(ct).Revision, Policy = Rules.DefaultPlannerSettings(),
+            Facts = WorkResourceTestFacts.Create("a", "b", "c") with { FoodReserve = reserve, FoodPlan = null, FoodStorageUpkeep = storage } }, ct);
+        colony.Facts = colony.Facts with { Reserve = reserve, Storage = storage, StockProtection = false,
+            ReserveTargets = new ReserveSupplyRead.Targets([new SupplyAllow("pem-1", "Pemmican", new(1, 1))]) };
+        var method = Assert.Single(colony.Run().Methods);
+        var action = Assert.Single(colony.Journal.LoadPlan(method.Plan, ct).Progress).Action;
+        var native = new ReserveBoundary();
+        using var hands = new Hands(new ExecutorJournal(colony.Journal), native, new Clock(), new Limits
+        { MaxAge = TimeSpan.FromSeconds(30), RunTimeout = TimeSpan.FromSeconds(10), JournalTimeout = TimeSpan.FromSeconds(10) }, new PlanAuthorizer(colony.Journal, true));
+        hands.UpdateAuthority(new() { Snapshot = World, Enabled = true });
+        Assert.Null(Assert.Single(await hands.RunBatchAsync(method.Plan, [action.Id], ct)).Error);
+        Assert.Equal(Stage.Completed, Assert.Single(colony.Journal.LoadPlan(method.Plan, ct).Progress).View.Stage);
+        Assert.Null(Assert.Single(await hands.RunBatchAsync(method.Plan, [action.Id], ct)).Error);
+        Assert.Equal(1, native.Writes);
     }
 
     [Fact]
@@ -295,5 +352,22 @@ public sealed class FoodStoresFamilyTests
 
         colony.Facts = colony.Facts with { StockProtection = true, ReserveTargets = new ReserveSupplyRead.Targets([]) };
         Assert.Empty(colony.Run().Methods);
+    }
+
+    [Fact]
+    public void LosingStockProtectionInvalidatesAPendingHoldAtCurrentReviewAdmission()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open(larder: false);
+        var family = new FoodStoresFamily(Policy, true, false);
+        var candidate = Assert.Single(family.Propose(family.Derive(colony.Facts), colony.Facts));
+        var plan = candidate.Plan(new("old-hold"));
+        colony.Journal.Review(new() { Current = World, Tick = new(101), Enabled = true,
+            Revision = colony.Journal.LoadReview(ct).Revision, Policy = Rules.DefaultPlannerSettings(),
+            Facts = WorkResourceTestFacts.Create("a", "b", "c") with
+            { FoodStorageUpkeep = colony.Facts.Storage, FoodReserve = colony.Facts.Reserve, FoodPlan = null } }, ct);
+        Assert.Throws<ConflictException>(() => colony.Journal.CommitClaimedMethod(candidate.Need, World,
+            candidate.Method, candidate.Reason, plan, ct));
+        Assert.Empty(colony.Journal.LoadNeed(candidate.Need, World, ct).Methods);
     }
 }

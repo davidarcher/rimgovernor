@@ -25,7 +25,7 @@ public sealed record FoodStoresFacts
     /// <summary>Whether an owned zone of a food role stands (<see cref="StockpileRules.FoodStorageStanding"/>).</summary>
     public bool Stockpile { get; init; }
 
-    /// <summary>Whether the food plan opened or holds the reserve's stock-protection channel; without it the family proposes nothing.</summary>
+    /// <summary>Whether the food plan opened or holds stock protection. Releasing reserve access remains available without it.</summary>
     public bool StockProtection { get; init; }
 
     /// <summary>The supply actions the native reserve reads offer, the release read first; not requested unless reserve access is pending.</summary>
@@ -43,7 +43,7 @@ public sealed record FoodStoresFacts
         Storage = f.FoodStorageUpkeep,
         Reserve = f.FoodReserve,
         Stockpile = StockpileRules.FoodStorageStanding(f),
-        StockProtection = f.FoodPlan is { } plan && FoodOrdersRules.FoodPlanSupport(plan, CandidateKind.Reserve, "stock-protection"),
+        StockProtection = FoodStoresRules.StockProtectionActive(f.FoodPlan),
         WarmRooms = f.WarmRooms,
         MealClosetOwed = f.MealClosetOwed,
     };
@@ -85,17 +85,20 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
     /// </summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, FoodStoresFacts facts)
     {
-        if (!ready.Any(n => n.Id == FoodStoresRules.FoodStorageNeed) || !facts.StockProtection)
+        if (!ready.Any(n => n.Id == FoodStoresRules.FoodStorageNeed))
         {
             return [];
         }
         if (FoodStoresRules.ReserveAccessPending(facts.Reserve))
         {
+            if (facts.Reserve is FoodReserveState.Reviewed(var reserve)
+                && FoodStoresRules.ReserveDirections(reserve, facts.StockProtection).Count == 0) return [];
             var supplies = ReserveSupplies(facts);
             return supplies.Count == 0
                 ? []
                 : [new NeedMethod(FoodStoresRules.FoodStorageNeed, new MethodId("food-reserve"), "reserve food to hold or release", id => Plan(id, supplies))];
         }
+        if (!facts.StockProtection) return [];
         CorpseLarderMethod larder;
         try
         {
@@ -127,7 +130,7 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
             throw new RequiredFactException("reserve supply targets");
         }
         var targets = read.Values;
-        var wanted = FoodStoresRules.ReserveDirections(reserve);
+        var wanted = FoodStoresRules.ReserveDirections(reserve, facts.StockProtection);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         return [.. targets.Where(t => wanted.TryGetValue(t.Thing, out var hold) && hold == t.Forbidden && seen.Add(t.Thing)).Take(ReserveActionLimit)];
     }
@@ -138,12 +141,16 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
 
 public static class FoodStoresRules
 {
-    /// <summary>The reserve's requested access direction per stack. Release wins if a stack is in both lists,
-    /// matching proposal selection and the journal's current-evidence census.</summary>
-    public static IReadOnlyDictionary<string, bool> ReserveDirections(FoodReserveReview reserve)
+    /// <summary>Whether the current plan supports keeping food off normal access.</summary>
+    public static bool StockProtectionActive(FoodPlan? plan) => plan is not null
+        && FoodOrdersRules.FoodPlanSupport(plan, CandidateKind.Reserve, "stock-protection");
+
+    /// <summary>The reserve's requested access direction per stack. Holds require active protection;
+    /// releases remain available and win if a stack is in both lists.</summary>
+    public static IReadOnlyDictionary<string, bool> ReserveDirections(FoodReserveReview reserve, bool stockProtection)
     {
         var wanted = new Dictionary<string, bool>(StringComparer.Ordinal);
-        foreach (var id in reserve.Hold) wanted[id] = true;
+        if (stockProtection) foreach (var id in reserve.Hold) wanted[id] = true;
         foreach (var id in reserve.Release) wanted[id] = false;
         return wanted;
     }

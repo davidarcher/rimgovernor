@@ -8,6 +8,24 @@ The maintainer confirmed native-led routine execution, full control of settings 
 
 ## Current evidence
 
+Reserve prevention now uses accessible runway and supported conditional recovery
+leads, including native-committed crops too late for current demand credit.
+`FoodReserveStateTests` covers recovery before/at/after runway, irrelevant closed
+uncertainty, relevant committed uncertainty and current shortages without a known
+recovery. `FoodStoresFamilyTests` exercises a preventive reserve release above the
+seasonal minimum through current-review admission, journal and real Hands, with a
+boundary acknowledgment and duplicate-batch check. Loss of the stock-protection
+channel prevents new holds but cannot prevent release. These checks prove access
+coordination, not crop completion, recovery rate adequacy or pawn intake. Task 3.3
+remains partial; the general productive baseline and intervention migration remain
+unfinished. No new native gameplay result or food requirement change is claimed.
+The finished reserve checkpoint passed 4,162 domain tests, 30 workflow tests,
+native compilation, contract probes and the orphan check (1m8s); strict OpenSpec
+validation passed all five items. Rules 7–9: policy owns the recovery comparison,
+existing food demand and shared admission own access, and uncertainty is scoped
+without inventing native output. No store, second planner or native trajectory
+was added; the former Runtime recovery classifier was removed.
+
 Shared comparison now withholds future deprivation attributed solely to omitting
 captured available/running native need service, rather than using a final binding
 guard alone. `NativeNeedServicesTests` checks food/rest/recreation uncertainty

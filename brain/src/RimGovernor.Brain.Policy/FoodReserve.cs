@@ -40,8 +40,8 @@ public abstract record FoodReserveState
 }
 
 /// <summary>
-/// The delivery times of the food plan's producing channels: Confirmed when every one has a known lead, else
-/// Unconfirmed, which cannot authorize releasing stock.
+/// Conditional recovery leads of selected or native-committed nutrition channels: Confirmed when each is supported, else
+/// Unconfirmed, which cannot establish a future recovery gap. An observed current shortage can still release stock.
 /// </summary>
 public abstract record FoodDeliveries
 {
@@ -79,6 +79,27 @@ public static class FoodReserveRules
     /// <summary>The travel reserve's definition names.</summary>
     public static IReadOnlyList<string> ReserveFoodDefinitions() => [.. FoodPolicyRules.TravelReserve.Select(d => d.Value)];
 
+    /// <summary>Selected work and native-committed sources supply conditional recovery leads, including a growing
+    /// field too late to earn current demand credit. Unsupported closed alternatives cannot erase this evidence;
+    /// an unsupported native-committed source remains relevant uncertainty.</summary>
+    public static FoodDeliveries FoodDeliveryDays(FoodPlan? plan)
+    {
+        if (plan is null) return new FoodDeliveries.Unconfirmed();
+        var days = new List<double>();
+        foreach (var row in plan.Portfolio.Concat(plan.Unknown.Where(e => e.Selected || e.Channel.State != CandidateState.Closed)))
+        {
+            if (row.Decision == FoodPlanDecision.Close || row.DeliveredPerDay <= 0
+                && row.Channel.State == CandidateState.Closed && row.Decision != FoodPlanDecision.Open) continue;
+            var supply = row.Channel.Nutrition()?.Supply ?? throw new RequiredFactException("food recovery nutrition:" + row.Channel.Id);
+            if (supply is YieldSupply.Unpriced) return new FoodDeliveries.Unconfirmed();
+            if (supply is YieldSupply.Steady { PerDay: <= 0 } or YieldSupply.Bounded { PerDay: <= 0 }
+                or YieldSupply.Bounded { Cap: <= 0 } or YieldSupply.Stock { Count: <= 0 }) continue;
+            if (row.Channel.Lead is not CandidateLead.Days(var lead)) return new FoodDeliveries.Unconfirmed();
+            days.Add(lead);
+        }
+        return new FoodDeliveries.Confirmed(EquatableArray.From(days));
+    }
+
     /// <summary>
     /// Removes supply rows the food reserve owns, so the admin/supply-safety Need never
     /// re-allows reserve food the food-stores/storage Need forbade: a stack the reserve is about to hold, or a forbidden
@@ -98,7 +119,7 @@ public static class FoodReserveRules
 
     /// <summary>
     /// Counts shared reserve foods, roofed or not, at observed nutrition.
-    /// deliveries holds the channel delivery times; unconfirmed ones cannot authorize releasing stock. The caller
+    /// deliveries holds conditional channel delivery times; unconfirmed ones cannot establish a future gap. The caller
     /// supplies the selected home census. NoConsumers when no consumer eats; throws
     /// <see cref="FoodFactsException"/> for facts that break the contract.
     /// </summary>
@@ -128,8 +149,10 @@ public static class FoodReserveRules
         var days = forecast.RunwayDays is FoodRunway.Days { Value: var runway } ? runway : throw new FoodFactsException();
         var complete = deliveries is FoodDeliveries.Confirmed;
         var arriving = false;
+        var recoveryKnown = false;
         if (deliveries is FoodDeliveries.Confirmed { Days: var leads })
         {
+            recoveryKnown = leads.Count > 0;
             foreach (var lead in leads)
             {
                 if (!FoodForecastRules.FoodNumber(lead))
@@ -140,7 +163,9 @@ public static class FoodReserveRules
             }
         }
         var isShort = days < minimumDays;
-        var emergency = complete && days < minimumDays && !arriving;
+        // Known recovery arriving only after the usable runway is a reason to expose insurance before harm,
+        // even above the seasonal minimum. No captured recovery alone does not prove future native failure.
+        var emergency = complete && !arriving && (isShort || recoveryKnown);
         var ordered = supply.Stocks.OrderBy(s => supply.IsReserved(s) ? 0 : 1).ThenBy(s => s.Id, StringComparer.Ordinal).ToList();
         double stockNutrition = 0;
         var byDefinition = new Dictionary<Resource, double>();
@@ -156,7 +181,7 @@ public static class FoodReserveRules
             {
                 continue;
             }
-            // The reserve is surplus insurance: below the seasonal minimum (reserve food excluded) every held stack is released to eat.
+            // Release insurance for an observed short reserve or a supported recovery gap, before starvation.
             if (emergency || days < minimumDays)
             {
                 if (supply.IsReserved(stock))

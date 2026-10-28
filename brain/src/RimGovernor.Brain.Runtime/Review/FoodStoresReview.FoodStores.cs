@@ -92,20 +92,16 @@ public sealed partial class FoodStoresReview
             WarmRooms = warm,
             MealClosetOwed = closet,
         };
-        if (!facts.StockProtection || facts.Reserve is not FoodReserveState.Reviewed { Review: var reserve } || !FoodStoresRules.ReserveAccessPending(facts.Reserve)
-            || _native is not GameClient supplies)
+        if (facts.Reserve is not FoodReserveState.Reviewed { Review: var reserve })
         {
             return facts;
         }
-
+        var directions = FoodStoresRules.ReserveDirections(reserve, facts.StockProtection);
+        if (directions.Count == 0) return facts;
         var targets = new List<SupplyAllow>();
-        foreach (var forbid in new[] { false, true })
+        foreach (var forbid in directions.Values.Distinct().Order())
         {
-            if ((forbid ? reserve.Hold : reserve.Release).Count == 0)
-            {
-                continue;
-            }
-            var read = await supplies.ReadFoodReserveSuppliesAsync(Boundary.Identity(scope.World), forbid, ct).ConfigureAwait(false);
+            var read = await _native.ReadFoodReserveSuppliesAsync(Boundary.Identity(scope.World), forbid, ct).ConfigureAwait(false);
             try
             {
                 Boundary.Context(read.Context, scope.World);

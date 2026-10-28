@@ -59,6 +59,23 @@ release stacks. The full family read then supplies Targets, including a
 measured empty list. Pending access cannot propose a Method from an unrequested
 read. Reserve states remain Disabled, NoConsumers or Reviewed.
 
+Reserve review compares accessible food runway with supported conditional recovery
+leads from selected and already native-committed nutrition channels. A growing
+field can supply a recovery lead even when it is too late to earn current demand
+credit. If every known recovery arrives at or after the accessible runway, the
+review releases reserve food before the seasonal minimum is crossed. This is an
+access precaution, not a guarantee of sufficient production or future intake.
+An unsupported unselected closed alternative does not erase supported evidence;
+an unsupported committed source leaves recovery unconfirmed. Missing recovery
+evidence alone does not establish a future shortage. Food already below the
+seasonal minimum can be released regardless of recovery uncertainty.
+
+New holds require the food plan's active stock-protection channel. Releases do
+not: loss of that channel must not strand forbidden food. The native target read,
+Family proposal and journal admission use the same current direction map, with
+release winning over hold. Accepted access writes complete the access action;
+vanilla retains selection and consumption, and fresh observations own outcomes.
+
 Meal-tier input uses the food forecast's NoEaters or measured Days, a total
 cook roster and observed expectations pressure. No eaters owe no meal tier.
 Malformed raw-food forecasts fail at the observation boundary. Food storage

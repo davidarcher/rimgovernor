@@ -347,6 +347,11 @@ routes food fields under the food supply need. It reports a missing layout ancho
 These samples cover target policy and work preparation; no harvest result was examined.
 
 **F8 — Storage and refrigeration.**
+`FoodReserveStateTests` checks precautionary release from accessible runway and
+conditional recovery leads, including a native-committed late crop and scoped
+uncertainty. `FoodStoresFamilyTests` takes that release through current-review
+admission, journal and Hands when stock protection is inactive. Its boundary
+acknowledges access only; it does not prove production or consumption in game.
 [FoodStoresFamilyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/FoodStoresFamilyTests.cs)
 checks exposure and temperature thresholds, pending reserve access, missing facts
 and conflicting stack claims. [FoodStoresReview](../../brain/src/RimGovernor.Brain.Runtime/Review/FoodStoresReview.FoodStores.cs)

@@ -300,7 +300,7 @@ public sealed partial class Store
             var reserveSupplies = new List<ReserveSupply>();
             if (request.Facts.FoodReserve is FoodReserveState.Reviewed { Review: var reserve })
             {
-                var wanted = FoodStoresRules.ReserveDirections(reserve);
+                var wanted = FoodStoresRules.ReserveDirections(reserve, FoodStoresRules.StockProtectionActive(request.Facts.FoodPlan));
                 foreach (var row in request.Facts.FoodStorageUpkeep.Stocks)
                 {
                     if (wanted.TryGetValue(row.Stock.Id, out var forbid) && FoodReserveRules.ReserveFoodDefinition(new Resource(row.Stock.DefName)))
