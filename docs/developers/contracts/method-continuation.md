@@ -166,6 +166,18 @@ participant. Productive rebinding still requires ordinary shared admission,
 fresh native evidence and the original finite deadline; cleanup grants no right
 to take another Method's target.
 
+An existing exact Method does not start or hold a later ordinary service when
+fresh native evidence supports it. At a task boundary, available or ongoing native
+food/rest/recreation service returns that participant to vanilla through exact
+owner cleanup; uncaptured rest/recreation objects do not establish a failure.
+Independent running participants keep identical orders. If another participant's
+remaining work depends on the released participant, the coordinated attempt ends
+through the existing exact-owner release path rather than treating an unobserved
+service as a completed prerequisite. Running work reaches its next boundary first;
+an unlisted Need still permits cleanup and native handback but starts no new work
+or preparation. Missing participant evidence never authorizes cleanup. These lifecycle checks do
+not certify intake or complete the general intervention-justification migration.
+
 An urgent rest or food need never interrupts a running task. At the next boundary (a task
 just ended, or the pawn is waiting to depart) a participant whose native need is at or below
 its threshold is released through the same separate-revision cleanup, unless another

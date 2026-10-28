@@ -66,14 +66,15 @@ public sealed class ActivityNeedBoundaryTests
     }
 
     [Theory]
-    [InlineData(PawnActivityKind.Eat)]
-    [InlineData(PawnActivityKind.Sleep)]
-    [InlineData(PawnActivityKind.Recreation)]
-    public void TiredParticipantWaitingToDepartForAServiceKeepsItsHold(PawnActivityKind kind)
+    [InlineData(PawnActivityKind.Eat, false)]
+    [InlineData(PawnActivityKind.Sleep, true)]
+    [InlineData(PawnActivityKind.Recreation, true)]
+    public void WaitingServiceReturnsToNativeUnlessFoodAccessIsUnobserved(PawnActivityKind kind, bool released)
     {
-        // Releasing it would only have the next review reselect the same service, every review (#3167).
         var batch = Service(kind, 700);
-        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "holding", .08)));
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "holding", .08));
+        if (released) Assert.True(Assert.Single(next!.Orders).Release);
+        else Assert.Null(next);
     }
 
     [Fact]
@@ -171,13 +172,13 @@ public sealed class ActivityNeedBoundaryTests
     [Theory]
     [InlineData(500, 4000)]
     [InlineData(500, 150)]
-    public void ParticipantWhoseNextServiceIsNearPreparesForIt(long playDepart, long sleepEnd)
+    public void ParticipantWhoseNextNativeServiceIsNearStillReturnsToVanilla(long playDepart, long sleepEnd)
     {
         var batch = WokeBeforeItsNextService(playDepart, sleepEnd);
         var order = Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed", .95))!.Orders);
-        Assert.False(order.Release);
-        Assert.True(order.Preparing);
-        Assert.Equal("play", order.Task);
+        Assert.True(order.Release);
+        Assert.False(order.Preparing);
+        Assert.Empty(order.Steps);
     }
 
     [Fact]

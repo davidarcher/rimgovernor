@@ -166,7 +166,7 @@ internal static class CoordinatedActivityBinding
         task is CellActivityTaskCandidate cell ? step.At(cell.Destination) : step;
 
     internal static ActivityTaskTransition Continue(PawnActivities batch, ActivityTaskRead read,
-        IReadOnlyDictionary<string, ActivityOwnership> rows, long tick)
+        IReadOnlyDictionary<string, ActivityOwnership> rows, long tick, bool startWork)
     {
         if (batch.Orders.Any(o => !o.Release && o.Preparing && rows[o.Pawn].State == "failed"))
             return new(null, true);
@@ -207,7 +207,7 @@ internal static class CoordinatedActivityBinding
         if (cleanup.Length != 0) return new(Release(batch, cleanup.Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal)), false);
         remaining = remaining.Select(t => t with { Prerequisites = EquatableArray.From(t.Prerequisites.Where(p => !completed.Contains(p))) }).ToList();
         var orders = new List<PawnActivityOrder>();
-        var changed = completed.Count > 0;
+        var changed = startWork && completed.Count > 0;
         foreach (var order in batch.Orders)
         {
             if (order.Release) continue;
@@ -222,10 +222,20 @@ internal static class CoordinatedActivityBinding
                     Steps = [], Task = "", Preparing = false, OutputDelivery = null });
                 changed = true; continue;
             }
+            // A previous exact forecast is no authority to start or hold ordinary native service.
+            // Reconcile only at a task boundary, preserving in-flight work. If another participant
+            // depends on this participant's remaining work, end the coordinated attempt rather
+            // than erase an unobserved prerequisite and accidentally authorize its dependent.
+            if (NativeNeedServices.Routine(read.Needs, order.Pawn, next.Step.Kind))
+                return remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p)))
+                    ? new(null, true)
+                    : new(Release(batch, new HashSet<string>(StringComparer.Ordinal) { order.Pawn }), false);
+            // Unlisted demand permits physical cleanup, not another work/preparation order.
+            if (!startWork) { orders.Add(order); continue; }
             // A task in flight is never interrupted; at this boundary (a task just ended, or the pawn is waiting to depart) a participant already at or below a rest or food
             // threshold is not handed more work. Its order is released and the next review compares the need service
             // against the remaining work. Tasks others wait on stay, so no participant is stranded. A next task that is
-            // itself a service is what that review selected: releasing it would only reselect it, every review (#3167).
+            // itself an unresolved exact service keeps the existing checks; ordinary native response was handled above.
             // So is a task that leads to the pawn's own remaining service, such as harvesting the rice it then eats (#3598).
             // As at the start (OrderedAtStart, #3047), a participant at a boundary is not held for a next service departing
             // far ahead, owned and unreviewable: a pawn that woke early (#3598), finished its work or waits on other pawns' work,

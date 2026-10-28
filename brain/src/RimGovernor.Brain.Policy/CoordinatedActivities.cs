@@ -20,10 +20,11 @@ public static class CoordinatedActivitiesRules
                 && !batch.Orders.Any(o => o.Task == t.Id && rows[o.Pawn].State == "completed"))
             || batch.Orders.Any(o => !o.Release && !ActivityContinuationRules.MatchesActivityOwner(o, rows[o.Pawn])))
             return ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Ended, tick, observed).Release;
-        if (needed == ActivityNeed.Unlisted) return batch.Orders.Any(o => rows[o.Pawn].State == "failed")
-            ? ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Ended, tick, observed).Release : null;
+        if (needed == ActivityNeed.Unlisted && batch.Orders.Any(o => rows[o.Pawn].State == "failed"))
+            return ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Ended, tick, observed).Release;
 
-        var transition = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Continue(batch, read, rows, tick);
+        var transition = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Continue(batch, read, rows, tick,
+            startWork: needed == ActivityNeed.Owed);
         return transition.Release ? ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Ended, tick, observed).Release : transition.Batch;
     }
 }

@@ -13,7 +13,8 @@ public enum ActivityNeed
     /// <summary>The Method's work is over (its Need's plan was superseded, or its service is complete): the batch is released.</summary>
     Ended,
 
-    /// <summary>The current review lists no row for the Need: it keeps the batch it holds, starts no new work, and releases only a failed or expired batch.</summary>
+    /// <summary>The current review lists no row for the Need: it starts no new work, allowing observed terminal cleanup,
+    /// native-service handback and release of a failed or expired batch.</summary>
     Unlisted,
 }
 

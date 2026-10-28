@@ -39,7 +39,14 @@ internal static class NativeNeedServices
             || task.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)) return false;
         var kind = task.Kind == PawnActivityKind.Eat ? "food" : task.Kind == PawnActivityKind.Sleep ? "rest" : "joy";
         if (!context.NeedTasks.Any(n => n.Task == activity && n.Pawn == pawn && n.Kind == kind)) return false;
-        var response = Observe(context.Needs, pawn, kind);
+        return Routine(context.Needs, pawn, task.Kind);
+    }
+
+    internal static bool Routine(NeedsForecastRead read, string pawn, PawnActivityKind activity)
+    {
+        if (activity is not (PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)) return false;
+        var kind = activity == PawnActivityKind.Eat ? "food" : activity == PawnActivityKind.Sleep ? "rest" : "joy";
+        var response = Observe(read, pawn, kind);
         return response is NativeNeedService.Available or NativeNeedService.InProgress
             || response == NativeNeedService.NoObservedService && kind is "rest" or "joy";
     }

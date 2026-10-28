@@ -8,6 +8,29 @@ The maintainer confirmed native-led routine execution, full control of settings 
 
 ## Current evidence
 
+Existing exact Methods now return ordinary services to native selection at task
+boundaries using the same current-response classifier as fresh binding. A waiting
+or terminal participant releases its exact ownership without retaining later
+work; independent running orders remain identical. When remaining work for
+another participant depends on it, the coordinated attempt ends through existing
+exact-owner cleanup, without erasing an unobserved prerequisite. Running work is
+not interrupted. Unlisted demand permits native handback and terminal cleanup,
+but no new work/preparation or unchanged-order revision. Seventeen new
+`NativeServiceContinuationTests` cases cover available food/rest/recreation,
+uncaptured rest/recreation, missing/access observations, in-flight work,
+dependent cleanup and both waiting/terminal unlisted boundaries. Four old
+exclusive-service expectations now assert native handback. The final gate passed
+4,201 domain tests, 30 workflow tests, native builds, probes and orphan checks
+(1m21s); strict OpenSpec passed all five items. No native physical path changed
+or new gameplay pass is claimed. General baseline/intervention tasks and
+productive migrations remain open; no task checkbox is completed by this partial
+self-service migration. Rules 7–9: policy reuses canonical needs and the existing
+continuation/journal cleanup owner, adding no state or optimizer and crediting no
+unobserved service. Complexity: added boundary service reconciliation,
+cleanup-only handling for unlisted demand and regressions / removed unconditional
+unlisted continuation exit and obsolete native-service hold expectations /
+orphans left: none. Confirmed food requirements remain unchanged.
+
 Fresh ordinary self-service now stays native inside productive portfolios too.
 The shared dispatch projection removes routine eating, rest and recreation,
 later work for those participants, and transitive dependencies; independent work
@@ -406,7 +429,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
 | --- | --- | --- | --- |
 | `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Pending |
-| `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Partial: fresh routine services stay native even in mixed portfolios; incumbent reconciliation and justified exceptions remain |
+| `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Partial: fresh routine services and boundary continuation stay native; unresolved access and justified exceptions remain |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Pending |
 | `ConstructionMethodCandidates.Generate`: supply and build | Native blueprints, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Pending |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |

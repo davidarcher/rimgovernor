@@ -67,7 +67,11 @@ it now. Independent work remains selectable. A missing captured rest/recreation
 object cannot supply an intervention premise. Shared comparison retains detailed
 conditional what-if evidence; `StartCoupledActivity` checks the current context
 before binding. Access and current service are not proof of future recovery.
-Productive caller and incumbent migration remain incomplete in the
+Existing exact commitments also hand ordinary service back at a task boundary,
+including when their Need is unlisted. Independent running orders remain exact;
+dependent attempts end without crediting the service as complete. See
+[continuation](method-continuation.md#pawn-activity-methods). Productive caller
+and general intervention migration remain incomplete in the
 [native-led labor change](../../../openspec/changes/native-led-labor-execution/design.md).
 
 Exact cell assignments use `CellActivityStep`, which carries a required canonical
