@@ -641,7 +641,7 @@ public sealed class PlannedRoomActivitiesTests
     /// the review's orders; the planned record keeps the planned comparison's sites.
     /// </summary>
     [Fact]
-    public void AnUnplacedPlannedSelectionStillOrdersTheStartableWork()
+    public void AnUnplacedPlannedSelectionRetainsStartableNativeWorkWithoutOrderingIt()
     {
         // #3557: the room's shell outscored every startable alternative, so the selection was planned sites only; nothing
         // bound before placement, no order went out and the builder stood on standby beside an open blueprint it could work.
@@ -710,10 +710,9 @@ public sealed class PlannedRoomActivitiesTests
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         Assert.True(result.Selection.Selected.Any(id => !id.StartsWith("planned/", StringComparison.Ordinal)), why);
         var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
-        Assert.NotNull(batch);
-        var order = Assert.Single(batch.Orders, o => !o.Release && o.Task.Length != 0);
-        Assert.Equal(Pawn, order.Pawn);
-        Assert.DoesNotContain(unplaced, id => id == order.Task);
+        Assert.Null(batch);
+        Assert.Contains(result.Selection.Plan!.Allocations, a => !unplaced.Contains(a.Activity)
+            && candidates.Context.Activities.Activities.Any(t => t.Id == a.Activity && t.NativeExecution));
     }
 
     /// <summary>

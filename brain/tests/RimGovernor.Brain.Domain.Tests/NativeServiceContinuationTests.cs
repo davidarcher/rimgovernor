@@ -9,6 +9,33 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class NativeServiceContinuationTests
 {
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void OldConstructionCommitmentReturnsToNativeWithoutCreditingDependentCompletion(bool supply, bool dependent)
+    {
+        var (batch, read) = AtBoundary("food", true, target: false, dependent: dependent);
+        var task = batch.Tasks.Single(t => t.Id == "service");
+        task = task with { Step = task.Step with { Kind = supply ? PawnActivityKind.Supply : PawnActivityKind.Work,
+            Job = supply ? "" : "FinishFrame" } };
+        batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == task.Id ? task : t)) };
+        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
+        Assert.True(next.Orders[0].Release);
+        Assert.Empty(read.SatisfiedTasks);
+        if (dependent)
+        {
+            Assert.All(next.Orders, order => Assert.True(order.Release));
+            Assert.Empty(next.Tasks);
+        }
+        else
+        {
+            Assert.True(PawnActivities.SameOrder(batch.Orders[1], next.Orders[1]));
+            Assert.Equal("independent", Assert.Single(next.Tasks).Id);
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void OldTailoringCommitmentReturnsToNativeAtBoundary(bool delivery)

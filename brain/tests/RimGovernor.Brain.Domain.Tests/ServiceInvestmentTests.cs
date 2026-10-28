@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods.Binding;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
@@ -8,6 +9,22 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ServiceInvestmentTests
 {
+    [Fact]
+    public void UsefulConstructionRemainsAConditionalInvestmentWithoutOrdinaryPawnOrders()
+    {
+        var facts = ForecastThermalPortfolioTests.Review(-10);
+        var selection = ForecastThermalPortfolioTests.Select(facts);
+        var generated = facts.CoupledAlternatives!;
+        Assert.NotEmpty(selection.Selection.Selected);
+        Assert.NotEmpty(selection.ServiceInvestments);
+        var selected = selection.Selected.Plan.Allocations.Select(a => generated.Context.Bindings[(a.Activity, a.Pawn)]).ToArray();
+        Assert.Contains(selected, b => b.Kind == PawnActivityKind.Supply);
+        Assert.Contains(selected, b => b.Job == "FinishFrame");
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, generated, 1, "ordinary-construction", 100));
+        Assert.Empty(CoordinatedActivityBinding.ForDispatch(selection.Selected.Plan, generated.Context).Allocations);
+        Assert.Equal(100, facts.WorkView!.Materials.AssessedBalances()[new("Rice")].ExactCount());
+    }
+
     [Fact]
     public void UsefulShelterExplainsSharedOwnerPhysicalWorkAndBoundedRelief()
     {
@@ -57,11 +74,12 @@ public sealed class ServiceInvestmentTests
     // A frame's ended Supply is no boundary: the finish, or the carry's retry, goes on in the same binding (#3537).
     [InlineData("completed", false, false, true)]
     [InlineData("failed", false, false, true)]
-    public void ConstructionRecomparesAtSafeObservedBoundaryWithoutClaimingSatisfaction(string state, bool truncated, bool finished, bool needed)
+    public void HypotheticalConstructionRecomparesAtSafeObservedBoundaryWithoutClaimingSatisfaction(string state, bool truncated, bool finished, bool needed)
     {
         var facts = ForecastThermalPortfolioTests.Review(-10);
         var selection = ForecastThermalPortfolioTests.Select(facts);
-        var batch = ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-test", 100)!;
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "ordinary-construction", 100));
+        var batch = CoordinatedActivityBinding.Start(selection.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings, 1, "coupled-hypothetical-construction", 100);
         Assert.All(batch.Orders.Where(o => o.Task.Length != 0), o => Assert.Equal(PawnActivityKind.Supply, batch.Tasks.Single(t => t.Id == o.Task).Step.Kind));
         if (finished)
         {

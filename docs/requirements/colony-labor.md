@@ -457,7 +457,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; formation hunting, intervention and native usable-output evidence remain |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Partial: fresh routine services and boundary continuation stay native; unresolved access and justified exceptions remain |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
-| `ConstructionMethodCandidates.Generate`: supply and build | Native blueprints, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Pending |
+| `ConstructionMethodCandidates.Generate`: supply and build | Native blueprints, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion stay conditional and install no pawn orders; previous commitments hand back at boundaries; removal/roof safety and general intervention audit remain |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
 | `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine bill ingredient/refill delivery stays conditional and installs no pawn orders; care/surgery, intervention and native output evidence remain |
 | `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
@@ -743,3 +743,29 @@ No new persistence, scheduler or capacity fallback. Complexity: added explicit
 first-plan prerequisites and six boundary regressions / removed held-Need runtime
 bypass and invalid harvest-section requirements / orphans left: none. Overall
 progress remains 13/24; confirmed food requirements are unchanged.
+
+## Native construction supply and frame completion
+
+Placed-site supply and frame completion now remain conditional forecast work;
+their normal selection installs no exact pawn orders. Existing blueprints,
+frames, numeric work priorities and native construction skill/tier guards own
+execution. Material availability and delivery dependencies still constrain the
+conditional comparison, without crediting expected buildings as observed output.
+An existing exact construction commitment returns to native work at its next
+task boundary. In-flight and unrelated work remains intact; an uncompleted
+cross-pawn prerequisite ends the coordinated attempt rather than becoming
+fictitiously satisfied.
+
+Regressions exercise real selected shelter/floor investments, planned-versus-
+placed reselection, scarce materials, hypothetical specialist allocation and
+boundary handback with independent/dependent participants. The final gate passed
+in 40s: 4,227 domain tests, 30 workflow tests, native builds/probes and contract
+orphan checks. No new native gameplay result is claimed for this milestone.
+Removal/roof safety, clearance hauling and general intervention justification
+remain pending; task 5.4 is not complete and overall progress remains 13/24.
+
+Rules 7–9: shared material demand and existing blueprint/settings owners remain
+authoritative; the pure execution filter and shared continuation path enforce
+handback, with no new scheduler, persistence or invented output. Complexity:
+added native construction selection/handback regressions / removed ordinary
+supply and frame-finish dispatch / orphans left: none.

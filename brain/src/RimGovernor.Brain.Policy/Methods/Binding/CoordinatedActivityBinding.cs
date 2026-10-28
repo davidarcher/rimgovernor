@@ -222,6 +222,7 @@ internal static class CoordinatedActivityBinding
             // depends on this participant's remaining work, end the coordinated attempt rather
             // than erase an unobserved prerequisite and accidentally authorize its dependent.
             if (batch.Tasks.Any(t => t.Pawn == order.Pawn && t.Step.Kind == PawnActivityKind.Recipe) || next.ProductStuff.Length > 0
+                || next.Step.Kind == PawnActivityKind.Supply || next.Step.Kind == PawnActivityKind.Work && next.Step.Job == "FinishFrame"
                 || NativeNeedServices.Routine(read.Needs, order.Pawn, next.Step.Kind))
                 return remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p)))
                     ? new(null, true)

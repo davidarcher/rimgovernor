@@ -1,5 +1,13 @@
 # Facilities
 
+Ordinary material supply and frame completion run through native blueprints,
+frames and Construction/Hauling priorities. Their composed activity forecasts
+remain conditional investment and material-dependency evidence; selection installs
+no exclusive worker or promised building output. Native construction tiers and
+minimum finishing skill continue to apply to ordinary workers. Existing exact
+commitments finish in-flight work, then hand back at a task boundary; unresolved
+cross-pawn dependencies end the attempt rather than count as completed work.
+
 The game scores a room's native role from its actual stations. A room can serve
 several functions: beds, benches, seats and medical beds count wherever they
 stand. Every function uses its owning canonical room credit under the merged

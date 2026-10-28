@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods.Binding;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
@@ -33,7 +34,7 @@ public sealed class CoordinatedConstructionTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
-        // This fixture tests assignment and execution of an already requested physical job.
+        // This fixture inspects a hypothetical assignment graph for an already requested physical job.
         // A bare wall has no automatic colony value after service-based admission (#3166).
         Assert.Empty(selected.Selection.Selected);
         var physical = ForecastActivities.CompareActivityPlans(generated.Context.Activities);
@@ -41,7 +42,10 @@ public sealed class CoordinatedConstructionTests
         comparison = new(plan is null ? [] : generated.Alternatives.Select(c => c.Id).ToArray(),
             plan, physical.Findings, physical.Expansions, physical.SearchTruncated);
         selected = selected with { Selection = comparison, Deferred = [] };
-        return ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100);
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100));
+        Assert.All(generated.Context.Activities.Activities.Where(a => generated.Context.Bindings.Values.Any(b =>
+            b.Id == a.Id && (b.Kind == PawnActivityKind.Supply || b.Job == "FinishFrame"))), activity => Assert.True(activity.NativeExecution));
+        return plan is null ? null : CoordinatedActivityBinding.Start(plan, generated.Context.Bindings, 1, "hypothetical-construction", 100);
     }
 
     [Theory]
@@ -61,6 +65,10 @@ public sealed class CoordinatedConstructionTests
         var outcome = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal)).Outcome!;
         if (floor) Assert.Equal("flooring/blueprint", Assert.Single(outcome.Requirements!.Relief).Need);
         else Assert.Null(outcome.Requirements);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "routine-construction", 100));
     }
 
     private static ReviewFacts RemovalFacts(params PlannedSiteClearing[] removals)
@@ -456,8 +464,10 @@ public sealed class CoordinatedConstructionTests
         Assert.Null(Start(out _, near, far));
     }
 
-    [Fact]
-    public void FreshNativeContainerBindingClampsDemandAndFinishRequiresObservedBuilding()
+    [Theory]
+    [InlineData("failed")]
+    [InlineData("completed")]
+    public void FreshNativeContainerBindingDoesNotRestartRoutineSupply(string state)
     {
         var batch = Start(out _, Option("producer", 0, 20, 10))!;
         var supply = batch.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Supply);
@@ -467,17 +477,12 @@ public sealed class CoordinatedConstructionTests
             Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
-        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "failed",
-            new ActivityTaskBinding.Supply(supply.Id, supply.Step with { Target = "carried-wood", Container = "frame", Count = 7 }, 7)))!;
-        Assert.Equal(7, retry.Tasks.Single(t => t.Id == supply.Id).Step.Count);
-        var finish = retry.Tasks.Single(t => t.Step.Job == "FinishFrame");
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(retry, ActivityNeed.Owed, Read(retry, "completed",
-            new ActivityTaskBinding.Bound(finish.Id, finish.Step with { Target = "frame" })) with { SatisfiedTasks = [supply.Id] })!;
-        Assert.Equal("frame", next.Orders.Single().Steps[0].Target);
-        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Read(next, "completed"))!.Orders.Single().Release);
-        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Read(next, "completed") with { SatisfiedTasks = [finish.Id] })!;
+        var read = Read(batch, state,
+            new ActivityTaskBinding.Supply(supply.Id, supply.Step with { Target = "carried-wood", Container = "frame", Count = 7 }, 7));
+        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read)!;
         Assert.Empty(done.Tasks);
         Assert.True(done.Orders.Single().Release);
+        Assert.Empty(read.SatisfiedTasks);
     }
 
     /// <summary>

@@ -165,7 +165,8 @@ internal static class ConstructionMethodCandidates
                 var stack = rows[0];
                 var sourceLocation = ForecastLocations.Of(stack.Origin);
                 var ready = "construction-ready/" + delivery;
-                activities.Add(new(delivery, sourceLocation, siteLocation, []) { Inputs = [new(new(stack.Resource), units) { Lot = stack.Input }] });
+                activities.Add(new(delivery, sourceLocation, siteLocation, [])
+                    { NativeExecution = true, Inputs = [new(new(stack.Resource), units) { Lot = stack.Input }] });
                 var source = "construction-source/" + stack.Input;
                 observed[source] = new(source, new(stack.Resource), stack.AvailableInput, sourceLocation, 0, horizon)
                 { Lot = stack.Input, Provenance = "native-construction-source:" + stack.Site + ":" + stack.Input };
@@ -193,7 +194,7 @@ internal static class ConstructionMethodCandidates
                 }
             }
             var prerequisites = deliveries.Select(d => d.Id).ToArray();
-            activities.Add(new(finish, siteLocation, siteLocation, prerequisites));
+            activities.Add(new(finish, siteLocation, siteLocation, prerequisites) { NativeExecution = true });
             if (supplied)
             {
                 var ready = "construction-ready/" + id;

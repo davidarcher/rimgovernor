@@ -1,5 +1,12 @@
 # Method continuation
 
+Ordinary construction supply and frame completion are native work. A previously
+installed exact commitment preserves a running task but does not start another
+Supply or FinishFrame at its next observed boundary. It releases the participant;
+if another participant depends on its remaining work, the attempt ends and releases
+its exact owners. This supplies no completion evidence or material refund, and
+leaves an unrelated running participant unchanged.
+
 An actual native job takeover detaches the old execution handle. The existing
 pawn-fact invalidation wakes the worker, which re-reads all Method participants.
 A positively absent or different owner ends that coordinated attempt: remaining
