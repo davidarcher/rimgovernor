@@ -4,6 +4,17 @@ using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>Current native demand is not a prediction of how much remains after the horizon.</summary>
+public abstract record ForecastSupportAssessment
+{
+    private ForecastSupportAssessment() { }
+
+    public sealed record Conditional(ForecastSupportConsequences Consequences) : ForecastSupportAssessment;
+    public sealed record NativeUnprojected(SupportActivityRead Observed) : ForecastSupportAssessment;
+
+    public const string NativeResponseUnprojected = "native_support_response_unprojected";
+}
+
 /// <summary>Physical support consequences retain their units.</summary>
 public sealed record ForecastSupportConsequences
 {

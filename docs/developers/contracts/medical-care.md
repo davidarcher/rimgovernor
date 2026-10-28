@@ -83,8 +83,13 @@ Neither the prisoners nor the anomaly family dispatches a parallel rescue or ten
 
 ## Maintained care
 
-[Support work](support-work.md#room-consequences) compares exact treatment work
+[Support work](support-work.md#room-consequences) compares conditional treatment work
 using native eligibility, existing medical demand and the room as it stands.
+Ordinary tending and already-indicated surgery use native Doctor priorities,
+care policies and surgical bills. A selected hypothetical treatment is not an
+exact order or a completed tend. Native support assessment preserves current
+demand and leaves future timing/outcomes unprojected. The separate critical
+medical Need above continues to own its bounded interventions and receipts.
 It does not choose surgical indications or invent an infection prognosis. Vanilla
 cleans the room under the Cleaning priority; there is no coupled cleaning and no
 automatic cleaning finalizer.

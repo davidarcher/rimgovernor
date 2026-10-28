@@ -15,7 +15,7 @@ public sealed record ForecastConsequenceVector(EquatableArray<ForecastTerm> Urge
     public ForecastTerm BreakRisk { get; init; } = new ForecastTerm.Unassessed("break_risk_not_evaluated");
     public string ThermalOccupancy { get; init; } = "";
     public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
-    public ForecastSupportConsequences Support { get; init; } = new();
+    public ForecastSupportAssessment Support { get; init; } = new ForecastSupportAssessment.Conditional(new());
 }
 
 public enum ForecastComparisonBasis { NativeOperation, ConditionalScenario }
@@ -325,7 +325,9 @@ public sealed partial record ForecastCoupledSelection
         StagedConsequences Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
         {
             var staged = StagedConsequences.Of(outcome, commitments, candidates.Context, horizonTicks, reference, referenceHarm,
-                basis == ForecastComparisonBasis.ConditionalScenario ? outcome : NativeExecutionOutcome(outcome, candidates.Context, nativeBounds));
+                basis == ForecastComparisonBasis.ConditionalScenario ? outcome
+                    : NativeExecutionOutcome(outcome, candidates.Context, nativeBounds) with { Support = reference.Support },
+                basis == ForecastComparisonBasis.ConditionalScenario ? null : new ForecastSupportAssessment.NativeUnprojected(candidates.Context.Support));
             if (eager) _ = staged.Vector;
             return staged;
         }
@@ -1063,7 +1065,7 @@ public sealed partial record ForecastCoupledSelection
 
     /// <summary>The terms of the vector read from the outcome alone (urgency, needs, mood, labor, support, maintenance,
     /// unknowns), with an empty <see cref="ForecastConsequenceVector.Value"/>: what a staged comparison has before the ledger (#3723).</summary>
-    private static ForecastConsequenceVector ConsequenceTerms(ForecastCoupledOutcome outcome)
+    private static ForecastConsequenceVector ConsequenceTerms(ForecastCoupledOutcome outcome, ForecastSupportAssessment? support = null)
     {
         var rows = outcome.Needs as Dictionary<string, ForecastNeedsResult> ?? new Dictionary<string, ForecastNeedsResult>(outcome.Needs, StringComparer.Ordinal);
         var unknown = new List<string>();
@@ -1097,6 +1099,7 @@ public sealed partial record ForecastCoupledSelection
         if (!moodKnown) unknown.Add("unassessed_mood");
         if (!breakKnown) unknown.Add("mental_break_probability_unassessed");
         foreach (var finding in outcome.Support.Findings) unknown.Add(finding);
+        if (support is ForecastSupportAssessment.NativeUnprojected) unknown.Add(ForecastSupportAssessment.NativeResponseUnprojected);
         foreach (var m in outcome.Maintenance) foreach (var finding in m.Findings) unknown.Add(finding);
         unknown.Sort(StringComparer.Ordinal);
         var distinct = 0;
@@ -1108,7 +1111,8 @@ public sealed partial record ForecastCoupledSelection
             moodKnown ? new ForecastTerm.Assessed(pressure) : new ForecastTerm.Unassessed("unassessed_mood"),
             outcome.Plan.LaborCost, EquatableArray.Wrap(unknownRows))
         {
-            BreakRisk = breakKnown ? new ForecastTerm.Assessed(breaks) : new ForecastTerm.Unassessed("mental_break_probability_unassessed"), ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance,
+            BreakRisk = breakKnown ? new ForecastTerm.Assessed(breaks) : new ForecastTerm.Unassessed("mental_break_probability_unassessed"), ThermalOccupancy = outcome.ThermalOccupancy,
+            Support = support ?? new ForecastSupportAssessment.Conditional(outcome.Support), Maintenance = outcome.Maintenance,
         };
     }
 
@@ -1126,9 +1130,10 @@ public sealed partial record ForecastCoupledSelection
         private StagedConsequences(ForecastConsequenceVector vector, ForecastValue.Staged? staged) { this.vector = vector; this.staged = staged; }
 
         internal static StagedConsequences Of(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments, ForecastCoupledContext context,
-            double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm, ForecastCoupledOutcome? execution = null)
+            double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm, ForecastCoupledOutcome? execution = null,
+            ForecastSupportAssessment? support = null)
         {
-            var terms = ConsequenceTerms(execution ?? outcome);
+            var terms = ConsequenceTerms(execution ?? outcome, support);
             return new(terms, ForecastValue.Stage(outcome, terms.Urgent[0], context, horizonTicks, reference, referenceHarm, commitments, execution));
         }
 
@@ -1198,23 +1203,27 @@ public sealed partial record ForecastCoupledSelection
         if (a.Vector.Value.Ledger.LossAgainst(b.Vector.Value.Ledger) is var delta && Math.Abs(delta) > a.Policy.TieResolution)
             return delta.CompareTo(0);
         var (x, y) = (a.Terms, b.Terms);
+        var xSupport = (x.Support as ForecastSupportAssessment.Conditional)?.Consequences;
+        var ySupport = (y.Support as ForecastSupportAssessment.Conditional)?.Consequences;
         stage = "urgent_first_care";
-        { var rank = x.Support.UrgentFirstCareTicks.CompareTo(y.Support.UrgentFirstCareTicks); if (rank != 0) return rank; }
+        if (xSupport is not null && ySupport is not null)
+        { var rank = xSupport.UrgentFirstCareTicks.CompareTo(ySupport.UrgentFirstCareTicks); if (rank != 0) return rank; }
         // Relief is measured against each outcome's own unimproved rooms, so it ranks even when the sleeps differ in time.
         stage = "thermal_relief";
         if (x.Needs[0] is ForecastTerm.Assessed(var xRelief) && y.Needs[0] is ForecastTerm.Assessed(var yRelief))
         { var rank = xRelief.CompareTo(yRelief); if (rank != 0) return rank; }
         stage = "care_batches";
-        var care = x.Support.PendingCareBatches.CompareTo(y.Support.PendingCareBatches); if (care != 0) return care;
-        if (x.Support.CareServices.Length != 0 && x.Support.CareServices == y.Support.CareServices)
+        if (xSupport is not null && ySupport is not null)
+        { var care = xSupport.PendingCareBatches.CompareTo(ySupport.PendingCareBatches); if (care != 0) return care; }
+        if (xSupport is not null && ySupport is not null && xSupport.CareServices.Length != 0 && xSupport.CareServices == ySupport.CareServices)
         {
             stage = "tend_quality";
-            { var rank = y.Support.TendQuality.CompareTo(x.Support.TendQuality); if (rank != 0) return rank; }
+            { var rank = ySupport.TendQuality.CompareTo(xSupport.TendQuality); if (rank != 0) return rank; }
             stage = "care_room";
-            if (x.Support.CareRoom is CareRoomRead.Assessed(var xRoom) && y.Support.CareRoom is CareRoomRead.Assessed(var yRoom))
+            if (xSupport.CareRoom is CareRoomRead.Assessed(var xRoom) && ySupport.CareRoom is CareRoomRead.Assessed(var yRoom))
             { var rank = xRoom.CompareTo(yRoom); if (rank != 0) return rank; }
             stage = "surgery_room";
-            { var rank = y.Support.SurgeryRoomFactor.CompareTo(x.Support.SurgeryRoomFactor); if (rank != 0) return rank; }
+            { var rank = ySupport.SurgeryRoomFactor.CompareTo(xSupport.SurgeryRoomFactor); if (rank != 0) return rank; }
         }
         stage = "maintenance_xp";
         double missing = 0, missingOther = 0;
@@ -1235,9 +1244,10 @@ public sealed partial record ForecastCoupledSelection
             var rank = xJoy.CompareTo(yJoy); if (rank != 0) return rank;
         }
         stage = "unsupplied_demand";
-        var supply = x.Support.UnsuppliedDemand.CompareTo(y.Support.UnsuppliedDemand); if (supply != 0) return supply;
+        if (xSupport is not null && ySupport is not null)
+        { var supply = xSupport.UnsuppliedDemand.CompareTo(ySupport.UnsuppliedDemand); if (supply != 0) return supply; }
         stage = "first_care";
-        return x.Support.FirstCareTicks.CompareTo(y.Support.FirstCareTicks);
+        return xSupport is not null && ySupport is not null ? xSupport.FirstCareTicks.CompareTo(ySupport.FirstCareTicks) : 0;
     }
 
     public static PawnActivities? StartCoupledActivity(ForecastCoupledSelection selection,

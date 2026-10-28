@@ -343,6 +343,15 @@ boundaries are non-overlapping and captured by native transition hooks; there is
 
 The existing `coupled_selection` vectors also carry `maintenance` rows: actual requirement identity, conditional native XP shortfall and findings. The OTLP timeline reads these attrs; native `production/maintenance-range` and `production/maintenance-sparring` correlate the selected Method with real skills and restoration.
 
+The existing `coupled_selection` vectors label `support_projection` as
+`conditional_scenario` or `native_unprojected`. Native vectors expose
+`support_observed_demands` (id/kind/target) and `support_observed_deliveries`
+(demand/bill/required), while future support fields are null and
+`unassessed_terms` includes `native_support_response_unprojected`.
+Conditional vectors retain their numeric service/delivery consequences. The
+OTLP timeline reads these attributes; current demand, a selected what-if and
+actual completion remain separate evidence.
+
 The existing `coupled_selection` vectors withhold deprivation attributed solely
 to omitting a captured native response. `uncertainty` names
 `native_response_unprojected:<pawn>:<kind>`; affected need/mood/break values are

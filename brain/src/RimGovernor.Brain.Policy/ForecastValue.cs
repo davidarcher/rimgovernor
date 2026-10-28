@@ -611,7 +611,7 @@ public static partial class ForecastValue
                 if (result.Mood is ForecastMoodResult.Projected { Breaks: ForecastMoodBreaks.Assessed { Risk: var risk } } && days > 0) worst = Math.Max(worst, risk / days - policy.BreakRiskCap);
                 else assessed = false;
             }
-            harm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments, index.Illness);
+            harm = HarmLedger.Of(this.execution, context, horizon, index.Harm, index.Rows, commitments, index.Illness);
             contributions = GoalContributionsOf(ProgressOf(outcome, context, index), context, commitments ?? []);
             UrgentZero = urgentZeroTicks is ForecastTerm.Assessed(var urgentZero) ? new(true, Math.Max(0, urgentZero)) : new(false, 0);
             BreakRisk = new(assessed, worst);

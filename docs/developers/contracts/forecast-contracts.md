@@ -125,6 +125,21 @@ will remain powered. Missing freshness remains unread and cannot finance intake.
 
 ## Observed native production
 
+Native support vectors use `ForecastSupportAssessment.NativeUnprojected`,
+retaining the canonical current `SupportActivityRead` rather than interpreting
+an empty exact schedule as no delivery or treatment through the horizon.
+Conditional vectors use `Conditional` and retain their detailed consequences.
+Only two conditional support vectors compare first-care time, pending care,
+treatment factors or unsupplied demand. Unprojected native support neither
+becomes zero nor blocks independent supported comparisons such as thermal relief.
+Native harm comparisons hold the reference's conditional care scenario common
+across alternatives; a selected hypothetical tend cannot manufacture an avoided
+untreated-reference loss. This is a common conditional harm calculation, not a
+prediction of when vanilla will treat a patient. The raw scenarios remain
+inspectable; ordinary support generation/binding supplies no exact dispatch
+authority, while the critical medical family retains its existing intervention
+path. The general observed baseline and intervention migration remains open.
+
 The shared bill dispatcher composes current canonical workers, recipe/bench facts,
 stock demand and realized output. Its [derived throughput window](work-assignment.md)
 uses the existing native creation counters, in product units per game day. Stock

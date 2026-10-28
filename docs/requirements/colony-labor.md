@@ -334,6 +334,48 @@ generators and timetable-based throughput sizing remain
 identified work for the later groups. The unrelated observed layout logging
 exception is tracked as [#4041](https://github.com/davidarcher/rimgovernor/issues/4041).
 
+## Native support assessment
+
+Native-operation support vectors retain the current care/bench demands and
+outstanding delivery requirements from the canonical support read. Their future
+service is `ForecastSupportAssessment.NativeUnprojected`, with
+`native_support_response_unprojected`; it has no numeric future care/delivery
+result. Detailed scenario vectors remain `Conditional`, preserving treatment,
+medicine, learning and material calculations. The shared comparator reads those
+future support terms only between conditional scenarios. Native harm comparisons
+hold the reference care scenario common, so choosing a hypothetical tend cannot
+claim an avoided untreated-reference loss. This is still a conditional harm
+calculation, not a projected native treatment schedule.
+
+Ordinary tending and already-indicated surgery, like ingredient delivery, have
+native execution. Reusing a selected conditional plan under a native comparison
+cannot install their exact orders. Old support commitments hand remaining work
+back at task boundaries. Unfinished cross-pawn dependencies end the attempt;
+independent working participants retain their exact orders. The separate critical
+medical Need still owns its existing interventions and receipts.
+
+`SupportMethodTests` covers current native demand versus conditional future
+completion, omitted delivery/treatment, changed demand, no fresh routine dispatch
+and an independent supported thermal comparison. Conditional medicine, infection,
+surgery and learning tests continue to exercise their what-if mechanics without
+claiming exact dispatch. `NativeServiceContinuationTests` covers boundary handback
+for tending, surgery and delivery with independent or dependent participants.
+The required gate passed (1m15s): 4,250 domain tests and 30 workflow tests,
+native production/fixture builds, probes and no contract orphans. Strict OpenSpec
+validation passed 5/5. An earlier native build encountered a zero-filled cached
+Runtime reference assembly; clearing only its disposable intermediate directory
+under the native-build mutex allowed the final gate to pass. No native gameplay
+run is claimed for this increment.
+
+The shared food/reserve/output baseline, general meaningful-intervention policy,
+remaining support reachability/output evidence and final adapter audit are still
+incomplete. Tasks 3.3, 4.1 and 5.5 remain unchecked; progress remains 13/24.
+Rules 7–9: existing demand, output and continuation owners remain authoritative;
+the assessment distinguishes evidence rather than adding a scheduler, model
+call, durable state or second demand owner. Complexity: added a typed two-state
+support assessment and ten regression cases / removed native authority from
+routine care scenarios and false final-support ranking / orphans left: none.
+
 ## Routine execution migration inventory
 
 Task 3.1 uses the existing shared demand and worker census plus the bill
@@ -476,7 +518,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
 | `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion and roofing stay conditional and install no pawn orders; previous commitments hand back at boundaries; removal safety, clearance hauling and general intervention audit remain |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
-| `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine bill ingredient/refill delivery stays conditional and installs no pawn orders; care/surgery, intervention and native output evidence remain |
+| `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine delivery, tending and already-indicated surgery stay conditional and install no pawn orders; old commitments hand back at boundaries; meaningful interventions, native reachability/output evidence and final adapter audit remain |
 | `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
 | `SowingMethodCandidates.Generate`: conditional sowing work | Crop/zone choices and native growing priorities; fresh routine pawn binding removed | Work assignment, forecast; `NativeExecutionBindingTests` covers native-ready sowing selection without direct orders | Partial: fresh routine binding migrated; deadline intervention and incumbent reconciliation remain |
 | `PracticeMethodCandidates.Generate`: range and sparring | Native practice affordances/settings where available; bounded direct activity only for justified capability need | [Capability maintenance](../developers/contracts/capability-maintenance.md), [facilities](../developers/architecture/facilities.md); capability demand, actual native completion and interruption tests | Pending |

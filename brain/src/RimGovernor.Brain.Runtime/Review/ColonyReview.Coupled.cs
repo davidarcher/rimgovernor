@@ -366,7 +366,11 @@ public sealed partial class ColonyReview
     private static Dictionary<string, object?> FloorAttrs(ForecastFloor floor) => new()
         { ["assessed"] = floor.Assessed, ["passed"] = floor.Assessed ? floor.Excess <= 0 : null, ["excess"] = floor.Assessed ? floor.Excess : null };
 
-    private static Dictionary<string, object?> ConsequenceAttrs(ForecastConsequenceVector vector) => new()
+    private static Dictionary<string, object?> ConsequenceAttrs(ForecastConsequenceVector vector)
+    {
+        var support = (vector.Support as ForecastSupportAssessment.Conditional)?.Consequences;
+        var observed = (vector.Support as ForecastSupportAssessment.NativeUnprojected)?.Observed;
+        return new()
     {
         ["urgent"] = vector.Urgent.Select(v => (object?)Number(v)).ToArray(),
         ["needs"] = vector.Needs.Select(v => (object?)Number(v)).ToArray(),
@@ -374,21 +378,26 @@ public sealed partial class ColonyReview
         ["mood_pressure"] = Number(vector.MoodDepth),
         ["mood_break_risk"] = Number(vector.BreakRisk),
         ["unassessed_terms"] = vector.Urgent.Concat(vector.Needs).Append(vector.MoodExposure).Append(vector.MoodDepth).Append(vector.BreakRisk)
-            .OfType<ForecastTerm.Unassessed>().Select(t => t.Reason).Distinct().ToArray(),
+            .OfType<ForecastTerm.Unassessed>().Select(t => t.Reason)
+            .Concat(observed is null ? [] : new[] { ForecastSupportAssessment.NativeResponseUnprojected }).Distinct().ToArray(),
         ["thermal_occupancy"] = vector.ThermalOccupancy,
-        ["support_urgent_first_care_ticks"] = vector.Support.UrgentFirstCareTicks,
-        ["support_pending_care_batches"] = vector.Support.PendingCareBatches,
-        ["support_first_care_ticks"] = vector.Support.FirstCareTicks,
-        ["support_unsupplied_demand"] = vector.Support.UnsuppliedDemand,
-        ["support_food_poison_exposure"] = vector.Support.FoodPoisonExposure,
-        ["support_food_production"] = vector.Support.FoodProduction,
-        ["support_care_services"] = vector.Support.CareServices,
-        ["support_care_room_factor"] = vector.Support.CareRoom is CareRoomRead.Assessed(var room) ? room : null,
-        ["support_tend_quality"] = vector.Support.TendQuality,
-        ["support_surgery_room_factor"] = vector.Support.SurgeryRoomFactor,
+        ["support_projection"] = support is null ? "native_unprojected" : "conditional_scenario",
+        ["support_observed_demands"] = observed?.Demands.Select(d => new { d.Id, d.Kind, d.Target }).ToArray(),
+        ["support_observed_deliveries"] = observed?.Deliveries.Select(d => new { d.Demand, d.Bill, d.Required }).Distinct().ToArray(),
+        ["support_urgent_first_care_ticks"] = support?.UrgentFirstCareTicks,
+        ["support_pending_care_batches"] = support?.PendingCareBatches,
+        ["support_first_care_ticks"] = support?.FirstCareTicks,
+        ["support_unsupplied_demand"] = support?.UnsuppliedDemand,
+        ["support_food_poison_exposure"] = support?.FoodPoisonExposure,
+        ["support_food_production"] = support?.FoodProduction,
+        ["support_care_services"] = support?.CareServices,
+        ["support_care_room_factor"] = support?.CareRoom is CareRoomRead.Assessed(var room) ? room : null,
+        ["support_tend_quality"] = support?.TendQuality,
+        ["support_surgery_room_factor"] = support?.SurgeryRoomFactor,
         ["maintenance"] = vector.Maintenance.Select(m => new Dictionary<string, object?>
         { ["requirement"] = m.Requirement, ["missing_xp"] = m.MissingXp is ForecastMaintenanceGap.Projected(var xp) ? xp : null, ["unknown"] = m.Findings.ToArray() }).ToArray(),
         ["labor"] = vector.Labor, ["unknown"] = vector.Unknown.ToArray(),
         ["value"] = ValueAttrs(vector.Value)
     };
+    }
 }

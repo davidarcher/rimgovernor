@@ -54,8 +54,15 @@ Support work serves observed production, care or material demand. Family provide
 offer care, surgery and conditional delivery operations to the existing shared
 composition and ColonyForecast comparison. Delivery participants, quantities and
 timing are what-if evidence; ordinary ingredient gathering and hauling remain
-native work. Exact care and surgery still use the existing Method journal and Hands
-and remain subject to the general intervention migration.
+native work. Ordinary tending and already-indicated surgery also remain native
+work under Doctor priorities and existing care policies/bills. Their detailed
+worker/medicine scenarios do not authorize exact care orders. Existing in-flight
+work can finish; at a task boundary an old support Method releases its remaining
+participant rather than installing another routine service. Unfinished cross-pawn
+dependencies end the coordinated attempt, without crediting their completion or
+cancelling unrelated work. Critical medical interventions retain their existing
+medical Need, journal, safeguards and Hands path; the general intervention policy
+remains under migration.
 There is no separate helper scheduler, demand ledger or progress store.
 
 Cleaning is not coupled support work (#3662): vanilla cleans the home area under
@@ -134,10 +141,16 @@ has no haul path of its own for it.
 
 ## Execution and evidence
 
-The existing `coupled_selection` decision includes first-care latency, pending
+The existing `coupled_selection` decision labels support as `conditional_scenario`
+or `native_unprojected`. Conditional vectors include first-care latency, pending
 care batches, unsupplied demand, food-production identity and room effect,
-served-care identity, tend quality and surgical room factor. Unknown values remain
-explicit. These are separate consequence dimensions, not a health-to-labor score.
+served-care identity, tend quality and surgical room factor. Native-operation
+vectors retain current observed care/bench demands and delivery requirements;
+future support values are null with `native_support_response_unprojected`.
+Omitting a modeled delivery or treatment does not predict a native stall or wait
+until the horizon; selecting one does not establish completion. The comparator
+does not rank unprojected support as zero or successful service. These are separate
+consequence dimensions, not a health-to-labor score.
 `coupled_observed` and journal/native evidence distinguish the prediction from
 completed work.
 

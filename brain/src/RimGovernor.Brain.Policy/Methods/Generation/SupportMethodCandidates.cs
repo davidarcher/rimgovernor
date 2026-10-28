@@ -44,7 +44,7 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
                 var care = "support/care/" + Key(demand.Id) + "/" + Key(service.Key.Medicine + service.Key.Recipe);
                 var choice = "support/care/" + Key(demand.Id);
                 if (!Space()) break;
-                operations.Add(new(new(care, Location(demand.Location), Location(demand.Location), []), ServiceInputs(service.First()), []) { ChoiceGroup = choice });
+                operations.Add(new(new(care, Location(demand.Location), Location(demand.Location), []) { NativeExecution = true }, ServiceInputs(service.First()), []) { ChoiceGroup = choice });
                 foreach (var worker in service) Worker(care, worker, demand.Id);
                 roots.Add(new(care, []) { ActivityCompletions = [care], ExclusiveOutcome = choice });
             }

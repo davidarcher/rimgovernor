@@ -9,6 +9,40 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class NativeServiceContinuationTests
 {
     [Theory]
+    [InlineData("TendPatient", false)]
+    [InlineData("DoBill", false)]
+    [InlineData("", false)]
+    [InlineData("TendPatient", true)]
+    [InlineData("DoBill", true)]
+    [InlineData("", true)]
+    public void OldSupportCommitmentReturnsToNativeAtBoundaryWithoutCompletingDependencies(string job, bool dependent)
+    {
+        var (batch, read) = AtBoundary("food", true, target: false, dependent: dependent);
+        var task = batch.Tasks.Single(t => t.Id == "service");
+        task = task with { SupportDemand = "current-demand", Step = task.Step with
+        {
+            Kind = job.Length == 0 ? PawnActivityKind.Deliver : PawnActivityKind.Work,
+            Job = job, WorkGiver = job.Length == 0 ? "" : "Doctor", Count = job.Length == 0 ? 1 : 0, SupportDemand = "current-demand",
+            Recipe = job == "DoBill" ? new("surgery-bill", "operation", []) : null,
+        } };
+        if (job.Length == 0) task = task with { Step = task.Step.At(new(1, 1)) };
+        batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == task.Id ? task : t)) };
+        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
+        Assert.True(next.Orders[0].Release);
+        Assert.Empty(read.SatisfiedTasks);
+        if (dependent)
+        {
+            Assert.All(next.Orders, order => Assert.True(order.Release));
+            Assert.Empty(next.Tasks);
+        }
+        else
+        {
+            Assert.True(PawnActivities.SameOrder(batch.Orders[1], next.Orders[1]));
+            Assert.Equal("independent", Assert.Single(next.Tasks).Id);
+        }
+    }
+
+    [Theory]
     [InlineData("", false)]
     [InlineData("FinishFrame", false)]
     [InlineData("BuildRoof", false)]

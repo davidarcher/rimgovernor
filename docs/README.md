@@ -93,7 +93,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Add or change a Family with Needs and claimed Methods | [Model](developers/architecture/control-loop.md#target-model-needs-families-and-claimed-methods), [first-layout prerequisites](developers/architecture/control-loop.md#first-layout-prerequisites), [family notes and map](developers/architecture/control-loop.md#migration) |
 | Trace observed harvest through cooking and meal delivery | [Live food Method](developers/contracts/pawn-activities.md#live-one-iteration-cooking) |
 | Trace shared helper coordination through supply and finishing | [Live construction Method](developers/contracts/pawn-activities.md#live-material-delivery-and-building) |
-| Choose care, demand-driven deliveries and useful chunk work | [Support work](developers/contracts/support-work.md), [case disposition](developers/contracts/support-work.md#execution-and-evidence) |
+| Choose care, demand-driven deliveries and useful chunk work | [Support work](developers/contracts/support-work.md), [native support assessment evidence](requirements/colony-labor.md#native-support-assessment), [case disposition](developers/contracts/support-work.md#execution-and-evidence) |
 | Understand ordinary pawn ownership and unsupported voluntary services | [Voluntary control](developers/contracts/voluntary-control.md), [acceptance disposition](developers/contracts/voluntary-control.md#acceptance-disposition) |
 | Change the native boundary | [Wire contracts](../contracts/README.md) |
 | Measure coupled portfolio allocations and bounded selection quality | [Portfolio allocation baseline](developers/testing/portfolio-allocations.md) |

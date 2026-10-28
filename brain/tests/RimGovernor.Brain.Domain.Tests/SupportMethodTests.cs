@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
 using Xunit;
@@ -38,11 +39,15 @@ public sealed class SupportMethodTests
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
     private static ForecastCoupledSelection Select(ReviewFacts facts, ForecastSearchBudget? budget = null,
-        ForecastComparisonBasis basis = ForecastComparisonBasis.NativeOperation) => ForecastCoupledSelection.CompareActivityOutcomes(
+        ForecastComparisonBasis basis = ForecastComparisonBasis.ConditionalScenario) => ForecastCoupledSelection.CompareActivityOutcomes(
         ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts,
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!, budget, basis: basis);
     private static SelectedActivityTask[] Tasks(ReviewFacts facts, ForecastCoupledSelection selection) =>
         ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "method", 100)?.Tasks.ToArray() ?? [];
+    private static ForecastSupportConsequences Conditional(ForecastConsequenceVector vector) =>
+        Assert.IsType<ForecastSupportAssessment.Conditional>(vector.Support).Consequences;
+    private static ActivityTaskCandidate[] SelectedBindings(ReviewFacts facts, ForecastCoupledSelection selection) =>
+        selection.Selected.Plan.Allocations.Select(a => facts.CoupledAlternatives!.Context.Bindings[(a.Activity, a.Pawn)]).ToArray();
 
     [Fact]
     public void ACookedMealIsExposedToItsBenchRoomsPoisonChance()
@@ -52,17 +57,18 @@ public sealed class SupportMethodTests
         Assert.Contains(result.Selected.Plan.Allocations, a =>
             facts.CoupledAlternatives!.Context.Bindings[(a.Activity, a.Pawn)].Kind == PawnActivityKind.Recipe);
         Assert.DoesNotContain(Tasks(facts, result), t => t.Step.Kind == PawnActivityKind.Recipe);
-        Assert.Equal(.02, result.SelectedVector.Support.FoodPoisonExposure, 9);
+        Assert.Equal(.02, Conditional(result.SelectedVector).FoodPoisonExposure, 9);
     }
 
     [Fact]
-    public void UrgentCareIsTendedAndPricedByItsFirstCareTicks()
+    public void UrgentCareHasConditionalFirstCareTimingWithoutDispatchAuthority()
     {
         var read = CoupledFixtures.NoSupport with { Demands = [CoupledFixtures.Demand("care", "care", "patient", new(1, 1), default, .1)],
             Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d) { Medicine = null, Treatment = CoupledFixtures.Tend() }] };
         var facts = Facts(read); var result = Select(facts);
-        Assert.Contains(Tasks(facts, result), t => t.Step.Job == "TendPatient");
-        Assert.Equal(20d, result.SelectedVector.Support.UrgentFirstCareTicks);
+        Assert.Contains(SelectedBindings(facts, result), t => t.Job == "TendPatient");
+        Assert.Empty(Tasks(facts, result));
+        Assert.Equal(20d, Conditional(result.SelectedVector).UrgentFirstCareTicks);
     }
 
     [Fact]
@@ -94,7 +100,7 @@ public sealed class SupportMethodTests
         Assert.Equal(required, delivery.Count); Assert.Equal("useful-chunk", delivery.Target);
         Assert.True(Assert.Single(context.Activities.Activities, a => a.Id == allocation.Activity).NativeExecution);
         Assert.Empty(Tasks(facts, result));
-        Assert.Equal(0d, result.SelectedVector.Support.UnsuppliedDemand);
+        Assert.Equal(0d, Conditional(result.SelectedVector).UnsuppliedDemand);
         Assert.Equal(0d, ForecastActivities.StockChangesOf(facts.CoupledAlternatives!.Context.Activities, result.Selected.Plan).Where(c => c.Resource.Value == "Chunk").Sum(c => c.Units));
         Assert.Equal(0, result.Selected.Terminal!.Drawn.GetValueOrDefault(new Resource("Chunk")));
     }
@@ -118,7 +124,7 @@ public sealed class SupportMethodTests
     }
 
     [Fact]
-    public void ExactMedicineChoiceConsumesOneObservedLotAndPreservesIntent()
+    public void ConditionalMedicineChoiceAccountsForOneObservedLotWithoutDispatching()
     {
         var read = CoupledFixtures.NoSupport with {
             Demands = [CoupledFixtures.Demand("care", "care", "patient", new(1, 1), default, 0d)],
@@ -126,9 +132,9 @@ public sealed class SupportMethodTests
                 { Medicine = null, Treatment = CoupledFixtures.Tend(.2) },
                 new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d)
                 { Medicine = new("medicine", "Chunk", 1, new(1, 1), 20), Treatment = CoupledFixtures.Tend(.8) }] };
-        var facts = Facts(read); var result = Select(facts); var task = Assert.Single(Tasks(facts, result));
-        Assert.Equal("medicine", task.Step.Medicine); Assert.Equal("care", task.Step.SupportDemand);
-        Assert.Equal(1, Assert.Single(task.Inputs).Count);
+        var facts = Facts(read); var result = Select(facts); var task = Assert.Single(SelectedBindings(facts, result));
+        Assert.Equal("medicine", task.Medicine); Assert.Equal("care", task.SupportDemand);
+        Assert.Empty(Tasks(facts, result));
         Assert.Equal(-1d, ForecastActivities.StockChangesOf(facts.CoupledAlternatives!.Context.Activities, result.Selected.Plan).Where(c => c.Resource.Value == "Chunk").Sum(c => c.Units));
         Assert.Equal(1, result.Selected.Terminal!.Drawn[new Resource("Chunk")]);
     }
@@ -146,9 +152,9 @@ public sealed class SupportMethodTests
                 { Medicine = null, Treatment = CoupledFixtures.Tend(.5, pending ? new InfectionCheck.Pending(checkTicks) : new InfectionCheck.None()) }]
         };
         var facts = Facts(read); var selection = Select(facts);
-        Assert.Contains(Tasks(facts, selection), t => t.Step.Job == "TendPatient");
+        Assert.Contains(SelectedBindings(facts, selection), t => t.Job == "TendPatient");
         // A batch with no pending check, or one that fires before the tend ends, leaves the room out: no factor is unknown.
-        Assert.Equal(new CareRoomRead.Assessed(pending && checkTicks == 100 ? 2d : 0d), selection.SelectedVector.Support.CareRoom);
+        Assert.Equal(new CareRoomRead.Assessed(pending && checkTicks == 100 ? 2d : 0d), Conditional(selection.SelectedVector).CareRoom);
     }
 
     [Fact]
@@ -158,9 +164,10 @@ public sealed class SupportMethodTests
                 with { SurgerySuccessFactor = .6 }], Workers =
             [new("surgery", "pawn", "patient", "DoBill", "Doctor", new(1, 1), 0d, 20d)
                 { Medicine = null, Treatment = CoupledFixtures.Surgery(new("selected-medical-bill", "selected-operation", [])) }] };
-        var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
-        Assert.Equal("selected-medical-bill", Assert.Single(tasks, t => t.Step.Job == "DoBill").Step.Recipe!.Bill);
-        Assert.Equal(.6, result.SelectedVector.Support.SurgeryRoomFactor);
+        var facts = Facts(read); var result = Select(facts); var tasks = SelectedBindings(facts, result);
+        Assert.Equal("selected-medical-bill", Assert.Single(tasks, t => t.Job == "DoBill").Recipe!.Bill);
+        Assert.Empty(Tasks(facts, result));
+        Assert.Equal(.6, Conditional(result.SelectedVector).SurgeryRoomFactor);
     }
 
     [Theory]
@@ -176,9 +183,9 @@ public sealed class SupportMethodTests
                 new("surgery", "helper", "other", "DoBill", "Doctor", new(1, 1), 0d, 20d)
                 { Medicine = null, Treatment = CoupledFixtures.Surgery(new("selected-medical-bill", "selected-operation", []), ProductiveLearningTests.Surgery(15)) }],
         };
-        var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
-        Assert.Contains(tasks, t => t.Step.Job == "TendPatient");
-        Assert.Contains(tasks, t => t.Step.Job == "DoBill");
+        var facts = Facts(read); var result = Select(facts); var tasks = SelectedBindings(facts, result);
+        Assert.Contains(tasks, t => t.Job == "TendPatient");
+        Assert.Contains(tasks, t => t.Job == "DoBill");
         var allocations = result.Selected.Plan.Allocations;
         var tend = Assert.Single(allocations, a => a.Pawn == "pawn").Learning!;
         Assert.Equal(("Medicine", 250d, SkillXpPath.NormalTracker), (tend.Skill, tend.Callbacks.Single().RawXp, tend.Callbacks.Single().Path));
@@ -195,7 +202,64 @@ public sealed class SupportMethodTests
             { Demand = "bill:stone:Rice", Target = "rice", Resource = "Rice", Available = 4 }] };
         var facts = Facts(read); var result = Select(facts);
         Assert.Single(result.Selected.Plan.Allocations);
-        Assert.Empty(Tasks(facts, result)); Assert.Equal(0d, result.SelectedVector.Support.UnsuppliedDemand);
-        Assert.Equal(1d, result.BaselineVector.Support.UnsuppliedDemand);
+        Assert.Empty(Tasks(facts, result)); Assert.Equal(0d, Conditional(result.SelectedVector).UnsuppliedDemand);
+        Assert.Equal(1d, Conditional(result.BaselineVector).UnsuppliedDemand);
+    }
+
+    [Theory]
+    [InlineData("delivery")]
+    [InlineData("care")]
+    [InlineData("surgery")]
+    public void NativeSupportRetainsCurrentDemandWithoutPredictingFailureOrCompletion(string kind)
+    {
+        var read = kind == "delivery" ? Delivery(2) : CoupledFixtures.NoSupport with
+        {
+            Demands = [CoupledFixtures.Demand(kind, kind, "patient", new(1, 1), 0, .1)],
+            Workers = [new(kind, "pawn", "patient", kind == "care" ? "TendPatient" : "DoBill", "Doctor", new(1, 1), 0, 20)
+            {
+                Medicine = null, Treatment = kind == "care" ? CoupledFixtures.Tend()
+                    : CoupledFixtures.Surgery(new("selected-medical-bill", "selected-operation", [])),
+            }],
+        };
+        var facts = Facts(read);
+        var native = Select(facts, basis: ForecastComparisonBasis.NativeOperation);
+        Assert.Same(read, Assert.IsType<ForecastSupportAssessment.NativeUnprojected>(native.BaselineVector.Support).Observed);
+        Assert.Same(read, Assert.IsType<ForecastSupportAssessment.NativeUnprojected>(native.SelectedVector.Support).Observed);
+        Assert.Contains(ForecastSupportAssessment.NativeResponseUnprojected, native.BaselineVector.Unknown);
+        Assert.Empty(Tasks(facts, native));
+        if (kind == "delivery")
+        {
+            Assert.Empty(native.Selection.Selected);
+            Assert.Equal(1, native.Baseline.Support.UnsuppliedDemand); // Explicit no-modeled-delivery scenario only.
+        }
+        else Assert.Equal(Horizon, native.Baseline.Support.FirstCareTicks); // Not a native wait-time prediction.
+
+        var conditional = Select(facts);
+        Assert.NotEmpty(conditional.Selection.Selected);
+        if (kind == "delivery") Assert.Equal(0, Conditional(conditional.SelectedVector).UnsuppliedDemand);
+        else Assert.Equal(20, Conditional(conditional.SelectedVector).FirstCareTicks);
+        Assert.Empty(Tasks(facts, conditional));
+        // Even a caller reusing the detailed plan cannot reinstall routine care/delivery.
+        Assert.Empty(Tasks(facts, conditional with { Basis = ForecastComparisonBasis.NativeOperation }));
+        Assert.All(conditional.Selected.Plan.Allocations, a => Assert.True(facts.CoupledAlternatives!.Context.Activities.Activities
+            .Single(t => t.Id == a.Activity).NativeExecution));
+
+        var changedRead = read with { Demands = [], Deliveries = [], Workers = [] };
+        var changedFacts = Facts(changedRead);
+        var changed = Select(changedFacts, basis: ForecastComparisonBasis.NativeOperation);
+        var observed = Assert.IsType<ForecastSupportAssessment.NativeUnprojected>(changed.BaselineVector.Support).Observed;
+        Assert.Empty(observed.Demands);
+        Assert.Empty(observed.Deliveries);
+        Assert.Empty(Tasks(changedFacts, changed));
+    }
+
+    [Fact]
+    public void UnprojectedNativeSupportDoesNotBlockAnIndependentSupportedComparison()
+    {
+        var native = Select(Facts(Delivery(2)), basis: ForecastComparisonBasis.NativeOperation).BaselineVector;
+        var relief = native with { Needs = EquatableArray.From(native.Needs.Select((n, i) => i == 0 ? new ForecastTerm.Assessed(-10) : n)) };
+        var unchanged = native with { Needs = EquatableArray.From(native.Needs.Select((n, i) => i == 0 ? new ForecastTerm.Assessed(0) : n)) };
+        Assert.True(ForecastCoupledSelection.CompareConsequences(relief, unchanged) < 0);
+        Assert.IsType<ForecastSupportAssessment.NativeUnprojected>(relief.Support);
     }
 }

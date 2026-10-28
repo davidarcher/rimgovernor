@@ -95,10 +95,13 @@ location for stationary work and ordinary delivery; construction Supply names th
 source stack separately from its site location. Preparation and continuation read
 that source directly, without substituting a destination or a missing observation.
 
-[Evaluated support work](support-work.md) uses these same contracts for
-care, surgery and demand-driven delivery. It replaces native automatic
-refill withholding and global chunk hauling. Supported voluntary needs
-share this same owner; legacy timetable and mood need-giver writers are removed.
+[Evaluated support work](support-work.md) retains conditional care, surgery and
+demand-driven delivery scenarios. Routine execution belongs to native work;
+those scenarios install no exact pawn claims. An old support Method returns
+remaining work to native selection at a task boundary, preserving in-flight
+work and independent participants and never crediting unfinished dependencies.
+Critical medical orders retain their separate medical Need and existing action
+contracts. Native self-service is governed by the boundaries below.
 
 ## Live harvest and delivery
 
