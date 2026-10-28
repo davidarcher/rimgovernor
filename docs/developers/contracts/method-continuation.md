@@ -1,8 +1,8 @@
 # Method continuation
 
-Ordinary construction supply and frame completion are native work. A previously
+Ordinary construction supply, frame completion and roof building are native work. A previously
 installed exact commitment preserves a running task but does not start another
-Supply or FinishFrame at its next observed boundary. It releases the participant;
+Supply, FinishFrame or BuildRoof at its next observed boundary. It releases the participant;
 if another participant depends on its remaining work, the attempt ends and releases
 its exact owners. This supplies no completion evidence or material refund, and
 leaves an unrelated running participant unchanged.

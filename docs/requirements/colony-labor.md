@@ -457,7 +457,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; formation hunting, intervention and native usable-output evidence remain |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Partial: fresh routine services and boundary continuation stay native; unresolved access and justified exceptions remain |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
-| `ConstructionMethodCandidates.Generate`: supply and build | Native blueprints, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion stay conditional and install no pawn orders; previous commitments hand back at boundaries; removal/roof safety and general intervention audit remain |
+| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion and roofing stay conditional and install no pawn orders; previous commitments hand back at boundaries; removal safety, clearance hauling and general intervention audit remain |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
 | `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine bill ingredient/refill delivery stays conditional and installs no pawn orders; care/surgery, intervention and native output evidence remain |
 | `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
@@ -769,3 +769,31 @@ authoritative; the pure execution filter and shared continuation path enforce
 handback, with no new scheduler, persistence or invented output. Complexity:
 added native construction selection/handback regressions / removed ordinary
 supply and frame-finish dispatch / orphans left: none.
+
+## Native roof building
+
+Per-cell roof-building forecasts now use the same native execution boundary.
+The existing room reconciliation path commits BuildRoof-area intent through
+shared journal admission; Construction priorities leave that work available to
+vanilla. An explicit roof-only hypothetical plan cannot install a routine pawn
+order, even without supply/frame work or a needs service to filter it indirectly.
+Existing BuildRoof commitments hand back at an observed boundary, preserving
+uncompleted cross-pawn prerequisites and unrelated running work. Area designation
+and forecast completion remain distinct from an observed finished roof.
+
+The normal roof-only comparison may decline the portfolio as routine native
+service; the isolated dispatch regression tests the hypothetical physical plan
+separately, without changing investment ranking. Existing NeedBuildingTests cover
+the real journal roof-area admission path. No new native gameplay result is
+claimed. Removal safety, clearance haul-out plumbing and intervention policy
+remain in scope; task 5.4 and the overall change remain incomplete.
+
+Verification: final gate PASS (40s), 4,230 domain tests and 30 workflow tests,
+including native builds/probes and contract orphan checks. Strict OpenSpec and
+diff checks pass. Overall progress remains 13/24.
+
+Rules 7–9: existing area intent and shared demand remain the owners; the pure
+native flag and shared continuation path enforce handback without new prediction,
+persistence or a second executor. Complexity: added standalone roof dispatch and
+boundary regressions / removed ordinary exclusive roof-building dispatch /
+orphans left: none.

@@ -58,6 +58,43 @@ public sealed class ForecastThermalPortfolioTests
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), facts.CoupledAlternatives!);
 
     [Fact]
+    public void AnAlreadyStandingShellKeepsHypotheticalRoofWorkWithoutOrdinaryOrders()
+    {
+        var facts = Review(-10);
+        var coupled = facts.ForecastObserved.Coupled!;
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = coupled with
+        {
+            Construction = coupled.Construction with { Options = [] },
+            Thermal = coupled.Thermal! with { Cells = EquatableArray.From(coupled.Thermal!.Cells.Select(c =>
+                c.Site.Length == 0 ? c : c with { Solid = true, Site = "", FutureSolid = false })) }
+        } } };
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
+        var result = Select(facts);
+        var generated = facts.CoupledAlternatives!;
+        var roofTasks = generated.Context.Activities.Activities.Where(a => generated.Context.Bindings.Values.Any(b => b.Id == a.Id && b.Job == "BuildRoof")).ToArray();
+        Assert.NotEmpty(roofTasks);
+        Assert.All(roofTasks, a => Assert.True(a.NativeExecution));
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(result, generated, 1, "ordinary-roof", 100));
+        // Test dispatch independently of investment ranking. This physical what-if has only roof work,
+        // so no supply/frame or needs activity can indirectly filter out the roofer.
+        var roofIds = roofTasks.Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
+        var independent = roofTasks.Where(a => a.Prerequisites.Length == 0).ToArray();
+        Assert.NotEmpty(independent);
+        var independentIds = independent.Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
+        var physical = ForecastActivities.CompareActivityPlans(generated.Context.Activities with
+        {
+            Activities = independent,
+            Options = generated.Context.Activities.Options.Where(o => independentIds.Contains(o.Activity)).ToArray()
+        });
+        var plan = Assert.Single(physical.Alternatives);
+        Assert.NotEmpty(plan.Allocations);
+        Assert.All(plan.Allocations, a => Assert.Contains(a.Activity, roofIds));
+        var hypothetical = result with { Selection = new(generated.Alternatives.Select(c => c.Id).ToArray(),
+            plan, physical.Findings, physical.Expansions, physical.SearchTruncated), Deferred = [] };
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(hypothetical, generated, 1, "hypothetical-roof", 100));
+    }
+
+    [Fact]
     public void SharedSelectorCombinesRealShellRoofAndInsideOccupancyForConditionalThermalRelief()
     {
         var facts = Review(-10);

@@ -9,16 +9,19 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class NativeServiceContinuationTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    public void OldConstructionCommitmentReturnsToNativeWithoutCreditingDependentCompletion(bool supply, bool dependent)
+    [InlineData("", false)]
+    [InlineData("FinishFrame", false)]
+    [InlineData("BuildRoof", false)]
+    [InlineData("", true)]
+    [InlineData("FinishFrame", true)]
+    [InlineData("BuildRoof", true)]
+    public void OldConstructionCommitmentReturnsToNativeWithoutCreditingDependentCompletion(string job, bool dependent)
     {
         var (batch, read) = AtBoundary("food", true, target: false, dependent: dependent);
         var task = batch.Tasks.Single(t => t.Id == "service");
-        task = task with { Step = task.Step with { Kind = supply ? PawnActivityKind.Supply : PawnActivityKind.Work,
-            Job = supply ? "" : "FinishFrame" } };
+        task = task with { Step = task.Step with { Kind = job.Length == 0 ? PawnActivityKind.Supply : PawnActivityKind.Work,
+            Job = job } };
+        if (job == "BuildRoof") task = task with { Step = task.Step.At(task.Location) };
         batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == task.Id ? task : t)) };
         var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
         Assert.True(next.Orders[0].Release);

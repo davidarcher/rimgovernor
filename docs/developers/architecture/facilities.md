@@ -8,6 +8,13 @@ minimum finishing skill continue to apply to ordinary workers. Existing exact
 commitments finish in-flight work, then hand back at a task boundary; unresolved
 cross-pawn dependencies end the attempt rather than count as completed work.
 
+Ordinary roof building follows the same boundary: room reconciliation installs
+the native BuildRoof area once the ring stands, and Construction priorities make
+that work available. Per-cell forecasts estimate conditional shelter benefits;
+they install no exclusive roofer. Roof completion comes from the observed roof,
+not from the area designation or a scheduled forecast cell. Saved exact BuildRoof
+tasks hand back at a boundary just like frame completion.
+
 The game scores a room's native role from its actual stations. A room can serve
 several functions: beds, benches, seats and medical beds count wherever they
 stand. Every function uses its owning canonical room credit under the merged

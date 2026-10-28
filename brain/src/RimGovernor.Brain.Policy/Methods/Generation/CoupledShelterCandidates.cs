@@ -159,7 +159,7 @@ internal static class CoupledShelterCandidates
                 { notes.Add("unsupported_roof_geometry_or_designation"); continue; }
                 var id = "roof/" + room.Id + "/" + cell.X + "/" + cell.Z;
                 var location = ForecastLocations.Of(cell);
-                var task = new ForecastActivity(id, location, location, []);
+                var task = new ForecastActivity(id, location, location, []) { NativeExecution = true };
                 var supply = new ForecastCompositionSupply("completed-roof/" + id, new("CompletedRoofCell"), 1, location, 0, horizon)
                     { Producer = id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-roof-cell:" + cell.X + "/" + cell.Z };
                 operations.Add(id, new(task, shell, [supply]) { ChoiceGroup = "roof-cell/" + cell.X + "/" + cell.Z });
