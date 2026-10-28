@@ -12,7 +12,7 @@ hold to its own Def rows.
 - Every ThingDef with no stuff and with each stuff `GenStuff.AllowedStuffsFor` allows it, and every TerrainDef.
 - For each subject, every stat `CatalogStats.All` declares. A value is computed when the stat's `ShouldShowFor`
   holds for the subject (`StatRequest.For(def, stuff)`, Normal quality), and for every subject when the stat is
-  declared `ReadHidden` (DeteriorationRate, Flammability, BedRestEffectiveness, WorkToBuild). The value is the game's
+  declared `ReadHidden` (including MarketValue, DeteriorationRate, Flammability, BedRestEffectiveness, WorkToBuild). Construction-cost valuation reads native material MarketValue even when its display is hidden, as with quest ingredients; display/trade reads still check `Shown`. Missing or failed values remain errors, never zero. The value is the game's
   `GetStatValueAbstract(stat, stuff)`.
 - Each subject's `CostListAdjusted(stuff, errorOnNullStuff: false)`; a def made from stuff has no cost row without one.
 - Each def's allowed stuff names.

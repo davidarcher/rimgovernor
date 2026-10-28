@@ -23,6 +23,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(RectangleCaseResult))]
 [JsonSerializable(typeof(StageSpec))]
 [JsonSerializable(typeof(StageReply))]
+[JsonSerializable(typeof(OrderedWorkLifecycleRead))]
 [JsonSerializable(typeof(GearPolicyReply))]
 [JsonSerializable(typeof(GearPruneReply))]
 [JsonSerializable(typeof(ApplyRefusalPrepared))]

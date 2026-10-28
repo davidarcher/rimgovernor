@@ -1634,6 +1634,9 @@ public sealed record GiveJobOptions
 
 public sealed record GiveJobIntent
 {
+    /// <summary>Finite exact native queue; excludes the single-job fields.</summary>
+    public RimGovernor.Brain.Domain.OrderedWork? Queue { get; init; }
+
     public RimGovernor.Brain.GameFacts.Common.Ref? Pawn { get; init; }
 
     public string? Job { get; init; }

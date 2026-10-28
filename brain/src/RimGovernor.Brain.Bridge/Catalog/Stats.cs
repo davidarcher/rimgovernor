@@ -44,7 +44,9 @@ public static class CatalogStats
 {
     private static readonly List<CatalogStat> Declared = [];
 
-    public static readonly CatalogStat MarketValue = Declare(StatNames.MarketValue);
+    // Construction costs use native material value even for ingredients whose UI hides it.
+    // Display/trade eligibility continues to use the separate Shown result.
+    public static readonly CatalogStat MarketValue = Declare(StatNames.MarketValue, readHidden: true);
     public static readonly CatalogStat Nutrition = Declare(StatNames.Nutrition);
     public static readonly CatalogStat Beauty = Declare(StatNames.Beauty);
     public static readonly CatalogStat Cleanliness = Declare(StatNames.Cleanliness);

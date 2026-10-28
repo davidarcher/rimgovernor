@@ -16,9 +16,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class StoreSchemaPinTests
 {
-    private const int PinnedSchemaVersion = 61;
-    // Version 61 drops the obsolete Preemptible property from frozen admission evidence.
-    private const string PinnedShapeHash = "3DEE37CA2AB7F6403F1C9C9FE8FB3F524FC41EEA465C89F10F688FA17DCC29A8";
+    private const int PinnedSchemaVersion = 62;
+    // Version 62 adds finite native ordered-work requests.
+    private const string PinnedShapeHash = "A5E552A9E524299DEB86252EE368FDE18363F6002DB97DD3FBFB6E7D6DA6BCC1";
 
     [Fact]
     public void CodecShapeIsPinnedToTheSchemaVersion()

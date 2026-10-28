@@ -1,6 +1,13 @@
 # Persistence contracts
 
-Native activity execution handles remain transient observations bound to actual job identity. The journal owns the bot's attempted Method, not exclusive permission to select a pawn's next job. A native takeover ends the old execution handle; shared continuation reconciles the journal's remaining participants and claims from fresh observations. No takeover ledger or second queue store is introduced.
+Native activity execution handles remain transient observations bound to actual job identity. The journal owns the bot's attempted Method, not exclusive permission to select a pawn's next job. A native takeover ends the old execution handle; shared continuation reconciles the journal's remaining participants and claims from fresh observations.
+
+Finite ordered interventions use `OrderedWorkState` in the native save: one latest sequence, immutable request, exact job IDs and observed outcomes per pawn. Vanilla alone saves and executes the physical job queue. This provenance record prevents replay after completion/load and limits cancellation to the intervention's jobs; it stores no reservations, future schedule or completed history. Missing physical jobs without an observed successful end are `Gone`, never completed. The session journal still owns Method admission and claims.
+
+The component belongs to the early-loaded native runtime so Verse can resolve
+its type when reading a save. The bridge encodes and reads its typed records;
+the runtime stores those values verbatim, independently of brain-owned family
+blobs.
 
 Journal transactions read SQLite's actual transaction state before rollback: a
 transaction SQLite has already ended needs no second rollback. A genuine rollback
@@ -70,6 +77,7 @@ copy of a fact is a bug, not a cache.
 | Home | Holds | On reload |
 |---|---|---|
 | Native game-process memory, `NativePawnActivities` | Transient installed assignment and actual running job reference plus load ID. Only an actually installed matching offer acquires the running handle; a different installed job detaches it. SQLite retains the attempted Method and reconciles remaining exact participants from fresh observations. No durable takeover or queue ledger. | Discarded on world/load or authority change; never restored as exclusive native selection permission. |
+| Native save, `OrderedWorkState` | One latest finite intervention request/sequence and exact native job IDs/outcomes per pawn. No physical queue copy: Verse alone owns and saves the jobs. | Reconciled against live identities after load; identical requests read back without reissue, missing jobs become `Gone`, and cancellation touches only matching remaining jobs. |
 | Hands action advancement, memory only | Action retry waits, fair plan cursor and focused reconciliation hints. Runtime owns only scheduling/lifecycle and Method policy continuation; no second action scheduler or saved retry state. | Discarded on controller restart; journal attempts remain authoritative |
 | Pure forecast invocation, carried colony state | The carried state references its completed treatment trajectory prefix, including its original medicine and skill history. Continuation replays disease treatment demand from that one history; no journal, saved copy or independent clinical store. | Discarded with the forecast invocation |
 | Native save, `GovernorState` blobs | Brain intent the world cannot show: family plans (`family/*`; the layout plan, `family/layout_plan`, retains derived per-room production loads in `PlannedRoom.Production` and keys each pen room with its herd's race in `Herd`, #2226) the soldier squad (`family/soldier_squad`), original temporary combat settings (`family/combat_restoration`), the creepjoiner inspection record (`family/admin/creep_joiners`: the pawns ordered and done, keyed by colony and map, so it is read back after a reload; #3264), the settlement trade missions under way (`family/economy/trade_missions`: each mission's minted id and intent, keyed by colony and map; a mission leaves it once delivered or ended; #3316) the ideology family's pending reform (`family/ideology/reform`, #3260) and the player's goals, themes and preferences (`family/goals`, #3489); written by the brain at save time, opaque to native | Follows the save's timeline; the brain rebuilds its in-memory views from the blobs |

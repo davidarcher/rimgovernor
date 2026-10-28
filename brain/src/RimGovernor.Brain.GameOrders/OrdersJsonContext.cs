@@ -12,10 +12,13 @@ namespace RimGovernor.Brain.GameOrders;
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     AllowOutOfOrderMetadataProperties = true,
     Converters = [
+        typeof(EquatableArrayJsonConverter<OrderedWorkStep>), typeof(EquatableArrayJsonConverter<OrderedWorkJob>),
         typeof(EquatableArrayJsonConverter<SelectedActivityTask>), typeof(EquatableArrayJsonConverter<PawnActivityIngredient>),
         typeof(EquatableArrayJsonConverter<SelectedActivityInput>), typeof(EquatableArrayJsonConverter<PawnActivityStep>),
         typeof(EquatableArrayJsonConverter<string>), typeof(EquatableArrayJsonConverter<Cell>),
         typeof(TickJsonConverter), typeof(PawnIdJsonConverter), typeof(QuestIdJsonConverter), typeof(MapIdJsonConverter)])]
+[JsonSerializable(typeof(OrderedWorkStep))]
+[JsonSerializable(typeof(OrderedWorkJob))]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ProductionBenchFacts), TypeInfoPropertyName = "ObservationsProductionBenchFacts")]
 [JsonSerializable(typeof(EquatableArray<RimGovernor.Brain.GameFacts.Observations.ProductionBenchFacts>), TypeInfoPropertyName = "EquatableArrayObservationsProductionBenchFacts")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.CookingProduction), TypeInfoPropertyName = "ObservationsCookingProduction")]

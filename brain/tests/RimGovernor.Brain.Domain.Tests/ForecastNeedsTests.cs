@@ -204,7 +204,10 @@ public sealed class ForecastNeedsTests
             [new("player", "pawn", 0.0, 300.0, ForecastOccupancyState.Active)]) };
         var protectedChoices = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(protectedInput), 1000);
         Assert.All(protectedChoices.Choices, c => Assert.True(c.Depart >= 300));
-        Assert.Empty(ForecastNeeds.GenerateNeedsAlternatives(Pawn() with { State = "player_work" }, ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000).Choices);
+        var ordered = Pawn() with { State = "player_work" };
+        Assert.Empty(ForecastNeeds.GenerateNeedsAlternatives(ordered, ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000).Choices);
+        var food = Assert.Single(ordered.Needs, n => n.Kind == "food");
+        Assert.IsType<ModelService.Observed>(NeedServiceRules.Steady(ordered, food).Service);
     }
 
     [Fact]

@@ -217,6 +217,12 @@ public static partial class WorkRules
         {
             var progress = row.Progress;
             if (ActionAbsent(progress)) continue;
+            if (row.Action.OrderedWork is { Cancel: false } ordered
+                && (progress.Unresolved || progress.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation))
+            {
+                pawns.Add(ordered.Pawn.Value);
+                foreach (var job in ordered.Jobs) Take(job.Target);
+            }
             if (progress.Unresolved || progress.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation)
             {
                 foreach (var subject in MethodClaimsRules.TradeSubjects(row.Action.Payload)) Take(subject);

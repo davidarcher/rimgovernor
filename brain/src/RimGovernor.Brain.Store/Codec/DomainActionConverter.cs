@@ -83,6 +83,8 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
                 return DomainAction.NewClaimBuildingAction(id, Payload<ClaimBuilding>());
             case ActionKind.PawnActivities:
                 return DomainAction.NewPawnActivitiesAction(id, Payload<PawnActivities>());
+            case ActionKind.OrderedWork:
+                return DomainAction.NewOrderedWorkAction(id, Payload<OrderedWork>());
             case ActionKind.CombatBatch:
                 return DomainAction.NewCombatBatchAction(id, Payload<CombatBatch>());
             case ActionKind.CommsTradeRequest:

@@ -485,6 +485,9 @@ public sealed record Quantity
 /// </summary>
 public sealed record JobEvidence
 {
+    /// <summary>Latest finite intervention, reconciled against exact current/queued identities.</summary>
+    public RimGovernor.Brain.Domain.OrderedWorkObservation? OrderedWork { get; init; }
+
     public string? DefName { get; init; }
 
     public bool PlayerForced { get; init; }

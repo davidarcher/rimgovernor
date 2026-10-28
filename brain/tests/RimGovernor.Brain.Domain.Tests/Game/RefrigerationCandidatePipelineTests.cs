@@ -157,6 +157,8 @@ public sealed class RefrigerationCandidatePipelineTests(ITestOutputHelper output
     [InlineData("unrelated", false)]
     public void CoolingAllowanceRecognizesTheActualCatalogDefinitions(string definition, bool cooler)
     {
+        // Receipt semantics must not depend on another test having initialized the intent registry.
+        IntentActionRules.RegisterIntentKinds();
         var (reading, _) = Reading(2);
         var names = RefrigerationRules.CoolerDefinitions(reading.Facts.Stations).Select(candidate => candidate.Name).ToHashSet(StringComparer.Ordinal);
         var action = DomainAction.NewBuildingAction(new("cool-0"), new Building(definition, new(1, 2), Rotation.West, ""), ConstructionTier.Sustain);

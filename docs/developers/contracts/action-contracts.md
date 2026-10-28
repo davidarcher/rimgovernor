@@ -1,5 +1,12 @@
 # Action completion contracts
 
+`OrderedWork` is a finite native queue through `GiveJobIntent.Queue`. A completed
+dispatch action acknowledges installation/readback, not completed pawn work.
+Exact native identities and observed end conditions are available in the job
+receipt and the pawn's `Job.OrderedWork` readback. See
+[finite native ordered work](pawn-activities.md#finite-native-ordered-work) for
+sequence, ordering, retry and cancellation rules.
+
 `ideoligion_reform` is a journaled Hands intent for an eligible fluid
 ideoligion. Expected selections and reform count guard stale state; native
 checks normal reform limits, consumes development once, and returns observed

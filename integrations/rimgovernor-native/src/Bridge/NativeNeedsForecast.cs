@@ -38,10 +38,12 @@ internal static class NativeNeedsForecast
                 : pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 ? "player_work" : "eligible";
             var blockers = VoluntaryControlBlockers(pawn);
             if (state == "eligible" && blockers.Count != 0) state = "unsupported_voluntary_state";
-            // A blocked pawn's supported needs stay the brain's to serve (#3557): its targets are read like an eligible pawn's.
+            // Availability for execution is separate from physical service mechanics. A finite
+            // forced/queued job cannot erase accessible meals and deadlock first-layout planning.
+            // player_work remains ineligible; these targets grant no permission to interrupt it.
             var voluntary = state is "eligible" or "unsupported_voluntary_state";
             var targets = new List<RimGovernor.Brain.GameFacts.Observations.NeedTarget>();
-            if (voluntary)
+            if (voluntary || state == "player_work")
             {
                 possible ??= map.listerThings.AllThings.Where(t => t.Spawned &&
                     (t.def.IsNutritionGivingIngestible && t is not Corpse || t is Building_Bed || NativeRecreation.GiverFor(t) != null))

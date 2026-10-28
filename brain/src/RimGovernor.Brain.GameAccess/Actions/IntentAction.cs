@@ -11,7 +11,7 @@ public static class IntentActionRules
 {
     /// <summary>
     /// A batch of idempotent intents that native applies in order, each validated
-    /// against live state and applied or refused on its own. A resent key returns its first result.
+    /// against live state and applied or refused on its own. Each intent owns its retry semantics.
     /// </summary>
     public const string ActionsApplyMethod = "operations_apply";
 
@@ -84,6 +84,7 @@ public static class IntentActionRules
         [ActionKind.AutoHomeArea] = BuildingsRules.AutoHomeAreaAction,
         [ActionKind.Repair] = GiveJobRules.RepairAction,
         [ActionKind.PawnActivities] = a => new RimGovernor.Brain.GameOrders.Operations.Action { Intent = new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = a.PawnActivities! } },
+        [ActionKind.OrderedWork] = a => new RimGovernor.Brain.GameOrders.Operations.Action { Intent = new RimGovernor.Brain.GameOrders.Operations.GiveJobIntent { Queue = a.OrderedWork! } },
         [ActionKind.Tend] = GiveJobRules.TendAction,
         [ActionKind.Equip] = GiveJobRules.EquipAction,
         [ActionKind.DropEquipment] = GiveJobRules.DropEquipmentAction,

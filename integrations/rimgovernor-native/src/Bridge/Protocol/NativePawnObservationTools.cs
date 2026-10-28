@@ -109,6 +109,7 @@ namespace RimGovernor.Native
             var job = pawn.jobs?.jobQueue != null
                 ? NativeObservationTools.JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count)
                 : NativeObservationTools.JobRow(null, 0);
+            if (pawn.jobs != null) job = job with { OrderedWork = NativeOrderedWork.Observe(pawn) };
             return new RimGovernor.Brain.GameFacts.Observations.PawnState {
                 Pawn = Entity(pawn),
                 KindDefName = Id(pawn.kindDef?.defName),

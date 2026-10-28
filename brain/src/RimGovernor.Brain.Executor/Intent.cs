@@ -77,7 +77,7 @@ public sealed partial class Executor
         ActionKind.DrugPolicy,
         ActionKind.FoodPolicy,
         ActionKind.PawnSettings,
-        ActionKind.PawnActivities,
+        ActionKind.PawnActivities, ActionKind.OrderedWork,
         ActionKind.AutoHomeArea,
         ActionKind.Repair,
         ActionKind.Tend,

@@ -50,6 +50,7 @@ public enum ActionKind
     Undraft,
     PawnSettings,
     PawnActivities,
+    OrderedWork,
     PolicyPrune,
     PrisonerInteraction,
     ProductionBill,

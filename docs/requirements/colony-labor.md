@@ -8,6 +8,44 @@ The maintainer confirmed native-led routine execution, full control of settings 
 
 ## Current evidence
 
+Finite native queue mechanics are now exercised through normal journal/Hands
+dispatch in `control/ordered-work-lifecycle`. The finished case passed in 28.458s
+on 2026-10-28 UTC: exact jobs 5 and 6 started in that order, both ended
+`Succeeded`, both designated walls were removed, and the pawn returned to an
+unforced native job with an empty queue. The ordinary pawn read retained those
+identities/outcomes; repeating the request under a fresh action key returned
+`Issued=false` and the same completed queue. The fixture stages legal independent
+jobs and a concrete purpose, so this proves native mechanics, not policy choice
+or intervention materiality. Result:
+`.rimgovernor/labor-ordered-work-final/control/ordered-work-lifecycle/result.json`.
+It records dirty source based on `d8e3bc439393`, package file hashes, the `work`
+family and the three named fixture operations. Task 4.4 is complete; 4.1–4.3
+remain open. In particular, full save/reload reconciliation and active partial
+cancellation preserving unrelated work still need their boundary evidence, and
+Method continuation through queue outcomes remains unfinished.
+
+`OrderedWorkTests` checks immutable request sequencing, stale/altered/reordered
+requests, partial completion, missing/replaced identities, serialized outcome
+reconciliation, journal/wire codecs and pending pawn/target claims.
+`OrderedWorkHandsTests` proves real admission, claim conflict, fresh inspection,
+typed transport and duplicate journal-receipt protection. The saved provenance
+owner is one latest native record per pawn; vanilla alone owns the physical queue.
+Routine portfolio selection does not generate this action.
+
+The native run exposed and repaired two normal-review obstructions: construction
+pricing now reads native material MarketValue even when its display is hidden
+(the observed Gravcore case), and forced/queued work retains accessible service
+mechanics without gaining voluntary-dispatch eligibility. Otherwise a finite
+order could hide meals and deadlock first-layout planning at tick 0. Focused
+regressions cover both distinctions; the final native result demonstrates the
+clock progressing through the real review. An unrelated MonoMod/CoreCLR startup
+crash before setup is tracked by existing #3190; that failed attempt established
+no queue outcome. The final gate passed 4,175 domain tests, 30 workflow tests,
+native builds, contract probes and the orphan check (1m21s); strict OpenSpec
+validation passed all five items. Rules 7–9: shared admission owns claims, no new
+optimizer or demand owner was added, and dispatch/unknown disappearance cannot
+become physical completion. Confirmed food requirements remain unchanged.
+
 Fresh routine research and sowing bindings now stop at native execution. Project
 selection, configured growing zones/planters and numeric settings make the work
 available; their detailed task graphs remain conditional investment scenarios.

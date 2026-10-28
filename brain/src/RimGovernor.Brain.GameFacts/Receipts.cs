@@ -640,6 +640,8 @@ public abstract record JobTargetTarget
 
 public sealed record JobEffect
 {
+    public RimGovernor.Brain.Domain.OrderedWorkObservation? Queue { get; init; }
+
     public string? PawnId { get; init; }
 
     public string? JobDef { get; init; }

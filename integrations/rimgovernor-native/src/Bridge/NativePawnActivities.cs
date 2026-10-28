@@ -612,6 +612,7 @@ namespace RimGovernor.Native
         }
         private static void Ending(Pawn ___pawn, JobCondition condition)
         {
+            NativeOrderedWork.Ending(___pawn, condition);
             if (replacing || !Entries.TryGetValue(___pawn, out var e) || e.Running == null || !ReferenceEquals(e.Running, ___pawn.CurJob) || e.RunningId != ___pawn.CurJob.loadID) return;
             var ended = e.Running;
             e.Running = null;

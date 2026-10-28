@@ -1,5 +1,35 @@
 # Planner-owned pawn activities
 
+## Finite native ordered work
+
+`OrderedWork` uses the existing GiveJob intent and journal/Hands dispatch path.
+It names a physical purpose and one to sixteen currently legal work-giver jobs in
+execution order. It contains no future products or exclusive waiting steps.
+Native requires an eligible colonist, no active baby care and an empty existing
+queue before installing it. Each job gets vanilla reservations and is forced;
+later jobs append with `EnqueueLast`. Native sustains no additional priority-work
+target after this finite queue.
+
+The saved latest sequence per pawn is the retry fence. The identical sequence and
+request reads back exact native IDs/outcomes without issuing work again, including
+after completion or reload. Altered, old or skipped sequences are refused. The
+next sequence requires the previous jobs to have ended. Cancellation names the
+same request and removes only its exact remaining job IDs, preserving unrelated
+current and queued work. An observed successful end is `Succeeded`; a missing job
+without that evidence is `Gone`. Dispatch acknowledgment is separate from these
+physical outcomes. See [persistence ownership](persistence-contracts.md).
+
+The needs reader retains physically accessible service targets during forced or
+queued work. The pawn still reports `player_work` and remains ineligible for
+ordinary needs dispatch. Conditional overhead/layout estimates can read meal
+mechanics without treating the current order as an absent food source or claiming
+that vanilla will interrupt it.
+
+This adapter does not establish intervention justification or extend the existing
+Method continuation to own a queue through its physical outcome. Those policy
+and lifecycle migrations remain open in the labor change. Routine portfolio
+selection does not produce `OrderedWork` actions.
+
 Native baby feeding and its associated safe return are occupied work. A standing
 colonist doing that care is not preemptible, including while carrying the baby
 after ingestion. Native admission rechecks care occupation for every productive

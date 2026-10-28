@@ -123,4 +123,29 @@ public sealed class LampCandidatePipelineTests(ITestOutputHelper output)
         return new() { defName = name, thingClass = typeof(Verse.Building), category = Verse.ThingCategory.Building, size = IntVec2.One,
             designationCategory = new(), comps = [power, new CompProperties_Glower { glowRadius = 12, glowColor = new ColorInt(217, 217, 217) }] };
     }
+
+    [Fact]
+    public void HiddenMaterialValueStillPricesLampsWithoutBecomingTradeVisibilityOrZero()
+    {
+        var ingredient = new ThingDef { defName = "HiddenValueIngredient" };
+        var lamp = Fixture("LampWithHiddenValueIngredient");
+        var costs = new Dictionary<(BuildableDef, ThingDef?), DefStatTable.Cost>
+        {
+            [(ingredient, null)] = new([], null), [(lamp, null)] = new([new(ingredient.defName, 2)], null),
+        };
+        var values = new Dictionary<(BuildableDef, ThingDef?, CatalogStat), DefStatTable.Value>
+        {
+            [(ingredient, null, CatalogStats.MarketValue)] = new(37, false, null),
+        };
+        var catalog = new DefinitionCatalog([lamp, ingredient, new TerrainDef { defName = "NaturalSoil", natural = true },
+                new ThingDef { defName = nameof(ThingDefOf.Silver) }],
+            new(costs, values, new Dictionary<BuildableDef, IReadOnlyList<string>> { [lamp] = [] }, new HashSet<CatalogStat>(CatalogStats.All)),
+            new(nameof(ThingDefOf.Silver), "Wort", 10f));
+        Assert.True(CatalogStats.MarketValue.ReadHidden);
+        Assert.Equal(74, catalog.CheapestCostValue(lamp.defName));
+        Assert.Equal(74, Assert.Single(catalog.LampDefinitions()).Model.Build);
+        Assert.False(catalog.ShownStatValue(ingredient.defName, "", CatalogStats.MarketValue).Shown);
+        values[(ingredient, null, CatalogStats.MarketValue)] = new(float.NaN, false, null);
+        Assert.Throws<CatalogException>(() => catalog.CheapestCostValue(lamp.defName));
+    }
 }

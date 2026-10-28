@@ -184,7 +184,7 @@ namespace RimGovernor.Native
             return null;
         }
 
-        private static WorkGiverJobResult? Build(Pawn pawn, Thing target, JobDef def, out string? reason)
+        internal static WorkGiverJobResult? Build(Pawn pawn, Thing target, JobDef def, out string? reason)
         {
             var p = pawn;
             return WorkGiverDispatch.TryJob(pawn, target,
@@ -233,6 +233,10 @@ namespace RimGovernor.Native
         public RimGovernor.Brain.GameFacts.Common.Failure? Validate(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var intent = action.Intent?.GiveJob;
+            if (intent?.Queue is { } queue)
+                return intent.Pawn != null || intent.Job != null || intent.Targets.Count != 0 || intent.Options != null
+                    ? GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "A finite queue excludes single-job fields.")
+                    : NativeOrderedWork.Validate(queue, context);
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))
             {
                 case NativeGiveJob.Arm.Order: return NativeGiveJob.ValidateOrder((order ?? throw new System.InvalidOperationException("Required native value is unavailable: order.")), context);
@@ -245,6 +249,7 @@ namespace RimGovernor.Native
         public RimGovernor.Brain.GameFacts.Receipts.EffectEvidence Apply(RimGovernor.Brain.GameOrders.Operations.Action action, RimGovernor.Brain.GameFacts.Common.ObservationContext context)
         {
             var intent = action.Intent?.GiveJob;
+            if (intent?.Queue is { } queue) return NativeOrderedWork.Apply(queue, context);
             switch (NativeGiveJob.Classify(intent, out var order, out var refusal))
             {
                 case NativeGiveJob.Arm.Order: return NativeGiveJob.ApplyOrder((order ?? throw new System.InvalidOperationException("Required native value is unavailable: order.")), context);
