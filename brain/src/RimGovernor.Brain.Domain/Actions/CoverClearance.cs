@@ -21,8 +21,7 @@ public enum CoverClearanceDesignation
 
 /// <summary>
 /// Designates one observed cover thing for removal: the exact thing by identity at its cell, with the one
-/// designation its kind needs. The designation is the whole write; ordinary work removes the thing. A Haul on an
-/// ordinary stack (not designateHaulable) stands a native haul-out record instead, a removal with no designation (#3625).
+/// designation its kind needs. The designation is the whole write; ordinary work removes the thing. Native designator legality applies; Haul designates chunks.
 /// </summary>
 public sealed record CoverClearance : IActionPayload
 {

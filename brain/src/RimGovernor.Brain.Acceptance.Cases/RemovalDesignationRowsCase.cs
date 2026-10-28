@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>observations/removal-designation-rows</c> (#3557, #3612, #3614, #3615): the construction activity read's standing
 /// removals as clearing ops: a Deconstruct op over a ruin the brain designated by an enclosure-guarded Designate (as the
 /// room reconcile stands a FurnitureOut), an Uninstall op over the colony's own bed it designated for uninstall (as the
-/// reconcile's Pack does), a Haul op over a slate chunk it designated for hauling (as the reconcile's HaulOut does),
+/// reconcile's Pack does), a Haul op over a slate chunk it designated for hauling (a native chunk designation),
 /// carried to the stockpile beside it, and a RemoveFloor op over a floored cell it designated for floor removal (as the
 /// reconcile's FloorOut does). The native designation manager, the pieces' removability, the removal jobs' work and the
 /// storage scan are game mechanics a unit test cannot establish.

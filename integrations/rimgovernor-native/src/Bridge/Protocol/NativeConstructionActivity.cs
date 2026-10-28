@@ -66,12 +66,8 @@ internal static class NativeConstructionActivity
             new RimGovernor.Brain.GameOrders.Observations.PlannedConstructionSite(s.Target, s.Definition, "", s.BuildRotation, [s.BuildCell]))
             ?? Enumerable.Empty<RimGovernor.Brain.GameOrders.Observations.PlannedConstructionSite>();
         var planned = request.Planned.Concat(coolerSites).DistinctBy(s => s.Id).Select(s => Prepare(map, s, findings)).ToArray();
-        // The standing removal designations (#3557, #3612, #3614): the Deconstruct the room reconcile stood over an interior
-        // ruin or a stale piece (or the player's own), the Uninstall it stood over a piece it packs and the Haul it stood over
-        // a chunk it moves out, with the ordinary stacks it moves out under a haul-out record, no designation (#3625). Under
-        // voluntary control nothing else works them; the brain binds each building as its kind's work and each stack as a
-        // delivery to storage outside its planned room's footprint (the whole map's best storage when no planned site covers
-        // it). The Cut and RemoveFloor waves below are read as set ops (#3613, #3615).
+        // Standing native designations remain ordinary work. Rows price conditional removal/hauling
+        // alternatives; they grant no pawn execution authority. Ordinary stacks need no private record.
         var removals = map.designationManager.AllDesignations
             .Where(d => d.def == DesignationDefOf.Deconstruct || d.def == DesignationDefOf.Uninstall || d.def == DesignationDefOf.Haul)
             .Select(d => (Kind: d.def == DesignationDefOf.Deconstruct ? RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Deconstruct
@@ -80,7 +76,7 @@ internal static class NativeConstructionActivity
                 : d.Kind == RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Uninstall ? d.Thing is Verse.Building packable && Uninstallable(packable)
                 : Haulable(d.Thing)))
             .Select(d => (d.Kind, Thing: d.Thing))
-            .Concat(NativeDesignationGuards.HaulOuts(map).Where(Haulable).Select(t => (Kind: RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Haul, Thing: t))).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
+            .Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
         // The standing CutPlant designations, one Cut op per contiguous wave of plants (#3613), and the standing RemoveFloor
         // designations, one RemoveFloor op per contiguous wave of cells (#3615).
         var cutWaves = CutWaves(map);
@@ -109,7 +105,7 @@ internal static class NativeConstructionActivity
                     // The stack leaves the planned room it stands in: storage inside any planned footprint covering it is no destination.
                     var footprint = new HashSet<IntVec3>(planned.Where(p => p.Site != null && p.Site.Footprint.Contains(thing.Position)).SelectMany(p => (p.Site ?? throw new System.InvalidOperationException("Required native value is unavailable: p.Site.")).Footprint));
                     if (Destination(map, thing, footprint) is not { } destination) { runFindings.Add("removal_haul_destination_unknown"); continue; }
-                    removalOps.Add(new(id, kind) { Options = EquatableArray.From(HaulRows(legs, free, thing, id, thing.def.defName, haulGiver, destination)), Targets = [], Cells = [] });
+                    removalOps.Add(new(id, kind) { Options = EquatableArray.From(HaulRows(legs, free, thing, id, thing.def.defName, haulGiver, _ => destination, WorkTypeDefOf.Hauling)), Targets = [], Cells = [] });
                     continue;
                 }
                 var building = (Verse.Building)thing;
@@ -289,7 +285,7 @@ internal static class NativeConstructionActivity
     // A prepared site's answer: its clearing ops, then the placed-site rows against its cells, and the verdict.
     private static RimGovernor.Brain.GameFacts.Observations.PlannedSiteAnswer Answer(Map map, NativePathLegs legs, Pawn[] roster, Prepared site, WorkGiverDef? finishGiver, HashSet<string> findings)
     {
-        var clearing = Clearing(map, legs, roster, site.Id, site.Definition, site.Things, site.Footprint, findings, out var unsure);
+        var clearing = Clearing(legs, roster, site.Id, site.Definition, site.Things, site.Footprint, findings, out var unsure);
         var siteVerdict = site.Illegal ? RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Illegal
             : site.Fogged || unsure || site.Things.Any(t => t.Kind == Clear.Unestimable) ? RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Unestimable
             : RimGovernor.Brain.GameFacts.Observations.PlannedSiteVerdict.Feasible;
@@ -327,7 +323,7 @@ internal static class NativeConstructionActivity
     // Clearing ops: one Cut for the plants, one Mine for the natural rock, one Deconstruct per deconstructible building,
     // one Haul per haulable stack, with per-pawn rows. A stack with no accepting storage outside the footprint, and a
     // roof-holder whose removal the enclosure guard would hold, have no op (unknown).
-    private static List<RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing> Clearing(Map map, NativePathLegs legs, Pawn[] roster, string site, BuildableDef definition,
+    private static List<RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing> Clearing(NativePathLegs legs, Pawn[] roster, string site, BuildableDef definition,
         (Thing Thing, Clear Kind)[] things, HashSet<IntVec3> footprint, HashSet<string> findings, out bool unknown)
     {
         var result = new List<RimGovernor.Brain.GameFacts.Observations.PlannedSiteClearing>();
@@ -365,12 +361,18 @@ internal static class NativeConstructionActivity
                 Cells = EquatableArray.From(roofCells.Select(c => new Cell(c.x, c.z))),
             });
         }
-        var haulGiver = Giver<WorkGiver_HaulGeneral>();
+        var haulGiver = Giver<WorkGiver_ConstructDeliverResourcesToBlueprints>();
         foreach (var item in things.Where(t => t.Kind == Clear.Haul).Select(t => t.Thing).OrderBy(t => t.thingIDNumber))
         {
-            if (Destination(map, item, footprint) is not { } destination) { unknown = true; findings.Add("planned_clearing_haul_destination_unknown"); continue; }
             var id = site + "/haul/" + item.GetUniqueLoadID();
-            result.Add(new(id, RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Haul) { Options = EquatableArray.From(HaulRows(legs, pawns, item, id, definition.defName, haulGiver, destination)), Targets = [], Cells = [] });
+            // The native construction giver asks this same query before supplying a blocked blueprint.
+            // Price an observed legal move outside the planned footprint; do not require storage or
+            // invent the destination vanilla will choose after the geometry changes.
+            var rows = HaulRows(legs, pawns, item, id, definition.defName, haulGiver,
+                pawn => HaulAIUtility.CanHaulAside(pawn, item, out var aside) && !footprint.Contains(aside) ? aside : null,
+                WorkTypeDefOf.Construction);
+            if (rows.Count == 0) { unknown = true; findings.Add("planned_clearing_haul_aside_unassessed"); }
+            result.Add(new(id, RimGovernor.Brain.GameFacts.Observations.PlannedClearingKind.Haul) { Options = EquatableArray.From(rows), Targets = [], Cells = [] });
         }
         return result;
     }
@@ -565,14 +567,16 @@ internal static class NativeConstructionActivity
     // Location the destination, Count the stack and Capacity the carry; SiteApproachTicks and the Carried delivery's
     // ApproachTicks the pickup route, its DeliveryTicks the loaded carries plus the returns between trips, a Finish of 0
     // (the carry is the work), AvailableInput the stack and Storage where storage would take it.
-    private static List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption> HaulRows(NativePathLegs legs, Pawn[] pawns, Thing item, string site, string definition, string giver, IntVec3 destination)
+    private static List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption> HaulRows(NativePathLegs legs, Pawn[] pawns, Thing item, string site, string definition, string giver,
+        Func<Pawn, IntVec3?> destinationFor, WorkTypeDef workType)
     {
         var rows = new List<RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption>();
         foreach (var pawn in pawns)
         {
             var capacity = pawn.carryTracker.MaxStackSpaceEver(item.def);
-            if (capacity <= 0 || item.IsForbidden(pawn) || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) || pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
+            if (capacity <= 0 || item.IsForbidden(pawn) || pawn.WorkTypeIsDisabled(workType)
                 || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation) || !pawn.CanReserveAndReach(item, PathEndMode.Touch, Danger.None)) continue;
+            if (destinationFor(pawn) is not { } destination) continue;
             if (legs.Cost(pawn, pawn.Position, item, PathEndMode.Touch) is not { } first
                 || legs.Cost(pawn, item.Position, destination, PathEndMode.OnCell) is not { } loaded
                 || legs.Cost(pawn, destination, item, PathEndMode.Touch) is not { } returning) continue;

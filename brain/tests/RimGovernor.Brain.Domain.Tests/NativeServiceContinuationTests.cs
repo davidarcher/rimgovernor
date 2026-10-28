@@ -13,7 +13,7 @@ public sealed class NativeServiceContinuationTests
         get
         {
             var data = new TheoryData<string, bool, string>();
-            foreach (var job in new[] { "Deconstruct", "Uninstall", "CutPlant", "RemoveFloor", "Mine" })
+            foreach (var job in new[] { "Deconstruct", "Uninstall", "CutPlant", "RemoveFloor", "Mine", "" })
                 foreach (var dependent in new[] { false, true })
                     foreach (var id in new[] { "removal-0", "planned/room1/wall/WoodLog/clearance/composition/0" })
                         data.Add(job, dependent, id);
@@ -29,7 +29,9 @@ public sealed class NativeServiceContinuationTests
         batch = batch with
         {
             Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == "service"
-                ? t with { Id = standing, Step = t.Step with { Kind = PawnActivityKind.Work, Job = job } }
+                ? t with { Id = standing, SiteDefinition = "Wall", Step = job.Length == 0
+                    ? (t.Step with { Kind = PawnActivityKind.Deliver, Job = "", Count = 100 }).At(new(2, 2))
+                    : t.Step with { Kind = PawnActivityKind.Work, Job = job } }
                 : t with { Prerequisites = EquatableArray.From(t.Prerequisites.Select(p => p == "service" ? standing : p)) })),
             Orders = EquatableArray.From(batch.Orders.Select(o => o.Task == "service" ? o with { Task = standing } : o)).ToArray(),
         };

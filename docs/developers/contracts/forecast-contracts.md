@@ -1542,13 +1542,12 @@ zero); `AvailableInput` is the stack's count (0 without one) and `Storage` is
   is the route to the target nearest the pawn and `Location` is that target;
   walking between targets is not modelled. One `Haul` op per stack
   (`<site>/haul/<thing>`): `Origin`/`Input`/`Resource`/`Count` are the stack,
-  `Location` is the nearest cell of the best-priority player storage accepting it
-  outside the footprint, `SiteApproachTicks` and the `Carried` delivery's `ApproachTicks`
-  the pickup route, its `DeliveryTicks` the loaded carries plus returns over `Capacity`, and
-  `Finish` is `Finishes` at 0. Native's own blocking haul moves the stack aside; the forecast
-  charges a carry to storage instead (#3241), and binds the stack as its Deliver to
-  `Location` before placement (#3614), one carry at a time over a stack larger than
-  `Capacity` (#3625). One `Deconstruct` op per building the
+  `Location` is the current legal native haul-aside destination outside the footprint.
+  `HaulAIUtility.CanHaulAside` supplies that destination per pawn without requiring storage.
+  `SiteApproachTicks` and the `Carried` delivery's `ApproachTicks` are the pickup route;
+  `DeliveryTicks` prices loaded carries plus returns over `Capacity`, and `Finish` is
+  `Finishes` at 0. These are conditional costs, not a prediction of vanilla's destination
+  after blueprint placement; they install no exact order. One `Deconstruct` op per building the
   player may deconstruct (`<site>/deconstruct/<thing>`: a ruin wall, door or piece
   of furniture, or the colony's own; #3557): `Input` is the building's id,
   `Resource` its def and `Location` its cell; the `Finish` ticks are `JobDriver_Deconstruct`'s
@@ -1563,8 +1562,8 @@ zero); `AvailableInput` is the stack's count (0 without one) and `Storage` is
   `RoofMaxSupportDistance` of it with no holder within that range through roofed
   cells, and the components those leave with no holder); the rows' `Finish` ticks
   add `JobDriver_RemoveRoof`'s work (65 a cell at the same rate) and route to, and
-  `Location` is, the cell nearest the pawn. The brain removes that roof before the
-  Deconstruct in one order; a cell outside the planned room stays unroofed (the
+  `Location` is, the cell nearest the pawn. The clearance Need exposes native roof-area
+  intent before demolition; a cell outside the planned room stays unroofed (the
   room's RoofIn re-roofs only its own interior). Only a roof-holder whose support
   is unknown (fogged or out-of-bounds geometry, a pending collapse, a thick roof or
   an unprovably large roof among the cells, or an empty set while `RoofWait` still
@@ -1578,8 +1577,8 @@ zero); `AvailableInput` is the stack's count (0 without one) and `Storage` is
   (a building the player may not deconstruct), which is infeasible; else
   `Unestimable` when a thing is removable but not estimated (a blueprint or frame
   to cancel, a non-natural mineable, a never-haulable item), or a refused piece is
-  fogged (finding `planned_site_fogged`), or a haulable has no accepting storage (finding
-  `planned_clearing_haul_destination_unknown`) or a deconstructible roof-holder's
+  fogged (finding `planned_site_fogged`), or a haulable has no assessed native move outside the footprint (finding
+  `planned_clearing_haul_aside_unassessed`) or a deconstructible roof-holder's
   support is unknown (`planned_clearing_roof_support`): leave the alternative
   unvalued; else `Feasible`. A pawn, something
   blueprint placement wipes, or something `CanPlaceBlueprintOver` allows that does
@@ -1613,11 +1612,7 @@ them per round ([planned-site facts](../architecture/colony-forecast.md#planned-
 Every construction activity read also reports the standing removal designations
 (#3557, #3612, #3614): the Deconstruct the room reconcile stood over an interior ruin
 or a stale piece (`FurnitureOut`), or the player's own, the Uninstall it stood over a
-piece it packs (`Pack`, `PackInUse`) and the Haul it stood over a stack it moves out
-(`HaulOut`). Under voluntary control nothing works a designation by itself, so the
-coupled census reads them and the forecast binds each building as a pawn's Work order
-of the op's kind and each stack as a pawn's Deliver of it. `ConstructionActivityRead.Removals`
-is one `PlannedSiteClearing` op per designated thing, the same shape as a planned
+piece it packs (`Pack`, `PackInUse`) and native Haul designations on chunks. Vanilla works these designations. The coupled census retains conditional building, set and hauling costs without installing a routine pawn order. Ordinary item stacks have no private removal record: placement preview remains authoritative and construction hauls blockers aside after blueprint placement. `ConstructionActivityRead.Removals` is one `PlannedSiteClearing` op per designated thing, the same shape as a planned
 site's clearing: `Id` the thing's id, `Kind` `Deconstruct` (a building the colony may
 deconstruct), `Uninstall` (a minifiable building of the colony's own, what
 `WorkGiver_Uninstall` takes) or `Haul` (a spawned haulable item), and `Options` one

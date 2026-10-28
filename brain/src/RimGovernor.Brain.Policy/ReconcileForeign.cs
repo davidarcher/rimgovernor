@@ -4,8 +4,8 @@ namespace RimGovernor.Brain.Policy;
 
 // Foreign things in a reconciliation: the things on the room's ground that are not the colony's own
 // (SiteCell.Things) are diffed against the plan by one obstruction policy: claim a ruin as wall where it fits
-// the ring, else minify what packs, else deconstruct a building or cut an impassable plant, and move a
-// haulable item. Natural rock and mineables stay with the dig path. A thing the policy refuses is a hold with a
+// the ring, else minify what packs, else deconstruct a building or cut an impassable plant.
+// Items remain native construction/hauling work. Natural rock and mineables stay with the dig path. A thing the policy refuses is a hold with a
 // named reason; its cells wait like a cell being cleared. The kinds are operations only: the executor maps each
 // to an existing action, and the native placement preview stays the legality authority.
 
@@ -46,13 +46,7 @@ public static partial class ReconcileRules
         void Place(OpKind kind, Thing t, Cell c, bool packable)
         {
             var key = (t.Id, t.Def, t.Id == 0 ? c : default);
-            // A stack on the door cell is cleanup (vanilla hauling takes it): the native preview, not the diff,
-            // decides whether the door goes up over it, so a room is never held unfinished (or unreachable, door
-            // unbuilt) by an item.
-            if (kind != OpKind.HaulOut || !doorWanted.Contains(c))
-            {
-                w.Blocked.Add(c);
-            }
+            w.Blocked.Add(c);
             if (index.TryGetValue(key, out var existing))
             {
                 var tg = existing.Target;
@@ -112,23 +106,10 @@ public static partial class ReconcileRules
                 }
                 else if (t.Category == ThingCategory.Item)
                 {
-                    if (ring.Contains(c) && !doorWanted.Contains(c))
-                    {
-                        // The builder hauls any item aside once the wall's blueprint is placed over it
-                        // (GenConstruct.HandleBlockingThingJob): a ring cell never waits on an item, and the
-                        // native preview stays the legality authority.
-                        continue;
-                    }
-                    if (t.Has(ThingMarks.Haulable) && !t.Has(ThingMarks.Forbidden))
-                    {
-                        Place(OpKind.HaulOut, t, c, false);
-                    }
-                    else if (t.Has(ThingMarks.Haulable) && doorWanted.Contains(c))
-                    {
-                        // Nothing hauls a forbidden stack: it is named, not blocking, so the door goes on to
-                        // its placement and the wait shows what sits on it.
-                        w.Holds.Add(new ReconcileHold { Cell = c, Def = t.Def, Reason = "forbidden_item" });
-                    }
+                    // GenConstruct.HandleBlockingThingJob hauls blocking items aside after blueprint
+                    // placement. Do not gate any room piece on a separate storage delivery; native
+                    // preview and work-giver checks retain placement, access and forbidden-item legality.
+                    continue;
                 }
                 else if (t.Category == ThingCategory.Building && t.Faction != ThingFaction.Player && !t.Has(ThingMarks.Blueprint) && !t.Has(ThingMarks.Frame))
                 {

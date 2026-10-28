@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>control/pawn-activity-haul-designated</c> (#3614): a Hands Deliver step on a slate chunk the brain designated for
-/// hauling (the plain Haul designation the room reconcile's HaulOut stands; a Haul takes no guard) to a stockpile cell
+/// hauling (a plain native chunk Haul designation; a Haul takes no guard) to a stockpile cell
 /// beside it. Under voluntary control the designation gets no worker by itself; the controlled colonist carries the
 /// stack to the stockpile. The native carry and drop are what a unit test cannot drive.
 /// </summary>
@@ -40,8 +40,8 @@ internal static class ControlHaul
     internal static TypedCase Case() => new()
     {
         Name = "control/pawn-activity-haul-designated",
-        Scope = "A Hands Deliver step on a slate chunk (what Designator_Haul accepts: a designateHaulable thing) the brain designated for hauling (the plain Haul designation the room reconcile's "
-            + "HaulOut stands) to a stockpile cell under voluntary control, which otherwise gives the designation no worker: "
+        Scope = "A Hands Deliver step on a slate chunk carrying a native Haul designation, "
+            + "to a stockpile cell through the explicit delivery primitive: "
             + "operations_apply admits the order and the controlled colonist moves the chunk to the stockpile within the budget. "
             + "A unit test cannot drive the native carry and drop; no read lists the designation, so its clearing is not asserted.",
         Ticks = Budget,

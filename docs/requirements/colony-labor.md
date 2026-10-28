@@ -644,7 +644,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; formation hunting, intervention and native usable-output evidence remain |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Ordinary binding and continuation stay native regardless of missing access; general justified exception admission remains in tasks 4.1–4.2 |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
-| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; custom hauling and general intervention audit remain |
+| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; native hauling is migrated; general intervention audit remains |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
 | `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine delivery, tending and already-indicated surgery stay conditional and install no pawn orders; old commitments hand back at boundaries; meaningful interventions, native reachability/output evidence and final adapter audit remain |
 | `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
@@ -972,7 +972,7 @@ The normal roof-only comparison may decline the portfolio as routine native
 service; the isolated dispatch regression tests the hypothetical physical plan
 separately, without changing investment ranking. Existing NeedBuildingTests cover
 the real journal roof-area admission path. No new native gameplay result is
-claimed. Removal safety, clearance haul-out plumbing and intervention policy
+claimed. General intervention policy
 remain in scope; task 5.4 and the overall change remain incomplete.
 
 Verification: final gate PASS (40s), 4,230 domain tests and 30 workflow tests,
@@ -1017,9 +1017,7 @@ in-flight preservation and boundary handback.
 mechanics without installing routine orders. `NeedBuildingTests` exercises
 selected-footprint cutting/deconstruction through Family admission, the real
 journal and Hands: accepted native intent is recorded once without a pawn order.
-This proves intent plumbing, not physical completed clearance. Custom haul-out
-and general intervention justification remain to
-migrate. Task 5.4 and the overall change remain incomplete at 13/24.
+This proves intent plumbing, not physical completed clearance. General intervention justification remains to migrate. Task 5.4 and the overall change remain incomplete at 13/24.
 
 Verification: final gate PASS (1m4s), 4,288 domain tests, 30 workflow tests,
 native builds/probes and contract orphan checks. No new native gameplay result
@@ -1051,6 +1049,50 @@ either worker. Task prior-step state and its generation/binding, role-projection
 and codec readers are removed; schema 65 replaces older journals. Primitive multi-step
 orders retain their distinct fixture coverage and mechanics. No new gameplay
 result is claimed for this native-read and coordination migration.
+
+## Native item clearance and hauling
+
+Items no longer create a separate room-removal operation or block the placement
+wave until storage delivery finishes. Native preview decides placement; ordinary
+construction selects haul-aside work for blocking items. Source inspection of
+`WorkGiver_ConstructDeliverResourcesToBlueprints.HasJobOnThing`/`JobOnThing` and
+`GenConstruct.HandleBlockingThingJob` establishes the path to
+`HaulAIUtility.HaulAsideJobFor`, which uses non-storage hauling. Inspected local
+`Assembly-CSharp.dll` SHA256:
+`4E61D57205944C113631234BC55136A1A7C1679667B26008BEE5425BCFFA1463`.
+This is analytical native-mechanics evidence, not a new executed gameplay case.
+
+Planned hauling rows query `HaulAIUtility.CanHaulAside` per pawn, without an
+accepting-stockpile prerequisite. A destination still inside the planned
+footprint cannot establish whole-site clearance; absent legal rows remain named
+unassessed evidence. Travel and multiple-carry costs remain conditional, not a
+promise about vanilla's later choice. Standing chunk Haul designations retain
+their storage costs and native work. Construction-clearance tasks carry their
+existing site-definition field and hand back at boundaries without crediting
+remaining quantities or cross-pawn prerequisites. Other delivery continuation
+paths remain in the migration inventory for the general intervention audit.
+
+The obsolete room operation, synthetic designation/ledger path, construction
+read concat, carry-completion hook and specialized acceptance case are removed.
+The explicit chunk delivery primitive and its registered case remain. Schema 66
+replaces older journals containing unclassified removal deliveries; no native
+queue or new persistence owner is introduced. `RoomFurnishingTests` cover unchanged
+placement waves with interior/wall/door stacks, including forbidden items.
+`PlannedRoomActivitiesTests` retain multi-carry costs with unaccepted storage and
+no routine orders; `NativeServiceContinuationTests` cover construction-delivery
+boundary handback, dependent cleanup and preservation of in-flight work.
+
+Task 5.4 remains incomplete pending the shared intervention path; progress is
+still 13/24. Confirmed food requirements are unchanged.
+
+Verification: final gate PASS (1m37s), 4,293 domain tests and 30 workflow tests,
+native builds, contract probes and orphan checks. Strict OpenSpec validation
+passed. No new native gameplay result is claimed. Rules 7–9: existing native
+settings, blueprints and designations own work; shared material demand is
+retained; policy handles boundary handback, and unavailable native destinations
+remain explicit. Complexity: added native haul-aside cost queries and placement/
+handback regressions / removed the private haul-out operation, record, read,
+completion hook and obsolete case / orphans left: none.
 
 ## Native operation and conditional comparison evidence
 

@@ -189,6 +189,7 @@ internal static class CoordinatedActivityBinding
             // than erase an unobserved prerequisite and accidentally authorize its dependent.
             if (batch.Tasks.Any(t => t.Pawn == order.Pawn && t.Step.Kind == PawnActivityKind.Recipe) || next.ProductStuff.Length > 0
                 || next.Step.Kind == PawnActivityKind.Supply || next.SupportDemand.Length > 0
+                || next.Step.Kind == PawnActivityKind.Deliver && next.SiteDefinition.Length > 0
                 || next.Step.Kind == PawnActivityKind.Work && next.Step.Job is "FinishFrame" or "BuildRoof"
                 || next.Step.Kind == PawnActivityKind.Work
                     && (next.Step.Job is "Uninstall" or "CutPlant" or "RemoveFloor" or "Mine"

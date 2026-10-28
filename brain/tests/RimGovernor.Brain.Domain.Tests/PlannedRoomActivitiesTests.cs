@@ -547,14 +547,13 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
-    /// #3614: a stack under the ring is a Haul clearing whose rows carry it to storage; it binds before placement as the
-    /// pawn's Deliver of the stack (Count the stack) to the row's destination, and the op keeps its /cleared output. A
-    /// stack larger than one carry binds the same way, its order one carry at a time (#3625).
+    /// Items under a planned site retain conditional hauling costs and clearing dependencies,
+    /// including multiple carries, without installing routine delivery orders.
     /// </summary>
     [Theory]
     [InlineData(40)]
     [InlineData(120)]
-    public void AStackUnderTheRingIsAHaulClearingBoundAsADeliverToStorage(int count)
+    public void AStackUnderTheRingRetainsConditionalHaulingCostWithoutRoutineDeliveryOrders(int count)
     {
         const string stack = "Thing_Steel1";
         const string site = "planned/room1/wall/WoodLog";
@@ -566,6 +565,7 @@ public sealed class PlannedRoomActivitiesTests
             Options = [new Row(clearingId, "Wall", store, Pawn, "Steel", stack, at, count, 75, "HaulGeneral", Ticks(Start, at),
                 Ticks(at, store), 0d) { SiteApproachTicks = Ticks(Start, at), AvailableInput = (double)count }],
         };
+        Assert.All(clearing.Options, row => Assert.IsType<StackStorage.Unaccepted>(row.Storage));
         var facts = Credited(Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing), Ring(OpKind.DoorIn, "WoodLog", 60)]));
         var candidates = facts.CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
@@ -579,8 +579,7 @@ public sealed class PlannedRoomActivitiesTests
 
         var result = Select(facts);
         Assert.True(PlannedSelected(result, site), Why(facts, result));
-        var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
-        Assert.NotNull(batch);
+        var batch = NativeClearanceScenario(facts, result);
         var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
         Assert.Equal((binding.Id, PawnActivityKind.Deliver, stack, count), (task.Id, task.Step.Kind, task.Step.Target, task.Step.Count));
         Assert.Equal(store, Assert.IsType<CellActivityStep>(task.Step).Destination);

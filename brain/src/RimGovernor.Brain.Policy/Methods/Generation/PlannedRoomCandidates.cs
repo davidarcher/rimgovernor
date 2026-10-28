@@ -107,7 +107,7 @@ internal static class PlannedRoomCandidates
             OpKind.VentIn => "vent",
             OpKind.None or OpKind.RoofOff or OpKind.DoorOut or OpKind.WallOut or OpKind.Pack
                 or OpKind.FurnitureOut or OpKind.PackInUse or OpKind.FloorOut or OpKind.FloorIn
-                or OpKind.Install or OpKind.Build or OpKind.Claim or OpKind.Cut or OpKind.HaulOut
+                or OpKind.Install or OpKind.Build or OpKind.Claim or OpKind.Cut
                 or OpKind.RoofIn => throw new DomainException($"planned room: operation {op} is not a ring kind"),
             var invalid => throw new DomainException($"planned room: invalid operation {invalid}"),
         };
@@ -220,20 +220,15 @@ internal static class PlannedRoomCandidates
                         var to = ForecastLocations.Of(clearingRows[0].Row.Location);
                         var done = clearing.Id + "/cleared";
                         roomOperations.Add(new(new(clearing.Id, from, to, [])
-                            { NativeExecution = clearing.Kind is PlannedClearingKind.Cut or PlannedClearingKind.Mine
-                                || clearing.Kind == PlannedClearingKind.Deconstruct }, [],
+                            { NativeExecution = true }, [],
                             [new(done, cleared, 1, siteLocation, 0, horizon)
                             { Producer = clearing.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-clearing:" + site.Id }]));
                         foreach (var (row, work) in clearingRows)
                         {
                             roomOptions.Add(ConstructionMethodCandidates.Option(clearing.Id, row.Pawn, work.Ticks, work.SkillWork) with { ServicePosition = row.ServicePosition });
                             roomRoutes.Add(ConstructionMethodCandidates.Start(row.Pawn, from, work.ApproachTicks));
-                            // Conditional targets under the footprint stand now. Reconciliation creates ordinary native
-                            // clearance work before placement; custom hauling remains explicit. A
-                            // building as Work/Deconstruct on it (#3557), a stack as a Deliver of it to the row's storage cell (#3614; one carry at a
-                            // time over a stack larger than one, #3625), the plants as one Work/CutPlant set step
-                            // over the op's named Targets (#3613) and the natural rock as one Work/Mine set step over its
-                            // named rocks (#3616).
+                            // Keep exact conditional target mechanics for investment comparisons only.
+                            // Native designations or construction haul-aside perform ordinary clearance.
                             if (clearing.Kind == PlannedClearingKind.Deconstruct || haul && ConstructionMethodCandidates.Carriable(row))
                                 roomBindings[(clearing.Id, row.Pawn)] = ConstructionMethodCandidates.RemovalBinding(clearing.Id, clearing.Kind, row with { Definition = row.Resource }, row.Input, deadline, cells: clearing.Cells);
                             else if (clearing.Kind is PlannedClearingKind.Cut or PlannedClearingKind.Mine && clearing.Targets.Count > 0)

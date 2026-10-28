@@ -57,7 +57,7 @@ internal static class ConstructionMethodCandidates
     internal static ActivityTaskCandidate RemovalBinding(string id, PlannedClearingKind kind, ConstructionActivityOption row, string target, long deadline,
         EquatableArray<string> targets = default, EquatableArray<Cell> cells = default) =>
         kind == PlannedClearingKind.Haul
-            ? new CellActivityTaskCandidate(new ActivityTaskCandidate(id, row.Pawn, [], PawnActivityKind.Deliver, target, "", "", row.Count, deadline, row.Origin) { Resource = row.Resource, Source = row.Origin, Capacity = row.Capacity }, row.Location)
+            ? new CellActivityTaskCandidate(new ActivityTaskCandidate(id, row.Pawn, [], PawnActivityKind.Deliver, target, "", "", row.Count, deadline, row.Origin) { Resource = row.Resource, Source = row.Origin, Capacity = row.Capacity, SiteDefinition = row.Definition }, row.Location)
             : kind == PlannedClearingKind.Deconstruct
                 ? new ActivityTaskCandidate(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, 0, deadline, row.Location)
                     { SiteDefinition = row.Definition }
@@ -223,14 +223,8 @@ internal static class ConstructionMethodCandidates
                     ? new([new(FlooringRelief + "/" + first.Site, ProductionNeedPriority.Maintenance, 1.0)], 0, 0) : null
             });
         }
-        // A standing removal designation (#3557, #3612, #3613, #3614, #3615): the room reconcile stood a Deconstruct over an
-        // interior ruin or a stale piece, an Uninstall over a piece it packs, a Haul over a stack it moves out (on an ordinary
-        // stack a haul-out record, no designation, #3625), CutPlant over a
-        // wave of plants or RemoveFloor over a wave of wrong-floor cells. Ordinary designated work stays native;
-        // custom haul-out remains explicit until its migration is complete.
-        // Each building is the pawn's Work task of the op's kind on it, each stack the pawn's Deliver of it to the row's
-        // storage cell, and each Cut or RemoveFloor wave one Work set step over its members. Its requested relief, like a
-        // floor's, exempts it from the thermal gate; its room's service day prices the work. A kind with no job binds nothing.
+        // Standing native removals retain conditional work, material and room-service costs.
+        // Haul rows price delivery to storage; none of these alternatives grants worker control.
         var removals = read.Removals.Where(op => (op.Kind == PlannedClearingKind.Haul || RemovalJob(op.Kind) != null) && Bindable(op) && !resources.Claims.Targets.Contains(op.Id))
             .Select(op => (op.Id, op.Kind, op.Targets, op.Cells, Rows: op.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && (op.Kind != PlannedClearingKind.Haul || Carriable(o)))
                 .SelectMany(o => Work(op.Kind, o) is { } work ? new[] { (Row: o, Work: work) } : [])
@@ -244,8 +238,7 @@ internal static class ConstructionMethodCandidates
             // A haul is worked from the stack's cell; a building's removal at the building.
             var location = ForecastLocations.Of(haul ? first.Origin : first.Location);
             activities.Add(new(id, location, location, [])
-            { NativeExecution = op.Kind is PlannedClearingKind.Uninstall or PlannedClearingKind.Cut or PlannedClearingKind.RemoveFloor or PlannedClearingKind.Mine
-                || op.Kind == PlannedClearingKind.Deconstruct });
+            { NativeExecution = true });
             // The building stands: like a supplied site's finish, the op needs only its observed readiness to compose.
             var ready = "removal-ready/" + id;
             var capability = new Resource("ConstructionReady");

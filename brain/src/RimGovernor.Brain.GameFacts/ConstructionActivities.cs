@@ -240,8 +240,7 @@ public sealed record ConstructionActivityRead
     /// The standing removal designations as clearing ops (#3557, #3612, #3614): one <c>Deconstruct</c> op per Deconstruct
     /// designation on a building the colony may deconstruct (a reconcile-stood interior ruin or stale piece, the colony's
     /// own), one <c>Uninstall</c> op per Uninstall designation on a minifiable building of the colony's (the reconcile's
-    /// Pack) and one <c>Haul</c> op per Haul designation on a spawned haulable item or open haul-out record on an ordinary
-    /// stack still at its cell (the reconcile's HaulOut: a chunk takes the designation, an ordinary stack the record, #3625), <c>Id</c> the
+    /// Pack) and one <c>Haul</c> op per native Haul designation on a spawned haulable item still at its cell, <c>Id</c> the
     /// thing's id. A building's op has one row per free colonist: <c>Site</c> and <c>Input</c> the building's id,
     /// <c>Definition</c> and <c>Resource</c> its def, <c>Location</c> its cell, <c>WorkGiver</c> the removal's giver,
     /// <c>Finish</c> its work; a roof-holder's Deconstruct op carries the roofed cells its removal leaves unsupported in

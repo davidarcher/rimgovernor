@@ -341,12 +341,10 @@ partial class BuildingPlanner
     internal static readonly Pol.OpKind[] RoomBuildKinds = [Pol.OpKind.DoorIn, Pol.OpKind.WallIn, Pol.OpKind.WallUp, Pol.OpKind.FloorIn, Pol.OpKind.Build, Pol.OpKind.VentIn];
 
     /// <summary>The foreign-thing waves in the order they are committed.</summary>
-    internal static readonly Pol.OpKind[] ObstructionKinds = [Pol.OpKind.Claim, Pol.OpKind.Cut, Pol.OpKind.HaulOut];
+    internal static readonly Pol.OpKind[] ObstructionKinds = [Pol.OpKind.Claim, Pol.OpKind.Cut];
 
     /// <summary>
-    /// Maps a foreign-thing target to an existing action: a claim, or a cover clearance in the cut-plant or haul mode. A haul
-    /// stands the Haul designation on a chunk and, on an ordinary stack the haul designator refuses, a haul-out removal with
-    /// no designation (#3625); either is the Haul removal the forecast binds as a Deliver of the stack.
+    /// Maps a foreign-thing target to a claim or native plant-cutting designation.
     /// </summary>
     internal static DomainAction ObstructionAction(ActionId id, Pol.OpKind kind, Pol.ClearanceTarget t)
     {
@@ -354,8 +352,7 @@ partial class BuildingPlanner
         {
             return DomainAction.NewClaimBuildingAction(id, new ClaimBuilding(t.EntityId));
         }
-        var mode = kind == Pol.OpKind.Cut ? CoverClearanceDesignation.CutPlant : CoverClearanceDesignation.Haul;
-        return DomainAction.NewCoverClearanceAction(id, new CoverClearance(t.EntityId, t.DefName, mode, t.Minimum));
+        return DomainAction.NewCoverClearanceAction(id, new CoverClearance(t.EntityId, t.DefName, CoverClearanceDesignation.CutPlant, t.Minimum));
     }
 
     /// <summary>

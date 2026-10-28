@@ -68,16 +68,12 @@ public enum OpKind
     [WireName("build")]
     Build,
 
-    // The foreign-thing kinds: claim a ruin as ring wall, cut an impassable plant, move a haulable item off
-    // the ground.
+    // The foreign-thing kinds: claim a ruin as ring wall or cut an impassable plant.
     [WireName("claim")]
     Claim,
 
     [WireName("cut")]
     Cut,
-
-    [WireName("haul_out")]
-    HaulOut,
 
     /// <summary>Builds a planned vent over a standing ring wall.</summary>
     [WireName("vent_in")]
@@ -242,7 +238,7 @@ public static partial class ReconcileRules
 {
     private static readonly OpKind[] OpKindsInOrder =
     [
-        OpKind.RoofOff, OpKind.DoorOut, OpKind.WallOut, OpKind.Claim, OpKind.Cut, OpKind.HaulOut, OpKind.WallIn, OpKind.WallUp,
+        OpKind.RoofOff, OpKind.DoorOut, OpKind.WallOut, OpKind.Claim, OpKind.Cut, OpKind.WallIn, OpKind.WallUp,
         OpKind.DoorIn, OpKind.Pack, OpKind.FurnitureOut, OpKind.PackInUse, OpKind.FloorOut, OpKind.FloorIn, OpKind.Install,
         OpKind.Build, OpKind.VentIn, OpKind.RoofIn,
     ];
@@ -685,7 +681,7 @@ public static partial class ReconcileRules
                     Pieces.Add(it.Piece);
                     Cells.AddRange(it.Piece.Cells());
                     break;
-                case OpKind.Claim or OpKind.Cut or OpKind.HaulOut:
+                case OpKind.Claim or OpKind.Cut:
                     Targets.Add(it.Target);
                     Cells.Add(it.Cell);
                     break;
@@ -716,7 +712,7 @@ public static partial class ReconcileRules
         OpKind.DoorOut or OpKind.DoorIn => GroundPhase.Doors,
         OpKind.WallOut or OpKind.WallIn or OpKind.RoofOff or OpKind.Claim => GroundPhase.Walls,
         OpKind.FloorOut or OpKind.FloorIn => GroundPhase.Floors,
-        OpKind.None or OpKind.WallUp or OpKind.FurnitureOut or OpKind.Install or OpKind.Build or OpKind.Cut or OpKind.HaulOut or OpKind.VentIn or OpKind.RoofIn => GroundPhase.Furniture,
+        OpKind.None or OpKind.WallUp or OpKind.FurnitureOut or OpKind.Install or OpKind.Build or OpKind.Cut or OpKind.VentIn or OpKind.RoofIn => GroundPhase.Furniture,
         var other => throw new ArgumentOutOfRangeException(nameof(k), other, "undeclared op kind"),
     };
 }

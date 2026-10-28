@@ -14,8 +14,9 @@ create native work for selected sites. Old exact set work is not rebound to a
 remaining subset: failure ends the attempt, and a completed subset cannot
 satisfy the whole task or its dependents. A positive native satisfied-task read
 still establishes completion. Roof preparation is native area work under the
-existing clearance Need; the demolition guard waits for safe support. Custom
-haul-out remains explicit pending its native-work migration.
+existing clearance Need; the demolition guard waits for safe support. Construction-clearance
+Deliver commitments also hand back at this boundary, including partial carries.
+Remaining material is re-observed; handback does not credit the whole transfer.
 
 An actual native job takeover detaches the old execution handle. The existing
 pawn-fact invalidation wakes the worker, which re-reads all Method participants.

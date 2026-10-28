@@ -69,8 +69,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 63 freezes exact native queue outcomes in work admission evidence; older session journals are replaced.
     /// Version 64 removes the exact recipe continuation duration from activity tasks; older session journals are replaced.
     /// Version 65 removes activity-task prior steps after native roof preparation takes over; older session journals are replaced.
+    /// Version 66 removes the HaulOut operation and rederives construction hauling as native work; older unclassified delivery commitments are replaced.
     /// </summary>
-    public const int SchemaVersion = 65;
+    public const int SchemaVersion = 66;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

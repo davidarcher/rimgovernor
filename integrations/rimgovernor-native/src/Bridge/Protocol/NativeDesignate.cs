@@ -15,10 +15,6 @@ namespace RimGovernor.Native
     // again. A Deconstruct may swap a door for a wall; one under the
     // wall_upgrade guard resolves its site in NativeWallRemovalOperations,
     // and the acquisition guard's designations resolve in NativeAcquire.
-    // An unguarded Haul on an ordinary (alwaysHaulable) stack, which the
-    // haul designator refuses (it takes only designateHaulable chunks),
-    // stands no designation: it opens the stack's haul-out record, the
-    // removal the construction read lists (#3625).
     internal static class NativeDesignate
     {
         private const string Kind = "Designate";
@@ -35,7 +31,7 @@ namespace RimGovernor.Native
             internal string ExpectedDef = "";
             internal string? Guard;
             internal ThingDef? WallStuff;
-            internal bool Present, Cleared, HaulOut;
+            internal bool Present, Cleared;
         }
 
         private static DesignationDef? DefOf(RimGovernor.Brain.GameOrders.Operations.ThingDesignation d)
@@ -63,7 +59,6 @@ namespace RimGovernor.Native
 
         private static bool Standing(Plan p)
         {
-            if (p.HaulOut) return NativeDesignationGuards.HaulOut(p.Map, (p.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: p.Target."))) != null;
             var manager = p.Map.designationManager;
             if (p.Designation == RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Mine) return manager.DesignationAt(p.Cell, DesignationDefOf.Mine) != null;
             if (p.Designation == RimGovernor.Brain.GameOrders.Operations.ThingDesignation.RemoveFoundation) return manager.DesignationAt(p.Cell, DesignationDefOf.RemoveFoundation) != null;
@@ -151,7 +146,6 @@ namespace RimGovernor.Native
                 if (plan.WallStuff == null) return "only a 1x1 player door of a wall stuff swaps for a wall";
             }
             if (plan.Target != null && plan.Target.IsForbidden(Faction.OfPlayer)) return "the target is forbidden";
-            plan.HaulOut = plan.Designation == RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Haul && plan.Guard == null && NativeDesignationGuards.HaulOutStack((plan.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: plan.Target.")));
             if (plan.Guard != null)
             {
                 var blocker = NativeDesignationGuards.Registry.Admit(plan.Guard, new GuardSubject { Map = map, Cell = plan.Cell, Target = plan.Target });
@@ -163,7 +157,7 @@ namespace RimGovernor.Native
             if (plan.Designation == RimGovernor.Brain.GameOrders.Operations.ThingDesignation.Haul
                 && !StoreUtility.TryFindBestBetterStoreCellFor(plan.Target, null, map, StoreUtility.CurrentStoragePriorityOf(plan.Target), Faction.OfPlayer, out _))
                 return "no stockpile accepts the thing";
-            return plan.HaulOut ? null : DesignatorRefusal(plan);
+            return DesignatorRefusal(plan);
         }
 
         private static bool WallUpgrade(RimGovernor.Brain.GameOrders.Operations.DesignateIntent intent) => intent.Guard == RimGovernor.Brain.GameOrders.Operations.DesignationGuard.WallUpgrade;
@@ -246,11 +240,6 @@ namespace RimGovernor.Native
             var refusal = Resolve(intent, context, out var plan, out _);
             if (refusal != null || plan == null) throw new InvalidOperationException("Designate prerequisites changed before apply: " + refusal);
             if (plan.Cleared) return Evidence(plan, null);
-            if (plan.HaulOut)
-            {
-                if (!plan.Present) NativeDesignationGuards.StandHaulOut(plan.Map, (plan.Target ?? throw new System.InvalidOperationException("Required native value is unavailable: plan.Target.")));
-                return Evidence(plan, null);
-            }
             var record = plan.Guard == null ? null : NativeDesignationGuards.Open(plan.Map, plan.Def, plan.Cell, plan.Target);
             if (record != null) return Evidence(plan, record);
             if (plan.Guard != null)

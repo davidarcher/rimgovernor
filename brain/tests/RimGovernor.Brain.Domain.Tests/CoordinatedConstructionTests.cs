@@ -294,12 +294,11 @@ public sealed class CoordinatedConstructionTests
     }
 
     /// <summary>
-    /// #3614: a Haul designation the room reconcile stood over a stack in the room (HaulOut) is a Haul removal op whose rows
-    /// are the planned-clearing haul rows. The family binds it as the pawn's Deliver of the stack (Count the stack) to the
-    /// row's destination with the removal's relief, and the selection orders it. A row whose delivery is unknown binds nothing.
+    /// A native chunk Haul designation retains conditional delivery costs and room relief.
+    /// Normal selection installs no exact delivery order; unknown delivery cannot be priced.
     /// </summary>
     [Fact]
-    public void AStandingHaulDesignationIsADeliverOfTheStackTheSelectionOrders()
+    public void AStandingHaulDesignationRetainsConditionalDeliveryWithoutOrderingAWorker()
     {
         const string item = "Thing_Steel1";
         var store = new Cell(40, 30);
@@ -321,7 +320,7 @@ public sealed class CoordinatedConstructionTests
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
         Assert.Contains(root.Id, selected.Selection.Selected);
-        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "construction", 100)!;
+        var batch = NativeRemovalScenario(selected, generated);
         var task = Assert.Single(batch.Tasks);
         Assert.Equal((binding.Id, "producer", PawnActivityKind.Deliver, item, 75), (task.Id, task.Pawn, task.Step.Kind, task.Step.Target, task.Step.Count));
         Assert.Equal(store, Assert.IsType<CellActivityStep>(task.Step).Destination);
@@ -329,47 +328,6 @@ public sealed class CoordinatedConstructionTests
 
         Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(Removal(row with { DeliveryTicks = default })), 1900)!.Context.Bindings.Values,
             b => b.Kind == PawnActivityKind.Deliver);
-    }
-
-    /// <summary>
-    /// #3625: an ordinary stack the HaulOut moves stands no designation, only a haul-out record the read lists as the same
-    /// Haul removal op, and a stack larger than one carry binds too: one Deliver task of the whole stack whose first order
-    /// carries one Capacity, the continuation a second Deliver of the remainder to the same storage cell, then done.
-    /// </summary>
-    [Fact]
-    public void AStackLargerThanOneCarryIsOneDeliverTaskWorkedInTwoCarries()
-    {
-        const string item = "Thing_Silver1";
-        var store = new Cell(40, 30);
-        var origin = new Cell(30, 30);
-        var row = new Row(item, "Silver", store, "producer", "Silver", item, origin, 100, 75, "HaulGeneral",
-            10d, 50d, 0d) { SiteApproachTicks = 10d, AvailableInput = 100d };
-        var facts = RemovalFacts(ConstructionFixtures.Clearing(item, PlannedClearingKind.Haul) with { Options = [row] });
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
-        generated = ServingStorageRoom(generated, item, 50);
-        var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Kind == PawnActivityKind.Deliver);
-        Assert.Equal((item, 100, 75), (binding.Target, binding.Count, binding.Capacity));
-        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated), generated, 1, "construction", 100)!;
-        var task = Assert.Single(batch.Tasks);
-        Assert.Equal(100, task.Step.Count);
-        var first = Assert.Single(Assert.Single(batch.Orders, o => !o.Release).Steps);
-        Assert.Equal((PawnActivityKind.Deliver, item, 75, store), (first.Kind, first.Target, first.Count, Assert.IsType<CellActivityStep>(first).Destination));
-
-        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
-        {
-            Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
-            Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
-        };
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed",
-            new ActivityTaskBinding.Bound(task.Id, task.Step with { Count = 25 })))!;
-        Assert.Equal(25, Assert.Single(next.Tasks).Step.Count);
-        var second = Assert.Single(Assert.Single(next.Orders, o => !o.Release).Steps);
-        Assert.Equal((PawnActivityKind.Deliver, item, 25, store), (second.Kind, second.Target, second.Count, Assert.IsType<CellActivityStep>(second).Destination));
-        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, ActivityNeed.Owed, Read(next, "completed"))!;
-        Assert.Empty(done.Tasks);
-        Assert.True(done.Orders.Single().Release);
     }
 
     /// <summary>#3612: the 16-op cap is shared across removal kinds, and a kind no order works yet (RemoveFloor) binds nothing.</summary>

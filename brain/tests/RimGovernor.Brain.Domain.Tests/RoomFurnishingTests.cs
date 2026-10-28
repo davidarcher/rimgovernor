@@ -6,6 +6,36 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class RoomFurnishingTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ItemsDoNotGateBlueprintPlacementOnASeparateHaulingOperation(bool forbidden)
+    {
+        var room = Room();
+        var piece = new WantedPiece { DefName = Bed, Minimum = new(11, 11), Maximum = new(11, 12), Size = new(1, 2) };
+        var input = new ReconcileInput
+        {
+            Rooms = RoomTestFacts.NoRooms, Plan = new LayoutPlan { Rooms = [room] }, Room = room,
+            Furniture = [piece], WantedFloor = _ => "WoodPlankFloor",
+        };
+        var empty = ReconcileRules.Reconcile(input);
+        var at = new[] { room.Door, new Cell(9, 10), piece.Minimum };
+        var loaded = ReconcileRules.Reconcile(input with
+        {
+            Cells = at.Select((cell, i) => SiteCellFixtures.At(cell,
+                things: [new Thing { Id = (ulong)i + 1, Def = "Steel", Category = ThingCategory.Item,
+                    Flags = ThingMarks.Haulable | (forbidden ? ThingMarks.Forbidden : ThingMarks.None), Count = 100 }])).ToArray(),
+        });
+        // Preserve the whole placement wave, including interior floor/furniture, wall and door.
+        // Native preview and construction still decide legality and physical completion.
+        Assert.Equal(empty.Owed.Select(o => (o.Kind, string.Join(';', o.Cells))), loaded.Owed.Select(o => (o.Kind, string.Join(';', o.Cells))));
+        Assert.Equal(empty.Ready.Select(o => (o.Kind, string.Join(';', o.Cells))), loaded.Ready.Select(o => (o.Kind, string.Join(';', o.Cells))));
+        Assert.Contains(loaded.Owed, o => o.Kind == OpKind.Build && o.Pieces.Contains(piece));
+        Assert.Contains(loaded.Ready, o => o.Kind == OpKind.DoorIn && o.Cells.Contains(room.Door));
+        Assert.Contains(loaded.Ready, o => o.Kind == OpKind.FloorIn && o.Cells.Contains(piece.Minimum));
+        Assert.Empty(loaded.Holds);
+    }
+
     private const string Bed = "Bed";
     private const string Lever = "SculptureSmall";
 

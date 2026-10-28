@@ -23,8 +23,9 @@ Conditional removal forecasts still price materials, room readiness and work,
 but install no routine worker. The clearance read supplies proven removable roof
 cells for standing demolition. The existing clearance Need exposes these as
 RemoveRoof-area work; vanilla chooses the workers while the demolition guard
-waits for safe support. Unproven geometry creates no roof-removal option. Custom
-haul-out retains explicit coordination until its native path is migrated.
+waits for safe support. Unproven geometry creates no roof-removal option. Item stacks create no separate
+removal prerequisite: native construction hauls blocking items aside after
+blueprint placement, and ordinary storage hauling remains native work.
 
 The game scores a room's native role from its actual stations. A room can serve
 several functions: beds, benches, seats and medical beds count wherever they
@@ -970,15 +971,14 @@ furniture is stale). The facility rooms (dining, recreation, lab, workshop,
 kitchen, butchery) reconcile `RingOnly`, read no census and are exempt from
 stale removal: `FacilityWants` names their standing pieces but is not their
 template, and their benches stay where they stand. A `FurnitureOut` stands a
-Deconstruct designation, a `Pack` or `PackInUse` an Uninstall designation, a
-`HaulOut` a Haul designation, a `Cut` obstruction clearing a CutPlant on each
-plant and a `FloorOut` a RemoveFloor on each wrong-floor cell, each claiming the
-cell; under voluntary control the forecast reads the standing designations back and
-orders a controlled pawn's Deconstruct or Uninstall work on the building, its
-delivery of the stack to storage outside the room, one Work/CutPlant set step over
-the wave's plants or one Work/RemoveFloor set step over the wave's cells (#3557,
-#3612, #3613, #3614, #3615,
-[colony forecast](colony-forecast.md#construction-commitments-and-shared-capacity)).
+Deconstruct designation, a `Pack` or `PackInUse` an Uninstall designation,
+a `Cut` obstruction clearing a CutPlant on each plant and a `FloorOut` a RemoveFloor
+on each wrong-floor cell, each claiming the cell. Vanilla selects workers for
+these designations. Item stacks remain native storage hauling or construction
+haul-aside work after blueprint placement (`GenConstruct.HandleBlockingThingJob`);
+they create no private removal record or prerequisite delivery. Conditional
+forecasts retain work, material and room-service costs
+([colony forecast](colony-forecast.md#construction-commitments-and-shared-capacity)).
 
 ### Throne room
 

@@ -119,7 +119,7 @@ partial record struct RoomStall
         var output = new List<string>();
         foreach (var op in ops)
         {
-            if (op.Kind != Pol.OpKind.Claim && op.Kind != Pol.OpKind.Cut && op.Kind != Pol.OpKind.HaulOut)
+            if (op.Kind != Pol.OpKind.Claim && op.Kind != Pol.OpKind.Cut)
             {
                 continue;
             }

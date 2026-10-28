@@ -756,9 +756,6 @@ namespace RimGovernor.Native
                 // it): the delivered stack has been hauled, as the vanilla haul clears it on placing (#3614).
                 pawn.Map.designationManager.TryRemoveDesignationOn(carried, DesignationDefOf.Haul);
                 pawn.Map.designationManager.TryRemoveDesignationOn(delivered, DesignationDefOf.Haul);
-                // The reconcile's haul-out of an ordinary stack (#3625) is done once its last carry lands: the carried thing is
-                // the stack itself (an earlier carry splits a new thing off and leaves the stack on its cell).
-                NativeDesignationGuards.FinishHaulOut(pawn.Map, carried);
             });
         }
     }

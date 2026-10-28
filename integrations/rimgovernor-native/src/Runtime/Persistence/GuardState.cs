@@ -8,8 +8,7 @@ namespace RimGovernor.Native
     // The open guarded designations: which designation a Designate
     // placed under which named guard. The guard's own rule is native code;
     // this is only the membership the job hooks consult. It follows the save
-    // so a reload keeps the designation guarded. It also holds the haul-out
-    // records of ordinary stacks (#3625): a removal with no designation.
+    // so a reload keeps the designation guarded.
     public sealed class GuardState : GameComponent
     {
         public List<GuardedDesignation> Records = new List<GuardedDesignation>();

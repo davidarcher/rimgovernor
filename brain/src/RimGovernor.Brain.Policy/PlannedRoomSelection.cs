@@ -188,7 +188,7 @@ public static partial class PlannedRules
             .Concat(op.Pieces.SelectMany(p => RectCells(new Rectangle(p.Minimum.X, p.Minimum.Z, p.Maximum.X - p.Minimum.X + 1, p.Maximum.Z - p.Minimum.Z + 1)))))
             .ToHashSet();
         var removals = new List<Operation>();
-        foreach (var op in ops.Where(o => o.Kind is OpKind.Claim or OpKind.Cut or OpKind.HaulOut or OpKind.FurnitureOut or OpKind.Pack or OpKind.PackInUse or OpKind.FloorOut))
+        foreach (var op in ops.Where(o => o.Kind is OpKind.Claim or OpKind.Cut or OpKind.FurnitureOut or OpKind.Pack or OpKind.PackInUse or OpKind.FloorOut))
         {
             var next = op with
             {
