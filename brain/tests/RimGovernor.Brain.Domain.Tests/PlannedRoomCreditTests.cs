@@ -603,8 +603,7 @@ public sealed class PlannedRoomCreditTests
     /// #3884: the forecast wakes a pawn asleep now exactly when the binding orders it at tick 0, in the two cases the copy of the
     /// rule got wrong. A helper's cooking stands beside the sleeper's rest; the sleeper's mood, which freezes while asleep, moves
     /// from tick 0 only when StartSelected sends it an order.
-    /// - The schedule departs the sleeper at once to wait for a rest that waits on the cooking and starts far ahead: the binding
-    ///   leaves it out, so its lie-down goes on until it must leave.
+    /// - Ordinary rest, near or distant and even alongside bound cooking, stays native: the binding leaves the sleeper out.
     /// - The cooking has no binding: the binding starts nothing, so the forecast refuses the outcome (#3889,
     ///   dispatch_allocation_unbound): it never selects a plan the autopilot will not run.
     /// </summary>
@@ -629,7 +628,7 @@ public sealed class PlannedRoomCreditTests
         {
             var plan = new ForecastActivityPlan([sleeping, cooking], sleeping.End, 0);
             var started = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(new(["selected"], plan, [], 0, false),
-                bound.Bindings, 1, "m", 100, bound.PlannedSites, bound);
+                bound.Bindings, 1, "m", 100, bound, bound.PlannedSites);
             Assert.Equal(ordered, started?.Orders.Any(o => o.Pawn == "pawn") == true);
             var outcome = new ForecastCoupled.CoupledSearchCache().Evaluate(request with { Coupled = bound },
                 new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment }, bound.Activities, plan);
@@ -649,8 +648,9 @@ public sealed class PlannedRoomCreditTests
         }
         // Departed at once to wait 5000 ticks for its rest, which waits on the cooking: left to vanilla, asleep.
         Agree(false, context with { Bindings = Bindings(cookBound: true, waits: true) }, Rest(0, 5000));
-        // A rest due in 300 ticks is an order now, with the cooking bound; unbound, nothing starts and the forecast refuses it.
-        Agree(true, context with { Bindings = Bindings(cookBound: true, waits: false) }, Rest(300, 300));
+        // Ordinary rest stays native even when due soon and bundled with bound cooking.
+        // Unbound cooking still refuses the remaining dispatch.
+        Agree(false, context with { Bindings = Bindings(cookBound: true, waits: false) }, Rest(300, 300));
         Agree(false, context with { Bindings = Bindings(cookBound: false, waits: false) }, Rest(300, 300));
     }
 
@@ -703,7 +703,7 @@ public sealed class PlannedRoomCreditTests
             var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, EquatableArray.From(incumbents), 100, bound.Activities.Activities);
             Assert.Empty(execution.Releases);
             var started = execution.Dispatch is { } dispatch
-                ? RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(dispatch.Selection, bound.Bindings, 1, "m", 100, bound.PlannedSites, bound) : null;
+                ? RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(dispatch.Selection, bound.Bindings, 1, "m", 100, bound, bound.PlannedSites) : null;
             Assert.Equal(ordered, started?.Orders.Any(o => o.Pawn == "pawn") == true);
             var held = bound with { IncumbentHold = ForecastIncumbentHold.Of(incumbents, 100) };
             var commitments = selected.ToDictionary(id => id, id => id == commitment.Id ? commitment : new ForecastCommitment(id, []) { ActivityCompletions = [id] });

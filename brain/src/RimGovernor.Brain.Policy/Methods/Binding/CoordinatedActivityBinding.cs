@@ -17,13 +17,13 @@ internal static class CoordinatedActivityBinding
         : [new(PawnActivityKind.Work, task.Target, "RemoveRoofs", "RemoveRoof", task.RoofCells.Count, task.Deadline) { Cells = task.RoofCells }];
     internal static PawnActivities? StartSelected(ForecastActivityOutcomeComparison selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
-        IEnumerable<ForecastPlannedSite>? planned = null, ForecastCoupledContext? context = null)
+        ForecastCoupledContext context, IEnumerable<ForecastPlannedSite>? planned = null)
     {
         // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278). A
         // planned Deconstruct clearing is bound to its standing building and is not among them (#3557).
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         if (selection.Plan is not { } plan) return null;
-        if (context is not null) plan = ForDispatch(plan, context);
+        plan = ForDispatch(plan, context);
         var ordered = OrderedAtStart(selection.Selected, plan.Allocations, bindings, unplaced);
         if (ordered.Count == 0) return null;
         var active = Start(plan, bindings, authority, method, tick, unplaced);
@@ -40,21 +40,27 @@ internal static class CoordinatedActivityBinding
 
         var external = context.TradeWork.Select(w => (w.Task, w.Pawn)).ToHashSet();
         var native = context.Activities.Activities.Where(a => a.NativeExecution).Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
-        var dropped = plan.Allocations.Where(a => native.Contains(a.Activity) || external.Contains((a.Activity, a.Pawn)))
+        var services = plan.Allocations.Where(a => NativeNeedServices.RoutineTask(a.Activity, a.Pawn, context))
+            .Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
+        var servicing = context.Needs.Pawns.Where(p => p.CurrentService is not null).Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal);
+        var dropped = plan.Allocations.Where(a => native.Contains(a.Activity) || external.Contains((a.Activity, a.Pawn))
+                || services.Contains(a.Activity))
             .Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
         for (var grew = true; grew;)
         {
             grew = false;
             var boundaries = plan.Allocations.Where(a => dropped.Contains(a.Activity)).GroupBy(a => a.Pawn)
-                .ToDictionary(g => g.Key, g => g.Min(a => a.Depart), StringComparer.Ordinal);
+                // An actual service already occupies this pawn. Its what-if allocation later in the
+                // schedule cannot authorize earlier work that would interrupt that native service now.
+                .ToDictionary(g => g.Key, g => servicing.Contains(g.Key) && g.Any(a => services.Contains(a.Activity))
+                    ? 0 : g.Min(a => a.Depart), StringComparer.Ordinal);
             foreach (var allocation in plan.Allocations)
                 if (boundaries.TryGetValue(allocation.Pawn, out var start) && allocation.Depart >= start)
                     grew |= dropped.Add(allocation.Activity);
             foreach (var task in context.Activities.Activities)
                 if (task.Prerequisites.Any(dropped.Contains)) grew |= dropped.Add(task.Id);
         }
-        var executable = plan with { Allocations = plan.Allocations.Where(a => !dropped.Contains(a.Activity)).ToArray() };
-        return NativeNeedServices.RoutineOnly(executable, context) ? executable with { Allocations = [] } : executable;
+        return plan with { Allocations = plan.Allocations.Where(a => !dropped.Contains(a.Activity)).ToArray() };
     }
 
     /// <summary>

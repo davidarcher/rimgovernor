@@ -58,12 +58,16 @@ windows and remaining obligations. It has no separate scheduler or workflow stor
 Food acquisition and material delivery/building use the same ColonyForecast search,
 binding, journal continuation and native ownership contract.
 
-A standalone portfolio of ordinary eating, rest or recreation is not installed
-when current native observations show usable service or service already in
-progress. Shared comparison retains its conditional consequences as rejected
-what-if evidence; `StartCoupledActivity` independently checks the current context
+Ordinary eating, rest and recreation allocations with current native response
+are not installed, including inside productive portfolios. Their participant's
+later work and transitive dependent tasks wait for fresh observed prerequisites;
+the binding installs no future hold on their behalf. Already running native
+service also prevents a modeled earlier task in that portfolio from interrupting
+it now. Independent work remains selectable. A missing captured rest/recreation
+object cannot supply an intervention premise. Shared comparison retains detailed
+conditional what-if evidence; `StartCoupledActivity` checks the current context
 before binding. Access and current service are not proof of future recovery.
-Productive dependency graphs and incumbent migration remain incomplete in the
+Productive caller and incumbent migration remain incomplete in the
 [native-led labor change](../../../openspec/changes/native-led-labor-execution/design.md).
 
 Exact cell assignments use `CellActivityStep`, which carries a required canonical

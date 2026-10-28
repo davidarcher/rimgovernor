@@ -31,21 +31,22 @@ internal static class NativeNeedServices
         return NativeNeedService.NoObservedService;
     }
 
-    /// <summary>A pure service portfolio with current native response has no independent intervention premise.
-    /// Productive/dependent portfolios still require the general execution-baseline/intervention migration.</summary>
-    internal static bool RoutineOnly(ForecastActivityPlan plan, ForecastCoupledContext context)
+    /// <summary>Current native self-service is a dispatch boundary even inside productive portfolios.
+    /// A missing captured rest/recreation object does not establish a native failure.</summary>
+    internal static bool RoutineTask(string activity, string pawn, ForecastCoupledContext context)
     {
-        if (plan.Allocations.Length == 0) return false;
-        foreach (var allocation in plan.Allocations)
-        {
-            if (!context.Bindings.TryGetValue((allocation.Activity, allocation.Pawn), out var task)) return false;
-            if (task.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)) return false;
-            var kind = task.Kind == PawnActivityKind.Eat ? "food" : task.Kind == PawnActivityKind.Sleep ? "rest" : "joy";
-            if (!context.NeedTasks.Any(n => n.Task == allocation.Activity && n.Pawn == allocation.Pawn && n.Kind == kind)
-                || Observe(context.Needs, allocation.Pawn, kind) is not (NativeNeedService.Available or NativeNeedService.InProgress)) return false;
-        }
-        return true;
+        if (!context.Bindings.TryGetValue((activity, pawn), out var task)
+            || task.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)) return false;
+        var kind = task.Kind == PawnActivityKind.Eat ? "food" : task.Kind == PawnActivityKind.Sleep ? "rest" : "joy";
+        if (!context.NeedTasks.Any(n => n.Task == activity && n.Pawn == pawn && n.Kind == kind)) return false;
+        var response = Observe(context.Needs, pawn, kind);
+        return response is NativeNeedService.Available or NativeNeedService.InProgress
+            || response == NativeNeedService.NoObservedService && kind is "rest" or "joy";
     }
+
+    /// <summary>A pure native-service portfolio supplies no independent intervention premise.</summary>
+    internal static bool RoutineOnly(ForecastActivityPlan plan, ForecastCoupledContext context) =>
+        plan.Allocations.Length != 0 && plan.Allocations.All(a => RoutineTask(a.Activity, a.Pawn, context));
 
     public const string RoutineResponse = "native_service_response_without_intervention_premise";
 }

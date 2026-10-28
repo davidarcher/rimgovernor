@@ -27,12 +27,17 @@ service proves future intake or recovery.
 
 A portfolio consisting solely of ordinary food/rest/recreation services with
 current native response is rejected by shared comparison with
-`native_service_response_without_intervention_premise`; the binding entry point
-also refuses that portfolio. A no-modeled-service trajectory cannot, by itself,
-justify those redundant orders. Exact service scenarios remain available as
-conditional what-if evidence. This guard does not complete the general native
-execution baseline: productive dependency graphs, reserve/recovery comparisons,
-and general intervention materiality remain in the active labor change.
+`native_service_response_without_intervention_premise`. Shared binding also
+removes those service allocations inside productive portfolios. It stops the
+participant's later work and transitive dependents at that native boundary,
+preserving independent work. If service is already in progress, that boundary
+is now; a later what-if allocation cannot authorize earlier work that interrupts
+it. Eligible rest/recreation need no captured target to remain native. Exact
+service scenarios remain conditional what-if evidence, and the same dispatch
+projection governs interruption accounting and the work-assignment Need. This
+does not complete the general native execution baseline: productive callers,
+reserve/recovery comparisons and general intervention materiality remain in the
+active labor change.
 
 The shared comparison also withholds deprivation attributed solely to omitting
 an observed available/running native service. For eligible rest and recreation,

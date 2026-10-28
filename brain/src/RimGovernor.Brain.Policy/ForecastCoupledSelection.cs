@@ -1221,7 +1221,7 @@ public sealed partial record ForecastCoupledSelection
         if (selection.Selection.Selected.Any(id => candidates.Incumbents.Any(c => c.Id == id)))
             throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
         return Methods.Binding.CoordinatedActivityBinding.StartSelected(selection.Selection,
-            candidates.Context.Bindings, authority, method, tick, candidates.Context.PlannedSites, candidates.Context);
+            candidates.Context.Bindings, authority, method, tick, candidates.Context, candidates.Context.PlannedSites);
     }
 
     /// <summary>The unselected colonists whose observed needs stay above every supported threshold for at least a tick: the

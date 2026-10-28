@@ -82,4 +82,55 @@ public sealed class NativeExecutionBindingTests
         var selection = new ForecastActivityOutcomeComparison(["mixed"], new([Allocation("eat", "pawn", 0, 10), Allocation("native", "pawn", 10, 20)], 20, 0), [], 0, false);
         Assert.Null(CoordinatedActivityBinding.StartSelected(selection, context.Bindings, 1, "mixed", 100, context: context));
     }
+
+    [Theory]
+    [InlineData("food", false)]
+    [InlineData("food", true)]
+    [InlineData("rest", false)]
+    [InlineData("rest", true)]
+    [InlineData("joy", false)]
+    [InlineData("joy", true)]
+    public void ProductivePortfolioCannotOwnNativeServiceOrItsUnobservedFutureWork(string kind, bool inProgress)
+    {
+        var target = kind == "food" ? NeedsFixtures.Food("service", "Rice", 10, 0, 10, .5)
+            : NeedsFixtures.Service("service", kind, 0, .01);
+        var pawn = ForecastValueTests.Pawn() with { Targets = inProgress ? [] : [target],
+            CurrentService = inProgress ? new("", "", 0, "service", kind, new(0, 0), 10, .1) { Unsupported = [] } : null };
+        var tasks = new ForecastActivity[] { new("before", "start", "start", []), new("service", "start", "start", []),
+            new("after", "start", "start", []), new("dependent", "start", "start", ["service"]),
+            new("helper-later", "start", "start", []), new("transitive", "start", "start", ["dependent"]),
+            new("independent", "start", "start", []) };
+        var rows = new[] { Allocation("before", "pawn", 0, 10), Allocation("service", "pawn", 10, 20),
+            Allocation("after", "pawn", 20, 30), Allocation("dependent", "helper", 20, 30),
+            Allocation("helper-later", "helper", 30, 40), Allocation("transitive", "another", 30, 40),
+            Allocation("independent", "free", 0, 10) };
+        var bindings = rows.ToDictionary(a => (a.Activity, a.Pawn), a => new ActivityTaskCandidate(a.Activity, a.Pawn,
+            EquatableArray.From(tasks.Single(t => t.Id == a.Activity).Prerequisites), PawnActivityKind.Work, "site", "Build", "FinishFrame", 0, 1000, new(0, 0)));
+        bindings[("service", "pawn")] = new("service", "pawn", [], kind == "food" ? PawnActivityKind.Eat
+            : kind == "rest" ? PawnActivityKind.Sleep : PawnActivityKind.Recreation, "service", "", "", 1, 1000, new(0, 0));
+        var context = ForecastValueTests.Context(pawn) with { Activities = new() { Activities = tasks, Deadline = 100 },
+            Bindings = bindings, NeedTasks = [new("service", "pawn", kind, "service", new(kind == "food" ? "Rice" : ""), 1, .5, [])] };
+        var plan = new ForecastActivityPlan(rows, 40, 0);
+        var batch = Assert.IsType<PawnActivities>(CoordinatedActivityBinding.StartSelected(new(["mixed"], plan, [], 0, false),
+            bindings, 1, "mixed", 100, context: context));
+        Assert.Equal(inProgress ? ["independent"] : ["before", "independent"], batch.Tasks.Select(t => t.Id).Order(StringComparer.Ordinal));
+        Assert.Equal(inProgress ? ["free"] : ["free", "pawn"], batch.Orders.Select(o => o.Pawn).Order(StringComparer.Ordinal));
+        Assert.Equal(7, plan.Allocations.Length); // Detailed what-if evidence remains intact.
+    }
+
+    [Theory]
+    [InlineData("rest")]
+    [InlineData("joy")]
+    public void NoCapturedServiceObjectCannotAuthorizeRestOrRecreationTakeover(string kind)
+    {
+        var context = ForecastValueTests.Context(ForecastValueTests.Pawn() with { Targets = [] }) with
+        {
+            Activities = new() { Activities = [new("service", "start", "start", [])], Deadline = 100 },
+            Bindings = new Dictionary<(string, string), ActivityTaskCandidate> { [("service", "pawn")] = new("service", "pawn", [],
+                kind == "rest" ? PawnActivityKind.Sleep : PawnActivityKind.Recreation, "future-service", "", "", 0, 1000, new(0, 0)) },
+            NeedTasks = [new("service", "pawn", kind, "future-service", new(""), 0, .5, [])],
+        };
+        var selected = new ForecastActivityOutcomeComparison(["service"], new([Allocation("service", "pawn", 0, 10)], 10, 0), [], 0, false);
+        Assert.Null(CoordinatedActivityBinding.StartSelected(selected, context.Bindings, 1, "counterfactual", 100, context: context));
+    }
 }
