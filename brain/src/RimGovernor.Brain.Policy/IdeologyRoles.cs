@@ -130,10 +130,7 @@ public static class IdeologyRolesRules
             foreach (var task in batch.Tasks)
             {
                 var pawn = new PawnId(task.Pawn);
-                foreach (var step in task.PriorSteps.Append(task.Step))
-                {
-                    Step(pawn, step);
-                }
+                Step(pawn, task.Step);
             }
         }
         foreach (var assignment in pending)

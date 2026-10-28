@@ -7,14 +7,15 @@ if another participant depends on its remaining work, the attempt ends and relea
 its exact owners. This supplies no completion evidence or material refund, and
 leaves an unrelated running participant unchanged.
 
-Deconstruct (without roof prerequisites), Uninstall, CutPlant, RemoveFloor and
+Deconstruct, Uninstall, CutPlant, RemoveFloor and
 Mine follow the same boundary handback, including planned footprint clearance.
 Task identity does not grant routine control. Reconciliation and excavation
 create native work for selected sites. Old exact set work is not rebound to a
 remaining subset: failure ends the attempt, and a completed subset cannot
 satisfy the whole task or its dependents. A positive native satisfied-task read
-still establishes completion. Roof-prerequisite demolition and custom haul-out
-remain explicit pending their native-work migration.
+still establishes completion. Roof preparation is native area work under the
+existing clearance Need; the demolition guard waits for safe support. Custom
+haul-out remains explicit pending its native-work migration.
 
 An actual native job takeover detaches the old execution handle. The existing
 pawn-fact invalidation wakes the worker, which re-reads all Method participants.

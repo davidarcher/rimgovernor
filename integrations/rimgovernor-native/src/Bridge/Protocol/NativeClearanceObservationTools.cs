@@ -8,6 +8,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.GameAccess;
+using EquatableArray = RimGovernor.Brain.Domain.EquatableArray;
 using RimGovernor.Host.Sdk;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
 
@@ -82,6 +83,9 @@ namespace RimGovernor.Native
                 var own = building.Faction == player;
                 phase = Now();
                 var blocker = RoofSupportSafety.Blocker(building, out _);
+                RimGovernor.Brain.GameFacts.Observations.ClearanceRoofRemoval? roofRemoval = blocker == null ? new() { Cells = [] }
+                    : designated && !danger && RoofSupportSafety.Unsupported(building) is { } roof
+                        ? new() { Cells = EquatableArray.From(roof.Select(c => new DomainCell(c.x, c.z))) } : null;
                 roofTicks += Now() - phase;
                 RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage salvaged = new RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.NotRequested();
                 if (salvage != null) {
@@ -94,7 +98,9 @@ namespace RimGovernor.Native
                 targets.Add(new RimGovernor.Brain.GameFacts.Observations.ClearanceTarget {
                     EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),
                     Minimum = new DomainCell(rect.minX, rect.minZ), Maximum = new DomainCell(rect.maxX, rect.maxZ),
-                    Class = Classify(building), RoofBlocker = blocker, AncientDanger = danger, Designated = designated,
+                    Class = Classify(building), RoofBlocker = blocker,
+                    RoofRemoval = roofRemoval,
+                    AncientDanger = danger, Designated = designated,
                     Player = own, EnclosesRoom = own && EnclosesRoom(map, building), Salvage = salvaged,
                 });
             }

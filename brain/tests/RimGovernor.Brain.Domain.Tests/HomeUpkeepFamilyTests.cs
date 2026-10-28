@@ -4,6 +4,7 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
+using Ex = RimGovernor.Brain.Executor;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,6 +14,21 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class HomeUpkeepFamilyTests
 {
+    private sealed class RoofClock : IClock { public DateTimeOffset Now() => DateTimeOffset.UnixEpoch; }
+    private sealed class RoofBoundary : Ex.IBoundary
+    {
+        public readonly List<DomainAction> Written = [];
+        public Task<Ex.IntentInspection> InspectIntentAsync(Ex.Target target, CancellationToken ct) =>
+            Task.FromResult(new Ex.IntentInspection { StartedAt = DateTimeOffset.UnixEpoch,
+                ObservedAt = DateTimeOffset.UnixEpoch, Current = target.Snapshot, Tick = new(101) });
+        public Task<IReadOnlyList<Ex.Receipt>> WriteIntentsAsync(IReadOnlyList<Ex.Placement> placements, CancellationToken ct)
+        {
+            Written.AddRange(placements.Select(p => p.Action));
+            return Task.FromResult<IReadOnlyList<Ex.Receipt>>(placements.Select(p => new Ex.Receipt
+                { Action = p.Action.Id, Attempt = p.Attempt, Snapshot = p.Snapshot, Kind = Receipt.Accepted }).ToArray());
+        }
+    }
+
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
     private static RepairStructure Structure(string id, int hp, int max = 100, bool home = true, int priority = 1) =>
@@ -135,6 +151,52 @@ public sealed class HomeUpkeepFamilyTests
         Clearance = new ClearanceCensus([new ClearanceTarget { EntityId = "a", Deconstructible = true }]),
         Candidate = step,
     };
+
+    [Fact]
+    public async Task StandingDemolitionRoofPreparationReachesHandsThroughTheClearanceNeed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open();
+        var target = new RimGovernor.Brain.GameFacts.Observations.ClearanceTarget
+        {
+            EntityId = "wall", DefName = "Wall", Minimum = new(5, 5), Maximum = new(5, 5),
+            Class = RimGovernor.Brain.GameFacts.Observations.ClearanceClass.AncientWallDoor,
+            RoofBlocker = "roof support", RoofRemoval = new() { Cells = [new(5, 6), new(6, 6)] },
+            AncientDanger = false, Designated = true, Player = true, EnclosesRoom = true,
+            Salvage = new RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage.NotRequested(),
+        };
+        var step = ClearanceGroundRules.DesignatedRoofStep([target]);
+        var (prefix, _) = HomeUpkeepReader.GroundStepMethod(new("probe"), step);
+        colony.Facts = new() { Clearance = new ClearanceCensus([]) { Ground = [.. step.Roof.Select(ClearanceGroundRules.GroundRoofID)] },
+            Candidate = new(new(prefix.TrimEnd('-')), false, id => HomeUpkeepReader.GroundActions(id, step)) };
+        var run = colony.Run();
+        Assert.Equal(Outcome.Admitted, Colony.Report(run, HomeUpkeepFamily.Clearance).Outcome);
+        var method = Assert.Single(run.Methods);
+        var action = Assert.Single(colony.Journal.LoadPlan(method.Plan, ct).Progress).Action;
+        var boundary = new RoofBoundary();
+        using var hands = new Ex.Executor(new ExecutorJournal(colony.Journal), boundary, new RoofClock(), new Ex.Limits
+            { MaxAge = TimeSpan.FromSeconds(30), RunTimeout = TimeSpan.FromSeconds(10), JournalTimeout = TimeSpan.FromSeconds(10) },
+            new PlanAuthorizer(colony.Journal, true));
+        hands.UpdateAuthority(new() { Snapshot = World, Enabled = true });
+        await hands.RunBatchAsync(method.Plan, [action.Id], ct);
+        var applied = Assert.Single(boundary.Written);
+        Assert.Equal(ActionKind.RemoveRoof, applied.Kind);
+        Assert.Equal(step.Roof, applied.RemoveRoof!.Cells);
+        Assert.Equal(Stage.Completed, Assert.Single(colony.Journal.LoadPlan(method.Plan, ct).Progress).View.Stage);
+        // Completed intent neither certifies roof removal nor completes the standing demolition Need.
+        Assert.Equal(Satisfaction.Unmet, Derive(colony.Facts, HomeUpkeepFamily.Clearance).Satisfaction);
+    }
+
+    [Fact]
+    public void ChangedRoofGeometryIsANewMethodEvenWithTheSameFirstCellAndCount()
+    {
+        var step = new GroundStep { Phase = GroundPhase.Walls, Roof = [new(5, 6), new(6, 6)] };
+        var (first, _) = HomeUpkeepReader.GroundStepMethod(new("probe"), step);
+        var (reordered, _) = HomeUpkeepReader.GroundStepMethod(new("probe"), step with { Roof = [new(6, 6), new(5, 6)] });
+        var (changed, _) = HomeUpkeepReader.GroundStepMethod(new("probe"), step with { Roof = [new(5, 6), new(7, 6)] });
+        Assert.Equal(first, reordered);
+        Assert.NotEqual(first, changed);
+    }
 
     [Fact]
     public void RepairsIsHeldAndTheClearanceStepIsAdmittedUnderItsNeed()

@@ -76,11 +76,14 @@ public sealed partial class HomeUpkeepReader
         var census = await _native.ReadClearanceAsync(expected, true, ground, call).ConfigureAwait(false);
         var (others, player) = ClearanceGroundRules.SplitGroundRows(ClearanceReads.Targets(census).Concat(GroundBlueprints(colony) ?? []), colony.Facts.Preferences);
         var wants = _reviewer.ClearFloors(colony);
+        var step = ClearanceGroundRules.DesignatedRoofStep(census.Targets);
         facts = facts with
         {
-            Clearance = new ClearanceCensus([.. others]) { Ground = [.. PlannedGroundWork(colony, player, census.Floors, wants)] },
+            Clearance = new ClearanceCensus([.. others]) { Ground = [.. PlannedGroundWork(colony, player, census.Floors, wants),
+                .. step.Roof.Select(ClearanceGroundRules.GroundRoofID)] },
         };
-        var step = await RecoveryStepAsync(Boundary.Identity(scope.World), review.RecoveryQueue, others, colony, call).ConfigureAwait(false);
+        if (step.Roof.Count == 0)
+            step = await RecoveryStepAsync(Boundary.Identity(scope.World), review.RecoveryQueue, others, colony, call).ConfigureAwait(false);
         Func<PlanId, GroundStep, (string Prefix, IReadOnlyList<DomainAction> Actions)> method;
         if (step.Roof.Count > 0 || step.Targets.Count > 0)
         {
@@ -235,7 +238,9 @@ partial class HomeUpkeepReader
         {
             if (step.Roof.Count > 0 && step.Targets.Count == 0)
             {
-                prefix = string.Create(CultureInfo.InvariantCulture, $"roof-off-{step.Roof[0].X}-{step.Roof[0].Z}-x{step.Roof.Count}-");
+                var roof = step.Roof.Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray();
+                var shape = string.Join(";", roof.Select(c => string.Create(CultureInfo.InvariantCulture, $"{c.X},{c.Z}")));
+                prefix = string.Create(CultureInfo.InvariantCulture, $"roof-off-{roof[0].X}-{roof[0].Z}-x{roof.Length}-{BuildingPlanner.DigestHex(shape, 8)}-");
             }
             else if (!step.Ground.Empty())
             {

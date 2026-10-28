@@ -236,6 +236,16 @@ count. Its Method is the next clearance step, keyed by the step (`cancel-<id>[-x
 step continues its open Method, independent steps run side by side, and a step whose
 cells or targets overlap an open Method is refused by claim (`claim_conflict`).
 
+Standing guarded demolition can also expose proven roof preparation through
+the same Need. The clearance read's `RoofRemoval` is null when unassessed or
+unproven, empty without a prerequisite, or the proven removable cells. Only
+designated non-dangerous targets contribute cells. Those cells count as current
+clearance demand even though the building is already designated; a roof-only
+Method is keyed by its complete cell set, so changed geometry can be applied.
+Hands writes native RemoveRoof-area intent, vanilla chooses workers and the
+demolition guard still waits for safe support. No exact roofer, promised output
+or second demand owner is introduced. See [roof preparation](pawn-activities.md#roof-preparation).
+
 - A fresh clearance census must report deconstructible geometry with no roof blocker,
   ancient danger or casket. A standing deconstruct designation is no hold: the admitted
   Deconstruction adopts it, and a step whose targets are all designated proposes nothing.

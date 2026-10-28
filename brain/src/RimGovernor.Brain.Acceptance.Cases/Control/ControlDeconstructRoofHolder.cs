@@ -87,7 +87,7 @@ internal static class ControlDeconstructRoofHolder
         var deconstruct = new PawnActivityStep(PawnActivityKind.Work, wall, row.WorkGiver, "Deconstruct", 0, int.MaxValue);
         var batch = new PawnActivities(generation, [new PawnActivityOrder(worker, TaskId, TaskId, 0, 1, false, [removeRoof, deconstruct]) { Task = TaskId }])
         {
-            Tasks = [new SelectedActivityTask(TaskId, worker, [], deconstruct, row.Location, 0) { PriorSteps = [removeRoof] }],
+            Tasks = [new SelectedActivityTask(TaskId, worker, [], deconstruct, row.Location, 0)],
         };
         _ = await TypedApply.AppliedAsync(s, "order", new RimGovernor.Brain.GameOrders.Operations.PawnActivitiesIntent { Batch = batch }, cancellationToken).ConfigureAwait(false);
 

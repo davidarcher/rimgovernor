@@ -397,11 +397,10 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3617: a roof-holder under the footprint is a valued Deconstruct clearing carrying the cells it leaves unsupported.
-    /// The alternative is valued (not unknown), and the clearing binds as one task whose order removes the roof over those
-    /// cells (Work/RemoveRoof cell set step) before the Work/Deconstruct.
+    /// The alternative retains the combined roof/demolition cost without installing either routine worker.
     /// </summary>
     [Fact]
-    public void ARoofHolderUnderTheRingIsValuedAndBindsRoofOffThenDeconstruct()
+    public void ARoofHolderUnderTheRingIsValuedWithoutOrderingRoofOrDemolitionWork()
     {
         const string ruin = "Thing_Wall1";
         const string site = "planned/room1/wall/WoodLog";
@@ -419,16 +418,11 @@ public sealed class PlannedRoomActivitiesTests
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Deconstruct");
         Assert.Equal((Pawn, PawnActivityKind.Work, ruin, "Deconstruct", "Wall"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.SiteDefinition));
-        Assert.Equal(cells, binding.RoofCells);
 
         var result = Select(facts);
         Assert.True(PlannedSelected(result, site), Why(facts, result));
-        var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
-        Assert.NotNull(batch);
+        var batch = NativeClearanceScenario(facts, result);
         var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
-        var prior = Assert.Single(task.PriorSteps);
-        Assert.Equal((PawnActivityKind.Work, ruin, "RemoveRoofs", "RemoveRoof", 2), (prior.Kind, prior.Target, prior.WorkGiver, prior.Job, prior.Count));
-        Assert.Equal(cells, prior.Cells);
         Assert.Equal((PawnActivityKind.Work, ruin, "Deconstruct"), (task.Step.Kind, task.Step.Target, task.Step.Job));
         Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
     }

@@ -209,8 +209,8 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
     public required EquatableArray<string> Targets { get; init; }
     /// <summary>A cell set op's members (#3615): the cells a <see cref="PlannedClearingKind.RemoveFloor"/> op clears, lowest x
     /// then z first, bound as one Work set step over them. For a roof-holder's <see cref="PlannedClearingKind.Deconstruct"/>
-    /// op (#3617): the roofed cells its removal leaves unsupported, nearest the building first; the brain removes their roof
-    /// (Work/RemoveRoof cell set step) before the Deconstruct in the same order and the rows' <c>Finish</c> prices both
+    /// op (#3617): the roofed cells its removal leaves unsupported, nearest the building first; native area work prepares
+    /// the roof before guarded demolition, and the rows' <c>Finish</c> prices both
     /// works. Empty for any other op, or a building whose removal moves no roof.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
     public required EquatableArray<Cell> Cells { get; init; }

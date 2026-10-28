@@ -25,7 +25,6 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                 Source = t.GetProperty("Source") is { ValueKind: JsonValueKind.Null }
                     ? new(t.GetProperty("X").GetInt32(), t.GetProperty("Z").GetInt32())
                     : ReadCell(t.GetProperty("Source")),
-                PriorSteps = EquatableArray.From(t.GetProperty("PriorSteps").EnumerateArray().Select(ReadStep)),
                 UseUntilTick = t.GetProperty("UseUntilTick").GetInt64() })) };
         value.Validate(); return value;
     }
@@ -83,7 +82,6 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             w.WriteStartArray("Prerequisites"); foreach (var dependency in task.Prerequisites) w.WriteStringValue(dependency); w.WriteEndArray();
             w.WriteStartObject("Source"); w.WriteNum("X", task.Source.X); w.WriteNum("Z", task.Source.Z); w.WriteEndObject();
             w.WritePropertyName("Step"); WriteStep(w, task.Step);
-            w.WriteStartArray("PriorSteps"); foreach (var prior in task.PriorSteps) WriteStep(w, prior); w.WriteEndArray();
             w.WriteEndObject();
         }
         w.WriteEndArray();

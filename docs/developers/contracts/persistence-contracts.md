@@ -86,6 +86,12 @@ continuation from session-journal activity payloads. Older session journals are
 replaced; conditional recipe and learning estimates remain transient forecast
 data. Ordinary production bills and native unfinished work remain in the save.
 
+Version 65 removes activity-task prior-step state from the session journal.
+Roof preparation belongs to ordinary native area intent under the clearance
+Need. Older journals are replaced; the save retains native designations and
+roof areas. `ClearanceTarget.RoofRemoval` is an observed fact, with no new store
+or copy in policy state.
+
 | Home | Holds | On reload |
 |---|---|---|
 | Native game-process memory, `NativePawnActivities` | Transient installed assignment and actual running job reference plus load ID. Only an actually installed matching offer acquires the running handle; a different installed job detaches it. SQLite retains the attempted Method and reconciles remaining exact participants from fresh observations. No durable takeover or queue ledger. | Discarded on world/load or authority change; never restored as exclusive native selection permission. |

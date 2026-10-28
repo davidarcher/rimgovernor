@@ -644,7 +644,7 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; formation hunting, intervention and native usable-output evidence remain |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Ordinary binding and continuation stay native regardless of missing access; general justified exception admission remains in tasks 4.1–4.2 |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
-| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; roof prerequisites, custom hauling and general intervention audit remain |
+| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; custom hauling and general intervention audit remain |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
 | `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine delivery, tending and already-indicated surgery stay conditional and install no pawn orders; old commitments hand back at boundaries; meaningful interventions, native reachability/output evidence and final adapter audit remain |
 | `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
@@ -987,7 +987,7 @@ orphans left: none.
 
 ## Native construction clearance
 
-Deconstruct without roof prerequisites, Uninstall, CutPlant, RemoveFloor and
+Deconstruct, Uninstall, CutPlant, RemoveFloor and
 Mine stay available to vanilla through native designations and numeric work
 priorities. Planned footprint clearing is conditional investment evidence too;
 it cannot reserve a worker merely because its targets already stand. Selected
@@ -1012,16 +1012,16 @@ retry/rebinding helpers have no current readers and are removed.
 for deconstruct, uninstall, mining and plant/floor sets. Conditional binding and
 cell-set wire checks remain. `NativeServiceContinuationTests` covers all five
 jobs with standing and planned identities, independent and dependent participants,
-in-flight preservation and the roof-prerequisite exclusion.
+in-flight preservation and boundary handback.
 `PlannedRoomActivitiesTests` retains selection and exact conditional target/set
 mechanics without installing routine orders. `NeedBuildingTests` exercises
 selected-footprint cutting/deconstruction through Family admission, the real
 journal and Hands: accepted native intent is recorded once without a pawn order.
-This proves intent plumbing, not physical completed clearance. Roof-prerequisite
-demolition, custom haul-out and general intervention justification remain to
+This proves intent plumbing, not physical completed clearance. Custom haul-out
+and general intervention justification remain to
 migrate. Task 5.4 and the overall change remain incomplete at 13/24.
 
-Verification: final gate PASS (40s), 4,285 domain tests, 30 workflow tests,
+Verification: final gate PASS (1m4s), 4,288 domain tests, 30 workflow tests,
 native builds/probes and contract orphan checks. No new native gameplay result
 is claimed. Rules 7–9: existing designations and shared material demand retain
 ownership; pure generation and shared boundary cleanup add no orchestration
@@ -1030,6 +1030,27 @@ clearance selection and native intent integration regressions / removed routine
 planned-clearance dispatch, producer classification and partial-set retries /
 orphans left: none. Target/set fields retain conditional and native primitive
 readers; no boundary field became unread.
+
+The clearance read now also exposes proven removable roof cells for standing
+demolition through `ClearanceTarget.RoofRemoval`. It reuses the existing native
+roof-support calculation only for designated, blocked, non-dangerous targets.
+Unproven geometry has a null result; safe removal has an empty cell set. Policy
+does not invent a preparation option for fog, pending collapse or thick roofs.
+The deduplicated cells count as current clearance demand even when the building
+is already designated. The existing Family, journal and Hands expose RemoveRoof
+area intent; vanilla owns worker choice and demolition waits on the existing
+eligibility/completion guards. Accepted area intent is not removed roof or a
+completed building removal. The Method identity includes the full cell set;
+changed geometry cannot be hidden by an unchanged first cell and count.
+
+Wire and policy tests cover proven/unproven, unselected and dangerous targets,
+deduplicated geometry and fresh no-prerequisite reads. A clearance-Family test
+reaches Hands with only RemoveRoof intent while the Need remains unmet. The
+conditional comparison retains combined roof/demolition work without installing
+either worker. Task prior-step state and its generation/binding, role-projection
+and codec readers are removed; schema 65 replaces older journals. Primitive multi-step
+orders retain their distinct fixture coverage and mechanics. No new gameplay
+result is claimed for this native-read and coordination migration.
 
 ## Native operation and conditional comparison evidence
 

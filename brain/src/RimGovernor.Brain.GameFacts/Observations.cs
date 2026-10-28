@@ -313,6 +313,10 @@ public sealed record ClearanceTarget
     /// <summary>Why removing the building would collapse roof; null when removal is safe.</summary>
     public required string? RoofBlocker { get; init; }
 
+    /// <summary>Proven removable roof cells for standing demolition; null when unassessed or unproven.
+    /// Empty cells mean no roof prerequisite. This is current geometry, not promised worker progress.</summary>
+    public required ClearanceRoofRemoval? RoofRemoval { get; init; }
+
     public required bool AncientDanger { get; init; }
 
     /// <summary>
@@ -330,6 +334,12 @@ public sealed record ClearanceTarget
     public required bool EnclosesRoom { get; init; }
 
     public required ClearanceSalvage Salvage { get; init; }
+}
+
+public sealed record ClearanceRoofRemoval
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
+    public required EquatableArray<Cell> Cells { get; init; }
 }
 
 /// <summary>A clearance row's salvage evidence: not asked for, past the read's time budget, or computed.</summary>

@@ -16,9 +16,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class StoreSchemaPinTests
 {
-    private const int PinnedSchemaVersion = 64;
-    // Version 64 removes exact recipe-duration and output-recipe continuation.
-    private const string PinnedShapeHash = "0E27AE41E97018C9331BDF33456535F7251A156A4C3B894304B9C14931535061";
+    private const int PinnedSchemaVersion = 65;
+    // Version 65 removes activity-task prior steps.
+    private const string PinnedShapeHash = "49C47CDE79E3A677FDEAFAD54B934C134A99B1B836F29AA218862717476D6999";
 
     [Fact]
     public void CodecShapeIsPinnedToTheSchemaVersion()

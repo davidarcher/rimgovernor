@@ -50,18 +50,6 @@ public sealed class NativeServiceContinuationTests
         }
     }
 
-    [Fact]
-    public void RoofPrerequisiteDoesNotBecomeUnqualifiedNativeDemolition()
-    {
-        var (batch, read) = AtBoundary("food", true, target: false);
-        batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == "service"
-            ? t with { Id = "removal-0", Step = t.Step with { Kind = PawnActivityKind.Work, Job = "Deconstruct" },
-                PriorSteps = [new(PawnActivityKind.Work, "", "RemoveRoofs", "RemoveRoof", 1, 2000) { Cells = [new(1, 1)] }] }
-            : t with { Prerequisites = EquatableArray.From(t.Prerequisites.Select(p => p == "service" ? "removal-0" : p)) })),
-            Orders = batch.Orders.Select(o => o.Task == "service" ? o with { Task = "removal-0" } : o).ToArray() };
-        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
-    }
-
     [Theory]
     [InlineData("completed")]
     [InlineData("failed")]

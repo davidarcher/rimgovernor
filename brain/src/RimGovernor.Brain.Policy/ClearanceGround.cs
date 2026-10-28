@@ -87,6 +87,13 @@ public sealed record GroundStep
 
 public static class ClearanceGroundRules
 {
+    /// <summary>Expose only proven roof preparation for already designated demolition.
+    /// The native demolition guard still rechecks support before any removal.</summary>
+    public static GroundStep DesignatedRoofStep(IEnumerable<RimGovernor.Brain.GameFacts.Observations.ClearanceTarget> rows) =>
+        new() { Phase = GroundPhase.Walls, Roof = EquatableArray.From(rows
+            .Where(r => r.Designated && !r.AncientDanger && r.RoofRemoval is not null)
+            .SelectMany(r => r.RoofRemoval!.Cells).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z)) };
+
     /// <summary>
     /// The ground of every open-ground planned room whose ring does not yet match the plan (GroundMatches), in
     /// plan order: its interior and its wall ring, standing rooms included; then the retired ground.
@@ -336,6 +343,7 @@ public static class ClearanceGroundRules
 
     /// <summary>Names one floor cell as a clearance deficit target.</summary>
     public static string GroundFloorID(Cell c) => $"floor@{c.X},{c.Z}";
+    public static string GroundRoofID(Cell c) => $"roof@{c.X},{c.Z}";
 
     /// <summary>A cell under a building the step left standing (a planned ring wall): its floor stays.</summary>
     private static bool GroundCovered(Cell c, IEnumerable<ClearanceTarget> rows) =>

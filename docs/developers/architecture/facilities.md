@@ -15,13 +15,16 @@ they install no exclusive roofer. Roof completion comes from the observed roof,
 not from the area designation or a scheduled forecast cell. Saved exact BuildRoof
 tasks hand back at a boundary just like frame completion.
 
-Deconstruction without roof prerequisites, uninstall, plant cutting, floor
+Deconstruction, uninstall, plant cutting, floor
 removal and mining run through native designations, including selected sites'
 preplacement clearance. Reconciliation commits removals and cutting; room
 excavation admits mining before ring placement.
 Conditional removal forecasts still price materials, room readiness and work,
-but install no routine worker. Roof-prerequisite demolition and custom haul-out
-retain explicit coordination until their native work-creation path is migrated.
+but install no routine worker. The clearance read supplies proven removable roof
+cells for standing demolition. The existing clearance Need exposes these as
+RemoveRoof-area work; vanilla chooses the workers while the demolition guard
+waits for safe support. Unproven geometry creates no roof-removal option. Custom
+haul-out retains explicit coordination until its native path is migrated.
 
 The game scores a room's native role from its actual stations. A room can serve
 several functions: beds, benches, seats and medical beds count wherever they

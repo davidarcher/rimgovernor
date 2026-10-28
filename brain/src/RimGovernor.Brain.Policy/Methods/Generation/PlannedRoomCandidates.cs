@@ -25,7 +25,7 @@ internal sealed record PlannedRoomCandidatesResult(
 /// finish, in the placed-site shape (ConstructionMethodCandidates). Completed sites are physical evidence;
 /// their room's service supplies its value. An alternative root requires every site of its
 /// alternative and is not exempt from the thermal-relief gate. Nothing binds
-/// until placement (#3278), except a Deconstruct clearing: its building stands now, so it binds as the pawn's Deconstruct work on it (#3557).
+/// until placement (#3278). Clearing targets remain conditional evidence; ordinary execution uses native work.
 /// </summary>
 internal static class PlannedRoomCandidates
 {
@@ -221,7 +221,7 @@ internal static class PlannedRoomCandidates
                         var done = clearing.Id + "/cleared";
                         roomOperations.Add(new(new(clearing.Id, from, to, [])
                             { NativeExecution = clearing.Kind is PlannedClearingKind.Cut or PlannedClearingKind.Mine
-                                || clearing.Kind == PlannedClearingKind.Deconstruct && clearing.Cells.Count == 0 }, [],
+                                || clearing.Kind == PlannedClearingKind.Deconstruct }, [],
                             [new(done, cleared, 1, siteLocation, 0, horizon)
                             { Producer = clearing.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-clearing:" + site.Id }]));
                         foreach (var (row, work) in clearingRows)
@@ -229,9 +229,8 @@ internal static class PlannedRoomCandidates
                             roomOptions.Add(ConstructionMethodCandidates.Option(clearing.Id, row.Pawn, work.Ticks, work.SkillWork) with { ServicePosition = row.ServicePosition });
                             roomRoutes.Add(ConstructionMethodCandidates.Start(row.Pawn, from, work.ApproachTicks));
                             // Conditional targets under the footprint stand now. Reconciliation creates ordinary native
-                            // clearance work before placement; custom hauling and roof prerequisites remain explicit. A
-                            // building as Work/Deconstruct on it (#3557; a roof-holder's order removes the roof over the op's
-                            // Cells first, #3617), a stack as a Deliver of it to the row's storage cell (#3614; one carry at a
+                            // clearance work before placement; custom hauling remains explicit. A
+                            // building as Work/Deconstruct on it (#3557), a stack as a Deliver of it to the row's storage cell (#3614; one carry at a
                             // time over a stack larger than one, #3625), the plants as one Work/CutPlant set step
                             // over the op's named Targets (#3613) and the natural rock as one Work/Mine set step over its
                             // named rocks (#3616).

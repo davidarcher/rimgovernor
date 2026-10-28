@@ -75,9 +75,6 @@ public record SelectedActivityTask(string Id, string Pawn, EquatableArray<string
     public bool CompletionMustBeObserved { get; init; }
     public EquatableArray<SelectedActivityInput> Inputs { get; init; }
     public int AttemptsLeft { get; init; } = 3;
-    /// <summary>Work steps the task's order runs before <see cref="Step"/>, in order (#3617: a roof-holder's RemoveRoof
-    /// cell set before its Deconstruct). The same task, relief and output as the step alone.</summary>
-    public EquatableArray<PawnActivityStep> PriorSteps { get; init; }
     /// <summary>The tick the selected schedule ends the task (its allocation's end), so a stack claim holds from
     /// <see cref="DepartTick"/> to here (#3626); 0 when not selected by a schedule, and the claim then holds to the step's deadline.</summary>
     public long UseUntilTick { get; init; }
@@ -191,15 +188,6 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
         {
             ValidateSet(task.Step); ValidatePractice(task.Step);
             DomainException.Require(ValidDestination(task.Step), "invalid selected activity destination");
-            DomainException.Require(task.PriorSteps.Count <= 8, "invalid selected prior steps");
-            foreach (var prior in task.PriorSteps)
-            {
-                DomainException.Require(prior != null && prior.Kind == PawnActivityKind.Work && prior.Deadline > 0 && IdText.IsValidText(prior.Target)
-                    && IdText.IsValidText(prior.WorkGiver) && IdText.IsValidText(prior.Job) && prior.NotBefore >= 0 && prior.NotBefore < prior.Deadline
-                    && prior is not CellActivityStep && prior.Recipe == null && prior.Practice == null && prior.Container.Length == 0
-                    && prior.SupportDemand.Length == 0 && prior.Medicine.Length == 0, "invalid selected prior step");
-                ValidateSet(prior);
-            }
         }
         foreach (var task in Tasks.Where(t => t.Step.Practice?.Skill == "Melee"))
             DomainException.Require(Tasks.Any(partner => partner.Pawn == task.Step.Practice!.Partner

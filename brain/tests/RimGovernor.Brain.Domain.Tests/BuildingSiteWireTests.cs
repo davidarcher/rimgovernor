@@ -17,7 +17,7 @@ public sealed class BuildingSiteWireTests
     private static RimGovernor.Brain.GameFacts.Observations.ClearanceTarget Target(string id, RimGovernor.Brain.GameFacts.Observations.ClearanceSalvage salvage) => new()
     {
         EntityId = id, DefName = "AncientConcreteWall", Minimum = new Cell(3, 4), Maximum = new Cell(3, 4),
-        Class = RimGovernor.Brain.GameFacts.Observations.ClearanceClass.AncientWallDoor, RoofBlocker = null, AncientDanger = false, Designated = false,
+        Class = RimGovernor.Brain.GameFacts.Observations.ClearanceClass.AncientWallDoor, RoofBlocker = null, RoofRemoval = new() { Cells = [] }, AncientDanger = false, Designated = false,
         Player = false, EnclosesRoom = false, Salvage = salvage,
     };
 
@@ -78,6 +78,28 @@ public sealed class BuildingSiteWireTests
     }
 
     [Fact]
+    public void RoofPreparationUsesOnlyProvenStandingDemolitionGeometry()
+    {
+        var row = Census.Targets[0] with { Designated = true, RoofBlocker = "roof support",
+            RoofRemoval = new() { Cells = [new(5, 4), new(3, 4)] } };
+        var census = Census with { Targets = [row,
+            row with { EntityId = "unread", RoofRemoval = null },
+            row with { EntityId = "unselected", Designated = false, RoofRemoval = new() { Cells = [new(9, 9)] } },
+            row with { EntityId = "danger", AncientDanger = true, RoofRemoval = new() { Cells = [new(8, 8)] } },
+            row with { EntityId = "other-support", RoofRemoval = new() { Cells = [new(5, 4)] } }] };
+        var back = OrdersJson.Deserialize<RimGovernor.Brain.GameFacts.Observations.ClearanceTargetsSnapshot>(OrdersJson.Serialize(census));
+        Assert.Equal(census, back);
+        var step = ClearanceGroundRules.DesignatedRoofStep(back.Targets);
+        Assert.Equal<Cell>([new(3, 4), new(5, 4)], step.Roof);
+        Assert.Empty(step.Targets);
+        var action = Assert.Single(RimGovernor.Brain.Runtime.HomeUpkeepReader.GroundActions(new("roof-step"), step));
+        Assert.Equal(ActionKind.RemoveRoof, action.Kind);
+        Assert.Equal(step.Roof, action.RemoveRoof!.Cells);
+        Assert.Empty(ClearanceGroundRules.DesignatedRoofStep([row with { RoofRemoval = null }]).Roof);
+        Assert.Empty(ClearanceGroundRules.DesignatedRoofStep([row with { RoofBlocker = null, RoofRemoval = new() { Cells = [] } }]).Roof);
+    }
+
+    [Fact]
     public void ClearanceSalvageReadsAsTheWorkItemSalvage()
     {
         var targets = ClearanceReads.Targets(Census);
@@ -114,6 +136,7 @@ public sealed class BuildingSiteWireTests
     [InlineData("player")]
     [InlineData("enclosesRoom")]
     [InlineData("class")]
+    [InlineData("roofRemoval")]
     public void AClearanceRowMissingAMemberDoesNotDecode(string member)
     {
         var node = JsonNode.Parse(OrdersJson.Serialize(Census))!.AsObject();

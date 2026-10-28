@@ -223,13 +223,13 @@ Continuation rebinds the nearest legal cell for the pawn and treats a fully sown
 ## The set step
 
 Standing CutPlant, RemoveFloor and Mine designations, Uninstall, and Deconstruct
-without roof prerequisites are ordinary native work. Their conditional selected
+are ordinary native work. Their conditional selected
 tasks retain the target/set mechanics below but cannot install routine exact
 orders. Existing commitments hand back at an observed boundary without crediting
 completion or satisfying dependents. Planned preplacement cutting, mining and
-deconstruction without roof prerequisites use the same boundary; reconciliation
-and excavation create the native work. Roof-prerequisite demolition and custom
-haul-out retain explicit coordination pending migration.
+deconstruction use the same boundary; reconciliation and excavation create the
+native work. Roof preparation uses native area intent as described below.
+Custom haul-out retains explicit coordination pending migration.
 
 A set step (#3613) is a Work step that repeats over a set of things or cells, the Sow step's
 pattern. `PawnActivityStep.Targets` names the members as thing ids and `Cells`
@@ -284,21 +284,24 @@ standing as satisfied. Coordinated continuation no longer retries routine set
 work or replaces its set with a legal subset. An old failed set ends its attempt;
 completion of only a physical subset grants no whole-task completion credit.
 
-### Prior steps
+### Roof preparation
 
-A selected task may carry `PriorSteps` (#3617): Work steps its order runs before `Step`, the same
-task, relief and output. `CoordinatedActivityBinding.Start` and `Continue` write the order's steps
-as the prior steps then the bound step, and a completed order's last step is the task's own. The one
-user is a roof-holder's removal: `ConstructionMethodCandidates.RemovalBinding` carries a Deconstruct
-op's `Cells` (the roofed cells the building leaves unsupported) as the candidate's `RoofCells`, and
-`Start` turns them into the prior Work/RemoveRoof cell set step (generation names no step). Native's Deconstruct refusal on a roof-holder the enclosure
-guard would wait on (`RoofWait`) is lifted when the same order's earlier RemoveRoof steps cover
-exactly the cells `RoofSupportSafety.Unsupported` finds (a superset passes, for a continuation after
-some are off); the guard still holds the Deconstruct job (`Eligible`, `GuardJob`) until that roof is
-off, so nothing collapses. A prior step is validated like a step (Work only, no destination, recipe
-or practice; a set step's rules). The native order sequence is one step after another, so between
-the roof coming off and the wall coming down the game's own rules apply; that no pathological
-geometry makes an intermediate cell removal collapse a neighbour is unverified.
+The clearance read exposes `ClearanceTarget.RoofRemoval`: proven removable cells
+for standing demolition, empty cells with no roof prerequisite, or null when
+preparation is unassessed/unproven. It reuses `RoofSupportSafety.Unsupported`;
+fog, pending collapse, thick roofs and unproven geometry supply no option.
+Policy uses only designated, non-dangerous targets and deduplicates their cells.
+Those cells remain current clearance demand even when the building is already
+designated, through the existing clearance Need, journal and Hands.
+
+The action is ordinary `RemoveRoof` area intent. Vanilla chooses roof workers;
+`RoofWait`, work-giver eligibility and completion-time guards continue to block
+demolition until support is safe. Applied area intent is neither a removed roof
+nor completed demolition. Conditional removal rows retain the combined work cost
+without binding either worker. The obsolete task prior-step field and codec are
+removed; primitive multi-step orders retain their existing native mechanics and
+fixture coverage. Pathological intermediate flying-roof geometry remains a
+native-mechanics proof limit of that primitive.
 
 ## Continuation, observations and bounds
 
@@ -353,7 +356,7 @@ may share one atomic batch. These checks run in the existing owner transaction,
 before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
-The initial step families are exact thing-target work (Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([prior steps](#prior-steps), #3617); a standing designation the room reconcile stood by Designate is ordinary native work; its read-back removal op remains conditional forecast evidence, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
+The initial step families are exact thing-target work (Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([roof preparation](#roof-preparation), #3617); a standing designation the room reconcile stood by Designate is ordinary native work; its read-back removal op remains conditional forecast evidence, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
 selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach and Hold. Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. No brain policy selects firefighting: vanilla fights home-area fires, and native releases committed orders for them ([home-area fire](#home-area-fire)). Work givers use forced:false, required capacities,
