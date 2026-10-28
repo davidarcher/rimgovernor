@@ -133,7 +133,7 @@ public sealed class DispatchMemory
 
 public static partial class WorkRules
 {
-    /// <summary>Reads one stock-target order off the Round: the benches carrying it, whether its bills are active and a pawn works them, and whether the recipe's ingredients are in stock.</summary>
+    /// <summary>Reads one stock-target order: its carrying benches, active bills, exact current bill jobs, creation counters and ingredient stock. A bill job is not proof of recipe completion or its current toil.</summary>
     public static ThroughputObservation ObserveOrder(OrderSpec order, int eligibleCount, DispatchSizing sizing, DispatchInputs input)
     {
         var key = order.Key();
@@ -165,7 +165,8 @@ public static partial class WorkRules
                 }
             }
         }
-        o = o with { Carrying = carrying.Distinct(StringComparer.Ordinal).Count(), Busy = BenchesBusy(input.Pawns, carrying) };
+        o = o with { Carrying = carrying.Distinct(StringComparer.Ordinal).Count(),
+            Busy = input.Pawns.Any(p => p.Job.Observed.BillId is { } bill && bills.Contains(bill, StringComparer.Ordinal)) };
         o = o with
         {
             Output = input.Production is { } production ? new ProductionOutput.Observed(production.LoadToken, production.Counts

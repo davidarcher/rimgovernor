@@ -194,7 +194,7 @@ namespace RimGovernor.Native
             if (queuedJobs < 0) throw new InvalidOperationException("Negative native queued job count.");
             var row = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs };
             if (job != null) {
-                row = row with { DefName = Identifier(job.def.defName) };
+                row = row with { DefName = Identifier(job.def.defName), BillId = job.bill?.GetUniqueLoadID() };
                 // The work giver's WorkTypeDef names the labor the job spends
                 // (a cut designation, a bill, a frame); a job no giver issued
                 // (a forced order, rest, a meal, wandering) carries none.

@@ -490,6 +490,9 @@ public sealed record JobEvidence
 
     public string? DefName { get; init; }
 
+    /// <summary>The current job's exact bill identity, absent when it has no bill. A bill job may still be gathering ingredients; this is not completed output.</summary>
+    public string? BillId { get; init; }
+
     public bool PlayerForced { get; init; }
 
     public TargetRef? TargetA { get; init; }

@@ -136,9 +136,13 @@ trajectory or a guarantee that native workers will meet a timetable's hours.
 Normal changes in conditional capacity retain the actual output window. The
 dispatcher compares production against the least supported sampled capacity;
 an unassessed sample prevents a calibration shortfall or widening verdict.
-Active bills with stocked ingredients but no observed bench work name
+Active bills with stocked ingredients but no observed exact bill job name
 `work_unstarted`, rather than claiming a hauling bottleneck without delivery
-evidence. This is still dispatcher calibration; the portfolio's general native
+evidence. Targeting a bench for refuelling, repair, delivery or another bill is
+not progress on this order. Exact bill jobs include ingredient gathering and
+do not prove that cooking has started; only creation counters credit output.
+The opening sample belongs to the window, so its observed work or inactive bill
+cannot be erased from the subsequent verdict. This is still dispatcher calibration; the portfolio's general native
 baseline and intervention materiality are separate, incomplete work.
 
 Shared work-shortfall valuation uses unallocated supported capacity windows,

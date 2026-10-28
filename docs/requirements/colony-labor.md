@@ -340,6 +340,23 @@ Task 3.1 uses the existing shared demand and worker census plus the bill
 dispatcher's derived window. `NativeDeliveryLedger` now counts each recipe's
 products by bill identity at creation. `ObserveOrder` reads only that order's
 exact bills and product; food acquisition credit excludes recipe transformations.
+Current-job evidence uses `JobEvidence.BillId`, read from the native job's bill,
+rather than merely matching the target bench. Refuelling, repair, delivery and
+another bill on the same bench do not count as work on the requested order.
+An exact bill job may be gathering ingredients; completed recipe counters remain
+the evidence of output. `NativeThroughputTests` exercises those distinctions
+through observation and calibration, including unchanged output despite an active
+bill job. The opening sample counts toward both observed work and bill inactivity,
+preventing a false `work_unstarted` verdict after dropping that evidence.
+The attribution regressions passed the required gate (2m3s): 4,240 domain tests,
+30 workflow tests, native production/fixture builds, contract probes and no
+contract orphans; strict OpenSpec validation passed 5/5. This is policy/boundary
+evidence, with no new native gameplay claim. Task 3.3 remains incomplete and
+overall progress remains 13/24. Rules 7–9: native supplies the bill identity,
+pure policy owns calibration, and existing derived memory owns the window;
+neither an active job nor missing samples become completed output. Complexity:
+added one consumed current-job fact and eight regression cases / removed the
+bench-target work heuristic and opening-sample loss / orphans left: none.
 `NativeThroughputTests` covers consumption versus production, imported/delivered
 stock, missing observations and rebaselining on load, rewind, counter regression,
 order, bench, bill, worker availability, priority and speed changes. Rates are

@@ -23,7 +23,7 @@ public enum UnmetReason
     [WireName("ingredient_bound")]
     Ingredients,
 
-    /// <summary>Active bills and stocked ingredients did not produce observed bench work; the missing native work is not attributed to hauling without delivery evidence.</summary>
+    /// <summary>Active bills and stocked ingredients had no observed exact bill job; this does not attribute the missing work to hauling or promise continuous observation.</summary>
     [WireName("work_unstarted")]
     WorkUnstarted,
 
@@ -100,10 +100,10 @@ public sealed record ThroughputWindow
     /// <summary>Set once the stock reached target in the window: a stopped bill is not a shortfall.</summary>
     public bool Met { get; init; }
 
-    /// <summary>ReviewState sampled.</summary>
+    /// <summary>Number of samples, including the opening reading.</summary>
     public int Samples { get; init; }
 
-    /// <summary>ReviewState a pawn worked a carrying bench.</summary>
+    /// <summary>Samples with a current job for one of the order's exact bills; this includes ingredient gathering, not just recipe work.</summary>
     public int Busy { get; init; }
 
     /// <summary>Set when a carrying bill was not known active.</summary>
@@ -136,7 +136,7 @@ public sealed record ThroughputObservation
     /// <summary>Every carrying bill is known active.</summary>
     public bool Active { get; init; }
 
-    /// <summary>A pawn works a carrying bench this Round.</summary>
+    /// <summary>A pawn's current job carries one of the order's exact bill identities. Neither a completion nor a particular recipe toil is implied.</summary>
     public bool Busy { get; init; }
 
     /// <summary>The recipe has stocked alternatives, lacks an ingredient, or has no eligible bench.</summary>
@@ -361,27 +361,11 @@ public static partial class WorkRules
         return false;
     }
 
-    /// <summary>Whether any pawn's current job works one of the benches.</summary>
-    public static bool BenchesBusy(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<string> benches)
-    {
-        foreach (var p in pawns)
-        {
-            foreach (var b in benches)
-            {
-                if (p.Job.Target.Thing == b)
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     /// <summary>
     /// Advances the order's window with this Round's reading. The window restarts whenever the carrying count
     /// changes, and only a full window gives a verdict. A short window widens by one bench unless the shortfall is
     /// ingredient-bound (a known ingredient stock at or below IngredientBoundStock) or unstarted (every carrying
-    /// bill active, ingredients present, yet no pawn worked a carrying bench all window); a short window with a bill
+    /// bill active, ingredients present, yet no exact bill job observed all window); a short window with a bill
     /// on every eligible bench is UnmetBenchesExhausted.
     /// </summary>
     public static (ThroughputWindow Window, Calibration Calibration) CalibrateThroughput(ThroughputWindow w, ThroughputObservation o)
@@ -404,7 +388,9 @@ public static partial class WorkRules
                 PerDay = capacity is ForecastTerm.Assessed(var rate) ? new ForecastTerm.Assessed(rate * o.Carrying) : capacity,
                 Carrying = o.Carrying,
                 Met = stock >= o.Target,
-                Samples = 0,
+                Samples = 1,
+                Busy = o.Busy ? 1 : 0,
+                Inactive = !o.Active,
             };
         if (!w.Open || w.Carrying != o.Carrying || o.Tick < w.Start || w.LoadToken != loadToken
             || !SameThroughputBasis(w.Basis, o.Basis) || produced < w.StartProduced)

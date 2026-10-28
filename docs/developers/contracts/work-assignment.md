@@ -458,9 +458,15 @@ storage, merges or consumption. A full window whose product creation is under ha
 of predicted output (and whose stock never reached the target) widens by one bench, capped at the
 usable benches, unless the recipe's ingredient stock is at or below one unit
 (`ingredient_bound`) or every carrying bill is active, ingredients are present and
-no pawn's job targeted a carrying bench all window (`work_unstarted`). This does
-not identify hauling as the cause: stored ingredients do not prove delivery,
-worker selection or bench access. With a bill on
+no sampled current job carried one of the order's exact bill identities
+(`work_unstarted`). The opening reading counts toward both bill activity and
+job evidence. Refuelling, repair, delivery to the same bench and work on another
+bill do not count as work on this order. `JobEvidence.BillId` is the native
+current job's bill load identity; a job without a bill has no identity.
+An active bill job can still be gathering ingredients: it proves neither cooking
+nor completed output. This does not identify hauling as the cause: stored
+ingredients do not prove delivery, worker selection or bench access, and sampled
+absence does not establish continuous inactivity. With a bill on
 every eligible bench it reports `benches_exhausted`. Stock reaching the target
 stops shortfall calibration; changes in stock otherwise measure neither production
 nor its absence. Counts from other bills, products or acquisition channels do not
