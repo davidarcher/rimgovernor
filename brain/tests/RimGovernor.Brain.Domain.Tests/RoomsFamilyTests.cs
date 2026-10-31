@@ -7,7 +7,7 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The rooms family (#3255): lighting, flooring, art, comfort, hosting, the party spot and gatherings are plain
+/// The rooms family (#3255): lighting, flooring, art, comfort, hosting, the activity sites and gatherings are plain
 /// thresholds with no latch, the comfort steps chain by precondition, a party is held, and the building Methods are
 /// admitted under their Needs side by side, held only by their claims.
 /// </summary>
@@ -24,9 +24,12 @@ public sealed class RoomsFamilyTests
         : id == RoomsFamily.Art ? RoomsFamily.ArtNeed(facts)
         : id == RoomsFamily.Comfort ? RoomsFamily.ComfortNeed(facts)
         : id == RoomsFamily.Hosting ? RoomsFamily.HostingNeed(facts)
-        : id == RoomsFamily.PartySpot ? RoomsFamily.PartySpotNeed(facts)
+        : RoomsFamily.SiteStep(id.FilingKey) ? RoomsFamily.SiteNeedOf(Assert.Single(facts.Sites, d => RoomsFamily.SiteNeed(d.Kind) == id))
         : id == RoomsFamily.WorkChairs ? RoomsFamily.WorkChairsNeed(facts)
-        : RoomsFamily.GatheringsNeed(facts, partySpot: true);
+        : RoomsFamily.GatheringsNeed(facts);
+
+
+    private static ActivitySiteState.Planned Placing(ActivityKind kind) => new ActivitySiteState.Planned(kind);
 
     /// <summary>Every fact of the full composition read, with nothing owed.</summary>
     private static readonly RoomsFacts Settled = new()
@@ -37,7 +40,7 @@ public sealed class RoomsFamilyTests
         SculptureRoomsOwed = false,
         BasicComfort = ComfortTests.NoComfortObservation,
         Hosting = new() { Dining = ComfortNeed.Recovered, Recreation = ComfortNeed.Recovered },
-        PartySpotOwed = false,
+        Sites = [],
         WorkChairsOwed = false,
         Gathering = new GatheringPlan.NoParty(),
     };
@@ -110,7 +113,7 @@ public sealed class RoomsFamilyTests
     }
 
     [Fact]
-    public void HostingThePartySpotAndGatheringsChainByPreconditionWithNoPhaseLatch()
+    public void HostingTheActivitySitesAndGatheringsChainByPreconditionWithNoPhaseLatch()
     {
         var hosting = Of(new() { Hosting = new() { Dining = ComfortNeed.Capacity, Recreation = ComfortNeed.Recovered } }, RoomsFamily.Hosting);
         Assert.Equal((NeedTier.Development, Satisfaction.Unmet, 0.5), (hosting.Tier, hosting.Satisfaction, hosting.Deficit));
@@ -118,11 +121,15 @@ public sealed class RoomsFamilyTests
         Assert.Equal(Satisfaction.Met, Of(new() { Hosting = new() { Dining = ComfortNeed.Recovered, Recreation = ComfortNeed.Recovered } }, RoomsFamily.Hosting).Satisfaction);
         Assert.Equal("hosted comfort", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Hosting)).Fact);
 
-        var spot = Of(new() { PartySpotOwed = true }, RoomsFamily.PartySpot);
+        // A site Need is met only while its sites stand; a planned placement, a site in flight or an unplanned kind leave it unmet.
+        var spot = Of(new() { Sites = [Placing(ActivityKind.Party)] }, RoomsFamily.PartySite);
         Assert.Equal((Satisfaction.Unmet, 1.0), (spot.Satisfaction, spot.Deficit));
         Assert.Equal([RoomsFamily.Hosting], spot.Preconditions);
-        Assert.Equal(Satisfaction.Met, Of(new() { PartySpotOwed = false }, RoomsFamily.PartySpot).Satisfaction);
-        Assert.Equal(Satisfaction.Met, Of(new(), RoomsFamily.PartySpot).Satisfaction);
+        Assert.Equal(Satisfaction.Met, Of(new() { Sites = [new ActivitySiteState.Standing(ActivityKind.Party)] }, RoomsFamily.PartySite).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Of(new() { Sites = [new ActivitySiteState.Building(ActivityKind.Marriage)] }, RoomsFamily.MarriageSite).Satisfaction);
+        var ritual = Of(new() { Sites = [new ActivitySiteState.Unplanned(ActivityKind.Ritual, ActivitySiteRules.NoSite)] }, RoomsFamily.RitualSite);
+        Assert.Equal(Satisfaction.Unmet, ritual.Satisfaction);
+        Assert.Empty(ritual.Preconditions);
 
         var chairs = Of(new() { WorkChairsOwed = true }, RoomsFamily.WorkChairs);
         Assert.Equal((NeedTier.Development, Satisfaction.Unmet, 1.0), (chairs.Tier, chairs.Satisfaction, chairs.Deficit));
@@ -132,14 +139,16 @@ public sealed class RoomsFamilyTests
 
         var party = Of(new() { Gathering = new GatheringPlan.Ready(new("a")) }, RoomsFamily.Gatherings);
         Assert.Equal((NeedTier.Wellbeing, Satisfaction.Unmet, 1.0), (party.Tier, party.Satisfaction, party.Deficit));
-        Assert.Equal([RoomsFamily.PartySpot], party.Preconditions);
+        Assert.Empty(party.Preconditions);
         Assert.Equal(Satisfaction.Met, Of(new() { Gathering = new GatheringPlan.NoParty() }, RoomsFamily.Gatherings).Satisfaction);
         Assert.Equal("gathering mood census", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Gatherings)).Fact);
 
-        // Without the comfort Needs composed the gatherings Need has no precondition.
+        // A site Need is derived only for an activity with a demand.
         Assert.Empty(Assert.Single(new RoomsFamily(false, false, false, false, true).Derive(Settled)).Preconditions);
-        Assert.Equal([RoomsFamily.Lighting, RoomsFamily.Flooring, RoomsFamily.Art, RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySpot, RoomsFamily.WorkChairs, RoomsFamily.Gatherings],
+        Assert.Equal([RoomsFamily.Lighting, RoomsFamily.Flooring, RoomsFamily.Art, RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.WorkChairs, RoomsFamily.Gatherings],
             All().Derive(Settled).Select(n => n.Id));
+        Assert.Equal([RoomsFamily.Lighting, RoomsFamily.Flooring, RoomsFamily.Art, RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySite, RoomsFamily.RitualSite, RoomsFamily.WorkChairs, RoomsFamily.Gatherings],
+            All().Derive(Settled with { Sites = [Placing(ActivityKind.Party), Placing(ActivityKind.Ritual)] }).Select(n => n.Id));
     }
 
     [Fact]
@@ -159,7 +168,8 @@ public sealed class RoomsFamilyTests
         var (key, need) = ArtPlanner.ReportTarget();
         Assert.Equal(RoomsFamily.Art.FilingKey, need);
         Assert.NotEqual(need, key);
-        Assert.True(RoomsFamily.ComfortStep(RoomsFamily.PartySpot.FilingKey));
+        Assert.True(RoomsFamily.ComfortStep(RoomsFamily.PartySite.FilingKey));
+        Assert.True(RoomsFamily.ComfortStep(RoomsFamily.RitualSite.FilingKey));
         Assert.False(RoomsFamily.ComfortStep(RoomsFamily.Lighting.FilingKey));
     }
 
@@ -183,7 +193,7 @@ public sealed class RoomsFamilyTests
             Lighting = new LightingReview { Active = true },
             BasicComfort = ComfortTests.NoComfortObservation with { Census = ComfortTests.NoComfort with { People = [new PawnId("a")] } },
             Hosting = new() { Dining = ComfortNeed.Recovered, Recreation = ComfortNeed.Recovered },
-            PartySpotOwed = false,
+            Sites = [],
             WorkChairsOwed = false,
         };
 
@@ -274,11 +284,11 @@ public sealed class RoomsFamilyTests
     public void HostingWaitsOnComfortAndDoesNotWorkBeforeIt()
     {
         using var colony = Open();
-        colony.Facts = colony.Facts with { Hosting = new() { Dining = ComfortNeed.Capacity, Recreation = ComfortNeed.Capacity }, PartySpotOwed = true };
+        colony.Facts = colony.Facts with { Hosting = new() { Dining = ComfortNeed.Capacity, Recreation = ComfortNeed.Capacity }, Sites = [Placing(ActivityKind.Party)] };
         colony.Builds.Add((RoomsFamily.Hosting, "hosting-chair", "DiningChair", new Cell(20, 20)));
         var run = colony.Run();
         Assert.DoesNotContain(run.Methods, m => m.Need == RoomsFamily.Hosting);
         Assert.False(Colony.Report(run, RoomsFamily.Hosting).Outcome == Outcome.Admitted);
-        Assert.False(Colony.Report(run, RoomsFamily.PartySpot).Outcome == Outcome.Admitted);
+        Assert.False(Colony.Report(run, RoomsFamily.PartySite).Outcome == Outcome.Admitted);
     }
 }

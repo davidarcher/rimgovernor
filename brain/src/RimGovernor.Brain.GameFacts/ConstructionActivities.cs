@@ -72,8 +72,14 @@ public sealed record PlannedRoomServices(
 public sealed record PlannedJoySource(string Definition, Cell Position, double GainFactor, bool Powered);
 /// <summary>One planned school desk of a predicted room and its learning rate.</summary>
 public sealed record PlannedRoomDesk(double LearningRate);
-/// <summary>One production or research bench of a predicted room: its native facility offsets, its power supply and whether it stands.</summary>
-public sealed record PlannedBenchSpeed(string Def, Cell Position, double WorkOffset, double ResearchOffset, BenchPower Power, BenchPlacement Placement);
+/// <summary>
+/// One production or research bench of a predicted room: its native facility offsets, its power supply, whether it stands,
+/// and <see cref="Storage"/>, its reach to the nearest storage cell: the walk a bill's ingredients are fetched over and its
+/// product is hauled back over. Null when the map holds no storage cell: no stockpile to haul to, a known zero.
+/// </summary>
+public sealed record PlannedBenchSpeed(string Def, Cell Position, double WorkOffset, double ResearchOffset, BenchPower Power, BenchPlacement Placement, StorageReach? Storage);
+/// <summary>The cells from a bench's anchor to the nearest storage cell (a slot group's cell of HaulDestinationManager.AllGroupsListForReading, by straight-line distance, rounded up).</summary>
+public sealed record StorageReach(int Cells);
 /// <summary>
 /// A bench's power supply at the read (RG-HABITAT-005): the network a standing bench's CompPowerTrader is on, or the one a
 /// planned bench would connect to (PowerConnectionMaker.BestTransmitterForConnector at its anchor). Benches on one network
@@ -96,9 +102,19 @@ public abstract record BenchPower
     /// </summary>
     public sealed record Connected(string Network, double AdditionalWatts, double SurplusWatts) : BenchPower;
 
-    /// <summary>No power network reaches the bench's cell (none at a planned anchor, none on a standing bench's comp).</summary>
-    public sealed record Unconnected : BenchPower;
+    /// <summary>
+    /// No power network reaches the bench's cell (none at a planned anchor, none on a standing bench's comp).
+    /// <see cref="Nearest"/> is the network a conduit line would join, null when the map has no transmitting network.
+    /// </summary>
+    public sealed record Unconnected(NetworkReach? Nearest) : BenchPower;
 }
+
+/// <summary>
+/// The nearest network an unconnected bench could be joined to (RG-HABITAT-005): its id (as <see cref="BenchPower.Connected.Network"/>),
+/// <see cref="Cells"/>, the conduit cells a line from its nearest transmitter must lay before the bench's anchor is within
+/// PowerConnectionMaker's connect distance of it, the draw the bench would add and the network's powered output now.
+/// </summary>
+public sealed record NetworkReach(string Network, int Cells, double AdditionalWatts, double SurplusWatts);
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(BenchPlacement.Planned), "planned")]
 [JsonDerivedType(typeof(BenchPlacement.Standing), "standing")]

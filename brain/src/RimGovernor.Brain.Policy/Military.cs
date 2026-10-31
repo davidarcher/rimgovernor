@@ -21,7 +21,7 @@ public readonly record struct StaleHunt(PlanId Plan, ActionId Action);
 /// What the military family reads (#3259). Defense: the hostiles standing, the armed and unarmed fighters and the
 /// colonist count the foothold sizes for. Pests: the pest census, the Need's own undispatched hunts whose animal
 /// left the census, the next hunt and whether an outdoor hazard holds hunting. Training: the assigned combat
-/// capability review. Equipment: the gear census, the crafting spot owed down and the mortar shell review. A
+/// capability review. Equipment: the gear census and the mortar shell review. A
 /// section the run does not read stays unknown.
 /// </summary>
 public sealed record MilitaryFacts
@@ -107,12 +107,12 @@ public sealed record MilitaryFacts
 /// refused by its claim.</item>
 /// <item><c>military/training</c> (Development): no assigned combat-capability holder is forecast below its
 /// requirement. Its Methods are the range and ring rooms the runtime's work step builds.</item>
-/// <item><c>military/equipment</c> (Wellbeing): every colonist's loadout and apparel policy is recovered, no crafting
-/// spot is owed down beside a weapon bench and no built mortar is short of shells. Its proposed Methods are one
-/// apparel policy per pawn (claimed by <c>gear/&lt;pawn&gt;</c>, so two pawns run side by side and a second policy
-/// for one pawn is refused) and, once no policy is proposed, the outfit prune (claimed by <c>policy/Outfit</c>).
-/// The runtime's work step places or retires the crafting spot and walks the workshop ladder for replacement
-/// gear; worn-gear replacement itself is not a supported forecast outcome.</item>
+/// <item><c>military/equipment</c> (Wellbeing): every colonist's loadout and apparel policy is recovered and no built
+/// mortar is short of shells. Its proposed Methods are one apparel policy per pawn (claimed by <c>gear/&lt;pawn&gt;</c>,
+/// so two pawns run side by side and a second policy for one pawn is refused) and, once no policy is proposed, the
+/// outfit prune (claimed by <c>policy/Outfit</c>). The runtime's work step runs the planned-host step for the armory's
+/// replacement-gear orders, whose hosts the shared layout comparator chooses; worn-gear replacement itself is not a
+/// supported forecast outcome.</item>
 /// <item><c>military/restore-workers</c> (SeriousHarm, #3311): no drafted colonist stands that no live plan needs
 /// while no hostile does; an unread census raises <see cref="RequiredFactException"/>. It has no Methods: its work step is the undraft
 /// sweep, which replaced the RestoreWorkers Concern and the undraft planner.</item>

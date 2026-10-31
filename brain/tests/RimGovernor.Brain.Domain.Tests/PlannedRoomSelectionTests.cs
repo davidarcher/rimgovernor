@@ -280,9 +280,36 @@ public sealed class PlannedRoomSelectionTests
         ];
         var view = WorkRules.BuildLedgerView(WorkRules.WantedOrders(declared).Wanted, declared);
         Assert.Equal(new[] { resource.Value, equipment.Value }.Order(StringComparer.Ordinal).ToArray(), view.Owners[shirt.Key()].Items.ToArray());
-        Assert.Equal([HostRecipe], PlannedRules.OwnedUnhostedRecipes(view, equipment));
-        Assert.Equal([HostRecipe], PlannedRules.OwnedUnhostedRecipes(view, resource));
-        Assert.Empty(PlannedRules.OwnedUnhostedRecipes(view, ShelterFamily.Temperature.FilingKey));
-        Assert.Empty(PlannedRules.OwnedUnhostedRecipes(WorkRules.NewLedgerView(WorkRules.LedgerViewNone), equipment));
+        Assert.Equal([HostRecipe], PlannedRules.OwnedHostedRecipes(view, equipment, new()));
+        Assert.Equal([HostRecipe], PlannedRules.OwnedHostedRecipes(view, resource, new()));
+        Assert.Empty(PlannedRules.OwnedHostedRecipes(view, ShelterFamily.Temperature.FilingKey, new()));
+        Assert.Empty(PlannedRules.OwnedHostedRecipes(WorkRules.NewLedgerView(WorkRules.LedgerViewNone), equipment, new()));
+    }
+
+    /// <summary>
+    /// Task 3.2: a chain's steps bind in order. Until a bench of the bridge's definition stands built, only the bridge's
+    /// piece is bound (a sited bridge is not yet a built one); once it stands, the replacement's piece is. A kept spare
+    /// (a Share production) stands already and binds nothing.
+    /// </summary>
+    [Fact]
+    public void AChainBindsItsReplacementOnlyOnceItsBridgeStandsBuilt()
+    {
+        const string spot = "TestSpot";
+        var spotPiece = new InteriorPiece { Slot = "bench", Def = spot, Size = new Cell(1, 1), Rot = Rotation.North, Rect = new Rectangle { X = 5, Z = 5, Width = 1, Height = 1 } };
+        var chain = HostPlan with
+        {
+            Rooms = [HostRoom with { Production = [new(HostBench, HostRecipe, 2), new(spot, HostRecipe, 2) { Step = HostStep.Bridge }] }],
+            Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [1] = [HostPiece, spotPiece] },
+        };
+        HashSet<(string, Cell)> none = [];
+        HostBinding Bind(IReadOnlySet<(string, Cell)> built, IReadOnlySet<(string, Cell)>? sited = null, LayoutPlan? plan = null) =>
+            PlannedRules.HostBindingOf(plan ?? chain, HostRecipe, new(), _ => true, built, sited ?? none);
+
+        Assert.Equal(spot, Assert.IsType<HostBinding.Build>(Bind(none)).Piece.DefName);
+        Assert.Equal(new HostBinding.Standing(HostRecipe, false), Bind(none, new HashSet<(string, Cell)> { (spot, spotPiece.Wanted().Anchor()) }));
+        Assert.Equal(HostBench, Assert.IsType<HostBinding.Build>(Bind(new HashSet<(string, Cell)> { (spot, new Cell(20, 20)) })).Piece.DefName);
+
+        var kept = chain with { Rooms = [HostRoom with { Production = [new(HostBench, HostRecipe, 2), new(spot, HostRecipe, 0) { Step = HostStep.Share }] }] };
+        Assert.Equal(HostBench, Assert.IsType<HostBinding.Build>(Bind(none, plan: kept)).Piece.DefName);
     }
 }

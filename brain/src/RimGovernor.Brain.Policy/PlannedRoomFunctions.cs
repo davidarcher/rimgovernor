@@ -30,6 +30,8 @@ public static partial class PlannedRoomCredits
                 if (purpose == StationPurpose.SleepBaby) functions.Add(PlannedRole.Nursery);
             }
             if (room.Meals > 0) functions.Add(PlannedRole.Kitchen);
+            // Every planned production earns its output, a kitchen's meals and a butchery's runs as a workshop's.
+            if (room.Production.Count > 0) functions.Add(PlannedRole.Workshop);
             if (room.FilthRuns.Values.Any(r => r.Runs > 0)) functions.Add(PlannedRole.Butchery);
             if (facts.Sleeping.Beds.Any(b => b.Medical && b.Humanlike && !b.Prisoners && room.Region.Cells().Contains(b.Cell))) functions.Add(PlannedRole.Hospital);
             if (facts.Sleeping.Beds.Any(b => b.Prisoners && b.Humanlike && room.Region.Cells().Contains(b.Cell))) functions.Add(PlannedRole.Prison);

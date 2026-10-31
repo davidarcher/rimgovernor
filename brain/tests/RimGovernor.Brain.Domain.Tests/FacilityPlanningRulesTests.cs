@@ -38,7 +38,7 @@ public sealed class FacilityPlanningRulesTests
     {
         var facts = ColonyFactsCoreTests.Reading().Facts with { Cooking = true };
         Assert.Equal(FacilityDemand.AwaitingFoodPlan, FacilityPlanningRules.CookingDemand(facts, "Campfire"));
-        Assert.Equal(FacilityDemand.ButcherSpot, FacilityPlanningRules.ButcherDemand(facts));
+        Assert.Equal(FacilityDemand.Unhosted, FacilityPlanningRules.ButcherDemand(facts));
     }
 
     [Fact]
@@ -75,23 +75,6 @@ public sealed class FacilityPlanningRulesTests
     }
 
     [Fact]
-    public void EveryGeneratorRowMustBeReadEvenAfterABuildableGenerator()
-    {
-        string[] generators = ["InstalledGeneratorA", "InstalledGeneratorB"];
-        var available = generators.ToDictionary(x => x, _ => false);
-        Assert.False(FacilityPlanningRules.GeneratorAvailable(available, generators));
-        available[generators[0]] = true;
-        Assert.True(FacilityPlanningRules.GeneratorAvailable(available, generators));
-        available.Remove(generators[^1]);
-        Assert.Throws<RequiredFactException>(() => FacilityPlanningRules.GeneratorAvailable(available, generators));
-    }
-
-    [Fact]
-    public void CampfireIntentRequiresConstructionCensus()
-    {
-        Assert.Throws<RequiredFactException>(() => FacilityPlanningRules.CampfireIntentStanding([], null, "Campfire"));
-    }
-    [Fact]
     public void AdvancedLaboratoryPrecedesAnalyzerAndReadsGeometryOnlyWhenSupported()
     {
         var facts = ColonyFactsCoreTests.Reading().Facts;
@@ -107,30 +90,20 @@ public sealed class FacilityPlanningRulesTests
         Assert.Equal(("", false), FacilityPlanningRules.AdvancedLabOwed(facts, [Standing("advanced"), Standing("analyzer")]));
     }
     [Fact]
-    public void ButcherSpotRetirementPrecedesTableReplacementAndPreservesBenchOrder()
+    public void AStandingButcherBenchIsTheFacilityAndATableNeverRetiresTheSpotHere()
     {
-        var spot = ConstructionObservationFixtures.Built(new Building(Rules.ButcherSpotDefinition, new Cell(1, 1), Rotation.North, ""), "spot");
         var facts = ColonyFactsCoreTests.Reading().Facts;
-        facts = facts with
-        {
-            EssentialInputs = facts.EssentialInputs with { Benches =
-                [ProductionBenchFixtures.Butchering("spot", Rules.ButcherSpotDefinition, "spot", true)] },
-            CurrentConstruction = CurrentConstruction.Empty with { Buildings = [spot] },
-        };
+        // No bench: the butchering load is the layout comparison's to host; no definition is chosen.
+        Assert.Equal(FacilityDemand.Unhosted, FacilityPlanningRules.ButcherDemand(facts));
+        Assert.False(Rules.ButcherFacilityMet(facts));
+        facts = facts with { EssentialInputs = facts.EssentialInputs with { Benches =
+            [ProductionBenchFixtures.Butchering("spot", Rules.ButcherSpotDefinition, "spot", true)] } };
         Assert.Equal(FacilityDemand.Existing, FacilityPlanningRules.ButcherDemand(facts));
+        Assert.True(Rules.ButcherFacilityMet(facts));
+        // A table beside the spot owes no retirement: removing a host is the comparison's later decision.
         facts = facts with { EssentialInputs = facts.EssentialInputs with { Benches =
             [.. facts.EssentialInputs.Benches, ProductionBenchFixtures.Butchering("table", KitchenSeparationRules.ButcherTableDefinition, "table", true)] } };
-        Assert.Equal(FacilityDemand.RetireButcherSpot, FacilityPlanningRules.ButcherDemand(facts));
-        Assert.Equal(spot, FacilityPlanningRules.StandingButcherSpot(facts));
-    }
-
-    [Fact]
-    public void CookingIntentDoesNotMistakeHeatCampfireForCookingFacility()
-    {
-        var campfire = new Building("Campfire", new Cell(2, 3), Rotation.North, "");
-        var census = CurrentConstruction.Empty with { Buildings = [ConstructionObservationFixtures.Built(campfire, "fire")] };
-        Assert.True(FacilityPlanningRules.CampfireIntentStanding([], census, "Campfire"));
-        var heat = new ConstructionClaim { Concern = ShelterFamily.Temperature.FilingKey, Building = campfire, Cells = [campfire.Cell] };
-        Assert.False(FacilityPlanningRules.CampfireIntentStanding([heat], census, "Campfire"));
+        Assert.Equal(FacilityDemand.Existing, FacilityPlanningRules.ButcherDemand(facts));
+        Assert.True(Rules.ButcherFacilityMet(facts));
     }
 }

@@ -10,7 +10,7 @@ internal static class ProductionBenchFixtures
     internal static RimGovernor.Brain.GameFacts.Observations.BillStackRow Observed(string id, string definition, string token, bool usable, string? room = null) => new()
     {
         Bench = id, BenchDef = definition, Snapshot = new() { EntityId = id, Token = token },
-        Usable = usable, Room = room is null ? null : new() { Id = room }, WorkSpeed = 1, Bills = [],
+        Usable = usable, Reachable = true, Room = room is null ? null : new() { Id = room }, WorkSpeed = 1, Bills = [],
 
     };
 

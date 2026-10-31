@@ -317,8 +317,8 @@ public static partial class WorkRules
 
     /// <summary>
     /// The admin/work-ledger Need's finding (#3304): owed while the plan removes a bill or a bench takes one of its
-    /// placements (PlaceLedgerOrders). A wanted order no bench can hold is accepted, not owed (#3659): dispatch reports
-    /// it unmet (NoBench), and the station graph hosts the bench.
+    /// placements (PlaceLedgerOrders). A wanted order no bench can hold is accepted, not owed (#3659): it is an
+    /// unhosted load, and the layout comparison hosts it (LayoutHostRules).
     /// </summary>
     public static bool LedgerDiffOwed(LedgerPlan plan, IReadOnlyList<LedgerPlacement> placed) => placed.Count > 0 || plan.Remove.Count > 0;
 
@@ -366,7 +366,7 @@ public static partial class WorkRules
             }
             foreach (var b in sorted)
             {
-                if (b.Def != order.BenchKind || load.GetValueOrDefault(b.Id) >= LedgerBenchSlots || taken.Contains((b.Id, claim)) || carries.Contains((b.Id, order.Key())) || !BenchOffers(b, order.Recipe))
+                if (!b.Takes(order) || load.GetValueOrDefault(b.Id) >= LedgerBenchSlots || taken.Contains((b.Id, claim)) || carries.Contains((b.Id, order.Key())) || !BenchOffers(b, order.Recipe))
                 {
                     continue;
                 }

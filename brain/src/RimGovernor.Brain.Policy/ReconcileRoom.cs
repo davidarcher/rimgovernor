@@ -149,7 +149,8 @@ public static partial class ReconcileRules
 
     /// <summary>
     /// The definitions other lanes stand in owned rooms and the room's list carries over, so an owner never
-    /// removes them as stale: the lamps, the party spot, the plant pot, the dining and recreation comfort pieces
+    /// removes them as stale: the lamps, the activity sites (the party, marriage and ritual spots and every party
+    /// gather spot the catalog names: a site has no lifecycle, ActivitySiteRules), the plant pot, the dining and recreation comfort pieces
     /// (<paramref name="comfort"/>), every sculpture the catalog makes, and the power and climate
     /// infrastructure the power and climate planners run through rooms (conduits, generators, batteries, vents,
     /// the temperature planner's campfire and passive cooler), which is no furniture.
@@ -158,7 +159,6 @@ public static partial class ReconcileRules
     {
         var defs = new HashSet<string>(lamps, StringComparer.Ordinal)
         {
-            PartySpotRules.PartySpotDefinition,
             RoomQualityRules.PlantPotDefinition,
             LayoutPowerDeriveRules.PowerConduitDefinition,
             ClimateRules.ClimateDefs().VentDef,
@@ -168,6 +168,11 @@ public static partial class ReconcileRules
         defs.UnionWith(comfort.Furniture.Definitions());
         defs.UnionWith(comfort.WatchBuildings);
         defs.Add(comfort.RecreationFoothold);
+        defs.UnionWith(comfort.Sites.Placed);
+        if (comfort.Sites.PartySpots is SiteDefsRead.Read party)
+        {
+            defs.UnionWith(party.Defs);
+        }
         return def => defs.Contains(def) || items.SculptureSize(def, out _);
     }
 

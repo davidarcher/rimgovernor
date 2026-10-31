@@ -20,6 +20,9 @@ public sealed record LedgerView
     /// of the Needs a coalesced order serves, by name. In memory only, like the view.
     /// </summary>
     public IReadOnlyDictionary<string, EquatableArray<string>> Owners { get; init; } = new Dictionary<string, EquatableArray<string>>();
+
+    /// <summary>The standing benches the Round read (<see cref="WorkRules.HostBenchesOf"/>): where a load's host serves and which bills a pawn is working.</summary>
+    public IReadOnlyList<HostBench> Benches { get; init; } = [];
 }
 
 public static partial class WorkRules

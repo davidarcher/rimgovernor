@@ -254,6 +254,9 @@ namespace RimGovernor.Native
                     CombatPower = pawn.kindDef.combatPower, MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS), RangedDps = NativeDefenseStats.PawnRangedDps(pawn) * NativeDefenseStats.PawnRangedHitFactor(pawn), Primary = Primary(pawn),
                     Skills = spec.Pawns.First(x => x.Name == name).Skills?.Keys.ToDictionary(k => k, k => pawn.skills.GetSkill(FixtureKit.Def<SkillDef>(k)).Level),
                 };
+            // Dead: killed once its row is read, so the reply's stat reads see a living pawn and its fresh corpse stays at its cell.
+            foreach (var (name, pawn) in staged)
+                if (spec.Pawns.First(x => x.Name == name).Dead) pawn.Kill(null);
             foreach (var z in spec.Zones)
                 Add(zones, z.Name, LayZone(map, z, z.Cells.Select(At).ToList()));
             var incidents = new Dictionary<string, StagedIncident>();

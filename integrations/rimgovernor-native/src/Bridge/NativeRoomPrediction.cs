@@ -323,8 +323,55 @@ internal static class NativeRoomPrediction
                 Power(map, p.Def, p.Anchor, contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor)),
                 contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor) is { } existing
                     ? new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Standing(WorkbenchFactor(existing))
-                    : new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Planned())));
+                    : new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Planned(),
+                Storage(map, p.Anchor))));
     }
+
+    // The straight-line cells from a bench's anchor to the nearest storage cell (every slot group's CellsList), the walk a
+    // bill's ingredients and product are hauled over; null when the map holds no storage cell.
+    private static RimGovernor.Brain.GameFacts.Observations.StorageReach? Storage(Map map, IntVec3 anchor)
+    {
+        var groups = (map.haulDestinationManager ?? throw new InvalidOperationException("haul destination manager unavailable")).AllGroupsListForReading;
+        int? nearest = null;
+        foreach (var group in groups)
+        {
+            foreach (var cell in group.CellsList)
+            {
+                var cells = (int)Math.Ceiling((cell - anchor).LengthHorizontal);
+                if (nearest is null || cells < nearest) nearest = cells;
+            }
+        }
+        return nearest is { } reach ? new RimGovernor.Brain.GameFacts.Observations.StorageReach(reach) : null;
+    }
+
+    // PowerConnectionMaker.BestTransmitterForConnector searches the square ExpandedBy(ConnectMaxDist) around a connector; the
+    // constant is private, so its value (6) is mirrored here.
+    private const int ConnectMaxDist = 6;
+
+    // The nearest transmitting network to an unconnected bench (RG-HABITAT-005): over every net's transmitters that transmit
+    // now and allow a wire connection, the conduit cells a line must lay before one stands within ConnectMaxDist of the
+    // anchor on both axes; null when no network transmits on the map.
+    private static RimGovernor.Brain.GameFacts.Observations.NetworkReach? NearestNetwork(Map map, IntVec3 anchor, double watts)
+    {
+        RimGovernor.Brain.GameFacts.Observations.NetworkReach? nearest = null;
+        foreach (var net in (map.powerNetManager ?? throw new InvalidOperationException("power net manager unavailable")).AllNetsListForReading)
+        {
+            foreach (var transmitter in net.transmitters)
+            {
+                var building = transmitter.parent;
+                if (!transmitter.TransmitsPowerNow || building.def.building is { allowWireConnection: false }) continue;
+                var delta = building.Position - anchor;
+                var cells = Math.Max(0, Math.Abs(delta.x) - ConnectMaxDist) + Math.Max(0, Math.Abs(delta.z) - ConnectMaxDist);
+                if (nearest is not null && cells >= nearest.Cells) continue;
+                nearest = new(Network(net), cells, watts, Surplus(net));
+            }
+        }
+        return nearest;
+    }
+
+    private static double Surplus(PowerNet net) => net.powerComps.Where(c => c.PowerOn).Sum(c => c.PowerOutput);
+
+    private static string Network(PowerNet net) => string.Join("/", net.powerComps.Select(c => c.parent.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal));
 
     // A bench's power supply (RG-HABITAT-005), as the heater source reads it (NativeCoupledThermal.Source): a standing bench's
     // own CompPowerTrader network, a planned one's PowerConnectionMaker.BestTransmitterForConnector network at its anchor, the
@@ -335,12 +382,10 @@ internal static class NativeRoomPrediction
         var comp = existing is null ? null : existing.TryGetComp<CompPowerTrader>()
             ?? throw new InvalidOperationException("standing bench has no power trader: " + existing.GetUniqueLoadID());
         var net = comp is not null ? comp.PowerNet : PowerConnectionMaker.BestTransmitterForConnector(anchor, map)?.PowerNet;
-        if (net == null) return new RimGovernor.Brain.GameFacts.Observations.BenchPower.Unconnected();
         var watts = props.PowerConsumption;
         if (!float.IsFinite(watts) || watts < 0) throw new InvalidOperationException("unread bench power consumption: " + def.defName);
-        double surplus = net.powerComps.Where(c => c.PowerOn).Sum(c => c.PowerOutput);
-        var network = string.Join("/", net.powerComps.Select(c => c.parent.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal));
-        return new RimGovernor.Brain.GameFacts.Observations.BenchPower.Connected(network, comp?.PowerOn == true ? 0 : watts, surplus);
+        if (net == null) return new RimGovernor.Brain.GameFacts.Observations.BenchPower.Unconnected(NearestNetwork(map, anchor, watts));
+        return new RimGovernor.Brain.GameFacts.Observations.BenchPower.Connected(Network(net), comp?.PowerOn == true ? 0 : watts, Surplus(net));
     }
 
     private static double FacilityOffset(Map map, (ThingDef Def, IntVec3 Anchor, Rot4 Rot) bench, StatDef stat,

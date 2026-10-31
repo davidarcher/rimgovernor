@@ -139,8 +139,19 @@ public sealed record ForecastCoupledContext
     /// <summary>The review's observed unserved care (ReviewFacts.CareCalibration); unobserved without a coupled read.</summary>
     public CareCalibration CareCalibration { get; init; } = new CareCalibration.Unobserved(CareCalibration.UnobservedReason);
     public IReadOnlyDictionary<string, RecipeFlow> ProductionRecipes { get; init; } = new Dictionary<string, RecipeFlow>();
+    /// <summary>
+    /// What one butchering run yields the colony (RG-HABITAT-005): the mean meat nutrition of the unforbidden animal corpses
+    /// in stock (else of the offered food prey) at the work a nutrition of the colony's cheapest crop costs
+    /// (FoodWorkFacts.GrowTicksPerNutrition), in capability-days. NaN while neither waits or no crop prices nutrition: a
+    /// butchery load's output is then unread.
+    /// </summary>
+    public double ButcheryRunValue { get; init; } = double.NaN;
+    /// <summary>The power conduit's construction (its cost list and work to build): what a cell of a planned connection line costs. Null while unread.</summary>
+    public PlanningFixedConstruction? PowerConduit { get; init; }
     /// <summary>The worship room's believers, presence demands and rituals (ReviewFacts.Worship, #3808).</summary>
     public WorshipFacts Worship { get; init; } = new();
+    /// <summary>The candidate plan's activity sites and what crediting them reads (ActivitySiteContext.Of, habitat 3.3).</summary>
+    public ActivitySiteContext ActivitySites { get; init; } = new();
     /// <summary>The planned pens by room id, each its herd's key (ReviewFacts.PlannedPens, #3812).</summary>
     public IReadOnlyDictionary<int, string> PenHerds { get; init; } = new Dictionary<int, string>();
     /// <summary>The herd shelter's facts (ReviewFacts.HerdShelterInput, RG-HABITAT-001): the penned animals' comfort ranges and values, the climate and the thermal tables a served barn's credit reads.</summary>

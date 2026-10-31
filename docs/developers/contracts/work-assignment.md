@@ -531,11 +531,9 @@ retains the observed counter baseline but prevents a shortfall/widening verdict
 for that window; it is not a zero-output prediction. Unsized stock-target orders
 still observe exact bill output. These sampled estimates do not promise future
 native work selection.
-`ReviewFacts.UnmetThroughput`
-is one row per bench kind (`policy.UnmetThroughput`: units a day short and the
-reason, also `no_bench` when the model wants more benches than exist and
-`bench_slots_full` for an unplaced copy with capable benches), the demand signal the
-facilities ladder reads. A finished bill is spent and never satisfies an order.
+No bench count is derived from a throughput shortfall: a further bench of a kind
+is a host alternative the layout comparison prices
+([spatial](spatial-contracts.md#host-chains-and-pairs)). A finished bill is spent and never satisfies an order.
 
 The ledger's read-only view is in memory only and has one reader, the station planner. Each review leaves a
 `policy.LedgerView` (`policy.BuildLedgerView`) in `ColonyReview.ledger.view`: the status (`no_review`, `inactive`,

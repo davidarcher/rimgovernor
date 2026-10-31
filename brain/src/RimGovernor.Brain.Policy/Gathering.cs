@@ -13,15 +13,6 @@ public sealed record GatheringInput
 
     /// <summary>RitualCalm: no hostile threat and no critical patient.</summary>
     public required bool Calm { get; init; }
-
-    /// <summary>Holds the built PartySpot.</summary>
-    private CurrentConstruction? _construction;
-
-    public CurrentConstruction Census
-    {
-        get => _construction ?? throw new RequiredFactException("construction census");
-        init => _construction = value;
-    }
 }
 
 /// <summary>One party ready to start: the organizer to name.</summary>
@@ -49,9 +40,10 @@ public abstract record GatheringPlan
 public static class GatheringRules
 {
     // The rooms/gatherings Need holds a vanilla party when the colony as a whole is losing mood a party would repay. It is a
-    // mood source with a cost (colonist time), not a repair: the PartySpot is kept by rooms/party-spot
-    // (PartySpotDefinition), and this Need only decides when to start the party and who organizes it. Every
-    // number below is a vanilla fact, not a tuning choice:
+    // mood source with a cost (colonist time), not a repair. Completion is not provision: the party site is
+    // rooms/party-site's (ActivitySiteRules), and native holds a party without one (RCellFinder.TryFindGatheringSpot
+    // falls back to a gather spot or a cell near the organizer), so this Need only decides when to start the party and
+    // who organizes it, never whether a site stands. Every number below is a vanilla fact, not a tuning choice:
     //
     //   - the def is Core's Party, the GatheringDef whose gatherSpotDefs name the PartySpot;
     //   - a party gives each attendee the AttendedParty memory (ThoughtDef baseMoodEffect), read from the
@@ -64,7 +56,7 @@ public static class GatheringRules
     //   - a party's lord job runs 5000 to 15000 ticks (LordJob_Joinable_Party.durationTicks) and, while it
     //     runs, the game refuses a new gathering.
 
-    /// <summary>The GatheringDef whose gatherSpotDefs is the PartySpot.</summary>
+    /// <summary>The GatheringDef the party intent starts.</summary>
     public const string PartyGatheringDef = "Party";
 
     /// <summary>The memory each attendee gains when the party ends.</summary>
@@ -86,7 +78,6 @@ public static class GatheringRules
         var ledger = input.Ledger;
         var benefit = input.Benefit;
         var calm = input.Calm;
-        var census = input.Census;
         // All inputs were read before applying the party gates.
         if (benefit <= 0 || !calm)
         {
@@ -115,10 +106,6 @@ public static class GatheringRules
                 return none;
             }
         }
-        if (!HasPartySpot(census))
-        {
-            return none;
-        }
         if (!GatheringPressure(ledger, benefit))
         {
             return none;
@@ -128,8 +115,6 @@ public static class GatheringRules
 
     /// <summary>Reports whether the pawn carries the AttendedParty memory.</summary>
     private static bool HasPartyMemory(MoodPawn p) => p.Thoughts.Any(t => t.Def == PartyThought && t.Offset > 0);
-
-    private static bool HasPartySpot(CurrentConstruction c) => c.Buildings.Any(b => b.Building!.Definition == PartySpotRules.PartySpotDefinition && b.Cells.Count > 0);
 
     /// <summary>Whether at least GatheringGuestShare of the ledger's colonists lose at least the party's own mood effect.</summary>
     private static bool GatheringPressure(MoodLedger l, double benefit)

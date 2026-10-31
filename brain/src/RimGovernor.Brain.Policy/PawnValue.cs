@@ -36,6 +36,9 @@ public sealed record FoodWorkFacts
     /// <summary>The ThingDefs that cook <see cref="Meal"/> (RecipeDef.AllRecipeUsers).</summary>
     public EquatableArray<string> Benches { get; init; }
 
+    /// <summary>The flesh butchering recipe (RecipeWorkerCounter_ButcherAnimals), the first by defName: the recipe of an unhosted butchery load; empty when the catalog defines none.</summary>
+    public string ButcherRecipe { get; init; } = "";
+
     public string MoveStat { get; init; } = "";
 
     public string CarryStat { get; init; } = "";

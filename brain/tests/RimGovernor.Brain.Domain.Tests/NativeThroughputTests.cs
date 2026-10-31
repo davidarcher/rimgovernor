@@ -169,10 +169,10 @@ public sealed class NativeThroughputTests
              Count(Obs.DeliveryKind.Recipe, "bill", "other-product", 11),
              Count(Obs.DeliveryKind.Crop, "bill", "meal", 13)] },
         };
-        var observed = WorkRules.ObserveOrder(order, 1, new DispatchSizing.Sized(1, 1), input);
+        var observed = WorkRules.ObserveOrder(order, 1, new DispatchSizing.Sized(1), input);
         Assert.Equal(new ProductionOutput.Observed("load", 3), observed.Output);
         Assert.Equal(new ProductionOutput.CensusUnread(),
-            WorkRules.ObserveOrder(order, 1, new DispatchSizing.Sized(1, 1), input with { Production = null }).Output);
+            WorkRules.ObserveOrder(order, 1, new DispatchSizing.Sized(1), input with { Production = null }).Output);
     }
 
     [Theory]
@@ -199,7 +199,7 @@ public sealed class NativeThroughputTests
                     RequiredWork = [], WorkAmount = 1, Ingredients = [] }] }],
             Production = new() { LoadToken = "load", Kills = [], Butchers = [], Counts = [] },
         };
-        var observation = WorkRules.ObserveOrder(order, 2, new DispatchSizing.Sized(10, 10), input);
+        var observation = WorkRules.ObserveOrder(order, 2, new DispatchSizing.Sized(10), input);
         Assert.Equal("bench", worker.Job.Target.Thing);
         Assert.Equal(busy, observation.Busy);
         Assert.Equal(new ProductionOutput.Observed("load", 0), observation.Output);
@@ -234,7 +234,7 @@ public sealed class NativeThroughputTests
             Production = new() { LoadToken = "load", Kills = [], Butchers = [], Counts = [] } };
         input = input with { Benches = [input.Benches[0], input.Benches[0] with
             { Observed = ProductionBenchFixtures.Observed("spare-bench", "kind", "token", true), Bills = [] }] };
-        var observed = WorkRules.ObserveOrder(order, 2, new DispatchSizing.Sized(10, 10), input);
+        var observed = WorkRules.ObserveOrder(order, 2, new DispatchSizing.Sized(10), input);
         var (window, _) = WorkRules.CalibrateThroughput(new(), observed);
         var (_, result) = WorkRules.CalibrateThroughput(window, observed with { Tick = 100 + GameTime.TicksPerDay });
         Assert.True(result.IsShort);
@@ -244,9 +244,9 @@ public sealed class NativeThroughputTests
         // Exercise the live dispatch-memory reader too: the evidence changes actual bill-copy
         // allocation on the next review, rather than stopping at a standalone calibration result.
         var memory = new DispatchMemory();
-        Assert.Equal(1, memory.Dispatch(input).Copies[order.Key()]);
+        Assert.Equal(1, memory.Dispatch(input)[order.Key()]);
         memory.Dispatch(input with { Tick = input.Tick + GameTime.TicksPerDay });
-        Assert.Equal(widen ? 2 : 1, memory.Dispatch(input with { Tick = input.Tick + GameTime.TicksPerDay + 1 }).Copies[order.Key()]);
+        Assert.Equal(widen ? 2 : 1, memory.Dispatch(input with { Tick = input.Tick + GameTime.TicksPerDay + 1 })[order.Key()]);
         if (!widen) Assert.Equal(reason, memory.Shortfalls[order.Key()].Reason);
     }
 

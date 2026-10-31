@@ -29,10 +29,7 @@ public sealed class SnapshotPlanner
     /// <summary>Every SelectResourceMethod request: the fresh bench census and ingredient stock a production bill is chosen from.</summary>
     public List<ResourceMethodRequest> ResourceMethods { get; } = [];
 
-    /// <summary>Every SelectWorkshopBench request: the recipe catalog and bench census a workshop bench is chosen from.</summary>
-    public List<WorkshopRequest> Workshops { get; } = [];
-
-    internal bool IsEmpty => Excavation.Count + Sites.Count + ResourceMethods.Count + Workshops.Count == 0;
+    internal bool IsEmpty => Excavation.Count + Sites.Count + ResourceMethods.Count == 0;
 }
 
 /// <summary>One native excavation site read: what was asked (Purpose names the planner's question) and the reply.</summary>
@@ -144,9 +141,6 @@ public static class SnapshotPlannerReplay
 
     /// <summary>Records a production bill selection's request.</summary>
     public static void NoteResourceMethod(ResourceMethodRequest r) => Add(p => p.ResourceMethods.Add(r));
-
-    /// <summary>Records a workshop bench selection's request.</summary>
-    public static void NoteWorkshop(WorkshopRequest r) => Add(p => p.Workshops.Add(r));
 
     /// <summary>
     /// Writes p into dir as planner-&lt;goal&gt;-&lt;tick&gt;-&lt;seq&gt;, seq the first from 1 not already taken (several steps at one paused tick

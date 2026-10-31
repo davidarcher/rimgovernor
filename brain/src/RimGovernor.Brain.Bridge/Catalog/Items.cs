@@ -156,10 +156,11 @@ public sealed partial class DefinitionCatalog
     /// (<see cref="RecipeRole.ButcherFlesh"/>), the first by defName. The core game always defines one; a catalog with
     /// none is an error.
     /// </summary>
-    public double ButcherWork() =>
-        Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal).FirstOrDefault(r => RecipeRoleOf(r.defName) == RecipeRole.ButcherFlesh) is { } butcher
-            ? RecipeWorkAmount(butcher.defName)
-            : throw new CatalogException("catalog has no flesh butchering recipe");
+    public double ButcherWork() => RecipeWorkAmount(ButcherRecipe() ?? throw new CatalogException("catalog has no flesh butchering recipe"));
+
+    /// <summary>The flesh butchering recipe (<see cref="RecipeRole.ButcherFlesh"/>), the first by defName, or null when the catalog defines none.</summary>
+    public string? ButcherRecipe() =>
+        Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal).FirstOrDefault(r => RecipeRoleOf(r.defName) == RecipeRole.ButcherFlesh)?.defName;
 
     /// <summary><c>ThingDef.IsMeat</c> of the def: an item in the MeatRaw category.</summary>
     public bool RawMeat(string name)

@@ -224,24 +224,40 @@ public static partial class PlannedRules
     }
 
     /// <summary>
-    /// What the held plan binds an unhosted recipe load to (RG-HABITAT-005, RG-HABITAT-011; <see cref="HostBinding"/>). The
+    /// What the held plan binds a hosted recipe load to (RG-HABITAT-005, RG-HABITAT-011; <see cref="HostBinding"/>). The
     /// adopted host alternative is the plan: the first room by id whose <see cref="PlannedRoom.Production"/> hosts
-    /// <paramref name="recipe"/> (its bench the first by name), else Deferred. Its pieces of that bench
-    /// (<see cref="LayoutPlan.Pieces"/>) at their anchors: all <paramref name="built"/> or <paramref name="sited"/> is
-    /// Standing; otherwise the first unbuilt by anchor is bound when the room's gate opens it (<see cref="PlannedRoomGateOf"/>:
-    /// a started or ringless room, or an unstarted one whose record selects that piece's site), in the selected site's
-    /// stuff. A gate that holds, a selection that does not name the piece (a stale record, a site the plan has moved) and a
-    /// room the tiler left without a piece of the bench are Held. Nothing here values an alternative.
+    /// <paramref name="recipe"/> (its bench the first by name), else Deferred; a kept spare (<see cref="HostStep.Share"/>)
+    /// stands already and is never bound. A chain is a dependent pair of steps: its bridge (<see cref="HostStep.Bridge"/>)
+    /// binds first, and the replacement only once a bench of the bridge's definition stands built, so the table never starts
+    /// before the spot serves. Each step's pieces of its bench (<see cref="LayoutPlan.Pieces"/>) at their anchors: all
+    /// <paramref name="built"/> or <paramref name="sited"/> is Standing; otherwise the first unbuilt by anchor is bound when
+    /// the room's gate opens it (<see cref="PlannedRoomGateOf"/>: a started or ringless room, or an unstarted one whose
+    /// record selects that piece's site), in the selected site's stuff. A gate that holds, a selection that does not name the
+    /// piece (a stale record, a site the plan has moved) and a room the tiler left without a piece of the bench are Held.
+    /// Nothing here values an alternative.
     /// </summary>
     public static HostBinding HostBindingOf(LayoutPlan plan, string recipe, PlannedSelection record, Func<PlannedRoom, bool> started,
         IReadOnlySet<(string Def, Cell Cell)> built, IReadOnlySet<(string Def, Cell Cell)> sited)
     {
-        var room = plan.Rooms.OrderBy(r => r.Id).FirstOrDefault(r => r.Production.Any(p => p.Recipe == recipe));
-        if (room is null)
+        var made = plan.Rooms.OrderBy(r => r.Id).SelectMany(r => r.Production.Where(p => p.Recipe == recipe && p.Step != HostStep.Share)
+            .OrderBy(p => p.Bench, StringComparer.Ordinal).Select(p => (Room: r, Load: p))).ToArray();
+        if (made.Length == 0)
         {
             return new HostBinding.Deferred(recipe);
         }
-        var bench = room.Production.Where(p => p.Recipe == recipe).Select(p => p.Bench).Order(StringComparer.Ordinal).First();
+        var host = made.FirstOrDefault(m => m.Load.Step != HostStep.Bridge);
+        var bridge = made.FirstOrDefault(m => m.Load.Step == HostStep.Bridge && m.Load.Bench != host.Load?.Bench);
+        if (bridge.Load is not null && !built.Any(b => b.Def == bridge.Load.Bench))
+        {
+            // The replacement depends on the bridge: until a bench of it stands built, only the bridge is bound.
+            return PieceBinding(plan, recipe, bridge.Room, bridge.Load.Bench, record, started, built, sited);
+        }
+        return host.Load is null ? new HostBinding.Standing(recipe, true) : PieceBinding(plan, recipe, host.Room, host.Load.Bench, record, started, built, sited);
+    }
+
+    private static HostBinding PieceBinding(LayoutPlan plan, string recipe, PlannedRoom room, string bench, PlannedSelection record, Func<PlannedRoom, bool> started,
+        IReadOnlySet<(string Def, Cell Cell)> built, IReadOnlySet<(string Def, Cell Cell)> sited)
+    {
         var pieces = (plan.Pieces.GetValueOrDefault(room.Id) ?? []).Where(p => p.Def == bench).Select(p => p.Wanted()).ToArray();
         if (pieces.Length == 0)
         {
@@ -262,17 +278,6 @@ public static partial class PlannedRules
         }
         return new HostBinding.Build(recipe, room, site is { Stuff.Length: > 0 } ? piece with { Stuff = site.Stuff } : piece);
     }
-
-    /// <summary>
-    /// The recipes of <paramref name="owner"/>'s unhosted ledger loads (RG-HABITAT-005): its declared orders with a target
-    /// and no bench kind (<see cref="LedgerView.Owners"/>), by name. Empty before a review reconciled the ledger.
-    /// </summary>
-    public static IReadOnlyList<string> OwnedUnhostedRecipes(LedgerView view, FilingKey owner) =>
-    [
-        .. view.Orders.Where(o => o.Target > 0 && o.BenchKind.Length == 0
-                && view.Owners.TryGetValue(o.Key(), out var owners) && owners.Contains(owner.Value))
-            .Select(o => o.Recipe).Distinct().Order(StringComparer.Ordinal),
-    ];
 
     /// <summary>
     /// The ring stuff the selected sites were compared in (#3278): the selected wall's and door's, each standing in for

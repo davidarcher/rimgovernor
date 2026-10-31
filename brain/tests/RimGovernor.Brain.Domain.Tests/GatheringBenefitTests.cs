@@ -14,12 +14,6 @@ public sealed class GatheringBenefitTests
         Pawns = EquatableArray.From(Enumerable.Range(0, 4).Select(i => Colonist("p" + i))),
         Benefit = benefit,
         Calm = true,
-        Census = new CurrentConstruction
-        {
-            Buildings = [ConstructionObservationFixtures.Built(new Building(PartySpotRules.PartySpotDefinition, new Cell(1, 1), Rotation.North, ""), id: "spot", cells: [new Cell(1, 1)])],
-            Sites = [],
-            Deficit = new Dictionary<Resource, long>(),
-        },
     };
 
     [Fact]
@@ -40,15 +34,14 @@ public sealed class GatheringBenefitTests
     public void NoPartySatisfiesTheGatheringNeed()
     {
         Assert.False(GatheringRules.GatheringOwed(new GatheringPlan.NoParty()));
-        Assert.Equal(Satisfaction.Met, RoomsFamily.GatheringsNeed(new RoomsFacts { Gathering = new GatheringPlan.NoParty() }, false).Satisfaction);
+        Assert.Equal(Satisfaction.Met, RoomsFamily.GatheringsNeed(new RoomsFacts { Gathering = new GatheringPlan.NoParty() }).Satisfaction);
     }
 
     [Fact]
     public void MissingCensusCannotBecomeNoPartyEvenWhenConditionsRefuse()
     {
         Assert.Throws<RequiredFactException>(() => GatheringRules.PlanGathering(Input(0) with { Ledger = null! }));
-        Assert.Throws<RequiredFactException>(() => GatheringRules.PlanGathering(Input(0) with { Census = null! }));
-        Assert.Throws<RequiredFactException>(() => RoomsFamily.GatheringsNeed(new RoomsFacts(), false));
+        Assert.Throws<RequiredFactException>(() => RoomsFamily.GatheringsNeed(new RoomsFacts()));
     }
 
     [Fact]
@@ -63,7 +56,6 @@ public sealed class GatheringBenefitTests
         var input = Input(2);
         Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Calm = false }));
         Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Pawns = [Colonist("p0")] }));
-        Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Census = input.Census with { Buildings = [] } }));
         Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Ledger = new MoodLedger() }));
         Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Pawn = p.Pawn with { Downed = true } })) }));
         Assert.IsType<GatheringPlan.NoParty>(GatheringRules.PlanGathering(input with { Pawns = EquatableArray.From(input.Pawns.Select(p => p with { Pawn = p.Pawn with { MentalState = new RimGovernor.Brain.GameFacts.Observations.PawnMentalState { DefName = "Wander", IsAggro = false, Ticks = 120 } } })) }));

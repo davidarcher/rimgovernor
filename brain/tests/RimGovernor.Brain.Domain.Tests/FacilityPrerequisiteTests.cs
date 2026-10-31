@@ -119,12 +119,11 @@ public sealed class FacilityPrerequisiteTests
     }
     private static GearBench Bench(string definition) => new() { Observed = ProductionBenchFixtures.Observed("bench", definition, "token", true), Bills = [], Recipes = [] };
 
-    private static WorkshopRequest Product(string name, bool available, params string[] research) => new()
-    {
-        Resource = new(name),
-        Hosts = [new RecipeHost { Definition = "make-" + name, Products = [new(name)], Available = available, Benches = ["bench-" + name], Ingredients = [], Research = [.. research] }],
-        Definitions = [new BenchDefinition { Name = "bench-" + name, Available = true }],
-    };
+    private static RecipeHost Host(string name, bool available, params string[] research) =>
+        new() { Definition = "make-" + name, Products = [new(name)], Available = available, Benches = ["bench-" + name], Ingredients = [], Research = [.. research] };
+
+    private static BenchDefinition Definition(string name, bool available = true, params string[] research) =>
+        new() { Name = "bench-" + name, Available = available, Research = [.. research] };
 
     private static GearRecipe Recipe(string product, string recipe) => new()
     {
@@ -132,77 +131,36 @@ public sealed class FacilityPrerequisiteTests
     };
 
     [Fact]
-    public void ExistingWorkshopSettlesBeforeAnyDefinitionReadInBenchAndRecipeOrder()
+    public void AStandingBenchRecipeSettlesInBenchAndRecipeOrder()
     {
-        var request = Product("shirt", true) with
-        {
-            Definitions = [],
-            Benches = [Bench("first") with { Recipes = [Recipe("other", "skip"), Recipe("shirt", "first-recipe")] }, Bench("second") with { Recipes = [Recipe("shirt", "second-recipe")] }],
-        };
-        var (existing, further) = WorkRules.ExistingWorkshopBench(request);
-        Assert.NotNull(existing);
-        Assert.Null(further);
-        Assert.Equal("first-recipe", existing.Recipe);
-        Assert.Equal(existing, WorkRules.SelectWorkshopBench(request));
+        IReadOnlyList<GearBench> benches = [Bench("first") with { Recipes = [Recipe("other", "skip"), Recipe("shirt", "first-recipe")] }, Bench("second") with { Recipes = [Recipe("shirt", "second-recipe")] }];
+        Assert.Equal("first-recipe", WorkRules.StandingWorkshopRecipe(new("shirt"), benches));
+        Assert.Null(WorkRules.StandingWorkshopRecipe(new("pants"), benches));
+        Assert.Throws<DomainException>(() => WorkRules.StandingWorkshopRecipe(new(""), benches));
     }
 
     [Fact]
-    public void NewWorkshopPreReadDiscoversCandidatesThenObservedDefinitionsPermitStaging()
+    public void AHostableProductWaitsOnTheComparisonAndNeverPicksABench()
     {
-        var prepared = Product("shirt", true) with { Definitions = [] };
-        Assert.Equal((null, null), WorkRules.ExistingWorkshopBench(prepared));
-        Assert.Equal(["bench-shirt"], WorkRules.WorkshopResearchCandidates(prepared.Resource, prepared.Hosts));
-        Assert.Throws<RequiredFactException>(() => WorkRules.SelectWorkshopBench(prepared));
-        var choice = WorkRules.SelectWorkshopBench(prepared with { Definitions = Product("shirt", true).Definitions });
-        Assert.Equal(WorkshopMethod.Build, choice.Method);
-        Assert.Equal("bench-shirt", choice.Definition);
+        RecipeHost[] hosts = [Host("shirt", true)];
+        Assert.Equal(["bench-shirt"], WorkRules.WorkshopResearchCandidates(new("shirt"), hosts));
+        // An undescribed bench definition is a missing fact, never a guess.
+        Assert.Throws<RequiredFactException>(() => WorkRules.WorkshopHostable(new("shirt"), hosts, []));
+        Assert.True(WorkRules.WorkshopHostable(new("shirt"), hosts, [Definition("shirt")]));
+        Assert.Null(WorkRules.WorkshopResearchRung(new("shirt"), hosts, [Definition("shirt")]));
+        Assert.False(WorkRules.WorkshopHostable(new("shirt"), hosts, [Definition("shirt", false, "tailoring")]));
     }
 
     [Fact]
-    public void FurtherWorkshopWaitsForDefinitionReadOnlyWhenAnAvailableHostCanStageIt()
+    public void OnlyResearchStandingBetweenTheColonyAndAHostIsARung()
     {
-        var request = Product("shirt", true) with
-        {
-            Benches = [Bench("bench-shirt") with { Recipes = [Recipe("shirt", "existing-recipe")] }],
-            Further = ["bench-shirt"], Definitions = [],
-        };
-        var (existing, further) = WorkRules.ExistingWorkshopBench(request);
-        Assert.Null(existing);
-        Assert.NotNull(further);
-        Assert.Throws<RequiredFactException>(() => WorkRules.SelectWorkshopBench(request));
-        Assert.Equal(WorkshopMethod.Build, WorkRules.SelectWorkshopBench(request with { Definitions = Product("shirt", true).Definitions }).Method);
-        var withoutHosts = request with { Hosts = [] };
-        Assert.Equal(further, WorkRules.ExistingWorkshopBench(withoutHosts).Existing);
-        Assert.Equal(further, WorkRules.SelectWorkshopBench(withoutHosts));
-        Assert.Equal(further, WorkRules.SelectWorkshopBench(request with { Hosts = [request.Hosts[0] with { Available = false, Research = ["later"] }] }));
-    }
-    [Fact]
-    public void WorkshopBuildableProductPrecedesResearchAndDoesNotReadLaterProducts()
-    {
-        IEnumerable<WorkshopRequest> Requests()
-        {
-            yield return Product("armor", false, "armor-research");
-            yield return Product("shirt", true);
-            throw new InvalidOperationException("later product should not be read");
-        }
-        var selected = WorkRules.SelectWorkshopProduct(Requests());
-        Assert.Equal(new Resource("shirt"), selected.Resource);
-        Assert.Equal(WorkshopMethod.Build, selected.Choice.Method);
-        Assert.Equal("bench-shirt", selected.Choice.Definition);
-    }
-
-    [Fact]
-    public void WorkshopPreservesLastResearchPreferenceAndCountsOnlySelectedKind()
-    {
-        Assert.Throws<DomainException>(() => WorkRules.SelectWorkshopProduct([]));
-        var noHosts = WorkRules.SelectWorkshopProduct([new WorkshopRequest { Resource = new("no-host") }]);
-        Assert.Equal(new Resource("no-host"), noHosts.Resource);
-        Assert.Equal(WorkshopMethod.Unavailable, noHosts.Choice.Method);
-        var selected = WorkRules.SelectWorkshopProduct([Product("first", false, "a"), Product("second", false, "b"), Product("unavailable", false)]);
-        Assert.Equal(new Resource("second"), selected.Resource);
-        Assert.Equal(WorkshopMethod.Research, selected.Choice.Method);
-        Assert.Equal(["b"], selected.Choice.Research);
-        Assert.Equal(2, WorkRules.WorkshopOrdinal([Bench("chosen"), Bench("other"), Bench("chosen")], "chosen"));
-        Assert.Throws<RequiredFactException>(() => WorkRules.SelectWorkshopProduct([Product("missing", true) with { Definitions = [] }]));
+        RecipeHost[] hosts = [Host("armor", false, "smithing")];
+        var rung = WorkRules.WorkshopResearchRung(new("armor"), hosts, [Definition("armor", false, "electricity")]);
+        Assert.NotNull(rung);
+        Assert.Equal("bench-armor", rung.Bench);
+        Assert.Equal("make-armor", rung.Recipe);
+        Assert.Equal(["electricity", "smithing"], rung.Research);
+        // A gate the census names no project for is no rung.
+        Assert.Null(WorkRules.WorkshopResearchRung(new("armor"), [Host("armor", false)], [Definition("armor")]));
     }
 }

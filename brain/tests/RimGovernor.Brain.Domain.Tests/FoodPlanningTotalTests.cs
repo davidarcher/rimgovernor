@@ -80,11 +80,10 @@ public sealed class FoodPlanningTotalTests
             { DemandPerDay = double.NaN, PasturePerDay = 0, StoredNutrition = 0 }], 10));
     }
     [Fact]
-    public void FoodChecksRequireRunwayAndButcherBuildDefinition()
+    public void FoodChecksRequireRunway()
     {
         Assert.Throws<RequiredFactException>(() => Rules.Reached(null, 3));
         Assert.True(Rules.Reached(new FoodRunway.NoEaters(), 3));
         Assert.False(Rules.Reached(new FoodRunway.Days(2), 3));
-        Assert.Throws<RequiredFactException>(() => FacilityPlanningRules.ButcherTableAffordable(ColonyFactsCoreTests.Reading().Facts));
     }
 }

@@ -458,10 +458,9 @@ public sealed partial class ColonyReview
         Census.RememberLayout(reading.Reading.Identity, reading.Reading.Facts.LayoutPlan);
         reading = reading.WithFacts(rf => rf with { TitleClaimQuests = [.. SleepingUpkeepPlanner.TitleClaimQuests(reading.Reading)] });
         reading = reading.WithFacts(rf => rf with { BedroomsOwed = SleepingUpkeepPlanner.BedroomsOwedOf(reading.Reading) });
-        reading = reading.WithFacts(rf => rf with { ButcherTableAffordable = FacilityPlanningRules.ButcherTableAffordable(reading.Reading.Facts) });
         reading = reading.WithFacts(rf => rf with { WarmRooms = BurialFacts.WarmCoolingRooms(reading.Reading) });
         reading = reading.WithFacts(rf => rf with { MealClosetOwed = BurialFacts.MealClosetOwed(reading.Reading) });
-        reading = reading.WithFacts(rf => rf with { CampfireRetireOwed = FacilityPlanningRules.CampfireRetireOwed(reading.Reading.Facts, nameof(RimWorld.ThingDefOf.Campfire)) });
+        reading = reading.WithFacts(rf => rf with { HostRetireOwed = PlannedRules.HostRetireOwed(reading.Reading.Facts, WorkLedgerView(), FoodRules.CookingNeed.FilingKey) });
         reading = reading.WithFacts(rf => rf with { TemperatureOwed = FacilityPlanningRules.TemperatureOwed(reading.Reading.Facts) });
         Lap("d_owed");
         var targets = await ArmoryShells.ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Reading, ct).ConfigureAwait(false);

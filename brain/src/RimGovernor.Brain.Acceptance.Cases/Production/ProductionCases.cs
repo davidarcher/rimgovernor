@@ -14,5 +14,6 @@ public static class ProductionCases
         }
 
         registry.Register(ProductionLadder.Case());
+        registry.Register(ProductionSpotBridge.Case());
     }
 }

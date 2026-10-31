@@ -82,7 +82,31 @@ Which bench hosts a recipe no standing bench lists is compared in the same
 selection, by the host's site, room temperature, power and own build, and the
 adopted host is bound as planned, not re-selected
 ([H8](#h8--host-alternatives-compared-by-site-and-infrastructure)).
-Evidence H7 and H8 prove the policy path; they do not establish sustained native colony performance.
+
+Butchering, cooking and workshop loads are all hosted this way (RG-HABITAT-005).
+No preselection of a definition and no per-kind population cap remain. Only a
+research-available bench or recipe is a Build alternative. Each alternative is
+priced by its build, room effects, power and conduits, and by the walk to storage
+for every run. A spot-now/table-later chain is compared as one alternative: the
+bridge serves from its own readiness until the replacement serves, and every host
+of a recipe shares one demand. Binding builds the bridge first and the replacement
+only once the bridge stands. A standing spare is kept beside its replacement or
+removed, and that choice is compared like any other (RG-HABITAT-007: an upgrade is
+built only when it is worth its labor).
+
+A replaced host is removed by one rule, in the owner's step and in the room
+reconcile alike (RG-HABITAT-010). It waits, named, until the replacement serves,
+and then while a pawn works one of its bills (`host_retire_held`). The removal
+replaces the automatic campfire retirement.
+
+Party, marriage and ritual sites are layout alternatives of the same comparator
+(RG-HABITAT-005). The choice is a spot in an existing room, a new site room, or no
+site. Each is priced by attendance, the gathering memories, ritual surroundings
+and competing uses, and a ritual a planned worship room already prices is not
+counted again.
+
+([H10](#h10--spot-bridges-retirement-and-activity-sites-compared-as-layout-alternatives)).
+Evidence H7, H8 and H10 prove the policy path; they do not establish sustained native colony performance.
 
 ## Evidence and inspection coverage
 
@@ -220,8 +244,8 @@ passed 4,340 domain tests, `4e8c5297e` 4,345 and `fa06bfd1f` 4,354, each with 30
 workflow tests. No native case was executed. The native `BenchPower` read and the
 catalog's `RequiresPower` are compiled but not game-verified, nor checked against
 live defs; a host piece with no selected stuff still falls back to bulk stuff
-choice. The legacy workshop ladder remains for a Need with no layout plan or no
-owned unhosted load. The [spatial](../developers/contracts/spatial-contracts.md#layout-planner),
+choice. The legacy workshop ladder that remained for a Need with no layout plan or
+no owned unhosted load was deleted in milestone 3 ([H10](#h10--spot-bridges-retirement-and-activity-sites-compared-as-layout-alternatives)). The [spatial](../developers/contracts/spatial-contracts.md#layout-planner),
 [forecast](../developers/contracts/forecast-contracts.md#workshop-and-laboratory-bench-credits)
 and [essential-service](../developers/contracts/essential-services.md#hosted-workshop-loads)
 contracts own the behavior.
@@ -272,4 +296,84 @@ The [population](../developers/contracts/population-contracts.md#accommodation-o
 [spatial](../developers/contracts/spatial-contracts.md#layout-planner),
 [husbandry](../developers/contracts/husbandry-contracts.md#herd-shelter-alternatives)
 and [forecast](../developers/contracts/forecast-contracts.md#prison-accommodation-credit)
+contracts own the behavior.
+
+### H10 — Spot bridges, retirement and activity sites compared as layout alternatives
+
+Milestone 3 removes every preselected production host, and the evidence below covers
+that whole path.
+
+- **Host alternatives.** [WorkshopHostAlternativeTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/WorkshopHostAlternativeTests.cs)
+  check butcher, cooking and workshop hosts as complete alternatives:
+  - distance to storage and the haul it prices;
+  - kitchen food poisoning by cleanliness, and unread cleanliness unassessing only its room;
+  - an unconnected bench's conduit cost;
+  - the butcher spot against the table by consequence, and no population cap;
+  - only research-available benches and recipes offered as Build alternatives;
+  - chains against spot-only and table-only, with bridge readiness;
+  - one shared demand across hosts, and a pair that wins only past one host's day;
+  - keeping or removing a spare.
+- **Retirement.** [HostRetirementTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HostRetirementTests.cs)
+  check that a spare is retired only once its replacement serves. A placed, unbuilt,
+  unpowered or bill-less replacement serves nothing. A bill in progress holds the
+  removal, a claimed heating campfire is never taken, and a kept spare takes copies of
+  orders. The room reconcile never cuts a bridge spot while its bill is worked or before
+  its replacement serves.
+- **Binding through Hands.** [PlannedRoomGateTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PlannedRoomGateTests.cs)
+  (`ABridgeSpotIsPlacedFirstThenItsBenchAndRetiredOnlyOnceTheBenchServesAndNoBillIsWorked`)
+  runs one Need's whole planned-host step through admission and the Hands receipts:
+  1. the spot is placed first and its receipt closes it;
+  2. a sited spot binds nothing more;
+  3. the built spot lets the bench be placed;
+  4. once the comparison retains the bench alone, the spot is not removed while the bench does not serve;
+  5. while a pawn works the spot's bill, the removal is held as `host_retire_held`, naming the bill;
+  6. once no bill is worked, the removal is admitted as the spot's `host-retire-*` deconstruction Method.
+- **Activity sites.** [ActivitySiteTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ActivitySiteTests.cs)
+  check each kind's demand from facts, with no ritual without Ideology. They check that
+  each eligible room, a new room and no site are offered up to the room bound, that a
+  standing or in-flight site is never deviated from, and that each deviation is one
+  alternative of the shared regroup batch. The consequence decides the site, the baseline
+  keeps a tie, and a new room earns attendance an existing room without capacity cannot.
+  The adopted sites survive the store. Placement is one Method per kind and room, whose
+  room is then read spent, a site has no retire or upgrade lifecycle, and completion and
+  provision are distinct in both directions.
+  [RoomsFamilyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/RoomsFamilyTests.cs)
+  chain hosting, the site Needs and gatherings by precondition.
+
+These are executed policy checks through the full gate. The domain counts were 4,388
+at `144311922`, 4,391 at `a500fe7b3`, 4,402 at `98ea8a70d`, 4,403 at `70d0bd767` and
+4,419 at `af8e5a35d`, and 4,418 with this evidence, each with 30 workflow tests and
+contract orphans none.
+
+The OnDemand native case `production/spot-bridge`
+([ProductionSpotBridge](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionSpotBridge.cs))
+stages four fresh muffalo corpses, no butcher bench and wood in stock. The corpses come
+from the new `StagePawn.Dead` staging. The case asserts three things:
+
+- the comparison adopts a `ButcherSpot`-to-`TableButcher` chain, and the spot is built and billed;
+- no table is placed before the spot stands built;
+- the spot is removed only once a built table serves with a butcher bill, and a spot bill
+  worked after that is held as `host_retire_held`.
+
+The case is registered and compiles but was not executed, and neither was the `Dead`
+staging. No native evidence exists for this milestone.
+
+Known gaps, stated rather than priced:
+
+- builder skill, ingredient search radius, ingredient value and spoilage are unpriced;
+- generators are not offered as a host alternative;
+- kinded orders bypass the comparator except through upgrade chains;
+- `SelectPaste` is kept;
+- ideology-gated recipes are not filtered;
+- party and marriage surroundings carry no price beyond the roof;
+- `WorkRules.ReconcileLedger`'s orphan-bill removal after three reviews can still
+  interrupt a worked bill (pre-existing);
+- no live-game run has read `StorageReach`, `BillState.Workers`,
+  `BillStackRow.Reachable` or `ActivityAccess`.
+
+The [spatial](../developers/contracts/spatial-contracts.md#host-chains-and-pairs),
+[forecast](../developers/contracts/forecast-contracts.md#workshop-and-laboratory-bench-credits),
+[essential-service](../developers/contracts/essential-services.md#hosted-workshop-loads),
+[mood](../developers/contracts/mood-control.md#activity-sites) and
+[method-continuation](../developers/contracts/method-continuation.md#workshop-host-construction)
 contracts own the behavior.

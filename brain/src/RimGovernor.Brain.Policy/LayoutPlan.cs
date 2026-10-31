@@ -87,6 +87,9 @@ public sealed partial record PlannedRoom
     /// <summary>The herd a pen belongs to: the race of its unit, empty for the misc unit and for every other room.</summary>
     public string Herd { get; init; } = "";
 
+    /// <summary>The activity a site room holds the spot of (ActivitySiteRules.ActivityKey): empty for every other room.</summary>
+    public string Activity { get; init; } = "";
+
     /// <summary>The ground an attached child occupies beyond its parent's ring: the airlock's vestibule, walls and outer door.</summary>
     internal Rectangle AttachedGround() => this.AirlockGround();
 
@@ -173,6 +176,9 @@ public sealed partial record LayoutPlan
 
     /// <summary>The stations the tiler placed in each room by room id (def, cell, rotation): what the plan expects the room to hold before any colony-driven addition. The demand side prices what is not yet standing; owners read it where they furnish. Only a tiled plan holds it.</summary>
     public IReadOnlyDictionary<int, IReadOnlyList<InteriorPiece>> Pieces { get; init; } = new Dictionary<int, IReadOnlyList<InteriorPiece>>();
+
+    /// <summary>The activity sites the layout comparator chose (ActivitySiteRules.Resolve): the standing ones it keeps and the spots the placement step binds. Only a tiled plan holds them.</summary>
+    public IReadOnlyList<PlannedActivitySite> ActivitySites { get; init; } = [];
 
     /// <summary>Latches the map's climate when the plan is derived: the seasonal curve dips below ColdMapBelowC, so a replan reads the climate the plan was derived for.</summary>
     public bool Cold { get; init; }
@@ -596,4 +602,26 @@ public static partial class LayoutPlanRules
 }
 
 /// <summary>One chosen bill load at a planned station; runs and products retain the shared demand, not a new bill choice.</summary>
-public sealed record PlannedProduction(string Bench, string Recipe, double RunsPerDay);
+public sealed record PlannedProduction(string Bench, string Recipe, double RunsPerDay)
+{
+    /// <summary>How the station holds the load (RG-HABITAT-005): its permanent host, a chain's bridge, or a second permanent host.</summary>
+    public HostStep Step { get; init; }
+}
+
+/// <summary>
+/// How a planned station holds a recipe load (RG-HABITAT-005). A <see cref="Bridge"/> is a spot-now/table-later chain's first
+/// step: it serves the load from its own readiness until the recipe's <see cref="Host"/> serves, and is then retired or
+/// retained by a comparison of its own. A <see cref="Share"/> is a retained second host: it takes copies of the recipe's
+/// dispatcher-sized orders (<see cref="WorkRules.Stocked"/>) that name the Host's kind, beside the Host's own benches.
+/// </summary>
+public enum HostStep
+{
+    [WireName("host")]
+    Host,
+
+    [WireName("bridge")]
+    Bridge,
+
+    [WireName("share")]
+    Share,
+}

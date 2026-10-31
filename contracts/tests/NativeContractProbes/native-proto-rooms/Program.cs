@@ -255,6 +255,8 @@ internal static class NativeProtoRoomsProbe
             // own static/instance constructor; leave it as-is.
             Set(fixMap, "Verse.Map", "thingGrid", fixThingGrid);
             Set(fixMap, "Verse.Map", "uniqueID", 0);
+            // An empty storage census: a bench's fetch distance reads null (no storage cell).
+            Set(fixMap, "Verse.Map", "haulDestinationManager", Activator.CreateInstance(Ty("RimWorld.HaulDestinationManager"), fixMap)!);
             // fogGrid is deliberately left null: Room.get_Fogged is Harmony-patched above to
             // return false without running its real body, so FogGrid is never dereferenced.
             var regionDirtyer = New("Verse.RegionDirtyer");
@@ -489,6 +491,7 @@ internal static class NativeProtoRoomsProbe
             var future = futureRows.Cast<object>().Single();
             Check((string)Get(future, "Def") == "ProbeTailorBench", "Planned first bench survives native prediction");
             Check(Get(future, "Placement") is RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Planned, "Unbuilt station has the named planned state");
+            Check(Get(future, "Storage") is null, "A map without a storage cell reads no fetch distance");
             var facilityDef = New("Verse.ThingDef");
             Set(facilityDef, "Verse.ThingDef", "defName", "ProbeFacility");
             Set(facilityDef, "Verse.ThingDef", "size", cell2(1, 1));

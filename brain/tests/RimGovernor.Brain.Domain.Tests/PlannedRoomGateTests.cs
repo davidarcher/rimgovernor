@@ -53,6 +53,19 @@ public sealed class PlannedRoomGateTests
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
+            // The retire admission's boundary read (AdmitExcavationAsync): the rig's own world at the review's tick.
+            if (targetMethod?.Name == "IdentityAsync")
+            {
+                return Task.FromResult(new RimGovernor.Brain.GameFacts.Lifecycle.LoadedIdentity
+                {
+                    Paused = true,
+                    Context = new RimGovernor.Brain.GameFacts.Common.ObservationContext
+                    {
+                        Identity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = World.Colony.Value, LoadToken = World.Load.Value, MapId = World.Map.Value },
+                        Tick = 100, NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.AtCase(World.Native.Value),
+                    },
+                });
+            }
             if (targetMethod?.Name != nameof(IReviewBuildingSource.PreviewBuildingAsync))
             {
                 throw new NotSupportedException(targetMethod?.Name + " is outside the building rig");
@@ -138,6 +151,9 @@ public sealed class PlannedRoomGateTests
         /// <summary>The host step's result, with its admission decision.</summary>
         public BuildingResult? Hosted { get; set; }
 
+        /// <summary>When set, the step runs the planner's whole planned-host step (PlannedHostStepAsync): retirements, then bindings.</summary>
+        public bool PlannedStep { get; set; }
+
         public void Dispose() => Journal.Dispose();
 
         public async Task<FamilyRun> RunAsync()
@@ -199,7 +215,8 @@ public sealed class PlannedRoomGateTests
                 }
             }) with
         {
-
+            // The rig clock's instant: an admission that checks the reading's age (AdmitExcavationAsync) finds it fresh.
+            StartedAt = DateTimeOffset.UnixEpoch,
             Window = new RimGovernor.Brain.Facts.Held<PlanningCells> { Value = new() { Cells = [] } },
             Facts = ColonyFactsCoreTests.Reading().Facts with
             {
@@ -244,6 +261,14 @@ public sealed class PlannedRoomGateTests
                     }
                 },
             };
+            if (colony.PlannedStep)
+            {
+                var stepped = await planner.PlannedHostStepAsync(work.State, review, work.Owner, read.Reading, call, work.Epoch)
+                    ?? throw new InvalidOperationException("the planned host step owned no load");
+                colony.Hosted = stepped;
+                colony.Reconciled = stepped.Verdict;
+                return stepped.Verdict;
+            }
             if (colony.Host is { } host)
             {
                 var hosted = await planner.BindPlannedHostAsync(work.State, review, work.Owner, read.Reading, host(review, read.Reading), call, work.Epoch);
@@ -808,5 +833,132 @@ public sealed class PlannedRoomGateTests
         var gear = RimGovernor.Brain.Runtime.ColonyReview.WithGearChoices(new ReviewFacts { Gear = observed }, []).Gear;
         Assert.NotEmpty(GearRules.GearReplacementNeeds(gear));
         Assert.False(MilitaryFamily.EquipmentMet(new MilitaryFacts { Gear = gear }));
+    }
+
+    /// <summary>The bridge spot of the chain test: a 1x1 stuffless piece in room 1's south-west corner, clear of the bench.</summary>
+    private const string BridgeSpot = "TestSpot";
+
+    private static readonly InteriorPiece BridgePiece = new() { Slot = "bench", Def = BridgeSpot, Size = new Cell(1, 1), Rot = Rotation.North, Rect = new Rectangle { X = 5, Z = 5, Width = 1, Height = 1 } };
+
+    /// <summary>The adopted spot-now/bench-later chain: room 1 hosts the recipe at the bench, bridged by the spot.</summary>
+    private static readonly LayoutPlan BridgePlan = PlannedRoomSelectionTests.HostPlan with
+    {
+        Rooms = [PlannedRoomSelectionTests.HostRoom with { Production = [new(PlannedRoomSelectionTests.HostBench, PlannedRoomSelectionTests.HostRecipe, 2),
+            new(BridgeSpot, PlannedRoomSelectionTests.HostRecipe, 2) { Step = HostStep.Bridge }] }],
+        Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [1] = [PlannedRoomSelectionTests.HostPiece, BridgePiece] },
+    };
+
+    private static readonly string[] BridgeStuffs = ["", "WoodLog", "BlocksGranite"];
+
+    /// <summary>The bench's admission evidence and the spot's: 1x1, free in any stuff the step may name.</summary>
+    private static ReviewFacts WithBridge(ReviewFacts f)
+    {
+        var bench = WithBench(f);
+        return bench with
+        {
+            WorkAdmission = bench.WorkAdmission with
+            {
+                Buildings = [.. bench.WorkAdmission.Buildings,
+                    .. BridgeStuffs.Select(stuff => new WorkBuildingCost(BridgeSpot, stuff, []) { Size = new Cell(1, 1) }),
+                    // The bench piece names no stuff and the rig defines none, so it is built unstuffed.
+                    new WorkBuildingCost(PlannedRoomSelectionTests.HostBench, "", [new(new("WoodLog"), 50)]) { Size = new Cell(3, 1) }],
+            },
+        };
+    }
+
+    /// <summary>The reconciled ledger the planned-host step reads: one unhosted order of the recipe its owner declared, and <paramref name="benches"/>.</summary>
+    private static void Ledger(Colony colony, params HostBench[] benches)
+    {
+        var order = new OrderSpec { Recipe = PlannedRoomSelectionTests.HostRecipe, Target = 1 };
+        colony.Planner.Reviewer.Ledger.View = WorkRules.NewLedgerView(WorkRules.LedgerViewReconciled) with
+        {
+            Orders = [order],
+            Benches = benches,
+            Owners = new Dictionary<string, EquatableArray<string>> { [order.Key()] = EquatableArray.From(new[] { colony.Planner.Concern.Value }) },
+        };
+    }
+
+    /// <summary>Closes every action of <paramref name="plan"/> on an accepted receipt, as Hands records a placed blueprint.</summary>
+    private static void Accept(Colony colony, PlanId plan)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var scope = World with { Plan = plan, Revision = new(1) };
+        foreach (var progress in colony.Journal.LoadPlan(plan, ct).Progress)
+        {
+            var id = progress.Action.Id;
+            _ = colony.Journal.Prepare(plan, id, scope, new(100), ct);
+            var dispatched = colony.Journal.Dispatch(plan, id, scope, new(100), ct);
+            _ = colony.Journal.RecordReceipt(plan, id, dispatched.View.Attempt, Receipt.Accepted, ct);
+        }
+        Assert.False(WorkProgress.Open(colony.Journal.LoadPlan(plan, ct).Progress));
+    }
+
+    /// <summary>
+    /// Task 3.4 (RG-HABITAT-005, RG-HABITAT-011): a spot-now/bench-later chain through the owner's whole planned-host step,
+    /// admission and Hands receipts. The bridge spot is bound and placed first and its receipt closes its construction; a
+    /// sited spot binds nothing more; only once the spot stands built is the bench bound. Once the comparison retains the
+    /// bench alone, the spot is not removed while the bench does not serve, its removal is held naming the bill a pawn
+    /// works at it (host_retire_held), and it is admitted as the spot's retire Method once no bill is worked.
+    /// </summary>
+    [Fact]
+    public async Task ABridgeSpotIsPlacedFirstThenItsBenchAndRetiredOnlyOnceTheBenchServesAndNoBillIsWorked()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var spotCell = BridgePiece.Wanted().Anchor();
+        var spotId = BridgeSpot + spotCell.X.ToString(System.Globalization.CultureInfo.InvariantCulture) + "_" + spotCell.Z.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var benchId = PlannedRoomSelectionTests.HostBench + HostAnchor.X.ToString(System.Globalization.CultureInfo.InvariantCulture) + "_" + HostAnchor.Z.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        HostBench spot = new(spotId, BridgeSpot, true, [PlannedRoomSelectionTests.HostRecipe], []);
+        HostBench bench = new(benchId, PlannedRoomSelectionTests.HostBench, true, [PlannedRoomSelectionTests.HostRecipe], []);
+
+        using var colony = Open(WithBridge, plan: BridgePlan);
+        colony.Planner.Concern = FoodRules.FoodSupplyNeed.FilingKey;
+        colony.PlannedStep = true;
+
+        // The bridge first: nothing stands, so the spot's piece is bound, admitted and placed; its receipt closes it.
+        Ledger(colony);
+        colony.Census = RingStanding();
+        var bridged = await colony.RunAsync();
+        Assert.True(Colony.Report(bridged).Outcome == Outcome.Admitted, "bridge: " + Colony.Report(bridged) + " " + colony.Reconciled);
+        var placed = Assert.Single(colony.Placed(bridged));
+        Assert.Equal((BridgeSpot, spotCell), (placed.Definition, placed.Cell));
+        Accept(colony, Assert.Single(bridged.Methods).Plan);
+
+        // A sited spot is not yet a built one: the bench waits.
+        colony.Census = RingStanding() with { Sites = [ConstructionObservationFixtures.Site(new Building(BridgeSpot, spotCell, Rotation.North, ""), stage: "blueprint")] };
+        var sited = await colony.RunAsync();
+        Assert.Empty(sited.Methods);
+        Assert.True(colony.Reconciled!.Value.Is(Cause.ExistingWork), colony.Reconciled.ToString());
+
+        // The spot stands and serves: now the replacement is bound.
+        Ledger(colony, spot);
+        colony.Census = RingStanding(Built(BridgeSpot, spotCell));
+        var replaced = await colony.RunAsync();
+        Assert.True(Colony.Report(replaced).Outcome == Outcome.Admitted, "replacement: " + Colony.Report(replaced) + " " + colony.Reconciled);
+        Assert.Equal(PlannedRoomSelectionTests.HostBench, Assert.Single(colony.Placed(replaced)).Definition);
+
+        // The comparison retains the bench alone. While the built bench does not serve, the spot is not removed.
+        using var retained = Open(WithBridge, plan: PlannedRoomSelectionTests.HostPlan);
+        retained.Planner.Concern = FoodRules.FoodSupplyNeed.FilingKey;
+        retained.PlannedStep = true;
+        retained.Census = RingStanding(Built(BridgeSpot, spotCell), Built(PlannedRoomSelectionTests.HostBench, HostAnchor));
+        Ledger(retained, spot with { Working = ["bill7"] }, bench with { Serves = false });
+        var unserved = await retained.RunAsync();
+        Assert.Empty(unserved.Methods);
+        Assert.True(retained.Reconciled!.Value.Is(Cause.Facility), retained.Reconciled.ToString());
+
+        // It serves, but a pawn works the spot's bill: the removal is held, naming the bill.
+        Ledger(retained, spot with { Working = ["bill7"] }, bench);
+        var working = await retained.RunAsync();
+        Assert.Empty(working.Methods);
+        var hold = retained.Reconciled!.Value.Refusal;
+        Assert.Equal((Cause.AwaitingPlan, BuildingPlanner.HostRetireHeld, "bill in progress:bill7"), (hold.Kind, hold.Subject, hold.Detail));
+
+        // The bill is done: the spot's removal is admitted as its retire Method.
+        Ledger(retained, spot, bench);
+        var retired = await retained.RunAsync();
+        Assert.True(retired.Methods.Count == 1, "retire: " + retained.Reconciled);
+        var method = retired.Methods[0];
+        Assert.Equal(BuildingPlanner.RetireMethodId(BuildingPlanner.HostRetirePrefix, spotId), method.Method);
+        Assert.Equal(ActionKind.Deconstruction, Assert.Single(retained.Journal.LoadPlan(method.Plan, ct).Progress).Action.Kind);
     }
 }

@@ -13,14 +13,6 @@ public enum UnmetReason
     [WireName("")]
     None,
 
-    /// <summary>The rate model wants more benches than exist (or none of the kind can take the recipe). A further bench would help.</summary>
-    [WireName("no_bench")]
-    NoBench,
-
-    /// <summary>Every capable bench carries the 15-bill cap.</summary>
-    [WireName("bench_slots_full")]
-    SlotsFull,
-
     /// <summary>Measured production is short because the recipe's ingredients are out; a further bench would not help.</summary>
     [WireName("ingredient_bound")]
     Ingredients,
@@ -50,29 +42,16 @@ public enum UnmetReason
     BenchesExhausted,
 }
 
-/// <summary>The throughput one bench kind lacks, in product units per day, and why. The facilities ladder reads it as its demand signal.</summary>
-public sealed record UnmetThroughput
-{
-    public string BenchKind { get; init; } = "";
-
-    public double ShortPerDay { get; init; }
-
-    public UnmetReason Reason { get; init; }
-}
-
 /// <summary>
 /// One order's standing calibration shortfall: a closed rolling window whose actual recipe output fell under the
 /// prediction, the measured cause, and the tick that window closed on. It is the dispatcher's observation, not a forecast.
 /// </summary>
 public sealed record ProductionStall(string Order, Resource Product, string BenchKind, double ShortPerDay, UnmetReason Reason, long ClosedTick)
 {
-    /// <summary>The bench-kind view the facilities ladder reads.</summary>
-    public UnmetThroughput Unmet => new() { BenchKind = BenchKind, ShortPerDay = ShortPerDay, Reason = Reason };
-
     /// <summary>
     /// The stall's cause is one an exact pawn order can answer: ingredient gathering pends or dominates while ingredients are
     /// stocked, which a bounded ingredient delivery answers. Unstarted bill work is answered by native bills and work settings,
-    /// not an exact recipe order; a bench shortage, full bill slots or missing ingredients are answered by no order.
+    /// not an exact recipe order; exhausted benches or missing ingredients are answered by no order.
     /// </summary>
     public bool AnsweredByOrders => Reason is UnmetReason.IngredientsPending or UnmetReason.DeliveryBound;
 }
@@ -107,10 +86,9 @@ public abstract record DispatchSizing
     public sealed record Unsized : DispatchSizing;
 
     /// <summary>
-    /// The units per day that clear the product's deficit and the mean units per day of one eligible bench
-    /// with an average worker.
+    /// The mean units per day of one eligible bench with an average worker.
     /// </summary>
-    public sealed record Sized(double Demand, double Capacity) : DispatchSizing;
+    public sealed record Sized(double Capacity) : DispatchSizing;
 }
 
 /// <summary>The rate model's answer for one order.</summary>
@@ -122,9 +100,6 @@ public sealed record OrderDispatch
     public required int Eligible { get; init; }
 
     public required DispatchSizing Sizing { get; init; }
-
-    /// <summary>The units per day the eligible benches cannot make when the model wants more benches than exist.</summary>
-    public required double NoBenchShort { get; init; }
 }
 
 /// <summary>One order's rolling calibration window. It is memory only: a world change empties it.</summary>
@@ -266,9 +241,9 @@ public static partial class WorkRules
     /// <summary>Whether the order is a stock target the rate model can size: the declarer named the product and the target is positive.</summary>
     public static bool Stocked(this OrderSpec s) => s.Product.Value.Length != 0 && WireClass(s.Mode) == BillMode.StockTarget && s.Target > 0;
 
-    /// <summary>The usable benches of the order's kind that offer its recipe, ordered by id.</summary>
+    /// <summary>The usable benches that take the order (<see cref="Takes"/>: of its kind, or sharing it) and offer its recipe, ordered by id.</summary>
     public static IReadOnlyList<GearBench> EligibleBenches(OrderSpec order, IReadOnlyList<GearBench> benches) =>
-        [.. benches.Where(b => b.Def == order.BenchKind && BenchOffers(b, order.Recipe)).OrderBy(b => b.Id, StringComparer.Ordinal)];
+        [.. benches.Where(b => b.Takes(order) && BenchOffers(b, order.Recipe)).OrderBy(b => b.Id, StringComparer.Ordinal)];
 
     /// <summary>
     /// Sizes one order. An order the model does not size (DispatchSizing.Unsized), and one no capacity meets
@@ -279,7 +254,7 @@ public static partial class WorkRules
         RimGovernor.Brain.GameFacts.Observations.NeedsForecastRead? needs, int widen)
     {
         var eligible = EligibleBenches(order, benches);
-        var d = new OrderDispatch { Copies = 1, Eligible = eligible.Count, Sizing = new DispatchSizing.Unsized(), NoBenchShort = 0 };
+        var d = new OrderDispatch { Copies = 1, Eligible = eligible.Count, Sizing = new DispatchSizing.Unsized() };
         if (!order.Stocked() || eligible.Count == 0)
         {
             return d;
@@ -291,14 +266,10 @@ public static partial class WorkRules
         }
         var held = have.GetValueOrDefault(order.Product);
         var demand = BenchRateRules.DemandRate((long)order.Target - held, order.Class);
-        d = d with { Sizing = new DispatchSizing.Sized(demand, capacity) };
+        d = d with { Sizing = new DispatchSizing.Sized(capacity) };
         if (BenchRateRules.Wanted(demand, capacity) is not BenchesWanted.Count { Benches: var n })
         {
             return d;
-        }
-        if (n > eligible.Count)
-        {
-            d = d with { NoBenchShort = demand - (eligible.Count * capacity) };
         }
         if (workers.Count > 0 && n > workers.Count)
         {
@@ -520,51 +491,5 @@ public static partial class WorkRules
             }
         }
         return (Fresh(), cal);
-    }
-
-    /// <summary>
-    /// The throughput lost to orders no bench could take: with a capable bench (all at the slot cap) the reason is
-    /// SlotsFull, otherwise NoBench. The shortfall is one bench's capacity, or the whole demand when no bench is
-    /// capable; zero when the model cannot size it.
-    /// </summary>
-    public static IReadOnlyList<UnmetThroughput> UnplacedUnmet(IReadOnlyList<OrderSpec> unplaced, IReadOnlyList<GearBench> benches, IReadOnlyDictionary<string, OrderDispatch> dispatch)
-    {
-        var output = new List<UnmetThroughput>();
-        foreach (var order in unplaced)
-        {
-            var sized = dispatch.TryGetValue(order.Key(), out var d) ? d.Sizing as DispatchSizing.Sized : null;
-            var u = new UnmetThroughput { BenchKind = order.BenchKind, Reason = UnmetReason.SlotsFull };
-            if (EligibleBenches(order, benches).Count == 0)
-            {
-                u = u with { Reason = UnmetReason.NoBench, ShortPerDay = sized?.Demand ?? 0 };
-            }
-            else
-            {
-                u = u with { ShortPerDay = sized?.Capacity ?? 0 };
-            }
-            output.Add(u);
-        }
-        return output;
-    }
-
-    /// <summary>
-    /// One row per bench kind, sorted by kind: the shortfalls summed and the reason of the largest contributor (ties
-    /// by reason name). A row short by zero (the model could not size it) still carries its reason.
-    /// </summary>
-    public static IReadOnlyList<UnmetThroughput> MergeUnmet(IReadOnlyList<UnmetThroughput> items)
-    {
-        var byKind = new Dictionary<string, (double Sum, double Top, UnmetReason Reason)>();
-        foreach (var u in items)
-        {
-            (double Sum, double Top, UnmetReason Reason) a = byKind.TryGetValue(u.BenchKind, out var held) ? held : (0.0, -1.0, UnmetReason.None);
-            a.Sum += u.ShortPerDay;
-            if (u.ShortPerDay > a.Top || (u.ShortPerDay == a.Top && string.CompareOrdinal(Wire.Name(u.Reason), Wire.Name(a.Reason)) < 0))
-            {
-                a.Top = u.ShortPerDay;
-                a.Reason = u.Reason;
-            }
-            byKind[u.BenchKind] = a;
-        }
-        return [.. byKind.Keys.Order(StringComparer.Ordinal).Select(k => new UnmetThroughput { BenchKind = k, ShortPerDay = byKind[k].Sum, Reason = byKind[k].Reason })];
     }
 }

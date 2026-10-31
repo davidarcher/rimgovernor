@@ -114,6 +114,7 @@ namespace RimGovernor.Native
                 Bench = Id(bench.GetUniqueLoadID()),
                 BenchDef = Id(bench.def.defName),
                 Usable = NativeProductionBills.Usable(bench),
+                Reachable = bench.Map.reachability.CanReachColony(bench.InteractionCell),
                 Bills = [.. bills],
                 WorkSpeed = workSpeed,
                 Room = bench.GetRoom() is Room room ? NativeRef.Room(room) : null,

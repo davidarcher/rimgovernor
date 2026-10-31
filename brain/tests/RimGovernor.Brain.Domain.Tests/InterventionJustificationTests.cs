@@ -320,9 +320,9 @@ public sealed class InterventionJustificationTests
             Assert.Equal(new InterventionPurpose(InterventionPurposeKind.ProductionStall, Component.Value, "", 90), assessed.Purpose);
             Assert.Contains("native_response_unassessed:stall_native_response_unprojected", justified.Uncertainty);
         }
-        // A stall whose cause orders cannot answer (no bench) is named, not justified.
-        var noBench = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.NoBench), (Pawn, Component.Value)));
-        Assert.Equal(InterventionJustification.StallNotAnsweredByOrders + ":ComponentIndustrial:no_bench:" + Pawn, noBench.Reason);
+        // A stall whose cause orders cannot answer (exhausted benches) is named, not justified.
+        var noBench = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.BenchesExhausted), (Pawn, Component.Value)));
+        Assert.Equal(InterventionJustification.StallNotAnsweredByOrders + ":ComponentIndustrial:benches_exhausted:" + Pawn, noBench.Reason);
         Assert.IsType<InterventionPremise.None>(noBench.Premise);
         // Unstarted bill work is answered by native bills and work settings (task 5.3), not by an exact order.
         var unstarted = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.WorkUnstarted), (Pawn, Component.Value)));
@@ -365,7 +365,7 @@ public sealed class InterventionJustificationTests
         Assert.Equal(PurposeCondition.Open, Review(Stalled(UnmetReason.IngredientsPending)));
         Assert.Equal(PurposeCondition.Cancelled, Review(Stalled(UnmetReason.WorkUnstarted)));
         Assert.Equal(PurposeCondition.Completed, Review(new ProductionCalibration.Observed([])));
-        Assert.Equal(PurposeCondition.Cancelled, Review(Stalled(UnmetReason.NoBench)));
+        Assert.Equal(PurposeCondition.Cancelled, Review(Stalled(UnmetReason.BenchesExhausted)));
         Assert.Equal(PurposeCondition.Open, Review(new ProductionCalibration.Unobserved(ProductionCalibration.UnobservedReason)));
         // A need shortfall completes once its pawn reads above threshold; elapsed ticks never end it.
         var hunger = new InterventionPurpose(InterventionPurposeKind.NeedShortfall, "food", Pawn, 100);

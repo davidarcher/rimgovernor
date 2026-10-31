@@ -363,6 +363,9 @@ public sealed record StagePawn
     /// <summary>HediffDefs added.</summary>
     public IReadOnlyList<string> Hediffs { get; init; } = [];
 
+    /// <summary>Killed once the staging is read back (Pawn.Kill), leaving its fresh corpse at its cell: a butchering load.</summary>
+    public bool Dead { get; init; }
+
     /// <summary>Bruised by one blunt blow, without bleeding.</summary>
     public bool Injured { get; init; }
 

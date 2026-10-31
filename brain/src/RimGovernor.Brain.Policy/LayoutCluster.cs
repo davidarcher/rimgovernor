@@ -151,6 +151,9 @@ public sealed record RoomGroup
     /// <summary>The race of the herd whose pen the group is (RoomNode.Herd).</summary>
     public string Herd { get; set; } = string.Empty;
 
+    /// <summary>The activity a site room's group holds the spot of (RoomNode.Activity).</summary>
+    public string Activity { get; set; } = string.Empty;
+
     public List<EnvRequirement> Requires { get; set; } = [];
 
     public List<GroupLink> Links { get; set; } = [];
@@ -1239,7 +1242,7 @@ internal sealed partial class Clusterer
     /// <summary>Appends the group of a station-less room node: its asked floor, plus the cooling station a cold group carries.</summary>
     public void AddRoom(List<RoomGroup> groups, List<ClusterDecision> decisions, RoomNode node)
     {
-        var g = new RoomGroup { Id = groups.Count, Clearance = node.Area, Planned = node.Role, Width = node.Width, Markers = node.Markers, Herd = node.Herd };
+        var g = new RoomGroup { Id = groups.Count, Clearance = node.Area, Planned = node.Role, Width = node.Width, Markers = node.Markers, Herd = node.Herd, Activity = node.Activity };
         var d = new ClusterDecision { A = node.Id, Verdict = LayoutClusterRules.ClusterRoom, Reason = node.Reason };
         if (node.Cold)
         {

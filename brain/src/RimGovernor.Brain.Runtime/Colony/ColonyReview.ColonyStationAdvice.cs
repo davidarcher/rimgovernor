@@ -23,6 +23,7 @@ public sealed partial class ColonyReview
             Crops = FieldCrops.Of(projection),
             FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays,
             Suites = SleepingUpkeepPlanner.SuiteWishesOf(projection, plan) is { } wishes ? [.. wishes] : [],
+            ActivitySites = ActivitySiteAsk(snapshot, projection, plan),
         };
         var parts = new Dictionary<string, string>(StringComparer.Ordinal) { ["load"] = string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}") };
         foreach (var (name, value) in f.InputsKeyParts())
@@ -30,6 +31,20 @@ public sealed partial class ColonyReview
             parts[name] = value;
         }
         return (f, new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, [.. survey.Cells]) { Parts = parts });
+    }
+
+    /// <summary>
+    /// The activity sites the layout comparator weighs (habitat 3.3, BuildingPlanner.SiteAsk) while the site Needs are
+    /// composed: each kind's Need's unretired Methods spend their rooms. None otherwise.
+    /// </summary>
+    internal ActivitySiteAsk ActivitySiteAsk(GenerationSnapshot snapshot, ColonyReading projection, LayoutPlan? plan)
+    {
+        if (!Enum.GetValues<ActivityKind>().All(k => Needs.Contains(RoomsFamily.SiteNeed(k))))
+        {
+            return new();
+        }
+        var methods = Enum.GetValues<ActivityKind>().ToDictionary(k => k, k => Player.Journal.LoadNeed(RoomsFamily.SiteNeed(k), snapshot, CancellationToken.None).Methods.Select(m => m.Method).ToList());
+        return BuildingPlanner.SiteAsk(projection, plan, k => methods[k]);
     }
 
     /// <summary>
@@ -403,6 +418,8 @@ internal static class StationFactsBuilder
         {
             FinishedResearch = projection.Tables.FinishedResearch.ToHashSet(StringComparer.Ordinal),
             Catalog = projection.Facts.Stations,
+            BenchDefinitions = projection.Facts.Definitions.Where(d => projection.Facts.Stations.Stations.ContainsKey(d.Name)).DistinctBy(d => d.Name)
+                .ToDictionary(d => d.Name, d => new BenchDefinition { Name = d.Name, Available = d.Available, Research = d.Research }, StringComparer.Ordinal),
             Recipes = projection.Facts.ProductionRecipes,
             Furniture = projection.Facts.Shapes.Furniture,
             Items = projection.Facts.Items,

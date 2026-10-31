@@ -22,7 +22,7 @@ public sealed class WorkshopCreditTests
         LayoutRooms = new Dictionary<int, PlannedRoom> { [1] = new() { Id = 1, Role = PlannedRole.Workshop,
             Production = bills ? [new(Bench, Recipe, 1)] : [] } },
         Closures = [new(1, "", [Position], [], [], PlannedRoomPredictionTests.Closed("1", "", "Workshop", 10, 1, 1, 0, false) with
-            { WorkBenches = [new(Bench, Position, 0, 0, new BenchPower.Unneeded(), standing ? new BenchPlacement.Standing(.56) : new BenchPlacement.Planned())] })],
+            { WorkBenches = [new(Bench, Position, 0, 0, new BenchPower.Unneeded(), standing ? new BenchPlacement.Standing(.56) : new BenchPlacement.Planned(), null)] })],
         WorkBenchSpeeds = new Dictionary<string, BenchSpeedModel> { [Bench] = Speed },
         ProductionOrders = new() { Status = WorkRules.LedgerViewReconciled, Orders = bills ? [Order] : [] },
         ProductionRecipes = new Dictionary<string, RecipeFlow> { [Recipe] = new() { Products = [new(Parka, 1)] } },
@@ -172,7 +172,7 @@ public sealed class WorkshopCreditTests
             MaterialValues = facts.Recipes[chosen.Recipe].Products.ToDictionary(p => p.Resource, _ => new ConstructionMaterialValue(MaterialValueBasis.Market, ParkaValue)),
         };
         priced = priced with { Closures = [priced.Closures[0] with { Prediction = priced.Closures[0].Prediction with
-            { WorkBenches = [new(chosen.Bench, Position, 0, 0, new BenchPower.Unneeded(), new BenchPlacement.Planned())] } }] };
+            { WorkBenches = [new(chosen.Bench, Position, 0, 0, new BenchPower.Unneeded(), new BenchPlacement.Planned(), null)] } }] };
         Assert.True(Assert.Single(Credits(priced)).Value < 0);
     }
 

@@ -19,7 +19,6 @@ public sealed partial class ColonyReview
             Pawns = facts.MoodPawns,
             Benefit = thought.WorstOffset,
             Calm = Calm(reading, snapshot),
-            Census = facts.CurrentConstruction,
         });
     }
 }

@@ -403,7 +403,7 @@ and the game chooses it. Game code read with ilspycmd:
   reachable guests). Only when none validates does it fall back to cells within 4 of
   an active `CompGatherSpot` and then within 25 of the organizer, rejecting rooms
   with under 10 cells that are not huge or outdoors. So a PartySpot controls the
-  spot; policy keeps one placed (below).
+  spot; where one stands is the layout comparator's choice (below).
 - The party area is the whole room when the spot's room is at most 100 cells, not
   huge and not outdoors, otherwise cells within 18.
 
@@ -413,36 +413,55 @@ and the game chooses it. Game code read with ilspycmd:
 room (no beds) to the tech-tier baseline (`ImpressivenessLevels.Baseline`), the same
 for any colonist count.
 
-### The PartySpot
+### Activity sites
 
-`rooms/party-spot` keeps exactly one free, instant-build `PartySpot` placed, independent
-of any gathering. `policy.ReviewPartySpot` scores the dining and rec rooms
-lexicographically: the highest observed impressiveness stage (the Impressiveness
-`RoomStatDef` score stages, `ImpressivenessLevels.Stage`), ties broken by cell count.
-It owes one step, each resolved by a single action through the existing paths:
+A party, marriage or ritual site is a layout alternative of the shared comparator,
+not a rule of its own (habitat 3.3, see
+[spatial contracts](spatial-contracts.md#activity-sites)). `ActivitySiteRules.Demands`
+derives each kind's demand from facts:
 
-- no spot stands: a `building` action places `PartySpot` on a free, roofed, indoor cell
-  of the winning room (the game's `ValidateGatheringSpot` filter), or on any such cell
-  while no shared room qualifies;
-- a room of a strictly higher stage than the incumbent's room exists (the incumbent's
-  room is read from the observed spot, never stored): the old spot is deconstructed
-  with the `deconstruction` action and the new one is placed on a later pass; rooms of
-  the same stage never move it;
-- duplicates: each extra spot is deconstructed.
+- a party from native's four free colonists (`GatheringRules.GatheringMinColonists`),
+  with a guest minimum of clamp(round(0.65 n), 2, 10);
+- a marriage from an engaged couple;
+- a ritual from a held ritual the colony can start on its own, never without Ideology.
 
-The Need is `rooms/party-spot`, Unmet while `RoomsFacts.PartySpotOwed` holds; it waits on
-`rooms/hosting`, which waits on `rooms/comfort`, so the step runs only once both facility
-Needs are met, and its own building planner places or retires the spot. Guards keep it
-from staying Unmet: a blueprint or frame already
-standing, an unbuildable `PartySpot` (definition unavailable or no builder), no free
-cell, or an already spent per-Episode one-shot (`retireBuilding` once per building, one
-placement per room, read from the Need's own Methods) all drop the deficit. Mood relief
-for `AteWithoutTable` and `NeedJoy` defers to `rooms/comfort` while it is active.
+The bridge reads `ActivityAccess`: the colonists, each room's standable cells and
+reachers, and the engaged couples. It also reads `GatheringDefOf.Party.gatherSpotDefs`.
+
+Each demanded kind's alternatives are:
+
+- a spot in each eligible existing room (bounded at `ActivitySiteRules.MaxRoomTrials`);
+- a new site room (a planned `Rec` room keyed by `PlannedRoom.Activity`);
+- no site.
+
+`ForecastActivitySites` prices the plan's sites in the canonical ledger. It credits:
+
+- attendance, from reach and standable cells;
+- the `AttendedParty` and `AttendedWedding` memories;
+- the ritual's surroundings, through `ForecastWorship`'s impressiveness and cleanliness.
+  It credits nothing while a planned worship room's credit already prices the rituals there.
+
+It charges each existing room's competing users the gathering's hours, as an upper bound,
+and names any fact it could not read.
+
+No site is the reference zero: native then falls back to a gathering cell, which the term
+does not price. A party or marriage spreads over its sites, because native picks among
+valid spots at random.
+
+The `rooms/party-site`, `rooms/marriage-site` and `rooms/ritual-site` Needs are derived
+only while their activity has a demand; the party and marriage sites follow `rooms/hosting`. Each is met while its standing sites host the
+activity and the adopted plan holds no further site. Binding is one `{kind}-site-place-*`
+building Method per kind and room. Once a room's Method is admitted, the room is read as
+spent whatever the receipt, so a refusal is a fact, never a retry. A site is provision
+only: it never retires, moves or upgrades, and the room reconcile carries every site
+definition over.
+
+Mood relief for `AteWithoutTable` and `NeedJoy` defers to `rooms/comfort` while it is active.
 
 ### Gathering ownership
 
 `rooms/gatherings` is Unmet while observed mood demand owes a party (`policy.PlanGathering`,
-whose cooldown is the AttendedParty memory, with no stored history), after `rooms/party-spot`.
+whose cooldown is the AttendedParty memory, with no stored history), whatever site stands.
 The review reads the mood ledger, pawn census, calm state, construction census and
 the catalog's party benefit before deciding. Missing required reads raise
 `RequiredFactException`. Its result is `GatheringPlan.NoParty` when a party gate

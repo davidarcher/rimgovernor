@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 /// The step a building planner serves. The two housing values name the shelter family's housing steps (#3257,
 /// #3659): the day-one stand-in spots, and bed ownership and bedrooms; their order is the sleeping planner's own
 /// order, not a latch. The comfort phases name which rooms Need a building planner serves
-/// (rooms/comfort, rooms/hosting, rooms/party-spot, rooms/work-chairs), also ordered by Need preconditions. The empty phase is the
+/// (rooms/comfort, rooms/hosting, the activity sites, rooms/work-chairs), also ordered by Need preconditions. The empty phase is the
 /// default.
 /// </summary>
 public readonly record struct Phase(string Value)
@@ -34,8 +34,8 @@ public readonly record struct Phase(string Value)
     /// <summary>The rooms/hosting Need's planner: hosting rooms and proof of use.</summary>
     public static Phase ComfortRanked => new("ranked");
 
-    /// <summary>The rooms/party-spot Need's planner: one PartySpot in the best shared room.</summary>
-    public static Phase ComfortSpot => new("spot");
+    /// <summary>An activity site Need's planner (rooms/party-site, rooms/marriage-site, rooms/ritual-site): one spot in the decided room.</summary>
+    public static Phase ActivitySite => new("activity_site");
 
     /// <summary>The rooms/work-chairs Need's planner: the chosen work chair on a standing bench's interaction cell.</summary>
     public static Phase ComfortWorkChair => new("work_chair");

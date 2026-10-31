@@ -332,6 +332,9 @@ public sealed record GearBench
     public double WorkSpeed => Observed.WorkSpeed;
     public required EquatableArray<GearBill> Bills { get; init; }
     public required EquatableArray<GearRecipe> Recipes { get; init; }
+
+    /// <summary>The kinds whose dispatcher-sized orders of a recipe it also takes (WorkRules.ShareBenches); none unless the plan shares the recipe's host.</summary>
+    public EquatableArray<BenchShare> Shares { get; init; }
 }
 
 /// <summary>

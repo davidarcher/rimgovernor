@@ -1,35 +1,21 @@
 using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Runtime;
 
-/// <summary>One product the workshop ladder considers, with the bench kinds that host a recipe for it.</summary>
+/// <summary>One product the workshop considers, with the recipe hosts that make it.</summary>
 internal sealed record WorkshopProduct(Pol.Resource Resource, IReadOnlyList<Pol.RecipeHost> Hosts);
 
-/// <summary>What the pre-observation reads settled for one step: the deficit resource and the bench definitions the census must describe.</summary>
+/// <summary>What the pre-observation reads settled for one step: the deficit products and the bench definitions the census must describe.</summary>
 internal sealed class WorkshopSelection
 {
     public bool Barrel { get; init; }
-    public List<WorkshopProduct> Alternatives { get; } = [];
-    public Pol.Resource Resource { get; set; }
-    public IReadOnlyList<Pol.GearBench> Benches { get; init; } = [];
-    public IReadOnlyList<Pol.RecipeHost> Hosts { get; set; } = [];
-    public List<string> Candidates { get; set; } = [];
-
-    /// <summary>The bench kinds whose standing benches no longer suffice (FurtherBenchKinds).</summary>
-    public IReadOnlyList<string> Further { get; init; } = [];
-
-    /// <summary>How many benches of the chosen definition already stand, which names a further bench's method.</summary>
-    public int Ordinal { get; set; }
-
-    public WorkshopSelection Copy()
-    {
-        var copy = (WorkshopSelection)MemberwiseClone();
-        return copy;
-    }
+    public List<WorkshopProduct> Products { get; } = [];
+    public Pol.Resource Resource { get; init; }
+    public List<string> Candidates { get; init; } = [];
 }
 
 public sealed partial class BuildingPlanner
 {
-    /// <summary>The workshop ladder for replacement gear, owned by the military/equipment Need (#3259).</summary>
+    /// <summary>The workshop for replacement gear, owned by the military/equipment Need (#3259).</summary>
     public static BuildingPlanner NewReviewGearWorkshopPlanner(ColonyReview? reviewer, IReviewBuildingSource? native)
     {
         var planner = NewReviewWorkshopPlanner(reviewer, native);
@@ -38,17 +24,17 @@ public sealed partial class BuildingPlanner
         return planner;
     }
 
-    /// <summary>Whether this ladder is the equipment Need's, for replacement gear, rather than a resource target's.</summary>
+    /// <summary>Whether this workshop is the equipment Need's, for replacement gear, rather than a resource target's.</summary>
     internal bool GearLadder() => Concern == MilitaryFamily.Equipment.FilingKey;
 
     /// <summary>
-    /// Stages a production bench for a resource deficit, a Method of the economy/resource Need admitted by its
-    /// claims (#3303); replacement gear walks the same ladder under the military/equipment Need. For a product no existing bench can produce: it discovers which player-buildable benches host a
-    /// recipe for the resource, records the research still gating the first of them (the review turns that into
-    /// the economy/research Need's target), furnishes a room whose native role can host a Workshop, and when no such room
-    /// exists stages a starter shell first, the same ladder the rooms/comfort Need walks. A powered bench is staged when
-    /// a generator definition is available; the power family (power/basic) then connects it as an unpowered consumer. Bills on
-    /// the staged bench belong to the resource or gear planner.
+    /// Hosts a production load for a resource deficit, a Method of the economy/resource Need admitted by its claims (#3303);
+    /// replacement gear takes the same path under the military/equipment Need. A product a usable standing bench offers is
+    /// that bench's (its bills run there). Otherwise the deficit is an unhosted ledger order whose host the shared layout
+    /// comparison chooses among reuse, each catalog bench and deferral, priced by the canonical ledger (RG-HABITAT-005):
+    /// this planner binds the held plan's host (<see cref="PlannedHostStepAsync"/>) and never selects a bench itself. It
+    /// records the research still gating a product no definition can host yet (the review turns that into the
+    /// economy/research Need's target). Bills on the bench belong to the resource or gear planner.
     /// </summary>
     public static BuildingPlanner NewReviewWorkshopPlanner(ColonyReview? reviewer, IReviewBuildingSource? native)
     {
@@ -68,8 +54,9 @@ public sealed partial class BuildingPlanner
     }
 
     /// <summary>
-    /// Reads the deficit resource, the current bench census and the recipe catalog before the planning census
-    /// is requested, so the census can describe exactly the candidate bench definitions. A non-zero verdict ends
+    /// Reads the deficit resource, the current bench census and the recipe catalog before the planning census is requested,
+    /// so the census can describe the definitions that host a recipe for it. A usable standing bench offering an available
+    /// recipe ends the step (ExistingFacility): the declarer names its kind and its bills run there. A non-zero verdict ends
     /// the step.
     /// </summary>
     internal async Task<(WorkshopSelection? Selection, Verdict Verdict)> PrepareWorkshopAsync(ControlState state, Sto.ReviewState review, CancellationToken call)
@@ -160,72 +147,66 @@ public sealed partial class BuildingPlanner
         {
             products = [resource];
         }
-        var selection = new WorkshopSelection { Benches = benches, Further = Reviewer.LedgerFurtherBenches(benches) };
+        var selection = new WorkshopSelection { Resource = resource };
         var gated = new HashSet<string>(StringComparer.Ordinal);
         foreach (var product in products)
         {
-            var hosts = defs.Catalog.RecipeHosts(product.ToString(), finished);
-            var request = new Pol.WorkshopRequest { Resource = product, Benches = [.. benches], Hosts = hosts, Further = selection.Further };
-            var (existing, _) = WorkRules.ExistingWorkshopBench(request);
-            if (existing is not null)
+            if (WorkRules.StandingWorkshopRecipe(product, benches) is { } recipe)
             {
-                SnapshotPlannerReplay.NoteWorkshop(request);
-                RecordWorkshopLadder(state, review, product, existing, call);
+                RecordWorkshopLadder(state, review, product, null, recipe, call);
                 return (null, BuildingReasonExistingFacility);
             }
+            var hosts = defs.Catalog.RecipeHosts(product.ToString(), finished);
             var candidatesFor = WorkRules.WorkshopResearchCandidates(product, hosts);
             if (candidatesFor.Count == 0)
             {
                 continue;
             }
-            if (selection.Resource.ToString() == "")
-            {
-                selection.Resource = product;
-                selection.Hosts = hosts;
-            }
-            else
-            {
-                selection.Alternatives.Add(new WorkshopProduct(product, hosts));
-            }
-            foreach (var name in candidatesFor)
-            {
-                gated.Add(name);
-            }
+            selection.Products.Add(new WorkshopProduct(product, hosts));
+            gated.UnionWith(candidatesFor);
         }
-        if (selection.Resource.ToString() == "")
+        if (selection.Products.Count == 0)
         {
             return (null, BuildingReasonWorkshopUnavailable);
         }
-        selection.Candidates = [.. gated.OrderBy(n => n, StringComparer.Ordinal)];
-        selection.Candidates.AddRange(defs.Catalog.GeneratorDefinitions());
+        selection.Candidates.AddRange(gated.Order(StringComparer.Ordinal));
         return (selection, new Verdict());
     }
 
     /// <summary>
-    /// Persists the rung the workshop settled on so the next rounds can raise the economy/research Need for a
-    /// research-gated bench, or clear that need once the bench is buildable or standing.
+    /// Persists the rung the workshop settled on so the next rounds can raise the economy/research Need for a research-gated
+    /// host (<paramref name="rung"/>), or clear that need once a host is buildable or a standing bench offers
+    /// <paramref name="recipe"/>.
     /// </summary>
-    internal void RecordWorkshopLadder(ControlState state, Sto.ReviewState review, Pol.Resource resource, Pol.WorkshopChoice choice, CancellationToken call)
+    internal void RecordWorkshopLadder(ControlState state, Sto.ReviewState review, Pol.Resource resource, Pol.WorkshopRung? rung, string recipe, CancellationToken call)
     {
         var record = new Sto.ProductionLadderRecord
         {
             World = new Sto.World(state.Snapshot.Colony, state.Snapshot.Load, state.Snapshot.Map),
             Tick = review.Tick,
             Resource = resource,
-            Bench = choice.Definition,
-            Recipe = choice.Recipe,
+            Bench = rung?.Bench ?? "",
+            Recipe = rung?.Recipe ?? recipe,
             Concern = Concern,
         };
-        if (choice.Method == Pol.WorkshopMethod.Research)
+        if (rung is not null)
         {
-            record = record with { Research = choice.Research };
+            record = record with { Research = rung.Research };
         }
         Reviewer.Player.Journal.SaveProductionLadder(record, call);
     }
 
     /// <summary>
-    /// Resolves the prepared candidates against the planning census the same way SelectComfort resolves a
-    /// comfort method: the chosen bench becomes the definition, placed indoors in a Workshop-hosting room.
+    /// The AwaitingPlan subject of an owner's load the comparison can host while the held plan binds none of it: no layout
+    /// plan is held yet, or the ledger holds no unhosted order of it yet. No bench is chosen in its place.
+    /// </summary>
+    internal const string HostUnplanned = "host_unplanned";
+
+    /// <summary>
+    /// The workshop's step once the held plan binds none of its loads (<see cref="PlannedHostStepAsync"/>): a fermenting barrel
+    /// prerequisite is placed as before; otherwise no bench is selected here. A product a buildable definition can host
+    /// waits on the shared layout comparison (<see cref="HostUnplanned"/>), which compares reuse, each catalog host and
+    /// deferral; a product only research stands between records that rung (WorkshopResearch); else no host exists.
     /// </summary>
     internal (BuildingPlanner? Planner, Verdict Verdict) SelectWorkshop(ControlState state, Sto.ReviewState review, RimGovernor.Brain.GameAccess.ColonyReading facts, CancellationToken call)
     {
@@ -245,54 +226,23 @@ public sealed partial class BuildingPlanner
             barrel.Environment = Pol.PlacementEnvironment.Indoors;
             return (barrel, new Verdict());
         }
-        var definitions = new List<Pol.BenchDefinition>(facts.Facts.Definitions.Count);
-        var available = new Dictionary<string, bool>(StringComparer.Ordinal);
-        foreach (var d in facts.Facts.Definitions)
+        var definitions = facts.Facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available, Research = d.Research }).ToArray();
+        // A hostable product precedes a research-gated alternative: a missing layer's armor suggestion cannot hide a buildable shirt.
+        if (Workshop.Products.FirstOrDefault(p => WorkRules.WorkshopHostable(p.Resource, p.Hosts, definitions)) is { } hostable)
         {
-            definitions.Add(new Pol.BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill, Research = d.Research });
-            available[d.Name] = d.Available;
+            RecordWorkshopLadder(state, review, hostable.Resource, null, "", call);
+            return (null, AwaitingPlan(HostUnplanned, hostable.Resource.ToString()));
         }
-        // A viable replacement precedes an unavailable or research-gated alternative.
-        // Otherwise a missing layer's armor suggestion can hide a buildable shirt.
-        List<WorkshopProduct> products = [new WorkshopProduct(Workshop.Resource, Workshop.Hosts), .. Workshop.Alternatives];
-        IEnumerable<WorkshopRequest> Requests()
+        foreach (var product in Workshop.Products)
         {
-            foreach (var product in products)
+            if (WorkRules.WorkshopResearchRung(product.Resource, product.Hosts, definitions) is { } rung)
             {
-                var request = new WorkshopRequest
-                {
-                    Resource = product.Resource,
-                    Benches = [.. Workshop.Benches],
-                    Hosts = product.Hosts,
-                    Definitions = definitions,
-                    Power = FacilityPlanningRules.GeneratorAvailable(available, facts.Facts.GeneratorRows.Keys),
-                    BuilderSkill = WorkRules.BuilderSkill(facts.Facts.ForecastObserved.WorkPawns),
-                    Further = Workshop.Further,
-                };
-                SnapshotPlannerReplay.NoteWorkshop(request);
-                yield return request;
+                RecordWorkshopLadder(state, review, product.Resource, rung, "", call);
+                return (null, BuildingReasonWorkshopResearch);
             }
         }
-        var (resource, choice) = WorkRules.SelectWorkshopProduct(Requests());
-        RecordWorkshopLadder(state, review, resource, choice, call);
-        switch (choice.Method)
-        {
-case Pol.WorkshopMethod.Existing:
-                return (null, BuildingReasonExistingFacility);
-            case Pol.WorkshopMethod.Research:
-                return (null, BuildingReasonWorkshopResearch);
-            case Pol.WorkshopMethod.Unavailable:
-                return (null, BuildingReasonWorkshopUnavailable);
-        }
-        var resolved = Copy();
-        var selected = Workshop.Copy();
-        selected.Resource = resource;
-        selected.Ordinal += WorkRules.WorkshopOrdinal(Workshop.Benches, choice.Definition);
-        resolved.Workshop = selected;
-        resolved.Definition = choice.Definition;
-        resolved.Environment = Pol.PlacementEnvironment.Indoors;
-        resolved.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), resolved.Definition);
-        return (resolved, new Verdict());
+        RecordWorkshopLadder(state, review, Workshop.Resource, null, "", call);
+        return (null, BuildingReasonWorkshopUnavailable);
     }
 }
 
@@ -301,27 +251,54 @@ public sealed partial class BuildingPlanner
     /// <summary>The AwaitingPlan subject of an owner's unhosted load the held plan hosts nowhere (HostBinding.Deferred).</summary>
     internal const string HostDeferred = "host_deferred";
 
+    /// <summary>The AwaitingPlan subject of a spare's removal waiting on a bill a pawn is working (HostRetirement.Held).</summary>
+    internal const string HostRetireHeld = "host_retire_held";
+
+    /// <summary>The retire Method prefix of a spare host its serving replacement retires.</summary>
+    internal const string HostRetirePrefix = "host-retire";
+
     /// <summary>
-    /// The workshop ladder's step for the loads the held plan hosts (RG-HABITAT-005, RG-HABITAT-011): the recipes of the
-    /// prepared products (the replacement and its alternatives) this Need declared as unhosted ledger orders
-    /// (<see cref="PlannedRules.OwnedUnhostedRecipes"/>) are bound to the plan's host (<see cref="PlannedHostBindings"/>,
-    /// <see cref="BindPlannedHostAsync"/>), never re-selected. Null when there is no layout plan or this Need owns none of
-    /// them: the ladder selects its bench as before.
+    /// The step for the loads the held plan hosts (RG-HABITAT-005, RG-HABITAT-011): the recipes this Need declared as
+    /// ledger orders the plan hosts (<see cref="PlannedRules.OwnedHostedRecipes"/>: unhosted, or at a kind the plan hosts
+    /// them away from) are bound to the plan's host (<see cref="PlannedHostBindings"/>, <see cref="BindPlannedHostAsync"/>),
+    /// never re-selected. A spare the plan's serving replacement retires is removed first, and a removal a pawn's work in
+    /// progress holds waits naming the bills (<see cref="PlannedRules.HostRetirementsOf"/>). A workshop binds the recipes of
+    /// its prepared products (the replacement and its alternatives); the cooking and butcher Needs bind every load they own
+    /// (a meal, a butchering). Null when there is no layout plan, the workshop places a barrel, or this Need owns none of
+    /// them: the caller's selection waits on the comparison (<see cref="HostUnplanned"/>).
     /// </summary>
     internal async Task<BuildingResult?> PlannedHostStepAsync(ControlState state, Sto.ReviewState review, Sto.NeedOwner goal, RimGovernor.Brain.GameAccess.ColonyReading reading, CancellationToken call, CancellationToken epoch)
     {
-        if (Workshop is not { Barrel: false } workshop || reading.Facts.LayoutPlan is null)
+        if (Workshop is { Barrel: true } || reading.Facts.LayoutPlan is not { } plan)
         {
             return null;
         }
-        var owned = PlannedRules.OwnedUnhostedRecipes(Reviewer.WorkLedgerView(), Concern);
-        var recipes = workshop.Hosts.Concat(workshop.Alternatives.SelectMany(a => a.Hosts)).Select(h => h.Definition)
-            .Where(owned.Contains).Distinct().ToArray();
-        if (recipes.Length == 0)
+        var view = Reviewer.WorkLedgerView();
+        IReadOnlyList<string> owned = PlannedRules.OwnedHostedRecipes(view, Concern, plan);
+        if (Workshop is { } workshop)
+        {
+            owned = workshop.Products.SelectMany(p => p.Hosts).Select(h => h.Definition).Where(owned.Contains).Distinct().ToArray();
+        }
+        if (owned.Count == 0)
         {
             return null;
         }
-        return await BindPlannedHostAsync(state, review, goal, reading, PlannedHostBindings(review, reading, recipes), call, epoch).ConfigureAwait(false);
+        foreach (var retirement in PlannedRules.HostRetirementsOf(plan, view, owned, PlannedRules.ClaimedBy(reading.Facts, Concern)))
+        {
+            if (retirement is HostRetirement.Held held)
+            {
+                return new BuildingResult { Verdict = AwaitingPlan(HostRetireHeld, held.Fact) };
+            }
+            var retire = (HostRetirement.Retire)retirement;
+            var building = reading.Facts.CurrentConstruction.Buildings.FirstOrDefault(b => b.Id == retire.Bench && b.Cells.Count > 0)
+                ?? throw new RequiredFactException("host retire building:" + retire.Bench);
+            var retired = await RetireBuildingAsync(state, review, goal, reading, retire.Bench, retire.Def, building.Cells[0], HostRetirePrefix, "host_retire_method", call, epoch).ConfigureAwait(false);
+            if (!retired.Verdict.Is(Pol.Cause.MethodUsed))
+            {
+                return retired;
+            }
+        }
+        return await BindPlannedHostAsync(state, review, goal, reading, PlannedHostBindings(review, reading, owned), call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -352,7 +329,7 @@ public sealed partial class BuildingPlanner
         if (bindings.OfType<HostBinding.Build>().FirstOrDefault() is { } build)
         {
             var plan = reading.Facts.LayoutPlan ?? throw new ControlException("BindPlannedHostAsync: no layout plan");
-            var rr = new RoomReconcile { RingOnly = true, Room = build.Room, Name = PlannedRoomMethod(build.Room).Value, Reason = "workshop host " + build.Recipe };
+            var rr = new RoomReconcile { RingOnly = true, Room = build.Room, Name = PlannedRoomMethod(build.Room).Value, Reason = "planned host " + build.Recipe };
             var ring = await ReconcileRoomAsync(state, review, goal, read, null, rr, call, epoch).ConfigureAwait(false);
             if (!ring.Verdict.SkipsToPlacement)
             {

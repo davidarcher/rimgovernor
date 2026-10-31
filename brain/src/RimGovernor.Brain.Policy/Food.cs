@@ -21,8 +21,8 @@ public sealed record FoodFacts
     /// <summary>A meal of the picked tier can be made now: an active bill of the tier's recipe, or a stocked, powered paste dispenser.</summary>
     public bool Cooking { get; init; }
 
-    /// <summary>A stove kitchen supersedes a cooking campfire that is not yet deconstructed; from the observed benches, rooms and construction.</summary>
-    public bool CampfireRetireOwed { get; init; }
+    /// <summary>A spare cooking host the plan's serving replacement retires is owed its removal or awaits it (PlannedRules.HostRetireOwed).</summary>
+    public bool HostRetireOwed { get; init; }
 
     /// <summary>No human-meat route of the food plan holds nutrition to place (feed, survival trade, raw trade, meals).</summary>
     public bool HumanFoodSettled { get; init; }
@@ -49,7 +49,7 @@ public sealed record FoodFacts
         return new()
         {
             Cooking = f.Cooking,
-            CampfireRetireOwed = f.CampfireRetireOwed,
+            HostRetireOwed = f.HostRetireOwed,
             HumanFoodSettled = f.FoodPlan is not { } held || !HumanFoodPlanRules.HumanFoodPending(held),
             FootholdFood = Rules.FootholdFood(f, p),
             FootholdProduction = Rules.FootholdProduction(f),
@@ -149,14 +149,11 @@ public static class FoodRules
     }
 
     /// <summary>
-    /// The cooking Need, a plain threshold: unmet while a superseded cooking campfire is owed its deconstruction or
-    /// no meal of the picked tier can be made, and met otherwise. Its deficit is whole while unmet.
+    /// The cooking Need, a plain threshold: unmet while a spare cooking host the plan's serving replacement retires is owed
+    /// its removal (or awaits a bill in progress) or no meal of the picked tier can be made, and met otherwise. Its deficit
+    /// is whole while unmet.
     /// </summary>
-    public static Need CookingNeedOf(FoodFacts f)
-    {
-        var retire = f.CampfireRetireOwed;
-        return WholeNeed(CookingNeed, NeedTier.Wellbeing, !retire && f.Cooking);
-    }
+    public static Need CookingNeedOf(FoodFacts f) => WholeNeed(CookingNeed, NeedTier.Wellbeing, !f.HostRetireOwed && f.Cooking);
 
     /// <summary>The food family's baby feeding Need (#3254).</summary>
     public static readonly NeedId BabyFeedingNeed = NeedId.Of(FoodFamilyId, "baby-feeding");

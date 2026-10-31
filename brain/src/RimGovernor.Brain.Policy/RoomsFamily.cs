@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What the rooms family reads (#3255), each measured fresh with no latch: the lighting and flooring reviews of the
 /// room census, the artists and the bedrooms owed a sculpture, the basic and hosted comfort of the shared rooms, the
-/// PartySpot step and the party the mood census owes.
+/// activity site states and the party the mood census owes.
 /// </summary>
 public sealed record RoomsFacts
 {
@@ -29,8 +29,8 @@ public sealed record RoomsFacts
     /// <summary>The hosted comfort review: hosting rooms and proof of use, against the review's comfort history.</summary>
     public ComfortReview? Hosting { get; init; }
 
-    /// <summary>The PartySpot is missing, duplicated or outranked by a better shared room, and the one-shot is not spent.</summary>
-    public bool PartySpotOwed { get; init; }
+    /// <summary>The site state of each activity with a demand (ActivitySiteRules.States); a kind without one is absent.</summary>
+    public EquatableArray<ActivitySiteState> Sites { get; init; }
 
     /// <summary>A standing bench of a planned room has the work chair the plan chose for it missing from its interaction cell (WorkChairRules.OwedSeats).</summary>
     public bool WorkChairsOwed { get; init; }
@@ -52,11 +52,15 @@ public sealed record RoomsFacts
 /// recreation variety. Its furniture is building work.</item>
 /// <item><c>rooms/hosting</c>, after comfort, is met while the shared rooms host dining and recreation with proof of
 /// use. Its furniture is building work.</item>
-/// <item><c>rooms/party-spot</c>, after hosting, is met while one PartySpot stands in the best shared room. Its
-/// placement or retirement is one building Method.</item>
+/// <item><c>rooms/party-site</c>, <c>rooms/marriage-site</c> and <c>rooms/ritual-site</c>, each derived only while
+/// its activity has a demand (the ritual site never without Ideology), are met while the standing sites host the
+/// activity and the adopted layout plan holds no further site: where a site stands is the shared layout comparator's
+/// choice (ActivitySiteRules.Deviations, ForecastActivitySites). Binding the plan's site is one building Method; a
+/// site in flight waits; a kind the plan holds no site for is held naming its fact or state. A site is provision only: it never retires, moves or
+/// upgrades, and the activity's completion is rooms/gatherings' and ideology/rituals', not this Need's.</item>
 /// <item><c>rooms/work-chairs</c>, after comfort, is met while every standing bench whose planned room chose a work chair
 /// has it on its interaction cell. Each chair is one building Method.</item>
-/// <item><c>rooms/gatherings</c>, after the party spot, is met while no party is owed. A party is held: gathering
+/// <item><c>rooms/gatherings</c> is met while no party is owed, whatever site stands. A party is held: gathering
 /// participation needs shared forecast occupancy and need effects.</item>
 /// </list>
 /// </summary>
@@ -74,7 +78,11 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
 
     public static readonly NeedId Hosting = NeedId.Of(FamilyId, "hosting");
 
-    public static readonly NeedId PartySpot = NeedId.Of(FamilyId, "party-spot");
+    public static readonly NeedId PartySite = NeedId.Of(FamilyId, "party-site");
+
+    public static readonly NeedId MarriageSite = NeedId.Of(FamilyId, "marriage-site");
+
+    public static readonly NeedId RitualSite = NeedId.Of(FamilyId, "ritual-site");
 
     public static readonly NeedId WorkChairs = NeedId.Of(FamilyId, "work-chairs");
 
@@ -90,9 +98,17 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
 
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
 
-    /// <summary>Whether the Need is one of the four comfort steps, which build at the Comfort tier.</summary>
+    /// <summary>Whether the Need is one of the comfort steps (an activity site among them), which build at the Comfort tier.</summary>
     public static bool ComfortStep(FilingKey concern) =>
-        concern == Comfort.FilingKey || concern == Hosting.FilingKey || concern == PartySpot.FilingKey || concern == WorkChairs.FilingKey;
+        concern == Comfort.FilingKey || concern == Hosting.FilingKey || SiteStep(concern) || concern == WorkChairs.FilingKey;
+
+    /// <summary>Whether the Need is an activity site's.</summary>
+    public static bool SiteStep(FilingKey concern) =>
+        concern == PartySite.FilingKey || concern == MarriageSite.FilingKey || concern == RitualSite.FilingKey;
+
+    /// <summary>The site Need of an activity kind.</summary>
+    public static NeedId SiteNeed(ActivityKind kind) =>
+        kind == ActivityKind.Party ? PartySite : kind == ActivityKind.Marriage ? MarriageSite : RitualSite;
 
     public IReadOnlyList<Need> Derive(RoomsFacts facts)
     {
@@ -113,22 +129,28 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
         {
             needs.Add(ComfortNeed(facts));
             needs.Add(HostingNeed(facts));
-            needs.Add(PartySpotNeed(facts));
+            needs.AddRange(facts.Sites.Select(SiteNeedOf));
             needs.Add(WorkChairsNeed(facts));
         }
         if (gatherings)
         {
-            needs.Add(GatheringsNeed(facts, comfort));
+            needs.Add(GatheringsNeed(facts));
         }
         return needs;
     }
 
     public IReadOnlyList<Need> DeriveSeriousHarm(RoomsFacts facts) => [];
 
-    /// <summary>A ready gatherings Need is held: nothing starts a party until participation is forecast. Every other Method is the runtime's building work or the ledger's bills.</summary>
+    /// <summary>
+    /// A ready gatherings Need is held: nothing starts a party until participation is forecast. A ready site Need whose
+    /// state is unplanned is held naming its reason. Every other Method is the runtime's building work
+    /// or the ledger's bills.
+    /// </summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, RoomsFacts facts) =>
         ready.Where(n => facts.LayoutPlanPending && (n.Id == Lighting || n.Id == WorkChairs))
             .Select(n => NeedMethod.Held(n.Id, "layout_plan", "Room work awaits the first layout plan."))
+            .Concat(facts.Sites.OfType<ActivitySiteState.Unplanned>().Where(d => ready.Any(n => n.Id == SiteNeed(d.Kind)))
+                .Select(d => NeedMethod.Held(SiteNeed(d.Kind), d.Reason, "The shared layout comparator holds no site for the activity: " + d.Reason)))
             .Concat(ready.Any(n => n.Id == Gatherings)
                 ? [NeedMethod.Held(Gatherings, UnsupportedGathering, "Gathering participation requires shared forecast occupancy and need effects.")]
                 : Array.Empty<NeedMethod>()).ToArray();
@@ -180,25 +202,26 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
         };
     }
 
-    /// <summary>After hosting: unmet while the PartySpot step is owed; unread rooms, qualities or census raise <see cref="RequiredFactException"/>.</summary>
-    public static Need PartySpotNeed(RoomsFacts f) =>
-        FoodRules.WholeNeed(PartySpot, NeedTier.Development, !f.PartySpotOwed) with { Preconditions = [Hosting] };
+    /// <summary>
+    /// An activity's site Need: met only while its sites stand and the plan holds no further one, unmet while a placement is owed,
+    /// in flight or deferred. The party and marriage sites follow hosting; the ritual site has no precondition.
+    /// </summary>
+    public static Need SiteNeedOf(ActivitySiteState d) =>
+        FoodRules.WholeNeed(SiteNeed(d.Kind), NeedTier.Development, d is ActivitySiteState.Standing) with
+        {
+            Preconditions = d.Kind == ActivityKind.Ritual ? [] : [Hosting],
+        };
 
     /// <summary>After comfort: unmet while a standing bench's chosen work chair is missing; an unread census or plan raises <see cref="RequiredFactException"/>.</summary>
     public static Need WorkChairsNeed(RoomsFacts f) =>
         FoodRules.WholeNeed(WorkChairs, NeedTier.Development, !f.LayoutPlanPending && !f.WorkChairsOwed) with { Preconditions = [Comfort] };
 
     /// <summary>
-    /// Unmet while the mood census owes a party; an unread census raises <see cref="RequiredFactException"/>. The PartySpot Need is its precondition
-    /// when the comfort Needs are composed. The cooldown is the AttendedParty memory the plan reads.
+    /// Unmet while the mood census owes a party; an unread census raises <see cref="RequiredFactException"/>. The cooldown is
+    /// the AttendedParty memory the plan reads. Completion is not provision: no site Need is its precondition.
     /// </summary>
-    public static Need GatheringsNeed(RoomsFacts f, bool partySpot)
-    {
-        return FoodRules.WholeNeed(Gatherings, NeedTier.Wellbeing, !GatheringRules.GatheringOwed(f.Gathering)) with
-        {
-            Preconditions = partySpot ? [PartySpot] : [],
-        };
-    }
+    public static Need GatheringsNeed(RoomsFacts f) =>
+        FoodRules.WholeNeed(Gatherings, NeedTier.Wellbeing, !GatheringRules.GatheringOwed(f.Gathering));
 
     private static string Count(int n) => n.ToString(CultureInfo.InvariantCulture);
 }

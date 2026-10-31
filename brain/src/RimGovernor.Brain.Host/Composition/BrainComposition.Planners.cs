@@ -25,7 +25,7 @@ public sealed partial class BrainComposition
         BuildingPlanner? foodButcher = null;
         var families = new List<FamilyRunner>();
         BuildingPlanner? roomsHosting = null;
-        BuildingPlanner? roomsPartySpot = null;
+        IReadOnlyList<BuildingPlanner> roomsSites = [];
         BuildingPlanner? roomsWorkChairs = null;
         DefensePlanner? cfgDefense = null;
         FieldPlanner? cfgFields = null;
@@ -309,7 +309,7 @@ public sealed partial class BrainComposition
             {
                 roomsComfort = BuildingPlanner.NewReviewBasicComfortPlanner(reviewer, client);
                 roomsHosting = BuildingPlanner.NewReviewComfortPlanner(reviewer, client);
-                roomsPartySpot = BuildingPlanner.NewReviewPartySpotPlanner(reviewer, client);
+                roomsSites = [.. Enum.GetValues<ActivityKind>().Select(kind => BuildingPlanner.NewReviewActivitySitePlanner(reviewer, client, kind))];
                 roomsWorkChairs = BuildingPlanner.NewReviewWorkChairPlanner(reviewer, client);
             }
             if (workshop)
@@ -325,7 +325,7 @@ public sealed partial class BrainComposition
         if (roomsLighting is not null || roomsFlooring is not null || roomsComfort is not null || sc.Art || sc.Gathering)
         {
             // The lighting, flooring, art, comfort and gathering toggles compose the rooms family's Needs (#3255).
-            families.Add(new RoomsReview(reviewer, roomsLighting, roomsFlooring, roomsComfort, roomsHosting, roomsPartySpot, roomsWorkChairs, sc.Art, sc.Gathering).Runner());
+            families.Add(new RoomsReview(reviewer, roomsLighting, roomsFlooring, roomsComfort, roomsHosting, roomsSites, roomsWorkChairs, sc.Art, sc.Gathering).Runner());
         }
         if (research || resourceTargets || acquisition || sc.Art || trade)
         {
@@ -460,7 +460,7 @@ public sealed partial class BrainComposition
         }
         if (sc.Comfort)
         {
-            needs.AddRange([RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySpot, RoomsFamily.WorkChairs]);
+            needs.AddRange([RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySite, RoomsFamily.MarriageSite, RoomsFamily.RitualSite, RoomsFamily.WorkChairs]);
         }
         if (sc.Gathering)
         {

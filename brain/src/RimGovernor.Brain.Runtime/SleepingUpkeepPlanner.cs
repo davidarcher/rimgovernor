@@ -357,7 +357,7 @@ partial class SleepingUpkeepPlanner
     internal static Pol.SleepingRequest SleepingRequest(RimGovernor.Brain.GameAccess.ColonyReading facts, Sto.ReviewState review)
     {
         var sleeping = SleepingRules.ReviewSleeping(facts.Facts.Sleeping, review.Sleeping, facts.Identity.Tick);
-        EquatableArray<Pol.BenchDefinition> definitions = [.. facts.Facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill })];
+        EquatableArray<Pol.BenchDefinition> definitions = [.. facts.Facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available })];
         var stocked = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in new[] { SleepingRules.SleepingBedrollDefinition, SleepingRules.SleepingCoupleBedrollDefinition })
         {

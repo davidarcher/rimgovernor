@@ -24,11 +24,13 @@ public static class PlannedRoomCleanlinessRules
     /// <summary>
     /// The planned room's Cleanliness with <paramref name="runs"/> (a room's <see cref="PlannedRoom.FilthRuns"/>, or more)
     /// standing in it. A None room (map edge, over 60 regions) has the stat's roomless score whatever stands in it. Runs
-    /// with an unread filth model throw a RequiredFactException naming filth_model.
+    /// with an unread filth model throw a RequiredFactException naming filth_model; an unread Cleanliness throws naming the room.
     /// </summary>
     public static PlannedRoomCleanliness Steady(PlannedRoomPrediction prediction, IEnumerable<FilthRuns> runs, FilthModel filth)
     {
         var clean = prediction.Cleanliness;
+        // Rule 9: an unread stat leaves only the alternative that reads this room unassessed, named.
+        if (!double.IsFinite(clean)) throw new RequiredFactException("planned room cleanliness:" + prediction.Room);
         if (prediction.Role == Wire.Name(RoomRole.None) || runs.All(r => !(r.Runs > 0)))
         {
             return new(clean, clean, 0);

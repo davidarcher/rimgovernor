@@ -7,9 +7,9 @@ namespace RimGovernor.Brain.Runtime;
 /// The runtime half of the military family (#3259). The read gives the defense facts (the owned census with the
 /// hostiles of its emergency read), the training review (the room census with the range and ring definitions) and
 /// the pest facts (the acquisition census, the Need's own hunts and the next hunt), and the equipment facts (the
-/// gear census, the crafting spot owed down and the mortar shell review). The work step cancels stale pest hunts and
+/// gear census and the mortar shell review). The work step cancels stale pest hunts and
 /// files why no hunt was proposed, builds the training range and ring rooms under the training Need, and places or
-/// retires the crafting spot and walks the replacement-gear workshop ladder under the equipment Need. The combat
+/// runs the planned-host step for the armory's replacement-gear orders under the equipment Need. The combat
 /// Need (#3311) reads the hostiles and the held food plan's squad-hunt prey in both passes; the defense runner
 /// fights it.
 /// </summary>
@@ -26,13 +26,13 @@ public sealed class MilitaryReview
     // Stages the training rooms; null for a source that cannot preview buildings.
     private readonly BuildingPlanner? _building;
 
-    // The workshop ladder for replacement gear; null without the workshop or a workshop source.
+    // The planned-host step for replacement gear; null without the workshop or a workshop source.
     private readonly BuildingPlanner? _workshop;
 
     /// <summary>
     /// The defense, pests and training toggles compose those Needs; <paramref name="equipment"/> composes
-    /// military/equipment, whose work step, with <paramref name="workshop"/>, walks the replacement-gear workshop
-    /// ladder.
+    /// military/equipment, whose work step, with <paramref name="workshop"/>, runs the planned-host step for replacement-gear
+    /// orders.
     /// </summary>
     public MilitaryReview(ColonyReview reviewer, bool defense, bool pests, bool training, bool equipment = false, bool workshop = false, bool restoreWorkers = true, bool combat = true)
     {
@@ -217,7 +217,7 @@ public sealed class MilitaryReview
 
     /// <summary>
     /// The work step of a ready Need: pests cancels its stale hunts and says why it proposed none; training builds
-    /// its rooms; equipment places or retires its crafting spot and walks its workshop ladder.
+    /// its rooms; equipment runs the planned-host step for the armory's replacement-gear orders.
     /// </summary>
     internal async Task<Verdict> WorkAsync(NeedWork work, MilitaryFacts facts, CancellationToken call)
     {
@@ -246,7 +246,7 @@ public sealed class MilitaryReview
     }
 
     /// <summary>
-    /// The equipment Need's buildings: the workshop ladder for replacement gear, held only by its claims and its own
+    /// The equipment Need's buildings: the planned hosts for replacement gear, held only by its claims and its own
     /// MethodIds. The first crafting station is the plan's, hosting the armory's orders (#3659). The Need reports the first admission,
     /// else the first step that names its reason; with neither, gear still short is the unsupported replacement.
     /// </summary>

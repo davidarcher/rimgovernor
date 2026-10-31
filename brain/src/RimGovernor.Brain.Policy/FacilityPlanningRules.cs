@@ -3,139 +3,8 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Pure facility eligibility and replacement choices over the observed colony frame.</summary>
 public static partial class FacilityPlanningRules
 {
-    /// <summary>Whether a campfire intent already stands: an unheated campfire in the census or an open campfire claim.</summary>
-    public static bool CampfireIntentStanding(EquatableArray<ConstructionClaim> claims, CurrentConstruction? observed, string campfireDefinition)
-    {
-        if (observed is not { } census)
-        {
-            throw new RequiredFactException("construction census");
-        }
-        var heat = HeatCampfireCells(claims, campfireDefinition);
-        foreach (var b in census.Buildings)
-        {
-            if (b.Building is { } building && building.Definition == campfireDefinition && b.Cells.Count > 0 && !heat.Contains(b.Cells[0]))
-            {
-                return true;
-            }
-        }
-        foreach (var claim in claims)
-        {
-            if (claim.Building is { } campfire && campfire.Definition == campfireDefinition && ConstructionOwnershipRules.WorkOpen(campfire, observed) == BuildingWork.BuildingOpen)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>Whether stock covers the butcher table's cheapest stocked stuff choice; unread without the definition.</summary>
-    public static bool ButcherTableAffordable(ReviewFacts facts)
-    {
-        var stock = ResourceStockRules.Count(facts.Census.Resources);
-        foreach (var d in facts.Definitions)
-        {
-            if (d.Name != KitchenSeparationRules.ButcherTableDefinition)
-            {
-                continue;
-            }
-            if (!d.Available) return false;
-            StuffPrice price;
-            try
-            {
-                price = d.StuffChoice(StuffCriterion.CheapestStuff, stock);
-            }
-            catch (NoStuffInStockException) { return false; }
-            return price.Costs.All(a => stock.GetValueOrDefault(a.Resource) >= a.Count);
-        }
-        throw new RequiredFactException("butcher table build cost");
-    }
-
-    public static CurrentBuilding? StandingButcherSpot(ReviewFacts facts)
-    {
-        var benches = facts.EssentialInputs.Benches.Where(b => b.Butcher).ToArray();
-        var census = facts.CurrentConstruction;
-        var table = false;
-        foreach (var bench in benches)
-        {
-            table = table || bench.Definition == KitchenSeparationRules.ButcherTableDefinition;
-        }
-        if (!table)
-        {
-            return null;
-        }
-        foreach (var bench in benches)
-        {
-            if (bench.Definition != Rules.ButcherSpotDefinition)
-            {
-                continue;
-            }
-            foreach (var b in census.Buildings)
-            {
-                if (b.Id == bench.Id && b.Cells.Count > 0)
-                {
-                    return b;
-                }
-            }
-        }
-        return null;
-    }
-
     public static bool ButcherBenchDefinition(string definition) =>
         definition == KitchenSeparationRules.ButcherTableDefinition || definition == Rules.ButcherSpotDefinition;
-
-    /// <summary>The standing campfire the colony no longer needs once a usable stove stands in a kitchen, excluding the heat campfires.</summary>
-    public static (CurrentBuilding Building, bool Retire) CampfireRetirement(ReviewFacts facts, IReadOnlyList<ConstructionClaim> claims, string campfireDefinition)
-    {
-        var benches = facts.EssentialInputs.Benches.Where(b => !b.Butcher).ToArray();
-        var rooms = facts.Upkeep.Rooms;
-        var census = facts.CurrentConstruction;
-        if (census is null)
-        {
-            return (default!, false);
-        }
-        var heat = HeatCampfireCells(claims, campfireDefinition);
-        var stove = false;
-        foreach (var bench in benches)
-        {
-            if (bench.Definition != "FueledStove" && bench.Definition != "ElectricStove")
-            {
-                continue;
-            }
-            var (room, found) = bench.Room is { } id ? rooms!.Room(id) : (null, false);
-            stove = stove || (bench.Usable && found && room!.Role == RoomRole.Kitchen);
-        }
-        foreach (var bench in benches)
-        {
-            if (bench.Definition != campfireDefinition || !stove)
-            {
-                continue;
-            }
-            foreach (var b in census.Buildings)
-            {
-                if (b.Id == bench.Id && b.Cells.Count > 0 && !heat.Contains(b.Cells[0]))
-                {
-                    return (b, true);
-                }
-            }
-        }
-        return (default!, false);
-    }
-
-    public static HashSet<Cell> HeatCampfireCells(IReadOnlyList<ConstructionClaim> claims, string campfireDefinition)
-    {
-        var heat = new HashSet<Cell>();
-        foreach (var claim in claims)
-        {
-            if (claim.Concern == ShelterFamily.Temperature.FilingKey && claim.Building?.Definition == campfireDefinition)
-            {
-                foreach (var c in claim.Cells)
-                {
-                    heat.Add(c);
-                }
-            }
-        }
-        return heat;
-    }
 
     public static List<HeatCampfire> HeatCampfires(ReviewFacts facts, IReadOnlySet<string> heaterDefinitions)
     {
@@ -175,12 +44,6 @@ public static partial class FacilityPlanningRules
         TemperatureMethodRules.TemperatureOwed(facts.Upkeep.Rooms, facts.Sleeping,
             HeatCampfires(facts, facts.Stations.Temperature.Where(definition => definition.Heats && definition.Fuels.Count > 0)
                 .Select(definition => definition.Name).ToHashSet(StringComparer.Ordinal)));
-
-    public static bool CampfireRetireOwed(ReviewFacts facts, string campfireDefinition)
-    {
-        var claims = facts.ConstructionClaims;
-        return CampfireRetirement(facts, claims, campfireDefinition).Retire;
-    }
 
     public static bool BuilderAvailable(IReadOnlyList<WorkPawn> pawns, int minimum)
     {
@@ -287,21 +150,5 @@ public static partial class FacilityPlanningRules
         }
 
         return ("", false);
-    }
-
-    /// <summary>
-    /// Whether any generator definition the power family compiles is buildable now, so a powered bench can be
-    /// staged and connected; a generator row the census did not describe leaves it unknown.
-    /// </summary>
-    public static bool GeneratorAvailable(IReadOnlyDictionary<string, bool> available, IEnumerable<string> generators)
-    {
-        var result = false;
-        foreach (var name in generators)
-        {
-            if (!available.TryGetValue(name, out var value))
-                throw new RequiredFactException("generator definition:" + name);
-            result |= value;
-        }
-        return result;
     }
 }

@@ -984,6 +984,7 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
             Roofed = e.Get<Region>("Roofed", o),
             Lamps = e.Get<IReadOnlyDictionary<int, IReadOnlyList<PlannedLamp>>>("Lamps", o),
             Pieces = e.GetOr<IReadOnlyDictionary<int, IReadOnlyList<InteriorPiece>>>("Pieces", new Dictionary<int, IReadOnlyList<InteriorPiece>>(), o),
+            ActivitySites = e.GetOr<IReadOnlyList<PlannedActivitySite>>("ActivitySites", [], o),
             Cold = e.Bool("Cold"),
             Hot = e.Bool("Hot"),
             NextRoomId = e.I32("NextRoomId"),
@@ -1006,6 +1007,7 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
         w.Put("Roofed", v.Roofed, o);
         w.Put("Lamps", v.Lamps, o);
         w.Put("Pieces", v.Pieces, o);
+        w.Put("ActivitySites", v.ActivitySites, o);
         w.WriteBoolean("Cold", v.Cold);
         w.WriteBoolean("Hot", v.Hot);
         w.WriteNum("NextRoomId", v.NextRoomId);
@@ -1521,6 +1523,30 @@ internal sealed class PlannedLampConverter : ObjectCodec<PlannedLamp>
     }
 }
 
+internal sealed class PlannedActivitySiteConverter : ObjectCodec<PlannedActivitySite>
+{
+    protected override PlannedActivitySite Read(JsonElement e, Codecs o) =>
+        new()
+        {
+            Kind = e.Get<ActivityKind>("Kind", o),
+            Definition = e.Str("Definition"),
+            NativeRoom = e.Str("NativeRoom"),
+            Room = e.I32("Room"),
+            Anchor = e.Get<Cell>("Anchor", o),
+            Standing = e.Bool("Standing"),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, PlannedActivitySite v, Codecs o)
+    {
+        w.Put("Kind", v.Kind, o);
+        w.WriteString("Definition", v.Definition);
+        w.WriteString("NativeRoom", v.NativeRoom);
+        w.WriteNum("Room", v.Room);
+        w.Put("Anchor", v.Anchor, o);
+        w.WriteBoolean("Standing", v.Standing);
+    }
+}
+
 internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
 {
     protected override PlannedRoom Read(JsonElement e, Codecs o) =>
@@ -1540,6 +1566,7 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
             Markers = e.I32("Markers"),
             Parent = e.I32("Parent"),
             Herd = e.Str("Herd"),
+            Activity = e.StrOr("Activity"),
             WorkChairs = e.Get<IReadOnlyDictionary<string, string>>("WorkChairs", o),
             FilthRuns = e.Get<IReadOnlyDictionary<string, FilthRuns>>("FilthRuns", o),
             Meals = e.Dbl("Meals"),
@@ -1571,6 +1598,7 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
         w.WriteNum("Markers", v.Markers);
         w.WriteNum("Parent", v.Parent);
         w.WriteString("Herd", v.Herd);
+        w.WriteString("Activity", v.Activity);
         w.Put("WorkChairs", v.WorkChairs, o);
         w.Put("FilthRuns", v.FilthRuns, o);
         w.WriteNum("Meals", v.Meals);
@@ -1580,11 +1608,15 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
 
 internal sealed class PlannedProductionConverter : ObjectCodec<PlannedProduction>
 {
-    protected override PlannedProduction Read(JsonElement e, Codecs o) => new(e.Str("Bench"), e.Str("Recipe"), e.Dbl("RunsPerDay"));
+    protected override PlannedProduction Read(JsonElement e, Codecs o) => new(e.Str("Bench"), e.Str("Recipe"), e.Dbl("RunsPerDay"))
+    {
+        Step = e.GetOr("Step", HostStep.Host, o), // Left out for a permanent host.
+    };
     protected override void WriteFields(Utf8JsonWriter w, PlannedProduction v, Codecs o)
     {
         w.WriteString("Bench", v.Bench); w.WriteString("Recipe", v.Recipe);
         w.WriteNum("RunsPerDay", v.RunsPerDay);
+        if (v.Step != HostStep.Host) w.Put("Step", v.Step, o);
     }
 }
 

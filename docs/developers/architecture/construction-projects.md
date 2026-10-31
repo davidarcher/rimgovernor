@@ -62,10 +62,11 @@ not, and the reason is structural: the contents of a room are decided in four pl
    and the child rooms each call `InteriorRoomFromLayout` (role to `RoomRole`, door side)
    and plan their own pieces (`BedroomFurnishing`, `ThroneTemplate`...). They do not
    read the tiler's pieces for the same room.
-3. **Benches are demand-driven and placed natively.** `Workshop` follows the facility ladder
-   (`facilities.md`): a bench kind is staged when throughput is short, one `workshop-<def>-<n>` method at a time,
-   capped by `BenchCap`, and placed by the native placer with `PlacementEnvironment.Indoors`. The tiler's cell
-   for that bench is not an input.
+3. **Benches were demand-driven and placed natively.** `Workshop` followed a bench ladder. A bench kind
+   was staged when throughput was short, one method at a time under a per-kind population cap, and placed by
+   the native placer with `PlacementEnvironment.Indoors`, so the tiler's cell for that bench was not an input.
+   That ladder is gone (RG-HABITAT-005). Each load's host is now a layout alternative, and the owner binds
+   the adopted plan's piece from `LayoutPlan.Pieces` ([facilities](facilities.md#the-ladder)).
 4. **Quality levers add pieces later** (`RoomQualityUpgrade`, `RoomQualityTitle`) from the standing room.
 
 Consequences: the plan cannot say what a room will cost to furnish, the tiler's placement work is

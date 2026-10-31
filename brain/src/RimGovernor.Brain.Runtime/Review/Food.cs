@@ -172,12 +172,13 @@ public sealed class FoodReview
 
     /// <summary>
     /// The family's facts in <paramref name="projection"/>: the field coverage against the season's reserve, the
-    /// supply checks and the cooking fact, and the campfire it owes down.
+    /// supply checks and the cooking fact, and the spare cooking host it owes down (PlannedRules.HostRetireOwed over the
+    /// reading's ledger view).
     /// </summary>
     internal static FoodFacts Facts(ColonyReading projection, PlannerSettings policy)
     {
         var budgeted = ColonyPlanningRules.ApplyFieldBudget(projection.Facts, policy.Seasonal(projection.Facts.Calendar, projection.Facts.DisasterConditions).FoodTargetDays);
-        return FoodFacts.From(budgeted, policy) with { CampfireRetireOwed = FacilityPlanningRules.CampfireRetireOwed(projection.Facts, nameof(RimWorld.ThingDefOf.Campfire)) };
+        return FoodFacts.From(budgeted, policy) with { HostRetireOwed = PlannedRules.HostRetireOwed(projection.Facts, projection.Facts.ProductionOrders, FoodRules.CookingNeed.FilingKey) };
     }
 }
 

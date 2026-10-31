@@ -30,7 +30,8 @@ public static partial class LayoutRegroupRules
     /// becomes the incumbent, the baseline keeping ties, so a site's or prerequisite's consequences can change which bench
     /// definition is planned. The free-bed pool's bed-sharing alternatives (LayoutBedShareRules) are compared the same way,
     /// so a barracks wins only when its occupants' forecast beats the bedrooms' net of what each costs. Each compared
-    /// deviation and each omitted one is a decision (host or bed_share, applied/kept/skipped).
+    /// deviation and each omitted one is a decision (host, bed_share or activity_site, applied/kept/skipped): an activity's
+    /// site (a spot in an existing room, a new site room, or none) is decided here, by the same ledger, never privately.
     /// The geometry search then continues over the chosen graph.
     /// </summary>
     public static async Task<Regrouping> RegroupAsync(HostedRegroupInputs hosts,
@@ -108,14 +109,22 @@ public static partial class LayoutRegroupRules
             var alternative = hosts.Alternatives[i];
             var proposal = alternative.Share is BedShare.Fixed { Size: var shared }
                 ? new RegroupProposal(LayoutBedShareRules.BedShareMove, LayoutBedShareRules.FreeBeds, shared.ToString(System.Globalization.CultureInfo.InvariantCulture), [])
-                : alternative.Host.Change is { } change
-                    ? new RegroupProposal(LayoutHostRules.HostMove, change.Recipe, LayoutHostRules.NameOf(change.Host), [])
-                    : throw new ArgumentException("an alternative names neither a host change nor a bed-sharing size", nameof(hosts));
+                : alternative.Site is SiteDeviation.Move site
+                    ? new RegroupProposal(ActivitySiteRules.SiteMove, ActivitySiteRules.ActivityKey(site.Kind), ActivitySiteRules.NameOf(site), [])
+                    : alternative.Host.Change is { } change
+                        ? new RegroupProposal(LayoutHostRules.HostMove, change.Recipe, LayoutHostRules.NameOf(change.Host), [])
+                        : throw new ArgumentException("an alternative names neither a host change, a bed-sharing size nor an activity site", nameof(hosts));
             decisions.Add(i == chosen ? Decision(proposal, seeds[0], seeds[i], true) : Decision(proposal, seeds[chosen], seeds[i], false));
         }
         decisions.AddRange(hosts.Omitted.Select(o => new RegroupDecision
         {
             Kind = LayoutHostRules.HostMove, A = o.Recipe, B = LayoutHostRules.NameOf(o.Host), Verdict = RegroupSkipped, Reason = LayoutHostRules.HostTruncated,
+        }));
+        // A kind's rooms past the site bound are the same finding as hosts past the host bound: compared by nobody.
+        decisions.AddRange(hosts.SitesOmitted.Select(o => new RegroupDecision
+        {
+            Kind = ActivitySiteRules.SiteMove, A = ActivitySiteRules.ActivityKey(o.Kind),
+            B = o.Rooms.ToString(System.Globalization.CultureInfo.InvariantCulture) + " rooms", Verdict = RegroupSkipped, Reason = LayoutHostRules.HostTruncated,
         }));
         var search = searches[chosen];
         var current = seeds[chosen];

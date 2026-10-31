@@ -199,15 +199,9 @@ public sealed class WorkPlanningStatesTests
     [Fact]
     public void AWorkshopWhoseBenchDefinitionIsUnreadNamesIt()
     {
-        var request = new WorkshopRequest
-        {
-            Resource = new("Cloth"),
-            Benches = [],
-            Hosts = [new RecipeHost { Definition = "MakeCloth", Products = [new("Cloth")], Available = true, Benches = ["TableTailor"], Ingredients = [], Research = [] }],
-        };
-        Assert.Throws<RequiredFactException>(() => WorkRules.SelectWorkshopBench(request));
-
-        var census = request with { Definitions = [new BenchDefinition { Name = "TableTailor", Available = true, NeedsPower = false, ConstructionSkill = 0}] };
-        Assert.Equal(WorkshopMethod.Build, WorkRules.SelectWorkshopBench(census).Method);
+        RecipeHost[] hosts = [new RecipeHost { Definition = "MakeCloth", Products = [new("Cloth")], Available = true, Benches = ["TableTailor"], Ingredients = [], Research = [] }];
+        var unread = Assert.Throws<RequiredFactException>(() => WorkRules.WorkshopHostable(new("Cloth"), hosts, []));
+        Assert.Contains("TableTailor", unread.Message);
+        Assert.True(WorkRules.WorkshopHostable(new("Cloth"), hosts, [new BenchDefinition { Name = "TableTailor", Available = true }]));
     }
 }

@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace RimGovernor.Brain.Runtime;
 
@@ -27,8 +29,12 @@ public sealed partial class BuildingPlanner
         return new BuildingResult { Verdict = OwnerCommitVerdict(p.Journal.CommitOwnerWork(goal, proposal.Key, "", spec, call)) };
     }
 
-    internal async Task<BuildingResult> RetireCampfireAsync(ControlState state, ReviewStep review, NeedOwner goal, ColonyReading reading, CurrentBuilding campfire, CancellationToken call, CancellationToken epoch) =>
-        await RetireBuildingAsync(state, review, goal, reading, campfire.Id, (campfire.Building ?? throw new ControlException("campfire retire: current building carries no building")).Definition, campfire.Cells[0], "campfire-retire", "building_retire_method", call, epoch).ConfigureAwait(false);
+    /// <summary>The MethodId retiring the building <paramref name="id"/> under <paramref name="prefix"/>: one Method per building.</summary>
+    internal static MethodId RetireMethodId(string prefix, string id)
+    {
+        var sum = SHA256.HashData(Encoding.UTF8.GetBytes(id));
+        return new MethodId($"{prefix}-{Convert.ToHexStringLower(sum.AsSpan(0, 8))}");
+    }
 
     /// <summary>Deconstructs one standing building through an excavation-style admission, once per building.</summary>
     internal async Task<BuildingResult> RetireBuildingAsync(ControlState state, ReviewStep review, NeedOwner goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason, CancellationToken call, CancellationToken epoch)

@@ -8,7 +8,7 @@ public sealed partial class BuildingPlanner
     /// <summary>Routes a station to the room whose saved layout contains that definition, whatever native role its other stations win.</summary>
     internal async Task<(BuildingPlanner? Planner, BuildingResult Result, bool Done)> PlannedFacilityFurnishingAsync(ControlState state, ReviewState review, NeedOwner goal, ColonyReading reading, ColonyReading facts, CancellationToken call, CancellationToken epoch)
     {
-        if (!FacilityLadder() && !ButcherFacility() && Concern != FoodRules.CookingNeed.FilingKey) return (this, new BuildingResult(), false);
+        if (!FacilityLadder() && Concern != FoodRules.CookingNeed.FilingKey) return (this, new BuildingResult(), false);
         var layout = facts.Facts.LayoutPlan;
         var room = layout is null ? null : PlannedRules.PlannedStationRoom(layout, Definition, facts.Facts.CurrentConstruction);
         if (room is null)

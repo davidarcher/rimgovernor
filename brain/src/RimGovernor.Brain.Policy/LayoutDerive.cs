@@ -100,7 +100,7 @@ public static partial class LayoutDeriveRules
         // The survey's zones less its field patches, then the fields the tiler placed.
         plan = plan with { Zones = [.. LayoutFieldReplanRules.WithFieldZones(zones, null), .. plan.Zones.Skip(f.Plan.Zones.Count)], Cold = s.Cold, Hot = s.Hot };
         plan = LayoutPlan.PlanMountainPockets(LayoutPlan.PlanPerimeter(plan, s), s);
-        return (LayoutPlan.WithoutCore(plan).WithRoomIDs(), advice);
+        return (LayoutPlan.WithoutCore(plan).WithRoomIDs().WithActivitySites(advice.ActivitySites), advice);
     }
 
     /// <summary>The enclosures of the geysers whose cells all lie on core ground; a site that does not fit is left out.</summary>
@@ -313,7 +313,7 @@ partial record LayoutPlan
         plan = plan with { Conduits = EquatableArray.From(conduits) };
         advice.Tiled!.ConduitDecisions.AddRange(joined);
         plan = plan with { RetiredGround = LayoutDeriveRules.RetiredGround(prev, plan, growth.Fixed ?? f!.Built!) };
-        return (LayPerimeter(prev, plan, s, growth.Perimeter).WithDefenseTiersOf(prev).WithRoomIDs(), advice);
+        return (LayPerimeter(prev, plan, s, growth.Perimeter).WithDefenseTiersOf(prev).WithRoomIDs().WithActivitySites(advice.ActivitySites), advice);
     }
 
     /// <summary>

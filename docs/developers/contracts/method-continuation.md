@@ -174,6 +174,21 @@ completes it nor re-selects; the served Need's predicate closes only on fresh fa
 ([hosted workshop loads](essential-services.md#hosted-workshop-loads)). A load the plan hosts
 nowhere binds no Method (`host_deferred`).
 
+A spot-now/table-later chain is two dependent Methods of the same Need, never one Method
+that changes its target. The bridge's piece is bound first. While it is a blueprint or frame,
+it is `Standing` and binds nothing new. Only once a bench of the bridge's definition stands
+built is the replacement's piece bound, as a Method of its own. Neither satisfies the Need.
+
+The bridge's removal is a third Method, `host-retire-<digest of the building id>`, a deconstruction admitted only
+once the replacement serves and no pawn works a bill at the bridge. Until then the step
+returns `AwaitingPlan` `host_retire_held` with the hold's fact
+(`PlannedRules.HostRemovalHold`), and the Need stays unmet (`PlannedRules.HostRetireOwed`).
+Its admission reads the native identity and refuses a stale reading like any removal. A
+retire Method is filed once per building; its receipt never re-selects a host.
+
+An activity site's placement (`{kind}-site-place-<digest of the room>`) is filed once per kind
+and room. Whatever its receipt, the room is spent and never offered again.
+
 ## Evidence
 
 The stable/reconstruction, unknown, deadline and

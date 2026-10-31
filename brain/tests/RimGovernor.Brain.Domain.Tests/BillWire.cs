@@ -25,12 +25,13 @@ internal static class BillWire
         TargetCount = 10,
         Finished = false,
         UnfinishedWork = new RimGovernor.Brain.GameFacts.Observations.BillUnfinishedWork.None(),
+        Workers = [],
         IngredientFilter = new RimGovernor.Brain.GameFacts.Observations.StockpileFilter { AllowedDefNames = [], HitPointsMin = 0, HitPointsMax = 1, QualityMin = Quality.Awful, QualityMax = Quality.Legendary, AllowFresh = true, AllowRotten = false },
     };
 
     internal static RimGovernor.Brain.GameFacts.Observations.BillsSnapshot Census(params RimGovernor.Brain.GameFacts.Observations.BillState[] bills) => new()
     {
         Context = Context,
-        Benches = [new RimGovernor.Brain.GameFacts.Observations.BillStackRow { Snapshot = new RimGovernor.Brain.GameFacts.Observations.SnapshotRef { Context = Context, EntityId = "Thing_Campfire1", Token = "t" }, Bench = "Thing_Campfire1", BenchDef = "Campfire", Usable = true, WorkSpeed = 1,  Bills = [.. bills] }],
+        Benches = [new RimGovernor.Brain.GameFacts.Observations.BillStackRow { Snapshot = new RimGovernor.Brain.GameFacts.Observations.SnapshotRef { Context = Context, EntityId = "Thing_Campfire1", Token = "t" }, Bench = "Thing_Campfire1", BenchDef = "Campfire", Usable = true, Reachable = true, WorkSpeed = 1,  Bills = [.. bills] }],
     };
 }

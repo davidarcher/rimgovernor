@@ -24,6 +24,9 @@ public sealed record ComfortObservation
     /// <summary>The joy buildings the catalog can build, in its preference order (JoyBuildings).</summary>
     public required EquatableArray<JoyBuildingMethod> JoyMethods { get; init; }
 
+    /// <summary>The party, marriage and ritual site definitions the catalog names (ActivitySiteRules).</summary>
+    public required ActivitySiteDefs Sites { get; init; }
+
     /// <summary>Reports whether <paramref name="method"/> builds the recreation foothold.</summary>
     public bool IsFoothold(ComfortMethod method) => RecreationFoothold.Length != 0 && method.Value == RecreationFoothold;
 

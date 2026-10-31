@@ -1966,6 +1966,13 @@ public sealed record BillState
     [JsonConverter(typeof(EquatableArrayJsonConverter<IngredientReservation>))]
     public EquatableArray<IngredientReservation> Reservations { get; init; }
 
+    /// <summary>
+    /// The spawned pawns whose current job works this bill (Job.bill), by id: work in progress a bench's removal would
+    /// interrupt (RG-HABITAT-005). Empty when no pawn's job names the bill (a real none).
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> Workers { get; init; }
+
     /// <summary>The unfinished item bound to the bill, if any.</summary>
     public required BillUnfinishedWork UnfinishedWork { get; init; }
 }
@@ -2017,6 +2024,9 @@ public sealed record BillStackRow
     public required string BenchDef { get; init; }
 
     public required bool Usable { get; init; }
+
+    /// <summary>Whether the bench's interaction cell is reachable from the colony (Reachability.CanReachColony): a bench no colonist can walk to serves no bill.</summary>
+    public required bool Reachable { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<BillState>))]
     public required EquatableArray<BillState> Bills { get; init; }
@@ -4886,7 +4896,37 @@ public sealed record ComfortFacts
     public required EquatableArray<RecreationSource> Recreation { get; init; }
 
     public required RecreationCensus Joy { get; init; }
+
+    /// <summary>Who an activity gathers and where it can gather them: the party, marriage and ritual site census.</summary>
+    public required ActivityAccess Activities { get; init; }
 }
+
+/// <summary>
+/// The activity site census (habitat 3.3), read whole. Colonists are the map's free spawned colonists (the native
+/// guest basis, FreeColonistsSpawned, sorted by load id). Rooms are the typed room census's rooms (physical, not
+/// psychologically outdoors, not doorways) with their standable cell count and the colonists that can reach one of
+/// them, probed at the first by z then x (CanReach OnCell, Danger.None, not forbidden). Engaged lists each Fiance relation once (the lower
+/// thingIDNumber first, the partner spawned on the same map): the couples native marries
+/// (Pawn_RelationsTracker.Tick_CheckStartMarriageCeremony).
+/// </summary>
+public sealed record ActivityAccess
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Colonists { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ActivityRoom>))]
+    public required EquatableArray<ActivityRoom> Rooms { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Engagement>))]
+    public required EquatableArray<Engagement> Engaged { get; init; }
+}
+
+/// <summary>One census room (the room census's Room.ID): its standable cells and the colonists that can reach its first one.</summary>
+public sealed record ActivityRoom(string Room, int StandableCells,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> Reachers);
+
+/// <summary>One engaged couple: the fiancé native lets start the ceremony (the lower thingIDNumber) first.</summary>
+public sealed record Engagement(PawnId First, PawnId Second);
 
 /// <summary>
 /// An indoor eating surface: the proper indoor room hosting it (the room census's Room.ID) and its standable, unbuilt

@@ -19,24 +19,6 @@ public sealed partial class BuildingPlanner
         return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = RoomsFamily.Hosting.FilingKey, Need = RoomsFamily.Hosting, Phase = Pol.Phase.ComfortRanked };
     }
 
-    /// <summary>The rooms/party-spot Need's planner: one PartySpot placed in, or retired from, the shared rooms.</summary>
-    public static BuildingPlanner NewReviewPartySpotPlanner(ColonyReview reviewer, IReviewBuildingSource native)
-    {
-        if (reviewer is null || native is null)
-        {
-            throw new ControlException("NewReviewPartySpotPlanner: reviewer or native is missing");
-        }
-        if (native is not IReviewSource)
-        {
-            throw new ControlException("NewReviewPartySpotPlanner: native is not a rounds source");
-        }
-        return new BuildingPlanner
-        {
-            Reviewer = reviewer, Native = native, Concern = RoomsFamily.PartySpot.FilingKey, Need = RoomsFamily.PartySpot, Phase = Pol.Phase.ComfortSpot,
-            Definition = PartySpotRules.PartySpotDefinition, Environment = Pol.PlacementEnvironment.Indoors,
-        };
-    }
-
     /// <summary>The rooms/work-chairs Need's planner: the work chair the plan chose for a standing bench, on its interaction cell.</summary>
     public static BuildingPlanner NewReviewWorkChairPlanner(ColonyReview reviewer, IReviewBuildingSource native)
     {

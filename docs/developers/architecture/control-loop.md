@@ -442,10 +442,12 @@ The trade export bills are filed under `economy/trade` and the workshop resource
 (`FoodReview.Runner`), composed by the cooking or bill toggle. It is a plain
 threshold: unmet while no meal of the tier the meal policy picks can be made (an
 active bill of the tier's recipe, or a stocked, powered paste dispenser) or a
-cooking campfire a stove kitchen supersedes waits to be taken down; an unread
+spare cooking bench the plan's serving replacement retires waits to be taken down
+(`PlannedRules.HostRetireOwed`); an unread
 cooking fact raises `RequiredFactException`; otherwise met. It is not a Once: a lost kitchen
-reopens the Need on the next review. Its building work (campfire, paste
-dispenser and hopper, kitchen shell, stove, the campfire's deconstruction) is the
+reopens the Need on the next review. Its building work (the plan's cooking host,
+whether campfire, stove or chain, the paste dispenser and hopper, the kitchen shell,
+and a retired spare's `host-retire-*` deconstruction) is the
 family's `work` step running the shared building planner under the Need owner,
 admitted by claims with no whole-owner guard; a stove or campfire whose work
 closed yields to a numbered successor MethodId (`NextSleepingBedMethod`) ahead
@@ -696,7 +698,7 @@ anomaly).
 | Food stores | food-stores/storage (was MaintainFoodStorage, #3251), food-stores/refrigeration (#3280) |
 | Food | `food`: Needs `supply`, `cooking`, `baby-feeding`, `blight` (#3254; EnsureFoodSupply, EnsureCooking, MaintainBabyFeeding, RemoveBlight deleted) |
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
-| Rooms | `rooms`: Needs `lighting`, `flooring`, `art`, `comfort`, `hosting`, `party-spot`, `gatherings` (#3255; its five Concerns and the comfort phase latch deleted) |
+| Rooms | `rooms`: Needs `lighting`, `flooring`, `art`, `comfort`, `hosting`, `party-site`, `marriage-site`, `ritual-site`, `work-chairs`, `gatherings` (#3255; its five Concerns and the comfort phase latch deleted) |
 | Layout | `layout`: Needs `home-coverage`, `firebreak`, `stone-shell`, `climate-envelope` (#3256; MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope deleted), `defense` (#3314; EnsureDefensiveLayout deleted) |
 | Shelter | `shelter`: Needs `sleeping`, `temperature`, `safe-area` (#3257; MaintainHousing, MaintainShelter, EnsureTemperatureSafety deleted; `expansion` deleted, #3749) |
 | Power | `power`: Need `basic` (#3257; EnsureBasicPower deleted) |

@@ -75,8 +75,37 @@ namespace RimGovernor.Native
             });
             return new RimGovernor.Brain.GameFacts.Observations.ComfortFacts {
                 People = Pawns(people), Surfaces = [.. surfaces], Dining = [.. dining], Recreation = [.. recreation],
-                Joy = ReadJoy(people, play)
+                Joy = ReadJoy(people, play), Activities = ReadActivities(map)
             };
+        }
+
+        // The activity site census (habitat 3.3): the native guest basis (FreeColonistsSpawned), each census room's
+        // standable cells and who can reach its first one by z then x, a room's cells sharing one region graph (the room census's filter: physical, not psychologically outdoors, not a
+        // doorway), and each Fiance relation once, the lower thingIDNumber first (Tick_CheckStartMarriageCeremony).
+        private static RimGovernor.Brain.GameFacts.Observations.ActivityAccess ReadActivities(Map map)
+        {
+            var colonists = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+            PawnId Of(Pawn p) => new PawnId(Id(p.GetUniqueLoadID()));
+            var rooms = new List<RimGovernor.Brain.GameFacts.Observations.ActivityRoom>();
+            foreach (var room in map.regionGrid.AllRooms.Where(r => !r.Dereferenced && !r.PsychologicallyOutdoors && !r.IsDoorway).OrderBy(r => r.ID))
+            {
+                var standable = room.Cells.Where(c => c.InBounds(map) && c.Standable(map)).OrderBy(c => c.z).ThenBy(c => c.x).ToList();
+                var reachers = standable.Count == 0 ? new List<Pawn>()
+                    : colonists.Where(p => !standable[0].IsForbidden(p) && p.CanReach(standable[0], PathEndMode.OnCell, Danger.None)).ToList();
+                rooms.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityRoom(Id(room.ID.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                    standable.Count, [.. reachers.Select(Of)]));
+            }
+            var engaged = new List<RimGovernor.Brain.GameFacts.Observations.Engagement>();
+            foreach (var p in colonists)
+            {
+                foreach (var r in p.relations?.DirectRelations ?? new List<DirectPawnRelation>())
+                {
+                    if (r.def == PawnRelationDefOf.Fiance && r.otherPawn != null && r.otherPawn.Spawned && r.otherPawn.Map == map
+                        && p.thingIDNumber < r.otherPawn.thingIDNumber)
+                        engaged.Add(new RimGovernor.Brain.GameFacts.Observations.Engagement(Of(p), Of(r.otherPawn)));
+                }
+            }
+            return new RimGovernor.Brain.GameFacts.Observations.ActivityAccess { Colonists = [.. colonists.Select(Of)], Rooms = [.. rooms], Engaged = [.. engaged] };
         }
 
         // The whole joy boredom matrix.

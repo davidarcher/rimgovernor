@@ -107,6 +107,7 @@ public sealed partial class DefinitionCatalog
             Dish = meal.Recipe is null ? null : Carried(meal.Recipe.products[0].thingDef),
             DishesPerRun = meal.Recipe is null ? 0 : meal.Recipe.products[0].count,
             Benches = EquatableArray.From(benches),
+            ButcherRecipe = ButcherRecipe() ?? "", // None defined: the unhosted butchery load names it unread.
             MoveStat = nameof(StatDefOf.MoveSpeed), CarryStat = nameof(StatDefOf.CarryingCapacity),
         };
     }

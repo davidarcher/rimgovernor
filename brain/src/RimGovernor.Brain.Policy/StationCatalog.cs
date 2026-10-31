@@ -68,6 +68,9 @@ public sealed record StationCatalog
     public List<string> Contributors(RoomRole role) =>
         [.. Defs().Where(def => Stations[def].Contributions.Any(c => c.Role == role))];
 
+    /// <summary>Lists, sorted, the worker stations: the benches a recipe load can be hosted at, whose census availability the layout comparison reads.</summary>
+    public List<string> WorkerStations() => [.. Defs().Where(def => Stations[def].Capacity.Kind == CapacityKind.Workers)];
+
     /// <summary>Lists, sorted, the stations that cool their room.</summary>
     public List<string> Coolers() => [.. Defs().Where(def => Stations[def].Cooling.Cools())];
 }

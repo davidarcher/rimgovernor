@@ -232,7 +232,42 @@ public static class FoodOrdersRules
         {
             return new Declared { Orders = orders };
         }
-        return new Declared { Orders = StandingOrders(benches, FoodFamily(r.Purpose)) };
+        var standing = StandingOrders(benches, FoodFamily(r.Purpose));
+        if (standing.Count == 0 && order.Gap == FoodOrderGap.NoBill && UnhostedFoodOrder(r) is { } unhosted)
+        {
+            // No usable bench serves the purpose and no bill of it stands: the load is the layout comparison's to host.
+            return new Declared { Orders = [unhosted] };
+        }
+        return new Declared { Orders = standing };
+    }
+
+    /// <summary>
+    /// The unhosted order of an owed cooking or butchering purpose no usable bench serves (RG-HABITAT-005): the colony's
+    /// cheapest meal recipe toward the cooking target (three meals a colonist), or the flesh butchering recipe for each
+    /// unforbidden animal corpse in stock (one run toward the
+    /// first corpse of an offered food hunt when none waits: native offers no hunt worth taking until a butcher bench
+    /// stands). It names no bench kind, so it is never a bill: the shared layout comparison
+    /// hosts it among reuse, each catalog host and deferral. Null when a usable bench of the purpose stands, the colony
+    /// cooks no meal, or neither a corpse nor a food hunt is offered.
+    /// </summary>
+    internal static OrderSpec? UnhostedFoodOrder(FoodOrderRequest r)
+    {
+        var work = r.Facts.FoodWork;
+        if (r.Purpose == ProductionRules.CookFood)
+        {
+            if (r.Benches.Any(b => !b.Butcher && b.Usable) || work.Meal.Length == 0) return null;
+            var colonists = r.Facts.Census.ColonistCount;
+            return colonists <= 0 ? null : new OrderSpec { Recipe = work.Meal, Mode = BillMode.FoodTarget, Target = (int)(colonists * 3) };
+        }
+        if (r.Purpose == ProductionRules.ButcherFood)
+        {
+            if (r.Benches.Any(b => b.Butcher && b.Usable)) return null;
+            var corpses = r.Supply.Stocks.Count(s => s.IsCorpse() && !s.IsHumanlike && !s.Forbidden);
+            if (corpses == 0 && !r.Facts.Acquisition.Any(s => s.Hunt && s.Food && !s.Tree)) return null;
+            if (work.ButcherRecipe.Length == 0) throw new RequiredFactException("butcher recipe");
+            return new OrderSpec { Recipe = work.ButcherRecipe, Mode = BillMode.ButcherForever, Target = Math.Max(1, corpses) };
+        }
+        return null;
     }
 
     /// <summary>Whether a bill belongs to a purpose's family.</summary>

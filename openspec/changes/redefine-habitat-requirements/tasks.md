@@ -26,10 +26,10 @@ from executed passes in the existing habitat evidence page.
 
 ## 3. Production and activity sites (003, 005, 007, 010)
 
-- [ ] 3.1 Replace butcher/cooking/workshop definition and reuse preselection with complete reuse, spot, workstation, room and power alternatives. Verify native-derived throughput, ingredients, hauling, construction delay and room effects can change normal selection.
-- [ ] 3.2 Implement spot-now/table-later as a dependent chain, including retained/removed spot alternatives after usable replacement. Replace automatic spot retirement and population-based bench-cap choices; verify useful permanent spots, worthwhile upgrades, shared throughput constraints and interruption before replacement service.
-- [ ] 3.3 Connect party, marriage and ritual location demand to shared candidate generation with capacity, participant access, surroundings and competing uses. Verify selected placement/configuration reaches Hands, activity sites have no automatic workstation-upgrade lifecycle and activity completion remains distinct from site provision.
-- [ ] 3.4 Extend normal-path runtime/native coverage for a staged spot-to-workstation claim; update facilities, mood/ideology site and spatial contracts plus habitat evidence. Delete replaced ladder fields/helpers/tests through all readers and pass the repository gate before committing and landing.
+- [x] 3.1 Replace butcher/cooking/workshop definition and reuse preselection with complete reuse, spot, workstation, room and power alternatives. Verify native-derived throughput, ingredients, hauling, construction delay and room effects can change normal selection.
+- [x] 3.2 Implement spot-now/table-later as a dependent chain, including retained/removed spot alternatives after usable replacement. Replace automatic spot retirement and population-based bench-cap choices; verify useful permanent spots, worthwhile upgrades, shared throughput constraints and interruption before replacement service.
+- [x] 3.3 Connect party, marriage and ritual location demand to shared candidate generation with capacity, participant access, surroundings and competing uses. Verify selected placement/configuration reaches Hands, activity sites have no automatic workstation-upgrade lifecycle and activity completion remains distinct from site provision.
+- [x] 3.4 Extend normal-path runtime/native coverage for a staged spot-to-workstation claim; update facilities, mood/ideology site and spatial contracts plus habitat evidence. Delete replaced ladder fields/helpers/tests through all readers and pass the repository gate before committing and landing.
 
 ## 4. Bedside, hospital and field care (001, 004, 007, 011)
 

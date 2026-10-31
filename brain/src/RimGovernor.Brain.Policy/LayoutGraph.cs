@@ -105,6 +105,9 @@ public sealed record RecipeFlow
     /// <summary>The recipe's work a run at a bench of unit speed (RecipeDef.WorkAmountTotal, the station's RecipeWorkAmount); 0 while unread.</summary>
     public double Work { get; init; }
 
+    /// <summary>The ResearchProjectDefs the recipe itself requires (RecipeDef.researchPrerequisite and researchPrerequisites), sorted; a bench's own gate is its definition's.</summary>
+    public IReadOnlyList<string> Research { get; init; } = [];
+
     internal double ProductCount()
     {
         var n = 0.0;
@@ -179,8 +182,9 @@ public sealed record StationGraphInput
     public SeedRooms Seed { get; init; } = new();
 
     /// <summary>
-    /// The host of each unhosted recipe load (an order naming no bench kind), one alternative of LayoutHostRules.Of. A
-    /// load absent or deferred gets no work node: the graph does not choose a bench definition itself (RG-HABITAT-005).
+    /// The host of each compared recipe load (an unhosted order, or a kind-named load a chain may upgrade), one alternative of
+    /// LayoutHostRules.Of. An unhosted load absent or deferred gets no work node: the graph does not choose a bench
+    /// definition itself (RG-HABITAT-005). A chain sizes its bridge and its replacement; a pair splits the load's runs.
     /// </summary>
     public IReadOnlyList<HostedLoad> Hosts { get; init; } = [];
 
@@ -291,6 +295,9 @@ public sealed record RoomNode
 
     /// <summary>The race of the herd whose pen this is (PlannedRoom.Herd); empty for the misc unit and for every other room.</summary>
     public string Herd { get; init; } = string.Empty;
+
+    /// <summary>The activity a site room holds the spot of (PlannedRoom.Activity); empty for every other room.</summary>
+    public string Activity { get; init; } = string.Empty;
 
     /// <summary>The marker count of a sparring ring.</summary>
     public int Markers { get; init; }
@@ -551,6 +558,16 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         }
         var orders = new Dictionary<(string, string), double>();
         var orderWork = new Dictionary<(string, string), double>();
+        double RunsOf(OrderSpec o)
+        {
+            double runs = o.Target;
+            var per = Flow(o.Recipe).ProductCount();
+            if (per > 0 && WorkRules.WireClass(o.Mode) != BillMode.GearBatch)
+            {
+                runs /= per;
+            }
+            return runs;
+        }
         void Order(string station, OrderSpec o)
         {
             var work = HostWorkOf(station, o.Recipe);
@@ -558,27 +575,57 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             {
                 return;
             }
-            double runs = o.Target;
-            var per = Flow(o.Recipe).ProductCount();
-            if (per > 0 && WorkRules.WireClass(o.Mode) != BillMode.GearBatch)
-            {
-                runs /= per;
-            }
             var key = (station, o.Recipe);
-            orders[key] = orders.GetValueOrDefault(key) + runs;
+            orders[key] = orders.GetValueOrDefault(key) + RunsOf(o);
             orderWork[key] = work;
         }
-        // An order naming a bench kind runs on that kind alone; an unhosted one at the host its alternative assigns.
-        foreach (var o in In.Orders.Where(o => o.BenchKind.Length != 0))
+        // An order naming a bench kind runs on that kind alone, unless a host alternative hosts its load; a hosted load at
+        // the host its alternative assigns. A chain's bridge carries the load until its replacement serves, so both size
+        // a station for it, and the bridge's runs are never credited beside the replacement's (ForecastWorkshop.Credit).
+        var hosted = In.Hosts.SelectMany(l => l.Orders).ToHashSet();
+        foreach (var o in In.Orders.Where(o => o.BenchKind.Length != 0 && !hosted.Contains(o)))
         {
             Order(o.BenchKind, o);
         }
-        foreach (var load in In.Hosts.Where(l => l.Host.Bench.Length != 0))
+        var steps = new Dictionary<(string, string), HostStep>();
+        var pairs = new List<(HostedLoad Load, HostChoice.Pair Pair)>();
+        foreach (var load in In.Hosts)
         {
-            foreach (var o in load.Orders)
+            if (load.Host is HostChoice.Chain chain)
+            {
+                steps[(chain.First, load.Recipe)] = HostStep.Bridge;
+                foreach (var o in load.Orders)
+                {
+                    Order(chain.First, o);
+                }
+            }
+            if (load.Host is HostChoice.Pair pair)
+            {
+                pairs.Add((load, pair));
+            }
+            foreach (var o in load.Host.Bench.Length != 0 ? load.Orders : [])
             {
                 Order(load.Host.Bench, o);
             }
+        }
+        // A pair's host keeps what one of it works a day; the retained spare takes the rest of the dispatcher-sized runs
+        // (WorkRules.Stocked, the only orders copied across kinds) up to what it works a day, and stands with none.
+        foreach (var (load, pair) in pairs)
+        {
+            var key = (pair.Def, load.Recipe);
+            var spare = (pair.Also, load.Recipe);
+            var (work, also) = (HostWorkOf(pair.Def, load.Recipe), HostWorkOf(pair.Also, load.Recipe));
+            if (work <= 0 || also <= 0)
+            {
+                continue;
+            }
+            var capacity = GameTime.TicksPerDay * Math.Max(Station(pair.Def).Capacity.Slots, 1) / work;
+            var stocked = load.Orders.Where(o => o.Stocked()).Sum(RunsOf);
+            var taken = Math.Min(Math.Min(Math.Max(0, orders.GetValueOrDefault(key) - capacity), stocked), GameTime.TicksPerDay * Math.Max(Station(pair.Also).Capacity.Slots, 1) / also);
+            orders[key] = orders.GetValueOrDefault(key) - taken;
+            orders[spare] = orders.GetValueOrDefault(spare) + taken;
+            orderWork[spare] = also;
+            steps[spare] = HostStep.Share;
         }
         foreach (var (key, runs) in orders)
         {
@@ -600,11 +647,11 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             var count = Math.Max(1, (int)Math.Ceiling(perStation[def] / (GameTime.TicksPerDay * Math.Max(s.Capacity.Slots, 1))));
             var node = Nodes[AddNode(def, StationPurpose.Work, count, s.Needs)];
             node.DailyWork = perStation[def];
-            node.Production = output.Where(l => l.Station == def).Select(l => new PlannedProduction(def, l.Recipe, l.Runs)).ToArray();
+            node.Production = output.Where(l => l.Station == def).Select(l => new PlannedProduction(def, l.Recipe, l.Runs) { Step = steps.GetValueOrDefault((def, l.Recipe)) }).ToArray();
             foreach (var l in output)
             {
                 var flow = Flow(l.Recipe);
-                if (l.Station == def && flow.Food)
+                if (l.Station == def && flow.Food && steps.GetValueOrDefault((def, l.Recipe)) != HostStep.Bridge)
                 {
                     node.Meals += l.Runs * flow.ProductCount();
                 }
@@ -639,6 +686,12 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         if (bench != string.Empty)
         {
             kitchens.Insert(0, bench);
+        }
+        // A food load the host alternative hosts names the kitchen bench: the colony's nutrition is cooked there, and a
+        // deferred one leaves the furniture default (RG-HABITAT-005).
+        foreach (var hosted in In.Hosts.Where(l => l.Host.Bench.Length != 0 && In.Recipes.TryGetValue(l.Recipe, out var f) && f.Food).Select(l => l.Host.Bench).Reverse())
+        {
+            kitchens.Insert(0, hosted);
         }
         foreach (var def in kitchens)
         {

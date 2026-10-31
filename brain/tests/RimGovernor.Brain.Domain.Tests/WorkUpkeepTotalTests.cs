@@ -70,7 +70,7 @@ public sealed class WorkUpkeepTotalTests
             Stock = new Dictionary<Resource, long> { [ingredient] = stock },
         };
         var order = new OrderSpec { Recipe = recipe.Definition, BenchKind = "observed-kind" };
-        Assert.Equal(expected, WorkRules.ObserveOrder(order, offers ? 1 : 0, new DispatchSizing.Sized(1, 1), input).Ingredients);
+        Assert.Equal(expected, WorkRules.ObserveOrder(order, offers ? 1 : 0, new DispatchSizing.Sized(1), input).Ingredients);
     }
     [Theory]
     [InlineData(ThroughputIngredients.Missing, UnmetReason.Ingredients, false)]

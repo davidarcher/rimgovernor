@@ -375,6 +375,7 @@ public static partial class ForecastValue
         var investmentRows = InvestmentOf(outcome, chosen, context, index, horizon, findings);
         var tradeAssessed = ForecastTradeRequests.Credit(outcome, chosen, context, horizon, investmentRows, findings);
         PlannedRoomCredits.Credit(outcome, chosen, context, horizon, investmentRows, findings);
+        ForecastActivitySites.Credits(outcome, context, horizon, investmentRows, findings);
         ForecastApparel.Credits(outcome, context, commitments, horizon, investmentRows);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;

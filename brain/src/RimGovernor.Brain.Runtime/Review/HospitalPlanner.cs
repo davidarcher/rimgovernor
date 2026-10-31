@@ -37,7 +37,7 @@ partial class HospitalPlanner
     internal static HospitalRequest HospitalRequestOf(ColonyReading facts)
     {
         var definitions = facts.Facts.Definitions
-            .Select(d => new BenchDefinition { Name = d.Name, Available = d.Available, NeedsPower = d.NeedsPower, ConstructionSkill = d.ConstructionSkill })
+            .Select(d => new BenchDefinition { Name = d.Name, Available = d.Available })
             .ToList();
         var f = facts.Facts;
         var doctors = LaborRules.WorkersFor(facts.Facts.ForecastObserved.WorkPawns.Pawns, WorkType.Doctor);

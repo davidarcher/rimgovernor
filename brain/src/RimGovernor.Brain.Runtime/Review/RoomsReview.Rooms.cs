@@ -3,9 +3,9 @@ namespace RimGovernor.Brain.Runtime;
 
 /// <summary>
 /// The runtime half of the rooms family (#3255): its read (the room census with its lighting, terrain and comfort,
-/// the colony's construction claims, the review's proof-of-use history, the party-spot Need's spent Methods and the
+/// the colony's construction claims, the review's proof-of-use history, the activity site Needs' spent Methods and the
 /// mood census) and the work of its ready Needs, committed under the Need and admitted by claims. The lighting,
-/// flooring and four comfort Needs each work through their own building planner; the art Need's sculpture bills
+/// flooring, comfort and activity site Needs each work through their own building planner; the art Need's sculpture bills
 /// are the work ledger's (<see cref="ArtPlanner"/>), and a party is held by the family's Propose.
 /// </summary>
 public sealed class RoomsReview
@@ -15,24 +15,29 @@ public sealed class RoomsReview
     private readonly BuildingPlanner? _flooring;
     private readonly BuildingPlanner? _comfort;
     private readonly BuildingPlanner? _hosting;
-    private readonly BuildingPlanner? _partySpot;
+    private readonly IReadOnlyList<BuildingPlanner> _sites;
     private readonly BuildingPlanner? _workChairs;
     private readonly bool _art;
     private readonly bool _gatherings;
 
     /// <summary>
     /// A <paramref name="lighting"/> or <paramref name="flooring"/> planner derives rooms/lighting or rooms/flooring;
-    /// the <paramref name="comfort"/>, <paramref name="hosting"/>, <paramref name="partySpot"/> and <paramref name="workChairs"/> planners, composed
-    /// together, derive rooms/comfort, rooms/hosting, rooms/party-spot and rooms/work-chairs. <paramref name="art"/> and
-    /// <paramref name="gatherings"/> derive rooms/art and rooms/gatherings.
+    /// the <paramref name="comfort"/>, <paramref name="hosting"/>, activity <paramref name="sites"/> (one per kind) and
+    /// <paramref name="workChairs"/> planners, composed together, derive rooms/comfort, rooms/hosting, the activity site
+    /// Needs and rooms/work-chairs. <paramref name="art"/> and <paramref name="gatherings"/> derive rooms/art and rooms/gatherings.
     /// </summary>
     public RoomsReview(ColonyReview reviewer, BuildingPlanner? lighting, BuildingPlanner? flooring,
-        BuildingPlanner? comfort, BuildingPlanner? hosting, BuildingPlanner? partySpot, BuildingPlanner? workChairs, bool art, bool gatherings)
+        BuildingPlanner? comfort, BuildingPlanner? hosting, IReadOnlyList<BuildingPlanner> sites, BuildingPlanner? workChairs, bool art, bool gatherings)
     {
         _reviewer = reviewer ?? throw new ControlException("RoomsReview: reviewer is missing");
-        if ((comfort is null) != (hosting is null) || (comfort is null) != (partySpot is null) || (comfort is null) != (workChairs is null))
+        sites ??= [];
+        if ((comfort is null) != (hosting is null) || (comfort is null) != (sites.Count == 0) || (comfort is null) != (workChairs is null))
         {
-            throw new ControlException("RoomsReview: the comfort, hosting, party-spot and work-chair planners are composed together");
+            throw new ControlException("RoomsReview: the comfort, hosting, activity site and work-chair planners are composed together");
+        }
+        if (sites.Count != 0 && !Enum.GetValues<ActivityKind>().All(k => sites.Count(s => s.Need == RoomsFamily.SiteNeed(k)) == 1))
+        {
+            throw new ControlException("RoomsReview: one activity site planner is composed per kind");
         }
         if (lighting is null && flooring is null && comfort is null && !art && !gatherings)
         {
@@ -42,13 +47,16 @@ public sealed class RoomsReview
         Owned(flooring, RoomsFamily.Flooring);
         Owned(comfort, RoomsFamily.Comfort);
         Owned(hosting, RoomsFamily.Hosting);
-        Owned(partySpot, RoomsFamily.PartySpot);
+        foreach (var site in sites)
+        {
+            Owned(site, RoomsFamily.SiteNeed(site.SiteKind));
+        }
         Owned(workChairs, RoomsFamily.WorkChairs);
         _lighting = lighting;
         _flooring = flooring;
         _comfort = comfort;
         _hosting = hosting;
-        _partySpot = partySpot;
+        _sites = sites;
         _workChairs = workChairs;
         _art = art;
         _gatherings = gatherings;
@@ -68,7 +76,7 @@ public sealed class RoomsReview
     public FamilyRunner Runner() =>
         new FamilyRunner<RoomsFacts>(new RoomsFamily(_lighting is not null, _flooring is not null, _art, ComfortComposed, _gatherings), ReadAsync, Schedule, WorkAsync);
 
-    /// <summary>The outcomes the family's work commits: buildings (lamps, floors, furniture and the PartySpot).</summary>
+    /// <summary>The outcomes the family's work commits: buildings (lamps, floors, furniture and the activity sites).</summary>
     public static FamilySchedule Schedule { get; } = new() { Kinds = [ActionKind.Building] };
 
     /// <summary>
@@ -85,7 +93,7 @@ public sealed class RoomsReview
             : id == RoomsFamily.Flooring ? _flooring
             : id == RoomsFamily.Comfort ? _comfort
             : id == RoomsFamily.Hosting ? _hosting
-            : id == RoomsFamily.PartySpot ? _partySpot
+            : RoomsFamily.SiteStep(id.FilingKey) ? _sites.FirstOrDefault(s => s.Need == id)
             : id == RoomsFamily.WorkChairs ? _workChairs
             : null;
         if (planner is not null)
@@ -100,20 +108,12 @@ public sealed class RoomsReview
         return Verdict.AwaitingPlan(id.Value, "no_method");
     }
 
-    /// <summary>The gathering definition; lamps and floors join ordinary catalog composition.</summary>
-    private IReadOnlyList<string> Definitions()
-    {
-        var definitions = new List<string>();
-        if (ComfortComposed)
-        {
-            definitions.Add(PartySpotRules.PartySpotDefinition);
-        }
-        return [.. definitions.Distinct(StringComparer.Ordinal)];
-    }
+    /// <summary>The activity site spots, whose builder gate the decisions read; lamps and floors join ordinary catalog composition.</summary>
+    private IReadOnlyList<string> Definitions() => ComfortComposed ? Bridge.ActivitySiteReads.Placed : [];
 
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world: the room census with the colony's construction
-    /// claims, the review's comfort history and the party-spot Need's Methods. Throws when the read is from another
+    /// claims, the review's comfort history and the activity site Needs' Methods. Throws when the read is from another
     /// world, older than the review, or slower than the review's age bound.
     /// </summary>
     internal async Task<RoomsFacts> ReadAsync(FamilyReadScope scope, CancellationToken ct)
@@ -128,23 +128,26 @@ public sealed class RoomsReview
         }
         var claims = journal.ConstructionClaims(scope.World, expected.Tick, ct);
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, Definitions(), ct).ConfigureAwait(false);
-        var spot = ComfortComposed ? journal.LoadNeed(RoomsFamily.PartySpot, scope.World, ct) : null;
+        var sites = ComfortComposed
+            ? Enum.GetValues<ActivityKind>().ToDictionary(k => k, k => journal.LoadNeed(RoomsFamily.SiteNeed(k), scope.World, ct))
+            : null;
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
         {
             throw new ControlException("rooms read: the read took too long");
         }
-        var facts = Facts(reading.Reading, _reviewer.Policy, review.Comfort, spot, _flooring);
+        var facts = Facts(reading.Reading, _reviewer.Policy, review.Comfort, sites, _flooring);
         return _gatherings ? facts with { Gathering = ColonyReview.GatheringPlanOf(reading, scope.World) } : facts;
     }
 
     /// <summary>
     /// The family's facts in <paramref name="projection"/>, each measured fresh: the lighting review with the plan's
     /// unlit rooms, the flooring review of the traffic-priced census, the artists and owed sculpture rooms, the
-    /// basic and hosted comfort against <paramref name="history"/>, the PartySpot step against the
-    /// <paramref name="spot"/> Need's Methods, and the work chairs the plan owes standing benches.
+    /// basic and hosted comfort against <paramref name="history"/>, each activity's site state against the adopted plan and its Need's
+    /// Methods (<paramref name="sites"/>, none while the comfort Needs are not composed), and the work chairs the plan
+    /// owes standing benches.
     /// </summary>
-    internal static RoomsFacts Facts(ColonyReading projection, PlannerSettings policy, ComfortHistory history, NeedOwner? spot, BuildingPlanner? flooring)
+    internal static RoomsFacts Facts(ColonyReading projection, PlannerSettings policy, ComfortHistory history, IReadOnlyDictionary<ActivityKind, NeedOwner>? sites, BuildingPlanner? flooring)
     {
         var pending = projection.Facts.LayoutPlan is null;
         var census = flooring is not null ? flooring.FlooringCensus(projection) : BuildingPlanner.TrafficFlooringFacts(projection);
@@ -159,7 +162,7 @@ public sealed class RoomsReview
             SculptureRoomsOwed = SleepingUpkeepPlanner.SculptureRoomsOwedOf(projection),
             BasicComfort = projection.Facts.BasicComfort,
             Hosting = hosting,
-            PartySpotOwed = ColonyReview.PartySpotOwed(spot, projection),
+            Sites = sites is null ? [] : BuildingPlanner.SiteStates(projection, k => sites[k].Methods.Select(m => m.Method)),
         };
         return pending ? facts : facts with
         {

@@ -2,16 +2,6 @@ namespace RimGovernor.Brain.Runtime;
 
 internal static class LayoutProtected
 {
-    /// <summary>The persisted layout plan's core; null until a plan exists.</summary>
-    public static Cell? PlanCore(ColonyReading facts)
-    {
-        if (facts.Facts.LayoutPlan is { } plan && plan.Core() is { } core)
-        {
-            return core;
-        }
-        return facts.Facts.LayoutPlan?.Center();
-    }
-
     /// <summary>
     /// Where pens, barns, fields, tombs and waste start their site search: the middle of the first free
     /// field-zone run of the layout plan, else the plan's centre (no free run); null until a plan exists. The

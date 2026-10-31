@@ -1,26 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-
-/// <summary>What an economy/resource deficit needs from the building ladder before a bill can be dispatched for it.</summary>
-public enum WorkshopMethod
-{
-    /// <summary>A usable bench already hosts an available recipe for the resource; the bill path owns the deficit from here.</summary>
-    [WireName("existing")]
-    Existing,
-
-    /// <summary>Stage Definition, a bench buildable now, in a Workshop-hosting room. A powered bench is connected by the power family once it stands as an unpowered consumer.</summary>
-    [WireName("build")]
-    Build,
-
-    /// <summary>The first candidate bench and recipe are gated only by unfinished research; Research lists the projects to finish.</summary>
-    [WireName("research")]
-    Research,
-
-    /// <summary>Every hosting bench needs more construction skill than any builder has, or power no generator definition can supply, which this ladder does not stage.</summary>
-    [WireName("unavailable")]
-    Unavailable,
-}
-
 /// <summary>The planning-census view of one bench definition.</summary>
 public sealed record BenchDefinition
 {
@@ -28,126 +7,27 @@ public sealed record BenchDefinition
 
     public bool Available { get; init; }
 
-    public bool NeedsPower { get; init; }
-
-    public int ConstructionSkill { get; init; }
-
     /// <summary>Names the definition's own ResearchProjectDefs; with Available false they are what stands between the colony and the bench.</summary>
     public IReadOnlyList<string> Research { get; init; } = [];
 }
 
-public sealed record WorkshopRequest
-{
-    public Resource Resource { get; init; }
-
-    public EquatableArray<GearBench> Benches { get; init; }
-
-    public IReadOnlyList<RecipeHost> Hosts { get; init; } = [];
-
-    public IReadOnlyList<BenchDefinition> Definitions { get; init; } = [];
-
-    /// <summary>Whether a generator definition is available to build, so a powered bench can be staged and connected; unknown or false keeps the choice to unpowered benches.</summary>
-    public bool Power { get; init; }
-
-    /// <summary>
-    /// The best Construction level among colonists who can build (BuilderSkill); a bench with a construction skill
-    /// prerequisite is buildable only when a builder meets it, and the plan's own work requirement then assigns that
-    /// builder. Unknown keeps the choice to benches without a prerequisite.
-    /// </summary>
-    public int BuilderSkill { get; init; }
-
-    /// <summary>Names the bench kinds (FurtherBenchKinds) whose standing benches no longer suffice: a bench of such a kind is not reused, and a further one of the kind is staged instead.</summary>
-    public IReadOnlyList<string> Further { get; init; } = [];
-}
-
-public sealed record WorkshopChoice
-{
-    public required WorkshopMethod Method { get; init; }
-
-    public string Definition { get; init; } = "";
-
-    public string Recipe { get; init; } = "";
-
-    /// <summary>The sorted project set WorkshopResearch waits on.</summary>
-    public IReadOnlyList<string> Research { get; init; } = [];
-}
+/// <summary>
+/// The research rung of a resource no bench can host yet (RG-HABITAT-005): the first host definition and recipe only
+/// research stands between, and the sorted projects to finish. Which bench, how many and where are never chosen here:
+/// a buildable host is the shared layout comparison's (LayoutHostRules).
+/// </summary>
+public sealed record WorkshopRung(string Bench, string Recipe, IReadOnlyList<string> Research);
 
 public static partial class WorkRules
 {
-    /// <summary>How many colonists justify each bench of one kind beyond the first: the cap on a kind is 1 + colonists/this.</summary>
-    public const int ColonistsPerExtraBench = 4;
-
-    /// <summary>Bounds a kind however large the colony grows.</summary>
-    public const int MaxBenchesPerKind = 4;
-
-    /// <summary>The most benches of one kind the ladder stands for a colony of the given size.</summary>
-    public static int BenchCap(int colonists) => Math.Min(MaxBenchesPerKind, 1 + (Math.Max(colonists, 0) / ColonistsPerExtraBench));
-
-    /// <summary>
-    /// The bench kinds that should get another bench: the dispatcher reports a shortfall only a new bench can close
-    /// (no_bench, benches_exhausted) and the kind is below BenchCap. Other reasons (slots, ingredients, hauling) are
-    /// not helped by a bench and never trigger.
-    /// </summary>
-    public static IReadOnlyList<string> FurtherBenchKinds(IReadOnlyList<UnmetThroughput> unmet, IReadOnlyList<GearBench> benches, int colonists)
-    {
-        var standing = new Dictionary<string, int>();
-        foreach (var b in benches)
-        {
-            standing[b.Def] = standing.GetValueOrDefault(b.Def) + 1;
-        }
-        var output = new List<string>();
-        foreach (var u in unmet)
-        {
-            // An order with no bench kind is a catalog recipe the station graph hosts (#3659): no kind to stage.
-            if (u.ShortPerDay <= 0 || u.BenchKind.Length == 0 || (u.Reason != UnmetReason.NoBench && u.Reason != UnmetReason.BenchesExhausted))
-            {
-                continue;
-            }
-            if (standing.GetValueOrDefault(u.BenchKind) < BenchCap(colonists))
-            {
-                output.Add(u.BenchKind);
-            }
-        }
-        output.Sort(StringComparer.Ordinal);
-        return output;
-    }
-
-    /// <summary>The highest Construction skill level among the pawns that are available, apply to work assignment and have the skill enabled; unknown while the roster is unread.</summary>
-    public static int BuilderSkill(WorkPawnsRead pawns)
-    {
-        var rows = pawns.Pawns;
-        var best = 0;
-        foreach (var pawn in rows)
-        {
-            if (!pawn.Available || !pawn.Applies)
-            {
-                continue;
-            }
-            var skills = pawn.Skills;
-            foreach (var skill in skills)
-            {
-                if (skill.DefName == "Construction" && !skill.Disabled)
-                {
-                    best = Math.Max(best, skill.Level);
-                }
-            }
-        }
-        return best;
-    }
-
-    /// <summary>Lists, in stable order, every bench definition hosting a research-available recipe that produces the resource. It is the definition set a planner requests from the planning census before choosing.</summary>
-    public static IReadOnlyList<string> WorkshopBenchCandidates(Resource resource, IReadOnlyList<RecipeHost> hosts) => WorkshopCandidates(resource, hosts, false);
-
-    /// <summary>Lists every bench definition hosting any recipe for the resource, research-gated ones included, so the census can report which projects each is waiting on.</summary>
-    public static IReadOnlyList<string> WorkshopResearchCandidates(Resource resource, IReadOnlyList<RecipeHost> hosts) => WorkshopCandidates(resource, hosts, true);
-
-    private static List<string> WorkshopCandidates(Resource resource, IReadOnlyList<RecipeHost> hosts, bool gated)
+    /// <summary>Lists, in stable order, every bench definition hosting any recipe for the resource, research-gated ones included, so the census can report which projects each is waiting on.</summary>
+    public static IReadOnlyList<string> WorkshopResearchCandidates(Resource resource, IReadOnlyList<RecipeHost> hosts)
     {
         var seen = new HashSet<string>();
         var output = new List<string>();
         foreach (var host in hosts)
         {
-            if ((!gated && !host.Available) || !GearRules.ContainsResource(host.Products, resource))
+            if (!GearRules.ContainsResource(host.Products, resource))
             {
                 continue;
             }
@@ -164,144 +44,51 @@ public static partial class WorkRules
     }
 
     /// <summary>
-    /// Settles reuse without definition reads. Further capacity retains the last productive bench while an
-    /// available host of that kind can still be staged; without such a host, reuse already wins before research.
+    /// The available recipe for <paramref name="resource"/> a usable standing bench already offers, or null. Such a bench
+    /// lists the recipe, so the declarer names its kind (GearOrdersRules.GearBenchDef) and its bills run there; a load no
+    /// standing bench lists is unhosted and its host is the layout comparison's. Throws on an invalid resource.
     /// </summary>
-    public static (WorkshopChoice? Existing, WorkshopChoice? Further) ExistingWorkshopBench(WorkshopRequest r)
+    public static string? StandingWorkshopRecipe(Resource resource, IReadOnlyList<GearBench> benches)
     {
-        if (!AdmissionRules.ValidResource(r.Resource)) throw new DomainException("invalid workshop resource");
-        WorkshopChoice? further = null;
-        foreach (var bench in r.Benches)
-        {
+        if (!AdmissionRules.ValidResource(resource)) throw new DomainException("invalid workshop resource");
+        foreach (var bench in benches)
             foreach (var recipe in bench.Recipes)
-            {
-                if (!GearRules.ContainsResource(recipe.Products, r.Resource) || !recipe.Available || !recipe.AvailableOn) continue;
-                var existing = new WorkshopChoice { Method = WorkshopMethod.Existing, Recipe = recipe.Definition };
-                if (!r.Further.Contains(bench.Def)) return (existing, null);
-                further = existing;
-            }
-        }
-        if (further is not null && !WorkshopBenchCandidates(r.Resource, r.Hosts).Any(r.Further.Contains)) return (further, null);
-        return (null, further);
+                if (GearRules.ContainsResource(recipe.Products, resource) && recipe.Available && recipe.AvailableOn) return recipe.Definition;
+        return null;
     }
-    /// <summary>
-    /// Decides whether a resource deficit already has a bench (reuse first), needs one staged (the first candidate
-    /// the census reports buildable by a builder the colony has, unpowered before powered), is waiting on research
-    /// (the first candidate gated by nothing else), or cannot be served yet. It issues no orders and reserves
-    /// nothing. Throws on an invalid resource.
-    /// </summary>
-    public static WorkshopChoice SelectWorkshopBench(WorkshopRequest r)
+
+    /// <summary>Whether an available recipe making <paramref name="resource"/> has an available bench definition: the shared layout comparison can host it.</summary>
+    public static bool WorkshopHostable(Resource resource, IReadOnlyList<RecipeHost> hosts, IReadOnlyList<BenchDefinition> definitions)
     {
-        var (existing, reuse) = ExistingWorkshopBench(r);
-        if (existing is not null) return existing;
-        var byName = new Dictionary<string, BenchDefinition>();
-        foreach (var d in r.Definitions)
-        {
-            byName[d.Name] = d;
-        }
-        var power = r.Power;
-        var builder = r.BuilderSkill;
-        bool Buildable(int skill) => skill == 0 || (skill <= builder);
+        var byName = new Dictionary<string, BenchDefinition>(StringComparer.Ordinal);
+        foreach (var d in definitions) byName[d.Name] = d;
+        return hosts.Where(h => GearRules.ContainsResource(h.Products, resource)).Any(h => h.Available && h.Benches.Any(b => byName.TryGetValue(b, out var d) ? d.Available : throw new RequiredFactException("bench definition:" + b)));
+    }
 
-        // Buildable now: unpowered first, then powered when a generator can be built for it.
-        foreach (var allowPower in new[] { false, true })
+    /// <summary>
+    /// The research rung for <paramref name="resource"/>: null when an available definition already hosts an available recipe
+    /// for it (the comparison prices that host, its power and its room), or no gate names a project; else the first host
+    /// definition and recipe pair whose only gates are research the census names, with its sorted projects. A host
+    /// definition the census does not describe throws <see cref="RequiredFactException"/>.
+    /// </summary>
+    public static WorkshopRung? WorkshopResearchRung(Resource resource, IReadOnlyList<RecipeHost> hosts, IReadOnlyList<BenchDefinition> definitions)
+    {
+        var byName = new Dictionary<string, BenchDefinition>(StringComparer.Ordinal);
+        foreach (var d in definitions) byName[d.Name] = d;
+        BenchDefinition Definition(string name) => byName.TryGetValue(name, out var d) ? d : throw new RequiredFactException("bench definition:" + name);
+        var producing = hosts.Where(h => GearRules.ContainsResource(h.Products, resource)).ToArray();
+        if (producing.Any(h => h.Available && h.Benches.Any(b => Definition(b).Available))) return null;
+        foreach (var host in producing)
         {
-            if (allowPower && !(power))
-            {
-                continue;
-            }
-            foreach (var name in WorkshopBenchCandidates(r.Resource, r.Hosts))
-            {
-                if (reuse is not null && !r.Further.Contains(name))
-                {
-                    continue;
-                }
-                if (!byName.TryGetValue(name, out var d))
-                    throw new RequiredFactException("bench definition:" + name);
-                var available = d.Available;
-                var powered = d.NeedsPower;
-                var skill = d.ConstructionSkill;
-                if (available && powered == allowPower && Buildable(skill))
-                {
-                    return new WorkshopChoice { Method = WorkshopMethod.Build, Definition = name, Recipe = WorkshopRecipe(r.Resource, r.Hosts, name) };
-                }
-            }
-        }
-        if (reuse is not null)
-        {
-            return reuse;
-        }
-
-        // Research-gated: the first bench and recipe pair that only research stands between; its projects are the ladder's next rung.
-        foreach (var host in r.Hosts)
-        {
-            if (!GearRules.ContainsResource(host.Products, r.Resource))
-            {
-                continue;
-            }
             foreach (var name in host.Benches)
             {
-                if (!byName.TryGetValue(name, out var d))
-                    throw new RequiredFactException("bench definition:" + name);
-                var available = d.Available;
-                var powered = d.NeedsPower;
-                var skill = d.ConstructionSkill;
-                if (!Buildable(skill) || (powered && !(power)))
-                {
-                    continue;
-                }
-
-                // A gate the census cannot name (a recipe or bench unavailable with no project listed) is not research this ladder can do.
-                var projects = new List<string>();
-                if (!host.Available)
-                {
-                    if (host.Research.Count == 0)
-                    {
-                        continue;
-                    }
-                    projects.AddRange(host.Research);
-                }
-                if (!available)
-                {
-                    if (d.Research.Count == 0)
-                    {
-                        continue;
-                    }
-                    projects.AddRange(d.Research);
-                }
-                if (projects.Count == 0)
-                {
-                    continue;
-                }
-                projects.Sort(StringComparer.Ordinal);
-                return new WorkshopChoice
-                {
-                    Method = WorkshopMethod.Research,
-                    Definition = name,
-                    Recipe = host.Definition,
-                    Research = [.. projects.Distinct()],
-                };
+                var d = Definition(name);
+                // A gate the census cannot name (a recipe or bench unavailable with no project listed) is not research this rung can do.
+                if (!host.Available && host.Research.Count == 0 || !d.Available && d.Research.Count == 0) continue;
+                var projects = (host.Available ? [] : host.Research).Concat(d.Available ? [] : d.Research).Distinct().Order(StringComparer.Ordinal).ToArray();
+                if (projects.Length != 0) return new WorkshopRung(name, host.Definition, projects);
             }
         }
-        return new WorkshopChoice { Method = WorkshopMethod.Unavailable };
-    }
-
-    private static string WorkshopRecipe(Resource resource, IReadOnlyList<RecipeHost> hosts, string bench)
-    {
-        foreach (var host in hosts)
-        {
-            if (!host.Available || !GearRules.ContainsResource(host.Products, resource))
-            {
-                continue;
-            }
-            foreach (var b in host.Benches)
-            {
-                if (b == bench)
-                {
-                    return host.Definition;
-                }
-            }
-        }
-        return "";
+        return null;
     }
 }

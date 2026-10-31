@@ -15,12 +15,12 @@ public sealed class LayoutCandidateIntegrationTests
         var first = PlannedRoomPredictionTests.Closed(ColonyReview.CandidateKey("regroup:1", "1"), "WoodLog", "Bedroom", 30, 2, 9, 0, false) with
         {
             Routes = [new("pawn", from, to, new RouteTicks.Reachable(17)) { FromStart = false, Projection = "regroup:1/1/WoodLog" }],
-            WorkBenches = [new("ElectricSmithy", from, 0, 0, new BenchPower.Connected("net", 210, 1000), new BenchPlacement.Planned())],
+            WorkBenches = [new("ElectricSmithy", from, 0, 0, new BenchPower.Connected("net", 210, 1000), new BenchPlacement.Planned(), null)],
         };
         var second = PlannedRoomPredictionTests.Closed(ColonyReview.CandidateKey("regroup:10", "1"), "WoodLog", "Laboratory", 70, 4, 20, 0, false) with
         {
             Routes = [new("pawn", from, to, RouteTicks.None) { FromStart = false, Projection = "regroup:10/1/WoodLog" }],
-            WorkBenches = [new("ElectricSmithy", from, 0, 0, new BenchPower.Unconnected(), new BenchPlacement.Planned())],
+            WorkBenches = [new("ElectricSmithy", from, 0, 0, new BenchPower.Unconnected(null), new BenchPlacement.Planned(), null)],
         };
 
         var bedroom = Assert.Single(ColonyReview.CandidatePredictions("regroup:1", [second, first]));

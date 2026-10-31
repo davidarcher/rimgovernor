@@ -37,16 +37,14 @@ public sealed class DispatchMemory
     /// stock target into its calibration window, widening or recording the shortfall for the next Round. Memory of
     /// an order no planner declares is dropped, unless a planner abstained.
     /// </summary>
-    public (IReadOnlyDictionary<string, int> Copies, IReadOnlyDictionary<string, OrderDispatch> Dispatch) Dispatch(DispatchInputs input)
+    public IReadOnlyDictionary<string, int> Dispatch(DispatchInputs input)
     {
         var (wanted, abstain) = WorkRules.WantedOrders(input.Declared);
         var copies = new Dictionary<string, int>();
-        var dispatch = new Dictionary<string, OrderDispatch>();
         foreach (var k in wanted.Keys.Order(StringComparer.Ordinal))
         {
             var order = wanted[k];
             var d = WorkRules.DispatchOrder(order, input.Stock, input.Benches, input.Pawns, input.Needs, Widen.GetValueOrDefault(k));
-            dispatch[k] = d;
             copies[k] = d.Copies;
             if (!order.Stocked())
             {
@@ -71,7 +69,6 @@ public sealed class DispatchMemory
                 Widen.Remove(k);
                 Shortfalls.Remove(k);
                 d = WorkRules.DispatchOrder(order, input.Stock, input.Benches, input.Pawns, input.Needs, 0);
-                dispatch[k] = d;
                 copies[k] = d.Copies;
             }
             var (window, cal) = WorkRules.CalibrateThroughput(previous, observation);
@@ -102,39 +99,12 @@ public sealed class DispatchMemory
                 }
             }
         }
-        return (copies, dispatch);
+        return copies;
     }
 
     /// <summary>The standing stalls as this Round's observed calibration, in order-key order.</summary>
     public ProductionCalibration Calibration() => new ProductionCalibration.Observed(
         EquatableArray.From(Shortfalls.Keys.Order(StringComparer.Ordinal).Select(k => Shortfalls[k])));
-
-    /// <summary>
-    /// The Round's unmet throughput per bench kind: the standing calibration shortfalls, the orders the rate model
-    /// wants more benches for than exist and the orders no bench could take (unplaced).
-    /// </summary>
-    public IReadOnlyList<UnmetThroughput> Unmet(
-        IReadOnlyDictionary<string, OrderDispatch> dispatch,
-        IReadOnlyDictionary<string, OrderSpec> wanted,
-        IReadOnlyList<OrderSpec> unplaced,
-        IReadOnlyList<GearBench> benches)
-    {
-        var items = new List<UnmetThroughput>();
-        // Summed in key order: float addition is not associative, and a map's order is not fixed.
-        foreach (var k in Shortfalls.Keys.Order(StringComparer.Ordinal))
-        {
-            items.Add(Shortfalls[k].Unmet);
-        }
-        foreach (var k in dispatch.Keys.Order(StringComparer.Ordinal))
-        {
-            if (dispatch[k].NoBenchShort > 0)
-            {
-                items.Add(new UnmetThroughput { BenchKind = wanted[k].BenchKind, ShortPerDay = dispatch[k].NoBenchShort, Reason = UnmetReason.NoBench });
-            }
-        }
-        items.AddRange(WorkRules.UnplacedUnmet(unplaced, benches, dispatch));
-        return WorkRules.MergeUnmet(items);
-    }
 }
 
 public static partial class WorkRules

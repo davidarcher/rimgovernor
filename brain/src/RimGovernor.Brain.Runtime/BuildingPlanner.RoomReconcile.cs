@@ -516,6 +516,8 @@ public sealed partial class BuildingPlanner
             ops = ClimateEnvelopeRules.EnvelopeOps(ops);
             holds = [];
         }
+        // A standing host the plan replaces is removed only as its replacement serves and no pawn works its bills (RG-HABITAT-005).
+        (ops, var hostHeld) = PlannedRules.AdmittedRemovals(ops, plan, Reviewer.WorkLedgerView());
         IReadOnlyList<Pol.ConstructionSite> standing = [];
         var census2 = facts.Facts.CurrentConstruction;
         standing = RoomStall.RoomSites(census2.Sites, rr.Room.RoomGround());
@@ -537,6 +539,10 @@ public sealed partial class BuildingPlanner
                     return CommitRemoval(state, goal, rr, op, call, epoch);
                 }
             }
+        }
+        if (hostHeld is { } held && !ops.Any(o => RoomBuildKinds.Contains(o.Kind) || o.Kind is Pol.OpKind.Install or Pol.OpKind.RoofIn))
+        {
+            return new BuildingResult { Verdict = AwaitingPlan(HostRetireHeld, held) };
         }
         var installs = new List<Pol.WantedPiece>();
         foreach (var op in ops)

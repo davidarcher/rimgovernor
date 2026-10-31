@@ -106,7 +106,7 @@ public sealed class LapInputsTests
             GrowingCells = 1L, Armed = 1L, Unarmed = 1L, Hostiles = HostileCensus.Of(1L),
             CriticalPatients = 1L, UrgentPatients = 1L,
             PowerHeadroom = 1.0, OutdoorsDark = true, Tick = new Tick(5), DisasterTick = new Tick(5), BedroomsOwed = true,
-            MealClosetOwed = true, CampfireRetireOwed = true, TemperatureOwed = true, ButcherTableAffordable = true,
+            MealClosetOwed = true, HostRetireOwed = true, TemperatureOwed = true,
             CleanupPawns = true, WorkCoverage = WorkCoverageState.Matched,
             SculptureRoomsOwed = true, ShellsShort = true, HostilityOwed = true, MedicalCareOwed = true,
             MedicineCarryOwed = true, NamesOwed = true, Cooking = true, PowerRequired = true,

@@ -63,7 +63,8 @@ public static class ReviewReads
         // furnish rooms from.
         var roleRows = catalog.RoomRoleRows();
         p = p with { Facts = p.Facts with { Shapes = catalog.PieceShapes(), Stations = catalog.StationCatalog() } };
-        var names = definitions.Concat(roleRows).Concat(p.Facts.Shapes.Furniture.Definitions());
+        // The worker stations' availability rides every reading: the layout comparison builds only a host the colony can.
+        var names = definitions.Concat(roleRows).Concat(p.Facts.Shapes.Furniture.Definitions()).Concat(p.Facts.Stations.WorkerStations());
         p = p with { Facts = p.Facts with { Definitions = FrameDefinitionFacts(frame, catalog).AppendDefinitions([.. p.Facts.Definitions], names) } };
         p = p with
         {
@@ -96,6 +97,7 @@ public static class ReviewReads
                 Crafts = catalog.CraftRecipes(finished),
                 WorkSpeeds = catalog.WorkSpeedFacts(),
                 FoodWork = catalog.FoodWork(finished),
+                PowerConduit = RimGovernor.Brain.Bridge.PlanningViewReads.PlanningView(catalog, RimGovernor.Brain.Policy.LayoutPowerDeriveRules.PowerConduitDefinition)?.FixedConstruction,
             },
         };
         p = p with { Facts = p.Facts with { Containment = ContainmentReads.ContainmentPlanningOf(frame, catalog, p.Facts.Definitions) } };

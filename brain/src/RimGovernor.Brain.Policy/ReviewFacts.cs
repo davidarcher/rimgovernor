@@ -135,6 +135,9 @@ public sealed partial record ReviewFacts
     /// <summary>The work a unit of nutrition costs over the research finished (DefinitionCatalog.FoodWork, #3825), a pawn's food upkeep; no crop and no meal without a catalog.</summary>
     public FoodWorkFacts FoodWork { get; init; } = new();
 
+    /// <summary>The power conduit's construction (PlanningDefinition.FixedConstruction of LayoutPowerDeriveRules.PowerConduitDefinition); null without a catalog.</summary>
+    public PlanningFixedConstruction? PowerConduit { get; init; }
+
     /// <summary>When a part, an organ or a medicine a rule waits on arrives (#3868, StockArrivalReads.Of); built empty without the read.</summary>
     public StockArrival StockArrival { get; init; } = new();
 
@@ -282,17 +285,14 @@ public sealed partial record ReviewFacts
     /// <summary>A planned individual bedroom step is due; it keeps the shelter/sleeping Need unmet once everyone owns a shelter bed.</summary>
     public bool BedroomsOwed { get; init; }
 
-    /// <summary>The stock covers the butcher table's build cost (its cheapest stuff choice).</summary>
-    public bool ButcherTableAffordable { get; init; }
-
     /// <summary>The warm standing tombs, morgues and meal closets (WarmCoolingRooms); they join the food-stores/refrigeration Need's rooms.</summary>
     public EquatableArray<string> WarmRooms { get; init; }
 
     /// <summary>The planned meal closet waits to be shelled while its dining room stands; it keeps the food-stores/refrigeration Need unmet.</summary>
     public bool MealClosetOwed { get; init; }
 
-    /// <summary>A stove kitchen supersedes a cooking campfire; it keeps the food/cooking Need unmet.</summary>
-    public bool CampfireRetireOwed { get; init; }
+    /// <summary>A spare cooking host the plan's serving replacement retires is owed its removal (PlannedRules.HostRetireOwed); it keeps the food/cooking Need unmet.</summary>
+    public bool HostRetireOwed { get; init; }
 
     /// <summary>A heat campfire's auto-refuel should switch, or a sleeping room sits unheated below its sleepers' comfort minimum (TemperatureOwed); it keeps the shelter/temperature Need unmet.</summary>
     public bool TemperatureOwed { get; init; }
@@ -901,29 +901,12 @@ public static partial class Rules
     }
 
     /// <summary>
-    /// The food/supply Need's butcher-facility check. A bench serves wherever the layout places it. A butcher
-    /// bench carries its room filth into canonical credits. The butcher spot stands in its planned room
-    /// until the table is built; while the stock cannot pay for the table the spot alone is enough, and a table standing beside
-    /// its spot owes the spot's removal. It is wanted whatever the food runway, because hunts and hides are
-    /// processed on it.
+    /// The food/supply Need's butcher-facility check: met once any butcher bench stands. Which bench (a spot, a table) and
+    /// where is the shared layout comparison's, priced by its consequences (RG-HABITAT-005); a standing bench never owes
+    /// another here. It is wanted whatever the food runway, because hunts and hides are processed on it.
     /// </summary>
-    internal static bool ButcherFacilityMet(ReviewFacts f)
-    {
-        var benches = f.EssentialInputs.Benches.Where(b => b.Butcher).ToArray();
-        if (benches.Length == 0)
-        {
-            return false;
-        }
-        var table = benches.Any(b => b.Definition != ButcherSpotDefinition);
-        var spot = benches.Any(b => b.Definition == ButcherSpotDefinition);
-        if (table)
-        {
-            return !spot;
-        }
-        // Only the spot stands: with the stock to build the table, the goal stays open for it.
-        return !f.ButcherTableAffordable;
-    }
+    internal static bool ButcherFacilityMet(ReviewFacts f) => f.EssentialInputs.Benches.Any(b => b.Butcher);
 
-    /// <summary>The free, instant butcher bench that stands in the planned butchery until the table is built.</summary>
+    /// <summary>The butcher spot's definition: a free, instant butcher bench.</summary>
     public const string ButcherSpotDefinition = "ButcherSpot";
 }

@@ -5,8 +5,8 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A building prerequisite failure; a zero cause means eligible.</summary>
 public readonly record struct FacilityEligibility(Cause Cause, string Subject = "", string Detail = "");
 
-/// <summary>The existing facility ladder's selected action, or the reason it has no action.</summary>
-public enum FacilityDemand { None, Existing, ButcherSpot, RetireButcherSpot, ButcherTable, Campfire, AwaitingFoodPlan }
+/// <summary>A food facility's state before the shared layout comparison hosts its load: nothing owed, a bench standing, the food plan unread, or a load the comparison is to host.</summary>
+public enum FacilityDemand { None, Existing, AwaitingFoodPlan, Unhosted }
 
 public static partial class FacilityPlanningRules
 {
@@ -23,26 +23,27 @@ public static partial class FacilityPlanningRules
         return new(Cause.NoWorker, "builder_for_" + definition, need);
     }
 
-    public static FacilityDemand ButcherDemand(ReviewFacts facts)
-    {
-        var benches = facts.EssentialInputs.Benches.Where(b => b.Butcher).ToArray();
-        if (benches.Length == 0) return FacilityDemand.ButcherSpot;
-        if (StandingButcherSpot(facts) is not null) return FacilityDemand.RetireButcherSpot;
-        if (!benches.Any(b => b.Definition == KitchenSeparationRules.ButcherTableDefinition)
-            && facts.ButcherTableAffordable && BuilderGate(facts, KitchenSeparationRules.ButcherTableDefinition).Cause == Cause.None)
-            return FacilityDemand.ButcherTable;
-        return FacilityDemand.Existing;
-    }
+    /// <summary>
+    /// The food/supply Need's butcher bench, before the shared layout comparison hosts its load: a standing butcher bench is
+    /// the facility; with none, the butchering load is unhosted and the comparison chooses spot, table or deferral by their
+    /// consequences (RG-HABITAT-005). No definition is chosen here.
+    /// </summary>
+    public static FacilityDemand ButcherDemand(ReviewFacts facts) =>
+        facts.EssentialInputs.Benches.Any(b => b.Butcher) ? FacilityDemand.Existing : FacilityDemand.Unhosted;
 
+    /// <summary>
+    /// The cooking Need's bench, before the shared layout comparison hosts its load: the food plan must support cooking
+    /// capacity, a colony already cooking owes nothing, a standing cooking bench (a campfire counts while it stands) is the
+    /// facility; else the cooking load is unhosted and the comparison chooses campfire, stove or deferral (RG-HABITAT-005).
+    /// </summary>
     public static FacilityDemand CookingDemand(ReviewFacts facts, string campfireDefinition)
     {
         if (facts.FoodPlan is not { } support || !FoodOrdersRules.FoodPlanSupport(support, CandidateKind.Cook, "cooking-capacity"))
             return FacilityDemand.AwaitingFoodPlan;
         if (facts.Cooking) return FacilityDemand.None;
-        if (facts.EssentialInputs.Benches.Any(b => !b.Butcher && (b.Definition == campfireDefinition || b.Usable))
-            || CampfireIntentStanding(facts.ConstructionClaims, facts.CurrentConstruction, campfireDefinition))
+        if (facts.EssentialInputs.Benches.Any(b => !b.Butcher && (b.Definition == campfireDefinition || b.Usable)))
             return FacilityDemand.Existing;
-        return FacilityDemand.Campfire;
+        return FacilityDemand.Unhosted;
     }
 
     public static ComfortMethod BasicComfortMethod(ReviewFacts facts, IReadOnlyList<SiteCell>? cells)

@@ -288,12 +288,15 @@ or second demand owner is introduced. See [roof preparation](pawn-activities.md#
   priority while no coupled order holds it (#3662); no bill hook or tend finalizer selects
   cleanup.
 - Butcher placements never share a room with a cooking bench. The `food/supply` Need owns the
-  butcher facility and owes it whatever the food runway: the planned butchery (beside the
-  freezer) takes a `ButcherSpot` first, so hunts have a bench at once, then the real
-  `TableButcher` once the wood and a builder allow, and the spot is deconstructed when the
-  table stands. Neither waits for the room's walls: the plan must hold the butchery and its
-  interior is cleared of obstructions like any planned interior; without a planned butchery
-  the planner waits (`butchery_room`) and never places a bench elsewhere.
+  butchering load: `FoodOrdersRules.UnhostedFoodOrder` declares one unhosted butcher order for
+  each unforbidden animal corpse, or for an offered food hunt. No rule picks between the spot
+  and the table. The shared layout comparison prices `ButcherSpot`, `TableButcher`, a
+  spot-now/table-later chain and deferral, and the Need binds the adopted plan's host
+  ([spatial](spatial-contracts.md#host-chains-and-pairs)). A chain's table is bound only once
+  its spot stands built. The spot is deconstructed (`host-retire-*`) only once the table
+  serves and no pawn works the spot's bill; while one does, the removal is held as
+  `host_retire_held`. A planned station whose room the plan does not hold waits as
+  `station_room` and is never placed elsewhere.
 - Methods preserve forbidden items, player work overrides, schedules, drafts,
   player-forced jobs, storage filters and home areas. Deterioration and growing fires do
   not reset the progress watchdog.
@@ -668,8 +671,9 @@ These observations are not journaled; the existing comfort-use history is the on
 comfort state.
 
 The comfort Needs are plain thresholds chained by precondition, with no phase latch:
-`rooms/comfort`, then `rooms/hosting`, then `rooms/party-spot` (see
-[mood control](mood-control.md#the-partyspot)); `rooms/work-chairs` also follows `rooms/comfort`.
+`rooms/comfort`, then `rooms/hosting`, then the `rooms/party-site` and `rooms/marriage-site` Needs;
+`rooms/ritual-site` waits on no comfort Need (see
+[mood control](mood-control.md#activity-sites)); `rooms/work-chairs` also follows `rooms/comfort`.
 
 - `rooms/work-chairs` (#3039): unmet while a bench stands in a planned room that chose a work
   chair for its definition (`PlannedRoom.WorkChairs`, [spatial](spatial-contracts.md)) and the

@@ -85,7 +85,10 @@ public sealed class StaleFurnitureTests
     {
         "TorchLamp",
         "StandingLamp",
-        PartySpotRules.PartySpotDefinition,
+        "TestPartySpot",
+        "TestMarriageSpot",
+        "TestRitualSpot",
+        "TestGatherSpot",
         RoomQualityRules.PlantPotDefinition,
         "SculptureSmall",
         "DiningChair",
@@ -136,7 +139,7 @@ public sealed class StaleFurnitureTests
     public void ACarriedOverSetWithoutAComfortReadStillCarriesTheFixedDefinitions()
     {
         var carried = ReconcileRules.CarriedOver([], ComfortTests.NoComfortObservation, new ItemFacts(), [], []);
-        Assert.True(carried(PartySpotRules.PartySpotDefinition));
+        Assert.True(carried(ComfortTests.NoComfortObservation.Sites.PartySpot));
         Assert.True(carried(RoomQualityRules.PlantPotDefinition));
         Assert.False(carried(Stray));
     }

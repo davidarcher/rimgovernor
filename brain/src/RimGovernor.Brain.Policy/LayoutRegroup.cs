@@ -23,6 +23,9 @@ public sealed record RegroupInput
 
     /// <summary>The standing rooms whose native role is not the one PredictRole gives their contents (GuardNativeRoles).</summary>
     public IReadOnlyList<RoleMismatch> Mismatches { get; init; } = [];
+
+    /// <summary>The activity sites every trial of this input holds (ActivitySiteAsk.Placements).</summary>
+    public EquatableArray<ActivityPlacement> Sites { get; init; }
 }
 
 /// <summary>A candidate adoption decision. Before is zero; After the shared canonical ledger delta in capability-days.
@@ -50,6 +53,9 @@ public sealed record Regrouping
     public EmbedInput Embed { get; init; } = new();
     public Embedding Embedding { get; init; } = new();
     public IReadOnlyList<RegroupDecision> Decisions { get; init; } = [];
+
+    /// <summary>The activity sites the grouping holds (RegroupInput.Sites).</summary>
+    public EquatableArray<ActivityPlacement> Sites { get; init; }
 }
 
 /// <summary>One grouping, clustered, embedded and priced.</summary>
@@ -73,7 +79,10 @@ internal sealed class RegroupTrial
         return Host + "#" + string.Join("|", rooms);
     }
 
-    public Regrouping Result(IReadOnlyList<RegroupDecision> decisions) => new() { Graph = Graph, Clustering = Clustering, Embed = Embed, Embedding = Embedding, Decisions = decisions };
+    /// <summary>The activity sites the trial's input holds.</summary>
+    public EquatableArray<ActivityPlacement> Sites { get; init; }
+
+    public Regrouping Result(IReadOnlyList<RegroupDecision> decisions) => new() { Graph = Graph, Clustering = Clustering, Embed = Embed, Embedding = Embedding, Decisions = decisions, Sites = Sites };
 }
 
 internal sealed record RegroupProposal(string Kind, string A, string B, IReadOnlyList<NodePair> Rules);
@@ -90,7 +99,7 @@ internal sealed class Regrouper(RegroupInput input, string host = LayoutHostRule
         var cl = LayoutClusterRules.ClusterStations(ci);
         var embed = In.Embed with { Groups = cl.Groups, Fields = StationGraph.FieldEmbedLinks(ci.Graph, cl.Groups) };
         var emb = Embedding.Embed(embed);
-        var t = new RegroupTrial { Graph = ci.Graph, Pairs = pairs, Clustering = cl, Embed = embed, Embedding = emb, Host = Host };
+        var t = new RegroupTrial { Graph = ci.Graph, Pairs = pairs, Clustering = cl, Embed = embed, Embedding = emb, Host = Host, Sites = In.Sites };
         foreach (var group in GuardedGroups(cl.Groups)) t.Guarded[group] = true;
         return t;
     }

@@ -180,9 +180,10 @@ shelter, sleeping, temperature, cooking, power and storage use the existing gate
 affected services and needed wood acquisition stay unmet until their gate passes.
 This is coordination within existing concerns, not an executor.
 
-- Unusable cooking bench: one campfire method when none exists; no new bills on it.
-  Replacement cooking searches at most eight nearby free cells with native previews.
-  Starter heating is suppressed only by a usable campfire in the selected room.
+- Unusable cooking bench: no new bills on it. With no usable cooking bench the cooking load is
+  unhosted, and the shared layout comparison hosts it at a campfire, a stove, a chain or nowhere
+  ([host chains and pairs](spatial-contracts.md#host-chains-and-pairs)). Starter heating is
+  suppressed only by a usable campfire in the selected room.
 - Room heat: a cold sleeping room gets one campfire, or one powered Heater instead
   when wood is a finite stock (nothing sows it), the Heater is placeable and a power
   network has spare watts for its nominal draw. A standing campfire does not hold the

@@ -65,10 +65,6 @@ internal sealed class WorkLedger
 
     public DispatchMemory Dispatch { get; set; } = new();
 
-    public List<UnmetThroughput> Unmet { get; set; } = [];
-
-    public int Colonists { get; set; }
-
     public LedgerView View { get; set; } = default!;
 
     public void NoteBatches(IReadOnlyList<Declared> declared)
@@ -160,14 +156,6 @@ public sealed partial class ColonyReview
         }
     }
 
-    internal IReadOnlyList<string> LedgerFurtherBenches(IReadOnlyList<GearBench> benches)
-    {
-        lock (Ledger.Mu)
-        {
-            return WorkRules.FurtherBenchKinds(Ledger.Unmet, benches, Ledger.Colonists);
-        }
-    }
-
     public void AddOrderDeclarer(IOrderDeclarer d)
     {
         lock (Ledger.Mu)
@@ -203,8 +191,6 @@ public sealed partial class ColonyReview
             }
 
             l.World = snapshot;
-            l.Unmet = [];
-            l.Colonists = 0;
             l.View = WorkRules.NewLedgerView(WorkRules.LedgerViewInactive);
         }
 
@@ -261,6 +247,8 @@ public sealed partial class ColonyReview
         }
 
         inner.Lap("derive/ledger/declare");
+        // A recipe the plan hosts at two kinds (a chain's bridge and replacement, or a kept spare) shares its stock orders between them.
+        benches = WorkRules.ShareBenches(benches, projection.Facts.LayoutPlan, [.. WorkRules.WantedOrders(declared).Wanted.Values]);
         var (actual, known) = WorkRules.LedgerActuals(benches);
         LedgerDiff result;
         lock (l.Mu)
@@ -275,7 +263,7 @@ public sealed partial class ColonyReview
             else
             {
                 EquatableArray<WorkPawn> pawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
-                var (copies, dispatched) = l.Dispatch.Dispatch(new DispatchInputs
+                var copies = l.Dispatch.Dispatch(new DispatchInputs
                 {
                     Declared = declared, Benches = benches, Pawns = pawns,
                     Stock = ResourceStockRules.Count(projection.Snapshot.Resources), Tick = projection.Identity.Tick.Value,
@@ -285,9 +273,7 @@ public sealed partial class ColonyReview
                 l.Orphans = plan.Orphans;
                 var (placed, unplaced) = WorkRules.PlaceLedgerOrders(plan.Place, benches);
                 var (wanted, _) = WorkRules.WantedOrders(declared);
-                l.Unmet = [.. l.Dispatch.Unmet(dispatched, wanted, unplaced, benches)];
-                l.Colonists = pawns.Count;
-                l.View = WorkRules.BuildLedgerView(wanted, declared);
+                l.View = WorkRules.BuildLedgerView(wanted, declared) with { Benches = WorkRules.HostBenchesOf(benches) };
                 var owed = WorkRules.LedgerDiffOwed(plan, placed);
                 if (owed)
                 {

@@ -15,6 +15,10 @@ public sealed record StationFacts
 {
     public IReadOnlySet<string> FinishedResearch { get; init; } = new HashSet<string>(StringComparer.Ordinal);
     public StationCatalog Catalog { get; init; } = default!;
+
+    /// <summary>The planning census of the catalog's worker stations (StationCatalog.WorkerStations) by name: whether each can be built now and the research it waits on. A host it does not describe is an unread fact (HostCensus).</summary>
+    public IReadOnlyDictionary<string, BenchDefinition> BenchDefinitions { get; init; } = new Dictionary<string, BenchDefinition>(StringComparer.Ordinal);
+
     public RoomFurniture Furniture { get; init; } = default!;
 
     /// <summary>The catalog's dining furniture, carried by the rooms census; while that is unread it stays empty, an unknown fact that fails the advice.</summary>
@@ -156,6 +160,9 @@ public sealed record StationFacts
 
     /// <summary>The barns the herd shelter chose (HerdShelterRules.BarnWants): each unit short of its barn cells gets a barn node beside its pen. Empty when no unit's barn wins.</summary>
     public IReadOnlyList<BarnWant> Barns { get; init; } = [];
+    /// <summary>The activity sites the layout compares (habitat 3.3, ActivitySiteRules.Ask): each kind's standing, held and candidate sites. Its default asks none.</summary>
+    public ActivitySiteAsk ActivitySites { get; init; } = new();
+
     /// <summary>The shapes of the child rooms the colony owes (ChildRoomShapes); the classroom and deathrest chamber among them are room nodes.</summary>
     public IReadOnlyList<ChildRoomShape> Child { get; init; } = [];
 
@@ -202,9 +209,10 @@ public sealed record StationFacts
     /// <summary>The layout walking price; candidate economics is the canonical forecast vector.</summary>
     public RegroupPrice RegroupPriceOf() => new() { Work = LayoutRegroupRules.StationWorkPrice(this) };
 
-    /// <summary>The room nodes the facts ask beyond the station chain's: the tomb and morgue, the child rooms, the yards, and the pens.</summary>
+    /// <summary>The room nodes the facts ask beyond the station chain's: the tomb and morgue, the child rooms, the yards, the pens, and the activity site rooms.</summary>
     internal IReadOnlyList<RoomNode> RoomNodes() =>
-        [.. LayoutPlan.OutskirtsRoomNodes(Plan, Demand), .. LayoutPlan.ChildRoomNodes(Plan, Child), .. LayoutPlan.YardRoomNodes(Plan, Demand), .. LayoutPlan.HerdRoomNodes(Plan, Pens, Barns)];
+        [.. LayoutPlan.OutskirtsRoomNodes(Plan, Demand), .. LayoutPlan.ChildRoomNodes(Plan, Child), .. LayoutPlan.YardRoomNodes(Plan, Demand), .. LayoutPlan.HerdRoomNodes(Plan, Pens, Barns),
+            .. LayoutPlan.ActivityRoomNodes(Plan, Built, ActivitySites)];
 
     /// <summary>
     /// The work ledger's wanted orders: those of a reconciled ledger, or none for an inactive one (no planner declares
@@ -214,8 +222,8 @@ public sealed record StationFacts
         ? Ledger.Orders
         : throw new RequiredFactException("work ledger orders");
 
-    /// <summary>The host alternatives of the ledger's unhosted loads over the plan held (RG-HABITAT-005, LayoutHostRules.Of).</summary>
-    public HostAlternatives HostAlternatives() => LayoutHostRules.Of(Catalog, LedgerOrders(), Plan);
+    /// <summary>The host alternatives of the ledger's recipe loads over the plan held and the benches the ledger read (RG-HABITAT-005, LayoutHostRules.Of).</summary>
+    public HostAlternatives HostAlternatives() => LayoutHostRules.Of(Catalog, LedgerOrders(), Plan, new HostCensus(BenchDefinitions, Recipes, FinishedResearch) { Benches = Ledger.Benches });
 
     /// <summary>Assembles the graph's input with the baseline hosts (HostAlternatives), or throws a RequiredFactException naming the unknown fact.</summary>
     public StationGraphInput GraphInput() => GraphInput(HostAlternatives().Baseline);
@@ -293,6 +301,7 @@ public sealed record StationFacts
             new("pens", KeyText.Of(Pens)),
             new("barns", KeyText.Of(Barns)),
             new("child", KeyText.Of(Child)),
+            new("activity_sites", KeyText.Of(ActivitySites)),
             new("plan", KeyText.Of(Plan)),
             new("rest", KeyText.Of(Rest)),
         };
@@ -443,6 +452,9 @@ public sealed record StationAdvice
     /// <summary>The regrouping search's moves: each one applied, or the single reason none was.</summary>
     public IReadOnlyList<RegroupDecision> Regroup { get; init; } = [];
 
+    /// <summary>The activity sites the grouping holds (Regrouping.Sites); the tiled plan resolves them (ActivitySiteRules.Resolve).</summary>
+    public EquatableArray<ActivityPlacement> ActivitySites { get; init; }
+
     /// <summary>The embedding tiled into a plan; null unless TileStations ran.</summary>
     public TileResult? Tiled { get; init; }
 
@@ -461,8 +473,11 @@ public sealed record BuiltRegion
     /// <summary>The herd key of a pen.</summary>
     public string Herd { get; init; } = string.Empty;
 
+    /// <summary>The activity key of a site room.</summary>
+    public string Activity { get; init; } = string.Empty;
+
     /// <summary>The key a room is matched to groups under.</summary>
-    internal string MatchKey() => Planned != PlannedRole.None ? LayoutStationPlanRules.MatchKeyOf(Planned, Herd) : Role.ToString();
+    internal string MatchKey() => Planned != PlannedRole.None ? LayoutStationPlanRules.MatchKeyOf(Planned, Herd, Activity) : Role.ToString();
 }
 
 /// <summary>The built rooms matched to one group: Rooms are the matched room ids, ascending; Capacity their summed floor.</summary>
@@ -569,15 +584,23 @@ public static partial class LayoutStationPlanRules
 
     /// <summary>
     /// The regroup inputs of every host alternative (RG-HABITAT-005), the baseline first, each over the station graph its
-    /// hosts give, then the free-bed pool's bed-sharing alternatives (LayoutBedShareRules), with the deviations the bound
-    /// omitted. RegroupAsync compares them by the canonical ledger.
+    /// hosts give, then the free-bed pool's bed-sharing alternatives (LayoutBedShareRules) and the activity sites'
+    /// deviations (ActivitySiteRules.Deviations: a spot in an existing room, a new site room or none, each over the
+    /// baseline hosts and the station graph its site rooms give), with the deviations the bounds omitted. RegroupAsync
+    /// compares them by the canonical ledger.
     /// </summary>
     public static HostedRegroupInputs HostedRegroupInputsOf(StationFacts f)
     {
         var hosts = f.HostAlternatives();
         var inputs = hosts.Alternatives.Select(h => new HostedRegroupInput(h, RegroupInputOf(f, h))).ToList();
+        var baseline = inputs[0];
+        var sites = ActivitySiteRules.Deviations(f.ActivitySites).Select(d => new HostedRegroupInput(
+            baseline.Host with { Id = ActivitySiteRules.IdOf(d.Deviation) }, RegroupInputOf(f with { ActivitySites = d.Ask }, baseline.Host)) { Site = d.Deviation });
         // The free-bed pool's shared, private and held provision are compared as alternatives of the baseline hosts.
-        return new([inputs[0], .. LayoutBedShareRules.AlternativesOf(inputs[0]).Skip(1), .. inputs.Skip(1)], hosts.Omitted);
+        return new([baseline, .. LayoutBedShareRules.AlternativesOf(baseline).Skip(1), .. sites, .. inputs.Skip(1)], hosts.Omitted)
+        {
+            SitesOmitted = EquatableArray.From(ActivitySiteRules.Truncations(f.ActivitySites)),
+        };
     }
 
     /// <summary>The validated station graph of <paramref name="host"/> and the geometry shared by every canonical regroup trial.</summary>
@@ -616,6 +639,7 @@ public static partial class LayoutStationPlanRules
             },
             Price = f.RegroupPriceOf(),
             Mismatches = f.Mismatches,
+            Sites = EquatableArray.From(f.ActivitySites.Placements()),
         };
     }
 
@@ -635,6 +659,7 @@ public static partial class LayoutStationPlanRules
             Embedding = embedding,
             Regroup = regrouped.Decisions,
             Sites = placed,
+            ActivitySites = regrouped.Sites,
             Comfort = LayoutComfortChooseRules.AdviseComfort(f, graph, SteelValueOrZero(f)),
         };
         var groups = new List<GroupAdvice>();
@@ -685,7 +710,9 @@ public static partial class LayoutStationPlanRules
     internal static HashSet<PlannedRole> RoomNodeRoles => RoomNodeRolesSet.Value;
 
     /// <summary>The key a planned role is matched under: a pen's and a barn's carry their herd, so a unit's herd rooms are matched to the unit's nodes.</summary>
-    internal static string MatchKeyOf(PlannedRole planned, string herd) => planned is PlannedRole.Pen or PlannedRole.Barn ? $"{Wire.Name(planned)}/{herd}" : Wire.Name(planned);
+    internal static string MatchKeyOf(PlannedRole planned, string herd, string activity = "") =>
+        activity.Length != 0 ? $"{Wire.Name(planned)}/activity/{activity}"
+        : planned is PlannedRole.Pen or PlannedRole.Barn ? $"{Wire.Name(planned)}/{herd}" : Wire.Name(planned);
 
     /// <summary>
     /// The key a group is matched to rooms under: its predicted role, or the native role of the planned room its
@@ -695,6 +722,11 @@ public static partial class LayoutStationPlanRules
     internal static string MatchKeyOfGroup(RoomGroup g)
     {
         var (p, ok) = LayoutTileRules.PlannedRoleOfGroup(g);
+        if (ok && g.Activity.Length != 0)
+        {
+            // A site room is matched only to the standing site room of its activity, never to another room of its role.
+            return MatchKeyOf(p, "", g.Activity);
+        }
         if (ok && (MatchedPlanned.ContainsKey(p) || RoomNodeRoles.Contains(p)))
         {
             return MatchKeyOf(p, g.Herd);
@@ -850,7 +882,7 @@ partial record LayoutPlan
                 ok = true;
                 planned = r.Role;
             }
-            if (nodeRoles.Contains(r.Role))
+            if (nodeRoles.Contains(r.Role) || r.Activity.Length != 0)
             {
                 ok = true;
                 planned = r.Role; // a room node's room: matched by planned role, outdoor or with no native role
@@ -863,7 +895,7 @@ partial record LayoutPlan
             {
                 continue;
             }
-            output.Add(new BuiltRegion { Room = r.Id, Role = role, Planned = planned, Region = r.Region, Herd = r.Herd });
+            output.Add(new BuiltRegion { Room = r.Id, Role = role, Planned = planned, Region = r.Region, Herd = r.Herd, Activity = r.Activity });
         }
         return [.. output.OrderBy(b => b.Room)];
     }

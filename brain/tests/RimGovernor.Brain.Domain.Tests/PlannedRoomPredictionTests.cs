@@ -42,9 +42,9 @@ public sealed class PlannedRoomPredictionTests
         var prediction = Closed("1", "", "Workshop", 0, 0, 9, 0, false) with
         {
             ReadingBonus = 1.12,
-            WorkBenches = [new("bench", new(1, 1), .06, .1, new BenchPower.Unconnected(), new BenchPlacement.Planned()),
-                new("bench", new(2, 2), 0, 0, new BenchPower.Unneeded(), new BenchPlacement.Standing(.56)),
-                new("bench", new(3, 3), 0, 0, new BenchPower.Connected("Building_PowerConduit1/Building_WindTurbine2", 250, 1800), new BenchPlacement.Planned())],
+            WorkBenches = [new("bench", new(1, 1), .06, .1, new BenchPower.Unconnected(null), new BenchPlacement.Planned(), null),
+                new("bench", new(2, 2), 0, 0, new BenchPower.Unneeded(), new BenchPlacement.Standing(.56), null),
+                new("bench", new(3, 3), 0, 0, new BenchPower.Connected("Building_PowerConduit1/Building_WindTurbine2", 250, 1800), new BenchPlacement.Planned(), null)],
         };
         Assert.Equal(prediction, OrdersJson.Deserialize<PlannedRoomPrediction>(OrdersJson.Serialize(prediction)));
         Assert.Equal(prediction, FactsJson.Deserialize<PlannedRoomPrediction>(FactsJson.Serialize(prediction)));

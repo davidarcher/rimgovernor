@@ -128,7 +128,7 @@ public static class ForecastServiceInvestments
             if (chain.Count == 0) continue;
             yield return new(new ServiceTarget(new FilingKey(owner), "need_satisfied"),
                 EquatableArray.From(loads.Select(l => l.Load.Recipe).Distinct().Order(StringComparer.Ordinal)), chain, horizon,
-                "hosted_runs_per_day", loads.Sum(l => l.Load.RunsPerDay), HostedLoadRetirement);
+                "hosted_runs_per_day", loads.Where(l => l.Load.Step != HostStep.Bridge).Sum(l => l.Load.RunsPerDay), HostedLoadRetirement);
         }
     }
 

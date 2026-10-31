@@ -714,7 +714,8 @@ table packed to stock for the laboratory to install, and the entry drops once no
 included, stands on it. A blueprint on a held room's ring or ground is that room's and stays.
 
 **Host binding.** The adopted host alternative is the plan itself, so a Need that owns an
-unhosted ledger load (`LedgerView.Owners`, `PlannedRules.OwnedUnhostedRecipes`) binds the
+hosted ledger load (`LedgerView.Owners`, `PlannedRules.OwnedHostedRecipes`: an order naming
+no bench kind, or naming a kind the plan hosts the recipe away from) binds the
 plan's host and never selects a bench again (`BuildingPlanner.PlannedHostStepAsync`,
 `PlannedRules.HostBindingOf`): the first room by id whose `Production` hosts the recipe,
 its bench the first by name, its pieces of that bench at their anchors. The binding is
@@ -732,8 +733,65 @@ stuff (`SelectedPieceStuff`); a piece the record names no stuff for falls back t
 choice. Binding never satisfies the Need: placing or building the bench closes the
 construction action at an accepted placement receipt, and the served Need closes only on
 fresh facts ([essential services](essential-services.md#hosted-workshop-loads)). When
-there is no layout plan, or the Need owns no unhosted load, the workshop ladder
-(`WorkRules.SelectWorkshopBench`, `ExistingWorkshopBench`) selects its bench as before.
+there is no layout plan, or the Need owns no hosted load, no bench is selected in its
+place: a product a buildable definition can host waits on the comparison
+(`AwaitingPlan` `host_unplanned`), a research-gated one records its research rung
+(`WorkRules.WorkshopResearchRung`), and a fermenting barrel prerequisite is placed as before.
+
+#### Host chains and pairs
+
+A load's host alternatives (`LayoutHostRules.Of`, RG-HABITAT-005) are the baseline and
+deviations bounded at `LayoutHostRules.HostTrials` (`LayoutSiteGroundRules.SiteSearchTop`,
+8 a round). The baseline retains the held plan's host, or defers. The rest are taken
+round-robin over the loads and are reported past the bound as
+`regroup_host_alternatives_truncated`, never as a capacity quota. A deviation is one of:
+
+- another buildable catalog host (`HostChoice.Build`, research-available only, via `HostCensus.Buildable`);
+- deferral;
+- a chain `HostChoice.Chain(First, Then)`, whose bridge stands or is buildable and whose replacement is buildable;
+- once the retained host serves, keeping a standing other host beside it (`HostChoice.Pair(Def, Also)`), or removing a kept spare.
+
+The adopted plan records each step on `PlannedProduction.Step` (`HostStep` `host`, `bridge` or
+`share`; store schema 71).
+
+Binding follows the dependency: a chain's Bridge piece binds until a bench of it stands
+built, and only then the Host piece. A chain whose replacement serves
+(`LayoutHostRules.Serving`: built, usable, reachable, offering the recipe with a declared
+order of it) is read back as `Retained` of the replacement, so the bridge's fate is the
+next comparison's decision.
+
+Removal is one rule, `PlannedRules.HostRemovalHold`. A standing bench offering a recipe
+the plan hosts at another definition waits on `replacement not serving:{recipe}` until a
+replacement serves each such recipe, and then on `bill in progress:{bills}` while a pawn's
+job works one of its bills (`HostBench.Working`, read from native `BillState.Workers`).
+`PlannedRules.HostRetirementsOf` applies it to the owner's spares; it skips while a Bridge
+production is pending and leaves a heating campfire another owner claims (`ClaimedBy`).
+The room reconcile applies the same rule through `PlannedRules.AdmittedRemovals`, which
+takes held targets out of `FurnitureOut`, `Pack` and `PackInUse` ops while the room's
+other work proceeds. A held removal is `AwaitingPlan` `host_retire_held`. An admitted one
+is a `host-retire-*` deconstruction Method. `PlannedRules.HostRetireOwed` keeps the
+owner's Need unmet until the removal lands. This replaces the automatic campfire retirement.
+
+#### Activity sites
+
+Party, marriage and ritual sites are layout alternatives of the same comparator
+(`HostedRegroupInput.Site`, `ActivitySiteRules.Deviations`, habitat 3.3). Each demanded
+kind (`ActivitySiteRules.Demands` over `ActivityAccess` and the ideoligion) offers a spot
+in each eligible existing room, a new site room, or no site. A new site room is a planned
+`Rec` room keyed to its kind (`PlannedRoom.Activity`, store schema 72) whose shell the
+ledger charges like any planned room's. Prison cells, bedrooms, barracks and hospitals
+are never eligible.
+
+The existing rooms one kind offers are bounded at `ActivitySiteRules.MaxRoomTrials` (6). The
+rest are one skipped decision (`HostedRegroupInputs.SitesOmitted`), and the baseline keeps
+ties. Sites have no host lifecycle: no chain, pair or retirement, and the room reconcile
+carries every site definition over.
+
+The adopted plan's sites (`LayoutPlan.ActivitySites`) are bound by the `rooms/party-site`,
+`rooms/marriage-site` and `rooms/ritual-site` Needs as one `{kind}-site-place-*` building
+Method per kind and room. Once one is admitted, whatever its receipt, that room is read as
+spent (`activity_site_spent`) and never offered again. A site in a planned room that does
+not yet stand waits as `activity_site_room_unbuilt`.
 
 Reshape order: the diff runs over the room's `Region` (an L's notch is no ground, floors
 lay on region cells only). A standing wall now inside the region (a column added) is owed

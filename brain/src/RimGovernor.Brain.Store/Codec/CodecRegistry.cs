@@ -88,7 +88,8 @@ internal static class CodecRegistry
         codecs.Register(new DefenseBuildingConverter());
         codecs.Register(new DefenseLayoutRecordConverter());
         codecs.Register(new DefenseTierNameConverter());
-        codecs.Register(new DefenseTierRecordConverter());        codecs.Register(new DialogAnswerConverter());
+        codecs.Register(new DefenseTierRecordConverter());
+        codecs.Register(new DialogAnswerConverter());
         codecs.Register(new DisasterConditionConverter());
         codecs.Register(new DisasterEvidenceConverter());
         codecs.Register(new DisasterHistoryConverter());
@@ -145,7 +146,8 @@ internal static class CodecRegistry
         codecs.Register(new MoveBuildingConverter());
         codecs.Register(new MovementConverter());
         codecs.Register(new NativeGenerationConverter());
-        codecs.Register(new NativeRefusalConverter());        codecs.Register(new ObservationConverter());
+        codecs.Register(new NativeRefusalConverter());
+        codecs.Register(new ObservationConverter());
         codecs.Register(new OutsideTripConverter());
         codecs.Register(new OwnedDraftConverter());
         codecs.Register(new UndraftConverter());
@@ -165,6 +167,7 @@ internal static class CodecRegistry
         codecs.Register(new PlannedLampConverter());
         codecs.Register(new InteriorPieceConverter());
         codecs.Register(new PlannedRoomConverter());
+        codecs.Register(new PlannedActivitySiteConverter());
         codecs.Register(new PlannedProductionConverter());
         codecs.Register(new FilthRunsConverter());
         codecs.Register(new PlannedSiteConverter());
@@ -208,7 +211,8 @@ internal static class CodecRegistry
         codecs.Register(new RoomLinkConverter());
         codecs.Register(new RoomTripConverter());
         codecs.Register(new Converter());
-        codecs.Register(new CombatConverter());        codecs.Register(new LatchesConverter());
+        codecs.Register(new CombatConverter());
+        codecs.Register(new LatchesConverter());
         codecs.Register(new ReviewMoodCauseConverter());
         codecs.Register(new MoodConverter());
         codecs.Register(new MoodMethodConverter());
@@ -235,7 +239,8 @@ internal static class CodecRegistry
         codecs.Register(new PreferencesRecordConverter());
         codecs.Register(new GoalsRecordConverter());
         codecs.Register(new TradeMissionEntryConverter());
-        codecs.Register(new TradeMissionsRecordConverter());        codecs.Register(new StartingSupplyConverter());
+        codecs.Register(new TradeMissionsRecordConverter());
+        codecs.Register(new StartingSupplyConverter());
         codecs.Register(new StatModifierConverter());
         codecs.Register(new StockpileFilterConverter());
         codecs.Register(new StockpilePatchConverter());

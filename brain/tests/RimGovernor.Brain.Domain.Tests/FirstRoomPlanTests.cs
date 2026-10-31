@@ -38,6 +38,7 @@ public sealed class FirstRoomPlanTests
         return f with
         {
             Catalog = f.Catalog with { Stations = stations, Climate = BedMergePriceTests.Catalog.Climate },
+            BenchDefinitions = Buildable(stations.Keys),
             Recipes = recipes,
             OutdoorCurve = EquatableArray.From(curve),
             BedMerge = treeless ? BedMergePriceTests.MarketWood(calm) : BedMergePriceTests.Wood(calm),
@@ -45,6 +46,10 @@ public sealed class FirstRoomPlanTests
             Ledger = new LedgerView { Status = WorkRules.LedgerViewReconciled, Orders = orders ?? [] },
         };
     }
+
+    /// <summary>The planning census describing every one of <paramref name="defs"/> as buildable now.</summary>
+    internal static Dictionary<string, BenchDefinition> Buildable(IEnumerable<string> defs) =>
+        defs.ToDictionary(d => d, d => new BenchDefinition { Name = d, Available = true }, StringComparer.Ordinal);
 
     internal static LayoutPlan Derive(StationFacts f)
     {
@@ -126,8 +131,10 @@ public sealed class FirstRoomPlanTests
         var f = Facts(BedMergePriceTests.Temperate, "mild", [KnifeOrder]);
         var hosts = f.HostAlternatives();
 
-        // Nothing holds the load yet, so deferral is the baseline and no definition is chosen before the comparison.
-        Assert.Equal(["host:baseline", "host:MakeKnife/CraftingSpot", "host:MakeKnife/Smithy"], hosts.Alternatives.Select(a => a.Id));
+        // Nothing holds the load yet, so deferral is the baseline and no definition is chosen before the comparison; each
+        // spot-now/table-later chain is an alternative of its own (task 3.2).
+        Assert.Equal(["host:baseline", "host:MakeKnife/CraftingSpot", "host:MakeKnife/Smithy", "host:MakeKnife/CraftingSpot>Smithy", "host:MakeKnife/Smithy>CraftingSpot"],
+            hosts.Alternatives.Select(a => a.Id));
         Assert.IsType<HostChoice.Deferred>(Assert.Single(hosts.Baseline.Loads).Host);
         Assert.Equal([KnifeOrder], Assert.Single(hosts.Baseline.Loads).Orders);
         Assert.Empty(hosts.Omitted);
@@ -170,11 +177,12 @@ public sealed class FirstRoomPlanTests
     [Fact]
     public void TheOrdersBenchKindStillRestrictsTheHost()
     {
-        // A standing smithy lists the recipe, so its bills run there alone: no host alternative is offered for the load.
+        // A standing smithy lists the recipe, so its bills run there: the baseline keeps them at the smithy, and the one
+        // alternative is replacing it through a chain the smithy bridges (task 3.2), never a host chosen without the bridge.
         var f = Facts(BedMergePriceTests.Temperate, "mild", [KnifeOrder with { BenchKind = Smithy }]);
         var node = Assert.Single(StationGraph.BuildStationGraph(f.GraphInput()).Nodes, n => n.Def == Spot || n.Def == Smithy);
         Assert.Equal(Smithy, node.Def);
-        Assert.Equal(["host:baseline"], f.HostAlternatives().Alternatives.Select(a => a.Id));
-        Assert.Empty(f.HostAlternatives().Baseline.Loads);
+        Assert.Equal(["host:baseline", "host:MakeKnife/Smithy>CraftingSpot"], f.HostAlternatives().Alternatives.Select(a => a.Id));
+        Assert.Equal(new HostChoice.Retained(Smithy), Assert.Single(f.HostAlternatives().Baseline.Loads).Host);
     }
 }

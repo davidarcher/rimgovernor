@@ -19,7 +19,7 @@ public sealed partial class BuildingPlanner
         {
             throw new ControlException("NewReviewCookingPlanner: reviewer == nil || native == nil");
         }
-        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodRules.CookingNeed.FilingKey, Need = FoodRules.CookingNeed, Definition = "Campfire", Environment = PlacementEnvironment.Anywhere };
+        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodRules.CookingNeed.FilingKey, Need = FoodRules.CookingNeed, Environment = PlacementEnvironment.Anywhere };
     }
 
     public static BuildingPlanner NewReviewButcherPlanner(ColonyReview reviewer, IReviewBuildingSource native)
@@ -32,7 +32,7 @@ public sealed partial class BuildingPlanner
         {
             throw new ControlException("NewReviewButcherPlanner: !ok");
         }
-        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodRules.FoodSupplyNeed.FilingKey, Need = FoodRules.FoodSupplyNeed, Definition = "TableButcher", Environment = PlacementEnvironment.Anywhere };
+        return new BuildingPlanner { Reviewer = reviewer, Native = native, Concern = FoodRules.FoodSupplyNeed.FilingKey, Need = FoodRules.FoodSupplyNeed, Environment = PlacementEnvironment.Anywhere };
     }
 
     /// <summary>The count the concern wants built, the method that builds it, or the verdict that explains why none is wanted.</summary>
@@ -46,16 +46,10 @@ public sealed partial class BuildingPlanner
         var c = Concern;
         if (c == FoodRules.FoodSupplyNeed.FilingKey)
         {
-            if (Definition != "TableButcher")
-            {
-                return (0, default, FieldUnavailable("butcher_table_definition"));
-            }
             return FacilityPlanningRules.ButcherDemand(facts.Facts) switch
             {
-                FacilityDemand.ButcherSpot => (1, new MethodId("butcher-spot"), default),
-                FacilityDemand.RetireButcherSpot => (1, new MethodId("butcher-spot-retire"), default),
-                FacilityDemand.ButcherTable => (1, new MethodId("butcher-table"), default),
                 FacilityDemand.Existing => (0, default, BuildingReasonExistingFacility),
+                FacilityDemand.Unhosted => (0, default, AwaitingPlan(HostUnplanned, Concern.Value)),
                 var unexpected => throw new ControlException($"unexpected butcher demand: {unexpected}"),
             };
         }
@@ -113,9 +107,9 @@ public sealed partial class BuildingPlanner
         }
         if (RoomsFamily.ComfortStep(c))
         {
-            if (Phase == Phase.ComfortSpot)
+            if (Phase == Phase.ActivitySite)
             {
-                return (1, PartySpotPlaceMethod(PartySpotRoom), default);
+                return (1, SitePlaceMethod(SiteKind, SiteRoom), default);
             }
             if (Phase == Phase.ComfortWorkChair)
             {
@@ -133,10 +127,6 @@ public sealed partial class BuildingPlanner
         }
         if (c == EconomyFamily.Resource.FilingKey || c == MilitaryFamily.Equipment.FilingKey)
         {
-            if (Workshop is not null && Workshop.Ordinal > 0)
-            {
-                return (1, new MethodId(string.Create(CultureInfo.InvariantCulture, $"workshop-{Definition}-{Workshop.Ordinal + 1}")), default);
-            }
             return (1, new MethodId("workshop-" + Definition), default);
         }
         if (c == MedicalRules.MedicalCareNeed.FilingKey)
@@ -179,7 +169,7 @@ public sealed partial class BuildingPlanner
                 FacilityDemand.AwaitingFoodPlan => (0, default, AwaitingFoodPlan("cooking-capacity")),
                 FacilityDemand.None => (0, default, BuildingReasonNoDeficit),
                 FacilityDemand.Existing => (0, default, BuildingReasonExistingFacility),
-                FacilityDemand.Campfire => (1, new MethodId("campfire"), default),
+                FacilityDemand.Unhosted => (0, default, AwaitingPlan(HostUnplanned, Concern.Value)),
                 var unexpected => throw new ControlException($"unexpected cooking demand: {unexpected}"),
             };
         }

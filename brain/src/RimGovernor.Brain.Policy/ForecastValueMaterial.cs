@@ -57,6 +57,7 @@ public static partial class ForecastValue
             .Concat(FueledShelters(context).Select(s => new Resource(s.Burn.Fuel)))
             .Concat(ForecastStorage.StockMaterials(context))
             .Concat(context.LayoutRooms.Values.SelectMany(r => r.Production).SelectMany(p => ForecastWorkshop.Products(context, p)).Select(p => p.Resource))
+            .Concat(ForecastWorkshop.ConnectionMaterials(context))
             .Concat(context.FreezerStock.Where(s => s.Rot is FoodRot.Rots).Select(s => new Resource(s.DefName)))
             .Concat(context.RoomPrerequisites.Values.SelectMany(s => s).SelectMany(s => s.Material).Select(m => m.Resource))
             .Distinct().OrderBy(r => r.Value, StringComparer.Ordinal)];

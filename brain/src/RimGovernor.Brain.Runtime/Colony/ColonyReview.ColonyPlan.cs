@@ -543,7 +543,7 @@ public sealed partial class ColonyReview
         var colonists = (int)projection.Facts.Census.ColonistCount;
         var start = DateTimeOffset.UtcNow;
         var f = StationFactsBuilder.FirstPlanFacts(projection, survey, StationNeeds(demandWorld), WorkLedgerView());
-        f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays, BedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false) };
+        f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays, BedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false), ActivitySites = ActivitySiteAsk(snapshot, projection, null) };
         LayoutPlan? derived = null;
         StationAdvice advice = new();
         Exception? error = null;

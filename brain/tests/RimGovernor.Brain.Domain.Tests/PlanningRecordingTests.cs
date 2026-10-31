@@ -59,24 +59,24 @@ public sealed class PlanningRecordingTests
         Environment.SetEnvironmentVariable(SnapshotRecorder.DirEnv, "recordings");
         try
         {
-            var outerRequest = new WorkshopRequest();
+            var outerRequest = new ExcavationSiteRequest();
             var innerRequest = new ResourceMethodRequest();
             using var outer = SnapshotPlannerReplay.StartPlanner(new FilingKey("test.outer"));
-            SnapshotPlannerReplay.NoteWorkshop(outerRequest);
+            SnapshotPlannerReplay.NoteExcavation(outerRequest);
             using (var inner = SnapshotPlannerReplay.StartPlanner(new FilingKey("test.inner")))
             {
                 SnapshotPlannerReplay.NoteResourceMethod(innerRequest);
                 SnapshotPlannerReplay.Finish(inner, default, new Tick(23));
             }
-            SnapshotPlannerReplay.NoteWorkshop(outerRequest);
+            SnapshotPlannerReplay.NoteExcavation(outerRequest);
             SnapshotPlannerReplay.Finish(outer, default, new Tick(23));
 
             var innerSnapshot = Assert.IsType<SnapshotPlanner>(sink.Rows[0].Value);
             Assert.Same(innerRequest, Assert.Single(innerSnapshot.ResourceMethods));
-            Assert.Empty(innerSnapshot.Workshops);
+            Assert.Empty(innerSnapshot.Excavation);
             var outerSnapshot = Assert.IsType<SnapshotPlanner>(sink.Rows[1].Value);
-            Assert.Equal(2, outerSnapshot.Workshops.Count);
-            Assert.All(outerSnapshot.Workshops, request => Assert.Same(outerRequest, request));
+            Assert.Equal(2, outerSnapshot.Excavation.Count);
+            Assert.All(outerSnapshot.Excavation, request => Assert.Same(outerRequest, request));
             Assert.Empty(outerSnapshot.ResourceMethods);
         }
         finally

@@ -74,8 +74,10 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 68 removes an activity task's product stuff: bill work runs through native bills and work settings, never an exact order; older session journals are replaced.
     /// Version 69 removes activity set steps (step targets and cells), exact surgery recipes and task/output retry budgets: routine work is native and a failed exact step is never reissued; older session journals are replaced.
     /// Version 70 keeps the layout plan's barn rooms and their links (a barn is a planned herd room beside its pen); older journals are replaced.
+    /// Version 71 keeps each planned production's host step (a chain's bridge, a kept spare's share; RG-HABITAT-005); older journals are replaced.
+    /// Version 72 keeps the layout plan's activity sites and each planned room's activity (habitat 3.3); older journals are replaced.
     /// </summary>
-    public const int SchemaVersion = 70;
+    public const int SchemaVersion = 72;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

@@ -393,6 +393,7 @@ internal sealed partial class Tiler(TileInput input)
                 Outdoor = role.IsOutdoor(),
                 Markers = g.Markers,
                 Herd = g.Herd,
+                Activity = g.Activity,
                 WorkChairs = LayoutComfortChooseRules.WorkChairsOf(g, In.Comfort),
                 FilthRuns = g.FilthRuns,
                 Meals = g.Meals,

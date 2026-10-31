@@ -21,14 +21,14 @@ public sealed class KitchenCreditTests
     private static readonly FilthModel Filth = BedStationPriceTests.Filth with { FoodPoisonRoomless = Campfire };
     private static readonly Dictionary<string, FilthRuns> Blood = new() { [BedStationPriceTests.Butcher] = new() { Runs = 2, Ticks = 1500 } };
 
-    private static PlannedRoom Room(int id, PlannedRole role, double meals, IReadOnlyDictionary<string, FilthRuns>? runs = null) =>
+    internal static PlannedRoom Room(int id, PlannedRole role, double meals, IReadOnlyDictionary<string, FilthRuns>? runs = null) =>
         new() { Id = id, Role = role, Meals = meals, FilthRuns = runs ?? new Dictionary<string, FilthRuns>() };
 
-    private static ForecastPlannedClosure Closure(int room, double cleanliness, string role = "Kitchen") =>
+    internal static ForecastPlannedClosure Closure(int room, double cleanliness, string role = "Kitchen") =>
         new(room, "WoodLog", [], ["planned/room" + room.ToString(CultureInfo.InvariantCulture) + "/wall/WoodLog"], [],
             PlannedRoomPredictionTests.Closed(room.ToString(CultureInfo.InvariantCulture), "WoodLog", role, 30d, 2, 9, 0, false) with { Cleanliness = cleanliness });
 
-    private static ForecastCoupledContext Context(PlannedRoom[] rooms, ForecastPlannedClosure[] closures) =>
+    internal static ForecastCoupledContext Context(PlannedRoom[] rooms, ForecastPlannedClosure[] closures) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with
         {
             PlannedRoomRoles = rooms.ToDictionary(r => r.Id, r => r.Role),
@@ -38,7 +38,7 @@ public sealed class KitchenCreditTests
             Filth = Filth,
         };
 
-    private static ForecastCoupledOutcome Serving(int room, double poisonCases = 0) =>
+    internal static ForecastCoupledOutcome Serving(int room, double poisonCases = 0) =>
         new(new([], 0, 0), true, new Dictionary<string, ForecastNeedsResult>
         {
             ["pawn"] = new([], new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), []),

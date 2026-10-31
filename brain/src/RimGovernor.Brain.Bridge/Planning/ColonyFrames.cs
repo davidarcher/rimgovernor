@@ -69,6 +69,7 @@ public static class ColonyFramesReads
                 RecreationFoothold = required.RecreationFoothold(),
                 WatchBuildings = EquatableArray.From(required.WatchBuildings()),
                 Furniture = required.DiningFurniture(),
+                Sites = ActivitySiteReads.SiteDefs(required),
             };
         }
         catch (DomainException e)

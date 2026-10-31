@@ -46,19 +46,19 @@ public sealed class FoodFamilyTests
     [Fact]
     public void TheCookingNeedIsMetWhileAMealCanBeMadeAndReopensWhenTheKitchenIsLost()
     {
-        var met = Cooking(new() { Cooking = true, CampfireRetireOwed = false });
+        var met = Cooking(new() { Cooking = true, HostRetireOwed = false });
         Assert.Equal((FoodRules.CookingNeed, NeedTier.Wellbeing, Satisfaction.Met, 0.0), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
 
         // A lost stove kitchen: nothing can be cooked on the next review, so the Need is unmet again.
-        var lost = Cooking(new() { Cooking = false, CampfireRetireOwed = false });
+        var lost = Cooking(new() { Cooking = false, HostRetireOwed = false });
         Assert.Equal((Satisfaction.Unmet, 1.0), (lost.Satisfaction, lost.Deficit));
 
-        // A superseded cooking campfire keeps the Need unmet even while a stove cooks, and decides it unread cooking.
-        Assert.Equal(Satisfaction.Unmet, Cooking(new() { Cooking = true, CampfireRetireOwed = true }).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, Cooking(new() { CampfireRetireOwed = true }).Satisfaction);
+        // A spare cooking host its serving replacement retires keeps the Need unmet even while a stove cooks, and decides it unread cooking.
+        Assert.Equal(Satisfaction.Unmet, Cooking(new() { Cooking = true, HostRetireOwed = true }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Cooking(new() { HostRetireOwed = true }).Satisfaction);
 
-        // Cooking is read whole on every frame; an unread campfire owes nothing.
-        Assert.Equal(Satisfaction.Unmet, Cooking(new() { CampfireRetireOwed = false }).Satisfaction);
+        // Cooking is read whole on every frame; no spare to retire owes nothing.
+        Assert.Equal(Satisfaction.Unmet, Cooking(new() { HostRetireOwed = false }).Satisfaction);
         Assert.Equal(Satisfaction.Met, Cooking(new() { Cooking = true }).Satisfaction);
     }
 
@@ -77,7 +77,7 @@ public sealed class FoodFamilyTests
     {
         public required Journal Journal { get; init; }
         public required FamilyRunner<FoodFacts> Runner { get; init; }
-        public FoodFacts Facts { get; set; } = SupplyFacts() with { Cooking = false, CampfireRetireOwed = false };
+        public FoodFacts Facts { get; set; } = SupplyFacts() with { Cooking = false, HostRetireOwed = false };
 
         /// <summary>The building Methods the cooking step commits on the next run, each a (MethodId, cell) pair.</summary>
         public List<(string Method, Cell Cell)> Builds { get; } = [];

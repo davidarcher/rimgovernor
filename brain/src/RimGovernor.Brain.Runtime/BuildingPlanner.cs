@@ -89,9 +89,6 @@ public sealed partial class BuildingPlanner
     /// </summary>
     internal bool AdvancedLab { get; set; }
 
-    /// <summary>The shared room the PartySpot step places in; empty places in any roofed indoor cell.</summary>
-    internal string PartySpotRoom { get; set; } = "";
-
     /// <summary>
     /// The owner the step works under, loaded fresh: the <see cref="Need"/>'s in the review's world when one owns
     /// the planner (its family already judged it unmet); a planner without a Need has no owner.
@@ -159,7 +156,7 @@ public sealed partial class BuildingPlanner
                 // Fields, foraging and hunts share the goal and run for days: only a pending bench is the planner's own work (the ring is its own wave).
                 foreach (var progress in plan.Progress)
                 {
-                    if (PendingFacility(progress, "TableButcher") || PendingFacility(progress, Rules.ButcherSpotDefinition))
+                    if (progress.Action.Building is { } bench && FacilityPlanningRules.ButcherBenchDefinition(bench.Definition) && PendingWork.IsPending(progress))
                     {
                         return new BuildingResult { Verdict = BuildingReasonExistingWork };
                     }
@@ -209,7 +206,7 @@ public sealed partial class BuildingPlanner
         }
         if (r.ButcherFacility())
         {
-            definitions = ["TableButcher", Rules.ButcherSpotDefinition];
+            definitions = [KitchenSeparationRules.ButcherTableDefinition, Rules.ButcherSpotDefinition];
         }
         Pol.DiningFurniture furniture = default!;
         if (r.Phase == Pol.Phase.ComfortRanked || r.Phase == Pol.Phase.ComfortBasic)
@@ -278,7 +275,7 @@ public sealed partial class BuildingPlanner
         RimGovernor.Brain.GameAccess.ColonyReading reading;
         var reviewSource = r.Native is IReviewSource;
         var separation = (r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey) && reviewSource;
-        if (r.Phase == Pol.Phase.ComfortSpot || r.Concern == ShelterFamily.Temperature.FilingKey || r.FacilityLadder() || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey || separation)
+        if (r.Phase == Pol.Phase.ActivitySite || r.Concern == ShelterFamily.Temperature.FilingKey || r.FacilityLadder() || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey || separation)
         {
             // Cooking and butcher placements read rooms too when the source can serve them, so kitchen/butcher
             // separation protects each other's rooms; without a census nothing is protected.
@@ -297,14 +294,14 @@ public sealed partial class BuildingPlanner
         var facts = reading;
         PlannerSnapshot.RecordStepRead("building", r.Concern, state.Snapshot, facts);
         RecordRoleMismatches(facts, call);
-        if (r.WorkshopLadder() && await r.PlannedHostStepAsync(state, review, goal, facts, call, epoch).ConfigureAwait(false) is { } hosted)
+        if ((r.WorkshopLadder() || r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey) && await r.PlannedHostStepAsync(state, review, goal, facts, call, epoch).ConfigureAwait(false) is { } hosted)
         {
-            // The held plan hosts this Need's load: its host is bound, never re-selected by the ladder.
+            // The held plan hosts this Need's load: its host is bound, never selected here.
             return hosted;
         }
-        if (r.Phase == Pol.Phase.ComfortSpot)
+        if (r.Phase == Pol.Phase.ActivitySite)
         {
-            var (spotResult, placing) = await r.PartySpotStepAsync(state, review, goal, reading, call, epoch).ConfigureAwait(false);
+            var (spotResult, placing) = r.ActivitySiteStep(goal, reading);
             if (placing is null)
             {
                 return spotResult;
@@ -330,17 +327,6 @@ public sealed partial class BuildingPlanner
         }
         if (r.Concern == FoodRules.CookingNeed.FilingKey)
         {
-            // A cooking campfire a stove kitchen supersedes is deconstructed first.
-            var claims = p.Journal.ConstructionClaims(state.Snapshot, expected.Tick, call);
-            var (campfire, owed) = FacilityPlanningRules.CampfireRetirement(facts.Facts, claims, nameof(RimWorld.ThingDefOf.Campfire));
-            if (owed)
-            {
-                var retired = await r.RetireCampfireAsync(state, review, goal, reading, campfire, call, epoch).ConfigureAwait(false);
-                if (!retired.Verdict.Is(Pol.Cause.MethodUsed))
-                {
-                    return retired;
-                }
-            }
             var (resolvedPaste, pasteReason) = r.SelectPaste(facts);
             if (!pasteReason.IsZero)
             {
@@ -419,36 +405,6 @@ public sealed partial class BuildingPlanner
             }, call);
         }
         var (missing, method, selectionReason) = r.Selection(facts);
-        switch (method.Value)
-        {
-            case "butcher-spot-retire":
-            {
-                if (FacilityPlanningRules.StandingButcherSpot(facts.Facts) is { } spot)
-                {
-                    var spotBuilding = spot.Building;
-                    return await r.RetireBuildingAsync(state, review, goal, reading, spot.Id, spotBuilding.Definition, spot.Cells[0], "butcher-spot-retire", "stand-in_butcher_spot", call, epoch).ConfigureAwait(false);
-                }
-                break;
-            }
-            case "butcher-spot":
-            {
-                // The free spot stands in the planned butchery until the table is built.
-                var spot = r.Copy();
-                spot.Definition = Rules.ButcherSpotDefinition;
-                spot.Stuff = "";
-                r = spot;
-                break;
-            }
-            case "butcher-table":
-            {
-                // The real table goes in the planned butchery once the wood is in stock.
-                var table = r.Copy();
-                table.Definition = "TableButcher";
-                table.Stuff = ColonyPlanningRules.BuildStuff(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), table.Definition);
-                r = table;
-                break;
-            }
-        }
         if (!selectionReason.IsZero)
         {
             return new BuildingResult { Verdict = selectionReason };
@@ -456,10 +412,6 @@ public sealed partial class BuildingPlanner
         var (furnish, furnishResult, done) = await r.PlannedFacilityFurnishingAsync(state, review, goal, reading, facts, call, epoch).ConfigureAwait(false);
         if (done) return furnishResult;
         r = furnish!;
-        if (r.ButcherFacility())
-        {
-            definitions = [r.Definition];
-        }
         if (r.Concern == FoodRules.CookingNeed.FilingKey)
         {
             var list = new List<string> { r.Definition };
@@ -482,7 +434,7 @@ public sealed partial class BuildingPlanner
                 }
             }
         }
-        if (r.Definition == "TableButcher" || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Phase == Pol.Phase.ComfortWorkChair || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
+        if (r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ActivitySite || r.Phase == Pol.Phase.ComfortWorkChair || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
         {
             gate = ComfortBuilderGate(facts, r.Definition);
             if (r.Power is { Method: Pol.PowerMethod.Generate } generator)
@@ -511,9 +463,8 @@ public sealed partial class BuildingPlanner
                 throw new ControlException("step: p.session.State() != state");
             }
         }
-        // A campfire the pawns let burn out leaves the cooking census empty again in the same epoch; the completed
-        // method yields to a numbered successor the same way a staged bed's does.
-        if (r.Phase == Pol.Phase.HousingSleeping || r.Concern == FoodRules.CookingNeed.FilingKey)
+        // A staged bed whose completed method left the census empty again yields to a numbered successor.
+        if (r.Phase == Pol.Phase.HousingSleeping)
         {
             method = r.NextSleepingBedMethod(goal, method, facts.Facts.CurrentConstruction, call);
         }
@@ -524,7 +475,7 @@ public sealed partial class BuildingPlanner
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var heldReservations = p.Journal.BuildingReservations(snapshot, call);
-        if (r.ButcherFacility() || r.Concern == FoodRules.CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortSpot || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
+        if (r.Concern == FoodRules.CookingNeed.FilingKey || r.FacilityLadder() || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ActivitySite || r.Concern == PowerFamily.Basic.FilingKey || r.Concern == ShelterFamily.Temperature.FilingKey || r.Concern == RoomsFamily.Lighting.FilingKey || r.Concern == RoomsFamily.Flooring.FilingKey || r.Concern == LayoutFamily.Routes.FilingKey)
         {
             var pendingPlanner = r;
             bool Pending(Progress progress)
@@ -799,15 +750,13 @@ public sealed partial class BuildingPlanner
         // out of the rooms that must stay clear.
         var looseSpot = Concern == ShelterFamily.Sleeping.FilingKey && Definition == "SleepingSpot" && Cells is null;
         IReadOnlyList<Cell> protectedSet = protectedCells;
-        if (!looseSpot && Cells is null && (Concern == ShelterFamily.Sleeping.FilingKey || Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ComfortSpot))
+        if (!looseSpot && Cells is null && (Concern == ShelterFamily.Sleeping.FilingKey || Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ActivitySite))
         {
             // Housing furniture and the basic-comfort table and seat stay out of a standing kitchen, lab, storage
             // or other planned room: beds there make it a sleeping room and block the room's own furnishing, and
             // furniture there carves up its warehouse zone.
             protectedSet = [.. protectedSet, .. NonSleepingPlannedCells(facts)];
         }
-        // The cooking campfire stands in the planned kitchen. It has no outdoor stand-in.
-        var cookingCampfire = Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire" && Paste.Count == 0;
         var cells = new List<Pol.SiteCell>();
         var adjacent = new HashSet<Cell>(Adjacent);
         var roomCells = new HashSet<Cell>();
@@ -820,11 +769,6 @@ public sealed partial class BuildingPlanner
             {
                 roomCells.Add(c);
             }
-        }
-        if (cookingCampfire && Cells is null)
-        {
-            // Cooking waits for the planned kitchen.
-            return (null, new Pol.StockObservation(), BuildingReasonNoLayoutPlan);
         }
         if (Cells is not null)
         {
@@ -885,14 +829,6 @@ public sealed partial class BuildingPlanner
             Limit = 64,
             StockpileZones = StockpileZones.StockpileZoneIds(facts)?.ToDictionary(id => id, _ => true) ?? new Dictionary<string, bool>(),
         };
-        if ((Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire") || FacilityPlanningRules.ButcherBenchDefinition(Definition))
-        {
-            // The cooking campfire and the butcher table stand by the base, not the landing centroid.
-            if (LayoutProtected.PlanCore(facts) is { } core)
-            {
-                searchRequest = searchRequest with { Center = core };
-            }
-        }
         if (Cells is not null)
         {
             // The room is fixed: search around it, wherever it stands.

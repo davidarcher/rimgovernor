@@ -78,8 +78,12 @@ room the portfolio holds waits on that gate; neither is a service claim.
 `WorkshopHostAlternativeTests`, `PlannedRoomGateTests`, `PlannedRoomSelectionTests`,
 `ActivityContinuationTests` and `ServiceInvestmentTests` cover the comparison, binding,
 overlap conflict, stale selections, Retained and Deferred loads, and construction
-closing while the served Need stays unmet. No native case has run the path
-([habitat evidence](../../requirements/habitat.md#h8--host-alternatives-compared-by-site-and-infrastructure)).
+closing while the served Need stays unmet. `HostRetirementTests` and
+`PlannedRoomGateTests` cover a spot-now/table-later chain: the spot is bound first, the
+table only once the spot stands built, and the spot is retired only once the table serves
+and no bill is worked. The OnDemand native case `production/spot-bridge` stages that
+chain for butchering. It is registered and has not been executed
+([habitat evidence](../../requirements/habitat.md#h10--spot-bridges-retirement-and-activity-sites-compared-as-layout-alternatives)).
 
 ## Observed evidence and remaining gaps
 
@@ -126,13 +130,18 @@ the predecessor implementation. Forecast worker choices, learning, poison risk a
 travel remain conditional planning estimates, not native execution promises.
 ## Facility choice ownership
 
-`FacilityPlanningRules` owns the existing butcher spot/table ordering, cooking
-facility demand, campfire retirement and heat classification, construction-worker
+`FacilityPlanningRules` owns the butcher and cooking facility demand
+(`ButcherDemand`, `CookingDemand`: nothing owed, a bench standing, the food plan
+unread, or an unhosted load), heat classification, construction-worker
 eligibility, powered recreation eligibility, advanced laboratory ordering and
-generator availability. It reads the existing `ReviewFacts` frame; Runtime maps
-its choice and prerequisite reasons to planner results and commits work. The
-food plan remains the one owner of cooking demand. Heat campfires are excluded
-from cooking retirement by the current construction claims. Required catalog and
+generator availability. It chooses no butcher or cooking definition: an unhosted
+load's spot, table, campfire, stove, chain or deferral is the shared layout
+comparison's ([host chains and pairs](spatial-contracts.md#host-chains-and-pairs)),
+and a replaced spot or campfire is retired by `PlannedRules.HostRetirementsOf`
+once its replacement serves. It reads the existing `ReviewFacts` frame; Runtime maps
+its prerequisite reasons to planner results and commits work. The
+food plan remains the one owner of cooking demand. A heating campfire another owner
+claims is never retired (`PlannedRules.ClaimedBy`). Required catalog and
 construction reads retain their failures; no replacement fact or strategy is
 introduced. Game identities supplied by Runtime use compiler-checked references.
 
@@ -141,12 +150,7 @@ sleeping deficit and its 64-placement refusal, beer's barrel-before-wort
 prerequisite, suite ring stock, shell definition and forbidden-kit stock gates,
 and vent facing from the first live oriented site. Definition-only prerequisites
 continue to reject any nonzero construction skill; worker-aware prerequisites
-use the observed capable builders. `WorkRules.SelectWorkshopProduct` selects the
-first buildable or existing product, otherwise the last research candidate ahead
-of unavailable alternatives, and counts standing benches of the selected kind.
-Runtime supplies the selected product followed by its alternatives lazily and
-records only those the selection visits. A product with no usable candidate keeps
-the unavailable result; an empty product sequence violates this caller contract.
+use the observed capable builders.
 
 `SleepingPlanningRules` owns the combined bedroom-owed predicate and the sleeping,
 companion-bed, royal and child-room prerequisite branches it visits. It keeps the
@@ -161,13 +165,10 @@ with the layout geometry policy, separately from these facility prerequisites.
 
 None of this chooses the host of a load the held layout plan hosts: that bench is
 compared in the plan and bound as above ([hosted workshop loads](#hosted-workshop-loads)).
-The workshop ladder below runs when there is no layout plan or the Need owns no
-unhosted load.
-
-Workshop preparation calls the same `WorkRules.ExistingWorkshopBench` reuse rule
-as full selection. It can settle an existing productive bench before candidate
-definitions are read. Otherwise preparation discovers the hosting definitions,
-the census reads them, and full selection decides staging or research from those
-required rows. A further-capacity bench remains usable when no available host can
-stage its kind. A provisional request that has not selected reuse is not recorded
-as a full workshop decision; the later observed request is recorded for replay.
+When there is no layout plan or the Need owns no hosted load, the workshop selects
+no bench either. A standing bench that already offers the product's recipe is
+the facility (`WorkRules.StandingWorkshopRecipe`). A product an available
+definition can host waits on the comparison (`host_unplanned`,
+`WorkRules.WorkshopHostable`). A product only research stands between records its
+rung on the `production_ladder` record (`WorkRules.WorkshopResearchRung`), and
+any other product has no host.

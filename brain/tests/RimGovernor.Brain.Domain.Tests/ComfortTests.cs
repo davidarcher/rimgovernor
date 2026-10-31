@@ -18,12 +18,19 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ComfortTests
 {
     /// <summary>A census with no colonists, surfaces, seats, sources or joy kinds: the base every test comfort census starts from.</summary>
-    internal static readonly ComfortFacts NoComfort = new() { People = [], Surfaces = [], Dining = [], Recreation = [], Joy = new([], []) };
+    internal static readonly ComfortFacts NoComfort = new() { People = [], Surfaces = [], Dining = [], Recreation = [], Joy = new([], []), Activities = new() { Colonists = [], Rooms = [], Engaged = [] } };
+
+    /// <summary>The site definitions every test comfort observation carries: the three spots, and one more party gather spot the catalog names.</summary>
+    internal static readonly ActivitySiteDefs TestSiteDefs = new()
+    {
+        PartySpots = new SiteDefsRead.Read(["TestGatherSpot", "TestPartySpot"]), PartySpot = "TestPartySpot", MarriageSpot = "TestMarriageSpot", RitualSpot = "TestRitualSpot",
+        Party = new AttendedThought.Read(8, 1.5), Wedding = new AttendedThought.Read(40, 10),
+    };
 
     /// <summary>The empty census with no catalog rows: the base every test comfort observation starts from.</summary>
     internal static readonly ComfortObservation NoComfortObservation = new()
     {
-        Census = NoComfort, RecreationFoothold = "", WatchBuildings = [], Furniture = new(), JoyMethods = [],
+        Census = NoComfort, RecreationFoothold = "", WatchBuildings = [], Furniture = new(), JoyMethods = [], Sites = TestSiteDefs,
     };
 
     [Fact]
@@ -140,12 +147,18 @@ public sealed class ComfortTests
                 new RecreationSource("Thing_Chess5", "Gaming_Cerebral", new ComfortHost.Indoors("7"), [], []),
             ],
             Joy = new(["Gaming_Cerebral", "Gaming_Dexterity"], [new JoyTolerance(new PawnId("Thing_Human1"), [false, true])]),
+            Activities = new()
+            {
+                Colonists = [new PawnId("Thing_Human1"), new PawnId("Thing_Human2")],
+                Rooms = [new ActivityRoom("7", 12, [new PawnId("Thing_Human1")])],
+                Engaged = [new Engagement(new PawnId("Thing_Human1"), new PawnId("Thing_Human2"))],
+            },
         };
 
         var json = OrdersJson.Serialize(census);
 
         Assert.Equal(
-            """{"people":["Thing_Human1"],"surfaces":[{"room":"7","adjacent":[{"x":3,"z":4}]}],"dining":[{"id":"Thing_Chair3","room":"7","accessibleTo":["Thing_Human1"],"users":[]}],"recreation":[{"id":"Thing_Horseshoes4","kind":"Gaming_Dexterity","host":{"type":"outdoors"},"accessibleTo":["Thing_Human1"],"users":["Thing_Human1"]},{"id":"Thing_Chess5","kind":"Gaming_Cerebral","host":{"type":"indoors","room":"7"},"accessibleTo":[],"users":[]}],"joy":{"kinds":["Gaming_Cerebral","Gaming_Dexterity"],"pawns":[{"pawn":"Thing_Human1","bored":[false,true]}]}}""",
+            """{"people":["Thing_Human1"],"surfaces":[{"room":"7","adjacent":[{"x":3,"z":4}]}],"dining":[{"id":"Thing_Chair3","room":"7","accessibleTo":["Thing_Human1"],"users":[]}],"recreation":[{"id":"Thing_Horseshoes4","kind":"Gaming_Dexterity","host":{"type":"outdoors"},"accessibleTo":["Thing_Human1"],"users":["Thing_Human1"]},{"id":"Thing_Chess5","kind":"Gaming_Cerebral","host":{"type":"indoors","room":"7"},"accessibleTo":[],"users":[]}],"joy":{"kinds":["Gaming_Cerebral","Gaming_Dexterity"],"pawns":[{"pawn":"Thing_Human1","bored":[false,true]}]},"activities":{"colonists":["Thing_Human1","Thing_Human2"],"rooms":[{"room":"7","standableCells":12,"reachers":["Thing_Human1"]}],"engaged":[{"first":"Thing_Human1","second":"Thing_Human2"}]}}""",
             json);
         Assert.Equal(census, OrdersJson.Deserialize<ComfortFacts>(json));
     }

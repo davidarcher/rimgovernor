@@ -78,7 +78,7 @@ namespace RimGovernor.Native {
     DefaultIngredients=FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter),
     UnrestrictedWorker=bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly,
     RepeatMode=NativeEnums.Repeat(p.repeatMode),RepeatCount=p.repeatCount,TargetCount=p.targetCount,Finished=BillCommon.IsFinished(p),
-    UnfinishedWork=UnfinishedWork(bill)};
+    UnfinishedWork=UnfinishedWork(bill),Workers=[]};
    return Reservations(bill,row);
   }
   // A flesh-butchering bill lists only the humanlike corpses it admits.
@@ -100,13 +100,15 @@ namespace RimGovernor.Native {
     .Select(p=>new Obs.Quantity{DefName=p.Key,Units=p.Value})]};
   }
 
-  // Each spawned pawn whose current job works this bill: the spawned things
-  // it has queued (targetQueueB/countQueue) or placed.
+  // Each spawned pawn whose current job works this bill (a worker, whose job
+  // a bench removal interrupts): the spawned things it has queued
+  // (targetQueueB/countQueue) or placed.
   private static Obs.BillState Reservations(Bill bill,Obs.BillState row){
    if(!(bill.billStack?.billGiver is Thing bench)||!bench.Spawned)return row;
    foreach(var pawn in bench.Map.mapPawns.AllPawnsSpawned){
     var job=pawn.CurJob;
     if(job?.bill!=bill)continue;
+    row = row with { Workers = [.. row.Workers, pawn.GetUniqueLoadID()] };
     var items=new Dictionary<string,long>();
     void Add(Thing t,int n){if(t!=null&&t.Spawned&&n>0){items.TryGetValue(t.def.defName,out var c);items[t.def.defName]=c+n;}}
     if(job.targetQueueB!=null&&job.countQueue!=null)
