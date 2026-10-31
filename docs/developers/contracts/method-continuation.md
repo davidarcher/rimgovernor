@@ -68,8 +68,9 @@ action payload. Each completed participant may advance independently; useful
 running participants remain identical at the same revision. Preparing participants
 may approach before prerequisites complete and wait for a fresh exact binding.
 Food and construction use this one lifecycle, including observed output/carried
-rebinding and bounded non-consuming retries. Consuming failure releases instead
-of replaying. Future output IDs are never pre-authorized.
+rebinding. A failed step ends its attempt: nothing reissues it, consuming or not
+(design decision 3 of `native-led-labor-execution`; task 5.6 removed the retry
+budget). Future output IDs are never pre-authorized.
 Stable needed work is left alone. A known recovered Concern, failed assignment
 or expired final deadline produces an explicit release through the existing
 journal and Hands. Different/newer native ownership is never released on behalf
@@ -98,15 +99,12 @@ Review cancellation preserves these cleanup plans until Hands resolves them.
 
 Callers must bind productive steps to fresh observed targets/ingredients before
 submission. The [harvest/delivery caller](pawn-activities.md#live-harvest-and-delivery)
-binds observed loose food and retries interrupted, empty-handed delivery within
-the original deadline/attempt budget. It releases carried-food attempts instead
-of assuming the source still exists. A positively refused replacement retains
+binds observed loose food and releases a failed delivery, carried or
+empty-handed, instead of retrying it or assuming the source still exists. A positively refused replacement retains
 its installed predecessor's cleanup obligation; unknown receipts remain unknown.
-The same caller can select one cooking iteration after observed harvest, supply
-its bench, rebind the exact recipe to fresh ingredients, then deliver observed
-meals. Failed supply or cooking releases rather than replaying consumption.
-The normal coupled portfolio supplies these selected tasks. Carried ingredients
-remain bounded by the exact native adapter; see [cooking limits](pawn-activities.md#live-one-iteration-cooking).
+Cooking itself runs through native bills: a justified production stall re-admits
+only the ingredient delivery feeding the bill, never the recipe (task 5.3); see
+[cooking limits](pawn-activities.md#live-one-iteration-cooking).
 
 Productive alternatives for this caller are transient Method proposals: family
 generation supplies forecast outcomes and exact target bindings, ColonyForecast's
@@ -174,20 +172,11 @@ duplicated decisions rather than renaming family branches.
 
 ## Selected clothing recipe continuation
 
-Ordinary tailoring uses the same selected task graph and participant release as
-food and construction. Exact recipe/stuff/input choice lives only in the admitted
-Method action. Recipe completion enables output observation, never inventory
-credit; delivery binds product definition **and selected stuff**. Changed stacks
-may rebind only a not-yet-executed obligation with the same selected recipe,
-stuff and total quantity. A failed consuming recipe is released rather than
-replayed. Normal equipment review can then choose observed unfinished work as a
-new Method, carrying its native remaining work and no fresh loose-input charge.
-
-The native UFT and its bound bill preserve actual partial work across that
-release. Hands cleans up only its own provisioned bill when no UFT exists; it
-never removes a user bill or unsuspends an orphan after failure. Concern recovery
-still does not erase participant release or observed-output obligations. See
-[exact tailoring execution](pawn-activities.md#exact-tailoring-recipes).
+Ordinary tailoring runs through native bills: the exact tailoring executor and
+its private bill were removed, and no exact recipe step remains (task 5.3). Normal
+equipment review can choose observed unfinished work as a new bill demand,
+carrying its native remaining work and no fresh loose-input charge. See
+[ordinary tailoring](pawn-activities.md#ordinary-tailoring).
 
 A finished participant releases in a separate revision before another participant
 binds new productive work. Retained orders and selected obligations stay exact;

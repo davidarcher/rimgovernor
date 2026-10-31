@@ -469,7 +469,7 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3613: a planned ring over trees. Native estimates the plants under the footprint as one Cut clearing naming them
-    /// (Targets). Conditional set mechanics retain the investment's work cost while ordinary cutting stays native.
+    /// (Targets). The what-if template keeps the investment's work cost; cutting stays native and validation refuses it as an exact order.
     /// A Cut clearing naming no plants is valued but binds nothing.
     /// </summary>
     [Fact]
@@ -489,7 +489,6 @@ public sealed class PlannedRoomActivitiesTests
         var candidates = facts.CoupledAlternatives!;
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "CutPlant");
         Assert.Equal((Pawn, PawnActivityKind.Work, clearingId, "PlantsCut", 2, "Wall"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
-        Assert.Equal(trees, binding.Targets);
         Assert.StartsWith(clearingId + "/composition/", binding.Id, StringComparison.Ordinal);
         var planned = Assert.Single(candidates.Context.PlannedSites, s => s.Site == site);
         Assert.DoesNotContain(binding.Id, planned.Activities);
@@ -499,8 +498,7 @@ public sealed class PlannedRoomActivitiesTests
         var batch = NativeClearanceScenario(facts, result);
         var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
         Assert.Equal((binding.Id, PawnActivityKind.Work, "CutPlant", 2), (task.Id, task.Step.Kind, task.Step.Job, task.Step.Count));
-        Assert.Equal(trees, task.Step.Targets);
-        Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
+        Assert.Throws<DomainException>(batch.Validate);
 
         var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing with { Targets = [] }), Ring(OpKind.DoorIn, "WoodLog", 60)]);
         Assert.DoesNotContain(unnamed.CoupledAlternatives!.Context.Bindings.Values, b => b.Job == "CutPlant");
@@ -509,8 +507,8 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3616: a planned ring over natural rock. Native estimates the rock under the footprint as one Mine clearing naming
-    /// it (Targets). Conditional mining retains the exact set and cost while the ordinary excavation path creates native
-    /// work. A Mine clearing naming no rock
+    /// it (Targets). The what-if template keeps the cost; mining stays native work and validation refuses it as an exact
+    /// order. A Mine clearing naming no rock
     /// is valued but binds nothing.
     /// </summary>
     [Fact]
@@ -530,7 +528,6 @@ public sealed class PlannedRoomActivitiesTests
         var candidates = facts.CoupledAlternatives!;
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Job == "Mine");
         Assert.Equal((Pawn, PawnActivityKind.Work, clearingId, "Mine", 2, "Wall"), (binding.Pawn, binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
-        Assert.Equal(rocks, binding.Targets);
         Assert.StartsWith(clearingId + "/composition/", binding.Id, StringComparison.Ordinal);
 
         var result = Select(facts);
@@ -538,8 +535,7 @@ public sealed class PlannedRoomActivitiesTests
         var batch = NativeClearanceScenario(facts, result);
         var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
         Assert.Equal((binding.Id, PawnActivityKind.Work, "Mine", 2), (task.Id, task.Step.Kind, task.Step.Job, task.Step.Count));
-        Assert.Equal(rocks, task.Step.Targets);
-        Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
+        Assert.Throws<DomainException>(batch.Validate);
 
         var unnamed = Review([Ring(OpKind.WallIn, "WoodLog", 120).Cleared(clearing with { Targets = [] }), Ring(OpKind.DoorIn, "WoodLog", 60)]);
         Assert.DoesNotContain(unnamed.CoupledAlternatives!.Context.Bindings.Values, b => b.Job == "Mine");

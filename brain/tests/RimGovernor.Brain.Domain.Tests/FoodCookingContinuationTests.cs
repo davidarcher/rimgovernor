@@ -58,11 +58,11 @@ public sealed class FoodCookingContinuationTests
         var decoded = OrdersJson.Deserialize<FoodActivityRead>(OrdersJson.Serialize(read));
         Assert.Equal(read, decoded);
         var tasks = ConstructionFixtures.NoTasks() with { SatisfiedTasks = ["one"],
-            Bindings = [new ActivityTaskBinding.Supply("deliver", new PawnActivityStep(PawnActivityKind.Deliver, "stack", "", "", 2, 500).At(new(3, 4)), 2)],
+            Bindings = [new ActivityTaskBinding.Bound("deliver", new PawnActivityStep(PawnActivityKind.Deliver, "stack", "", "", 2, 500).At(new(3, 4)))],
             Pawns = [new("pawn", null)] };
         var restored = OrdersJson.Deserialize<ActivityTaskRead>(OrdersJson.Serialize(tasks));
         Assert.Equal(tasks.SatisfiedTasks, restored.SatisfiedTasks);
-        Assert.Equal(2, Assert.IsType<ActivityTaskBinding.Supply>(restored.Bindings[0]).RemainingCount);
+        Assert.Equal(tasks.Bindings, restored.Bindings);
         Assert.Equal("pawn", restored.Pawns[0].Pawn);
         var construction = ConstructionFixtures.NoConstruction() with { Findings = ["mixed_material_demand_unsupported"],
             Options = [new Row("site", "Wall", new(2, 2), "pawn", "WoodLog", "wood", new(1, 1), 5, 10, "FinishFrames", 2.0, 3.0, default)] };

@@ -13,7 +13,8 @@ public sealed class NativeServiceContinuationTests
         get
         {
             var data = new TheoryData<string, bool, string>();
-            foreach (var job in new[] { "Deconstruct", "Uninstall", "CutPlant", "RemoveFloor", "Mine", "" })
+            // Removal itself is native designation work (task 5.6): only a site delivery of a removal task is ever an exact step.
+            foreach (var job in new[] { "" })
                 foreach (var dependent in new[] { false, true })
                     foreach (var id in new[] { "removal-0", "planned/room1/wall/WoodLog/clearance/composition/0" })
                         data.Add(job, dependent, id);
@@ -53,33 +54,9 @@ public sealed class NativeServiceContinuationTests
     }
 
     [Theory]
-    [InlineData("completed")]
-    [InlineData("failed")]
-    public void OldPartialSetCannotCompleteACrossPawnPrerequisite(string state)
-    {
-        var (batch, read) = AtBoundary("food", true, target: false, dependent: true);
-        var set = new PawnActivityStep(PawnActivityKind.Work, "tree", "PlantsCut", "CutPlant", 2, 2000)
-            { Targets = ["tree", "other-tree"] };
-        batch = batch with
-        {
-            Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == "service" ? t with { Step = set } : t)),
-            Orders = batch.Orders.Select(o => o.Pawn == "pawn"
-                ? o with { Preparing = false, Steps = [set with { Count = 1, Targets = ["tree"] }] } : o).ToArray(),
-        };
-        read = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p.Pawn == "pawn"
-            ? p with { Execution = p.Execution! with { State = state } } : p)) };
-        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read));
-        Assert.All(next.Orders, order => Assert.True(order.Release));
-        Assert.Empty(next.Tasks);
-        Assert.Empty(read.SatisfiedTasks);
-    }
-
-    [Theory]
     [InlineData("TendPatient", false)]
-    [InlineData("DoBill", false)]
     [InlineData("", false)]
     [InlineData("TendPatient", true)]
-    [InlineData("DoBill", true)]
     [InlineData("", true)]
     public void OldSupportCommitmentReturnsToNativeAtBoundaryWithoutCompletingDependencies(string job, bool dependent)
     {
@@ -89,7 +66,6 @@ public sealed class NativeServiceContinuationTests
         {
             Kind = job.Length == 0 ? PawnActivityKind.Deliver : PawnActivityKind.Work,
             Job = job, WorkGiver = job.Length == 0 ? "" : "Doctor", Count = job.Length == 0 ? 1 : 0, SupportDemand = "current-demand",
-            Recipe = job == "DoBill" ? new("surgery-bill", "operation", []) : null,
         } };
         if (job.Length == 0) task = task with { Step = task.Step.At(new(1, 1)) };
         batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == task.Id ? task : t)) };
@@ -111,48 +87,14 @@ public sealed class NativeServiceContinuationTests
     [Theory]
     [InlineData("", false)]
     [InlineData("FinishFrame", false)]
-    [InlineData("BuildRoof", false)]
     [InlineData("", true)]
     [InlineData("FinishFrame", true)]
-    [InlineData("BuildRoof", true)]
     public void OldConstructionCommitmentReturnsToNativeWithoutCreditingDependentCompletion(string job, bool dependent)
     {
         var (batch, read) = AtBoundary("food", true, target: false, dependent: dependent);
         var task = batch.Tasks.Single(t => t.Id == "service");
         task = task with { Step = task.Step with { Kind = job.Length == 0 ? PawnActivityKind.Supply : PawnActivityKind.Work,
             Job = job } };
-        if (job == "BuildRoof") task = task with { Step = task.Step.At(task.Location) };
-        batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == task.Id ? task : t)) };
-        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
-        Assert.True(next.Orders[0].Release);
-        Assert.Empty(read.SatisfiedTasks);
-        if (dependent)
-        {
-            Assert.All(next.Orders, order => Assert.True(order.Release));
-            Assert.Empty(next.Tasks);
-        }
-        else
-        {
-            Assert.True(PawnActivities.SameOrder(batch.Orders[1], next.Orders[1]));
-            Assert.Equal("independent", Assert.Single(next.Tasks).Id);
-        }
-    }
-
-    /// <summary>Task 5.5: an old-shape research or sowing batch (exact orders issued before research and sowing were left to native
-    /// work settings) is released at its next task boundary like every other ordinary native work; nothing re-admits it
-    /// (NativeExecutionBindingTests.ResearchAndSowingAreNeverReadmittedUnderAnyPremise).</summary>
-    [Theory]
-    [InlineData("Research", false)]
-    [InlineData("Sow", false)]
-    [InlineData("Research", true)]
-    [InlineData("Sow", true)]
-    public void OldResearchOrSowingCommitmentReturnsToNativeAtBoundary(string job, bool dependent)
-    {
-        var (batch, read) = AtBoundary("food", true, target: false, dependent: dependent);
-        var task = batch.Tasks.Single(t => t.Id == "service");
-        task = task with { Step = task.Step with { Kind = PawnActivityKind.Work, Job = job, WorkGiver = job == "Sow" ? "GrowerSow" : "Research",
-            Count = job == "Sow" ? 1 : 0 } };
-        if (job == "Sow") task = task with { Step = task.Step.At(new(1, 1)) };
         batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == task.Id ? task : t)) };
         var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
         Assert.True(next.Orders[0].Release);

@@ -109,9 +109,9 @@ namespace RimGovernor.Native
             return FixtureKit.Reply(new Fx.FixtureDone { Success=true });
         },ct).ConfigureAwait(false);
 
-        [Tool("test/pawn_control_probe",Description="UNSAFE FOR MODEL EXECUTION. One bounded native lifecycle probe over the installed executions: atomic, deadline, refusal, preemption, release, overrides or player.")]
+        [Tool("test/pawn_control_probe",Description="UNSAFE FOR MODEL EXECUTION. One bounded native lifecycle probe over the installed executions: atomic, deadline, refusal, release, overrides, takeover or player.")]
         public async Task<object> Probe(INativeContext ctx,CancellationToken ct,
-            [ToolParameter(Description="The probe: atomic, deadline, refusal, preemption, release, overrides or player.")] string probe = "")=>await ctx.MainThread.InvokeAsync<object>(()=>
+            [ToolParameter(Description="The probe: atomic, deadline, refusal, release, overrides, takeover or player.")] string probe = "")=>await ctx.MainThread.InvokeAsync<object>(()=>
         {
             if(workerOrder==null||helperOrder==null)throw new InvalidOperationException("Install the executions first.");
             switch(probe)
@@ -119,7 +119,6 @@ namespace RimGovernor.Native
                 case "atomic": Atomic(); break;
                 case "deadline": Deadline(); break;
                 case "refusal": Refusal(); break;
-                case "preemption": Preemption(); break;
                 case "release": Release(); break;
                 case "overrides": Overrides(); break;
                 case "takeover": Takeover(); break;
@@ -169,35 +168,13 @@ namespace RimGovernor.Native
             if(NativePawnActivities.Owned(worker))throw new InvalidOperationException("Native takeover retained stale dependency ownership.");
         }
 
-        // Work the native game refuses (repairing an undamaged bed) fails the execution visibly.
+        // Work the native game refuses (harvesting a bed, where no plant grows) fails the execution visibly.
         private static void Refusal()
         {
-            var repair=DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d=>d.Worker is WorkGiver_Repair).defName;
-            Install(Revised(workerOrder!,new PawnActivityStep(PawnActivityKind.Work,bed!.GetUniqueLoadID(),repair,"Repair",0,deadline)));
+            var harvest=DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d=>d.Worker is WorkGiver_GrowerHarvest).defName;
+            Install(Revised(workerOrder!,new PawnActivityStep(PawnActivityKind.Work,bed!.GetUniqueLoadID(),harvest,"Harvest",0,deadline)));
             _=Offer();
             if(NativePawnActivities.Read(worker!)?.State!="failed")throw new InvalidOperationException("Native work refusal was hidden.");
-        }
-
-        // Selected recreation starts as a normal job, and a selected emergency preempts it.
-        private static void Preemption()
-        {
-            var map=worker!.Map;
-            var pinCell=GenRadial.RadialCellsAround(worker.Position,10,false).First(x=>x.InBounds(map)&&x.Standable(map)&&x.GetEdifice(map)==null&&x.DistanceTo(worker.Position)>4);
-            var pin=GenSpawn.Spawn(DefDatabase<ThingDef>.GetNamed("HorseshoesPin"),pinCell,map);
-            var recreation=Install(Revised(workerOrder!,new PawnActivityStep(PawnActivityKind.Recreation,pin.GetUniqueLoadID(),"","",0,deadline)));
-            var joyOffer=Offer();
-            if(!joyOffer.IsValid)throw new InvalidOperationException("Recreation offer missing.");
-            worker.jobs.StartJob(joyOffer.Job,JobCondition.None,joyOffer.SourceNode);
-            if(worker.CurJob?.def.defName!="Play_Horseshoes" || worker.CurJob.playerForced)throw new InvalidOperationException("Selected recreation did not start normally.");
-            var fireCell=GenRadial.RadialCellsAround(worker.Position,8,false).First(x=>x.InBounds(map)&&x.Standable(map)&&x.GetEdifice(map)==null&&x.DistanceTo(worker.Position)>3);
-            var fire=GenSpawn.Spawn(ThingDefOf.Fire,fireCell,map);
-            map.areaManager.Home[fireCell]=true;
-            var fireGiver=DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d=>d.giverClass.FullName=="RimWorld.WorkGiver_FightFires").defName;
-            Install(Revised(recreation,new PawnActivityStep(PawnActivityKind.Work,fire.GetUniqueLoadID(),fireGiver,"BeatFire",0,deadline)));
-            var fireOffer=Offer();
-            if(!fireOffer.IsValid)throw new InvalidOperationException("Emergency offer missing.");
-            worker.jobs.StartJob(fireOffer.Job,JobCondition.None,fireOffer.SourceNode);
-            if(worker.CurJob?.def!=JobDefOf.BeatFire || worker.CurJob.playerForced)throw new InvalidOperationException("Emergency did not preempt recreation.");
         }
 
         // A repeated release drops ownership; the released pawn runs vanilla job selection and starts a direct job (#3669);

@@ -48,11 +48,12 @@ internal static class ConstructionMethodCandidates
     internal static bool Carriable(ConstructionActivityOption row) => row.Count > 0 && row.Capacity > 0;
 
     /// <summary>
-    /// The task a standing removal row binds (#3557, #3612, #3614): a Haul is the pawn's Deliver of the stack (Count the
-    /// stack, Destination the row's storage cell), as a support delivery binds; any other kind is Work of the kind's job, a
-    /// set op (a Cut wave, #3613; a RemoveFloor wave, #3615) one Work set step over its named <paramref name="targets"/> or
-    /// <paramref name="cells"/> (Count the set size). Roof preparation stays in the native row's conditional total work;
-    /// the clearance family exposes ordinary roof removal through native area intent.
+    /// The what-if task a standing removal row binds (#3557, #3612, #3614): a Haul is the pawn's Deliver of the stack (Count
+    /// the stack, Destination the row's storage cell); any other kind is Work of the kind's job, a set op (a Cut wave, #3613; a
+    /// RemoveFloor wave, #3615) counting its named <paramref name="targets"/> or <paramref name="cells"/> (Count the set size,
+    /// the cells kept for the room-footprint read). It is a comparison template only: removal is native designation work,
+    /// never re-admitted and refused as an exact order (task 5.6). Roof preparation stays in the native row's conditional
+    /// total work; the clearance family exposes ordinary roof removal through native area intent.
     /// </summary>
     internal static ActivityTaskCandidate RemovalBinding(string id, PlannedClearingKind kind, ConstructionActivityOption row, string target, long deadline,
         EquatableArray<string> targets = default, EquatableArray<Cell> cells = default) =>
@@ -62,7 +63,7 @@ internal static class ConstructionMethodCandidates
                 ? new ActivityTaskCandidate(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, 0, deadline, row.Location)
                     { SiteDefinition = row.Definition }
                 : new ActivityTaskCandidate(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, targets.Count + cells.Count, deadline, row.Location)
-                    { SiteDefinition = row.Definition, Targets = targets, Cells = cells };
+                    { SiteDefinition = row.Definition, Cells = cells };
 
     /// <summary>A site row whose stack alone covers the site's demand: a whole alternative.</summary>
     internal static bool Whole(ConstructionActivityOption row) => row.AvailableInput >= row.Count;

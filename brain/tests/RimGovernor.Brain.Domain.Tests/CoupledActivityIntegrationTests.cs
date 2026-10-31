@@ -182,29 +182,20 @@ public sealed class CoupledActivityIntegrationTests
         Assert.Equal(2, order.Steps[0].Count);
         Assert.True(journal.LoadPlan(plan.Id, ct).Retired);
         Assert.Equal("coupled-observed", order.Method);
-        // A changed physical stack needs a fresh observed binding; no harvested ID is treated as inventory.
+        // A failed delivery ends the attempt (design decision 3): a fresh binding of a changed stack is not reissued.
         var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(sent, withdrawn ? ActivityNeed.Ended : ActivityNeed.Owed, Observe(sent, "failed", completedAt + 10,
             new ActivityTaskBinding.Bound(delivery.Id, delivery.Step with { Target = "split-real-stack", Count = 1 })))!;
         Assert.NotNull(retry);
         var recovered = Continue(journal, continuation, sent, retry, completedAt + 10, "recovery", ct, "failed");
         Assert.True(PawnActivities.SameOrder(Assert.Single(retry.Orders),
             Assert.Single(Send(journal, recovered, completedAt + 10, ct).Orders)));
-        if (withdrawn)
-        {
-            var released = Assert.Single(retry.Orders);
-            Assert.True(released.Release);
-            journal.Review(new ReviewRequest { Revision = refreshed.Review.Revision, Current = Root,
-                Tick = new(completedAt + 20), Enabled = true, Policy = Rules.DefaultPlannerSettings(),
-                Facts = facts with { Tick = new(completedAt + 20), CoupledWorkActive = false,
-                    Census = facts.Census with { WorkResources = [new(released.Pawn, "", 0, "", "", "", 0) { LocalHour = 6 }] } } }, ct);
-            Assert.True(journal.LoadPlan(recovered.Id, ct).Retired); // Accepted release must not become a permanent hold.
-        }
-        else
-        {
-            Assert.Equal("split-real-stack", Assert.Single(retry.Orders).Steps[0].Target);
-            Assert.Equal(1, retry.Orders[0].Steps[0].Count);
-            Assert.Equal(2, Assert.Single(retry.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver).Step.Count);
-            Assert.Equal(delivery.Step.Deadline, retry.Orders[0].Steps[0].Deadline);
-        }
+        var released = Assert.Single(retry.Orders);
+        Assert.True(released.Release);
+        Assert.Empty(retry.Tasks);
+        journal.Review(new ReviewRequest { Revision = refreshed.Review.Revision, Current = Root,
+            Tick = new(completedAt + 20), Enabled = true, Policy = Rules.DefaultPlannerSettings(),
+            Facts = facts with { Tick = new(completedAt + 20), CoupledWorkActive = false,
+                Census = facts.Census with { WorkResources = [new(released.Pawn, "", 0, "", "", "", 0) { LocalHour = 6 }] } } }, ct);
+        Assert.True(journal.LoadPlan(recovered.Id, ct).Retired); // Accepted release must not become a permanent hold.
     }
 }

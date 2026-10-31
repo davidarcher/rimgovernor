@@ -177,7 +177,7 @@ public sealed class ForecastIncumbentPreparationTests
         {
             var row = actions.Actions[0]; var batch = row.Action.PawnActivities!;
             batch = reason == "input" ? batch with { Tasks = [batch.Tasks[0] with { Inputs = [new("Rice", "rice", 1, new(1, 1), "observed") { Observed = true }] }] }
-                : batch with { Orders = [batch.Orders[0] with { OutputDelivery = new("Rice", new(1, 1), new(2, 2), 1, 1000, 1) }] };
+                : batch with { Orders = [batch.Orders[0] with { OutputDelivery = new("Rice", new(1, 1), new(2, 2), 1, 1000) }] };
             actions = new([row with { Action = DomainAction.NewPawnActivitiesAction(row.Action.Id, batch) }]);
         }
         var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);

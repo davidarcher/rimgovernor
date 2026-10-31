@@ -185,11 +185,11 @@ public sealed class ClaimAdmissionTests
     }
 
     /// <summary>
-    /// #3557: a deconstruction claims its cell only, so the pawn activity order that works the designation it stood (a
-    /// Work/Deconstruct task claiming the building) is admitted beside it; a second deconstruction of the cell is not.
+    /// #3557: a deconstruction claims its cell only; a second deconstruction of the cell is not admitted. Native work
+    /// deconstructs it (task 5.6): an exact Work/Deconstruct order is refused before it reaches admission.
     /// </summary>
     [Fact]
-    public void ADeconstructionClaimsItsCellAndTheOrderWorkingItsBuildingIsAdmitted()
+    public void ADeconstructionClaimsItsCellAndNoExactOrderWorksItsBuilding()
     {
         using var colony = Open();
         var clearing = DomainAction.NewDeconstructionAction(new("cut"), new Deconstruction("old-wall", "TestWall", new(1, 0)));
@@ -197,18 +197,18 @@ public sealed class ClaimAdmissionTests
         var step = new PawnActivityStep(PawnActivityKind.Work, "old-wall", "Deconstruct", "Deconstruct", 0, 1000);
         var batch = new PawnActivities(1, [new("a", "removal/a", "remove", 0, 1, false, [step]) { Task = "removal/a" }])
         { Tasks = [new SelectedActivityTask("removal/a", "a", [], step, new(1, 0), 100) { SiteDefinition = "TestWall" }] };
-        Assert.Equal(ClaimOutcome.Admitted, colony.Work("remove", DomainAction.NewPawnActivitiesAction(new("order"), batch)).Outcome);
+        Assert.Throws<DomainException>(() => DomainAction.NewPawnActivitiesAction(new("order"), batch));
         var again = colony.Shelter("room-clear-again", DomainAction.NewDeconstructionAction(new("cut-again"), new Deconstruction("old-wall", "TestWall", new(1, 0))));
         Assert.Equal(ClaimOutcome.Conflict, again.Outcome);
         Assert.Equal("cell/1/0", again.Conflict!.Claim);
     }
 
     /// <summary>
-    /// #3612: the reconcile's UninstallBuilding (Pack) claims its cell only, so the pawn activity order that works the
-    /// Uninstall designation it stood (a Work/Uninstall task claiming the building) is admitted beside it.
+    /// #3612: the reconcile's UninstallBuilding (Pack) claims its cell only. Native work packs it (task 5.6): an exact
+    /// Work/Uninstall order is refused before it reaches admission.
     /// </summary>
     [Fact]
-    public void AnUninstallClaimsItsCellAndTheOrderWorkingItsBuildingIsAdmitted()
+    public void AnUninstallClaimsItsCellAndNoExactOrderWorksItsBuilding()
     {
         using var colony = Open();
         var pack = DomainAction.NewUninstallBuildingAction(new("pack"), new MoveBuilding("old-bed", "TestBed", new(1, 0), Rotation.South));
@@ -216,7 +216,7 @@ public sealed class ClaimAdmissionTests
         var step = new PawnActivityStep(PawnActivityKind.Work, "old-bed", "Uninstall", "Uninstall", 0, 1000);
         var batch = new PawnActivities(1, [new("a", "removal/a", "remove", 0, 1, false, [step]) { Task = "removal/a" }])
         { Tasks = [new SelectedActivityTask("removal/a", "a", [], step, new(1, 0), 100) { SiteDefinition = "TestBed" }] };
-        Assert.Equal(ClaimOutcome.Admitted, colony.Work("remove", DomainAction.NewPawnActivitiesAction(new("order"), batch)).Outcome);
+        Assert.Throws<DomainException>(() => DomainAction.NewPawnActivitiesAction(new("order"), batch));
         var again = colony.Shelter("room-pack-again", DomainAction.NewUninstallBuildingAction(new("pack-again"), new MoveBuilding("old-bed", "TestBed", new(1, 0), Rotation.South)));
         Assert.Equal(ClaimOutcome.Conflict, again.Outcome);
         Assert.Equal("cell/1/0", again.Conflict!.Claim);

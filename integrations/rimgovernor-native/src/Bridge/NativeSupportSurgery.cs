@@ -9,12 +9,13 @@ namespace RimGovernor.Native;
 
 internal static class NativeSupportSurgery
 {
-    internal static bool Resolve(Pawn doctor, Pawn patient, PawnActivityStep step, out Job? job)
+    /// <summary>Whether <paramref name="doctor"/> can operate <paramref name="choice"/> now: the support read's surgeon probe (surgery is never an exact order, task 5.6).</summary>
+    internal static bool Resolve(Pawn doctor, Pawn patient, WorkGiverDef giverDef, PawnActivityRecipe choice, out Job? job)
     {
         job = null;
-        if (step.Recipe is not { } choice || doctor == patient || !patient.InBed() || patient.Dead || patient.IsForbidden(doctor)
+        if (doctor == patient || !patient.InBed() || patient.Dead || patient.IsForbidden(doctor)
             || !doctor.CanReserveAndReach(patient, PathEndMode.InteractionCell, Danger.None)
-            || DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is not WorkGiver_DoBill giver
+            || giverDef.Worker is not WorkGiver_DoBill giver
             || !giver.ThingIsUsableBillGiver(patient) || giver.MissingRequiredCapacity(doctor) != null
             || doctor.WorkTagIsDisabled(giver.def.workTags) || doctor.WorkTypeIsDisabled(giver.def.workType)) return false;
         var bill = patient.BillStack.Bills.OfType<Bill_Medical>().SingleOrDefault(b => b.GetUniqueLoadID() == choice.Bill);

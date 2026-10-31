@@ -7,11 +7,11 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>coordination/*</c>: work the served brain coordinates through Hands. The food cases harvest food to the selected
-/// storage with tasks spread over more than one pawn; the carried-recovery one also ends one carrying delivery's job and
-/// needs a later revision to carry it again. The construction case is one urgent build (#3537): on a colony with no bed
-/// the normal rounds place the sleeping shelter and select, bind and finish it as coupled work before deferred vanilla
-/// builders take it, one carrying Supply's job is ended and a later revision carries it again, and every participant is
-/// released. test/coordinated_work_prepare prepares the facts (no plan, order or task) and records what the native
+/// storage with tasks spread over more than one pawn; the carried-recovery one also ends one carrying delivery's job, and
+/// that failed carry ends its attempt: no later revision reissues it (design decision 3 of native-led-labor-execution,
+/// task 5.6). The construction case is one urgent build (#3537): on a colony with no bed the normal rounds place the
+/// sleeping shelter, one carrying Supply's job is ended and its attempt ends unreissued, the building is finished and every
+/// participant is released. test/coordinated_work_prepare prepares the facts (no plan, order or task) and records what the native
 /// activities did, which the primitives cannot express.
 /// </summary>
 internal static class CoordinatedWork
@@ -33,7 +33,7 @@ internal static class CoordinatedWork
         Name = "coordination/food" + (interrupted ? "-carried-recovery" : "-delegated"),
         Scope = "Prepared specialist and helper facts are coordinated by the served brain through Hands: the native game "
             + "harvests food to the selected storage with tasks on more than one pawn, then releases every participant"
-            + (interrupted ? "; one carried input's job is ended and a later revision carries it again" : "")
+            + (interrupted ? "; one carried input's job is ended and that failed carry ends its attempt, never reissued" : "")
             + ". A unit test cannot prove native carry conservation or actual delivery.",
         Ticks = 6000,
         Tier = CaseTier.Nightly,
@@ -46,12 +46,11 @@ internal static class CoordinatedWork
     internal static TypedCase Construction() => new()
     {
         Name = "coordination/construction-delegated",
-        Scope = "A bedless colony's urgent build is brain-directed (#3537): the normal rounds place the sleeping shelter, "
-            + "bind its sites as coupled work before deferred vanilla builders take them, actually transfer material, rebind "
-            + "a frame's Supply to the stack its ended carrying job dropped, keep vanilla builders off the held site, finish "
-            + "the building and release every participant. The selected shell reduces nonzero forecast hypothermia capability loss, "
-            + "with native comfort limits compared to its exposure inputs. A unit "
-            + "test cannot prove native carry conservation, frame rebinding or actual completion.",
+        Scope = "A bedless colony's urgent build (#3537): the normal rounds place the sleeping shelter; a coupled Supply's "
+            + "carrying job is ended and that failed carry ends its attempt, never reissued and holding no site against native "
+            + "builders (task 5.6); the building is finished and every participant released. The selected shell reduces nonzero "
+            + "forecast hypothermia capability loss, with native comfort limits compared to its exposure inputs. A unit "
+            + "test cannot prove native carry conservation or actual completion.",
         Ticks = 6000,
         Tier = CaseTier.Nightly,
         Stage = new Fx.StageSpec { World = new Fx.StageWorld { OutdoorTemperature = -10 } },
@@ -109,12 +108,18 @@ internal static class CoordinatedWork
                 throw new AcceptanceException($"planner work became player-forced: {ServedOps.Json(read)}");
             }
 
-            // Food also claims the tasks spread over more than one pawn; the urgent build claims only its coupled chain.
+            if (read.Recovered)
+            {
+                throw new AcceptanceException($"a failed carry was reissued instead of ending its attempt: {ServedOps.Json(read)}");
+            }
+
+            // Food also claims the tasks spread over more than one pawn and its delivered output; the urgent build claims the
+            // finished building, whose interrupted Supply native work may complete once the failed attempt is released.
             var chain = mode == "food"
-                ? read.Joint && read.FinishedKinds.Contains("Work:Harvest") && read.FinishedKinds.Contains("Deliver:") && read.PhysicalFood > 0
-                : read.FinishedKinds.Contains("Supply:") && read.FinishedKinds.Contains("Work:FinishFrame") && read.PhysicalBuildings > 0;
-            var done = chain && read.Delivered > 0 && read.Active == 0 && read.Participants.Count > 0
-                && read.Released.Count == read.Participants.Count && (!interrupted || read.Interrupted && read.Recovered);
+                ? read.Joint && read.FinishedKinds.Contains("Work:Harvest") && read.FinishedKinds.Contains("Deliver:") && read.PhysicalFood > 0 && read.Delivered > 0
+                : read.PhysicalBuildings > 0;
+            var done = chain && read.Active == 0 && read.Participants.Count > 0
+                && read.Released.Count == read.Participants.Count && (!interrupted || read.Interrupted);
             return (string.Create(CultureInfo.InvariantCulture, $"{read.Tick}"), done);
         }, cancellationToken).ConfigureAwait(false);
         if (mode == "construction") AssertThermal(s, prepared, thermalSelection);

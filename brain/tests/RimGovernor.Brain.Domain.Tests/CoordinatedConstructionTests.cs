@@ -177,8 +177,8 @@ public sealed class CoordinatedConstructionTests
 
     /// <summary>
     /// #3613: a standing Cut wave (the room reconcile's CutPlant designations over one group of plants) is one removal op
-    /// whose Targets are the plants. The family binds it as one Work/CutPlant set step over them (Count the set's size),
-    /// one hypothetical task per op, without installing an exact order. A Cut op naming no plants binds nothing.
+    /// whose Targets are the plants. The family binds it as one what-if Work/CutPlant template over them (Count the set's
+    /// size), one hypothetical task per op, which validation refuses as an exact order. A Cut op naming no plants binds nothing.
     /// </summary>
     [Fact]
     public void AStandingCutWaveKeepsConditionalSetMechanicsWithoutAnExactOrder()
@@ -193,7 +193,6 @@ public sealed class CoordinatedConstructionTests
         generated = ServingStorageRoom(generated, trees[0], 150);
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "CutPlant" && b.Pawn == "producer");
         Assert.Equal((PawnActivityKind.Work, trees[0], "PlantsCut", 3, "Plant_TreeOak"), (binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
-        Assert.Equal(trees, binding.Targets);
         Assert.Equal(2, generated.Context.Bindings.Values.Count(b => b.Job == "CutPlant"));
         var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + trees[0]);
         Assert.Equal("removal/" + trees[0], Assert.Single(root.Outcome!.Requirements!.Relief).Need);
@@ -205,17 +204,16 @@ public sealed class CoordinatedConstructionTests
         var batch = NativeRemovalScenario(selected, generated);
         var task = Assert.Single(batch.Tasks);
         Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, "CutPlant", 3), (task.Id, task.Pawn, task.Step.Kind, task.Step.Job, task.Step.Count));
-        Assert.Equal(trees, task.Step.Targets);
-        var order = Assert.Single(batch.Orders, o => o.Pawn == "producer" && !o.Release && o.Task == task.Id);
-        Assert.Equal(trees, order.Steps[0].Targets);
+        // Cutting is native designation work (task 5.6): the what-if template is refused as an exact order.
+        Assert.Throws<DomainException>(batch.Validate);
 
         Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(Wave()), 1900)!.Context.Bindings.Values, b => b.Job == "CutPlant");
     }
 
     /// <summary>
     /// #3615: a standing FloorOut wave (the room reconcile's RemoveFloor designations over one group of cells) is one removal
-    /// op whose Cells are the cells. The family binds it as one Work/RemoveFloor set step over them (Cells carried, Count the
-    /// cells), with conditional removal relief and no routine exact order. A RemoveFloor op naming no cells binds nothing.
+    /// op whose Cells are the cells. The family binds it as one what-if Work/RemoveFloor template over them (Cells carried,
+    /// Count the cells), with conditional removal relief; validation refuses it as an exact order. A RemoveFloor op naming no cells binds nothing.
     /// </summary>
     [Fact]
     public void AStandingFloorOutWaveKeepsConditionalCellSetMechanicsWithoutAnExactOrder()
@@ -232,7 +230,6 @@ public sealed class CoordinatedConstructionTests
         var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Job == "RemoveFloor" && b.Pawn == "producer");
         Assert.Equal((PawnActivityKind.Work, id, "ConstructRemoveFloors", 4, "WoodPlankFloor"), (binding.Kind, binding.Target, binding.WorkGiver, binding.Count, binding.SiteDefinition));
         Assert.Equal(cells, binding.Cells);
-        Assert.Empty(binding.Targets);
         var root = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome == "construction/" + id);
         Assert.Equal("removal/" + id, Assert.Single(root.Outcome!.Requirements!.Relief).Need);
 
@@ -243,54 +240,10 @@ public sealed class CoordinatedConstructionTests
         var batch = NativeRemovalScenario(selected, generated);
         var task = Assert.Single(batch.Tasks);
         Assert.Equal((binding.Id, "producer", PawnActivityKind.Work, "RemoveFloor", 4), (task.Id, task.Pawn, task.Step.Kind, task.Step.Job, task.Step.Count));
-        Assert.Equal(cells, task.Step.Cells);
-        var order = Assert.Single(batch.Orders, o => o.Pawn == "producer" && !o.Release && o.Task == task.Id);
-        Assert.Equal(cells, order.Steps[0].Cells);
-        batch.Validate();
-        // The cell set rides the wire (#3615): the native side deserialises orders' steps with the wire context.
-        var info = RimGovernor.Brain.GameOrders.OrdersJsonContext.Default.GetTypeInfo(typeof(PawnActivities))!;
-        var copy = (PawnActivities)System.Text.Json.JsonSerializer.Deserialize(System.Text.Json.JsonSerializer.Serialize(batch, info), info)!;
-        Assert.Equal(cells, copy.Orders.Single(o => o.Task == task.Id).Steps[0].Cells);
+        // Floor removal is native designation work (task 5.6): the what-if template is refused as an exact order.
+        Assert.Throws<DomainException>(batch.Validate);
 
         Assert.DoesNotContain(ForecastCoupledCandidates.GenerateCoupledActivities(RemovalFacts(Wave()), 1900)!.Context.Bindings.Values, b => b.Job == "RemoveFloor");
-    }
-
-    /// <summary>
-    /// Old routine set work returns to native selection instead of retrying an exact subset.
-    /// A completed physical subset does not establish the whole task's completion.
-    /// </summary>
-    [Fact]
-    public void AnOldPreplacementSetHandsBackInsteadOfRetryingItsRemainingMembers()
-    {
-        string[] trees = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"];
-        var row = new Row(trees[0], "Plant_TreeOak", new(30, 30), "producer", "", "", new(30, 30), 0, 0, "PlantsCut",
-            default, default, 150d) { SiteApproachTicks = 10d };
-        var facts = RemovalFacts(ConstructionFixtures.Clearing(trees[0], PlannedClearingKind.Cut) with { Options = [row], Targets = EquatableArray.From(trees) });
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
-        generated = ServingStorageRoom(generated, trees[0], 150);
-        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay,
-            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-        var batch = NativeRemovalScenario(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated), generated);
-        // Stage an existing preplacement intent; its identity cannot grant routine control.
-        var task = Assert.Single(batch.Tasks) with { Id = "planned-clearance" };
-        batch = batch with { Tasks = [task], Orders = [batch.Orders[0] with { Task = task.Id }] };
-        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
-        {
-            Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
-            Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
-        };
-        var remaining = task.Step with { Targets = EquatableArray.From(trees.Skip(1)), Count = 2 };
-        var released = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "failed",
-            new ActivityTaskBinding.Bound(task.Id, remaining)))!;
-        Assert.True(Assert.Single(released.Orders).Release);
-        Assert.Empty(released.Tasks);
-        batch = batch with { Orders = [batch.Orders[0] with { Steps = [remaining] }] };
-        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed"))!;
-        Assert.Empty(done.Tasks);
-        Assert.True(done.Orders.Single().Release);
-        var cleared = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, "completed") with { SatisfiedTasks = [task.Id] })!;
-        Assert.Empty(cleared.Tasks);
-        Assert.True(cleared.Orders.Single().Release);
     }
 
     /// <summary>
@@ -434,7 +387,7 @@ public sealed class CoordinatedConstructionTests
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", 300))))
         };
         var read = Read(batch, state,
-            new ActivityTaskBinding.Supply(supply.Id, supply.Step with { Target = "carried-wood", Container = "frame", Count = 7 }, 7));
+            new ActivityTaskBinding.Bound(supply.Id, supply.Step with { Target = "carried-wood", Container = "frame", Count = 7 }));
         var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read)!;
         Assert.Empty(done.Tasks);
         Assert.True(done.Orders.Single().Release);

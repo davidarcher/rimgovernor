@@ -154,7 +154,7 @@ public sealed partial class PawnControlFixture
         }
     }
 
-    [Tool("test/coordinated_work_read", Description = "UNSAFE FOR MODEL EXECUTION. Observe planner-selected participant/task evidence, physical output, carried interruption/rebinding and released ownership.")]
+    [Tool("test/coordinated_work_read", Description = "UNSAFE FOR MODEL EXECUTION. Observe planner-selected participant/task evidence, physical output, carried interruption (and any reissue of it) and released ownership.")]
     public async Task<object> ReadCoordination(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
     {
         var map = Find.CurrentMap;

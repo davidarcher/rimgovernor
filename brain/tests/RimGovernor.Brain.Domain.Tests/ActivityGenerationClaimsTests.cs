@@ -25,7 +25,7 @@ public sealed class ActivityGenerationClaimsTests
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new PawnActivityStep(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500).At(new(2, 2))])
-                { OutputDelivery = new("Rice", new(1, 1), new(2, 2), 6, 500, 3) }]));
+                { OutputDelivery = new("Rice", new(1, 1), new(2, 2), 6, 500) }]));
         var building = DomainAction.NewBuildingAction(new("wall"),
             new("TestWall", new(3, 3), Rotation.North, "Rice"), ConstructionTier.Survive);
         var plan = new PlanSpec(new("plan"), new(1), [activity]);
@@ -94,7 +94,7 @@ public sealed class ActivityGenerationClaimsTests
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
             [new("pawn", "assignment", "method", 0, 1, false,
                 [new PawnActivityStep(PawnActivityKind.Deliver, "rice-stack", "", "", 6, 500).At(new(2, 2))])
-                { OutputDelivery = new("Rice", new(1, 1), new(2, 2), 6, 500, 3) }]));
+                { OutputDelivery = new("Rice", new(1, 1), new(2, 2), 6, 500) }]));
         var building = DomainAction.NewBuildingAction(new("wall"),
             new("TestWall", new(3, 3), Rotation.North, "Rice"), ConstructionTier.Survive);
         TestNeed.Commit(journal, world, new("method"), new PlanSpec(new("plan"), new(1), [activity]), ct);

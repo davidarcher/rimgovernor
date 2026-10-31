@@ -20,19 +20,11 @@ public record PawnActivityStep(PawnActivityKind Kind, string Target, string Work
     string Job, int Count, long Deadline, string WaitForFilth = "")
 {
     public CellActivityStep At(Cell destination) => new(this, destination);
-    public PawnActivityRecipe? Recipe { get; init; }
     public PawnActivityPractice? Practice { get; init; }
     public string Medicine { get; init; } = "";
     public long NotBefore { get; init; }
     public string Container { get; init; } = "";
     public string SupportDemand { get; init; } = "";
-    /// <summary>A set step (#3613): the Work repeats over these thing ids, nearest first, until <see cref="Count"/> members
-    /// are done or none is left legal. Empty keeps the single-<see cref="Target"/> behaviour.</summary>
-    public EquatableArray<string> Targets { get; init; }
-    /// <summary>The cell form of a set step (#3615): the Work repeats over these cells, nearest first (RemoveFloor; RemoveRoof
-    /// over the roofed cells a roof-holder leaves unsupported, #3617).</summary>
-    public EquatableArray<Cell> Cells { get; init; }
-    public bool IsSet => Targets.Count > 0 || Cells.Count > 0;
     /// <summary>A remote Supply step (#3046): native carries a full load, <see cref="Target"/> then the <see cref="Collect"/>
     /// stacks up to the pawn's carry capacity; the site takes <see cref="Count"/> and vanilla drops the surplus beside it.</summary>
     public bool FullLoad { get; init; }
@@ -40,7 +32,7 @@ public record PawnActivityStep(PawnActivityKind Kind, string Target, string Work
     public EquatableArray<string> Collect { get; init; }
 }
 
-/// <summary>An exact cell-targeted step: delivery, approach, roof building or sowing.</summary>
+/// <summary>An exact cell-targeted step: delivery or approach.</summary>
 public sealed record CellActivityStep : PawnActivityStep
 {
     public CellActivityStep(PawnActivityStep step, Cell destination) : base(step) => Destination = destination;
@@ -73,7 +65,6 @@ public record SelectedActivityTask(string Id, string Pawn, EquatableArray<string
     public string SupportDemand { get; init; } = "";
     public bool CompletionMustBeObserved { get; init; }
     public EquatableArray<SelectedActivityInput> Inputs { get; init; }
-    public int AttemptsLeft { get; init; } = 3;
     /// <summary>The tick the selected schedule ends the task (its allocation's end), so a stack claim holds from
     /// <see cref="DepartTick"/> to here (#3626); 0 when not selected by a schedule, and the claim then holds to the step's deadline.</summary>
     public long UseUntilTick { get; init; }
@@ -84,7 +75,7 @@ public record SelectedActivityTask(string Id, string Pawn, EquatableArray<string
         checked(tick + Math.Max((long)Math.Ceiling(end), (long)Math.Ceiling(depart) + 1));
 }
 
-public sealed record ActivityOutputDelivery(string Resource, Cell Origin, Cell Destination, int Count, long Deadline, int AttemptsLeft);
+public sealed record ActivityOutputDelivery(string Resource, Cell Origin, Cell Destination, int Count, long Deadline);
 
 /// <summary>The concrete premise an exact intervention answers (forecast-contracts "Intervention justification").</summary>
 public enum InterventionPurposeKind
@@ -164,15 +155,10 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
         && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision
         && a.Release == b.Release && a.OutputDelivery == b.OutputDelivery && a.Task == b.Task && a.Preparing == b.Preparing
         && a.Purpose == b.Purpose && a.Steps.SequenceEqual(b.Steps);
-    /// <summary>A set step (#3613) is Work over distinct thing ids or cells, never both, with <c>Count</c> the set's size.</summary>
-    private static void ValidateSet(PawnActivityStep step)
-    {
-        if (!step.IsSet) return;
-        DomainException.Require(step.Kind == PawnActivityKind.Work && step.Targets.Count <= 64 && step.Cells.Count <= 256
-            && (step.Targets.Count == 0 || step.Cells.Count == 0) && step.Count == step.Targets.Count + step.Cells.Count
-            && step.Targets.All(IdText.IsValidText) && step.Targets.Distinct(StringComparer.Ordinal).Count() == step.Targets.Count
-            && step.Cells.All(c => c is { X: >= 0, Z: >= 0 }) && step.Cells.Distinct().Count() == step.Cells.Count, "invalid activity set step");
-    }
+    /// <summary>The exact Work a justified intervention installs (task 5.6 of native-led-labor-execution): selected practice,
+    /// food harvest, a stalled site's frame finish and an unserved tend. Every other job (removal, roofing, sowing, research,
+    /// surgery, repair, fire-fighting) is native work under settings and designations, never an exact order.</summary>
+    public static bool ExactWork(string job) => job is "RimGovernor_TrainShooting" or "RimGovernor_Spar" or "Harvest" or "FinishFrame" or "TendPatient";
     private static void ValidatePractice(PawnActivityStep step)
     {
         DomainException.Require(step.Practice != null || step.Job is not ("RimGovernor_TrainShooting" or "RimGovernor_Spar"), "a practice job requires a selected practice");
@@ -184,9 +170,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
     }
     private static bool ValidDestination(PawnActivityStep step) => step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach
         ? step is CellActivityStep { Destination: { X: >= 0, Z: >= 0 } } && step.WorkGiver.Length == 0 && step.Job.Length == 0
-        : step.Kind == PawnActivityKind.Work && step.Job is "BuildRoof" or "Sow"
-            ? step is CellActivityStep { Destination: { X: >= 0, Z: >= 0 } } && (step.Job != "Sow" || step.Count > 0)
-            : step is not CellActivityStep;
+        : step is not CellActivityStep;
     public void Validate()
     {
         DomainException.Require(AuthorityGeneration > 0 && Orders is { Length: > 0 and <= 64 }, "activity batch requires authority and bounded orders");
@@ -210,30 +194,19 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                     && (step.Kind == PawnActivityKind.Supply || step.Kind == PawnActivityKind.Deliver && step.SupportDemand.Length != 0
                         ? IdText.IsValidText(step.Container) : step.Container.Length == 0)
                     && (step.SupportDemand.Length == 0 || (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Work) && IdText.IsValidText(step.SupportDemand))
-                    && (step.Medicine.Length == 0 || step.Kind == PawnActivityKind.Work && (step.Job is "TendPatient" or "DoBill") && IdText.IsValidText(step.Medicine)), "invalid activity step");
-                ValidateSet(step);
+                    && (step.Medicine.Length == 0 || step.Kind == PawnActivityKind.Work && step.Job == "TendPatient" && IdText.IsValidText(step.Medicine)), "invalid activity step");
+                DomainException.Require(step.Kind != PawnActivityKind.Work || ExactWork(step.Job), "routine work runs as native work, never an exact order");
                 ValidatePractice(step);
                 DomainException.Require((!step.FullLoad || step.Kind == PawnActivityKind.Supply)
                     && (step.Collect.Count == 0 || step.FullLoad && step.Collect.Count <= 16 && step.Collect.All(IdText.IsValidText)
                         && step.Collect.Distinct(StringComparer.Ordinal).Count() == step.Collect.Count && !step.Collect.Contains(step.Target)), "invalid full-load supply step");
                 // Bill work runs through native bills and work settings (task 5.3): a Recipe kind names a comparison binding, never a step.
                 DomainException.Require(step.Kind != PawnActivityKind.Recipe, "a bill step runs through native bills and work settings");
-                if (step.Kind == PawnActivityKind.Work && step.Job == "DoBill")
-                {
-                    var cooking = step.Recipe;
-                    DomainException.Require(cooking != null && (IdText.IsValidText(cooking.Bill) || IdText.IsValidText(cooking.Stuff)) && IdText.IsValidText(cooking.Recipe)
-                        && IdText.IsValidText(step.WorkGiver) && step.Count == 0
-                        && (cooking.Unfinished.Length != 0 ? cooking.Ingredients.Count == 0 : cooking.Ingredients.Count is > 0 and <= 16)
-                        && cooking.Ingredients.All(i => i != null && IdText.IsValidText(i.Thing) && i.Count > 0)
-                        && cooking.Ingredients.Select(i => i.Thing).Distinct(StringComparer.Ordinal).Count() == cooking.Ingredients.Count,
-                        "invalid exact cooking activity");
-                }
-                else DomainException.Require(step.Recipe == null, "cooking arguments on another activity family");
             }
             if (order.OutputDelivery is { } output)
             {
                 DomainException.Require(IdText.IsValidText(output.Resource) && output.Count > 0 && output.Deadline > 0
-                    && output.AttemptsLeft is >= 0 and <= 3 && output.Origin is { X: >= 0, Z: >= 0 }
+                    && output.Origin is { X: >= 0, Z: >= 0 }
                     && output.Destination is { X: >= 0, Z: >= 0 }, "invalid output delivery obligation");
             }
         }
@@ -242,8 +215,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
         var taskIds = Tasks.Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
         foreach (var task in Tasks)
             DomainException.Require(IdText.IsValidText(task.Id) && Orders.Any(o => o.Pawn == task.Pawn && !o.Release)
-                && task.Prerequisites.All(p => p != task.Id && taskIds.Contains(p)) && task.AttemptsLeft is >= 0 and <= 3
-
+                && task.Prerequisites.All(p => p != task.Id && taskIds.Contains(p))
                 && task.Inputs.All(i => IdText.IsValidText(i.Resource) && IdText.IsValidText(i.Lot) && i.Count > 0
                     && i.Location is { X: >= 0, Z: >= 0 } && IdText.IsValidText(i.Provenance)
                     && i.Producers.All(p => p != task.Id && IdText.IsValidText(p)))
@@ -251,7 +223,8 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 && task.DepartTick >= 0 && task.Step.Deadline > task.DepartTick, "invalid selected activity obligation");
         foreach (var task in Tasks)
         {
-            ValidateSet(task.Step); ValidatePractice(task.Step);
+            ValidatePractice(task.Step);
+            DomainException.Require(task.Step.Kind != PawnActivityKind.Work || ExactWork(task.Step.Job), "routine work runs as native work, never an exact order");
             DomainException.Require(ValidDestination(task.Step), "invalid selected activity destination");
         }
         foreach (var task in Tasks.Where(t => t.Step.Practice?.Skill == "Melee"))

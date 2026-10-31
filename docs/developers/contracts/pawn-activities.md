@@ -84,12 +84,13 @@ Existing exact commitments also hand ordinary service back at a task boundary,
 including when their Need is unlisted. Independent running orders remain exact;
 dependent attempts end without crediting the service as complete. See
 [continuation](method-continuation.md#pawn-activity-methods). Exact orders that
-remain after binding need an observed premise, as noted above. Productive caller
-migration remains incomplete in the
-[native-led labor change](../../../openspec/changes/native-led-labor-execution/design.md).
+remain after binding need an observed premise, as noted above. No routine exact
+caller remains: task 5.6 of the
+[native-led labor change](../../../openspec/changes/native-led-labor-execution/design.md)
+removed the last routine-exclusive adapters (see [exact work](#exact-work-families)).
 
 Exact cell assignments use `CellActivityStep`, which carries a required canonical
-`Cell` destination. Deliver, Approach, BuildRoof and Sow require that form; other
+`Cell` destination. Deliver and Approach require that form; other
 steps cannot carry a destination. The candidate form follows the same distinction,
 and binding, continuation, native execution and claim projection retain it. The
 journal derives the form from the existing kind and job and stores a destination
@@ -171,16 +172,15 @@ and uses the same selected-task binding/continuation as food. Supply preparation
 approaches the source; finishing preparation approaches the site. Native rebinds
 blueprints to frames and reads remaining demand before each bounded trip. Actual
 finished buildings, not accepted orders or successful supply, satisfy finishing.
-A failed carrying step's job cleanup drops what it carried as a new stack; native
-remembers that stack's id on the failed order and lists it as a Supply candidate, so
-the continuation rebinds the carry to it (#3537). A frame's ended Supply is not the
-shelter release boundary: the binding goes on to its finish or the carry's retry, and
-only a finished site (FinishFrame or BuildRoof ended) releases the Method for review.
-While a coupled order holds a site, an unowned colonist gets no vanilla delivery to it
-(`ConstructionTierGate`) and no vanilla FinishFrame on it (`ConstructionSkillGuard`):
-a blueprint carries no container reservation, so vanilla could otherwise turn it into
-a frame under the order (#3537). The finisher read skips a colonist only while it
-carries for a vanilla job that holds the stack (`CarryHeld`).
+A failed carrying step ends its attempt (design decision 3 of `native-led-labor-execution`):
+nothing reissues it, native keeps no record of the stack its job cleanup dropped, and the
+continuation releases the order for review rather than rebinding the carry. A frame's ended
+Supply is not the shelter release boundary: the binding goes on to its finish, and only a
+finished site (FinishFrame ended) releases the Method for review. No coupled order holds a
+site against vanilla: `ConstructionTierGate` and `ConstructionSkillGuard` apply only their
+tier and skill rules, so native work may deliver to and finish a site an order also serves
+(task 5.6 removed the site hold). The finisher read skips a colonist only while it carries
+for a vanilla job that holds the stack (`CarryHeld`).
 
 The live census supports one required material, repeated capacity-bounded trips,
 or an already-supplied site. Native lists every spawned stack of the material the
@@ -207,95 +207,36 @@ veto exact work. Existing construction demand owns the material budget.
 
 Ordinary sowing uses configured native growing zones/planters and work priorities.
 The detailed sowing candidate is a conditional forecast with native execution;
-selection installs no sow order, exclusive pawn claim or future holding. Its
-physical step adapter below remains available to explicit bounded work and
-existing Method reconciliation; its presence does not justify routine dispatch.
+selection installs no sow order, exclusive pawn claim or future holding, and no
+exact order sows: task 5.6 deleted the Sow step adapter, its per-cell driver and its
+`production/sow-block` case, and validation refuses a Work/Sow step.
 
-Sowing is a cell-targeted Work step through the grower sow giver (`WorkGiver_GrowerSow`), not a
-new activity kind. Native reads, for every free colonist and every growing zone or planter with a
-crop set, the cells the giver would accept now (crop set, cell free, fertility and season, adjacent
-sow block, the pawn's Plants level against `sowMinSkill`, reservable and reachable), the pawn's
-`PlantWorkSpeed`, the crop's sow work and the route to the nearest cell. Legality is the game's
-own giver read through a private subclass that sets the giver's shared wanted-plant cache around
-each call and accepts only a Sow job, so a cell the giver would answer with a cut-plant or
-haul-aside job is not sowable and the tree-lattice patch applies. Policy proposes one task per
-(pawn, zone) with as many cells as fit the horizon at that pawn's speed (`sowing_cells_truncated`
-when it cuts); a zone is one exclusive outcome in this conditional projection, without
-restricting native workers. The zone's crop is read, never chosen, and a zone with no crop
-is reported (`sowing_zone_without_crop`). Project progress credits the forecast's cells;
-only native observations establish actual sowing.
+The sowing read (`NativeSowingActivities.Read`) observes, for every free colonist and every
+growing zone or planter with a crop set, the cells the grower sow giver (`WorkGiver_GrowerSow`)
+would accept now (crop set, cell free, fertility and season, adjacent sow block, the pawn's
+Plants level against `sowMinSkill`, reservable and reachable), the pawn's `PlantWorkSpeed`, the
+crop's sow work and the route to the nearest cell. Legality is the game's own giver read through a
+private subclass that sets the giver's shared wanted-plant cache around each call and accepts only
+a Sow job, so a cell the giver would answer with a cut-plant or haul-aside job is not sowable and
+the tree-lattice patch applies. Policy proposes one what-if task per (pawn, zone) with as many
+cells as fit the horizon at that pawn's speed (`sowing_cells_truncated` when it cuts); a zone is
+one exclusive outcome in this conditional projection, without restricting native workers. The
+zone's crop is read, never chosen, and a zone with no crop is reported (`sowing_zone_without_crop`).
+Project progress credits the forecast's cells; only native observations establish actual sowing.
 
-The step is `Destination` = the first cell, `Target` = the zone's (or planter's) unique load id and
-`Count` = the cells to sow, validated like a BuildRoof step (a cell is required, and a positive
-count). `JobDriver_PlantSow` sows one cell and ignores queued targets, so native offers one Sow job
-per cell and keeps a cells-sown counter on the in-memory execution entry: the step stays current,
-re-offering the nearest legal cell, until the count is sown. A step with no legal cell left ends
-without a fault (a full zone is done); a load restarts the count, as it restarts the entry.
-Continuation rebinds the nearest legal cell for the pawn and treats a fully sown grower as done.
+## Removal work
 
-## The set step
-
-Standing CutPlant, RemoveFloor and Mine designations, Uninstall, and Deconstruct
-are ordinary native work. Their conditional selected
-tasks retain the target/set mechanics below but cannot install routine exact
-orders. Existing commitments hand back at an observed boundary without crediting
-completion or satisfying dependents. Planned preplacement cutting, mining and
-deconstruction use the same boundary; reconciliation and excavation create the
-native work. Roof preparation uses native area intent as described below.
-Ordinary hauling is also native work; conditional delivery costs install no exact worker. Construction-clearance Deliver commitments hand back at an observed boundary, without crediting the uncarried remainder.
-
-A set step (#3613) is a Work step that repeats over a set of things or cells, the Sow step's
-pattern. `PawnActivityStep.Targets` names the members as thing ids and `Cells`
-(`EquatableArray<Cell>`) is the cell form (#3615; RemoveFloor, and RemoveRoof over the roofed cells
-a roof-holder leaves unsupported, #3617). Empty keeps the single-`Target` behaviour. A set
-step is Work only, its members are distinct, it names things or cells, not both, and `Count` is the
-set's size; `SameOrder` compares the sets with the rest of the step.
-
-Native (`NativeSetActivities`) offers one job per member, nearest first: a member that is gone,
-already done or no longer legal is skipped, and the step completes when `Count` members are done or
-none is left legal (reason `no_legal_member`: a cleared set is done, not a fault). Validate refuses
-only when a member is left to do and none is legal now, and names every member's reason. Cut is the
-thing family:
-Work/CutPlant through `WorkGiver_PlantsCut`, where each member's job is the giver's own for a
-designated plant (`CutPlantDesignated`, or `HarvestDesignated` where a chop-wood HarvestPlant stands)
-and legality is the giver's checks less the designation (a plant, not burning or forbidden, the pawn
-willing to cut it, cutting not prevented, reservable and reachable). `Apply` stands the CutPlant
-designation (the ordered cut designator's, so a tree too) on every member lacking a cut or harvest
-designation and marks its enclosure-guard record `Ordered`, as a Deconstruct or Uninstall step does
-on its building; no job hook rechecks a CutPlant record (the enclosure guard judges buildings), so
-the record serves the release on revocation and the removal hook alone. RemoveFloor is the cell
-family (#3615): Work/RemoveFloor through `WorkGiver_ConstructRemoveFloor`, one `JobOnCell` per member
-cell nearest first, as the BuildRoof cell branch; a cell whose top layer is gone
-(`CanRemoveTopLayerAt` false) is done and skipped, and legality is the giver's `HasJobOnCell` less
-the designation (not fogged or forbidden, no building needing the floor, reservable on the floor
-layer and reachable). `Apply` stands the RemoveFloor designation (the plain designation the
-reconcile's FloorOut stands) on every member cell lacking one and marks an enclosure-guard record
-keyed by the cell `Ordered`; the record serves the release on revocation alone (the guard's
-designation lookup finds a thingless record at its cell). Mine is the third family
-(#3616): Work/Mine through `WorkGiver_Miner`, where each member's job is the miner's own `Mine` job
-(`MineAIUtility.JobOnThing`, which refuses an undesignated cell; its haul-aside of a blocking item is
-not accepted as the member's work) and legality is the giver's checks less the designation plus the
-mine_safety guard's permanent blockers: mineable rock, the excavation cell rule (`CellBlocker`) and
-the excavation safety rule (`ExcavationSafety.Check` Supported for the one cell), not forbidden,
-reservable and reachable. A rock whose removal would leave a roof unsupported is skipped, and
-Validate names it when no member is legal. `Apply` stands the Mine cell designation (the mine
-designator's) on every member whose cell has no Mine or MineVein and marks its mine_safety record
-`Ordered`, standing or Designate-stood (such a record waits for supervised play until it is Ordered);
-the pick hook rechecks the record before every hit as it does any mine_safety record. RemoveRoof is
-the second cell family (#3617): Work/RemoveRoof through `WorkGiver_RemoveRoof` (def `RemoveRoofs`)
-over `Cells`, one `RemoveRoof` job per roofed member nearest first (`JobDriver_RemoveRoof`, 65 work
-at `ConstructionSpeed x 1.7` a tick, which also runs the game's own flying-roof check after each
-cell); a member already unroofed is done, and legality is the giver's checks less the NoRoof area
-(not fogged, no thick roof, the ceiling reservable, the cell reachable). `Apply` puts every roofed
-member in the NoRoof area through `Designator_AreaNoRoof` (which also clears BuildRoof), the area
-the giver and job require; it stands no designation and no guard record. The done count lives on
-the in-memory execution entry with the sow count; a load restarts it.
-
-Native task reads can identify the members the pawn can still work (`Targets`
-or `Cells`, `Count` their number) and positively report a set with no member
-standing as satisfied. Coordinated continuation no longer retries routine set
-work or replaces its set with a legal subset. An old failed set ends its attempt;
-completion of only a physical subset grants no whole-task completion credit.
+Standing CutPlant, RemoveFloor and Mine designations, Uninstall, Deconstruct and roof
+removal are ordinary native work. Their conditional selected tasks (`RemovalBinding`) are
+what-if templates that price the removal; they cannot install exact orders. Task 5.6 deleted
+the set step (`PawnActivityStep.Targets`/`Cells`, the `NativeSetActivities` driver and its
+`no_legal_member` completion), the exact Deconstruct and Uninstall adapters with their
+designation stands and roof-holder refusals, and the `control/pawn-activity-*` removal cases;
+validation refuses a Work step of any of those jobs. Planned preplacement cutting, mining and
+deconstruction create the native work through reconciliation and excavation. Roof preparation
+uses native area intent as described below. Ordinary hauling is also native work; conditional
+delivery costs install no exact worker. A justified Deliver of a chunk marks the chunk's Haul
+designation record `Ordered`, which the designation guard's revocation release reads.
 
 ### Roof preparation
 
@@ -312,9 +253,7 @@ The action is ordinary `RemoveRoof` area intent. Vanilla chooses roof workers;
 demolition until support is safe. Applied area intent is neither a removed roof
 nor completed demolition. Conditional removal rows retain the combined work cost
 without binding either worker. The obsolete task prior-step field and codec are
-removed; primitive multi-step orders retain their existing native mechanics and
-fixture coverage. Pathological intermediate flying-roof geometry remains a
-native-mechanics proof limit of that primitive.
+removed, and no exact order removes a roof: task 5.6 deleted the RemoveRoof set step.
 
 ## Continuation, observations and bounds
 
@@ -329,9 +268,9 @@ in force. It does not invent fresh inventory from ownership evidence.
 Native output binding reads current identities and quantities: local split/merged
 stacks, previously bound stacks moved elsewhere, or the selected pawn's carried
 stack. Fungible local stock is not individual-output provenance. Arbitrarily moved
-replacement identities outside the source neighborhood are not inferred. Delivery
-failure can resume exact carried input with at most three retries under the original
-deadline; consuming work cannot replay. Blocked selected destinations release for
+replacement identities outside the source neighborhood are not inferred. A failed
+delivery ends its attempt with no retry budget (design decision 3); consuming work
+cannot replay. Blocked selected destinations release for
 normal reconsideration. No hidden storage fallback changes the chosen destination.
 
 Native reads and family providers bound participants, stacks, sites and route
@@ -347,7 +286,8 @@ The registered `coordination/food-delegated`, `coordination/food-carried-recover
 and `coordination/construction-delegated` prepared cases use normal Colony review and
 Hands. Their fixture establishes facts, captures exact installed ownership and
 injects one carrying failure; it installs no chosen tasks. They assert native
-completion, physical output and observed cleanup. The construction case also compares native pawn comfort and safe-temperature minima with the selected shell comparison: both exposure inputs must be assessed, and the shell must reduce positive baseline `value.thermal` capability-days lost to hypothermia/heatstroke. `value.harm` is raid loss, so zero there does not imply absent cold injury. The staged -10 C temperature and worn apparel remain unchanged. Registration/compilation does
+completion, physical output and observed cleanup, and fail if the failed carry is
+reissued (a failed step ends its attempt, task 5.6). The construction case also compares native pawn comfort and safe-temperature minima with the selected shell comparison: both exposure inputs must be assessed, and the shell must reduce positive baseline `value.thermal` capability-days lost to hypothermia/heatstroke. `value.harm` is raid loss, so zero there does not imply absent cold injury. The staged -10 C temperature and worn apparel remain unchanged. Registration/compilation does
 not establish that these game scenarios have passed; nightly execution supplies
 that evidence. Pure and journal tests cover choice reversals, partial progress,
 rebinding, unknowns, deadlines, refusal and stale atomic revisions.
@@ -435,7 +375,9 @@ may share one atomic batch. These checks run in the existing owner transaction,
 before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
-The initial step families are exact thing-target work (Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([roof preparation](#roof-preparation), #3617); a standing designation the room reconcile stood by Designate is ordinary native work; its read-back removal op remains conditional forecast evidence, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
+### Exact work families
+
+The step families are exact thing-target Work restricted to `PawnActivities.ExactWork` (practice through `RimGovernor_TrainShooting` and `RimGovernor_Spar`, a food crop's `Harvest` through `WorkGiver_GrowerHarvest`, a stalled frame's `FinishFrame` through `WorkGiver_ConstructFinishFrames` and `TendPatient` through `WorkGiver_Tend`; Repair, Research, Deconstruct, Uninstall, CutPlant, RemoveFloor, Mine, RemoveRoof, BuildRoof, Sow, bill work and BeatFire are native work and validation refuses them, task 5.6), selected food/count,
 selected bed/rest, selected recreation building, exact delivery, material Supply, FinishFrame, Approach and Hold. Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. No brain policy selects firefighting: vanilla fights home-area fires, and native releases committed orders for them ([home-area fire](#home-area-fire)). Work givers use forced:false, required capacities,
@@ -464,8 +406,9 @@ still at the source, and a new planner decision must inspect that state. An exac
 require fresh observed identities and a revised assignment; future output IDs are
 not guessed.
 
-Surgery remains a `Work` step with job `DoBill` naming its existing medical bill;
-that is the only step that carries bill arguments.
+Surgery runs through native medical bills: no step carries bill arguments, and a
+`DoBill` Work step is refused (task 5.6). The support read's surgeon probe still
+resolves the bill's job to observe whether a doctor could start it.
 
 The requested first job is offered for an installed assignment. Once work runs,
 native selection and overrides can choose replacements; constant think-tree,
@@ -474,7 +417,7 @@ does not revoke an assignment. An actually installed different job ends the old
 execution handle, and shared continuation reconciles its remaining commitments.
 Job completion does not force the bot's next step back over native selection.
 Existing queued/player-forced work still refuses initial acquisition instead of
-being erased. Remaining exact routine callers are tracked in the labor migration.
+being erased. No exact routine caller remains (task 5.6).
 
 A selected native Job is identified by both reference and load ID, so pooling
 cannot transfer ownership. Actual StartJob and EndCurrentJob hooks distinguish an
@@ -557,8 +500,8 @@ physical output evidence. No additional durable history is created.
 `control/pawn-activities` uses a staged hungry/tired producer and helper to
 verify harvest, selected meal and selected bed. Each
 `control/activity-*` case makes one lifecycle claim over the same installed
-executions: batch atomicity, hold deadline, native work refusal, emergency
-preemption of selected recreation, release, native overrides, idle completion,
+executions: batch atomicity, hold deadline, native work refusal (a Harvest step on
+a bed), release, native overrides, idle completion,
 player takeover and real save/load invalidation (`control/activity-reload`).
 `control/work-resources` reads the installed ownership back through colony facts. Pure tests round-trip the
 Hands action through the session codec and intent builder and reject malformed

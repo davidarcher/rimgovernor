@@ -59,12 +59,11 @@ internal static class NativeActivityTasks
                 {
                     var source = task.Source;
                     var carried = pawn.carryTracker.CarriedThing;
-                    var dropped = NativePawnActivities.Dropped(pawn);
                     var candidates = carried is not null ? new[] { carried }
                         : map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
                             .Where(t => t.Spawned && t.def.defName == task.Resource
                                 && (t.Position.DistanceToSquared(new(source.X, 0, source.Z)) <= 4
-                                    || order.Steps.Any(s => s.Target == t.GetUniqueLoadID()) || dropped.Length != 0 && t.GetUniqueLoadID() == dropped))
+                                    || order.Steps.Any(s => s.Target == t.GetUniqueLoadID())))
                             .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
                     if (candidates.Length > 16) truncated = true;
                     foreach (var item in candidates.Take(16))
@@ -92,8 +91,7 @@ internal static class NativeActivityTasks
                                 : JobDriver_GovernorDeliver.DestinationAvailable(pawn, new(destination.X, 0, destination.Z), item, count))
                                 || !pawn.CanReserveAndReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) continue;
                         }
-                        bindings.Add(step.Kind == PawnActivityKind.Supply && site is IConstructible current
-                            ? new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Supply(task.Id, bound, current.ThingCountNeeded(item.def)) : new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, bound));
+                        bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, bound));
                     }
                 }
                 // A meal, sleep or recreation task is never rebound: continuation hands a pawn whose next task is one back to
@@ -103,37 +101,6 @@ internal static class NativeActivityTasks
                 {
                     var target = RefIndex.Thing(map, step.Target);
                     if (target != null && NativePracticeActivities.Legal(pawn, target, step)) bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step));
-                }
-                else if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof" && step is CellActivityStep { Destination: var destination })
-                {
-                    var cell = new IntVec3(destination.X, 0, destination.Z);
-                    if (!cell.InBounds(map)) continue;
-                    if (map.roofGrid.Roofed(cell)) { satisfied.Add(task.Id); continue; }
-                    if (map.areaManager.BuildRoof[cell] && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
-                        && DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is WorkGiver_BuildRoof giver
-                        && giver.HasJobOnCell(pawn, cell, false) && pawn.CanReach(cell, PathEndMode.Touch, Danger.None))
-                        bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step));
-                }
-                else if (step.Kind == PawnActivityKind.Work && step.Job == "Sow")
-                {
-                    // A fully sown grower is done; otherwise the nearest cell this pawn can sow now.
-                    if (NativeSowingActivities.FullySown(map, step.Target)) { satisfied.Add(task.Id); continue; }
-                    if (NativeSowingActivities.Giver?.defName == step.WorkGiver && NativeSowingActivities.Grower(map, step.Target) is { } grower
-                        && NativeSowingActivities.LegalCells(pawn, grower) is [var nearest, ..])
-                        bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step.At(new(nearest.x, nearest.z))));
-                }
-                else if (step.Kind == PawnActivityKind.Work && step.IsSet)
-                {
-                    // A set step (#3613, cells #3615): every member gone is done; else the members this pawn can still work, nearest first.
-                    if (!NativeSetActivities.Standing(pawn, step)) { satisfied.Add(task.Id); continue; }
-                    if (DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is not WorkGiver_Scanner setGiver
-                        || !NativeSetActivities.Supported(setGiver.def, step.Job) || setGiver.MissingRequiredCapacity(pawn) != null
-                        || pawn.WorkTagIsDisabled(setGiver.def.workTags) || setGiver.def.workType != null && pawn.WorkTypeIsDisabled(setGiver.def.workType)) continue;
-                    var legal = NativeSetActivities.Legal(pawn, step, setGiver);
-                    var legalCells = NativeSetActivities.LegalCells(pawn, step, setGiver);
-                    if (legal.Count + legalCells.Count == 0) continue;
-                    bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step with { Targets = EquatableArray.From(legal.Select(m => m.GetUniqueLoadID())),
-                        Cells = EquatableArray.From(legalCells.Select(c => new Cell(c.x, c.z))), Count = legal.Count + legalCells.Count }));
                 }
                 else if (step.Kind == PawnActivityKind.Work)
                 {
@@ -146,12 +113,7 @@ internal static class NativeActivityTasks
                     if (DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is not WorkGiver_Scanner giver
                         || giver.MissingRequiredCapacity(pawn) != null || pawn.WorkTagIsDisabled(giver.def.workTags)
                         || giver.def.workType != null && pawn.WorkTypeIsDisabled(giver.def.workType)) continue;
-                    if (step.Job == "DoBill")
-                    {
-                        if (target is not Pawn surgeryPatient || !NativeSupportSurgery.Resolve(pawn, surgeryPatient, step, out var surgery)) continue;
-                        JobMaker.ReturnToPool(surgery);
-                    }
-                    else if (giver is WorkGiver_GrowerHarvest ? !giver.HasJobOnCell(pawn, target.Position, false) : !giver.HasJobOnThing(pawn, target, false)) continue;
+                    if (giver is WorkGiver_GrowerHarvest ? !giver.HasJobOnCell(pawn, target.Position, false) : !giver.HasJobOnThing(pawn, target, false)) continue;
                     bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step with { Target = target.GetUniqueLoadID() }));
                 }
             }

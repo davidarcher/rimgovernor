@@ -13,7 +13,7 @@ public sealed class ForecastPortfolioChoiceTests
         { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     private static readonly Cell Source = new(1, 1), Bench = new(2, 1), Destination = new(3, 1);
     private static readonly Cell[] Cells = [Source, Bench, Destination];
-    private static (ForecastCoupledSelection Selection, PawnActivities Batch) Select(ReviewFacts facts)
+    private static (ForecastCoupledSelection Selection, PawnActivities Batch, ForecastCoupledCandidates Generated) Select(ReviewFacts facts)
     {
         facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 150)?.Priced() };
         var generated = Assert.IsType<ForecastCoupledCandidates>(facts.CoupledAlternatives);
@@ -29,7 +29,7 @@ public sealed class ForecastPortfolioChoiceTests
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "portfolio-choice", 100));
         Assert.Empty(ForecastCoupledSelection.SelectedProductionBills(selected, generated));
         return (selected, RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(
-            selected.Selected.Plan, generated.Context.Bindings, 1, "what-if", 100));
+            selected.Selected.Plan, generated.Context.Bindings, 1, "what-if", 100), generated);
     }
     internal static ReviewFacts Observed(CoupledFoodConversion[] conversions, CoupledFoodSource[] sources, bool helper = false)
     {
@@ -73,9 +73,9 @@ public sealed class ForecastPortfolioChoiceTests
         var facts = Observed([Conversion("rice", "Rice", "CookRice", reverse ? 80 : 10),
             Conversion("corn", "Corn", "CookCorn", reverse ? 10 : 80)],
             [new("rice", "Rice", Source, 4, new FoodFreshness.Rots(1000d)), new("corn", "Corn", Source, 4, new FoodFreshness.Rots(1000d))]);
-        var (_, batch) = Select(facts);
+        var (_, batch, generated) = Select(facts);
         var cooking = Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Recipe);
-        Assert.Equal(recipe, cooking.Step.Recipe!.Recipe);
+        Assert.Equal(recipe, generated.Context.Bindings.Values.Single(b => b.Id == cooking.Id && b.Pawn == cooking.Pawn).Recipe!.Recipe);
         Assert.Equal(ingredient, cooking.Resource);
         var supply = Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver && t.Resource == ingredient);
         Assert.Equal(source, supply.Step.Target); Assert.Equal(4, supply.Step.Count);
@@ -92,7 +92,7 @@ public sealed class ForecastPortfolioChoiceTests
         var facts = Observed([cook, cook with { Pawn = "helper", Cooking = new FoodCooking.Incapable(), Delivery = new FoodDelivery.CannotCarry(), SupplyTicks = helperTravel }],
             [new("rice", "Rice", Source, 4, new FoodFreshness.Rots(1000d))], helper: true);
         if (obligated) facts = facts with { WorkView = facts.WorkView! with { Claims = facts.WorkView!.Claims with { Pawns = ["helper"] } } };
-        var (_, batch) = Select(facts);
+        var (_, batch, _) = Select(facts);
         Assert.Equal(supplier, Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver && t.Resource == "Rice").Pawn);
         Assert.Equal("pawn", Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Recipe).Pawn);
         if (obligated) Assert.DoesNotContain(batch.Tasks, t => t.Pawn == "helper");
@@ -109,7 +109,7 @@ public sealed class ForecastPortfolioChoiceTests
         var coupled = facts.ForecastObserved.Coupled!;
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = coupled with
             { Routes = EquatableArray.From(coupled.Routes.Select(r => r.Pawn == "helper" ? r with { Ticks = RouteTicks.None } : r)) } } };
-        var (selection, batch) = Select(facts);
+        var (selection, batch, _) = Select(facts);
         Assert.Equal("pawn", Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver && t.Resource == "Rice").Pawn);
         Assert.DoesNotContain(batch.Tasks, t => t.Pawn == "helper");
         Assert.Contains(selection.Selection.Findings, f => f.StartsWith("unreachable_route:helper:", StringComparison.Ordinal));

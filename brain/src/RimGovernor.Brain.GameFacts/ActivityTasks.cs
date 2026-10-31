@@ -10,15 +10,11 @@ namespace RimGovernor.Brain.GameFacts.Observations;
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(ActivityTaskBinding.Bound), "bound")]
-[JsonDerivedType(typeof(ActivityTaskBinding.Supply), "supply")]
 
 public abstract record ActivityTaskBinding(string Task, PawnActivityStep Step)
 {
     /// <summary>A binding with nothing further read: the step alone.</summary>
     public sealed record Bound(string Task, PawnActivityStep Step) : ActivityTaskBinding(Task, Step);
-
-    /// <summary>A Supply binding: the frame's <see cref="RemainingCount"/> of the bound stack's material still owed.</summary>
-    public sealed record Supply(string Task, PawnActivityStep Step, int RemainingCount) : ActivityTaskBinding(Task, Step);
 
 }
 public sealed record ActivityTaskObservation(string Pawn, RimGovernor.Brain.GameFacts.Operations.PawnActivityExecution? Execution);

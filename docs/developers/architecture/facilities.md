@@ -19,8 +19,8 @@ supply of that site, or a supplied frame's finish, re-admitted as an exact order
 carrying a `construction_stall` purpose, which completes once the site's progress
 changes or the site is gone. Material, tier and minimum-skill constraints stay
 native settings (`ConstructionTierGate`, `ConstructionSkillGuard`) and still
-apply to that order, and a held site is not taken by another native worker
-(`NativePawnActivities.SiteHeld`). The finish of an unsupplied site waits on its
+apply to that order; the order holds no site against native workers (task 5.6
+removed the site hold). The finish of an unsupplied site waits on its
 delivery and is never re-admitted.
 
 Ordinary roof building follows the same boundary: room reconciliation installs

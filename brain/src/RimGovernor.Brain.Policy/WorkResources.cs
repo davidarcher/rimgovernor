@@ -190,7 +190,7 @@ public static partial class WorkRules
     {
         var materials = new List<ForecastCommitment>();
         var activityMaterials = new Dictionary<(string Pawn, string Assignment), List<ForecastMaterialClaim>>();
-        var selectedMaterials = new Dictionary<(string Owner, string Task, Resource Resource, string Bill), double>();
+        var selectedMaterials = new Dictionary<(string Owner, string Task, Resource Resource), double>();
         var pawns = new HashSet<string>(StringComparer.Ordinal);
         var targets = new HashSet<string>(StringComparer.Ordinal);
         var exclusive = new HashSet<string>(StringComparer.Ordinal);
@@ -319,16 +319,11 @@ public static partial class WorkRules
                                 && p.Revision == executing.ExpectedRevision && p.State is "completed" or "failed"
                                 && p.CarriedThing == executing.Steps[0].Target);
                         var count = Math.Max(0, required - (carried?.CarriedResource == group.Key ? carried.CarriedCount : 0));
-                        var key = (batch.Orders.FirstOrDefault()?.Method ?? row.Plan.Value, task.Id, new Resource(group.Key), task.Step.Recipe?.Bill ?? "");
+                        var key = (batch.Orders.FirstOrDefault()?.Method ?? row.Plan.Value, task.Id, new Resource(group.Key));
                         selectedMaterials[key] = Math.Max(selectedMaterials.GetValueOrDefault(key), count);
                     }
                 }
                 if (task.SiteDefinition.Length != 0 && task.Step.Target.Length != 0) Take(task.Step.Target);
-                if (task.Step.Recipe is { } recipe)
-                {
-                    Take(task.Step.Target);
-                    if (recipe.Bill.Length != 0) Take(recipe.Bill);
-                }
             }
             foreach (var order in batch.Orders)
             {
@@ -347,14 +342,13 @@ public static partial class WorkRules
                     else if (HaulsStack(step, step.Target)) Share(step.Target, order.Pawn, order.Task, step.Count, batch, step, true);
                     else if (step.Target.Length != 0) Take(step.Target);
                     if (step.Container.Length != 0) Take(step.Container);
-                    if (step.Recipe is { } cooking) Take(cooking.Bill);
                 }
 
                 var claims = new List<ForecastMaterialClaim>();
                 if (batch.Tasks.Any(t => t.Id == order.Task && t.Inputs.Count > 0)) continue;
                 foreach (var step in order.Steps)
                 {
-                    if (step.Medicine.Length != 0 && step.Recipe is null && observed?.State is not ("completed" or "failed"))
+                    if (step.Medicine.Length != 0 && observed?.State is not ("completed" or "failed"))
                     {
                         var task = batch.Tasks.SingleOrDefault(t => t.Id == order.Task);
                         if (task is null || task.Inputs.Count == 0) findings.Add("unknown_selected_care_materials:" + row.Action.Id.Value);
@@ -371,13 +365,6 @@ public static partial class WorkRules
                         if (observed?.State == "completed") continue;
                         claims.Add(new(new(output.Resource), new MaterialUnits.Exact(Math.Max(0, step.Count - carried)), ""));
                     }
-                    if (step.Recipe is { } cooking)
-                    {
-                        if (observed?.State is "completed" or "failed") continue; // Fresh stock owns any remaining/consumed ingredients.
-                        if (cooking.Resource.Length == 0) { findings.Add("unknown_cooking_materials:" + row.Action.Id.Value); continue; }
-                        var carried = observed?.CarriedResource == cooking.Resource ? observed.CarriedCount : 0;
-                        claims.Add(new(new(cooking.Resource), new MaterialUnits.Exact(Math.Max(0, cooking.Ingredients.Sum(i => i.Count) - carried)), cooking.Bill));
-                    }
                 }
                 if (claims.Count != 0)
                 {
@@ -392,7 +379,7 @@ public static partial class WorkRules
         }
         foreach (var group in selectedMaterials.GroupBy(p => (p.Key.Owner, p.Key.Task)))
             materials.Add(new("activity/selected-input/" + group.Key.Owner + "/" + group.Key.Task, [])
-            { MaterialClaims = EquatableArray.From(group.Select(p => new ForecastMaterialClaim(p.Key.Resource, new MaterialUnits.Exact(p.Value), p.Key.Bill))) });
+            { MaterialClaims = EquatableArray.From(group.Select(p => new ForecastMaterialClaim(p.Key.Resource, new MaterialUnits.Exact(p.Value), ""))) });
         foreach (var (owner, claims) in activityMaterials)
             materials.Add(new("activity/" + owner.Assignment + "/" + owner.Pawn, default)
             {

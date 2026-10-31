@@ -49,8 +49,7 @@ internal static class ControlActivities
         yield return Lifecycle("batch-atomic", "atomic", "A batch with one invalid order is refused whole: the producer's valid revision is not applied.");
         yield return Lifecycle("native-takeover", "takeover", "Considering a native alternative preserves the exact running handle; actually installing a replacement detaches it, and ending the replacement never reinstalls the stale attempt.");
         yield return Lifecycle("dependency-yields-native", "deadline", "A waiting dependency installs no eternal bot wait; native work starts and invalidates the stale execution handle.");
-        yield return Lifecycle("work-refusal", "refusal", "Work the native job tracker refuses (repairing an undamaged bed) fails the execution visibly.");
-        yield return Lifecycle("emergency-preempts", "preemption", "Selected recreation starts as a normal, unforced job, and a selected fire-fighting emergency preempts it.");
+        yield return Lifecycle("work-refusal", "refusal", "Work the native job tracker refuses (harvesting a bed, where no plant grows) fails the execution visibly.");
         yield return Lifecycle(
             "release",
             "release",

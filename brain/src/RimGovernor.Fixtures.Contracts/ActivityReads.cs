@@ -37,16 +37,6 @@ public sealed record ControlRead
     public bool Forced { get; init; }
 }
 
-/// <summary><c>test/pawn_sow_read</c>: the sower's execution and how many cells of the zone stand sown.</summary>
-public sealed record SowRead
-{
-    public ActivityExecution? Execution { get; init; }
-
-    public int Sown { get; init; }
-
-    public bool Forced { get; init; }
-}
-
 /// <summary><c>test/pawn_delivery_read</c>: the hauler's execution and the edible harvest at each cell.</summary>
 public sealed record DeliveryRead
 {
@@ -71,12 +61,4 @@ public sealed record VanillaJobRead
     public string Job { get; init; } = "";
 
     public bool Owned { get; init; }
-}
-
-/// <summary><c>test/preempt_haul_start</c> and <c>test/preempt_haul_read</c>: the holder's current job's load id (null for none) and whether it targets and reserves the stack.</summary>
-public sealed record PreemptHaulRead
-{
-    public int? JobId { get; init; }
-
-    public bool Holds { get; init; }
 }

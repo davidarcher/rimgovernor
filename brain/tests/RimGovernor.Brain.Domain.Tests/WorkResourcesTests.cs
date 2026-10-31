@@ -74,7 +74,7 @@ public sealed class WorkResourcesTests
     private static DomainAction Delivery(string id, string pawn = "cook-builder", int count = 6) =>
         DomainAction.NewPawnActivitiesAction(new(id), new(1, [new(pawn, id, "method", 0, 1, false,
             [new PawnActivityStep(PawnActivityKind.Deliver, "stack-" + id, "", "", count, 500).At(new(pawn == "helper" ? 4 : 2, 2))])
-            { OutputDelivery = new("Rice", new(1, 1), new(pawn == "helper" ? 4 : 2, 2), count, 500, 3) }]));
+            { OutputDelivery = new("Rice", new(1, 1), new(pawn == "helper" ? 4 : 2, 2), count, 500) }]));
     private static DomainAction Building(string id) => DomainAction.NewBuildingAction(new(id), new("TestWall", new(3, 3), Rotation.North, "Rice"), ConstructionTier.Survive);
     private static DomainAction Craft(string id) => DomainAction.NewProductionBillAction(new(id), new("bench", "TestRecipe", BillMode.GearBatch, 1, "Rice"));
     private static PlanSpec Plan(string id, params DomainAction[] actions) => new(new(id), new(1), EquatableArray.From(actions));

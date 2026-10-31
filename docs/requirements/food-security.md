@@ -412,11 +412,9 @@ collection outside the assertions.
 [SowingProviderTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SowingProviderTests.cs)
 checks eligible workers, exact cells, work time and invalid mechanics.
 [NativeSowingActivities](../../integrations/rimgovernor-native/src/Bridge/NativeSowingActivities.cs)
-provides legal per-cell work for the explicit NativePawnActivities sowing
-primitive; routine sowing, harvest and ingestion remain native. Registered OnDemand
-[production/sow-block](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionSowBlock.cs)
-requires exactly four planted cells and completed execution for a fixture-installed
-order. Registered OnDemand
+observes the legal per-cell sowing for the what-if comparison; sowing, harvest and
+ingestion remain native, and no exact order sows (task 5.6 deleted the exact Sow
+primitive and its `production/sow-block` case). Registered OnDemand
 [production/coupled-needs](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Production/ProductionCoupledNeeds.cs)
 runs the governor against ripe rice and now requires actual usable harvest output
 and unowned native ingestion, sleep and recreation, followed by another native

@@ -121,6 +121,18 @@ carries a product's stuff (task 5.3 of `native-led-labor-execution`). A
 `Recipe`-kind step is refused by `PawnActivities.Validate`. Older session
 journals are replaced; nothing is added to the save.
 
+Version 69 removes the last routine-exclusive execution shape from
+`PawnActivities` (task 5.6 of `native-led-labor-execution`): a step's set
+members (`Targets`, `Cells`) and exact surgery `Recipe`, and the retry budget
+(`AttemptsLeft`) of a task and of its output delivery. Removal, roofing,
+sowing, research, surgery, repair and fire-fighting work run as native work and
+designations; exact `Work` is only practice, harvest, frame finish or tend
+(`PawnActivities.Validate`). A failed exact step is never reissued from the
+same justification: continuation ends the attempt and a fresh review must
+justify any new intervention. Older session journals are replaced (schema
+mismatch), so an old set, surgery or retrying order cannot resume; nothing is
+added to the save.
+
 | Home | Holds | On reload |
 |---|---|---|
 | Native game-process memory, `NativePawnActivities` | Transient installed assignment and actual running job reference plus load ID. Only an actually installed matching offer acquires the running handle; a different installed job detaches it. SQLite retains the attempted Method and reconciles remaining exact participants from fresh observations. No durable takeover or queue ledger. | Discarded on world/load or authority change; never restored as exclusive native selection permission. |
@@ -184,8 +196,8 @@ restores as no plan the same way. The runtime records a plan only
 when it derives one, a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`; a replan keeps the defense tier nodes over the same killbox), the census finds retired ground cleared, or the defense round sites new defense tier nodes into it (`SiteTiersAsync`, #3583); a failed
 replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups, embedding,
 comfort and matched rooms) is not persisted: the ColonyReview holds it in memory and recomputes it
-at each layout review. The urgent builds waiting for a review (`UrgentBuilds`, #3537) and a failed carry's dropped
-stack (native `Entry.Dropped`) are in memory only: a restart empties them, and the next review reads the placed sites afresh.
+at each layout review. The urgent builds waiting for a review (`UrgentBuilds`, #3537) are in memory only: a restart
+empties them, and the next review reads the placed sites afresh.
 The latest review's pawn values (`PawnValueMemory`, #3825), which the next review's creepjoiner term prices a leaving creepjoiner
 by (#3844), are in memory only: after a restart the term names the creepjoiner `creepjoiner_value_awaiting_plan` until a review values it.
 

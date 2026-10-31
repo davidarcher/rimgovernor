@@ -61,7 +61,7 @@ public static class ForecastIncumbentPreparation
             if (order.OutputDelivery is not null
                 || order.Task != task.Id || order.Pawn != task.Pawn || task.Prerequisites.Count != 0 || task.Inputs.Count != 0
                 || task.Step.Kind is not (PawnActivityKind.Sleep or PawnActivityKind.Recreation)
-                || task.Step.Recipe is not null || task.Step.Medicine.Length != 0 || task.Resource.Length != 0
+                || task.Step.Medicine.Length != 0 || task.Resource.Length != 0
                 || task.SupportDemand.Length != 0 || task.SiteDefinition.Length != 0
                 || task.CompletionMustBeObserved || task.Step.Deadline <= facts.Tick.Value) continue;
             var observations = needs.Pawns.Where(p => p.Pawn == order.Pawn).ToArray();
@@ -83,7 +83,7 @@ public static class ForecastIncumbentPreparation
                     || order.Steps[0] is not CellActivityStep { Destination: var destination } || destination != task.Location || order.Steps[0].NotBefore != task.DepartTick
                     || order.Steps[1].Kind != PawnActivityKind.Hold
                     || order.Steps.Any(s => s.Deadline != task.Step.Deadline || s.Target.Length != 0
-                        || s.Recipe is not null || s.Medicine.Length != 0 || s.Container.Length != 0)) continue;
+                        || s.Medicine.Length != 0 || s.Container.Length != 0)) continue;
                 var targets = observations[0].Targets.Where(t => t.Id == task.Step.Target).ToArray();
                 if (targets.Length != 1 || targets[0].Kind != (task.Step.Kind == PawnActivityKind.Sleep ? "rest" : "joy")
                     || targets[0].Location != task.Location || targets[0].Recovery is not NeedRecovery.Rate { GainPerTick: var gain }

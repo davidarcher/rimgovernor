@@ -63,14 +63,11 @@ public sealed class SowingProviderTests
     }
 
     [Fact]
-    public void ASowStepNeedsACellAndACount()
+    public void TheSowingReadRoundTripsAndSowingIsNeverAnExactOrder()
     {
+        // Sowing is native work (task 5.6): the observation feeds the what-if comparison; an exact Sow step is refused.
         PawnActivities Batch(PawnActivityStep step) => new(1, [new("pawn", "a", "m", 0, 1, false, [step])]);
-        var sow = new PawnActivityStep(PawnActivityKind.Work, "Zone_Growing12", "GrowerSow", "Sow", 12, 1000).At(new(10, 20));
-        Batch(sow).Validate();
-        Assert.Throws<DomainException>(() => Batch(new PawnActivityStep(sow.Kind, sow.Target, sow.WorkGiver, sow.Job, sow.Count, sow.Deadline)).Validate());
-        Assert.Throws<DomainException>(() => Batch(sow with { Count = 0 }).Validate());
-        Assert.Throws<DomainException>(() => Batch(sow with { Target = "" }).Validate());
+        Assert.Throws<DomainException>(() => Batch(new PawnActivityStep(PawnActivityKind.Work, "Zone_Growing12", "GrowerSow", "Sow", 12, 1000)).Validate());
         var wire = RimGovernor.Brain.GameOrders.OrdersJson.Deserialize<SowingActivityRead>(RimGovernor.Brain.GameOrders.OrdersJson.Serialize(
             CoupledFixtures.NoSowing with { Workers = [Worker("pawn", 2)], Findings = ["sowing_zone_without_crop:Zone_Growing14"] }));
         Assert.Equal(Worker("pawn", 2), Assert.Single(wire!.Workers));

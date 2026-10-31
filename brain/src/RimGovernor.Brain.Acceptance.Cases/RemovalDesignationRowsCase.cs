@@ -59,8 +59,7 @@ internal static class RemovalDesignationRowsCase
             + "Resource its def) with a route and a Finishes finish through the native deconstruct or uninstall work giver, or for the chunk "
             + "the stockpile cell as Location, its count as Count and a Carried delivery, or for the floor one RemoveFloor op "
             + "(Id removefloor/{x}/{z}/x1, Cells the cell) with a route and a Finishes finish through the remove-floors giver; an "
-            + "undesignated thing has no op. Does not prove the brain's binding or the jobs (control/pawn-activity-deconstruct-designated, "
-            + "control/pawn-activity-uninstall-designated, control/pawn-activity-haul-designated, control/pawn-activity-remove-floor-designated).",
+            + "undesignated thing has no op. Removal is native designation work; no exact order works it.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 1 },

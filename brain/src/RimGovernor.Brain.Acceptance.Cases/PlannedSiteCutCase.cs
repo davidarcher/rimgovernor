@@ -37,7 +37,7 @@ internal static class PlannedSiteCutCase
         Name = "observations/planned-site-cut",
         Scope = "Two oaks on cells of a planned wood wall ring: the construction activity read answers the planned wall site Feasible "
             + "with one Cut clearing whose Targets are the two oaks (lowest id first) and a per-pawn Finishes row through the "
-            + "native plant-cut work giver. Does not prove the brain's binding or the job (control/pawn-activity-cut-designated).",
+            + "native plant-cut work giver. Removal is native designation work; no exact order works it.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 1 },

@@ -26,12 +26,6 @@ namespace RimGovernor.Native
             internal Job? Running;
             internal int RunningId;
             internal long Tick;
-            /// <summary>Jobs done under the repeating step <see cref="DoneStep"/>: cells sown by a Sow step (#3528), members worked by a set step (#3613).
-            /// In memory only: a load restarts the count.</summary>
-            internal int Done, DoneStep = -1;
-            /// <summary>The stack a failed carrying step left on the ground (the job's cleanup drops what it carried): the
-            /// continuation's read rebinds the carry to it (#3537). In memory only, like <see cref="Done"/>.</summary>
-            internal string Dropped = "";
         }
         private sealed record Offer(Entry Entry, int Step, int JobId);
         private static readonly Dictionary<Pawn, Entry> Entries = new();
@@ -51,17 +45,6 @@ namespace RimGovernor.Native
         private static JobDef? deliveryDef;
         private static JobDef? tendDef;
         private static bool replacing;
-        /// <summary>
-        /// Whether <paramref name="site"/> is a committed coupled order's construction site (#3537): the blueprint or frame of
-        /// its selected task's definition at the task's cell, whatever stage it has reached, while the order is not released.
-        /// A pawn without an order of its own takes no vanilla job on it, so a carry the order fails is rebound to the site
-        /// rather than finding it finished by another; ordered pawns run only the jobs their order offers.
-        /// </summary>
-        internal static bool SiteHeld(Pawn pawn, Thing? site) => site is IConstructible && site.def.entityDefToBuild is { } built && !Owned(pawn)
-            && Entries.Values.Any(e => e.Pawn != pawn && !e.Order.Release && e.Pawn.Map == site.Map && e.SelectedTask is { } task
-                && task.SiteDefinition == built.defName && task.Location.X == site.Position.x && task.Location.Z == site.Position.z);
-        /// <summary>The stack the pawn's failed carrying step dropped (Entry.Dropped), "" for none.</summary>
-        internal static string Dropped(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.State == "failed" ? e.Dropped : "";
         /// <summary>Holds a committed coupled order: native offers it only that order's jobs.</summary>
         internal static bool Owned(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release;
         /// <summary>Controlled with no committed order (#3669): it runs vanilla job selection and is free to any coupled order.</summary>
@@ -147,31 +130,6 @@ namespace RimGovernor.Native
                         if (!pawn.CanReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) return Refuse("Approach unavailable.");
                         continue;
                     }
-                    if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
-                    {
-                        var cell = new IntVec3(((CellActivityStep)step).Destination.X, 0, ((CellActivityStep)step).Destination.Z);
-                        var roofGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
-                        if (roofGiver?.Worker is not WorkGiver_BuildRoof || !cell.InBounds(pawn.Map)
-                            || !pawn.Map.areaManager.BuildRoof[cell] || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)
-                            || !pawn.CanReach(cell, PathEndMode.Touch, Danger.None)) return Refuse("Selected roof work unavailable.");
-                        continue;
-                    }
-                    if (step.Kind == PawnActivityKind.Work && step.Job == "Sow")
-                    {
-                        if (NativeSowingActivities.Giver?.defName != step.WorkGiver || NativeSowingActivities.NextJob(pawn, step, 0) is not { } probe)
-                            return Refuse("Selected sowing unavailable.");
-                        JobMaker.ReturnToPool(probe);
-                        continue;
-                    }
-                    if (step.Kind == PawnActivityKind.Work && step.IsSet)
-                    {
-                        // A set step (#3613, cells #3615) is legal while any member is: the order stands the designations itself in Apply.
-                        var setGiver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
-                        if (setGiver?.Worker is not WorkGiver_Scanner scanner || !NativeSetActivities.Supported(setGiver, step.Job)
-                            || pawn.WorkTagIsDisabled(setGiver.workTags) || (setGiver.workType != null && pawn.WorkTypeIsDisabled(setGiver.workType))) return Refuse("Unsupported/incapable activity work.");
-                        if (NativeSetActivities.Refusal(pawn, step, scanner) is { } setWhy) return Refuse("Selected set work unavailable: " + setWhy + ".");
-                        continue;
-                    }
                     var target = Thing(step.Target) ?? (pawn.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? pawn.carryTracker.CarriedThing : null);
                     if (target == null || target.Destroyed || (!target.Spawned && pawn.carryTracker.CarriedThing != target)
                         || target.Spawned && target.Map != pawn.Map) return Refuse("Activity target unavailable.");
@@ -181,8 +139,6 @@ namespace RimGovernor.Native
                         var giver = DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver);
                         if (giver?.Worker is not WorkGiver_Scanner || !Supported(giver, step.Job)
                             || pawn.WorkTagIsDisabled(giver.workTags) || (giver.workType != null && pawn.WorkTypeIsDisabled(giver.workType))) return Refuse("Unsupported/incapable activity work.");
-                        if (step.Job == "Deconstruct" && DeconstructRefusal(pawn, target, order.Steps.TakeWhile(s => s != step)) is { } deconstructWhy) return Refuse("Selected deconstruction unavailable: " + deconstructWhy + ".");
-                        if (step.Job == "Uninstall" && UninstallRefusal(pawn, target) is { } uninstallWhy) return Refuse("Selected uninstall unavailable: " + uninstallWhy + ".");
                     }
                     if (step.Kind == PawnActivityKind.Eat && (!target.IngestibleNow || !pawn.RaceProps.CanEverEat(target) || step.Count > target.stackCount)) return Refuse("Selected food/count unavailable.");
                     if (step.Kind == PawnActivityKind.Recreation && (NativeRecreation.GiverFor(target) is not { } joyGiver || !NativeRecreation.Usable(pawn, target, joyGiver))) return Refuse("Selected recreation unavailable.");
@@ -206,91 +162,16 @@ namespace RimGovernor.Native
             }
             return null;
         }
+        // The exact Work jobs (PawnActivities.ExactWork, task 5.6): practice, a food harvest, a stalled frame's finish and an
+        // unserved tend. Every other job is native work the colonist's own priorities run.
         private static bool Supported(WorkGiverDef giver, string job) =>
             (job == "RimGovernor_TrainShooting" && giver.Worker is RimGovernor.Runtime.WorkGiver_TrainRange)
             || (job == "RimGovernor_Spar" && giver.Worker is RimGovernor.Runtime.WorkGiver_Spar)
-            || (job == "DoBill" && giver.Worker is WorkGiver_DoBill) || (job == "TendPatient" && giver.Worker is WorkGiver_Tend) || (job == "Repair" && giver.Worker is WorkGiver_Repair)
+            || (job == "TendPatient" && giver.Worker is WorkGiver_Tend)
             || (job == "Harvest" && giver.Worker is WorkGiver_GrowerHarvest)
-            || (job == "Research" && giver.Worker is WorkGiver_Researcher)
-            || (job == "FinishFrame" && giver.Worker is WorkGiver_ConstructFinishFrames)
-            || (job == "Deconstruct" && giver.Worker is WorkGiver_Deconstruct)
-            || (job == "Uninstall" && giver.Worker is WorkGiver_Uninstall)
-            || NativeSetActivities.Supported(giver, job)
-            || (job == "BeatFire" && giver.giverClass.FullName == "RimWorld.WorkGiver_FightFires");
+            || (job == "FinishFrame" && giver.Worker is WorkGiver_ConstructFinishFrames);
         private static bool Equivalent(PawnActivityOrder a, PawnActivityOrder b) => PawnActivities.SameOrder(a, b);
 
-        // A Deconstruct step works a standing building the order designates itself (StandDesignation), so an undesignated
-        // ruin needs nothing first; the enclosure guard's roof-collapse wait is a refusal here, since the job would only hold
-        // (#3557), unless the same order's earlier Work/RemoveRoof steps take off every roofed cell the building leaves
-        // unsupported (#3617): the guard then holds the job only until that roof is off.
-        private static string? DeconstructRefusal(Pawn pawn, Thing target, IEnumerable<PawnActivityStep> earlier)
-        {
-            if (target is not Verse.Building building || !building.DeconstructibleBy(Faction.OfPlayer).Accepted) return "target is not deconstructible by the colony";
-            if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) return "pawn is incapable of construction";
-            if (NativeDesignationGuards.RoofWait(building) is { } roof)
-            {
-                var unsupported = RoofSupportSafety.Unsupported(building);
-                if (unsupported == null) return roof;
-                var removed = new HashSet<IntVec3>(earlier.Where(s => s.Kind == PawnActivityKind.Work && s.Job == "RemoveRoof")
-                    .SelectMany(s => s.Cells).Select(c => new IntVec3(c.X, 0, c.Z)));
-                // A superset passes too: a continuation re-sends the steps after some of the cells are already off.
-                if (!removed.IsSupersetOf(unsupported)) return roof + " (the order's earlier RemoveRoof steps do not remove the unsupported roof cells)";
-            }
-            return building.Map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null
-                || new Designator_Deconstruct().CanDesignateThing(building).Accepted ? null : "native deconstruction designator refused";
-        }
-
-        // An Uninstall step packs a minifiable building of the colony's where it stands (#3612): the order stands the
-        // designation itself, as the reconcile's Pack does; a Deconstruct designation or a reinstall blueprint on it owns it.
-        private static string? UninstallRefusal(Pawn pawn, Thing target)
-        {
-            if (target is not Verse.Building building || !NativeConstructionActivity.Uninstallable(building)) return "target is not a minifiable building of the colony";
-            if (pawn.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) return "pawn is incapable of construction";
-            if (NativeDesignationGuards.RoofWait(building) is { } roof) return roof;
-            if (building.Map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null) return "building is designated for deconstruction";
-            return InstallBlueprintUtility.ExistingBlueprintFor(building) == null ? null : "building has a reinstall blueprint";
-        }
-
-        // Stands the designation the job needs (JobDriver_RemoveBuilding and the cut giver fail without it) under the
-        // enclosure guard as an Ordered record: the roof-collapse wait still holds a deconstruction, revoking authority still
-        // releases the designation, and the controlled pawn works it whether or not play is supervised. A Deconstruct is
-        // placed through the game's designator; an Uninstall is the plain designation the reconcile's Pack stands; a
-        // CutPlant is the ordered cut designator's (a tree too, #3613). No job hook rechecks a CutPlant record: the
-        // enclosure guard judges buildings, so the record serves the release on revocation and the removal hook alone.
-        // A Mine is the cell designation the mine designator places, under the mine_safety guard (its record keyed by the
-        // cell, as Designate stands one): the pick hook rechecks it before every hit (#3616).
-        private static void StandDesignation(Thing thing, DesignationDef def)
-        {
-            var map = thing.Map;
-            var mine = def == DesignationDefOf.Mine;
-            if (mine ? map.designationManager.DesignationAt(thing.Position, def) == null : map.designationManager.DesignationOn(thing, def) == null)
-            {
-                if (def == DesignationDefOf.Deconstruct) new Designator_Deconstruct().DesignateThing(thing);
-                else if (def == DesignationDefOf.CutPlant) new Designator_PlantsCut { isOrder = true }.DesignateThing(thing);
-                else if (mine) new Designator_Mine().DesignateSingleCell(thing.Position);
-                else map.designationManager.AddDesignation(new Designation(thing, def));
-            }
-            var record = NativeDesignationGuards.Open(map, def, thing.Position, thing) ?? NativeDesignationGuards.Add(new GuardedDesignation
-            {
-                Id = "activity-" + Guid.NewGuid().ToString("N"), Guard = mine ? GuardNames.MineSafety : GuardNames.Enclosure, Designation = def.defName,
-                ExpectedDef = thing.def.defName, ThingId = mine ? null : thing.GetUniqueLoadID(), MapId = map.uniqueID, X = thing.Position.x, Z = thing.Position.z,
-            });
-            record.Ordered = true;
-        }
-
-        // The cell form (#3615): stands the cell designation a cell set step's job needs (a RemoveFloor, the plain
-        // designation the reconcile's FloorOut stands) under the enclosure guard as an Ordered record keyed by the cell
-        // (no thing), so revoking authority releases it; no job hook rechecks it.
-        private static void StandCellDesignation(Map map, IntVec3 cell, DesignationDef def)
-        {
-            if (map.designationManager.DesignationAt(cell, def) == null) map.designationManager.AddDesignation(new Designation(cell, def));
-            var record = NativeDesignationGuards.Open(map, def, cell, null) ?? NativeDesignationGuards.Add(new GuardedDesignation
-            {
-                Id = "activity-" + Guid.NewGuid().ToString("N"), Guard = GuardNames.Enclosure, Designation = def.defName,
-                ExpectedDef = map.terrainGrid.TerrainAt(cell).defName, MapId = map.uniqueID, X = cell.x, Z = cell.z,
-            });
-            record.Ordered = true;
-        }
         private static RimGovernor.Brain.GameFacts.Common.Failure Refuse(string text) => GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, text);
         private static Thing? Thing(string id) => RefIndex.Thing(Find.CurrentMap, id);
 
@@ -357,20 +238,8 @@ namespace RimGovernor.Native
                 if (!e.Order.Release)
                     foreach (var step in e.Order.Steps)
                     {
-                        if (step.Kind == PawnActivityKind.Work && step.Job is "Deconstruct" or "Uninstall" && Thing(step.Target) is Verse.Building building)
-                            StandDesignation(building, step.Job == "Deconstruct" ? DesignationDefOf.Deconstruct : DesignationDefOf.Uninstall);
-                        // A set step's members each get the designation the job needs where one is missing (#3613; cells #3615).
-                        else if (step.Kind == PawnActivityKind.Work && step.IsSet)
-                        {
-                            foreach (var member in step.Targets.Select(Thing))
-                                if (member is { Spawned: true } && NativeSetActivities.Needed(step, member) is { } needed) StandDesignation(member, needed);
-                            foreach (var cell in step.Cells.Select(c => new IntVec3(c.X, 0, c.Z)))
-                                if (cell.InBounds(e.Pawn.Map) && NativeSetActivities.Needed(step, e.Pawn.Map, cell) is { } needed) StandCellDesignation(e.Pawn.Map, cell, needed);
-                            // A RemoveRoof set's members go into the NoRoof area the giver and job require, no designation (#3617).
-                            NativeSetActivities.Designate(e.Pawn.Map, step);
-                        }
                         // A delivery of a stack under a Haul designation works the designation (#3614): a guarded record of it is Ordered.
-                        else if (step.Kind == PawnActivityKind.Deliver && Thing(step.Target) is { Spawned: true } stack
+                        if (step.Kind == PawnActivityKind.Deliver && Thing(step.Target) is { Spawned: true } stack
                             && stack.Map.designationManager.DesignationOn(stack, DesignationDefOf.Haul) != null
                             && NativeDesignationGuards.Open(stack.Map, DesignationDefOf.Haul, stack.Position, stack) is { } record)
                             record.Ordered = true;
@@ -443,49 +312,6 @@ namespace RimGovernor.Native
             if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return null;
             if (step.Kind == PawnActivityKind.Approach)
                 return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3(((CellActivityStep)step).Destination.X, 0, ((CellActivityStep)step).Destination.Z));
-            if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
-            {
-                var cell = new IntVec3(((CellActivityStep)step).Destination.X, 0, ((CellActivityStep)step).Destination.Z);
-                if (cell.GetRoof(p.Map) != null)
-                {
-                    e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
-                    e.Reason = "roof_observed"; e.Tick = Find.TickManager.TicksGame; Emit(e);
-                    return OfferJob(e);
-                }
-                var roofGiver = DefDatabase<WorkGiverDef>.GetNamed(step.WorkGiver);
-                if (roofGiver.Worker is not WorkGiver_BuildRoof roof || roof.MissingRequiredCapacity(p) != null
-                    || p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) || !roof.HasJobOnCell(p, cell, false))
-                    throw new InvalidOperationException("roof_work_refused");
-                var roofJob = roof.JobOnCell(p, cell, false) ?? throw new InvalidOperationException("roof_work_refused");
-                roofJob.workGiverDef = roofGiver; return roofJob;
-            }
-            if (step.Kind == PawnActivityKind.Work && step.Job == "Sow")
-            {
-                // One Sow job per cell: the step repeats until its count is sown or no cell is legal any more (a full zone is done, not a fault).
-                var sowJob = NativeSowingActivities.NextJob(p, step, e.DoneStep == e.Step ? e.Done : 0);
-                if (sowJob == null)
-                {
-                    e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
-                    e.Reason = "no_legal_cell"; e.Tick = Find.TickManager.TicksGame; Emit(e);
-                    return OfferJob(e);
-                }
-                sowJob.workGiverDef = NativeSowingActivities.Giver; return sowJob;
-            }
-            if (step.Kind == PawnActivityKind.Work && step.IsSet)
-            {
-                // One job per member, nearest first (#3613): the step repeats until its count is done or no member is legal any more.
-                var setGiver = (WorkGiver_Scanner)DefDatabase<WorkGiverDef>.GetNamed(step.WorkGiver).Worker;
-                if (p.WorkTagIsDisabled(setGiver.def.workTags) || (setGiver.def.workType != null && p.WorkTypeIsDisabled(setGiver.def.workType)) || setGiver.MissingRequiredCapacity(p) != null)
-                    throw new InvalidOperationException("work_refused");
-                var setJob = NativeSetActivities.NextJob(p, step, setGiver);
-                if (setJob == null)
-                {
-                    e.Step++; e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
-                    e.Reason = "no_legal_member"; e.Tick = Find.TickManager.TicksGame; Emit(e);
-                    return OfferJob(e);
-                }
-                return setJob;
-            }
             var target = Thing(step.Target) ?? (p.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? p.carryTracker.CarriedThing : null)
                 ?? throw new InvalidOperationException("target_missing");
             var (maxPawns, stackCount) = NativeNeedsForecast.ServiceReservation(step.Kind, target, step.Count);
@@ -494,13 +320,9 @@ namespace RimGovernor.Native
             if (step.Kind == PawnActivityKind.Work)
             {
                 var giver = (WorkGiver_Scanner)DefDatabase<WorkGiverDef>.GetNamed(step.WorkGiver).Worker;
-                var eligible = step.Practice != null ? NativePracticeActivities.Legal(p, target, step) : step.Job == "DoBill" || (giver is WorkGiver_GrowerHarvest ? giver.HasJobOnCell(p, target.Position, false) : giver.HasJobOnThing(p, target, false));
+                var eligible = step.Practice != null ? NativePracticeActivities.Legal(p, target, step) : (giver is WorkGiver_GrowerHarvest ? giver.HasJobOnCell(p, target.Position, false) : giver.HasJobOnThing(p, target, false));
                 if (p.WorkTagIsDisabled(giver.def.workTags) || (giver.def.workType != null && p.WorkTypeIsDisabled(giver.def.workType)) || giver.MissingRequiredCapacity(p) != null || !eligible) throw new InvalidOperationException("work_refused");
                 if (step.Practice != null) job = NativePracticeActivities.Job(p, target, step);
-                else if (step.Job == "DoBill")
-                {
-                    if (target is not Pawn patient || !NativeSupportSurgery.Resolve(p, patient, step, out job)) throw new InvalidOperationException("selected_surgery_unavailable");
-                }
                 else if (step.Job == "TendPatient")
                 {
                     if (target is not Pawn patient) throw new InvalidOperationException("care_patient_missing");
@@ -601,22 +423,11 @@ namespace RimGovernor.Native
             if (e.State == "failed") return;
             if (condition == JobCondition.Succeeded)
             {
-                // A Sow step stays current until its cell count is sown and a set step until its member count is done (#3613);
-                // every other step is done with its job.
-                var repeating = e.Step < e.Order.Steps.Length && e.Order.Steps[e.Step] is { Kind: PawnActivityKind.Work } work && (work.Job == "Sow" || work.IsSet) ? work : null;
-                if (repeating != null)
-                {
-                    if (e.DoneStep != e.Step) { e.DoneStep = e.Step; e.Done = 0; }
-                    e.Done++;
-                }
-                if (repeating == null || e.Done >= repeating.Count) e.Step++;
+                e.Step++;
                 e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed"; e.Reason = "Succeeded";
             }
-            else if (condition != JobCondition.Succeeded)
-            {
-                e.State = "failed"; e.Reason = condition.ToString();
-                e.Dropped = ___pawn.carryTracker.CarriedThing?.GetUniqueLoadID() ?? "";
-            }
+            // A failed step ends the attempt: nothing reissues it (design decision 3).
+            else { e.State = "failed"; e.Reason = condition.ToString(); }
             e.Tick = Find.TickManager.TicksGame; Emit(e);
         }
         private static void Ordered(Pawn ___pawn)

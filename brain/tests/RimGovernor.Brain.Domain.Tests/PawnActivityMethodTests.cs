@@ -12,7 +12,6 @@ public sealed class PawnActivityMethodTests
     [Theory]
     [InlineData("delivery")]
     [InlineData("tend")]
-    [InlineData("surgery")]
     public void SupportIdentityAndSelectedMedicalInputsSurviveRealJournalAndHands(string kind)
     {
         var ct = TestContext.Current.CancellationToken;
@@ -20,9 +19,8 @@ public sealed class PawnActivityMethodTests
         var world = Owner(journal, ct);
         var step = kind == "delivery"
             ? new PawnActivityStep(PawnActivityKind.Deliver, "input", "", "", 1, 500) { SupportDemand = "bill:bill:material", Container = "bench" }.At(new(1, 1))
-            : new PawnActivityStep(PawnActivityKind.Work, "patient", "Doctor", kind == "tend" ? "TendPatient" : "DoBill", 0, 500)
-                { SupportDemand = kind + ":patient:bill", Medicine = "input", Recipe = kind == "surgery"
-                    ? new("bill", "operation", [new("input", 1)]) { Resource = "Rice" } : null };
+            : new PawnActivityStep(PawnActivityKind.Work, "patient", "Doctor", "TendPatient", 0, 500)
+                { SupportDemand = kind + ":patient:bill", Medicine = "input" };
         var batch = new PawnActivities(1, [new("pawn", "assignment", "support-method", 0, 1, false, [step]) { Task = "service" }])
         { Tasks = [new("service", "pawn", [], step, new(1, 1), 100)
             { SupportDemand = step.SupportDemand, Inputs = [new("Rice", "input", 1, new(1, 1), "observed") { Observed = true }] }] };

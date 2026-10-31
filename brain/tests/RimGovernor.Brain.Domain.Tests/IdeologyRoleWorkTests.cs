@@ -65,8 +65,8 @@ public sealed class IdeologyRoleWorkTests
         var selected = IdeologyRolesRules.SelectedWork(new([]), [pending], NoGiver);
         Assert.Equal(new PawnId("b"), Assigned(IdeologyRolesRules.RoleAssignments(Ideo(), Pawns(Colonist("a", 10), Colonist("b", 6)), selected)));
 
-        var order = new PawnActivityOrder("a", "cut-1", "coupled-1", 0, 1, false,
-            [new PawnActivityStep(PawnActivityKind.Work, "Plant_1", "PlantsCut", "CutPlant", 1, 1000)]);
+        var order = new PawnActivityOrder("a", "harvest-1", "coupled-1", 0, 1, false,
+            [new PawnActivityStep(PawnActivityKind.Work, "Plant_1", "GrowerHarvest", "Harvest", 0, 1000)]);
         var action = DomainAction.NewPawnActivitiesAction(new ActionId("p-0"), TestNeed.Purposed(new PawnActivities(1, [order])));
         var unread = IdeologyRolesRules.SelectedWork(new([new WorkAction(new PlanId("p"), action, new ProgressView { Action = action.Id, Stage = Stage.Pending })]), [], NoGiver);
         Assert.IsType<PawnCommitment.GiverMissing>(Assert.IsType<WorkCommitments.Listed>(unread).ByPawn[new PawnId("a")]);

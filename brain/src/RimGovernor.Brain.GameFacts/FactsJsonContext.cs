@@ -36,7 +36,6 @@ namespace RimGovernor.Brain.GameFacts;
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ActivityTaskRead))]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ConstructionActivityRead))]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound), TypeInfoPropertyName = "ObservationsActivityTaskBindingBound")]
-[JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Supply), TypeInfoPropertyName = "ObservationsActivityTaskBindingSupply")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unsourced), TypeInfoPropertyName = "ObservationsConstructionDeliveryUnsourced")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.CannotCarry), TypeInfoPropertyName = "ObservationsConstructionDeliveryCannotCarry")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unreachable), TypeInfoPropertyName = "ObservationsConstructionDeliveryUnreachable")]

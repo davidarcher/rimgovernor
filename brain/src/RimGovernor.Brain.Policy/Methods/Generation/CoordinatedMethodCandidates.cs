@@ -29,8 +29,7 @@ internal record ActivityTaskCandidate(string Id, string Pawn, EquatableArray<str
     /// <see cref="InterventionPurposeKind.ProductionStall"/> subjects that delivery answers. Empty on every other binding.</summary>
     public EquatableArray<string> Feeds { get; init; }
     public EquatableArray<SelectedActivityInput> SelectedInputs { get; init; }
-    /// <summary>A set step's members (#3613): the Work repeats over these thing ids, or over <see cref="Cells"/> (#3615); Count is their number.</summary>
-    public EquatableArray<string> Targets { get; init; }
+    /// <summary>A removal set's cells (#3615), read by the room-footprint grouping of the what-if comparison; Count is the set's size.</summary>
     public EquatableArray<Cell> Cells { get; init; }
     /// <summary>A remote Supply (#3046): the step carries a full load, its stack then the <see cref="Collect"/> stacks.</summary>
     public bool FullLoad { get; init; }

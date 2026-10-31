@@ -17,17 +17,8 @@ public static class CaseCatalog
         registry.Register(OrderedWorkCancellationCase.Case(replaced: true));
         registry.Register(PlannedRoomPredictionCase.Case());
         registry.Register(PlannedSiteDeconstructCase.Case());
-        registry.Register(ControlDeconstruct.Case());
-        registry.Register(ControlDeconstruct.Case(designated: true));
-        registry.Register(ControlDeconstructRoofHolder.Case());
         registry.Register(PlannedSiteDeconstructCase.Case(roofHolder: true));
-        registry.Register(ControlUninstall.Case());
-        registry.Register(ControlCut.Case());
-        registry.Register(ControlCut.Case(removed: true));
-        registry.Register(ControlRemoveFloor.Case());
         registry.Register(PlannedSiteCutCase.Case());
-        registry.Register(ControlMine.Case());
-        registry.Register(ControlHaul.Case());
         registry.Register(RemovalDesignationRowsCase.Case());
         registry.Register(ConstructionRouteLegsCase.Case());
         registry.Register(PrisonProjectedRoutesCase.Case());
@@ -44,7 +35,6 @@ public static class CaseCatalog
         registry.Register(ProductionDevilstrandStarving.Case());
         registry.Register(ProductionDevilstrandInvestment.Case());
         registry.Register(ProductionResearchBlock.Case());
-        registry.Register(ProductionSowBlock.Case());
         registry.Register(ProductionSkillMarginal.Case());
         registry.Register(ShelterServiceInvestment.Case());
         foreach (var c in ControlActivities.Cases())
@@ -54,7 +44,6 @@ public static class CaseCatalog
 
         registry.Register(ControlUnassignedVanilla.Case());
         registry.Register(ControlHomeFire.Case());
-        registry.Register(ControlPreemptHolder.Case());
 
         registry.Register(ControlDelivery.Case());
         registry.Register(ProductionClothingActivity.Case());

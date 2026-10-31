@@ -45,11 +45,10 @@ public sealed class ConstructionActivityWireTests
         var step = new PawnActivityStep(PawnActivityKind.Supply, "stack", "", "", 2, 500) { Container = "frame" };
         var read = ConstructionFixtures.NoTasks(300) with
         {
-            Bindings = [new ActivityTaskBinding.Bound("bound", step), new ActivityTaskBinding.Supply("supply", step, 2)],
+            Bindings = [new ActivityTaskBinding.Bound("bound", step)],
         };
         var copy = OrdersJson.Deserialize<ActivityTaskRead>(OrdersJson.Serialize(read));
         Assert.Equal(read.Bindings, copy.Bindings);
-        Assert.Equal(2, Assert.IsType<ActivityTaskBinding.Supply>(copy.Bindings[1]).RemainingCount);
 
     }
 

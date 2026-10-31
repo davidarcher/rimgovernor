@@ -13,11 +13,9 @@ public sealed class PawnActivitiesTests
         var site = new Cell(20, 21);
         var work = new PawnActivityStep(PawnActivityKind.Work, "wall", "ConstructFinishFrames", "FinishFrame", 0, 500);
         var supply = new PawnActivityStep(PawnActivityKind.Supply, "steel", "", "", 3, 500) { Container = "wall" };
-        var roof = new PawnActivityStep(PawnActivityKind.Work, "roof", "BuildRoofs", "BuildRoof", 0, 500).At(site);
-        var sow = new PawnActivityStep(PawnActivityKind.Work, "field", "GrowerSow", "Sow", 1, 500).At(site);
         var steps = Batch().Orders[0].Steps.Concat(new PawnActivityStep[]
         {
-            work, supply, roof, sow,
+            work, supply,
             new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 500).At(source),
             new(PawnActivityKind.Sleep, "bed", "", "", 0, 500),
             new(PawnActivityKind.Recreation, "chess", "", "", 0, 500)
@@ -122,8 +120,7 @@ public sealed class PawnActivitiesTests
     private static PawnActivities Batch() => new(1, [new("pawn", "assignment", "method", 0, 1, false,
         [new(PawnActivityKind.Hold, "", "", "", 0, 1234), new(PawnActivityKind.Eat, "meal", "", "", 1, 2345),
          new PawnActivityStep(PawnActivityKind.Deliver, "harvest", "", "", 3, 3456).At(new Cell(12, 34)),
-         new(PawnActivityKind.Work, "bench", "cooking", "DoBill", 0, 4567)
-         { Recipe = new("bill", "recipe", [new("stack-a", 4), new("stack-b", 6)]) }])]);
+         new(PawnActivityKind.Work, "plant", "GrowerHarvest", "Harvest", 0, 4567)])]);
     [Fact]
     public void HandsIntentAndJournalRetainExactTargetsAndDeadlines()
     {
@@ -146,10 +143,10 @@ public sealed class PawnActivitiesTests
     public void AMultiStepOrderRetainsItsSequenceThroughTheCodec()
     {
         IntentActionRules.RegisterIntentKinds();
-        var roof = new PawnActivityStep(PawnActivityKind.Work, "Thing_Wall1", "RemoveRoofs", "RemoveRoof", 2, 5678) { Cells = [new(1, 2), new(1, 3)] };
-        var deconstruct = new PawnActivityStep(PawnActivityKind.Work, "Thing_Wall1", "Deconstruct", "Deconstruct", 0, 5678);
-        var task = new SelectedActivityTask("task", "pawn", [], deconstruct, new(1, 2), 100);
-        var order = new PawnActivityOrder("pawn", "assignment", "method", 0, 1, false, [roof, deconstruct]) { Task = task.Id };
+        var supply = new PawnActivityStep(PawnActivityKind.Supply, "Thing_Steel1", "", "", 2, 5678) { Container = "Thing_Frame1" };
+        var finish = new PawnActivityStep(PawnActivityKind.Work, "Thing_Frame1", "ConstructFinishFrames", "FinishFrame", 0, 5678);
+        var task = new SelectedActivityTask("task", "pawn", [], finish, new(1, 2), 100);
+        var order = new PawnActivityOrder("pawn", "assignment", "method", 0, 1, false, [supply, finish]) { Task = task.Id };
         var batch = new PawnActivities(1, [order]) { Tasks = [task] };
         batch.Validate();
         var action = DomainAction.NewPawnActivitiesAction(new ActionId("action"), batch);
@@ -158,61 +155,41 @@ public sealed class PawnActivitiesTests
         using var doc = JsonDocument.Parse(stream.ToArray());
         var decoded = Codecs.Default.Read<DomainAction>(doc.RootElement).PawnActivities!;
         Assert.Equal(task, Assert.Single(decoded.Tasks));
-        Assert.Equal([roof, deconstruct], Assert.Single(decoded.Orders).Steps);
+        Assert.Equal([supply, finish], Assert.Single(decoded.Orders).Steps);
     }
-    /// <summary>#3613: a set step repeats one Work over its Targets (or Cells); Count is the set's size, the store codec
-    /// keeps the set, and SameOrder tells orders apart by it.</summary>
-    [Fact]
-    public void ASetStepCarriesItsTargetsThroughTheCodecAndSameOrderTellsThemApart()
-    {
-        IntentActionRules.RegisterIntentKinds();
-        var cut = new PawnActivityStep(PawnActivityKind.Work, "Thing_Plant_TreeOak1", "PlantsCut", "CutPlant", 3, 5678)
-            { Targets = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"] };
-        var floor = new PawnActivityStep(PawnActivityKind.Work, "planned/room1/floor", "RemoveFloor", "RemoveFloor", 2, 5678) { Cells = [new(1, 2), new(3, 4)] };
-        var order = new PawnActivityOrder("pawn", "assignment", "method", 0, 1, false, [cut, floor]);
-        var batch = new PawnActivities(1, [order]);
-        batch.Validate();
-        var action = DomainAction.NewPawnActivitiesAction(new ActionId("action"), batch);
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream)) Codecs.Default.Write(writer, action);
-        using var doc = JsonDocument.Parse(stream.ToArray());
-        var decoded = Codecs.Default.Read<DomainAction>(doc.RootElement).PawnActivities!;
-        Assert.Equal(cut, decoded.Orders[0].Steps[0]);
-        Assert.Equal(floor, decoded.Orders[0].Steps[1]);
-        Assert.True(PawnActivities.SameOrder(order, decoded.Orders[0]));
-        Assert.False(PawnActivities.SameOrder(order, order with { Steps = [cut with { Targets = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak4"] }, floor] }));
-        Assert.False(PawnActivities.SameOrder(order, order with { Steps = [cut, floor with { Cells = [new(1, 2), new(3, 5)] }] }));
-        Assert.True(cut.IsSet);
-        Assert.False((cut with { Targets = default }).IsSet);
-
-        void Refused(PawnActivityStep step) => Assert.Throws<DomainException>(() => (batch with { Orders = [order with { Steps = [step] }] }).Validate());
-        Refused(cut with { Count = 2 });
-        Refused(cut with { Targets = ["Thing_Plant_TreeOak1", "Thing_Plant_TreeOak1", "Thing_Plant_TreeOak2"] });
-        Refused((cut with { Kind = PawnActivityKind.Deliver }).At(new Cell(1, 1)));
-        Refused(cut with { Cells = [new(1, 1)], Count = 4 });
-        Refused(floor with { Cells = [new(-1, 2), new(3, 4)] });
-        Refused(cut with { Targets = ["", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"] });
-    }
-    [Fact]
-    public void BillWorkRejectsMissingOrAmbiguousIngredientAuthorization()
+    /// <summary>
+    /// Task 5.6: exact Work is only practice, a food harvest, a stalled frame's finish or an unserved tend. Routine jobs
+    /// (bills, surgery, research, sowing, roofing, removal, repair, firefighting) are native work: Validate refuses them on an
+    /// order step and on a task step, and a Recipe-kind step is never an exact order.
+    /// </summary>
+    [Theory]
+    [InlineData("DoBill")]
+    [InlineData("Research")]
+    [InlineData("Sow")]
+    [InlineData("BuildRoof")]
+    [InlineData("RemoveRoof")]
+    [InlineData("Deconstruct")]
+    [InlineData("Uninstall")]
+    [InlineData("CutPlant")]
+    [InlineData("Mine")]
+    [InlineData("RemoveFloor")]
+    [InlineData("Repair")]
+    [InlineData("BeatFire")]
+    public void RoutineWorkIsNeverAnExactOrder(string job)
     {
         var b = Batch();
-        var cook = b.Orders[0].Steps[3];
-        void Refused(PawnActivityStep step) => Assert.Throws<DomainException>(() =>
-            (b with { Orders = [b.Orders[0] with { Steps = [step] }] }).Validate());
-        Refused(cook with { Recipe = null });
-        Refused(cook with { Recipe = cook.Recipe! with { Bill = "" } });
-        Refused(cook with { Recipe = cook.Recipe! with { Recipe = "" } });
-        Refused(cook with { Recipe = cook.Recipe! with { Ingredients = [] } });
-        Refused(cook with { Recipe = cook.Recipe! with { Ingredients = [new("a", 1), new("a", 1)] } });
-        Refused(cook with { Recipe = cook.Recipe! with { Ingredients = [new("a", 0)] } });
-        Refused(cook with { Recipe = cook.Recipe! with { Ingredients = [new("", 1)] } });
-        Refused(cook with { WorkGiver = "" });
-        Refused(cook with { Job = "choose-bill" });
-        Refused(cook with { Count = 2 });
-        Refused(cook with { Kind = PawnActivityKind.Hold });
-        // Bill work runs through native bills and work settings (task 5.3): a Recipe-kind step is never an exact order.
-        Refused(cook with { Kind = PawnActivityKind.Recipe, Job = "" });
+        var harvest = b.Orders[0].Steps[3];
+        b.Validate();
+        var routine = harvest with { Job = job, WorkGiver = "routine" };
+        Assert.False(PawnActivities.ExactWork(job));
+        Assert.Throws<DomainException>(() => (b with { Orders = [b.Orders[0] with { Steps = [routine] }] }).Validate());
+        Assert.Throws<DomainException>(() => (b with { Tasks = [new("routine", "pawn", [], routine, new(1, 1), 0)] }).Validate());
+        Assert.Throws<DomainException>(() => (b with { Orders = [b.Orders[0] with { Steps = [harvest with { Kind = PawnActivityKind.Recipe, Job = "" }] }] }).Validate());
+        foreach (var exact in new[] { "Harvest", "FinishFrame", "TendPatient" })
+        {
+            Assert.True(PawnActivities.ExactWork(exact));
+            (b with { Orders = [b.Orders[0] with { Steps = [harvest with { Job = exact }] }] }).Validate();
+        }
     }
     [Fact]
     public void DeliveryRequiresAnExactCellAndPositiveCountWithoutWorkSelection()

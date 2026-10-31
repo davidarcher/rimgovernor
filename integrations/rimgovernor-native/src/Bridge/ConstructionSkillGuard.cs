@@ -106,7 +106,6 @@ namespace RimGovernor.Native
         {
             var start = TickProfile.Start();
             if (__result && __instance is WorkGiver_ConstructFinishFrames && !Allows(t, pawn)) { __result = false; JobFailReason.Is("construction finishing skill below target minimum"); }
-            else if (__result && __instance is WorkGiver_ConstructFinishFrames && NativePawnActivities.SiteHeld(pawn, t)) { __result = false; JobFailReason.Is("a coupled order holds this site"); }
             TickProfile.Stop("guard:skill-eligible", start);
         }
         private static bool Complete(Frame __instance, Pawn worker)

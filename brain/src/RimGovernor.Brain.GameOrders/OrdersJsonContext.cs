@@ -50,7 +50,6 @@ namespace RimGovernor.Brain.GameOrders;
 [JsonSerializable(typeof(RimGovernor.Brain.GameOrders.Observations.PlannedThermalHeater))]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ConstructionActivityRead))]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound), TypeInfoPropertyName = "ObservationsActivityTaskBindingBound")]
-[JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Supply), TypeInfoPropertyName = "ObservationsActivityTaskBindingSupply")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unsourced), TypeInfoPropertyName = "ObservationsConstructionDeliveryUnsourced")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.CannotCarry), TypeInfoPropertyName = "ObservationsConstructionDeliveryCannotCarry")]
 [JsonSerializable(typeof(RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unreachable), TypeInfoPropertyName = "ObservationsConstructionDeliveryUnreachable")]

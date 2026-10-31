@@ -133,7 +133,7 @@ Supervisor clock; readmitting time cannot turn that terminal assignment into ind
 | Domain | Owner and present boundary |
 | --- | --- |
 | Food, rest, recreation | Shared candidates and forecast; exact ingestion, bed and recreation-building execution through Hands. Recreation without a building needs observed candidates and exact adapters before it becomes a planner choice. |
-| Harvest, food conversion, material delivery, construction, roof work, clothing | Shared task composition and selection, with observed input/output rebinding. A delivered garment is not evidence it was worn or that physiological cold exposure improved. |
+| Harvest, food conversion, material delivery, construction, roof work, clothing | Conditional shared task composition and comparison; execution is native bills, blueprints, designations and work settings. A justified intervention may re-admit a bounded delivery, harvest or frame finish; exact Work is only `PawnActivities.ExactWork` (task 5.6). A delivered garment is not evidence it was worn or that physiological cold exposure improved. |
 | Medical support | Shared support candidates; exact pending service identities and native conditional room factors. Critical medical protection remains with its existing emergency owner. No fabricated prognosis. |
 | Fire/combat/player protection | Existing protection and emergency paths retain authority; an ordinary Method cannot convert protected occupancy into free capacity. Vanilla fights home-area fires; the brain has no fire Method. Native releases the committed orders of capable colonists near a home-area fire, so they fight it through vanilla job selection ([home fire](pawn-activities.md#home-area-fire), #3672). |
 | Drugs, addictions, genetic dependencies, hemogen, psyfocus, unsupported or modded needs | Native observations expose blockers; the pawn's supported needs and labor stay selectable. Ordinary safe-idle admission cannot cover them. A future Method must supply onset/effect observations and exact execution under the existing Concern owner before support can be claimed. |
@@ -180,11 +180,11 @@ epic (#3124).
 | --- | --- |
 | `production/coupled-needs` | Rewrite/extend for normal shared selection through real ingestion, rest/wake and recreation, revision and release; preserve a legacy Work timetable as an adversarial fixture, not an expected policy. |
 | `coordination/food-delegated` | Keep real harvest/output/delivery and participant ownership; compare alternatives in pure tests rather than asserting a mandatory helper tactic for every world. |
-| `coordination/food-carried-recovery` | Keep interrupted carry, exact remaining quantity and observed recovery/release. |
-| `coordination/construction-delegated` | Keep the urgent sleeping shelter bound before vanilla builders take it (#3537), actual material transfer, frame rebinding to the dropped stack and building completion. The selected shell must reduce positive forecast thermal capability loss, with native comfort minima checked against assessed exposure inputs; actual occupied warming remains separate evidence. |
+| `coordination/food-carried-recovery` | Keep interrupted carry and observed release; the failed carry ends its attempt and is never reissued (task 5.6). |
+| `coordination/construction-delegated` | Keep building completion and participant release; no order holds the site against vanilla builders and a failed carry ends its attempt (task 5.6). The selected shell must reduce positive forecast thermal capability loss, with native comfort minima checked against assessed exposure inputs; actual occupied warming remains separate evidence. |
 | `production/clothing-activity` | Keep normal selected-stuff production and input conservation; do not equate production with wearing. |
 | `production/clothing-activity-unfinished` | Keep observed unfinished-item resumption and conservation, without spending loose inputs twice. |
-| `control/pawn-activities` | Keep exact job execution, supported needs mechanics, preemption and refusal checks. It is an execution contract, not normal-planner economic evidence. |
+| `control/pawn-activities` | Keep exact job execution, supported needs mechanics and refusal checks. It is an execution contract, not normal-planner economic evidence. |
 | `control/activity-*` | Keep save/load, ownership, revision, continuation and release mechanics. |
 | `control/pawn-activity-delivery` | Keep exact quantities, blocked destination/filter legality and observed delivery. |
 | `observations/pawn-activity`, `observations/planned-room-prediction` | Keep native schema and coherent observations; a fact that cannot be read fails the case ([rule 9](../architecture/rules.md#review-items)); none proves dispatch. |

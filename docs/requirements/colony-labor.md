@@ -937,7 +937,8 @@ site, which completes once the site's progress changes after the stall closed
 or the site is gone; a worked site without progress stays open. Material,
 tier and minimum-skill constraints stay native settings
 (`ConstructionTierGate`, `ConstructionSkillGuard`), and a held site stays its
-order's (`NativePawnActivities.SiteHeld`, `CarryHeld`). An unsupplied site's
+order's (`NativePawnActivities.SiteHeld`, `CarryHeld`; task 5.6 later removed
+the site hold, keeping `CarryHeld`). An unsupplied site's
 finish waits on its delivery and is never re-admitted. Verification:
 `InterventionHandsTests.AStalledSiteReachesHandsAsAJustifiedSupplyWithItsPurpose`
 (the supply alone reaches Hands with its purpose; the finish waiting on it does
@@ -1013,7 +1014,8 @@ missing read);
 `MedicalFamilyTests.AnOrdinaryInBedTendIsNativeDoctorWorkAndOnlyAnEmergencyIsPairedForAnExactTend`;
 `WorkOccupancyTests.OrdinaryCareAndHaulingAreReachableThroughNativeWorkSettings`;
 `NativeServiceContinuationTests.OldResearchOrSowingCommitmentReturnsToNativeAtBoundary`
-×4; and
+×4 (deleted in task 5.6, when validation began refusing exact research and
+sowing and schema 69 replaced the old journals); and
 `NativeExecutionBindingTests.ResearchAndSowingAreNeverReadmittedUnderAnyPremise`
 ×2. That is 17 regressions. Existing settings, safety and occupation
 regressions still pass: `MedicalFamilyTests.APatientWhoseCareIsWithheldOrUnmanagedIsNotPaired`,
@@ -1041,21 +1043,108 @@ native read, one pure window observer with its memory, one premise, one
 purpose kind, one emergency predicate, one handback clause, two premise attrs
 and 17 regressions / removed nothing beyond 5.4 / orphans left: none.
 
+Task 5.6 removes the last routine-exclusive execution machinery. Removals, each
+traced from its reader through every layer: the set step (`PawnActivityStep.Targets`/`Cells`,
+`IsSet`, `ValidateSet`, the candidate's `Targets`, its binding copy and codec fields, the
+`NativeSetActivities` driver and its task-read `no_legal_member` branch), whose last
+reader was the deleted `control/pawn-activity-cut-designated`, `-cut-removed`,
+`-remove-floor-designated`, `-mine` and `-deconstruct-roof-holder` cases; the exact Deconstruct and Uninstall adapters
+(`DeconstructRefusal`, `UninstallRefusal`, `StandDesignation`, `StandCellDesignation`
+and their Validate/Apply branches), read only by the deleted `control/pawn-activity-deconstruct`,
+`-deconstruct-designated` and `-uninstall-designated` cases; the exact BuildRoof, Sow and DoBill offers and task-read branches, plus
+`NativeSowingActivities.Grower`/`NextJob`/`FullySown`, the `PawnSowFixture`, its
+`SowRead` and the `production/sow-block` case, read only by those offers; the exact
+surgery step `Recipe` (the `NativeSupportSurgery` job resolution now takes the support
+read's giver and recipe directly); the retry budget (`AttemptsLeft` on a task and its
+output delivery, codec and `ForecastIncumbentPreparation`/`WorkResources`/`ForecastLiveEvidence`
+copies) and its continuation branch; the dropped-stack rebind (`Entry.Dropped`,
+`DoneStep`, the Dropped Supply candidate) and the `ActivityTaskBinding.Supply` case with
+`RemainingCount`, read only by that rebind; the site hold (`NativePawnActivities.SiteHeld`
+and its `ConstructionTierGate`/`ConstructionSkillGuard` clauses), whose reader was
+the held-site claim of `coordination/construction-delegated`; the preemption probe
+(`PawnControlFixture.Preemption`, `PreemptHaulFixture`, `PreemptHaulRead` and the
+`control/coupled-preempts-vanilla-holder` case) and the `control/activity-emergency-preempts`
+lifecycle case; the haul exact case `control/pawn-activity-haul-designated`; and 6 obsolete test methods.
+Schema 69 replaces older journals ([persistence](../developers/contracts/persistence-contracts.md)).
+`PawnActivities.ExactWork` now confines exact Work to practice (`RimGovernor_TrainShooting`,
+`RimGovernor_Spar`), `Harvest`, `FinishFrame` and `TendPatient` on order and task steps,
+and a failed step ends its attempt (design decision 3). Retentions, each with its reader:
+the practice adapter (`CapabilityOpportunity`), Harvest (food `FoodRisk`/meal
+re-admission), FinishFrame (`StalledSite` finish), TendPatient (`UnservedCare` and the
+emergency medical Need), Deliver/Supply (production and construction stall deliveries)
+and the Deliver Haul-designation `Ordered` record (the designation guard's revocation
+release); the removal `RemovalBinding` Work tasks (what-if readers
+`ForecastCoupledEvaluation`, room-footprint grouping via `Cells`); the sowing read
+(`NativeSowingActivities.Read`, reader `NativeCoupledForecast`) and research read
+(`NativeResearchActivities.Read`, same reader); the Recipe-kind bindings
+(`ForecastCoupledEvaluation`, `ForecastCoupledMaterials`, `ForecastSupport`,
+`ForecastServiceInvestments`) and `PawnActivityRecipe` (`SupportTreatment.Surgery`); the
+support surgeon probe (`NativeSupportActivities`); `CarryHeld` (the finisher read and
+Deliver admission); and the `ActivityTaskBinding` union, now `Bound` only, to keep the
+wire shape. Searches (`git grep -c`, matching lines, src / tests): `StartCoupledActivity(`
+2 / 60, `AdmitCoupledSelection(` 2 / 0, `CommitClaimedMethod(AdminFamily.WorkAssignments`
+1 / 20, `NewPawnActivitiesAction(` 7 / 63, `StartSelected(` 2 / 7, `ForDispatch(` 5 / 15,
+`AdmitSelectedTrade(` 2 / 0; and 0 / 0 for `NativeSetActivities`, `SiteHeld`,
+`AttemptsLeft`, `PreemptHaulRead`, `SowRead`, `DeconstructRefusal`, `UninstallRefusal`,
+`StandDesignation`, `FullySown` and `ActivityTaskBinding.Supply`. Bypass trace: the
+forecast reaches Hands only through `ForecastCoupledSelection.StartCoupledActivity`,
+called once, by `ColonyReview.AdmitCoupledSelection` (itself called once), which returns
+on an empty selection before it and then calls the one
+`CommitClaimedMethod(AdminFamily.WorkAssignments, ...)` with `NewPawnActivitiesAction`.
+`StartCoupledActivity` returns nothing for a conditional-scenario basis, refuses a
+carried incumbent, binds only the justified verdict's `Readmitted` set through
+`StartSelected`/`ForDispatch` (which drops withheld routine work, all `TradeWork` and
+later same-pawn work), returns nothing for an empty or unplanned schedule, and refuses an
+unjustified verdict or an order without its pawn's own purpose; the other `ForDispatch`
+callers (`ForecastCoupledEvaluation`, `InterventionJustification`, `Rules.ReviewFacts`)
+compute what-if and gate values and dispatch nothing. Trade has its own executor
+(`AdmitSelectedTrade`: `CommitClaimedMethod(EconomyFamily.Caravan, ...)` or
+`CommitTradeMissionMethod(EconomyFamily.TradeMission, ...)`), never an
+exact pawn order. Verification: `InterventionBypassTests` ×8
+(`AConditionalScenarioBasisNeverStartsAnOrder`, `AnEmptyScheduleStartsNoOrder`,
+`AWinningPlanWithoutAPremiseStaysNative` ×2, `AJustifiedVerdictWithoutThePawnsOwnPurposeIssuesNothing`,
+`ACarriedIncumbentIsForecastOnly`, `ProductionBillWorkNeverReachesHands`,
+`ExternalTradeWorkIsNeverAnExactOrder`) and `PawnActivitiesTests.RoutineWorkIsNeverAnExactOrder`
+×12; rewritten regressions include
+`CoordinatedActivityTests.PartialDeliveryRetainsRemainingQuantityAndAFailedDeliveryEndsTheAttempt`,
+`ClaimAdmissionTests.ADeconstructionClaimsItsCellAndNoExactOrderWorksItsBuilding`,
+`ClaimAdmissionTests.AnUninstallClaimsItsCellAndNoExactOrderWorksItsBuilding` and
+`SowingProviderTests.TheSowingReadRoundTripsAndSowingIsNeverAnExactOrder`. Rewritten
+acceptance cases: `control/activity-work-refusal` (a Harvest step on a bed),
+`coordination/food-carried-recovery` and `coordination/construction-delegated` (a failed
+carry ends its attempt and fails the case if reissued; the construction case claims the
+finished building, not a held site), and the scope text of `observations/planned-site-cut`,
+`observations/planned-site-deconstruct` (and its roof-holder variant) and
+`observations/removal-designation-rows`. Domain tests:
+4327 passed, 0 failed. Rules 7–9: policy stays pure and the runtime only sequences the
+one admission path; no demand path is added, and the shared work-resources pipeline
+loses only the retry copy; no fact is defaulted, and an exact order of an unsupported
+job is a named refusal (`routine work runs as native work, never an exact order`).
+Known limits: no acceptance case was executed, so the rewritten native cases and the
+removed site hold are unverified in game; once a coupled order's carry fails, native
+work alone finishes the site, which the construction case now claims without proof;
+the `ActivityTaskBinding` union keeps a single `Bound` member to avoid a wire change; the
+Haul-designation `Ordered` marking stays because justified Deliver steps still read it.
+Complexity: added one validation predicate, one bypass test class (8 cases) and one 12-case theory
+(321 code lines: 205 in changed files plus the 116-line test class) / removed the set driver, two exact
+removal adapters, three exact offers, the retry, rebind and site-hold machinery, two
+fixtures, twelve registered native cases and 2023 code lines / orphans left: none.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
 | --- | --- | --- | --- |
-| `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; justified meal and FoodRisk work re-admitted per pawn (task 5.1); `food/ordinary-cooking` executed PASS 2026-10-31 (meals 0 → 4 under bot-created bill and work settings); formation hunting stays in its own planners outside the comparison |
+| `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Closed (tasks 5.1, 5.6): routine plant harvest, raw delivery and cooking chain stay native; justified meal and FoodRisk work re-admitted per pawn; `food/ordinary-cooking` executed PASS 2026-10-31 (meals 0 → 4 under bot-created bill and work settings); formation hunting (`HuntAdmission`, `HuntAlternatives`, `HuntSquad`, `CombatHunt`) is combat/formation planning outside the comparison and installs no pawn activity; exact Work is only `PawnActivities.ExactWork` (`PawnActivitiesTests.RoutineWorkIsNeverAnExactOrder`) |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Closed (task 5.2): ordinary binding, continuation and rebinding stay native; only an unanswered need at zero re-admits its own pawn's service; old-shape orders are released |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Closed (task 5.3): ordinary clothing runs through native finite bills and cooking through bot-created native bills; no bill work is an exact order; only an ingredients-pending or delivery-bound stall re-admits the ingredient delivery feeding it |
-| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Closed (task 5.4): ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; native hauling is migrated; only an observed construction stall re-admits its site's supply or supplied finish, under a `construction_stall` purpose; standing removal bindings and the native set driver await the task 5.6 cleanup |
+| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Closed (task 5.4): ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; native hauling is migrated; only an observed construction stall re-admits its site's supply or supplied finish, under a `construction_stall` purpose; task 5.6 removed the native set driver, the exact removal adapters and the site hold, and the standing removal bindings stay what-if templates refused as exact orders |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Closed (task 5.4): selected rooms realize through reconciled native blueprints and designations; unplaced planned-site activities are never dispatched or re-admitted (`InterventionRules.Readmitted`, `PlannedRoomActivitiesTests`); a placed site's stall follows the construction row |
 | `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Closed (task 5.5): routine delivery, tending, hauling, refill and already-indicated surgery run through native work settings, care policies and bills and install no pawn orders; old commitments hand back at boundaries; only observed unserved care re-admits its own tend, under an `unserved_care` purpose; emergency tend/rescue stays the critical medical Need's, for an observed emergency only; the what-if bindings stay as forecast readers |
 | `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Closed (task 5.5): fresh routine binding migrated; an old-shape research batch hands back at its next task boundary; research re-admits nothing under any premise (`NativeExecutionBindingTests.ResearchAndSowingAreNeverReadmittedUnderAnyPremise`) |
 | `SowingMethodCandidates.Generate`: conditional sowing work | Crop/zone choices and native growing priorities; fresh routine pawn binding removed | Work assignment, forecast; `NativeExecutionBindingTests` covers native-ready sowing selection without direct orders | Closed (task 5.5): fresh routine binding migrated; an old-shape sowing batch hands back at its next task boundary; sowing re-admits nothing, and no deadline premise exists, so a late crop stays native work |
 | `PracticeMethodCandidates.Generate`: range and sparring | Native practice affordances/settings where available; bounded direct activity only for justified capability need | [Capability maintenance](../developers/contracts/capability-maintenance.md), [facilities](../developers/architecture/facilities.md); capability demand, actual native completion and interruption tests | Closed (task 5.5, choice b): practice stays the one standing justified exact binding, since native range and sparring initiation is suppressed for controlled colonists; a selected practice reaches Hands only under a `CapabilityOpportunity` premise with a `capability_practice` purpose (`InterventionJustificationTests.AssignedPracticeDispatchesOnlyWhileItsObservedCapabilityPremiseHolds`) |
-| Existing observed incumbent retention / `ForecastCoupledExecution` | Account for useful native work and actual intervention ownership; remove routine exclusive waiting/restarts | Pawn activities, forecast, continuation; native opportunity cost and lost-owner/dependency regressions | Pending |
-| `AdmitSelectedTrade` and world/mission alternatives | Keep existing trade/journey decisions; account for unavailable home labor without redesigning travel execution | [Trade](../developers/contracts/controllable-trade.md), forecast; no fabricated home capacity or duplicate inventory promises | Boundary audit pending |
+| Existing observed incumbent retention / `ForecastCoupledExecution` | Account for useful native work and actual intervention ownership; remove routine exclusive waiting/restarts | Pawn activities, forecast, continuation; native opportunity cost and lost-owner/dependency regressions | Closed (task 5.6): an incumbent is only a justified exact intervention (validation refuses routine work; schema 69 replaced old journals); `ForecastIncumbentHold`, `ForecastObservedIncumbent` and `ForecastIncumbentPreparation` read it for retention, ended-purpose release and NeedShortfall preparation; a failed step ends its attempt with no retry or rebind (`CoordinatedActivityTests.PartialDeliveryRetainsRemainingQuantityAndAFailedDeliveryEndsTheAttempt`, `CoupledActivityIntegrationTests`), and a carried incumbent is forecast-only (`InterventionBypassTests.ACarriedIncumbentIsForecastOnly`) |
+| `AdmitSelectedTrade` and world/mission alternatives | Keep existing trade/journey decisions; account for unavailable home labor without redesigning travel execution | [Trade](../developers/contracts/controllable-trade.md), forecast; no fabricated home capacity or duplicate inventory promises | Closed (task 5.6 audit): trade runs through its own executor (`AdmitSelectedTrade` → `CommitClaimedMethod(EconomyFamily.Caravan/TradeMission)` or `CommitTradeMissionMethod`), never an exact pawn order; `CoordinatedActivityBinding.ForDispatch` drops every `TradeWork` task, a forged re-admission included (`InterventionBypassTests.ExternalTradeWorkIsNeverAnExactOrder`), and the shared binding leaves later work on its participants for the fresh review |
 
 All routine activity types above share `StartCoupledActivity` / `CommitClaimedMethod` / Hands dispatch. Removing one family's exact binding does not remove another's. Trace final readers before deleting shared task types, native observations, codecs or helpers. Additional readers found while migrating belong in this inventory, not an undocumented exemption.
 

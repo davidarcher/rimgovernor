@@ -82,7 +82,7 @@ public sealed class CoordinatedActivityTests
         Assert.Equal(order.Revision + 1, resumed.Orders[0].Revision);
     }
     [Fact]
-    public void PartialDeliveryAndCarriedRecoveryRetainRemainingQuantityAndOriginalDeadline()
+    public void PartialDeliveryRetainsRemainingQuantityAndAFailedDeliveryEndsTheAttempt()
     {
         var task = new SelectedActivityTask("deliver", "producer", [],
             new PawnActivityStep(PawnActivityKind.Deliver, "old", "", "", 8, 2000).At(new(30, 10)), new(10, 10), 100)
@@ -92,11 +92,12 @@ public sealed class CoordinatedActivityTests
         var remaining = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, Read(batch, bindings:
             [new ActivityTaskBinding.Bound("deliver", task.Step with { Target = "fresh", Count = 5 })]))!;
         Assert.Equal(5, remaining.Tasks.Single().Step.Count);
-        var retry = CoordinatedActivitiesRules.ContinueCoordinatedActivity(remaining, ActivityNeed.Owed, Read(remaining, "failed", bindings:
+        Assert.Equal(2000, remaining.Orders.Single().Steps[0].Deadline);
+        // A failed step ends the attempt (design decision 3): a fresh binding of the carried stack does not reissue it.
+        var failed = CoordinatedActivitiesRules.ContinueCoordinatedActivity(remaining, ActivityNeed.Owed, Read(remaining, "failed", bindings:
             [new ActivityTaskBinding.Bound("deliver", task.Step with { Target = "observed-carried", Count = 5 })]))!;
-        Assert.Equal("observed-carried", retry.Orders.Single().Steps[0].Target);
-        Assert.Equal(2, retry.Tasks.Single().AttemptsLeft);
-        Assert.Equal(2000, retry.Orders.Single().Steps[0].Deadline);
+        Assert.True(failed.Orders.Single().Release);
+        Assert.Empty(failed.Tasks);
     }
 
     [Fact]

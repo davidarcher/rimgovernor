@@ -340,7 +340,7 @@ public sealed class InterventionHandsTests
     /// <summary>A stove whose cooking bill makes Meal from 8 stored rice, under the dispatcher's <paramref name="calibration"/>: the
     /// generator's own ingredient supply, cooking and delivery, all left to native bills and work settings, compared with the
     /// pawn well fed and the food owner's recovery arriving in time (no food premise).</summary>
-    private static (ForecastCoupledSelection Selection, ForecastCoupledCandidates Candidates, ForecastActivity Supply) StalledKitchen(ProductionCalibration calibration)
+    internal static (ForecastCoupledSelection Selection, ForecastCoupledCandidates Candidates, ForecastActivity Supply) StalledKitchen(ProductionCalibration calibration)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: .9, sourceCount: 0) with { Items = Kitchen };
         facts = facts with
@@ -367,13 +367,13 @@ public sealed class InterventionHandsTests
         return (ForecastCoupledSelection.CompareActivityOutcomes(request, candidates), candidates, supply);
     }
 
-    private static readonly ItemFacts Kitchen = new()
+    internal static readonly ItemFacts Kitchen = new()
     {
         Nutrition = new Dictionary<Resource, double> { [new("Rice")] = .05, [new("Meal")] = .9 },
         Market = new Dictionary<Resource, double> { [new("Rice")] = 1.1, [new("Meal")] = 15 },
     };
 
-    private static ProductionCalibration.Observed MealStall(UnmetReason reason) =>
+    internal static ProductionCalibration.Observed MealStall(UnmetReason reason) =>
         new([new ProductionStall("bill", new("Meal"), "bench", 2, reason, 90)]);
 
     /// <summary>(h) Task 5.3: a closed short window of the stove's Meal whose bill jobs showed pending ingredients is a demonstrated

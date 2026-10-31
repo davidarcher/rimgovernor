@@ -52,7 +52,6 @@ public sealed class FoodActivityContinuationTests
         Assert.Equal("observed-food", intent.Orders[0].Steps[0].Target);
         Assert.Equal(4, intent.Orders[0].Steps[0].Count);
         Assert.Equal("method", intent.Orders[0].Method);
-        Assert.Equal(3, intent.Tasks.Single().AttemptsLeft);
         // A stack can change again between the observation and Apply. Refusal leaves the harvest
         // assignment installed; its retired predecessor must still authorize cleanup through Hands.
         var deliveryScope = Root with { Plan = next.Id };

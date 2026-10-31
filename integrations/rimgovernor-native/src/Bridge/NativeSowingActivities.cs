@@ -8,10 +8,10 @@ using Verse.AI;
 namespace RimGovernor.Native;
 
 /// <summary>
-/// Sowing as coupled work (#3528): the cells native sowing accepts now and the Sow job for one of them. Legality is the game's own
+/// The sowing observation (#3528): the cells native sowing accepts now, per free colonist and grower. Legality is the game's own
 /// <see cref="WorkGiver_GrowerSow"/> (so <see cref="TreeLatticeSowing"/>'s patch applies), read through a private subclass that
 /// sets the giver's shared wanted-plant cache around each call and accepts only a Sow job: a cut-plant or haul-aside job the giver
-/// would return for a blocked cell is not sowing work. One Sow job sows one cell (JobDriver_PlantSow never reads queued targets).
+/// would return for a blocked cell is not sowing work. Sowing itself is native work (task 5.6): no exact order sows.
 /// </summary>
 internal static class NativeSowingActivities
 {
@@ -50,11 +50,6 @@ internal static class NativeSowingActivities
         return giver = new SowGiver { def = Giver ?? throw new InvalidOperationException("sow_giver_def_missing") };
     }
 
-    /// <summary>A growing zone or planter by its unique load id.</summary>
-    internal static IPlantToGrowSettable? Grower(Map map, string id)
-        => (IPlantToGrowSettable?)map.zoneManager.AllZones.OfType<Zone_Growing>().FirstOrDefault(z => z.GetUniqueLoadID() == id)
-            ?? RefIndex.Thing(map, id) as Building_PlantGrower;
-
     private static IEnumerable<IntVec3> CellsOf(IPlantToGrowSettable grower)
         => grower is Zone_Growing zone ? zone.Cells : ((Thing)grower).OccupiedRect();
 
@@ -85,22 +80,6 @@ internal static class NativeSowingActivities
             }
         return cells.OrderBy(c => c.DistanceToSquared(pawn.Position)).ThenBy(c => c.x).ThenBy(c => c.z).ToList();
     }
-
-    /// <summary>The next Sow job for the step's grower: its first cell while nothing is sown yet if still legal, else the nearest legal cell.</summary>
-    internal static Job? NextJob(Pawn pawn, PawnActivityStep step, int sown)
-    {
-        if (Grower(pawn.Map, step.Target) is not { } grower || grower.GetPlantDefToGrow() is not { } crop) return null;
-        var cells = LegalCells(pawn, grower);
-        if (cells.Count == 0) return null;
-        var cell = sown == 0 && step is CellActivityStep { Destination: var first } && cells.Contains(new IntVec3(first.X, 0, first.Z))
-            ? new IntVec3(first.X, 0, first.Z) : cells[0];
-        return Probe().Sow(pawn, cell, crop);
-    }
-
-    /// <summary>True when every cell of the grower carries its crop: nothing is left to sow, whoever the pawn is.</summary>
-    internal static bool FullySown(Map map, string id)
-        => Grower(map, id) is not { } grower || grower.GetPlantDefToGrow() is not { } crop
-            || CellsOf(grower).All(c => c.GetThingList(map).Any(t => t.def == crop));
 
     /// <summary>Every free colonist's sowing of every growing zone or planter that has a crop set (#3528).</summary>
     internal static RimGovernor.Brain.GameFacts.Observations.SowingActivityRead Read(Map map, NativePathLegs? legs = null)

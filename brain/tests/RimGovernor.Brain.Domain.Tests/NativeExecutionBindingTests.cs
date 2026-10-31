@@ -71,8 +71,8 @@ public sealed class NativeExecutionBindingTests
 
     /// <summary>Task 5.5: research and sowing are ordinary native work run by work settings. Even for a pawn at zero food with no
     /// observed service (an observed food shortfall), neither binding is re-admitted: it serves no food, no stall and no care, so its
-    /// own premise is None and the gate refuses it. An old-shape batch of either is released at its boundary
-    /// (NativeServiceContinuationTests.OldResearchOrSowingCommitmentReturnsToNativeAtBoundary).</summary>
+    /// own premise is None and the gate refuses it; validation refuses an exact order of either
+    /// (PawnActivitiesTests.RoutineWorkIsNeverAnExactOrder).</summary>
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

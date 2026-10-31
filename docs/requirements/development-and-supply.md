@@ -50,12 +50,11 @@ Evidence S3, S5–S7. The wider zero-stock bootstrap remains separate (S6).
   ResourcePlanner.StepRecordedAsync rereads stock, rejects stale context,
   checks deep drilling, then ranks deficits against ResourceSupplyAsync's sources.
   Acquisitions hold their promised yield until native stock can close the deficit.
-- **S2 — Exact mining work.** Registered OnDemand
-  [control/pawn-activity-mine](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Control/ControlMine.cs)
-  stages two unroofed sandstone rocks and a skilled miner. It installs an exact
-  assignment, then observes that both rocks disappear within 7,500 ticks. The
-  fixture chooses the work. Its assertions cover clearing the rocks; material
-  yield, delivery and autonomous deficit selection need separate evidence.
+- **S2 — Native mining work.** Mining runs as native Mine designations under
+  the colonists' Mining work settings; no exact pawn order mines. The former
+  exact-order case `control/pawn-activity-mine` was deleted with the exact
+  removal executor (task 5.6 of `native-led-labor-execution`), so no executed
+  case currently proves mining yield, delivery or autonomous deficit selection.
 - **S3 — Native trade.** Registered OnDemand
   [trade/execute](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Trade/TradeExecute.cs)
   opens a staged caravan trade, selects buy/sell lines, accepts the signed deal

@@ -118,7 +118,7 @@ internal static class CoordinatedActivityBinding
                 Step(task, new PawnActivityStep(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
                     task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
                     { Practice = task.Practice, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
-                        Targets = task.Targets, Cells = task.Cells, FullLoad = task.FullLoad, Collect = task.Collect, Recipe = task.Recipe }),
+                        FullLoad = task.FullLoad, Collect = task.Collect }),
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition,
                         Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand,
@@ -136,7 +136,7 @@ internal static class CoordinatedActivityBinding
             var steps = preparing ? PreparationSteps(task) : [own];
             return new PawnActivityOrder(task.Pawn, method + "/" + task.Pawn, method, 0, 1, false, steps)
             { Task = task.Id, Preparing = preparing, OutputDelivery = !preparing && task.Resource.Length != 0 && task.Step.Count > 0
-                ? new(task.Resource, task.Source, task.Step is CellActivityStep cell ? cell.Destination : task.Location, task.Step.Count, task.Step.Deadline, task.AttemptsLeft) : null };
+                ? new(task.Resource, task.Source, task.Step is CellActivityStep cell ? cell.Destination : task.Location, task.Step.Count, task.Step.Deadline) : null };
         }).ToArray();
         return new(authority, orders) { Tasks = EquatableArray.From(selected) };
     }
@@ -161,23 +161,15 @@ internal static class CoordinatedActivityBinding
             if (state == "completed")
             {
                 if (task.CompletionMustBeObserved) return new(null, true);
-                // Old routine set orders hand back; a completed subset is not evidence
-                // that the whole task or any dependent prerequisite was completed.
-                if (task.Step.IsSet) return new(null, true);
-                // Delivery counts come from the order's completed operation.
                 var worked = order.Steps[^1];
                 // Delivery counts come from the exact completed operation, never predicted yield.
                 if (task.Step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply && worked.Count < task.Step.Count)
                     remaining[remaining.IndexOf(task)] = task with { Step = task.Step with { Count = task.Step.Count - worked.Count } };
                 else { remaining.Remove(task); completed.Add(task.Id); }
             }
-            else if (state == "failed")
-            {
-                // A failed consuming/producing operation cannot be replayed from expected output.
-                if (task.Step.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply) || task.AttemptsLeft == 0)
-                    return new(null, true);
-                remaining[remaining.IndexOf(task)] = task with { AttemptsLeft = task.AttemptsLeft - 1 };
-            }
+            // A failed step ends the attempt: it is never reissued from the same justification, and a fresh review must
+            // justify any new intervention from current evidence (design decision 3).
+            else if (state == "failed") return new(null, true);
         }
         // Release finished participants before attempting any new productive binding.
         // A temporarily claimed output stack must not strand an unrelated terminal pawn.
@@ -207,11 +199,7 @@ internal static class CoordinatedActivityBinding
             // than erase an unobserved prerequisite and accidentally authorize its dependent.
             if (next.Step.Kind == PawnActivityKind.Supply || next.SupportDemand.Length > 0
                 || next.Step.Kind == PawnActivityKind.Deliver && next.SiteDefinition.Length > 0
-                || next.Step.Kind == PawnActivityKind.Work && next.Step.Job is "FinishFrame" or "BuildRoof"
-                || next.Step.Kind == PawnActivityKind.Work
-                    && (next.Step.Job is "Uninstall" or "CutPlant" or "RemoveFloor" or "Mine"
-                        || next.Step.Job == "Deconstruct")
-                || next.Step is { Kind: PawnActivityKind.Work, Practice: null, Job: "Research" or "Sow" }
+                || next.Step is { Kind: PawnActivityKind.Work, Job: "FinishFrame" }
                 || NativeNeedServices.Routine(next.Step.Kind))
                 return remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p)))
                     ? new(null, true)
@@ -249,12 +237,10 @@ internal static class CoordinatedActivityBinding
                 return new(null, true) { Reason = InterventionPurposes.StalePrerequisitePrefix + "target_gone:" + next.Id };
             }
             if (order.Revision == long.MaxValue) return new(null, false);
-            if (binding is ActivityTaskBinding.Supply supply)
-                remaining[remaining.IndexOf(next)] = next = next with { Step = next.Step with { Count = Math.Min(next.Step.Count, supply.RemainingCount) } };
             orders.Add(order with { ExpectedRevision = order.Revision, Revision = order.Revision + 1, Release = false,
                 Task = next.Id, Preparing = false, Steps = [binding.Step],
                 OutputDelivery = next.Resource.Length == 0 || binding.Step.Count <= 0 ? null : new(next.Resource, next.Source,
-                    binding.Step is CellActivityStep cell ? cell.Destination : next.Location, binding.Step.Count, binding.Step.Deadline, next.AttemptsLeft) });
+                    binding.Step is CellActivityStep cell ? cell.Destination : next.Location, binding.Step.Count, binding.Step.Deadline) });
             changed = true;
         }
         if (!changed) return new(null, false);
@@ -282,13 +268,10 @@ internal static class CoordinatedActivityBinding
         read.Needs.Pawns.FirstOrDefault(p => p.Pawn == pawn) is { } observed
         && observed.Needs.Any(n => n.Kind is "rest" or "food" && n.Level <= n.Threshold);
 
+    /// <summary>Whether a fresh native binding still matches the next task. Only a task that continues reaches here (a plain
+    /// delivery, a harvest or a practice): supply, support, site and frame-finish tasks hand back at the boundary above.</summary>
     private static bool CompatibleActivityBinding(SelectedActivityTask task, PawnActivityStep bound) =>
         bound.Kind == task.Step.Kind && bound.Deadline == task.Step.Deadline && bound.WorkGiver == task.Step.WorkGiver
-        && bound.Practice == task.Step.Practice && bound.Medicine == task.Step.Medicine && bound.SupportDemand == task.Step.SupportDemand
-        && bound.Job == task.Step.Job && (bound.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply)
-            || bound.Count > 0 && bound.Count <= task.Step.Count)
-        && bound.FullLoad == task.Step.FullLoad && bound.Collect.All(task.Step.Collect.Contains)
-        && (task.Step.Recipe is not { } recipe || bound.Recipe is { } cooking && cooking.Bill == recipe.Bill
-            && cooking.Recipe == recipe.Recipe && cooking.Resource == recipe.Resource && cooking.Stuff == recipe.Stuff && cooking.Unfinished == recipe.Unfinished
-            && cooking.Ingredients.Sum(i => i.Count) == recipe.Ingredients.Sum(i => i.Count));
+        && bound.Practice == task.Step.Practice && bound.Job == task.Step.Job
+        && (bound.Kind != PawnActivityKind.Deliver || bound.Count > 0 && bound.Count <= task.Step.Count);
 }

@@ -517,15 +517,12 @@ FloorOut wave, each claiming only the cells; under
 voluntary control the designation gets no worker by itself. The coupled census
 reads every such designation as a clearing op of its kind
 ([standing removals](../contracts/forecast-contracts.md#standing-removals)), and
-`ConstructionMethodCandidates` binds each building as a pawn's Work task of that
-kind on it (`removal-{n}`, Deconstruct as Work/Deconstruct, Uninstall as
-Work/Uninstall; a roof-holder's Deconstruct op carries the roofed cells it leaves
-unsupported in `Cells`, and its task runs a Work/RemoveRoof cell set step over them
-before the Deconstruct in the same order, the same op and relief, #3617), each
-stack as the pawn's Deliver of it (Count the stack, Destination the row's storage
-cell, as a support delivery binds), each Cut wave as one Work/CutPlant set step
-over its `Targets` and each FloorOut wave as one Work/RemoveFloor cell set step
-over its `Cells` (Count the cells), exclusive outcome `construction/{op}`, with a
+`ConstructionMethodCandidates` binds each building as a pawn's what-if Work task of
+that kind on it (`removal-{n}`, Deconstruct as Work/Deconstruct, Uninstall as
+Work/Uninstall), each stack as the pawn's Deliver of it (Count the stack,
+Destination the row's storage cell, as a support delivery binds), each Cut wave as
+one Work/CutPlant task counting its plants and each FloorOut wave as one
+Work/RemoveFloor task over its `Cells` (Count the cells), exclusive outcome `construction/{op}`, with a
 `removal/{op}` relief, which identifies the requested work and exempts it from the thermal-relief gate
 like a floor's. Its contribution to a planned room is priced through that room's service day. The order's
 claim is the op (the thing, the wave's lowest plant or the floor wave's
@@ -533,9 +530,12 @@ claim is the op (the thing, the wave's lowest plant or the floor wave's
 whose finish (a Haul's delivery) is unknown, or a Cut, Mine or RemoveFloor op naming
 no members binds nothing. A stack larger than one carry is one Deliver task whose
 order carries one `Capacity` at a time, the continuation repeating it over the rest
-(#3625). A planned site's Cut clearing binds the same way before placement
+(#3625). These removal Work tasks are comparison templates only: the removal
+itself is native designation work, and validation refuses an exact order of any
+removal job (task 5.6 of `native-led-labor-execution` deleted the set step and the
+exact Deconstruct/Uninstall adapters). A planned site's Cut clearing binds the same way before placement
 (`PlannedRoomCandidates`, beside its Deconstruct and Haul clearings), and so does
-its Mine clearing, one Work/Mine set step over the op's named rocks (#3616); a
+its Mine clearing, one Work/Mine task counting the op's named rocks (#3616); a
 planned room whose footprint holds a roof-holder is valued, not unknown, its
 Deconstruct clearing binding roof-off-then-deconstruct the same way, and a roof
 cell outside the planned room stays unroofed (RoofIn re-roofs the room's own
@@ -696,8 +696,8 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    (at most 4; `planned_site_sources_truncated:{site}`), one op per clearing prerequisite, and a finish. Whole-stack
    sources are alternative deliveries; a multi-stack set's stacks (#3673) are each delivered for their share and the
    finish requires all of them (a set over 4 stacks, or one not covered, leaves the site `no_delivery_option`).
-   - A `Deconstruct` clearing binds (`Bindings`): its building stands now, so the op is the pawn's Work/Deconstruct
-     task on it, at the planned deadline (#3557). A `Haul` clearing binds the same way as the pawn's Deliver of the
+   - A `Deconstruct` clearing binds (`Bindings`): its building stands now, so the op is the pawn's what-if
+     Work/Deconstruct task on it, at the planned deadline (#3557); native work deconstructs it. A `Haul` clearing binds the same way as the pawn's Deliver of the
      stack to the row's storage cell (#3614), one carry at a time over a larger stack (#3625); the op keeps its
      `/cleared` output. Every
      other planned operation has no action template until placement (#3278), and a bound clearing is left out of
@@ -1133,8 +1133,9 @@ Their native cases check physical output and explicit revision after refusal,
 with fixture-selected assignments.
 Those fixture cases prove execution, not selection; the nightly
 `coordination/food-delegated` and `coordination/food-carried-recovery` cases
-prove the selected chain, observed loose-food rebinding and carried-item recovery
-under normal Method admission and Hands dispatch. Mixed-ingredient cooking is an
+prove the selected chain and observed loose-food rebinding under normal Method
+admission and Hands dispatch; an interrupted carry ends its attempt and is never
+reissued (task 5.6). Mixed-ingredient cooking is an
 explicit unsupported-recipe finding.
 
 The existing Method journal now checks activity payload attribution against its

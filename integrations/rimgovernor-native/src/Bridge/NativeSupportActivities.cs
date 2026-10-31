@@ -114,8 +114,7 @@ internal static class NativeSupportActivities
                     var count = bill.recipe.ingredients.Sum(i => (int)i.CountRequiredOfFor(source.def, bill.recipe, bill));
                     if (count <= 0 || source.stackCount < count) continue;
                     var recipe = new PawnActivityRecipe(bill.GetUniqueLoadID(), bill.recipe.defName, [new(source.GetUniqueLoadID(), count)]) { Resource = source.def.defName };
-                    var step = new PawnActivityStep(PawnActivityKind.Work, patient.GetUniqueLoadID(), giver.defName, "DoBill", 0, Find.TickManager.TicksGame + 60000) { Recipe = recipe };
-                    if (!NativeSupportSurgery.Resolve(pawn, patient, step, out var job)) continue;
+                    if (!NativeSupportSurgery.Resolve(pawn, patient, giver, recipe, out var job)) continue;
                     JobMaker.ReturnToPool(job);
                     // A surgeon with no operation speed cannot operate.
                     var speed = bill.recipe.workSpeedStat == null ? 1 : pawn.GetStatValue(bill.recipe.workSpeedStat);

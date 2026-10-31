@@ -120,7 +120,7 @@ public static class ForecastLiveEvidence
         var matching = native is not null && native.Method == prediction.Key.Method && native.Assignment == order.Assignment && native.Revision == order.Revision;
         var satisfied = read.SatisfiedTasks.Contains(task.Id);
         var completed = satisfied || matching && order.Task == task.Id && !order.Preparing && native!.State == "completed"
-            && !task.CompletionMustBeObserved && !task.Step.IsSet && task.Step.Kind is not PawnActivityKind.Supply and not PawnActivityKind.Deliver;
+            && !task.CompletionMustBeObserved && task.Step.Kind is not PawnActivityKind.Supply and not PawnActivityKind.Deliver;
         unfinished = !completed && matching && order.Task == task.Id && !order.Preparing && native!.State is "started" or "offered" or "installed";
         if (!completed && execution == ForecastExecution.Unconfirmed) return null;
         if (completed && unfinishedTick.HasValue && consistentStart && matching && !order.Preparing && order.Task == task.Id

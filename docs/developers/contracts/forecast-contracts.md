@@ -1693,12 +1693,12 @@ zero); `AvailableInput` is the stack's count (0 without one) and `Storage` is
 - `Clearing`: the clearing prerequisites, each an id, a `Kind` (`Cut`, `Haul`,
   `Mine`, `Deconstruct`) and per-pawn `ConstructionActivityOption` rows with `Site` set
   to the op id and `Definition` to the planned site's. One `Cut` op (`<site>/cut`)
-  covers the site's plants, its `Targets` their ids lowest first (what the brain binds
-  its Work/CutPlant set step over, #3613): the `Finish` ticks sum `harvestWork /
+  covers the site's plants, its `Targets` their ids lowest first (the members the brain's
+  what-if Work/CutPlant task counts, #3613): the `Finish` ticks sum `harvestWork /
   JobDriver_PlantWork.WorkDonePerTick` (PlantWorkSpeed scaled by growth), for a
   pawn not incapable of PlantCutting (the cut giver's work type) and willing to cut
   every plant. One `Mine` op (`<site>/mine`) covers its natural rock, its `Targets`
-  the rocks' ids lowest first (what the brain binds its Work/Mine set step over,
+  the rocks' ids lowest first (the members the brain's what-if Work/Mine task counts,
   #3616): the `Finish` ticks sum `ceil(HitPoints / 80)` pick hits at
   `round(100 / MiningSpeed)` ticks (JobDriver_Mine), for a pawn not incapable of
   Mining. For both, `SiteApproachTicks`
