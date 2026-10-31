@@ -11,10 +11,10 @@ from executed passes in the existing habitat evidence page.
 
 ## 1. Complete alternatives in shared physical planning (003, 005, 011)
 
-- [ ] 1.1 Extend existing provisional Method/forecast and planned-site variants for function, beneficiaries, exact placement, prerequisites and service readiness, including reuse/defer baselines. Integrate a first consumer through normal review; paired comparator tests must show location and infrastructure can change the equipment winner rather than just filter a preselected object.
-- [ ] 1.2 Extend batched native site/route/room probes only for consumed missing mechanics, joining canonical rows and coherent identities. Verify complete/missing-fact boundary tests, candidate-qualified probe IDs, deterministic bounded order and absence of a new store or model-service call.
-- [ ] 1.3 Carry selected alternatives through binding, Method admission, resource/target claims, Hands and fresh owner predicates. Verify runtime/journal tests reject conflicting capacity and stale selections, preserve uncertain receipts and never close a service Need from placement acceptance alone.
-- [ ] 1.4 Update spatial, portfolio and essential-service contracts and habitat evidence; remove superseded projections/selectors through every reader, check links and pass `RimGovernor.cmd test > test.out 2>&1` before committing and landing this milestone.
+- [x] 1.1 Extend existing provisional Method/forecast and planned-site variants for function, beneficiaries, exact placement, prerequisites and service readiness, including reuse/defer baselines. Integrate a first consumer through normal review; paired comparator tests must show location and infrastructure can change the equipment winner rather than just filter a preselected object.
+- [x] 1.2 Extend batched native site/route/room probes only for consumed missing mechanics, joining canonical rows and coherent identities. Verify complete/missing-fact boundary tests, candidate-qualified probe IDs, deterministic bounded order and absence of a new store or model-service call.
+- [x] 1.3 Carry selected alternatives through binding, Method admission, resource/target claims, Hands and fresh owner predicates. Verify runtime/journal tests reject conflicting capacity and stale selections, preserve uncertain receipts and never close a service Need from placement acceptance alone.
+- [x] 1.4 Update spatial, portfolio and essential-service contracts and habitat evidence; remove superseded projections/selectors through every reader, check links and pass `RimGovernor.cmd test > test.out 2>&1` before committing and landing this milestone.
 
 ## 2. Accommodation for every occupant (001, 003, 007, 011)
 

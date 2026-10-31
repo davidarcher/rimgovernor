@@ -436,6 +436,7 @@ public sealed partial class DefinitionCatalog
                     Products = products,
                     Butchery = row.specialProducts.Seq().Contains(SpecialProductType.Butchery),
                     Food = MakesHumanFood(row),
+                    Work = work.Work,
                 };
             }
         }

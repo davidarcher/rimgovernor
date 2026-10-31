@@ -53,6 +53,34 @@ while unrelated construction stays in place. `production/coupled-needs` supplies
 corresponding normal harvest/ingestion evidence; `production/productive-cooking`
 covers useful cooking. Registration and compilation do not establish gameplay success.
 
+### Hosted workshop loads
+
+A Need that declares a production order naming no bench kind, which no standing bench
+lists, owns an unhosted load (`LedgerView.Owners` carries each order's declaring Needs;
+two Needs declaring one spec coalesce into one order and both own it). The shared layout
+comparison chooses that load's host ([host alternatives](spatial-contracts.md#layout-planner));
+the planner binds the plan's host and does not select a bench again
+([host binding](spatial-contracts.md#layout-reconcile)).
+
+A selected host whose planned build site the plan starts emits a `ServiceTarget` investment
+on each owning Need's own `need_satisfied` predicate (`ForecastServiceInvestments`,
+`HostedLoadInvestments`). Its beneficiaries are the hosted recipes, its tasks the host
+sites' physical chain, its metric `hosted_runs_per_day` (the plan's credited runs a day)
+and its retirement `owner_need_met_on_fresh_facts_never_by_bench_placement`: placing,
+accepting or building the bench never satisfies the Need. Building actions are
+intent-mode, so the construction action closes at an accepted placement receipt (an
+unconfirmed receipt is preserved) while the served Need closes only on fresh owner
+facts. The explanation rides the existing `coupled_selection.service_investments`
+telemetry and adds no demand, reservation or goal store. With no ledger view there is no
+investment. A load the plan hosts nowhere is deferred (`host_deferred`) and a load whose
+room the portfolio holds waits on that gate; neither is a service claim.
+
+`WorkshopHostAlternativeTests`, `PlannedRoomGateTests`, `PlannedRoomSelectionTests`,
+`ActivityContinuationTests` and `ServiceInvestmentTests` cover the comparison, binding,
+overlap conflict, stale selections, Retained and Deferred loads, and construction
+closing while the served Need stays unmet. No native case has run the path
+([habitat evidence](../../requirements/habitat.md#h8--host-alternatives-compared-by-site-and-infrastructure)).
+
 ## Observed evidence and remaining gaps
 
 Real-game runs under the normal planner (no fixture-selected winner) at the #3167 close-out:
@@ -130,6 +158,11 @@ material prices and tier floor style serve review and execution; no second deman
 or observation owner is introduced. Direct prerequisite tests cover the selection
 order, stock boundaries and required-read failures. Crop field shrink is owned
 with the layout geometry policy, separately from these facility prerequisites.
+
+None of this chooses the host of a load the held layout plan hosts: that bench is
+compared in the plan and bound as above ([hosted workshop loads](#hosted-workshop-loads)).
+The workshop ladder below runs when there is no layout plan or the Need owns no
+unhosted load.
 
 Workshop preparation calls the same `WorkRules.ExistingWorkshopBench` reuse rule
 as full selection. It can settle an existing productive bench before candidate

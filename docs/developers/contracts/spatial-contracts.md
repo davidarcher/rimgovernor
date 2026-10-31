@@ -623,8 +623,9 @@ facts the key leaves out still reach the plan (`reviewLayoutPlan`, `ColonyPlan.c
 holds the station-chain design.
 
 Runtime first plans and replans compare complete tiled grouping candidates before saving a
-winner. `RegroupAsync` keeps the existing bound of one seed and eight proposals over four
-rounds, at most 33 distinct candidate evaluations. Each round batches native construction
+winner. `RegroupAsync` reads the seed of every compared host alternative (below) in one
+batch, then keeps the bound of eight proposals over four rounds on the chosen graph: at
+most nine seeds plus 32 geometry evaluations, 41 distinct candidate evaluations. Each round batches native construction
 sites, then routes and closed-room predictions, with candidate-qualified ids so two trials
 of room 1 cannot exchange answers. Each trial retains its exact tiled geometry and full
 station pieces and projected field cells, and derives resource demand from that candidate's owed construction.
@@ -633,6 +634,33 @@ same observation frame; material prices are read once per distinct resource for 
 The ledger owns shell spend, hosted functions and disturbed sleep; grouping adds only its
 walk cost. The shared urgent-zero, death and break-risk floors rank candidates before their ledgers.
 These are deterministic local forecasts and make no model-service calls.
+
+**Host alternatives (RG-HABITAT-005).** An order that names no bench kind and that no
+standing bench lists (`GearOrdersRules.GearBenchDef` answers empty) is an unhosted recipe
+load: the station graph does not preselect the bench that makes it. `LayoutHostRules.Of`
+generates `HostAlternatives` from the ledger's orders and the held plan: the baseline
+(`host:baseline`) keeps each load at the bench the held plan's `PlannedRoom.Production`
+already hosts it at (`HostChoice.Retained`: a standing, building or still owed piece) or
+else defers it (`HostChoice.Deferred`: no planned bench, the current provision stands and
+the load earns no credit); each deviation changes one load to another catalog host that
+lists the recipe (`HostChoice.Build`) or to deferral. Deviations are taken round-robin over
+the loads (by recipe) and each load's hosts (by name, deferral last), up to
+`HostTrials` (eight, the regroup search's own proposals a round). The bound limits
+computation only: a deviation past it is a `skipped` decision with reason
+`regroup_host_alternatives_truncated`, never a capacity quota. Each alternative is its own
+station graph (`StationGraphInput.Hosts`), clustered, embedded, tiled and read natively
+through the normal candidate path, with candidate-qualified probes unchanged; trials of
+different hosts never share a signature, since the signature leads with the host id.
+The canonical ledger values every seed and the best becomes the incumbent, the baseline
+keeping ties, and the geometry search continues over the chosen graph. Because the
+host's site, room temperature, owed generator and conduit sites and its own build are
+all in the compared ledger, they can change which definition wins. Each compared or
+omitted deviation is a `layout_regroup` decision of move kind `host` (`a` the recipe, `b`
+the definition or `deferred`; [signals](otel-signals.md)). A trial whose forecast leaves
+a fact unread (`RegroupValuation.Unassessed`, decision `regroup_unassessed` with the fact
+as its effect) excludes only that trial; a winner that is unassessed rethrows its fact.
+How the adopted host is built is [Layout reconcile](#layout-reconcile)'s host binding and the forecast side is
+[workshop credits](forecast-contracts.md#workshop-and-laboratory-bench-credits).
 
 Replan preparation retains the hourly survey and its pinned rooms. The completed review
 prices its candidates after model preparation and adopts the winner before the authoritative
@@ -659,6 +687,28 @@ blueprints are cancelled first (`THING_DESIGNATION_CANCEL`, read from the constr
 clearance census reports buildings only), then its frames, ring, spots and furniture come down, a research
 table packed to stock for the laboratory to install, and the entry drops once nothing of ours, blueprints
 included, stands on it. A blueprint on a held room's ring or ground is that room's and stays.
+
+**Host binding.** The adopted host alternative is the plan itself, so a Need that owns an
+unhosted ledger load (`LedgerView.Owners`, `PlannedRules.OwnedUnhostedRecipes`) binds the
+plan's host and never selects a bench again (`BuildingPlanner.PlannedHostStepAsync`,
+`PlannedRules.HostBindingOf`): the first room by id whose `Production` hosts the recipe,
+its bench the first by name, its pieces of that bench at their anchors. The binding is
+`Build` (the next unbuilt piece by anchor, built at its anchor and rotation in the stuff
+the comparison selected for its site, after its room's ring is opened by the gate),
+`Standing` (every piece built, or a blueprint or frame: nothing new), `Held` (the room's
+gate holds, the record selects another site or names none, or the tiler left the room
+without the piece; `AwaitingPlan` `portfolio_selection` or `portfolio_unassessed`) or
+`Deferred` (no room hosts it; `AwaitingPlan` `host_deferred`). Only `Build` becomes a
+construction Method, committed through `CommitBuildsAsync` and claimed by its footprint, so
+an overlapping Method is refused as a claim Conflict at admission. A selection of another
+snapshot, plan or authority reads empty and binds nothing. A selected `Build` site stays in
+the room-selection record after its room starts, so a piece built later keeps its selected
+stuff (`SelectedPieceStuff`); a piece the record names no stuff for falls back to bulk stuff
+choice. Binding never satisfies the Need: placing or building the bench closes the
+construction action at an accepted placement receipt, and the served Need closes only on
+fresh facts ([essential services](essential-services.md#hosted-workshop-loads)). When
+there is no layout plan, or the Need owns no unhosted load, the workshop ladder
+(`WorkRules.SelectWorkshopBench`, `ExistingWorkshopBench`) selects its bench as before.
 
 Reshape order: the diff runs over the room's `Region` (an L's notch is no ground, floors
 lay on region cells only). A standing wall now inside the region (a column added) is owed
@@ -730,8 +780,9 @@ square hosts none, and the next warehouse is tried.
 
 ### Spatial program
 
-Where a room stands is the layout plan's (see Layout planner above); the runtime does
-not compare candidate sites. The persisted spatial program describes habitable shelter,
+Where a room stands is the layout plan's (see Layout planner above), chosen by the
+shared comparison of tiled candidates and host alternatives, not by a runtime search of
+sites. The persisted spatial program describes habitable shelter,
 food services and maintained capacity using existing functional concerns and fresh
 native gates. Population growth reopens shelter capacity. Routine storage development
 waits for observed indoor sleeping capacity; urgent cooking, food acquisition, medical

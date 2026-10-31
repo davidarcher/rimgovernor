@@ -86,7 +86,50 @@ public static class ForecastServiceInvestments
                     && b.Kind == PawnActivityKind.Work && b.Job is "FinishFrame" or "BuildRoof").Select(a => a.Activity)),
                 horizon, "stationary_thermal_degree_ticks", relief.Value,
                 "recompare_remaining_physical_work_at_observed_task_boundary"));
+        result.AddRange(HostedLoadInvestments(selected, context, horizon, Dependencies, tasks.ContainsKey));
         return EquatableArray.From(result);
+    }
+
+    /// <summary>The retirement of a workshop host's investment: its owner's own predicate on fresh facts, never the bench's placement or construction.</summary>
+    public const string HostedLoadRetirement = "owner_need_met_on_fresh_facts_never_by_bench_placement";
+
+    /// <summary>
+    /// The investments of the selected workshop hosts (RG-HABITAT-005, RG-HABITAT-011): a planned room whose
+    /// <see cref="PlannedRoom.Production"/> hosts an unhosted ledger load (a target, no bench kind) and whose host piece's
+    /// planned build site the plan starts (an activity of it allocated) serves each owner that declared the load
+    /// (<see cref="LedgerView.Owners"/>). The target is that owner's own Need predicate (<c>need_satisfied</c>), so the
+    /// bench being placed, accepted or built never satisfies it; the beneficiaries are the hosted recipes, the tasks the
+    /// host sites' physical chain, and the metric the hosted runs a day the plan credits. No ledger view, no investment.
+    /// </summary>
+    private static IEnumerable<ForecastServiceInvestment> HostedLoadInvestments(ForecastCoupledOutcome selected, ForecastCoupledContext context,
+        double horizon, Func<IEnumerable<string>, EquatableArray<string>> dependencies, Func<string, bool> known)
+    {
+        if (context.ProductionOrders is not { } ledger) yield break;
+        var allocated = selected.Plan.Allocations.Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
+        var served = new SortedDictionary<string, List<(int Room, PlannedProduction Load, string[] Roots)>>(StringComparer.Ordinal);
+        foreach (var (id, room) in context.LayoutRooms.OrderBy(r => r.Key))
+            foreach (var load in room.Production)
+            {
+                var prefix = PlannedRules.PlannedPieceSitePrefix(id, load.Bench);
+                var roots = context.PlannedSites.Where(s => s.Room == id && s.Site.StartsWith(prefix, StringComparison.Ordinal))
+                    .SelectMany(s => s.Activities.Concat(s.Finishes)).Where(a => allocated.Contains(a) && known(a)).Distinct().ToArray();
+                if (roots.Length == 0) continue;
+                var owners = ledger.Orders.Where(o => o.Recipe == load.Recipe && o.Target > 0 && o.BenchKind.Length == 0)
+                    .SelectMany(o => ledger.Owners.GetValueOrDefault(o.Key()).Items).Distinct(StringComparer.Ordinal);
+                foreach (var owner in owners)
+                {
+                    if (!served.TryGetValue(owner, out var loads)) served[owner] = loads = [];
+                    loads.Add((id, load, roots));
+                }
+            }
+        foreach (var (owner, loads) in served)
+        {
+            var chain = dependencies(loads.SelectMany(l => l.Roots));
+            if (chain.Count == 0) continue;
+            yield return new(new ServiceTarget(new FilingKey(owner), "need_satisfied"),
+                EquatableArray.From(loads.Select(l => l.Load.Recipe).Distinct().Order(StringComparer.Ordinal)), chain, horizon,
+                "hosted_runs_per_day", loads.Sum(l => l.Load.RunsPerDay), HostedLoadRetirement);
+        }
     }
 
     /// <summary>Construction investment is conditional on the remaining physical chain. At a safe

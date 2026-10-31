@@ -39,7 +39,7 @@ internal static class ForecastLaboratory
             if (!context.ResearchBenchSpeeds.TryGetValue(context.LaboratoryBench, out var lab)) throw new RequiredFactException("research bench speed " + context.LaboratoryBench);
             var plannedBench = closure.Prediction.WorkBenches.FirstOrDefault(b => b.Def == context.LaboratoryBench)
                 ?? throw new RequiredFactException("planned laboratory bench:" + context.LaboratoryBench);
-            unhoused = lab.At(closed, plannedBench.ResearchOffset) - lab.At(BenchRoom.Outside(((ForecastShelterThermal.Estimated)context.Shelters.First(s => s.PlannedRoom == room.Room).Thermal).Outdoors, plannedBench.Powered));
+            unhoused = lab.At(closed, plannedBench.ResearchOffset) - lab.At(BenchRoom.Outside(((ForecastShelterThermal.Estimated)context.Shelters.First(s => s.PlannedRoom == room.Room).Thermal).Outdoors, ForecastWorkshop.Powered(context, plannedBench)));
         }
         var perDay = new SortedDictionary<string, double>(StringComparer.Ordinal);
         foreach (var allocation in research)

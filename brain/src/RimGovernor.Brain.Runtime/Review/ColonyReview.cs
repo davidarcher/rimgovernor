@@ -698,8 +698,7 @@ public sealed partial class ColonyReview
             Visits = ForecastTradeVisits.Options(rf.Traders, rf.Census.ColonistCount) })
                 .WithMedicineClaim(rf.Items, medicine, rf.Census.ColonistCount, Policy.MedicalReserve) });
         var layoutDemand = ResourceRules.ResourceDemandOf(reading.Reading.Facts, Policy, new Latches { MedicalReserve = medicine.Active, Dash = reading.Reading.Facts.Dash });
-        var roomSleep = await RoomSleepDisturbanceAsync(state.Snapshot, reading.Reading,
-            reading.Catalog ?? throw new RequiredFactException("definition_catalog"), layoutDemand, ct).ConfigureAwait(false);
+        var roomSleep = RoomSleepDisturbanceOf(reading.Reading, reading.Catalog ?? throw new RequiredFactException("definition_catalog"), layoutDemand);
         reading = reading.WithFacts(f => f with { RoomSleepDisturbance = roomSleep });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Reading.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot).Selected, PreviousPlannedShelters = CoupledMemory.Get(state.Snapshot).Rooms });

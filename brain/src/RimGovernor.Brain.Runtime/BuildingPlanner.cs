@@ -297,6 +297,11 @@ public sealed partial class BuildingPlanner
         var facts = reading;
         PlannerSnapshot.RecordStepRead("building", r.Concern, state.Snapshot, facts);
         RecordRoleMismatches(facts, call);
+        if (r.WorkshopLadder() && await r.PlannedHostStepAsync(state, review, goal, facts, call, epoch).ConfigureAwait(false) is { } hosted)
+        {
+            // The held plan hosts this Need's load: its host is bound, never re-selected by the ladder.
+            return hosted;
+        }
         if (r.Phase == Pol.Phase.ComfortSpot)
         {
             var (spotResult, placing) = await r.PartySpotStepAsync(state, review, goal, reading, call, epoch).ConfigureAwait(false);

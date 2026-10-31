@@ -320,10 +320,27 @@ internal static class NativeRoomPrediction
                 || typeof(Building_ResearchBench).IsAssignableFrom(p.Def.thingClass))
             .Select(p => new RimGovernor.Brain.GameFacts.Observations.PlannedBenchSpeed(p.Def.defName, new(p.Anchor.x, p.Anchor.z),
                 FacilityOffset(map, p, StatDefOf.WorkTableWorkSpeedFactor, pieces, contained), FacilityOffset(map, p, StatDefOf.ResearchSpeedFactor, pieces, contained),
-                p.Def.GetCompProperties<CompProperties_Power>() is null || contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor)?.TryGetComp<CompPowerTrader>()?.PowerOn == true,
+                Power(map, p.Def, p.Anchor, contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor)),
                 contained.FirstOrDefault(t => t.def == p.Def && t.Position == p.Anchor) is { } existing
                     ? new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Standing(WorkbenchFactor(existing))
                     : new RimGovernor.Brain.GameFacts.Observations.BenchPlacement.Planned())));
+    }
+
+    // A bench's power supply (RG-HABITAT-005), as the heater source reads it (NativeCoupledThermal.Source): a standing bench's
+    // own CompPowerTrader network, a planned one's PowerConnectionMaker.BestTransmitterForConnector network at its anchor, the
+    // network's powered comps' summed output and the draw the bench adds (none for a standing bench already on).
+    private static RimGovernor.Brain.GameFacts.Observations.BenchPower Power(Map map, ThingDef def, IntVec3 anchor, Thing? existing)
+    {
+        if (def.GetCompProperties<CompProperties_Power>() is not { } props) return new RimGovernor.Brain.GameFacts.Observations.BenchPower.Unneeded();
+        var comp = existing is null ? null : existing.TryGetComp<CompPowerTrader>()
+            ?? throw new InvalidOperationException("standing bench has no power trader: " + existing.GetUniqueLoadID());
+        var net = comp is not null ? comp.PowerNet : PowerConnectionMaker.BestTransmitterForConnector(anchor, map)?.PowerNet;
+        if (net == null) return new RimGovernor.Brain.GameFacts.Observations.BenchPower.Unconnected();
+        var watts = props.PowerConsumption;
+        if (!float.IsFinite(watts) || watts < 0) throw new InvalidOperationException("unread bench power consumption: " + def.defName);
+        double surplus = net.powerComps.Where(c => c.PowerOn).Sum(c => c.PowerOutput);
+        var network = string.Join("/", net.powerComps.Select(c => c.parent.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal));
+        return new RimGovernor.Brain.GameFacts.Observations.BenchPower.Connected(network, comp?.PowerOn == true ? 0 : watts, surplus);
     }
 
     private static double FacilityOffset(Map map, (ThingDef Def, IntVec3 Anchor, Rot4 Rot) bench, StatDef stat,

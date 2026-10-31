@@ -177,4 +177,112 @@ public sealed class PlannedRoomSelectionTests
         Assert.True(PlannedRules.PlannedRoomDone(Owed(bed: false), _ => false));
         Assert.True(PlannedRules.PlannedRoomDone([], _ => false));
     }
+
+    /// <summary>The planned workshop bench of the host tests: 3x1, hosting <see cref="HostRecipe"/>.</summary>
+    internal const string HostBench = "TestTailoringBench";
+
+    internal const string HostRecipe = "Make_TestShirt";
+
+    /// <summary>The bench piece the tiler placed along room 1's north interior row, (5,7) to (7,7).</summary>
+    internal static readonly InteriorPiece HostPiece = new()
+    {
+        Slot = "bench", Def = HostBench, Size = new Cell(3, 1), Rot = Rotation.North, Rect = new Rectangle { X = 5, Z = 7, Width = 3, Height = 1 },
+    };
+
+    /// <summary>Room 1 (a 3x3 interior at (5,5), its door south at (6,4)) whose Production hosts the recipe at the bench.</summary>
+    internal static readonly PlannedRoom HostRoom = new()
+    {
+        Id = 1, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }),
+        Door = new Cell(6, 4), DoorSide = new DoorSide.Doored(Rotation.South), Production = [new(HostBench, HostRecipe, 2)],
+    };
+
+    /// <summary>The held plan: the adopted host alternative hosts the recipe at room 1's bench piece.</summary>
+    internal static readonly LayoutPlan HostPlan = new()
+    {
+        Rooms = [HostRoom], NextRoomId = 2, Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [1] = [HostPiece] },
+    };
+
+    /// <summary>
+    /// RG-HABITAT-011: a room's pieces are built after its ring starts it, so the record keeps a started room's selected
+    /// piece sites (it still clears its ring sites), and the reconcile builds a named piece in the selected stuff.
+    /// </summary>
+    [Fact]
+    public void AStartedRoomKeepsItsSelectedPieceSitesAndBuildsThemInTheirStuff()
+    {
+        var anchor = HostPiece.Wanted().Anchor();
+        var bench = new SelectedPlannedSite(1, OpKind.Build, HostBench, "BlocksGranite", [anchor]);
+        var started = PlannedRules.PlannedSelectionMemory(new PlannedSelection { Assessed = [1], Sites = [Wall(1, "WoodLog"), bench] }, null, _ => true);
+        Assert.Equal([bench], started.Sites);
+        Assert.Equal(PlannedRoomGate.Place, PlannedRules.PlannedRoomGateOf(started, HostRoom, started: true).Gate);
+
+        IReadOnlyList<Operation> ops =
+        [
+            new() { Kind = OpKind.WallIn, Cells = [new(4, 4)] },
+            new() { Kind = OpKind.Build, Pieces = [HostPiece.Wanted(), HostPiece.Wanted() with { DefName = "Dresser" }] },
+        ];
+        var stuffed = PlannedRules.SelectedPieceStuff(ops, started, 1);
+        Assert.Equal(["BlocksGranite", ""], Assert.Single(stuffed, o => o.Kind == OpKind.Build).Pieces.Select(p => p.Stuff));
+        Assert.Same(ops[0], stuffed[0]);
+        // Another room's record names no stuff for this one.
+        Assert.Same(ops, PlannedRules.SelectedPieceStuff(ops, started, 2));
+    }
+
+    /// <summary>
+    /// RG-HABITAT-005, RG-HABITAT-011: an unhosted load binds the held plan's own host piece (its def, anchor and rotation,
+    /// in the selected stuff), never a bench chosen again, and only where the portfolio opens its room. A record that
+    /// names nothing for the room (a restart, or the record of another snapshot, which reads empty), an assessed room the
+    /// comparison did not select the piece of, and a selected site the plan has since moved are held. A standing host binds
+    /// nothing new, and a load no planned room hosts is deferred: no bench.
+    /// </summary>
+    [Fact]
+    public void AnUnhostedLoadBindsThePlansOwnHostPieceOnlyWhereThePortfolioOpensIt()
+    {
+        var anchor = HostPiece.Wanted().Anchor();
+        var bench = new SelectedPlannedSite(1, OpKind.Build, HostBench, "BlocksGranite", [anchor]);
+        HashSet<(string, Cell)> none = [];
+        HostBinding Bind(PlannedSelection record, bool started, IReadOnlySet<(string, Cell)>? built = null, IReadOnlySet<(string, Cell)>? sited = null,
+            LayoutPlan? plan = null) => PlannedRules.HostBindingOf(plan ?? HostPlan, HostRecipe, record, _ => started, built ?? none, sited ?? none);
+
+        var selected = Assert.IsType<HostBinding.Build>(Bind(new() { Assessed = [1], Sites = [bench] }, started: false));
+        Assert.Equal((HostBench, anchor, Rotation.North, "BlocksGranite"), (selected.Piece.DefName, selected.Piece.Anchor(), selected.Piece.Rot, selected.Piece.Stuff));
+        Assert.Equal(HostRoom, selected.Room);
+        // A started room builds it in its kept site's stuff, or the piece's own when none is named.
+        Assert.Equal("BlocksGranite", Assert.IsType<HostBinding.Build>(Bind(new() { Assessed = [1], Sites = [bench] }, started: true)).Piece.Stuff);
+        Assert.Equal("", Assert.IsType<HostBinding.Build>(Bind(new(), started: true)).Piece.Stuff);
+
+        Assert.Equal(new HostBinding.Held(HostRecipe, 1), Bind(new(), started: false));
+        Assert.IsType<HostBinding.Held>(Bind(new() { Assessed = [1] }, started: false));
+        Assert.IsType<HostBinding.Held>(Bind(new() { Assessed = [1], Sites = [Wall(1, "WoodLog")] }, started: false));
+        Assert.IsType<HostBinding.Held>(Bind(new() { Assessed = [1], Sites = [bench with { Positions = [new(anchor.X + 1, anchor.Z)] }] }, started: false));
+        Assert.IsType<HostBinding.Held>(Bind(new(), started: true, plan: HostPlan with { Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>>() }));
+
+        Assert.Equal(new HostBinding.Standing(HostRecipe, false), Bind(new(), started: true, sited: new HashSet<(string, Cell)> { (HostBench, anchor) }));
+        Assert.Equal(new HostBinding.Standing(HostRecipe, true), Bind(new(), started: true, built: new HashSet<(string, Cell)> { (HostBench, anchor) }));
+
+        var deferred = HostPlan with { Rooms = [HostRoom with { Production = [] }] };
+        Assert.Equal(new HostBinding.Deferred(HostRecipe), Bind(new() { Assessed = [1], Sites = [bench] }, started: true, plan: deferred));
+    }
+
+    /// <summary>
+    /// An owner's unhosted loads are the orders it declared with a target and no bench kind: a spec two owners declare is
+    /// one wanted order that both own (OrderOwners), and an order on a named bench kind is hosted already.
+    /// </summary>
+    [Fact]
+    public void AnOwnersUnhostedRecipesAreTheOrdersItDeclaredWithoutABenchKind()
+    {
+        var equipment = MilitaryFamily.Equipment.FilingKey;
+        var resource = EconomyFamily.Resource.FilingKey;
+        var shirt = new OrderSpec { Recipe = HostRecipe, Target = 2 };
+        List<Declared> declared =
+        [
+            new() { Orders = [shirt with { Owner = equipment.Value }, new OrderSpec { Recipe = "Make_Hosted", Target = 1, BenchKind = HostBench, Owner = equipment.Value }] },
+            new() { Orders = [shirt with { Owner = resource.Value }, new OrderSpec { Recipe = "Make_Untargeted", Owner = resource.Value }] },
+        ];
+        var view = WorkRules.BuildLedgerView(WorkRules.WantedOrders(declared).Wanted, declared);
+        Assert.Equal(new[] { resource.Value, equipment.Value }.Order(StringComparer.Ordinal).ToArray(), view.Owners[shirt.Key()].Items.ToArray());
+        Assert.Equal([HostRecipe], PlannedRules.OwnedUnhostedRecipes(view, equipment));
+        Assert.Equal([HostRecipe], PlannedRules.OwnedUnhostedRecipes(view, resource));
+        Assert.Empty(PlannedRules.OwnedUnhostedRecipes(view, ShelterFamily.Temperature.FilingKey));
+        Assert.Empty(PlannedRules.OwnedUnhostedRecipes(WorkRules.NewLedgerView(WorkRules.LedgerViewNone), equipment));
+    }
 }

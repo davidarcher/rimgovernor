@@ -8,17 +8,19 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class LayoutCandidateIntegrationTests
 {
     [Fact]
-    public void NativeClosureBatchKeepsTwoTrialsOfTheSameRoomAndTheirProjectedRoutesSeparate()
+    public void NativeClosureBatchKeepsTwoTrialsOfTheSameRoomAndTheirProjectedRoutesAndBenchPowerSeparate()
     {
         var from = new Cell(1, 2);
         var to = new Cell(3, 4);
         var first = PlannedRoomPredictionTests.Closed(ColonyReview.CandidateKey("regroup:1", "1"), "WoodLog", "Bedroom", 30, 2, 9, 0, false) with
         {
             Routes = [new("pawn", from, to, new RouteTicks.Reachable(17)) { FromStart = false, Projection = "regroup:1/1/WoodLog" }],
+            WorkBenches = [new("ElectricSmithy", from, 0, 0, new BenchPower.Connected("net", 210, 1000), new BenchPlacement.Planned())],
         };
         var second = PlannedRoomPredictionTests.Closed(ColonyReview.CandidateKey("regroup:10", "1"), "WoodLog", "Laboratory", 70, 4, 20, 0, false) with
         {
             Routes = [new("pawn", from, to, RouteTicks.None) { FromStart = false, Projection = "regroup:10/1/WoodLog" }],
+            WorkBenches = [new("ElectricSmithy", from, 0, 0, new BenchPower.Unconnected(), new BenchPlacement.Planned())],
         };
 
         var bedroom = Assert.Single(ColonyReview.CandidatePredictions("regroup:1", [second, first]));
@@ -29,6 +31,9 @@ public sealed class LayoutCandidateIntegrationTests
         Assert.Equal("1/WoodLog", Assert.Single(bedroom.Routes).Projection);
         Assert.Equal(17d, Assert.IsType<RouteTicks.Reachable>(Assert.Single(bedroom.Routes).Ticks).Ticks);
         Assert.IsType<RouteTicks.Unreachable>(Assert.Single(laboratory.Routes).Ticks);
+        // The same bench at the same anchor keeps each trial's own native power answer.
+        Assert.Equal(new BenchPower.Connected("net", 210, 1000), Assert.Single(bedroom.WorkBenches).Power);
+        Assert.IsType<BenchPower.Unconnected>(Assert.Single(laboratory.WorkBenches).Power);
     }
 
     [Fact]

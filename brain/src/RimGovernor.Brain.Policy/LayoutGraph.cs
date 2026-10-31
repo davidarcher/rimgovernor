@@ -96,6 +96,9 @@ public sealed record RecipeFlow
     /// </summary>
     public bool Butchery { get; init; }
 
+    /// <summary>The recipe's work a run at a bench of unit speed (RecipeDef.WorkAmountTotal, the station's RecipeWorkAmount); 0 while unread.</summary>
+    public double Work { get; init; }
+
     internal double ProductCount()
     {
         var n = 0.0;
@@ -169,8 +172,11 @@ public sealed record StationGraphInput
     /// <summary>The special rooms asked beyond the stations: the throne room (#2958).</summary>
     public SeedRooms Seed { get; init; } = new();
 
-    /// <summary>The capability-days of building each work station, by def (StationFacts.HostBuild); HostOf prices a recipe's hosts with it.</summary>
-    public IReadOnlyDictionary<string, double> HostBuild { get; init; } = new Dictionary<string, double>();
+    /// <summary>
+    /// The host of each unhosted recipe load (an order naming no bench kind), one alternative of LayoutHostRules.Of. A
+    /// load absent or deferred gets no work node: the graph does not choose a bench definition itself (RG-HABITAT-005).
+    /// </summary>
+    public IReadOnlyList<HostedLoad> Hosts { get; init; } = [];
 
     /// <summary>The animal races' catalog rows: the products and hunger of the pen herds (#2996).</summary>
     public AnimalRaceCatalog Races { get; init; } = new();
@@ -477,60 +483,16 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         return Math.Max(p.Colonists - Math.Min(p.Injured, p.Colonists) - Suites().Count, 0);
     }
 
-    /// <summary>
-    /// The station that works runs of a recipe a day and its work ticks a run there (the recipe's work over the
-    /// station's speed, StationCapacity.WorkSpeed). The preferred def hosts it when it can. Otherwise the hosts are
-    /// priced (#3659): what building one costs (StationFacts.HostBuild, labor plus material, capability-days) plus
-    /// the work-days its speed asks of the runs over the horizon (ColonyModelPolicy.HorizonDays). The cheapest
-    /// wins, ties by name; while a host's build is unread the first host by name stands, as before the price.
-    /// </summary>
-    public (string Def, double Work) HostOf(string recipe, double runs, params string[] preferred)
+    /// <summary>The work ticks a run of <paramref name="recipe"/> takes at the worker station <paramref name="def"/> (the recipe's work over the station's speed, StationCapacity.WorkSpeed), or 0 where it is no host.</summary>
+    public double HostWorkOf(string def, string recipe)
     {
-        foreach (var def in preferred)
+        var (s, ok) = In.Catalog.Station(def);
+        if (!ok || s!.Capacity.Kind != CapacityKind.Workers)
         {
-            var (s, ok) = In.Catalog.Station(def);
-            if (ok && s!.Capacity.Kind == CapacityKind.Workers)
-            {
-                var w = LayoutGraphRules.HostWork(s, recipe);
-                if (w > 0)
-                {
-                    return (def, w / LayoutGraphRules.SpeedOf(s));
-                }
-            }
+            return 0;
         }
-        var horizon = ColonyModelPolicy.DefaultHorizonDays;
-        string first = string.Empty, best = string.Empty;
-        double firstWork = 0, bestWork = 0, bestPrice = double.PositiveInfinity;
-        var priced = true;
-        foreach (var def in In.Catalog.Defs())
-        {
-            var s = In.Catalog.Stations[def];
-            if (s.Capacity.Kind != CapacityKind.Workers)
-            {
-                continue;
-            }
-            var w = LayoutGraphRules.HostWork(s, recipe);
-            if (w <= 0)
-            {
-                continue;
-            }
-            w /= LayoutGraphRules.SpeedOf(s);
-            if (first == string.Empty)
-            {
-                (first, firstWork) = (def, w);
-            }
-            if (!In.HostBuild.TryGetValue(def, out var build))
-            {
-                priced = false;
-                continue;
-            }
-            var price = build + (Math.Max(runs, 0) * w / GameTime.TicksPerDay * horizon);
-            if (price < bestPrice)
-            {
-                (best, bestWork, bestPrice) = (def, w, price);
-            }
-        }
-        return priced && best != string.Empty ? (best, bestWork) : (first, firstWork);
+        var w = LayoutGraphRules.HostWork(s, recipe);
+        return w > 0 ? w / LayoutGraphRules.SpeedOf(s) : 0;
     }
 
     /// <summary>
@@ -583,11 +545,12 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         }
         var orders = new Dictionary<(string, string), double>();
         var orderWork = new Dictionary<(string, string), double>();
-        foreach (var o in In.Orders)
+        void Order(string station, OrderSpec o)
         {
-            if (o.Target <= 0)
+            var work = HostWorkOf(station, o.Recipe);
+            if (o.Target <= 0 || work <= 0)
             {
-                continue;
+                return;
             }
             double runs = o.Target;
             var per = Flow(o.Recipe).ProductCount();
@@ -595,14 +558,21 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             {
                 runs /= per;
             }
-            var (station, work) = HostOf(o.Recipe, runs, o.BenchKind);
-            if (station == string.Empty)
-            {
-                continue;
-            }
             var key = (station, o.Recipe);
             orders[key] = orders.GetValueOrDefault(key) + runs;
             orderWork[key] = work;
+        }
+        // An order naming a bench kind runs on that kind alone; an unhosted one at the host its alternative assigns.
+        foreach (var o in In.Orders.Where(o => o.BenchKind.Length != 0))
+        {
+            Order(o.BenchKind, o);
+        }
+        foreach (var load in In.Hosts.Where(l => l.Host.Bench.Length != 0))
+        {
+            foreach (var o in load.Orders)
+            {
+                Order(load.Host.Bench, o);
+            }
         }
         foreach (var (key, runs) in orders)
         {

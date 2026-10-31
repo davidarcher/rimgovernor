@@ -364,10 +364,14 @@ at most one bill and up to sixteen independent pawn orders;
 pawn and item identities cannot be claimed twice by open dressing methods.
 
 When a colonist is unarmed and no bench stands, the weapon orders draw on the catalog's crafts
-(#3659): the order names the recipe and the bench kind that hosts it, and the derived plan holds
-that host as a planned station (a lone `CraftingSpot` groups into a Workshop room), built through
-the planned-room ladder like any other station. There is no runtime spot placement and no spot
-retirement step.
+(#3659): the order names the recipe, and the bench kind only when a standing bench lists it. An
+order that names none is an unhosted load: the shared layout comparison picks its host among the
+catalog benches that list the recipe, or defers it
+([host alternatives](spatial-contracts.md#layout-planner)), and the Need binds the plan's host
+piece through the planned-room ladder like any other station
+([host binding](spatial-contracts.md#layout-reconcile)). A `host_deferred` load builds no bench. There
+is no runtime spot placement, no spot retirement step and no first-by-name or price fallback for
+the host.
 
 Fixture checks, native scripted pawn outcomes and sustained seasonal campaigns
 are different evidence levels.

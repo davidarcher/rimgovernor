@@ -108,9 +108,6 @@ public sealed record StationFacts
     /// <summary>What the colony reads for the bed merge's price (#3658); its default reads nothing, which fails a chain with a free-bed pool naming the unread fact (#3747).</summary>
     public BedMergeFacts BedMerge { get; init; } = new BedMergeFacts.Unread("sleeper_mood");
 
-    /// <summary>The capability-days of building each work station the catalog offers (labor plus material, LayoutClusterRules.PiecePrice), by def; a station absent is unread (#3659, GraphBuilder.HostOf).</summary>
-    public IReadOnlyDictionary<string, double> HostBuild { get; init; } = new Dictionary<string, double>();
-
     /// <summary>
     /// The bed merge's price (#3658): the colony's facts, the outdoor curve, the work-day (StationWorkDayOf), the colonists able to build (#3748), the bed slots of the plan's largest barracks as the incumbent, and the plan's committed barracks and
     /// bedrooms with what of each shell stands (#3661, #3675): a room standing or under construction (StandingIds), a
@@ -208,8 +205,14 @@ public sealed record StationFacts
         ? Ledger.Orders
         : throw new RequiredFactException("work ledger orders");
 
-    /// <summary>Assembles the graph's input, or throws a RequiredFactException naming the unknown fact.</summary>
-    public StationGraphInput GraphInput()
+    /// <summary>The host alternatives of the ledger's unhosted loads over the plan held (RG-HABITAT-005, LayoutHostRules.Of).</summary>
+    public HostAlternatives HostAlternatives() => LayoutHostRules.Of(Catalog, LedgerOrders(), Plan);
+
+    /// <summary>Assembles the graph's input with the baseline hosts (HostAlternatives), or throws a RequiredFactException naming the unknown fact.</summary>
+    public StationGraphInput GraphInput() => GraphInput(HostAlternatives().Baseline);
+
+    /// <summary>Assembles the graph's input with the hosts of <paramref name="host"/>, or throws a RequiredFactException naming the unknown fact.</summary>
+    public StationGraphInput GraphInput(HostAlternative host)
     {
         var population = LayoutStationPlanRules.StationPopulationOf(this);
         var nutrition = LayoutStationPlanRules.HumanNutritionPerDay(Food);
@@ -239,7 +242,7 @@ public sealed record StationFacts
             Rooms = RoomNodes(),
             Races = Races,
             Pasture = Pasture,
-            HostBuild = HostBuild,
+            Hosts = host.Loads,
         };
     }
 
@@ -281,7 +284,6 @@ public sealed record StationFacts
             new("pens", KeyText.Of(Pens)),
             new("child", KeyText.Of(Child)),
             new("plan", KeyText.Of(Plan)),
-            new("host_build", KeyText.Of(HostBuild)),
             new("rest", KeyText.Of(Rest)),
         };
         try
@@ -552,15 +554,28 @@ public static partial class LayoutStationPlanRules
     public static StationAdvice AdviseStations(StationFacts f) =>
         AdviseStations(f, LayoutRegroupRules.Seed(RegroupInputOf(f)));
 
-    /// <summary>The validated station graph and geometry shared by every canonical regroup trial.</summary>
-    public static RegroupInput RegroupInputOf(StationFacts f)
+    /// <summary>The validated station graph of the baseline hosts and the geometry shared by every canonical regroup trial.</summary>
+    public static RegroupInput RegroupInputOf(StationFacts f) => RegroupInputOf(f, f.HostAlternatives().Baseline);
+
+    /// <summary>
+    /// The regroup inputs of every host alternative (RG-HABITAT-005), the baseline first, each over the station graph its
+    /// hosts give, with the deviations the bound omitted. RegroupAsync compares them by the canonical ledger.
+    /// </summary>
+    public static HostedRegroupInputs HostedRegroupInputsOf(StationFacts f)
+    {
+        var hosts = f.HostAlternatives();
+        return new([.. hosts.Alternatives.Select(h => new HostedRegroupInput(h, RegroupInputOf(f, h)))], hosts.Omitted);
+    }
+
+    /// <summary>The validated station graph of <paramref name="host"/> and the geometry shared by every canonical regroup trial.</summary>
+    public static RegroupInput RegroupInputOf(StationFacts f, HostAlternative host)
     {
         if (f.Built is null)
         {
             throw new RequiredFactException("construction census");
         }
         // Nothing is guessed for a fact left unread: the advice fails naming it.
-        var input = f.GraphInput();
+        var input = f.GraphInput(host);
         if (string.IsNullOrEmpty(f.Dining.Table.Def))
         {
             throw new RequiredFactException("dining furniture");

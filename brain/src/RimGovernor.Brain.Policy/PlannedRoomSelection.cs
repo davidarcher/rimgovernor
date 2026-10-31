@@ -77,7 +77,9 @@ public static partial class PlannedRules
     /// The record after a review (#3278): the latest known selection replaces the previous one (a later selection that
     /// drops a site drops it), a review without one keeps the previous, and the sites of a room observed started
     /// (<paramref name="started"/>) clear: it is placed, and the reconcile continues it without the record. A wall swap
-    /// (WallUp, #3657) is a standing room's own and stays: it is what the reconcile swaps the room's walls to. An unstarted
+    /// (WallUp, #3657) is a standing room's own and stays: it is what the reconcile swaps the room's walls to. A selected
+    /// piece site (Build) stays too: a room's pieces are built after its ring has started it, in the stuff the comparison
+    /// selected for them (<see cref="SelectedPieceStuff"/>, <see cref="HostBindingOf"/>). An unstarted
     /// room of the plan (<paramref name="planned"/>) the previous record assessed and the latest comparison did not keeps
     /// its previous verdict and sites (#3676): a review whose free colonists could not reach it (a running method holds
     /// them) has not reassessed it, and treating it as never assessed would hold a room it had selected.
@@ -95,7 +97,7 @@ public static partial class PlannedRules
                 Sites = EquatableArray.From(latest.Sites.Concat(previous.Sites.Where(s => carried.Contains(s.Room)))),
             };
         }
-        return next with { Sites = EquatableArray.From(next.Sites.Where(s => s.Op == OpKind.WallUp || !started(s.Room))) };
+        return next with { Sites = EquatableArray.From(next.Sites.Where(s => s.Op is OpKind.WallUp or OpKind.Build || !started(s.Room))) };
     }
 
     /// <summary>
@@ -202,6 +204,75 @@ public static partial class PlannedRules
         }
         return [.. removals, .. kept];
     }
+
+    /// <summary>
+    /// The reconcile's template pieces to build in the stuff the record selected for their sites (RG-HABITAT-011): a Build
+    /// piece a selected Build site of <paramref name="room"/> names by def and anchor takes the site's stuff, whatever the
+    /// room's gate, so a piece built after its room started is not re-priced (CommitBuilds' bulk stuff is the fallback of
+    /// a piece the record names no stuff for). Every other operation is unchanged.
+    /// </summary>
+    public static IReadOnlyList<Operation> SelectedPieceStuff(IReadOnlyList<Operation> ops, PlannedSelection record, int room)
+    {
+        var stuff = new Dictionary<(string, Cell), string>();
+        foreach (var site in record.Sites.Where(s => s.Room == room && s.Op == OpKind.Build && s.Stuff.Length > 0))
+            foreach (var cell in site.Positions)
+                stuff.TryAdd((site.Definition, cell), site.Stuff);
+        return stuff.Count == 0 ? ops : [.. ops.Select(op => op.Kind != OpKind.Build ? op : op with
+        {
+            Pieces = [.. op.Pieces.Select(p => stuff.TryGetValue((p.DefName, p.Anchor()), out var s) ? p with { Stuff = s } : p)],
+        })];
+    }
+
+    /// <summary>
+    /// What the held plan binds an unhosted recipe load to (RG-HABITAT-005, RG-HABITAT-011; <see cref="HostBinding"/>). The
+    /// adopted host alternative is the plan: the first room by id whose <see cref="PlannedRoom.Production"/> hosts
+    /// <paramref name="recipe"/> (its bench the first by name), else Deferred. Its pieces of that bench
+    /// (<see cref="LayoutPlan.Pieces"/>) at their anchors: all <paramref name="built"/> or <paramref name="sited"/> is
+    /// Standing; otherwise the first unbuilt by anchor is bound when the room's gate opens it (<see cref="PlannedRoomGateOf"/>:
+    /// a started or ringless room, or an unstarted one whose record selects that piece's site), in the selected site's
+    /// stuff. A gate that holds, a selection that does not name the piece (a stale record, a site the plan has moved) and a
+    /// room the tiler left without a piece of the bench are Held. Nothing here values an alternative.
+    /// </summary>
+    public static HostBinding HostBindingOf(LayoutPlan plan, string recipe, PlannedSelection record, Func<PlannedRoom, bool> started,
+        IReadOnlySet<(string Def, Cell Cell)> built, IReadOnlySet<(string Def, Cell Cell)> sited)
+    {
+        var room = plan.Rooms.OrderBy(r => r.Id).FirstOrDefault(r => r.Production.Any(p => p.Recipe == recipe));
+        if (room is null)
+        {
+            return new HostBinding.Deferred(recipe);
+        }
+        var bench = room.Production.Where(p => p.Recipe == recipe).Select(p => p.Bench).Order(StringComparer.Ordinal).First();
+        var pieces = (plan.Pieces.GetValueOrDefault(room.Id) ?? []).Where(p => p.Def == bench).Select(p => p.Wanted()).ToArray();
+        if (pieces.Length == 0)
+        {
+            return new HostBinding.Held(recipe, room.Id);
+        }
+        var open = pieces.Where(p => !built.Contains((bench, p.Anchor())) && !sited.Contains((bench, p.Anchor())))
+            .OrderBy(p => p.Anchor().Z).ThenBy(p => p.Anchor().X).ToArray();
+        if (open.Length == 0)
+        {
+            return new HostBinding.Standing(recipe, pieces.All(p => built.Contains((bench, p.Anchor()))));
+        }
+        var piece = open[0];
+        var site = record.Sites.FirstOrDefault(s => s.Room == room.Id && s.Op == OpKind.Build && s.Definition == bench && s.Positions.Contains(piece.Anchor()));
+        var (gate, _) = PlannedRoomGateOf(record, room, started(room));
+        if (gate == PlannedRoomGate.Hold || gate == PlannedRoomGate.Selected && site is null)
+        {
+            return new HostBinding.Held(recipe, room.Id);
+        }
+        return new HostBinding.Build(recipe, room, site is { Stuff.Length: > 0 } ? piece with { Stuff = site.Stuff } : piece);
+    }
+
+    /// <summary>
+    /// The recipes of <paramref name="owner"/>'s unhosted ledger loads (RG-HABITAT-005): its declared orders with a target
+    /// and no bench kind (<see cref="LedgerView.Owners"/>), by name. Empty before a review reconciled the ledger.
+    /// </summary>
+    public static IReadOnlyList<string> OwnedUnhostedRecipes(LedgerView view, FilingKey owner) =>
+    [
+        .. view.Orders.Where(o => o.Target > 0 && o.BenchKind.Length == 0
+                && view.Owners.TryGetValue(o.Key(), out var owners) && owners.Contains(owner.Value))
+            .Select(o => o.Recipe).Distinct().Order(StringComparer.Ordinal),
+    ];
 
     /// <summary>
     /// The ring stuff the selected sites were compared in (#3278): the selected wall's and door's, each standing in for

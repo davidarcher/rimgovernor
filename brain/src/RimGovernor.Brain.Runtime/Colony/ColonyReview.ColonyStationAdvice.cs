@@ -10,12 +10,11 @@ public sealed partial class ColonyReview
     /// the facts' key parts and the load beside the survey. Pure and cheap; the chain itself runs once, inside the
     /// replan the inputs' drift starts (<c>StartLayoutReplan</c>), off the review's hold path.
     /// </summary>
-    internal (StationFacts Facts, LayoutInputs Inputs) StationInputsOf(GenerationSnapshot snapshot, ColonyReading projection, LayoutPlan plan, RoomGrowth growth, MapSurvey survey, BedMergeFacts bedMerge, IReadOnlyDictionary<string, double>? hostBuild = null)
+    internal (StationFacts Facts, LayoutInputs Inputs) StationInputsOf(GenerationSnapshot snapshot, ColonyReading projection, LayoutPlan plan, RoomGrowth growth, MapSurvey survey, BedMergeFacts bedMerge)
     {
         var f = StationFactsBuilder.StationFactsOf(projection, plan, survey, StationNeeds(snapshot), WorkLedgerView()) with
         {
             BedMerge = bedMerge,
-            HostBuild = hostBuild ?? new Dictionary<string, double>(),
             Pinned = LayoutPlan.TilePinned(plan, growth),
             Held = LayoutPlan.HeldRooms(plan, growth),
             ThroneArea = growth.ThroneArea,
@@ -73,36 +72,6 @@ public sealed partial class ColonyReview
         var (wallDef, doorDef) = (ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition);
         var stuffs = PlannedRingStuffsOf(projection, wallDef, doorDef);
         return stuffs.Count == 0 ? (null, null) : (ColonyPlanningRules.ShellPiece(projection.Facts, wallDef, stuffs[0]), ColonyPlanningRules.ShellPiece(projection.Facts, doorDef, stuffs[0]));
-    }
-
-    /// <summary>
-    /// The capability-days of building each work station that hosts a recipe the ledger orders (#3659, StationFacts.HostBuild):
-    /// its WorkToBuild and cost list, a stuffed station's in its cheapest common stuff, priced by LayoutClusterRules.PiecePrice.
-    /// A station the catalog shows no work or cost list for is left out, which leaves its recipe's hosts unpriced.
-    /// </summary>
-    internal async Task<IReadOnlyDictionary<string, double>> HostBuildAsync(GenerationSnapshot snapshot, ColonyReading projection, StationFacts facts, CancellationToken ct)
-    {
-        var output = new Dictionary<string, double>(StringComparer.Ordinal);
-        if (facts.Ledger.Status is not (WorkRules.LedgerViewReconciled or WorkRules.LedgerViewInactive) || facts.Ledger.Orders.Count == 0)
-        {
-            return output;
-        }
-        var orders = facts.Ledger.Orders;
-        var recipes = orders.Select(o => o.Recipe).ToHashSet(StringComparer.Ordinal);
-        var pieces = new SortedDictionary<string, (double Work, IReadOnlyList<Amount> Costs)>(StringComparer.Ordinal);
-        foreach (var (def, s) in facts.Catalog.Stations)
-        {
-            if (s.Capacity.Kind == CapacityKind.Workers && s.Capacity.Recipes.Any(r => recipes.Contains(r.Recipe)) && ColonyPlanningRules.HostPiece(projection.Facts, def) is { } piece)
-            {
-                pieces[def] = piece;
-            }
-        }
-        var values = await MaterialValuesAsync(snapshot, pieces.Values.SelectMany(p => p.Costs).Select(a => a.Resource), projection.Facts.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
-        foreach (var (def, piece) in pieces)
-        {
-            output[def] = LayoutClusterRules.PiecePrice(piece, values);
-        }
-        return output;
     }
 
     /// <summary>

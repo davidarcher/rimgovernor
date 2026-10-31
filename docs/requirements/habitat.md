@@ -67,7 +67,11 @@ including its service-day and forecast-limit decisions.
 **Implementation:** Supported in shared portfolio selection for every nonempty
 planned-room role, with connector value through served rooms. Clothing is priced
 by its own effects ([W8](colonist-wellbeing.md#w8--clothing-and-care-facility-value)).
-Evidence H7 proves the policy path; it does not establish sustained native colony performance.
+Which bench hosts a recipe no standing bench lists is compared in the same
+selection, by the host's site, room temperature, power and own build, and the
+adopted host is bound as planned, not re-selected
+([H8](#h8--host-alternatives-compared-by-site-and-infrastructure)).
+Evidence H7 and H8 prove the policy path; they do not establish sustained native colony performance.
 
 ## Evidence and inspection coverage
 
@@ -168,3 +172,45 @@ The [portfolio contract](../developers/architecture/portfolio-selection.md) owns
 selection details; [forecast value](../developers/architecture/forecast-value.md)
 owns individual room effects. [K6](colony-commitments.md#k6--care-learning-and-prison-room-consequences)
 and [Q6](review-queue.md#q6--approved-forecast-limits-and-separate-work) describe important model limits.
+
+### H8 — Host alternatives compared by site and infrastructure
+
+The station graph no longer preselects the bench that makes a recipe no standing
+bench lists. [WorkshopHostAlternativeTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/WorkshopHostAlternativeTests.cs)
+check the bounded alternatives (retain the held host, build another catalog
+bench, defer), the named truncation past the bound, the baseline keeping ties, a
+room's temperature, a generator or conduit site and the new bench's build changing
+which definition wins, a network's surplus deciding between an electric and a
+plain bench, benches on one network sharing its surplus once each, and an
+unconnected bench priced as a known zero while an unread surplus is named and
+excludes only its alternative (`regroup_unassessed`).
+[FirstRoomPlanTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/FirstRoomPlanTests.cs)
+carry the first plan through the compared hosts.
+[PlannedRoomPredictionTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PlannedRoomPredictionTests.cs)
+check that every `BenchPower` state (unneeded, connected, unconnected) survives the
+required-facts boundary, and [LayoutCandidateIntegrationTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/LayoutCandidateIntegrationTests.cs)
+that two trials of one room keep their own candidate-qualified power answers.
+
+Binding is checked through admission:
+[PlannedRoomGateTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PlannedRoomGateTests.cs)
+and [PlannedRoomSelectionTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PlannedRoomSelectionTests.cs)
+cover building the selected piece in its selected stuff, an overlapping Method
+refused as a claim Conflict, stale or foreign selections binding nothing, and
+Retained and Deferred loads dispatching no bench.
+[ActivityContinuationTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ActivityContinuationTests.cs)
+show construction closing at its placement receipt, an unconfirmed receipt kept,
+while the served Need stays unmet, and
+[ServiceInvestmentTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ServiceInvestmentTests.cs)
+check that a selected host serves each owning Need's own `need_satisfied`
+predicate, retired only on fresh facts.
+
+These are executed policy and boundary checks through the full gate: `2826a5578`
+passed 4,340 domain tests, `4e8c5297e` 4,345 and `fa06bfd1f` 4,354, each with 30
+workflow tests. No native case was executed. The native `BenchPower` read and the
+catalog's `RequiresPower` are compiled but not game-verified, nor checked against
+live defs; a host piece with no selected stuff still falls back to bulk stuff
+choice. The legacy workshop ladder remains for a Need with no layout plan or no
+owned unhosted load. The [spatial](../developers/contracts/spatial-contracts.md#layout-planner),
+[forecast](../developers/contracts/forecast-contracts.md#workshop-and-laboratory-bench-credits)
+and [essential-service](../developers/contracts/essential-services.md#hosted-workshop-loads)
+contracts own the behavior.

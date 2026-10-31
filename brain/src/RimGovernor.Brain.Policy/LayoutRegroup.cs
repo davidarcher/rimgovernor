@@ -62,12 +62,15 @@ internal sealed class RegroupTrial
     public Embedding Embedding { get; init; } = new();
     public Dictionary<int, bool> Guarded { get; } = [];
 
-    /// <summary>Names the grouping: each room's nodes and counts.</summary>
+    /// <summary>The host alternative whose station graph the trial groups (HostAlternative.Id).</summary>
+    public string Host { get; init; } = LayoutHostRules.BaselineId;
+
+    /// <summary>Names the grouping: its host alternative, then each room's nodes and counts (two hosts may share nodes and differ in production).</summary>
     public string Signature()
     {
         var rooms = Clustering.Groups.Select(g => string.Join(",", g.Stations.Select(s => $"{s.Node}:{s.Count}"))).ToList();
         rooms.Sort(StringComparer.Ordinal);
-        return string.Join("|", rooms);
+        return Host + "#" + string.Join("|", rooms);
     }
 
     public Regrouping Result(IReadOnlyList<RegroupDecision> decisions) => new() { Graph = Graph, Clustering = Clustering, Embed = Embed, Embedding = Embedding, Decisions = decisions };
@@ -75,9 +78,11 @@ internal sealed class RegroupTrial
 
 internal sealed record RegroupProposal(string Kind, string A, string B, IReadOnlyList<NodePair> Rules);
 
-internal sealed class Regrouper(RegroupInput input)
+internal sealed class Regrouper(RegroupInput input, string host = LayoutHostRules.BaselineId)
 {
     public RegroupInput In { get; } = input;
+
+    public string Host { get; } = host;
 
     public RegroupTrial Evaluate(IReadOnlyList<NodePair> pairs)
     {
@@ -85,7 +90,7 @@ internal sealed class Regrouper(RegroupInput input)
         var cl = LayoutClusterRules.ClusterStations(ci);
         var embed = In.Embed with { Groups = cl.Groups, Fields = StationGraph.FieldEmbedLinks(ci.Graph, cl.Groups) };
         var emb = Embedding.Embed(embed);
-        var t = new RegroupTrial { Graph = ci.Graph, Pairs = pairs, Clustering = cl, Embed = embed, Embedding = emb };
+        var t = new RegroupTrial { Graph = ci.Graph, Pairs = pairs, Clustering = cl, Embed = embed, Embedding = emb, Host = Host };
         foreach (var group in GuardedGroups(cl.Groups)) t.Guarded[group] = true;
         return t;
     }
@@ -257,6 +262,28 @@ public static partial class LayoutRegroupRules
 
     public const string RegroupApplied = "applied";
     public const string RegroupKept = "kept";
+
+    /// <summary>A host deviation the bound left uncompared (LayoutHostRules.HostTruncated).</summary>
+    public const string RegroupSkipped = "skipped";
+
+    /// <summary>The decision reason of a trial whose forecast left a fact unread (RegroupValuation.Unassessed); the fact is its effect.</summary>
+    public const string RegroupUnassessed = "regroup_unassessed";
+
+    /// <summary>
+    /// One trial's valuation (rule 9): <paramref name="value"/>, or <see cref="RegroupValuation.Unassessed"/> naming the fact
+    /// its forecast found unread, so a missing fact excludes only that trial and never the batch.
+    /// </summary>
+    public static RegroupValuation Assess(string candidate, Func<RegroupValuation> value)
+    {
+        try
+        {
+            return value();
+        }
+        catch (RequiredFactException e)
+        {
+            return new RegroupValuation.Unassessed(candidate, e.Fact);
+        }
+    }
 
     // The search budget, as SiteSearchTop / SiteSearchIters bound the embedding's: moves tried a round and rounds, each trial one clustering and one embedding.
     internal const int RegroupProposals = LayoutSiteGroundRules.SiteSearchTop;

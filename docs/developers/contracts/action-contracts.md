@@ -30,6 +30,10 @@ what each action must observe. Kinds marked intent-mode complete on an applied r
 alone (no observation phase); a refusal fails them and a lost receipt stays
 uncertain. An explicit idempotent retry passes the execution path's authority
 checks and records a new attempt; the automatic action driver defers uncertain work.
+A workshop host bound from the layout plan is such a construction action: it closes at
+its accepted placement receipt, an unconfirmed receipt is preserved rather than replaced
+by a new selection, and the Need it serves closes only on fresh facts, never by the
+bench's placement ([hosted workshop loads](essential-services.md#hosted-workshop-loads)).
 Field-level shapes and required argument presence live in [operation contracts](../../../contracts/wire/operations.md); native checks live in
 the bridge and native code. This page keeps only the completion boundary and the
 non-obvious constraints.

@@ -287,7 +287,7 @@ public sealed partial class ColonyReview
                 var (wanted, _) = WorkRules.WantedOrders(declared);
                 l.Unmet = [.. l.Dispatch.Unmet(dispatched, wanted, unplaced, benches)];
                 l.Colonists = pawns.Count;
-                l.View = WorkRules.BuildLedgerView(wanted);
+                l.View = WorkRules.BuildLedgerView(wanted, declared);
                 var owed = WorkRules.LedgerDiffOwed(plan, placed);
                 if (owed)
                 {

@@ -7,7 +7,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// The first room (#3659): a first plan's rooms are the station graph's. Three calm colonists on a temperate map
 /// with trees in reach (logs at chop labor) get bedrooms; with no tree in reach (logs at market) or on an ice sheet,
 /// one barracks. A craft order the colony has no
-/// bench for still gets a host node, the one its price chooses, and the plan places it.
+/// bench for gets no host before the shared comparison: each catalog host and deferral is an alternative graph the plan
+/// can place (RG-HABITAT-005, WorkshopHostAlternativeTests compares them).
 /// </summary>
 public sealed class FirstRoomPlanTests
 {
@@ -15,7 +16,7 @@ public sealed class FirstRoomPlanTests
     private const string Smithy = "Smithy";
     private const string Knife = "MakeKnife";
 
-    internal static StationFacts Facts(double[] curve, string climate, IReadOnlyList<OrderSpec>? orders = null, IReadOnlyDictionary<string, double>? hostBuild = null, bool treeless = false, int colonists = 3)
+    internal static StationFacts Facts(double[] curve, string climate, IReadOnlyList<OrderSpec>? orders = null, bool treeless = false, int colonists = 3)
     {
         var s = FirstLayoutPlanTests.Survey(climate);
         var f = FirstLayoutPlanTests.Facts(s, colonists);
@@ -33,7 +34,7 @@ public sealed class FirstRoomPlanTests
             Contributions = [new RoleScore { Role = RoomRole.Workshop, Weight = 27, Additive = true }],
             Capacity = new StationCapacity { Kind = CapacityKind.Workers, Slots = 1, Recipes = [new RecipeWorkAmount(Knife, 1000)], WorkSpeed = 1 },
         };
-        var recipes = new Dictionary<string, RecipeFlow>(f.Recipes) { [Knife] = new RecipeFlow { Products = [new Amount(new Resource("Knife"), 1)] } };
+        var recipes = new Dictionary<string, RecipeFlow>(f.Recipes) { [Knife] = new RecipeFlow { Products = [new Amount(new Resource("Knife"), 1)], Work = 1000 } };
         return f with
         {
             Catalog = f.Catalog with { Stations = stations, Climate = BedMergePriceTests.Catalog.Climate },
@@ -42,13 +43,23 @@ public sealed class FirstRoomPlanTests
             BedMerge = treeless ? BedMergePriceTests.MarketWood(calm) : BedMergePriceTests.Wood(calm),
             Crops = [BedMergePriceTests.Rice],
             Ledger = new LedgerView { Status = WorkRules.LedgerViewReconciled, Orders = orders ?? [] },
-            HostBuild = hostBuild ?? new Dictionary<string, double>(),
         };
     }
 
     internal static LayoutPlan Derive(StationFacts f)
     {
         var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(f.Survey, f, []);
+        Assert.NotNull(plan);
+        return plan;
+    }
+
+    /// <summary>The first plan of <paramref name="f"/> tiled from the seed of the host alternative <paramref name="id"/>.</summary>
+    internal static LayoutPlan DeriveHosted(StationFacts f, string id)
+    {
+        var prepared = LayoutDeriveRules.FirstPlanFacts(f.Survey, f, []);
+        var host = prepared.HostAlternatives().Alternatives.Single(a => a.Id == id);
+        var advice = LayoutStationPlanRules.AdviseStations(prepared, LayoutRegroupRules.Seed(LayoutStationPlanRules.RegroupInputOf(prepared, host)));
+        var (plan, _) = LayoutDeriveRules.TileFirstPlan(prepared.Survey, prepared, advice);
         Assert.NotNull(plan);
         return plan;
     }
@@ -109,20 +120,25 @@ public sealed class FirstRoomPlanTests
     /// <summary>The planned piece defs of the plan.</summary>
     private static HashSet<string> PieceDefs(LayoutPlan plan) => [.. plan.Pieces.Values.SelectMany(p => p).Select(p => p.Def)];
 
-    [Theory]
-    // Over the 60-day horizon one knife a day costs 2 work-days at the spot's half speed and 1 at the smithy: a smithy
-    // dearer than one work-day to build loses to the free spot, a cheaper one wins.
-    [InlineData(3.0, Spot)]
-    [InlineData(0.5, Smithy)]
-    public void ACraftOrderWithNoBenchGetsThePriceChosenHostNodeAndThePlanPlacesIt(double smithyBuild, string host)
+    [Fact]
+    public void ACraftOrderWithNoBenchOffersEveryCatalogHostAndDeferralAndEachHostGraphPlacesItsBench()
     {
-        var f = Facts(BedMergePriceTests.Temperate, "mild", [KnifeOrder], new Dictionary<string, double> { [Spot] = 0, [Smithy] = smithyBuild });
-        var graph = StationGraph.BuildStationGraph(f.GraphInput());
+        var f = Facts(BedMergePriceTests.Temperate, "mild", [KnifeOrder]);
+        var hosts = f.HostAlternatives();
 
-        var work = graph.Nodes.Where(n => n.Purpose == StationPurpose.Work && (n.Def == Spot || n.Def == Smithy)).ToList();
-        var node = Assert.Single(work);
-        Assert.Equal(host, node.Def);
-        Assert.Contains(host, PieceDefs(Derive(f)));
+        // Nothing holds the load yet, so deferral is the baseline and no definition is chosen before the comparison.
+        Assert.Equal(["host:baseline", "host:MakeKnife/CraftingSpot", "host:MakeKnife/Smithy"], hosts.Alternatives.Select(a => a.Id));
+        Assert.IsType<HostChoice.Deferred>(Assert.Single(hosts.Baseline.Loads).Host);
+        Assert.Equal([KnifeOrder], Assert.Single(hosts.Baseline.Loads).Orders);
+        Assert.Empty(hosts.Omitted);
+        Assert.DoesNotContain(StationGraph.BuildStationGraph(f.GraphInput()).Nodes, n => n.Def == Spot || n.Def == Smithy);
+        foreach (var (id, host) in new[] { ("host:MakeKnife/CraftingSpot", Spot), ("host:MakeKnife/Smithy", Smithy) })
+        {
+            var graph = StationGraph.BuildStationGraph(f.GraphInput(hosts.Alternatives.Single(a => a.Id == id)));
+            var node = Assert.Single(graph.Nodes, n => n.Def == Spot || n.Def == Smithy);
+            Assert.Equal((host, Knife, 1d), (node.Def, Assert.Single(node.Production).Recipe, node.Production[0].RunsPerDay));
+            Assert.Contains(host, PieceDefs(DeriveHosted(f, id)));
+        }
     }
 
     /// <summary>The catalog's knife recipe (RecipeView.CraftRecipes): no standing bench lists it.</summary>
@@ -146,24 +162,19 @@ public sealed class FirstRoomPlanTests
         // No bench stands, so the order names no bench kind and the graph picks the host.
         var order = new OrderSpec { Recipe = method.Recipe, Mode = BillMode.GearBatch, Target = method.Count, BenchKind = GearOrdersRules.GearBenchDef([], method.Bench) };
         Assert.Equal(GearRules.CraftBench, order.BenchKind);
-        var plan = Derive(Facts(BedMergePriceTests.Temperate, "mild", [order], new Dictionary<string, double> { [Spot] = 0, [Smithy] = 3 }));
+        var plan = DeriveHosted(Facts(BedMergePriceTests.Temperate, "mild", [order]), "host:MakeKnife/CraftingSpot");
         // The lone spot is planned as a workshop (#3659), which the tiler places.
         Assert.Contains(plan.RoomsOf(PlannedRole.Workshop), r => plan.Pieces.TryGetValue(r.Id, out var pieces) && pieces.Any(p => p.Def == Spot));
     }
 
     [Fact]
-    public void AnUnreadHostBuildKeepsTheFirstHostByName()
-    {
-        var f = Facts(BedMergePriceTests.Temperate, "mild", [KnifeOrder], new Dictionary<string, double> { [Spot] = 0 });
-        var node = Assert.Single(StationGraph.BuildStationGraph(f.GraphInput()).Nodes, n => n.Def == Spot || n.Def == Smithy);
-        Assert.Equal(Spot, node.Def);
-    }
-
-    [Fact]
     public void TheOrdersBenchKindStillRestrictsTheHost()
     {
-        var f = Facts(BedMergePriceTests.Temperate, "mild", [KnifeOrder with { BenchKind = Smithy }], new Dictionary<string, double> { [Spot] = 0, [Smithy] = 30 });
+        // A standing smithy lists the recipe, so its bills run there alone: no host alternative is offered for the load.
+        var f = Facts(BedMergePriceTests.Temperate, "mild", [KnifeOrder with { BenchKind = Smithy }]);
         var node = Assert.Single(StationGraph.BuildStationGraph(f.GraphInput()).Nodes, n => n.Def == Spot || n.Def == Smithy);
         Assert.Equal(Smithy, node.Def);
+        Assert.Equal(["host:baseline"], f.HostAlternatives().Alternatives.Select(a => a.Id));
+        Assert.Empty(f.HostAlternatives().Baseline.Loads);
     }
 }

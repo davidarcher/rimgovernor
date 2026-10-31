@@ -88,6 +88,15 @@ public sealed record BenchUnreadPart(string Part) : BenchStatPart
 /// </summary>
 public sealed record BenchSpeedModel(double Base, double Min, EquatableArray<BenchStatPart> Parts)
 {
+    /// <summary>
+    /// The def cannot work unpowered (Building_WorkTable.CanWorkWithoutPower false: a power comp and no positive
+    /// unpoweredWorkTableWorkSpeedFactor), so an unpowered bench of it runs no bills at all, whatever its stat says.
+    /// </summary>
+    public bool RequiresPower { get; init; }
+
+    /// <summary>The bench's working speed: its stat in <paramref name="room"/>, or none where it runs no bills unpowered.</summary>
+    public double Working(BenchRoom room, double facilityOffset = 0) => RequiresPower && !room.Powered ? 0 : At(room, facilityOffset);
+
     /// <summary>The stat of the bench standing in <paramref name="room"/>. Throws a RequiredFactException for an unread part.</summary>
     public double At(BenchRoom room, double facilityOffset = 0)
     {

@@ -90,6 +90,9 @@ public sealed record RingStuffSources
 
 public static partial class PlannedRules
 {
+    /// <summary>The id prefix of every planned build site of <paramref name="def"/> in <paramref name="room"/>: <c>planned/room{room}/build/{def}/</c>, then its anchor <c>{x}/{z}</c>.</summary>
+    public static string PlannedPieceSitePrefix(int room, string def) => "planned/room" + room + "/build/" + def + "/";
+
     /// <summary>The alternatives a planned room is compared on: every scope of the first stuff, then further stuffs.</summary>
     public const int PlannedAlternativesPerRoom = 4;
 
@@ -215,7 +218,7 @@ public static partial class PlannedRules
                             var anchor = p.Anchor();
                             if (!placed.Contains((p.DefName, anchor)) && piece(p.DefName) is { } priced)
                             {
-                                Add(new PlannedBuildSite(prefix + "/build/" + p.DefName + "/" + anchor.X + "/" + anchor.Z, room.Id, op.Kind, p.DefName,
+                                Add(new PlannedBuildSite(PlannedPieceSitePrefix(room.Id, p.DefName) + anchor.X + "/" + anchor.Z, room.Id, op.Kind, p.DefName,
                                     priced.Stuff, p.Rot, [anchor]) { Material = Priced(priced.Costs, 1) });
                             }
                         }

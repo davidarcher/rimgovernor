@@ -169,4 +169,50 @@ public sealed class ServiceInvestmentTests
         Assert.Empty(choice.Selected.CompletedConstructionSites);
         Assert.Empty(choice.ServiceInvestments);
     }
+
+    /// <summary>
+    /// RG-HABITAT-005, RG-HABITAT-011: a selected workshop host is explained as an investment in the owners of the
+    /// unhosted loads its room hosts, each by its own Need predicate (need_satisfied), never by the bench: the target
+    /// names the owning Need, the beneficiaries are the hosted recipes, the tasks the host site's physical chain, and the
+    /// retirement is the owner's predicate on fresh facts. A load on a named bench kind is hosted already and serves no one
+    /// here; a host site the plan does not start, or no ledger view, explains nothing.
+    /// </summary>
+    [Fact]
+    public void ASelectedWorkshopHostServesItsLoadsOwnersOwnNeedAndNeverItsBench()
+    {
+        const string bench = "TestTailoringBench", recipe = "Make_TestShirt";
+        var facts = ForecastThermalPortfolioTests.Review(-10);
+        var selection = ForecastThermalPortfolioTests.Select(facts);
+        var context = facts.CoupledAlternatives!.Context;
+        var allocation = selection.Selected.Plan.Allocations.First(a => context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b)
+            && b.Kind is PawnActivityKind.Work or PawnActivityKind.Supply);
+        var equipment = MilitaryFamily.Equipment.FilingKey;
+        var resource = EconomyFamily.Resource.FilingKey;
+        List<Declared> declared =
+        [
+            new() { Orders = [new OrderSpec { Recipe = recipe, Target = 2, Owner = equipment.Value }] },
+            new() { Orders = [new OrderSpec { Recipe = recipe, Target = 2, Owner = resource.Value },
+                new OrderSpec { Recipe = "Make_Hosted", Target = 1, BenchKind = bench, Owner = resource.Value }] },
+        ];
+        ForecastCoupledContext Hosting(params string[] activities) => context with
+        {
+            LayoutRooms = new Dictionary<int, PlannedRoom>
+                { [1] = new() { Id = 1, Role = PlannedRole.Workshop, Production = [new(bench, recipe, 2), new(bench, "Make_Hosted", 1)] } },
+            ProductionOrders = WorkRules.BuildLedgerView(WorkRules.WantedOrders(declared).Wanted, declared),
+            PlannedSites = [new(PlannedRules.PlannedPieceSitePrefix(1, bench) + "6/7", 1, "", [.. activities], [])],
+        };
+        ForecastServiceInvestment[] Hosted(ForecastCoupledContext c) => [.. ForecastServiceInvestments.ServiceInvestmentsOf(selection.Selected, selection.Selected, c, 1000)
+            .Where(i => i.Retirement == ForecastServiceInvestments.HostedLoadRetirement)];
+
+        var served = Hosted(Hosting(allocation.Activity));
+        Assert.Equal([new ServiceTarget(resource, "need_satisfied"), new ServiceTarget(equipment, "need_satisfied")], served.Select(i => i.Target));
+        Assert.All(served, i =>
+        {
+            Assert.Equal([recipe], i.Beneficiaries);
+            Assert.Contains(allocation.Activity, i.Tasks);
+            Assert.Equal(("hosted_runs_per_day", 2.0, 1000.0), (i.Metric, i.AvoidedExposure, i.HorizonTicks));
+        });
+        Assert.Empty(Hosted(Hosting("unallocated-site-work")));
+        Assert.Empty(Hosted(Hosting(allocation.Activity) with { ProductionOrders = null }));
+    }
 }

@@ -30,8 +30,13 @@ public sealed partial class DefinitionCatalog
         {
             if (accepts(row))
             {
+                // Building_WorkTable.CanWorkWithoutPower: a work table def with a power comp and no positive unpoweredWorkTableWorkSpeedFactor
+                // is refused bills unpowered (CurrentlyUsableForBills).
                 speeds[name] = new(StatBaseEntry(row, stat.defName) ?? stat.defaultBaseValue, stat.minValue,
-                    Domain.EquatableArray.From(stat.parts.Seq().Select(part => BenchPart(row, part))));
+                    Domain.EquatableArray.From(stat.parts.Seq().Select(part => BenchPart(row, part))))
+                {
+                    RequiresPower = IsClass(row, typeof(Building_WorkTable)) && row.GetCompProperties<CompProperties_Power>() is not null && !(row.building?.unpoweredWorkTableWorkSpeedFactor > 0),
+                };
             }
         }
 

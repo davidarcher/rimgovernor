@@ -6,8 +6,7 @@ namespace RimGovernor.Brain.Runtime;
 public sealed partial class ColonyReview
 {
     /// <summary>Rebuilds intra-room visits from current demand even after reload; saved inter-room trips cannot reconstruct them.</summary>
-    internal async Task<IReadOnlyDictionary<int, double>> RoomSleepDisturbanceAsync(GenerationSnapshot snapshot, ColonyReading colony,
-        DefinitionCatalog catalog, DerivedDemand demand, CancellationToken ct)
+    internal IReadOnlyDictionary<int, double> RoomSleepDisturbanceOf(ColonyReading colony, DefinitionCatalog catalog, DerivedDemand demand)
     {
         if (colony.Facts.LayoutPlan is not { } plan) return new Dictionary<int, double>();
         var facts = StationFactsBuilder.GraphFactsOf(colony, plan, demand.Needs, WorkLedgerView()) with
@@ -17,7 +16,6 @@ public sealed partial class ColonyReview
             Suites = SleepingUpkeepPlanner.SuiteWishesOf(colony, plan) is { } wishes ? [.. wishes] : [],
         };
         facts = StationFactsBuilder.StationFacts(catalog, facts);
-        facts = facts with { HostBuild = await HostBuildAsync(snapshot, colony, facts, ct).ConfigureAwait(false) };
         return PlannedRoomCredits.SleepDisturbanceOf(plan, StationGraph.BuildStationGraph(facts.GraphInput()), facts.Catalog, facts.Rest);
     }
 
@@ -33,9 +31,10 @@ public sealed partial class ColonyReview
     {
         var retained = new List<TiledLayoutCandidate>();
         var evaluated = new Dictionary<string, (ColonyReading Colony, ColonyModelReview Model)>(StringComparer.Ordinal);
+        var unassessed = new Dictionary<string, string>(StringComparer.Ordinal);
         var prices = new Dictionary<Resource, ConstructionMaterialValue>(colony.Facts.CoupledAlternatives?.Context.MaterialValues
             ?? throw new RequiredFactException("layout_candidate_model"));
-        var regrouped = await LayoutRegroupRules.RegroupAsync(LayoutStationPlanRules.RegroupInputOf(facts), async (candidates, token) =>
+        var regrouped = await LayoutRegroupRules.RegroupAsync(LayoutStationPlanRules.HostedRegroupInputsOf(facts), async (candidates, token) =>
         {
             var tiled = new List<TiledLayoutCandidate>();
             var values = new List<RegroupValuation>();
@@ -61,6 +60,9 @@ public sealed partial class ColonyReview
                 colony.Facts.Stations, colony.Facts.Items, token).ConfigureAwait(false);
             foreach (var material in materials) prices.Add(material.Key, material.Value);
             foreach (var trial in generated)
+            {
+                // A fact one trial's forecast left unread excludes only that trial (rule 9); the winner must be assessed.
+                var value = LayoutRegroupRules.Assess(trial.Candidate.Candidate.Id, () =>
             {
                 var basis = colony.Facts.CoupledAlternatives?.Context ?? throw new RequiredFactException("layout_candidate_model");
                 var candidateContext = trial.Coupled.Context with { RoomSleepDisturbance = PlannedRoomCredits.SleepDisturbanceOf(trial.Candidate.Advice) };
@@ -91,15 +93,19 @@ public sealed partial class ColonyReview
                 // The common comparator compares mutually assessed terms and retains uncertainty.
                 // Requiring a priced total here would hold the first-plan clock until native needs
                 // responses were predictable, preventing ordinary production from starting.
-                values.Add(new RegroupValuation.Evaluated(trial.Candidate.Candidate.Id, compared.SelectedVector,
-                    compared.SelectedVector.Value.Ledger.Findings));
                 evaluated.Add(trial.Candidate.Candidate.Id, (trial.Colony with { Facts = projected }, model));
+                return new RegroupValuation.Evaluated(trial.Candidate.Candidate.Id, compared.SelectedVector,
+                    compared.SelectedVector.Value.Ledger.Findings);
+            });
+                if (value is RegroupValuation.Unassessed unread) unassessed[unread.Candidate] = unread.Fact;
+                values.Add(value);
             }
             retained.AddRange(tiled);
             return values;
         }, ct).ConfigureAwait(false);
         var winner = retained.SingleOrDefault(t => ReferenceEquals(t.Candidate.Layout.Embedding, regrouped.Embedding))
             ?? throw new ReplanEmptyException();
+        if (unassessed.TryGetValue(winner.Candidate.Id, out var fact)) throw new RequiredFactException(fact);
         var priced = evaluated[winner.Candidate.Id];
         return new(winner.Plan, winner.Advice with { Regroup = regrouped.Decisions }, priced.Colony, priced.Model);
     }

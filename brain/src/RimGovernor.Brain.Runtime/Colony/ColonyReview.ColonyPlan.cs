@@ -410,8 +410,7 @@ public sealed partial class ColonyReview
     {
         var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, Stockpiles.LayoutDemand(StockpilePlanner.StockpileWorld(snapshot)), ct).ConfigureAwait(false);
         var bedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false);
-        var (facts, _) = StationInputsOf(snapshot, projection, layout.Plan, growth, survey, bedMerge);
-        (facts, var station) = StationInputsOf(snapshot, projection, layout.Plan, growth, survey, bedMerge, await HostBuildAsync(snapshot, projection, facts, ct).ConfigureAwait(false));
+        var (facts, station) = StationInputsOf(snapshot, projection, layout.Plan, growth, survey, bedMerge);
         var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {growth} {station.Key}");
         var parts = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -545,7 +544,6 @@ public sealed partial class ColonyReview
         var start = DateTimeOffset.UtcNow;
         var f = StationFactsBuilder.FirstPlanFacts(projection, survey, StationNeeds(demandWorld), WorkLedgerView());
         f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays, BedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false) };
-        f = f with { HostBuild = await HostBuildAsync(snapshot, projection, f, ct).ConfigureAwait(false) };
         LayoutPlan? derived = null;
         StationAdvice advice = new();
         Exception? error = null;

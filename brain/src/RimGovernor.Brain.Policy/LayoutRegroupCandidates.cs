@@ -8,6 +8,8 @@ public abstract record RegroupValuation(string Candidate)
 {
     public sealed record Evaluated(string Candidate, ForecastConsequenceVector Consequences, IReadOnlyList<string> Effects) : RegroupValuation(Candidate);
     public sealed record Unplaceable(string Candidate, string Reason) : RegroupValuation(Candidate);
+    /// <summary>The trial's forecast needs a fact its reads left unread (rule 9): it is not planned, and only it is excluded.</summary>
+    public sealed record Unassessed(string Candidate, string Fact) : RegroupValuation(Candidate);
 }
 
 public static partial class LayoutRegroupRules
@@ -18,13 +20,26 @@ public static partial class LayoutRegroupRules
     /// Only walking is added here; shell costs already belong to the forecast ledger. No model service is called by policy.
     /// Identical station groupings share their evaluation throughout this search.
     /// </summary>
-    public static async Task<Regrouping> RegroupAsync(RegroupInput input,
+    public static Task<Regrouping> RegroupAsync(RegroupInput input,
+        Func<IReadOnlyList<RegroupCandidate>, CancellationToken, Task<IReadOnlyList<RegroupValuation>>> evaluate,
+        CancellationToken cancellationToken = default) =>
+        RegroupAsync(new HostedRegroupInputs([new(new(LayoutHostRules.BaselineId, []), input)], []), evaluate, cancellationToken);
+
+    /// <summary>
+    /// Compares the host alternatives' seeds in one evaluated batch (RG-HABITAT-005): the best by the canonical ledger
+    /// becomes the incumbent, the baseline keeping ties, so a site's or prerequisite's consequences can change which bench
+    /// definition is planned. Each compared deviation and each omitted one is a decision (host, applied/kept/skipped).
+    /// The geometry search then continues over the chosen graph.
+    /// </summary>
+    public static async Task<Regrouping> RegroupAsync(HostedRegroupInputs hosts,
         Func<IReadOnlyList<RegroupCandidate>, CancellationToken, Task<IReadOnlyList<RegroupValuation>>> evaluate,
         CancellationToken cancellationToken = default)
     {
+        if (hosts.Alternatives.Count == 0) throw new ArgumentException("no host alternative", nameof(hosts));
+        var input = hosts.Alternatives[0].Input;
         if (!input.Price.Work.Valid()) throw new RequiredFactException("regroup_work_price");
-        var search = new Regrouper(input);
-        var current = search.Evaluate(WithRules([], input.Cluster.Pairs));
+        var searches = hosts.Alternatives.Select(h => new Regrouper(h.Input, h.Host.Id)).ToArray();
+        var seeds = searches.Select(r => r.Evaluate(WithRules([], r.In.Cluster.Pairs))).ToArray();
         var values = new Dictionary<string, RegroupValuation>(StringComparer.Ordinal);
         var ids = new Dictionary<string, string>(StringComparer.Ordinal);
         var layouts = new Dictionary<string, Regrouping>(StringComparer.Ordinal);
@@ -74,15 +89,30 @@ public static partial class LayoutRegroupRules
         {
             Kind = proposal.Kind, A = proposal.A, B = proposal.B,
             Verdict = applied ? RegroupApplied : RegroupKept,
-            Reason = values[Id(after)] is RegroupValuation.Unplaceable unavailable ? unavailable.Reason : applied ? "regroup_canonical_credit_gain" : "regroup_canonical_credit_loss",
+            Reason = values[Id(after)] is RegroupValuation.Unplaceable unavailable ? unavailable.Reason : values[Id(after)] is RegroupValuation.Unassessed ? RegroupUnassessed : applied ? "regroup_canonical_credit_gain" : "regroup_canonical_credit_loss",
             // Diagnostics normalize the incumbent to zero, and show the shared canonical ledger delta.
             Before = 0,
             After = values[Id(before)] is RegroupValuation.Evaluated && values[Id(after)] is RegroupValuation.Evaluated
                 ? Consequences(after).Value.Ledger.LossAgainst(Consequences(before).Value.Ledger) : 0,
             Walk = -(double)(after.Embedding.Score.Walk - before.Embedding.Score.Walk) / PlanWeights.Walk * input.Price.Work.CellWalkDays,
-            Effects = values[Id(after)] is RegroupValuation.Evaluated evaluated ? evaluated.Effects : [],
+            Effects = values[Id(after)] is RegroupValuation.Evaluated evaluated ? evaluated.Effects : values[Id(after)] is RegroupValuation.Unassessed unread ? [unread.Fact] : [],
         };
-        await Read([current]).ConfigureAwait(false);
+        await Read(seeds).ConfigureAwait(false);
+        var chosen = 0;
+        for (var i = 1; i < seeds.Length; i++)
+            if (Better(seeds[i], seeds[chosen])) chosen = i;
+        for (var i = 1; i < seeds.Length; i++)
+        {
+            var change = hosts.Alternatives[i].Host.Change ?? throw new ArgumentException("a host deviation names no change", nameof(hosts));
+            var proposal = new RegroupProposal(LayoutHostRules.HostMove, change.Recipe, LayoutHostRules.NameOf(change.Host), []);
+            decisions.Add(i == chosen ? Decision(proposal, seeds[0], seeds[i], true) : Decision(proposal, seeds[chosen], seeds[i], false));
+        }
+        decisions.AddRange(hosts.Omitted.Select(o => new RegroupDecision
+        {
+            Kind = LayoutHostRules.HostMove, A = o.Recipe, B = LayoutHostRules.NameOf(o.Host), Verdict = RegroupSkipped, Reason = LayoutHostRules.HostTruncated,
+        }));
+        var search = searches[chosen];
+        var current = seeds[chosen];
         var random = new SearchRand(current.Embedding.Seed);
         for (var round = 0; round < RegroupReview; round++)
         {

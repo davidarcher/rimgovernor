@@ -239,4 +239,46 @@ public sealed class ActivityContinuationTests
         journal.ResolveActivityMethod(initial.Id, Root, new(110), [new("pawn", "", "", 0, "unowned")], ct);
         Assert.True(journal.LoadPlan(initial.Id, ct).Retired);
     }
+
+    /// <summary>
+    /// RG-HABITAT-011 (f): a workshop host's construction Method whose order went out with an unconfirmed receipt is
+    /// preserved as the Executor recorded it: neither completed nor retired, its claims held. The same binding again
+    /// continues it (nothing new is bound), and a re-selection onto its footprint is a claim Conflict, never a replacement.
+    /// </summary>
+    [Fact]
+    public void AnUnconfirmedHostBuildIsPreservedAndNeitherCompletesNorReselects()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var journal = Open(ct);
+        IntentActionRules.RegisterIntentKinds();
+        const string bench = "TestTailoringBench";
+        var facts = WorkResourceTestFacts.Create("pawn");
+        facts = facts with { WorkAdmission = facts.WorkAdmission with
+            { Buildings = [new(bench, "WoodLog", [new(new("WoodLog"), 50)]) { Size = new Cell(3, 1) }] } };
+        _ = journal.Review(new ReviewRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = Rules.DefaultPlannerSettings(), Facts = facts }, ct);
+        var need = MilitaryFamily.Equipment;
+        static PlanSpec Build(string id, Cell cell, Rotation rot) => new(new(id), new(1),
+            [DomainAction.NewBuildingAction(new(id + "-bench"), new Building(bench, cell, rot, "WoodLog"), ConstructionTier.Produce)]);
+        var host = Build("host-bench", new(6, 7), Rotation.North);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(need, Root, new("workshop-host"), "workshop host", host, ct).Outcome);
+        var scope = Root with { Plan = host.Id };
+        journal.Prepare(host.Id, host.Actions[0].Id, scope, new(100), ct);
+        var sent = journal.Dispatch(host.Id, host.Actions[0].Id, scope, new(100), ct);
+        journal.RecordReceipt(host.Id, host.Actions[0].Id, sent.View.Attempt, Receipt.Unconfirmed, ct);
+
+        var held = journal.LoadPlan(host.Id, ct);
+        var view = Assert.Single(held.Progress).View;
+        Assert.True(view.Received(Receipt.Unconfirmed));
+        Assert.NotEqual(Stage.Completed, view.Stage);
+        Assert.True(WorkProgress.Open(held.Progress));
+        Assert.False(held.Retired);
+
+        Assert.Equal(ClaimOutcome.Continued,
+            journal.CommitClaimedMethod(need, Root, new("workshop-host"), "workshop host", Build("host-again", new(6, 7), Rotation.North), ct).Outcome);
+        var moved = journal.CommitClaimedMethod(need, Root, new("workshop-host-moved"), "workshop host", Build("host-moved", new(7, 6), Rotation.East), ct);
+        Assert.Equal(ClaimOutcome.Conflict, moved.Outcome);
+        Assert.Equal((new MethodId("workshop-host"), "cell/7/7"), (moved.Conflict!.Method, moved.Conflict.Claim));
+        Assert.Equal(host.Id, Assert.Single(journal.LoadNeed(need, Root, ct).Methods).Plan);
+    }
 }

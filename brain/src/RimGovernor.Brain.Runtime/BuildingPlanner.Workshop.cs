@@ -295,3 +295,81 @@ case Pol.WorkshopMethod.Existing:
         return (resolved, new Verdict());
     }
 }
+
+public sealed partial class BuildingPlanner
+{
+    /// <summary>The AwaitingPlan subject of an owner's unhosted load the held plan hosts nowhere (HostBinding.Deferred).</summary>
+    internal const string HostDeferred = "host_deferred";
+
+    /// <summary>
+    /// The workshop ladder's step for the loads the held plan hosts (RG-HABITAT-005, RG-HABITAT-011): the recipes of the
+    /// prepared products (the replacement and its alternatives) this Need declared as unhosted ledger orders
+    /// (<see cref="PlannedRules.OwnedUnhostedRecipes"/>) are bound to the plan's host (<see cref="PlannedHostBindings"/>,
+    /// <see cref="BindPlannedHostAsync"/>), never re-selected. Null when there is no layout plan or this Need owns none of
+    /// them: the ladder selects its bench as before.
+    /// </summary>
+    internal async Task<BuildingResult?> PlannedHostStepAsync(ControlState state, Sto.ReviewState review, Sto.NeedOwner goal, RimGovernor.Brain.GameAccess.ColonyReading reading, CancellationToken call, CancellationToken epoch)
+    {
+        if (Workshop is not { Barrel: false } workshop || reading.Facts.LayoutPlan is null)
+        {
+            return null;
+        }
+        var owned = PlannedRules.OwnedUnhostedRecipes(Reviewer.WorkLedgerView(), Concern);
+        var recipes = workshop.Hosts.Concat(workshop.Alternatives.SelectMany(a => a.Hosts)).Select(h => h.Definition)
+            .Where(owned.Contains).Distinct().ToArray();
+        if (recipes.Length == 0)
+        {
+            return null;
+        }
+        return await BindPlannedHostAsync(state, review, goal, reading, PlannedHostBindings(review, reading, recipes), call, epoch).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The plan's binding of each recipe (<see cref="PlannedRules.HostBindingOf"/>) against the review's in-memory room
+    /// selection for its own snapshot (a record of another load, plan or authority reads empty) and the fresh census: a
+    /// bench built, or a blueprint or frame of it, at its piece's anchor.
+    /// </summary>
+    internal IReadOnlyList<HostBinding> PlannedHostBindings(Sto.ReviewState review, RimGovernor.Brain.GameAccess.ColonyReading reading, IReadOnlyList<string> recipes)
+    {
+        var plan = reading.Facts.LayoutPlan ?? throw new ControlException("PlannedHostBindings: no layout plan");
+        var record = Reviewer.RoomSelection.Get(review.Snapshot);
+        var census = reading.Facts.CurrentConstruction;
+        var built = census.Buildings.Where(b => b.Building is not null).Select(b => (b.Building!.Definition, b.Building.Cell)).ToHashSet();
+        var sited = census.Sites.Where(s => s.Building is not null).Select(s => (s.Building!.Definition, s.Building.Cell)).ToHashSet();
+        return [.. recipes.Select(recipe => PlannedRules.HostBindingOf(plan, recipe, record, room => PlannedRoomStartedOf(reading, plan, room), built, sited))];
+    }
+
+    /// <summary>
+    /// Turns the bindings into work: the first Build opens its room's ring (a RingOnly reconcile, gated by the portfolio as
+    /// every planned room is) and then commits exactly its piece (def, anchor, rotation, stuff) as a construction Method of
+    /// this Need, admitted by its footprint claims (CommitBuilds, AdmitBuildingMethod: an overlapping Method is a
+    /// Conflict). Otherwise nothing is bound: a Held load waits on the portfolio, a Standing one on its standing bench (built)
+    /// or its open construction (sited), and a load hosted nowhere is deferred. None of these satisfies the Need.
+    /// </summary>
+    internal async Task<BuildingResult> BindPlannedHostAsync(ControlState state, Sto.ReviewState review, Sto.NeedOwner goal, RimGovernor.Brain.GameAccess.ColonyReading reading, IReadOnlyList<HostBinding> bindings, CancellationToken call, CancellationToken epoch)
+    {
+        var read = new ReviewReading { Reading = reading, Emergency = new EmergencyFacts(), Frame = new BridgeReviewFrame() };
+        if (bindings.OfType<HostBinding.Build>().FirstOrDefault() is { } build)
+        {
+            var plan = reading.Facts.LayoutPlan ?? throw new ControlException("BindPlannedHostAsync: no layout plan");
+            var rr = new RoomReconcile { RingOnly = true, Room = build.Room, Name = PlannedRoomMethod(build.Room).Value, Reason = "workshop host " + build.Recipe };
+            var ring = await ReconcileRoomAsync(state, review, goal, read, null, rr, call, epoch).ConfigureAwait(false);
+            if (!ring.Verdict.SkipsToPlacement)
+            {
+                return ring;
+            }
+            var work = new RoomWork { Rr = rr with { RingOnly = false }, Ops = [new Pol.Operation { Kind = Pol.OpKind.Build, Pieces = [build.Piece] }] };
+            return await CommitBuildsAsync(state, review, goal, read, plan, work, call, epoch).ConfigureAwait(false);
+        }
+        if (bindings.OfType<HostBinding.Held>().FirstOrDefault() is { } held)
+        {
+            var assessed = Reviewer.RoomSelection.Get(review.Snapshot).Assessed.Contains(held.Room);
+            return new BuildingResult { Verdict = AwaitingPlan(assessed ? PortfolioHeld : PortfolioUnassessed, held.Recipe) };
+        }
+        if (bindings.OfType<HostBinding.Standing>().FirstOrDefault() is { } standing)
+        {
+            return new BuildingResult { Verdict = standing.Built ? BuildingReasonExistingFacility : BuildingReasonExistingWork };
+        }
+        return new BuildingResult { Verdict = AwaitingPlan(HostDeferred, string.Join(",", bindings.Select(b => b.Recipe))) };
+    }
+}

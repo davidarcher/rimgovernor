@@ -163,6 +163,17 @@ Existing `planner_step` rows distinguish unknown observations, no eligible
 worker, missing/protected infrastructure, existing work, exhausted methods and
 no pending work. Existing log readers consume these rows.
 
+## Workshop host construction
+
+A Need's workshop host Method is the held layout plan's own host piece (exact definition,
+selected stuff, anchor, rotation) and continues from that record: a later review binds the
+same piece again, or `Standing` once it stands or has a blueprint or frame, and never selects a bench
+afresh. Its footprint is a Method claim, so a competing Method over those cells is refused as
+a claim Conflict. A lost or unconfirmed placement receipt stays with the Method and neither
+completes it nor re-selects; the served Need's predicate closes only on fresh facts
+([hosted workshop loads](essential-services.md#hosted-workshop-loads)). A load the plan hosts
+nowhere binds no Method (`host_deferred`).
+
 ## Evidence
 
 The stable/reconstruction, unknown, deadline and

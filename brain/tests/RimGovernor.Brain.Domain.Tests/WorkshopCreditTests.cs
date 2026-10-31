@@ -14,14 +14,15 @@ public sealed class WorkshopCreditTests
     private static readonly Resource Parka = new("Apparel_Parka");
     private static readonly Cell Position = new(1, 1);
     private static BenchSpeedModel Speed => new(1, .1, [new BenchWorkOutdoorsPart(.8), new BenchTemperaturePart(9, 35, .7)]);
-    private static OrderSpec Order => new() { Recipe = Recipe, Mode = BillMode.StockTarget, Target = 100, Product = Parka, Class = ResourceClass.Material };
+    // A standing tailoring bench lists the recipe (GearOrdersRules.GearBenchDef), so the planned room's credit is its speed gain.
+    private static OrderSpec Order => new() { Recipe = Recipe, Mode = BillMode.StockTarget, Target = 100, Product = Parka, Class = ResourceClass.Material, BenchKind = Bench };
     private static ForecastCoupledContext Context(bool standing = true, bool bills = true) => ForecastValueTests.Context(ForecastValueTests.Pawn()) with
     {
         PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Workshop },
         LayoutRooms = new Dictionary<int, PlannedRoom> { [1] = new() { Id = 1, Role = PlannedRole.Workshop,
             Production = bills ? [new(Bench, Recipe, 1)] : [] } },
         Closures = [new(1, "", [Position], [], [], PlannedRoomPredictionTests.Closed("1", "", "Workshop", 10, 1, 1, 0, false) with
-            { WorkBenches = [new(Bench, Position, 0, 0, true, standing ? new BenchPlacement.Standing(.56) : new BenchPlacement.Planned())] })],
+            { WorkBenches = [new(Bench, Position, 0, 0, new BenchPower.Unneeded(), standing ? new BenchPlacement.Standing(.56) : new BenchPlacement.Planned())] })],
         WorkBenchSpeeds = new Dictionary<string, BenchSpeedModel> { [Bench] = Speed },
         ProductionOrders = new() { Status = WorkRules.LedgerViewReconciled, Orders = bills ? [Order] : [] },
         ProductionRecipes = new Dictionary<string, RecipeFlow> { [Recipe] = new() { Products = [new(Parka, 1)] } },
@@ -99,7 +100,7 @@ public sealed class WorkshopCreditTests
         };
         Assert.Equal(-(1 - .56) * 2 * 15 * ParkaValue, Assert.Single(Credits(context)).Value, 12);
         var facts = FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild",
-            [new() { Recipe = "MakeKnife", Mode = BillMode.GearBatch, Target = 2 }], new Dictionary<string, double> { ["CraftingSpot"] = 0, ["Smithy"] = 3 });
+            [new() { Recipe = "MakeKnife", Mode = BillMode.GearBatch, Target = 2, BenchKind = "CraftingSpot" }]);
         var input = facts.GraphInput();
         input = input with { Recipes = new Dictionary<string, RecipeFlow>(input.Recipes)
             { ["MakeKnife"] = input.Recipes["MakeKnife"] with { Products = [new(Parka, 15)] } } };
@@ -137,10 +138,11 @@ public sealed class WorkshopCreditTests
     public void TheFreshPlanCarriesItsChosenBillLoadThroughGraphClusteringTilingAndSave()
     {
         var order = new OrderSpec { Recipe = "MakeKnife", Mode = BillMode.GearBatch, Target = 1 };
-        var facts = FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild", [order], new Dictionary<string, double> { ["CraftingSpot"] = 0, ["Smithy"] = 3 });
-        var node = Assert.Single(StationGraph.BuildStationGraph(facts.GraphInput()).Nodes, n => n.Def == "CraftingSpot");
+        var facts = FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild", [order]);
+        var spot = facts.HostAlternatives().Alternatives.Single(a => a.Id == "host:MakeKnife/CraftingSpot");
+        var node = Assert.Single(StationGraph.BuildStationGraph(facts.GraphInput(spot)).Nodes, n => n.Def == "CraftingSpot");
         Assert.Equal(1, Assert.Single(node.Production).RunsPerDay);
-        var plan = FirstRoomPlanTests.Derive(facts);
+        var plan = FirstRoomPlanTests.DeriveHosted(facts, spot.Id);
         var room = Assert.Single(plan.Rooms, r => r.Production.Any(p => p.Recipe == order.Recipe));
         var back = RimGovernor.Brain.Store.Codec.StoreJson.Deserialize<LayoutPlan>(RimGovernor.Brain.Store.Codec.StoreJson.Serialize(plan));
         Assert.Equal(room.Production, back.Rooms.Single(r => r.Id == room.Id).Production);
@@ -170,14 +172,14 @@ public sealed class WorkshopCreditTests
             MaterialValues = facts.Recipes[chosen.Recipe].Products.ToDictionary(p => p.Resource, _ => new ConstructionMaterialValue(MaterialValueBasis.Market, ParkaValue)),
         };
         priced = priced with { Closures = [priced.Closures[0] with { Prediction = priced.Closures[0].Prediction with
-            { WorkBenches = [new(chosen.Bench, Position, 0, 0, true, new BenchPlacement.Planned())] } }] };
+            { WorkBenches = [new(chosen.Bench, Position, 0, 0, new BenchPower.Unneeded(), new BenchPlacement.Planned())] } }] };
         Assert.True(Assert.Single(Credits(priced)).Value < 0);
     }
 
     [Fact]
     public void StockTargetsPreserveTheDemandOwnersTypedRefillFactsInTheLedgerView()
     {
-        var view = WorkRules.BuildLedgerView(new Dictionary<string, OrderSpec> { ["order"] = Order with { BenchKind = Bench } });
+        var view = WorkRules.BuildLedgerView(new Dictionary<string, OrderSpec> { ["order"] = Order with { BenchKind = Bench } }, []);
         var order = Assert.Single(view.Orders);
         Assert.Equal((Parka, ResourceClass.Material, Bench), (order.Product, order.Class, order.BenchKind));
     }

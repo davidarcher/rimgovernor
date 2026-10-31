@@ -72,7 +72,33 @@ public sealed record PlannedRoomServices(
 public sealed record PlannedJoySource(string Definition, Cell Position, double GainFactor, bool Powered);
 /// <summary>One planned school desk of a predicted room and its learning rate.</summary>
 public sealed record PlannedRoomDesk(double LearningRate);
-public sealed record PlannedBenchSpeed(string Def, Cell Position, double WorkOffset, double ResearchOffset, bool Powered, BenchPlacement Placement);
+/// <summary>One production or research bench of a predicted room: its native facility offsets, its power supply and whether it stands.</summary>
+public sealed record PlannedBenchSpeed(string Def, Cell Position, double WorkOffset, double ResearchOffset, BenchPower Power, BenchPlacement Placement);
+/// <summary>
+/// A bench's power supply at the read (RG-HABITAT-005): the network a standing bench's CompPowerTrader is on, or the one a
+/// planned bench would connect to (PowerConnectionMaker.BestTransmitterForConnector at its anchor). Benches on one network
+/// share its surplus: the brain joins them by <see cref="Connected.Network"/>. Native reads every row whole or throws.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BenchPower.Unneeded), "unneeded")]
+[JsonDerivedType(typeof(BenchPower.Connected), "connected")]
+[JsonDerivedType(typeof(BenchPower.Unconnected), "unconnected")]
+public abstract record BenchPower
+{
+    private protected BenchPower() { }
+
+    /// <summary>The def has no CompProperties_Power: it draws nothing and works without power.</summary>
+    public sealed record Unneeded : BenchPower;
+
+    /// <summary>
+    /// On <see cref="Network"/> (its power comps' ids, in id order): <see cref="AdditionalWatts"/> is the draw the bench adds
+    /// (0 for a standing bench already powered), <see cref="SurplusWatts"/> the powered comps' summed output now.
+    /// </summary>
+    public sealed record Connected(string Network, double AdditionalWatts, double SurplusWatts) : BenchPower;
+
+    /// <summary>No power network reaches the bench's cell (none at a planned anchor, none on a standing bench's comp).</summary>
+    public sealed record Unconnected : BenchPower;
+}
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(BenchPlacement.Planned), "planned")]
 [JsonDerivedType(typeof(BenchPlacement.Standing), "standing")]

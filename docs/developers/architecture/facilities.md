@@ -302,6 +302,12 @@ winner retains its evaluated geometry and predictions. The full consequence
 vector keeps safety floors above shell savings. Shell spend enters the canonical
 ledger once; the search adds only its walking delta. No model calls are made.
 
+The bench that hosts a recipe no standing bench lists is not preselected: each
+bounded host alternative (retain the held host, build another catalog host, or
+defer) is a station graph of its own whose seed is evaluated beside the others,
+and the baseline keeps ties
+([spatial contract](../contracts/spatial-contracts.md#layout-planner)).
+
 `PairTogether` permits a merge past a seed's lost-effect or filth refusal;
 `PairApart` keeps the pair apart even when a third node could bridge it.
 Clustering still enforces area and open-sky constraints and keeps suites in their
@@ -573,8 +579,9 @@ in a bedroom counts toward medical capacity, while care still reads that
 bedroom's actual infection and surgery factors.
 
 Room sharing is selected after geometry and native prediction. The existing
-search tries at most eight proposals in each of four rounds, plus its seed:
-at most 33 distinct canonical portfolio evaluations, fewer when groupings or
+search tries at most eight proposals in each of four rounds on the chosen graph,
+after reading one seed per compared workshop host alternative (at most nine):
+at most 41 distinct canonical portfolio evaluations, fewer when groupings or
 native footprints are identical. Native construction and room reads are batched
 per round with candidate identities. Each evaluation may itself run several
 deterministic ColonyModel outcomes within the existing portfolio budget. This

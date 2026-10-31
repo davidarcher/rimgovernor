@@ -29,27 +29,36 @@ internal static class ForecastWorkshop
         var ledger = context.ProductionOrders ?? throw new RequiredFactException("workshop production orders");
         if (ledger.Status is not (WorkRules.LedgerViewReconciled or WorkRules.LedgerViewInactive)) throw new RequiredFactException("workshop production orders:" + ledger.Status);
         if (ledger.Orders.Count == 0) return [];
-        var useful = layout.Production.Where(p => p.RunsPerDay > 0).Select(p => (Load: p, Runs: UsefulRuns(p, room, outcome, context, ledger.Orders))).Where(p => p.Runs > 0).ToArray();
+        // An order naming the bench kind runs on standing benches of it already; one naming none has no host but the planned bench (RG-HABITAT-005).
+        var useful = layout.Production.Where(p => p.RunsPerDay > 0).Select(p =>
+        {
+            var hosted = UsefulRuns(p, room, outcome, context, [.. ledger.Orders.Where(o => o.BenchKind == p.Bench)]);
+            return (Load: p, Hosted: hosted, Unhosted: Math.Min(p.RunsPerDay - hosted, UsefulRuns(p, room, outcome, context, [.. ledger.Orders.Where(o => o.BenchKind.Length == 0)])));
+        }).Where(p => p.Hosted + p.Unhosted > 0).ToArray();
         if (useful.Length == 0) return [];
         if (PlannedRoomCredits.Prediction(context, room.Room, room.Stuff) is not { } closure) return [];
         var closed = Closed(context, closure);
         var shelter = context.Shelters.First(s => s.PlannedRoom == room.Room || s.Room.Source == ForecastShelterSource.Planned && s.Room.Value == room.Room.ToString(System.Globalization.CultureInfo.InvariantCulture));
         var outside = ((ForecastShelterThermal.Estimated)shelter.Thermal).Outdoors;
         var gains = new List<RoomGain>();
-        foreach (var (load, runs) in useful)
+        foreach (var (load, runs, unhosted) in useful)
         {
             if (!context.WorkBenchSpeeds.TryGetValue(load.Bench, out var model) || !double.IsFinite(model.Base) || model.Base <= 0) throw new RequiredFactException("workbench speed:" + load.Bench);
             var benches = closure.Prediction.WorkBenches.Where(b => b.Def == load.Bench).ToArray();
             if (benches.Length == 0) throw new RequiredFactException("workshop planned benches:" + load.Bench);
-            double speedGain = 0;
+            double speedGain = 0, speed = 0;
             foreach (var bench in benches)
             {
+                var powered = Powered(context, bench);
+                var served = model.Working(closed with { Powered = powered }, bench.WorkOffset);
+                speed += served / benches.Length;
+                if (runs <= 0) continue;
                 double now;
-                if (bench.Placement is BenchPlacement.Standing standing) now = standing.WorkFactor;
-                else if (bench.Placement is BenchPlacement.Planned) now = model.At(BenchRoom.Outside(outside, bench.Powered));
+                if (bench.Placement is BenchPlacement.Standing standing) now = model.RequiresPower && !powered ? 0 : standing.WorkFactor;
+                else if (bench.Placement is BenchPlacement.Planned) now = model.Working(BenchRoom.Outside(outside, powered));
                 else throw new RequiredFactException("workbench placement:" + load.Bench);
                 if (!double.IsFinite(now) || now < 0) throw new RequiredFactException("workbench factor:" + load.Bench);
-                speedGain += (model.At(closed with { Powered = bench.Powered }, bench.WorkOffset) - now) / model.Base / benches.Length;
+                speedGain += (served - now) / model.Base / benches.Length;
             }
             double value = 0;
             foreach (var product in Products(context, load))
@@ -58,14 +67,47 @@ internal static class ForecastWorkshop
                 value += product.Count * price.PerUnit;
             }
             // Useful work is already the demand owner's daily load. A speed gain cannot sell more than that unmet load.
-            gains.Add(new(load.Bench + "/" + load.Recipe, "", Math.Min(1, speedGain) * runs * value));
+            var gain = Math.Min(1, speedGain) * runs * value;
+            if (unhosted > 0 && speed > 0)
+            {
+                // Nothing makes an unhosted load but this bench: its useful runs are produced whole, less the labor its
+                // speed in this room asks (the recipe's work at unit speed over the factor), the same capability-days.
+                var work = context.ProductionRecipes[load.Recipe].Work;
+                if (!double.IsFinite(work) || work <= 0) throw new RequiredFactException("workshop recipe work:" + load.Recipe);
+                gain += unhosted * (value - (work / speed / GameTime.TicksPerDay));
+            }
+            gains.Add(new(load.Bench + "/" + load.Recipe, "", gain));
         }
         return gains;
     }
 
+    /// <summary>
+    /// Whether <paramref name="bench"/> of a predicted room is powered (RG-HABITAT-005): it needs no power, or its network's
+    /// read surplus covers the draw every predicted bench on that network adds up to it, the benches joined by network id
+    /// once each (by def and anchor) in anchor x, z then def order. An unconnected bench is unpowered: a known zero for a def
+    /// that runs no bills unpowered (<see cref="BenchSpeedModel.RequiresPower"/>), never an unread draw.
+    /// </summary>
+    internal static bool Powered(ForecastCoupledContext context, PlannedBenchSpeed bench)
+    {
+        if (bench.Power is BenchPower.Unneeded) return true;
+        if (bench.Power is not BenchPower.Connected connected) return false; // Unconnected: no network reaches it.
+        if (!double.IsFinite(connected.SurplusWatts)) throw new RequiredFactException("workbench power surplus:" + connected.Network);
+        var draw = 0.0;
+        foreach (var shared in context.Closures.SelectMany(c => c.Prediction.WorkBenches)
+            .Where(b => b.Power is BenchPower.Connected c && c.Network == connected.Network).DistinctBy(b => (b.Def, b.Position))
+            .OrderBy(b => b.Position.X).ThenBy(b => b.Position.Z).ThenBy(b => b.Def, StringComparer.Ordinal))
+        {
+            var watts = ((BenchPower.Connected)shared.Power).AdditionalWatts;
+            if (!double.IsFinite(watts) || watts < 0) throw new RequiredFactException("workbench power draw:" + shared.Def);
+            draw += watts;
+            if (shared.Def == bench.Def && shared.Position == bench.Position) return draw <= connected.SurplusWatts;
+        }
+        throw new RequiredFactException("workbench power network:" + bench.Def);
+    }
+
     private static double UsefulRuns(PlannedProduction load, ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, IReadOnlyList<OrderSpec> orders)
     {
-        var matching = orders.Where(o => o.Recipe == load.Recipe && o.Target > 0 && (o.BenchKind.Length == 0 || o.BenchKind == load.Bench)).ToArray();
+        var matching = orders.Where(o => o.Recipe == load.Recipe && o.Target > 0).ToArray();
         if (matching.Length == 0) return 0;
         var products = Products(context, load);
         var batch = products.Sum(p => p.Count);

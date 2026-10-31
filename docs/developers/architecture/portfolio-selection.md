@@ -390,6 +390,21 @@ no answer yet is open. The open rooms are the forecast's `OpenRooms`.
   stuff (`SelectedRingStuff`). The blueprints then start the room, and the rest
   of it is placed as before.
 
+Which bench hosts a recipe no standing bench lists is compared in the same
+portfolio, not selected beforehand (RG-HABITAT-005). The layout regroup reads one seed
+per bounded host alternative (retain the held host, build another catalog bench, or
+defer) through this comparator over the same observation frame; the baseline keeps
+ties, so a deviation wins only by a canonical-ledger gain and a Retained or Deferred
+baseline stands otherwise. A host's credit is the unhosted load's whole useful output less the labor its
+bench's speed in the predicted room asks, so room temperature, owed power sites and the
+bench's own build change the winner
+([workshop credits](../contracts/forecast-contracts.md#workshop-and-laboratory-bench-credits),
+[host alternatives](../contracts/spatial-contracts.md#layout-planner)). The adopted
+host is the plan; the planned-room record then selects its build site and stuff like any
+piece, and a selected `Build` site stays in the record after its room starts
+(`SelectedPieceStuff`). A selected host starts a `ServiceTarget` investment on the
+owning Need ([essential services](../contracts/essential-services.md#hosted-workshop-loads)).
+
 A standing priced room (a role in `PlannedRoomCredits.Shipped`) is offered its walls swapped to
 each other ring stuff (#3657): one `planned/room{id}/wallup/{stuff}` site per stuff
 over the walls not already in it, costed at that stuff's material and the swap's

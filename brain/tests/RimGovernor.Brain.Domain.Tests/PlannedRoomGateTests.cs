@@ -132,6 +132,12 @@ public sealed class PlannedRoomGateTests
         /// <summary>The verdict the reconcile itself returned to its step, unset when it threw past the step.</summary>
         public Verdict? Reconciled { get; set; }
 
+        /// <summary>When set, the step binds these workshop host bindings (BindPlannedHostAsync) instead of reconciling the bedroom.</summary>
+        public Func<ReviewState, ColonyReading, IReadOnlyList<HostBinding>>? Host { get; set; }
+
+        /// <summary>The host step's result, with its admission decision.</summary>
+        public BuildingResult? Hosted { get; set; }
+
         public void Dispose() => Journal.Dispose();
 
         public async Task<FamilyRun> RunAsync()
@@ -158,7 +164,7 @@ public sealed class PlannedRoomGateTests
     }
 
     /// <summary>The rig; with <paramref name="owed"/> the step walks those rooms as the bedroom step does (FirstUnheldRoomAsync).</summary>
-    private static Colony Open(Func<ReviewFacts, ReviewFacts>? review = null, IReadOnlyList<PlannedRoom>? owed = null)
+    private static Colony Open(Func<ReviewFacts, ReviewFacts>? review = null, IReadOnlyList<PlannedRoom>? owed = null, LayoutPlan? plan = null)
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-planned-gate-" + Guid.NewGuid().ToString("N") + ".db"), ct);
@@ -198,7 +204,7 @@ public sealed class PlannedRoomGateTests
             Facts = ColonyFactsCoreTests.Reading().Facts with
             {
                 MapBounds = new(50, 50),
-                LayoutPlan = Plan,
+                LayoutPlan = plan ?? Plan,
                 Definitions = [new PlanningDefinition
                 {
                     Name = ContainmentCellRules.ShellWallDefinition,
@@ -238,6 +244,13 @@ public sealed class PlannedRoomGateTests
                     }
                 },
             };
+            if (colony.Host is { } host)
+            {
+                var hosted = await planner.BindPlannedHostAsync(work.State, review, work.Owner, read.Reading, host(review, read.Reading), call, work.Epoch);
+                colony.Hosted = hosted;
+                colony.Reconciled = hosted.Verdict;
+                return hosted.Verdict;
+            }
             // A department room step's ring call: the room's own stuff is wood until the selection says otherwise.
             var rr = new RoomReconcile { RingOnly = true, Room = Room, Name = "test-bedroom", Reason = "test room", Stuff = (_, _) => ("WoodLog", "WoodLog", default, true) };
             var verdict = owed is null
@@ -628,5 +641,172 @@ public sealed class PlannedRoomGateTests
         var verdict = Assert.IsType<Verdict>(colony.Reconciled);
         Assert.True(verdict.Is(Cause.SharedAdmission), verdict.ToString());
         Assert.Contains("unknown_building_materials", verdict.ToString(), StringComparison.Ordinal);
+    }
+
+    /// <summary>The admission evidence of the workshop bench: 3x1 in either stuff, so its claims are its footprint.</summary>
+    private static ReviewFacts WithBench(ReviewFacts f) => f with
+    {
+        WorkAdmission = f.WorkAdmission with
+        {
+            Buildings = [.. f.WorkAdmission.Buildings,
+                new(PlannedRoomSelectionTests.HostBench, "BlocksGranite", [new(new("BlocksGranite"), 50)]) { Size = new Cell(3, 1) },
+                new(PlannedRoomSelectionTests.HostBench, "WoodLog", [new(new("WoodLog"), 50)]) { Size = new Cell(3, 1) }],
+        },
+    };
+
+    /// <summary>Room 1's whole ring and door built (the room started, its ring owing nothing), with <paramref name="more"/>.</summary>
+    private static CurrentConstruction RingStanding(params CurrentBuilding[] more) => CurrentConstruction.Empty with
+    {
+        Buildings = [.. Room.WallRing().Cells().Where(c => c != Room.Door).Select(c => Built(ContainmentCellRules.ShellWallDefinition, c)),
+            Built(ContainmentCellRules.ShellDoorDefinition, Room.Door), .. more],
+    };
+
+    private static Cell HostAnchor => PlannedRoomSelectionTests.HostPiece.Wanted().Anchor();
+
+    /// <summary>The host step's own bindings of the recipe against the rig's review and reading.</summary>
+    private static void BindHost(Colony colony) =>
+        colony.Host = (review, reading) => colony.Planner.PlannedHostBindings(review, reading, [PlannedRoomSelectionTests.HostRecipe]);
+
+    /// <summary>
+    /// RG-HABITAT-011 (a, b): the bound Method carries the plan's host piece exactly (def, anchor, rotation and the stuff the
+    /// comparison selected) and claims its whole footprint; a second Method whose bench crosses that footprint (a stale
+    /// selection's piece) is a claim Conflict naming the first Method, and binds nothing.
+    /// </summary>
+    [Fact]
+    public async Task AWorkshopHostBindsThePlansPieceInItsSelectedStuffAndAnOverlappingMethodConflicts()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open(WithBench, plan: PlannedRoomSelectionTests.HostPlan);
+        colony.Census = RingStanding();
+        colony.Planner.Reviewer.RoomSelection.Set(World, new PlannedSelection
+        {
+            Assessed = [1], Sites = [new(1, OpKind.Build, PlannedRoomSelectionTests.HostBench, "BlocksGranite", [HostAnchor])],
+        });
+        BindHost(colony);
+        var run = await colony.RunAsync();
+        Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
+        var bench = Assert.Single(colony.Placed(run));
+        Assert.Equal((PlannedRoomSelectionTests.HostBench, HostAnchor, Rotation.North, "BlocksGranite"), (bench.Definition, bench.Cell, bench.Rotation, bench.Stuff));
+        var evidence = colony.Journal.LoadReview(ct).WorkEvidence!;
+        Assert.Equal(["cell/5/7", "cell/6/7", "cell/7/7"], MethodClaimsRules.BuildingClaimTargets(evidence, bench).Order(StringComparer.Ordinal));
+        var first = Assert.Single(run.Methods).Method;
+
+        var crossing = new WantedPiece { DefName = PlannedRoomSelectionTests.HostBench, Minimum = new(7, 5), Maximum = new(7, 7), Size = new(3, 1), Rot = Rotation.East, Stuff = "BlocksGranite" };
+        colony.Host = (_, _) => [new HostBinding.Build(PlannedRoomSelectionTests.HostRecipe, PlannedRoomSelectionTests.HostRoom, crossing)];
+        var refused = await colony.RunAsync();
+        Assert.Empty(refused.Methods);
+        var conflict = Assert.IsType<ClaimConflict>(colony.Hosted?.Decision?.Conflict);
+        Assert.Equal((first, "cell/7/7"), (conflict.Method, conflict.Claim));
+        Assert.True(colony.Reconciled!.Value.Is(Cause.Claim), colony.Reconciled.ToString());
+        Assert.Single(colony.Journal.LoadNeed(Bedroom, World, ct).Methods);
+    }
+
+    /// <summary>
+    /// RG-HABITAT-011 (c): the room selection is scoped to its review snapshot, so a selection of an earlier load, another
+    /// native authority or another review reads empty: the unstarted host room is unassessed and nothing is bound. A
+    /// current selection whose site the plan has since moved is held as well.
+    /// </summary>
+    [Fact]
+    public async Task AHostSelectionOfAnotherLoadAuthorityOrReviewOrAMovedSiteBindsNothing()
+    {
+        using var colony = Open(WithBench, plan: PlannedRoomSelectionTests.HostPlan);
+        var site = new SelectedPlannedSite(1, OpKind.Build, PlannedRoomSelectionTests.HostBench, "BlocksGranite", [HostAnchor]);
+        BindHost(colony);
+        foreach (var stale in new[] { World with { Load = new("earlier") }, World with { Native = new(2) }, World with { Plan = new("other-review") } })
+        {
+            colony.Planner.Reviewer.RoomSelection.Set(stale, new PlannedSelection { Assessed = [1], Sites = [site] });
+            var run = await colony.RunAsync();
+            Assert.Empty(run.Methods);
+            Assert.Equal(BuildingPlanner.PortfolioUnassessed, colony.Reconciled!.Value.Refusal.Subject);
+        }
+        colony.Planner.Reviewer.RoomSelection.Set(World, new PlannedSelection { Assessed = [1], Sites = [site with { Positions = [new(HostAnchor.X - 1, HostAnchor.Z)] }] });
+        var moved = await colony.RunAsync();
+        Assert.Empty(moved.Methods);
+        Assert.Equal(BuildingPlanner.PortfolioHeld, colony.Reconciled!.Value.Refusal.Subject);
+    }
+
+    /// <summary>
+    /// RG-HABITAT-005 (d): a retained host dispatches nothing new (built, it is the standing facility; as a blueprint, its
+    /// open construction), and a load the plan hosts nowhere is deferred with no bench built.
+    /// </summary>
+    [Fact]
+    public async Task ARetainedHostDispatchesNothingNewAndADeferredLoadBuildsNoBench()
+    {
+        using var colony = Open(WithBench, plan: PlannedRoomSelectionTests.HostPlan);
+        BindHost(colony);
+        colony.Census = RingStanding(Built(PlannedRoomSelectionTests.HostBench, HostAnchor));
+        var built = await colony.RunAsync();
+        Assert.Empty(built.Methods);
+        Assert.True(colony.Reconciled!.Value.Is(Cause.Facility), colony.Reconciled.ToString());
+
+        colony.Census = RingStanding() with
+        {
+            Sites = [ConstructionObservationFixtures.Site(new Building(PlannedRoomSelectionTests.HostBench, HostAnchor, Rotation.North, "WoodLog"), stage: "blueprint")],
+        };
+        var sited = await colony.RunAsync();
+        Assert.Empty(sited.Methods);
+        Assert.True(colony.Reconciled!.Value.Is(Cause.ExistingWork), colony.Reconciled.ToString());
+
+        using var deferred = Open(WithBench, plan: PlannedRoomSelectionTests.HostPlan with { Rooms = [PlannedRoomSelectionTests.HostRoom with { Production = [] }] });
+        BindHost(deferred);
+        deferred.Census = RingStanding();
+        var none = await deferred.RunAsync();
+        Assert.Empty(none.Methods);
+        Assert.Equal(BuildingPlanner.HostDeferred, deferred.Reconciled!.Value.Refusal.Subject);
+    }
+
+    /// <summary>
+    /// RG-HABITAT-011 (e): the bench's construction action closes on its accepted placement, and neither its frame nor the
+    /// built bench binds anything more; the Need the bench serves stays unmet throughout, its predicate reading the
+    /// colony's gear, which no placement, acceptance or construction of a bench changes.
+    /// </summary>
+    [Fact]
+    public async Task ABuiltHostClosesItsConstructionWhileTheServedNeedStaysUnmet()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open(WithBench, plan: PlannedRoomSelectionTests.HostPlan);
+        colony.Census = RingStanding();
+        colony.Planner.Reviewer.RoomSelection.Set(World, new PlannedSelection
+        {
+            Assessed = [1], Sites = [new(1, OpKind.Build, PlannedRoomSelectionTests.HostBench, "WoodLog", [HostAnchor])],
+        });
+        BindHost(colony);
+        var run = await colony.RunAsync();
+        var plan = Assert.Single(run.Methods).Plan;
+        var scope = World with { Plan = plan, Revision = new(1) };
+        foreach (var progress in colony.Journal.LoadPlan(plan, ct).Progress)
+        {
+            var id = progress.Action.Id;
+            _ = colony.Journal.Prepare(plan, id, scope, new(100), ct);
+            var dispatched = colony.Journal.Dispatch(plan, id, scope, new(100), ct);
+            _ = colony.Journal.RecordReceipt(plan, id, dispatched.View.Attempt, Receipt.Accepted, ct);
+            // A building order is an intent: its accepted receipt (the blueprint placed) is terminal.
+            Assert.True(progress.Action.Kind.IntentMode());
+        }
+        Assert.False(WorkProgress.Open(colony.Journal.LoadPlan(plan, ct).Progress));
+
+        // Placed, not yet built: the open construction is the bench's, and nothing new is bound.
+        colony.Census = RingStanding() with
+        {
+            Sites = [ConstructionObservationFixtures.Site(new Building(PlannedRoomSelectionTests.HostBench, HostAnchor, Rotation.North, "WoodLog"), stage: "frame")],
+        };
+        var placed = await colony.RunAsync();
+        Assert.Empty(placed.Methods);
+        Assert.True(colony.Reconciled!.Value.Is(Cause.ExistingWork), colony.Reconciled.ToString());
+
+        colony.Census = RingStanding(Built(PlannedRoomSelectionTests.HostBench, HostAnchor));
+        var after = await colony.RunAsync();
+        Assert.Empty(after.Methods);
+        Assert.True(colony.Reconciled!.Value.Is(Cause.Facility), colony.Reconciled.ToString());
+
+        var model = EffectSourceCandidatesTests.Pawn().Gear with { Options = [EffectSourceCandidatesTests.Garment("new-parka", GearSlot.Outer, "Shell", "Torso", 30, source: GearSource.Bill)] };
+        var observed = ColonyModelFixtures.NoGear() with
+        {
+            Stored = [],
+            Pawns = [new GearPawn { Observed = GearFixtures.Loadout("") with { Token = "worker", Pawn = new("pawn") }, LoadoutModel = new GearModel.Modeled(model), Candidates = [] }],
+        };
+        var gear = RimGovernor.Brain.Runtime.ColonyReview.WithGearChoices(new ReviewFacts { Gear = observed }, []).Gear;
+        Assert.NotEmpty(GearRules.GearReplacementNeeds(gear));
+        Assert.False(MilitaryFamily.EquipmentMet(new MilitaryFacts { Gear = gear }));
     }
 }

@@ -509,6 +509,8 @@ public sealed partial class BuildingPlanner
         {
             ops = PlannedRules.SelectedPlannedOps(ops, selected);
         }
+        // A piece is built in the stuff the comparison selected for its site, before or after its room started.
+        ops = PlannedRules.SelectedPieceStuff(ops, record, rr.Room.Id);
         if (rr.ClimateOnly)
         {
             ops = ClimateEnvelopeRules.EnvelopeOps(ops);
