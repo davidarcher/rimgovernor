@@ -116,6 +116,9 @@ namespace RimGovernor.Native
                 Entries.TryGetValue(pawn, out var old);
                 if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
                 var vacant = old == null || old.Order.Release;
+                // A release finding the pawn already unowned (a native job takeover or a fault released it after the brain
+                // read the row) is already satisfied: it erases no assignment and ends no job, so it is not a stale revision.
+                if (vacant && order.Release) continue;
                 if ((vacant ? 0 : (old ?? throw new System.InvalidOperationException("Required native value is unavailable: old.")).Order.Revision) != order.ExpectedRevision) return Refuse("Stale activity revision.");
                 if (!vacant && ((old ?? throw new System.InvalidOperationException("Required native value is unavailable: old.")).Order.Assignment != order.Assignment || old.Order.Method != order.Method)) return Refuse("Activity ownership changed.");
                 if (vacant && (pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) return Refuse("Player/queued work must be explicitly resolved before control.");

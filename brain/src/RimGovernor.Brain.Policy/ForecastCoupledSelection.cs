@@ -17,6 +17,13 @@ public sealed record ForecastConsequenceVector(EquatableArray<ForecastTerm> Urge
     public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
     public ForecastSupportAssessment Support { get; init; } = new ForecastSupportAssessment.Conditional(new());
     public NativeFoodAssessment NativeFood { get; init; } = new NativeFoodAssessment.Unassessed("conditional_food_scenario");
+    /// <summary>Under a credible native food risk (<see cref="NativeFoodAssessment.NeedsResponse"/>), the net catalog nutrition the
+    /// outcome's allocated work (native or exact) adds to stock within the horizon, capped
+    /// at the reserve's deficit when the reserve was reviewed (RG-LABOR-004: reserves support preventive action). Unassessed when
+    /// no response is needed, so adequate food never ranks food work.</summary>
+    public ForecastTerm FoodRiskSupply { get; init; } = new ForecastTerm.Unassessed(NoFoodResponseNeeded);
+    /// <summary>Why <see cref="FoodRiskSupply"/> is unassessed when the native food read needs no response.</summary>
+    public const string NoFoodResponseNeeded = "native_food_response_not_needed";
 }
 
 public enum ForecastComparisonBasis { NativeOperation, ConditionalScenario }
@@ -334,7 +341,7 @@ public sealed partial record ForecastCoupledSelection
                 basis == ForecastComparisonBasis.ConditionalScenario ? outcome
                     : NativeExecutionOutcome(outcome, candidates.Context, nativeBounds) with { Support = reference.Support },
                 basis == ForecastComparisonBasis.ConditionalScenario ? null : new ForecastSupportAssessment.NativeUnprojected(candidates.Context.Support),
-                basis == ForecastComparisonBasis.ConditionalScenario ? null : candidates.Context.NativeFood);
+                basis == ForecastComparisonBasis.ConditionalScenario ? null : candidates.Context.NativeFood, request.Facts.Items);
             if (eager) _ = staged.Vector;
             return staged;
         }
@@ -1147,11 +1154,34 @@ public sealed partial record ForecastCoupledSelection
 
         internal static StagedConsequences Of(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments, ForecastCoupledContext context,
             double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm, ForecastCoupledOutcome? execution = null,
-            ForecastSupportAssessment? support = null, NativeFoodAssessment? nativeFood = null)
+            ForecastSupportAssessment? support = null, NativeFoodAssessment? nativeFood = null, ItemFacts? items = null)
         {
             var terms = ConsequenceTerms(execution ?? outcome, support);
-            if (nativeFood is not null) terms = terms with { NativeFood = nativeFood };
+            if (nativeFood is not null) terms = terms with { NativeFood = nativeFood, FoodRiskSupply = FoodRiskSupplyOf(outcome.Plan, context, nativeFood, items) };
             return new(terms, ForecastValue.Stage(outcome, terms.Urgent[0], context, horizonTicks, reference, referenceHarm, commitments, execution));
+        }
+
+        /// <summary><see cref="ForecastConsequenceVector.FoodRiskSupply"/> of <paramref name="plan"/>: assessed only under a credible
+        /// risk with a catalog; a moved resource the catalog never read leaves it unassessed rather than counted as no food.</summary>
+        private static ForecastTerm FoodRiskSupplyOf(ForecastActivityPlan plan, ForecastCoupledContext context, NativeFoodAssessment food, ItemFacts? items)
+        {
+            if (!food.NeedsResponse) return new ForecastTerm.Unassessed(ForecastConsequenceVector.NoFoodResponseNeeded);
+            if (items is null) return new ForecastTerm.Unassessed("food_nutrition_catalog_unread");
+            var allocated = plan.Allocations.Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
+            double supply = 0;
+            foreach (var activity in context.Activities.Activities.Where(a => allocated.Contains(a.Id)))
+            {
+                foreach (var (yields, sign) in new[] { (activity.Outputs, 1d), (activity.Inputs, -1d) })
+                    foreach (var yield in yields)
+                    {
+                        if (items.Nutrition.TryGetValue(yield.Resource, out var nutrition)) supply += sign * nutrition * yield.Units;
+                        else if (!items.Market.ContainsKey(yield.Resource) && !items.Categories.ContainsKey(yield.Resource))
+                            return new ForecastTerm.Unassessed("nutrition_per_unit:" + yield.Resource.Value);
+                    }
+            }
+            if (food is NativeFoodAssessment.Reviewed { Reserve: FoodReserveState.Reviewed { Review.DeficitNutrition: > 0 and var deficit } })
+                supply = Math.Min(supply, deficit);
+            return new ForecastTerm.Assessed(supply);
         }
 
         /// <summary>A vector already priced, as the comparator reads it.</summary>
@@ -1194,6 +1224,10 @@ public sealed partial record ForecastCoupledSelection
     internal const string DeathFloorStage = "death_risk_floor";
     internal const string BreakRiskStage = "break_risk_cap";
     internal const string LedgerStage = "ledger";
+    /// <summary>Under a credible native food risk, more net food from the allocated work wins (<see cref="ForecastConsequenceVector.FoodRiskSupply"/>).</summary>
+    internal const string FoodRiskSupplyStage = "food_risk_supply";
+    /// <summary>Nutrition differences at or under this are a tie: summation order, not food.</summary>
+    internal const double FoodRiskSupplyResolution = 1e-9;
     internal const string IncumbentStage = "incumbent";
     internal const string LaborStage = "labor";
 
@@ -1220,6 +1254,9 @@ public sealed partial record ForecastCoupledSelection
         if (a.Vector.Value.Ledger.LossAgainst(b.Vector.Value.Ledger) is var delta && Math.Abs(delta) > a.Policy.TieResolution)
             return delta.CompareTo(0);
         var (x, y) = (a.Terms, b.Terms);
+        stage = FoodRiskSupplyStage;
+        if (x.FoodRiskSupply is ForecastTerm.Assessed(var xFood) && y.FoodRiskSupply is ForecastTerm.Assessed(var yFood))
+        { if (Math.Abs(yFood - xFood) > FoodRiskSupplyResolution) return yFood.CompareTo(xFood); }
         var xSupport = (x.Support as ForecastSupportAssessment.Conditional)?.Consequences;
         var ySupport = (y.Support as ForecastSupportAssessment.Conditional)?.Consequences;
         stage = "urgent_first_care";

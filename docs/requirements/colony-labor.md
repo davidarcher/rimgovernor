@@ -334,6 +334,62 @@ generators and timetable-based throughput sizing remain
 identified work for the later groups. The unrelated observed layout logging
 exception is tracked as [#4041](https://github.com/davidarcher/rimgovernor/issues/4041).
 
+### Task 6.1 executed native results
+
+All five ran on 2026-10-31 from one fixture build (installed by `acceptance setup`) of
+dirty `3e719c20a1a070b194f192510251eb976f3ea176`, source tree
+`f0c717fa1e8483baa4f84e5362619363aed194658bacc91dc0be5e63e355422d`, on the save
+`RimGovernor-lab-100-royalty-ideology-biotech-anomaly-odyssey`
+(`save_sha256` `0cbccd317f504c9afa8aff0a440d5f37e40dda4bd3153cd28a82f41e1a99c618`; earlier
+results here used `5c4cf06d…`). Each ran in a shared process (`reused-after-run`). The
+construction case ran first, on a game started fresh after a stop (see the limits in
+[task 6.1](#task-61-verification)).
+
+| Case | Claim | Result / local provenance |
+| --- | --- | --- |
+| `coordination/construction-delegated` | A bedless colony's urgent build at -10 C: the normal rounds place the planned barracks shell and native builders stand its whole ring with no exact pawn order (no stall premise); the selected shell reduces nonzero forecast hypothermia loss, and the forecast comfort minimum matches the native one per pawn | PASS, wall 42051 ms; ring 15/15 walls, 0 participants; `planned_room_selection` sequence 11347, baseline 1.64704 and selected 0.529813 capability-days; fixture `f58ad279c5cd04fe`; `.rimgovernor/task61-final-cons/coordination/construction-delegated/result.json` |
+| `coordination/food-delegated` | A credible food risk's preventive harvest is selected, justified (`CredibleRisk`) and dispatched with its `FoodRisk` purpose; native work harvests it; ownership ends | PASS, wall 17754 ms; tick 398, physical food 13, finished `Work:Harvest`, active 0, participant released; `.rimgovernor/task61-final-coordination-food-delegated/coordination/food-delegated/result.json` |
+| `coordination/food-carried-recovery` | The same harvest's job ended once: the failed step ends its attempt and is never reissued; ownership ends | PASS, wall 17141 ms; tick 61, interrupted, not recovered, active 0, participant released; `.rimgovernor/task61-final-coordination-food-carried-recovery/coordination/food-carried-recovery/result.json` |
+| `control/activity-work-refusal` | A Harvest step on a bed is a named refusal at the native boundary | PASS, wall 1577 ms; fixture `6c3fe5cdfcd1017e`; `.rimgovernor/task61-final-control-activity-work-refusal/control/activity-work-refusal/result.json` |
+| `food/ordinary-cooking` | Served bill, cooking and work settings; native pawns cook with no exact order | PASS, wall 33284 ms; meals 0 → 4; fixture `60eca9a3c6e03991`; `.rimgovernor/task61-final-food-ordinary-cooking/food/ordinary-cooking/result.json` |
+
+Failed attempts on intermediate builds the same day are diagnosis only, not results:
+carried-recovery `task61-food1`, `task61-food2` (release refused as a stale revision after a
+native takeover) and `task61-food3` (no explicit release before the tick allowance ran out);
+food-delegated `task61-fooddel1` (completion not recorded); construction `task61-cons1` (its
+thermal comparison row passed the 64 KiB payload cap). Causes and fixes are in
+[task 6.1](#task-61-verification).
+
+### RG-LABOR scenario evidence map
+
+Each scenario of the [colony-labor delta](../../openspec/changes/native-led-labor-execution/specs/colony-labor/spec.md)
+is mapped to its policy (pure unit test), boundary (real admission, journal or Hands with a
+simulated native side) and native (executed in-game result) evidence. **Analytical only**
+marks a scenario with no executed native result: its claim rests on policy and boundary
+tests alone.
+
+| Scenario | Policy / boundary evidence | Native evidence | Flag |
+| --- | --- | --- | --- |
+| 001 Routine food production is functioning | `NativeFoodAssessmentTests.ModeledNativeFoodProductionAloneForcesNoDispatch`, `PawnActivitiesTests.RoutineWorkIsNeverAnExactOrder`; boundary `InterventionBypassTests.ProductionBillWorkNeverReachesHands`, `NativeLedLaborIntegrationTests.AStockedBillWithNativeWorkGetsNoExactOrder` | `food/ordinary-cooking` (2026-10-31) | — |
+| 001 Native care becomes due | `BabyFeedingResponseTests.SharedAdmissionWithholdsCareCapacityAndDoesNotRefundCarriedInputs` | bottle feeding and nursing results (2026-10-26, [food evidence](food-security.md)) | — |
+| 002 Colony work demand changes | boundary `NativeSettingsHandsTests.SupportedFoodRecoveryRiskChangesNativePrioritiesThroughAdmissionAndHands`; no exemption for existing assignments ([work assignment](../developers/contracts/work-assignment.md)) | `food/ordinary-cooking` applies served work settings, but no executed case revises them on a changed demand | Analytical only (revision) |
+| 002 Regular daily timetable | `NativeTimetableTests.MissingServiceDoesNotBecomeAnAnythingScheduleOrBlockIndependentPriorities`; boundary `WorkAssignmentsNeedTests.GeneratedTimetableTravelsThroughSharedAdmissionJournalAndTypedIntent` | none (task 3.4 claimed no native result) | Analytical only |
+| 003 Eating is absent from the modeled schedule | `NativeBaselineComparisonTests.AvailableFoodWithoutASelectedMealLeavesBaselineStarvationUnassessedAndPrunesNothing`, `AModeledMealAloneIsNeitherACrisisNorADispatch`; boundary `NativeLedLaborIntegrationTests.AFalseStarvationIsNeitherACrisisNorADispatch` | none | Analytical only |
+| 003 Future native progress cannot be established | `NativeBaselineComparisonTests.AnUnobservedPawnsFutureNeedResponseIsUnassessedNotDecayed`, `ForecastCoupledTests.BeyondHorizonInvestmentRemainsUnassessedAndFreeTimeAloneCreatesNoProduction` | none | Analytical only |
+| 003 Scheduled labor is interrupted | `PawnActivityTests.TravelWorkNeedsAndInterruptedJobsPartitionObservedTime`, `WorkOccupancyTests.HigherNativePriorityAndMedicalRestCanOverrideOngoingWork` | none | Analytical only |
+| 003 Production is blocked by delivery | `NativeThroughputTests.GatheringDominatedBusySamplesAreDeliveryBoundAndDoNotWiden`, `IdleStockedBenchIsWorkUnstartedNotDeliveryBound`; boundary `InterventionHandsTests.AStalledBillWithIngredientsPendingReachesHandsAsAJustifiedIngredientDelivery` | none | Analytical only |
+| 003 Useful native work is preemptible | `WorkOccupancyTests.UsefulNativeWorkIsOccupiedAndKeepsItsRoleWithoutInventingDuration`, `ForecastActivitiesTests.CarryingCapacitySkillAndDisplacedObligationsChangeChoices` | none | Analytical only |
+| 004 A marginally faster worker exists | `InterventionJustificationTests.AMarginalGainUnderAdequateConditionsIsRefused` | none | Analytical only |
+| 004 A foreseeable shortfall needs timely action | boundary `InterventionHandsTests.AnUnansweredHungerReachesHandsAsAJustifiedEatFromTheGenerator`, `AStalledSiteReachesHandsAsAJustifiedSupplyWithItsPurpose`, `AnUnservedCareDemandReachesHandsAsAJustifiedTendWithItsPurpose` | `coordination/food-delegated` (2026-10-31): the staged shortfall's native recovery is known too late | — |
+| 004 Reserves support preventive action | boundary `NativeLedLaborIntegrationTests.ACredibleFoodRiskSelectsAndDispatchesThePreventiveHarvest`, `InterventionHandsTests.ACredibleFoodRiskReachesHandsAsAJustifiedHarvestFromTheGenerator` | `coordination/food-delegated` (2026-10-31) | — |
+| 004 Native progress changes the intervention premise | `InterventionJustificationTests.FreshNativeProgressInvalidatesAStalePremise`; boundary `NativeLedLaborIntegrationTests.ANativeRecoveryRetiresTheHarvestAndItsPremiseGoesStale`, `InterventionHandsTests.AnEndedPurposeIsNotReissuedFromAStaleJustification` | `coordination/food-carried-recovery` (2026-10-31) proves only the no-reissue half; no executed case changes the premise by native progress | Analytical only (premise change) |
+| 005 A short sequence completes | boundary `NativeServiceContinuationTests.AJustifiedSelfServiceEndsOnItsNeedAndAnOldShapeOneIsReleased` | `coordination/food-delegated` (2026-10-31); `control/ordered-work-lifecycle` (2026-10-28, staged mechanics) | — |
+| 005 A forced job follows different interruption rules | `CanonicalWorkTests.JobViewKeepsForcedQueueAndTargetEvidenceThroughNativeReplay` | `control/ordered-work-lifecycle`, `-cancel-reload` and `-replaced-reload` (staged mechanics, not policy choice) | — |
+| 006 A participant is taken over | boundary `ActivityContinuationTests.NativeTakeoverReconcilesDependentWorkThroughTheJournalWithoutReleasingTheNewOwner`, `LostParticipantDoesNotAuthorizeReleasingItsNewOwner` | `control/activity-native-takeover` (2026-10-26); `coordination/food-carried-recovery` (2026-10-31) | — |
+| 006 An interrupted task already consumed inputs | `CoordinatedActivityTests.PartialDeliveryRetainsRemainingQuantityAndAFailedDeliveryEndsTheAttempt`, `FoodCookingContinuationTests.AnEndedIngredientDeliveryReturnsToNativeWithoutCreditingMeals`, `UnfinishedMaterialTests.CancellationDoesNotInventRefundsOrReleaseAnAppliedNativeBill`, `BabyFeedingResponseTests.SharedAdmissionWithholdsCareCapacityAndDoesNotRefundCarriedInputs` | none: the carried-recovery harvest consumes nothing | Analytical only |
+| 007 Care starts after a planning read | boundary `NativeLedLaborIntegrationTests.ALiveCareRaceRefusesTheHarvestAsAStalePrerequisite`, `InterventionHandsTests.StalePrerequisitesAreRefusedAtAdmissionAndAtContinuation` | bottle feeding and nursing after a journal/Hands-owned competing harvest, through the post-feeding return (2026-10-26, [food evidence](food-security.md)) | — |
+| 008 Releasing work does not solve feeding | `BabyFeedingResponseTests.AWorkingNurseDoesNotRequireBottleStockButHungerRemainsUnmet`, `DepletedNursingAndUnavailableCarersDoNotCoverProvision`; explanation attrs `justification` and `intervention_outcomes` on `coupled_selection` ([telemetry](../developers/contracts/otel-signals.md)) | none | Analytical only |
+
 ## Native support assessment
 
 Native-operation support vectors retain the current care/bench demands and
@@ -1129,6 +1185,54 @@ Complexity: added one validation predicate, one bypass test class (8 cases) and 
 (321 code lines: 205 in changed files plus the 116-line test class) / removed the set driver, two exact
 removal adapters, three exact offers, the retry, rebind and site-hold machinery, two
 fixtures, twelve registered native cases and 2023 code lines / orphans left: none.
+
+<a id="task-61-verification"></a>Task 6.1 verifies the finished path (settings, native work, justified
+intervention, reconciliation) through shared integration tests and the executed native results in
+[Task 6.1 executed native results](#task-61-executed-native-results); the scenario map there
+marks what remains analytical only. `NativeLedLaborIntegrationTests` (6 cases) runs the wild-potato
+colony through the real comparison, intervention gate, journal admission and Hands, with the review,
+batch, admission evidence and Hands inspection on one game tick: (a)
+`AFalseStarvationIsNeitherACrisisNorADispatch` (a timely native recovery: nothing is selected,
+started or stored); (b) `AStockedBillWithNativeWorkGetsNoExactOrder` (a stocked Meal bill with no
+observed stall: the gate refuses and nothing starts); (c)
+`ACredibleFoodRiskSelectsAndDispatchesThePreventiveHarvest` (the comparison itself selects the
+harvest at the new `food_risk_supply` stage, the gate justifies it as `CredibleRisk`, and Hands
+writes one exact Harvest with its `FoodRisk` purpose); (d)
+`ANativeRecoveryRetiresTheHarvestAndItsPremiseGoesStale` (native stock clears the risk: the purpose
+reads completed, the Method resolves at tick 120, the next comparison selects nothing, the earlier
+batch is refused as `stale_justification`, and evidence from tick 121 is admitted); (e)
+`ACrossFamilyClaimRaceIsATypedConflictWithNoDoubleDispatch` (another family's order for the held
+pawn is a typed `pawn/pawn` claim conflict naming the harvest, and Hands dispatches once); (f)
+`ALiveCareRaceRefusesTheHarvestAsAStalePrerequisite` (the pawn starts native baby care after the
+review: admission refuses `stale_prerequisite:pawn_unavailable`). Each cites the existing tests that
+already cover its case. Root causes found by the executed cases, and their fixes: under a credible
+risk no comparator stage preferred the harvest over the empty schedule, so the forecast never
+selected it (`ForecastCoupledSelection.FoodRiskSupplyOf`, the `food_risk_supply` stage after the
+ledger, [comparator](../developers/architecture/forecast-value.md#comparator)); a release dispatched
+after a native job took over the terminal order found the entry already gone and was refused as a
+stale revision, so a release that finds the pawn unowned is now accepted as already satisfied
+(`NativePawnActivities.Validate`, [continuation](../developers/contracts/method-continuation.md));
+the fixture missed completion and ownership ends that the next native job's release recorded in the
+same call, so it now reads them at `EndCurrentJob` and from the native row
+(`CoordinatedWorkFixture`); and the construction case's selected-shell thermal comparison passed the
+64 KiB payload cap, so the compact `planned_room_selection` companion now carries the ledger's
+`thermal` and both exposure inputs and the case reads it (`CoupledSelections.PlannedRoomsOf`,
+[telemetry](../developers/contracts/otel-signals.md)). The construction case now asserts no exact
+pawn order and a fully stood ring; the 5.6 description above (a failed carry ends its attempt; the
+case claims the finished building) is superseded. Remaining limits: every native result is one
+short staged run, not sustained colony operation or an RG-FOOD outcome; the food cases prove one
+preventive harvest and its release, not that the premise later goes stale in game ((d) is
+boundary-only); live-care and cross-family races are boundary-only, with live care's native side
+resting on the 2026-10-26 feeding results; the scenarios flagged analytical only have no native
+result; and cases run back to back on one kept game can interfere: the construction case's held
+dispatch rows targeted the earlier food run's load token when it followed the food cases on the same
+game, so its passing run started on a fresh game after a stop. Nothing here registers a case
+without running it, and no planning revision is presented as a pass. Rules 7–9: policy stays pure
+(the new stage reads only the plan, catalog and food assessment), no fact is defaulted (a moved
+resource without nutrition leaves the stage unassessed), and no demand path or scheduler is added.
+Complexity: added one comparator term and stage, one native acceptance branch, two telemetry fields,
+one telemetry reader and one 6-case integration test class (388 code lines: 181 in changed files
+plus the 207-line test class) / removed 83 code lines / orphans left: none.
 
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 

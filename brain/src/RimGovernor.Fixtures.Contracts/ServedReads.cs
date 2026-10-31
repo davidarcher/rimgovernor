@@ -45,32 +45,34 @@ public sealed record CoordinationRead
     /// <summary>Planner work became player-forced.</summary>
     public bool Forced { get; init; }
 
-    /// <summary>Harvested food lying at the selected storage cell.</summary>
+    /// <summary>Food: units of the staged crop's harvested product spawned on the map.</summary>
     public int PhysicalFood { get; init; }
 
-    /// <summary>Player beds and walls standing.</summary>
-    public int PhysicalBuildings { get; init; }
+    /// <summary>Construction: player walls standing on the staged barracks' ring.</summary>
+    public int RingWalls { get; init; }
+
+    /// <summary>Construction: the ring's cells less its door, the walls a finished shell stands.</summary>
+    public int RingWallCells { get; init; }
 
     /// <summary>"Kind:Job" of each step of an operation the native game completed.</summary>
     public IReadOnlyList<string> FinishedKinds { get; init; } = [];
 
-    /// <summary>One batch handed tasks to more than one pawn.</summary>
-    public bool Joint { get; init; }
-
-    /// <summary>Items delivered or supplied by completed operations.</summary>
-    public int Delivered { get; init; }
+    /// <summary>The intervention purpose kinds the coordinated orders carried.</summary>
+    public IReadOnlyList<string> Purposes { get; init; } = [];
 
     /// <summary>Participants still owned by the coordinated Method.</summary>
     public int Active { get; init; }
 
     public IReadOnlyList<string> Participants { get; init; } = [];
 
+    /// <summary>Participants whose coordinated ownership ended: an applied release order, or the native row ended when a
+    /// native job took over the terminal order's pawn.</summary>
     public IReadOnlyList<string> Released { get; init; } = [];
 
-    /// <summary>The fixture ended one carrying delivery's job.</summary>
+    /// <summary>The fixture ended the coordinated harvest's job once.</summary>
     public bool Interrupted { get; init; }
 
-    /// <summary>A later revision of the interrupted assignment carried the delivery again.</summary>
+    /// <summary>A later revision of the interrupted assignment issued the harvest again.</summary>
     public bool Recovered { get; init; }
 }
 

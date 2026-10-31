@@ -32,6 +32,25 @@ internal static class CoupledSelections
     /// <summary>The rows the log ring holds after sequence <paramref name="after"/> (a kept game still holds an earlier case's), oldest first.</summary>
     public static IReadOnlyList<CoupledSelectionRow> Of(TypedSession s, ulong after) => [.. s.Telemetry(TelemetryKinds.CoupledSelection).Where(r => r.Sequence > after).Select(Row)];
 
+    /// <summary>The <see cref="TelemetryKinds.PlannedRoomSelection"/> companions after sequence <paramref name="after"/>, oldest first: a
+    /// <c>planned_unplaced</c> selection whose <c>coupled_selection</c> vectors passed the payload cap keeps its planned rooms, the ledger
+    /// total, investment and thermal loss of the baseline and the selection, and their thermal exposure inputs here (#3828).</summary>
+    public static IReadOnlyList<CoupledSelectionRow> PlannedRoomsOf(TypedSession s, ulong after) =>
+        [.. s.Telemetry(TelemetryKinds.PlannedRoomSelection).Where(r => r.Sequence > after).Select(PlannedRoomRow)];
+
+    private static CoupledSelectionRow PlannedRoomRow(LogRow row)
+    {
+        var fields = row.Fields();
+        // The companion's flat ledger values are the outcome's value attrs.
+        CoupledOutcome Flat(string key) => Outcome(fields.GetValueOrDefault(key) is Dictionary<string, object?> value ? new() { ["value"] = value } : null);
+        return new CoupledSelectionRow(row.Sequence, fields.GetValueOrDefault("verdict") as string ?? "", [], [], Flat("baseline"), Flat("selected"),
+            (fields.GetValueOrDefault("selected_ids") as List<object?> ?? []).OfType<string>().ToList(), [],
+            fields.GetValueOrDefault("planned_rooms") is List<object?> rooms
+                ? rooms.OfType<Dictionary<string, object?>>().Select(r => Number(r.GetValueOrDefault("room"))).OfType<double>().ToList() : [],
+            Exposure(fields.GetValueOrDefault("baseline_thermal_exposure")), Exposure(fields.GetValueOrDefault("selected_thermal_exposure")),
+            new CoupledSearchAccounting(null, null, null, null, null, null));
+    }
+
     internal static CoupledSelectionRow Row(LogRow row)
     {
         var fields = row.Fields();

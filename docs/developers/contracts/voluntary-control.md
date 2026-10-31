@@ -179,9 +179,9 @@ epic (#3124).
 | Exact case | Disposition and retained claim |
 | --- | --- |
 | `production/coupled-needs` | Rewrite/extend for normal shared selection through real ingestion, rest/wake and recreation, revision and release; preserve a legacy Work timetable as an adversarial fixture, not an expected policy. |
-| `coordination/food-delegated` | Keep real harvest/output/delivery and participant ownership; compare alternatives in pure tests rather than asserting a mandatory helper tactic for every world. |
-| `coordination/food-carried-recovery` | Keep interrupted carry and observed release; the failed carry ends its attempt and is never reissued (task 5.6). |
-| `coordination/construction-delegated` | Keep building completion and participant release; no order holds the site against vanilla builders and a failed carry ends its attempt (task 5.6). The selected shell must reduce positive forecast thermal capability loss, with native comfort minima checked against assessed exposure inputs; actual occupied warming remains separate evidence. |
+| `coordination/food-delegated` | Keep the credible food risk's justified preventive harvest (`FoodRisk` purpose), its native output and the end of participant ownership; compare alternatives in pure tests rather than asserting a mandatory helper tactic for every world. Executed PASS 2026-10-31 ([labor evidence](../../requirements/colony-labor.md#task-61-executed-native-results)). |
+| `coordination/food-carried-recovery` | Keep the interrupted harvest and the observed end of ownership; the failed step ends its attempt and is never reissued (task 5.6). Executed PASS 2026-10-31. |
+| `coordination/construction-delegated` | Keep native ring completion with no exact pawn order, since ordinary construction has no stall premise (native-led labor). The selected shell must reduce positive forecast thermal capability loss, with native comfort minima checked against assessed exposure inputs; actual occupied warming remains separate evidence. Executed PASS 2026-10-31. |
 | `production/clothing-activity` | Keep normal selected-stuff production and input conservation; do not equate production with wearing. |
 | `production/clothing-activity-unfinished` | Keep observed unfinished-item resumption and conservation, without spending loose inputs twice. |
 | `control/pawn-activities` | Keep exact job execution, supported needs mechanics and refusal checks. It is an execution contract, not normal-planner economic evidence. |

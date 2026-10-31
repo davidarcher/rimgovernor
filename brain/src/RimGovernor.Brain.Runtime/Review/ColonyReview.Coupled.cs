@@ -260,7 +260,7 @@ public sealed partial class ColonyReview
     /// <c>planned_unplaced</c> <c>coupled_selection</c> row, whose vectors can pass the payload cap and drop every field. It keeps,
     /// within <see cref="PlannedRoomSelectionBudget"/>: the selected ids and planned rooms; per planned room with a valued
     /// alternative or a root among the candidates its alternatives, root count and whether it is selected; the ledger total and
-    /// development of the baseline and the selection; the selection findings that name a planned room or a truncation; and the
+    /// development of the baseline and the selection, with their thermal capability loss and per-pawn exposure inputs; the selection findings that name a planned room or a truncation; and the
     /// rejected subsets once each (ids and reason, with the ledger total and development when priced), first the earliest touching
     /// each room, then the rest in search order, counting what the budget left out.
     /// </summary>
@@ -277,6 +277,7 @@ public sealed partial class ColonyReview
         static Dictionary<string, object?> ValueOf(ForecastConsequenceVector vector) => new()
         {
             ["total"] = Number(vector.Value.Ledger.Total), ["investment"] = vector.Value.Ledger.Investment,
+            ["thermal"] = Number(vector.Value.Ledger.Thermal),
         };
         var rootRooms = RootRooms(candidates);
         int[] RoomsOf(string id) => rootRooms.GetValueOrDefault(id) ?? [];
@@ -319,6 +320,7 @@ public sealed partial class ColonyReview
         {
             ["observed_tick"] = tick, ["selected_ids"] = selected, ["planned_rooms"] = plannedRooms, ["rooms"] = roomRows,
             ["baseline"] = ValueOf(selection.BaselineVector), ["selected"] = ValueOf(selection.SelectedVector),
+            ["baseline_thermal_exposure"] = ThermalAttrs(selection.Baseline), ["selected_thermal_exposure"] = ThermalAttrs(selection.Selected),
             ["uncertainty"] = uncertainty, ["uncertainty_omitted"] = findings.Count - uncertainty.Length,
             ["rejected"] = rejected.ToArray(), ["rejected_distinct"] = distinct.Count, ["rejected_omitted"] = distinct.Count - rejected.Count,
             ["generation_truncated"] = selection.GenerationTruncated, ["search_truncated"] = selection.Selection.SearchTruncated,
@@ -470,6 +472,7 @@ public sealed partial class ColonyReview
             .Concat(observed is null ? [] : new[] { ForecastSupportAssessment.NativeResponseUnprojected }).Distinct().ToArray(),
         ["thermal_occupancy"] = vector.ThermalOccupancy,
         ["native_food"] = NativeFoodAttrs(vector.NativeFood),
+        ["food_risk_supply"] = Number(vector.FoodRiskSupply),
         ["support_projection"] = support is null ? "native_unprojected" : "conditional_scenario",
         ["support_observed_demands"] = observed?.Demands.Select(d => new { d.Id, d.Kind, d.Target }).ToArray(),
         ["support_observed_deliveries"] = observed?.Deliveries.Select(d => new { d.Demand, d.Bill, d.Required }).Distinct().ToArray(),

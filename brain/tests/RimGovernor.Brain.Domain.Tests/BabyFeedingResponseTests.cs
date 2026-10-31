@@ -8,17 +8,17 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class BabyFeedingResponseTests
 {
-    private static readonly ServicePositionRead Here = new ServicePositionRead.Located(new(0, 0));
-    private static BabyCareOpportunityRead Nursing(string carer = "pawn", double available = 1) =>
+    internal static readonly ServicePositionRead Here = new ServicePositionRead.Located(new(0, 0));
+    internal static BabyCareOpportunityRead Nursing(string carer = "pawn", double available = 1) =>
         new(carer, BabyCareKind.Breastfeed, available, Here, Here, ActivitySocialMode.Normal) { ReadyToFeed = true };
-    private static BabyRead Baby(string id, params BabyCareOpportunityRead[] opportunities) => new()
+    internal static BabyRead Baby(string id, params BabyCareOpportunityRead[] opportunities) => new()
     {
         Pawn = id, Care = new() { Food = new(.2, .00001, .0002) { WantsFeeding = true },
             Active = null, Play = null, Opportunities = [.. opportunities] },
         CribMood = null, Fits = [], Play = null, InNursery = false, Hearers = [], SleepHearers = [],
         SleepWithoutNursery = new("", false, true, .00003, 0, 21),
     };
-    private static NeedsForecastRead Read(params BabyRead[] babies) => NeedsFixtures.Read(100, NeedsFixtures.Pawn()) with
+    internal static NeedsForecastRead Read(params BabyRead[] babies) => NeedsFixtures.Read(100, NeedsFixtures.Pawn()) with
     { Babies = NeedsFixtures.NoBabies with { Babies = [.. babies] } };
     private static BabyFeeding Review(NeedsForecastRead read, bool stocked = false)
     {

@@ -25,15 +25,16 @@ public sealed partial class PawnControlFixture
     private static readonly HashSet<string> coordinationParticipants = new(StringComparer.Ordinal);
     private static readonly HashSet<string> coordinationReleased = new(StringComparer.Ordinal);
     private static readonly HashSet<string> coordinationFinishedKinds = new(StringComparer.Ordinal);
-    private static bool coordinationJoint, coordinationRecovered, coordinationForced;
-    private static int coordinationDelivered, coordinationRevision;
+    private static readonly HashSet<string> coordinationPurposes = new(StringComparer.Ordinal);
+    private static bool coordinationRecovered, coordinationForced;
+    private static int coordinationRevision;
     // The staged barracks (construction): its interior's south-west cell and its door.
     private static IntVec3 barracks, barracksDoor;
 
-    [Tool("test/coordinated_work_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare a quiet food or shelter deficit and specialist/helper physical facts; construction also clears a 5x5 barracks site with a lit campfire at its interior centre and replies its interior and door cells. No plans, orders or task assignments are installed.")]
+    [Tool("test/coordinated_work_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Prepare a quiet food or shelter deficit and specialist/helper physical facts: food has no stock and one ripe wild potato no native setting harvests; construction also clears a 5x5 barracks site with a lit campfire at its interior centre and replies its interior and door cells. No plans, orders or task assignments are installed.")]
     public async Task<object> PrepareCoordination(INativeContext ctx, CancellationToken ct,
         [ToolParameter(Description = "food or construction", DefaultValue = "food")] string mode = "food",
-        [ToolParameter(Description = "Interrupt one carrying delivery once", DefaultValue = false)] bool interrupt = false) =>
+        [ToolParameter(Description = "Food: end the coordinated harvest's job once", DefaultValue = false)] bool interrupt = false) =>
         await ctx.MainThread.InvokeAsync<object>(() =>
         {
             if (mode != "food" && mode != "construction") throw new ArgumentException("Unknown coordination fixture.");
@@ -63,6 +64,7 @@ public sealed partial class PawnControlFixture
                 foreach (var plant in origin.GetThingList(map).OfType<Plant>().ToArray()) plant.Destroy();
                 crop = GenSpawn.Spawn(ThingDefOf.Plant_Potato, origin, map); ((Plant)crop).Growth = 1;
                 map.areaManager.Home[origin] = true;
+                // Storage that accepts the product: the native food read offers a harvest only toward an accepting group.
                 deliveryCell = GenRadial.RadialCellsAround(origin, 35, false).First(c => c.InBounds(map) && c.Standable(map)
                     && c.GetEdifice(map) == null && c.DistanceTo(origin) > 28 && c.GetZone(map) == null);
                 var stockpile = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
@@ -94,16 +96,18 @@ public sealed partial class PawnControlFixture
                 for (var stack = 0; stack < 2; stack++)
                     GenSpawn.Spawn(ThingDefOf.WoodLog, CellFinder.RandomClosewalkCellNear(anchor, map, 3), map).stackCount = 75;
             }
-            coordinationOrders.Clear(); coordinationCompleted.Clear(); coordinationParticipants.Clear(); coordinationReleased.Clear(); coordinationFinishedKinds.Clear();
+            coordinationOrders.Clear(); coordinationCompleted.Clear(); coordinationParticipants.Clear(); coordinationReleased.Clear(); coordinationFinishedKinds.Clear(); coordinationPurposes.Clear();
             coordinationMethod = coordinationInterruptedPawn = coordinationInterruptedAssignment = "";
             coordinationMode = mode; coordinationInterrupt = interrupt; coordinationInterrupted = false;
-            coordinationJoint = coordinationRecovered = coordinationForced = false;
-            coordinationDelivered = coordinationRevision = 0;
+            coordinationRecovered = coordinationForced = false;
+            coordinationRevision = 0;
             if (!coordinationPatched)
             {
                 var h = new Harmony("rimgovernor.fixture.coordinated-work");
                 h.Patch(AccessTools.Method(typeof(NativePawnActivities), "Apply"), postfix: new HarmonyMethod(typeof(PawnControlFixture), nameof(CoordinationApplied)));
                 h.Patch(AccessTools.Method(typeof(Pawn_JobTracker), "JobTrackerTick"), postfix: new HarmonyMethod(typeof(PawnControlFixture), nameof(CoordinationTick)));
+                // After the native Ending prefix marks the step: a completed order's next native job ends its row in the same call.
+                h.Patch(AccessTools.Method(typeof(Pawn_JobTracker), "EndCurrentJob"), prefix: new HarmonyMethod(typeof(PawnControlFixture), nameof(CoordinationEnding)) { priority = Priority.Last });
                 coordinationPatched = true;
             }
             coordinationActive = true;
@@ -123,14 +127,14 @@ public sealed partial class PawnControlFixture
         if (coordinationMethod.Length == 0 && batch.Tasks.Any(t => coordinationMode == "food" ? t.Step.Job == "Harvest" : t.Step.Kind == PawnActivityKind.Supply))
             coordinationMethod = batch.Orders[0].Method;
         if (coordinationMethod.Length == 0 || batch.Orders.Any(o => o.Method != coordinationMethod)) return;
-        coordinationJoint |= batch.Tasks.Select(t => t.Pawn).Distinct().Count() > 1;
         foreach (var order in batch.Orders)
         {
             if (order.Task.Length == 0 && !coordinationParticipants.Contains(order.Pawn)) continue;
             coordinationParticipants.Add(order.Pawn); coordinationOrders[order.Pawn] = order;
+            if (order.Purpose is { } purpose) coordinationPurposes.Add(purpose.Kind.ToString());
             if (order.Release) coordinationReleased.Add(order.Pawn);
             if (coordinationInterrupted && order.Pawn == coordinationInterruptedPawn && order.Assignment == coordinationInterruptedAssignment
-                && order.Revision > coordinationRevision && order.Steps.Any(s => s.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply)) coordinationRecovered = true;
+                && order.Revision > coordinationRevision && order.Steps.Any(s => s.Job == "Harvest")) coordinationRecovered = true;
         }
     }
 
@@ -140,13 +144,10 @@ public sealed partial class PawnControlFixture
         var execution = NativePawnActivities.Read(___pawn);
         if (execution == null || execution.Assignment != order.Assignment || execution.Method != order.Method || execution.Revision != order.Revision) return;
         coordinationForced |= ___pawn.CurJob?.playerForced == true;
-        if (execution.State == "completed" && !order.Preparing && coordinationCompleted.Add(order.Assignment + "/" + order.Revision))
-        {
-            coordinationDelivered += order.Steps.Where(s => s.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply).Sum(s => s.Count);
-            foreach (var step in order.Steps) coordinationFinishedKinds.Add(step.Kind + ":" + step.Job);
-        }
-        if (coordinationInterrupt && !coordinationInterrupted && ___pawn.carryTracker.CarriedThing != null
-            && order.Steps.Any(s => s.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply))
+        Completed(order, execution);
+        // The coordinated harvest's native job, ended once while it runs: its failed step ends the attempt.
+        if (coordinationInterrupt && !coordinationInterrupted && ___pawn.CurJob?.def is { } job && (job == JobDefOf.Harvest || job == JobDefOf.HarvestDesignated)
+            && order.Steps.Any(s => s.Job == "Harvest"))
         {
             coordinationInterrupted = true; coordinationRevision = checked((int)order.Revision);
             coordinationInterruptedPawn = order.Pawn; coordinationInterruptedAssignment = order.Assignment;
@@ -154,19 +155,41 @@ public sealed partial class PawnControlFixture
         }
     }
 
-    [Tool("test/coordinated_work_read", Description = "UNSAFE FOR MODEL EXECUTION. Observe planner-selected participant/task evidence, physical output, carried interruption (and any reissue of it) and released ownership.")]
+    private static void CoordinationEnding(Pawn ___pawn)
+    {
+        if (!coordinationActive || !coordinationOrders.TryGetValue(___pawn.GetUniqueLoadID(), out var order) || order.Release) return;
+        if (NativePawnActivities.Read(___pawn) is { } execution && execution.Assignment == order.Assignment && execution.Method == order.Method
+            && execution.Revision == order.Revision) Completed(order, execution);
+    }
+
+    private static void Completed(PawnActivityOrder order, RimGovernor.Brain.GameFacts.Operations.PawnActivityExecution execution)
+    {
+        if (execution.State == "completed" && !order.Preparing && coordinationCompleted.Add(order.Assignment + "/" + order.Revision))
+            foreach (var step in order.Steps) coordinationFinishedKinds.Add(step.Kind + ":" + step.Job);
+    }
+
+    [Tool("test/coordinated_work_read", Description = "UNSAFE FOR MODEL EXECUTION. Observe planner-selected participant/task evidence, physical output, the harvest interruption (and any reissue of it) and released ownership.")]
     public async Task<object> ReadCoordination(INativeContext ctx, CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(() =>
     {
         var map = Find.CurrentMap;
+        // Ownership ends by an applied release order or natively: a terminal order's pawn returns to native selection and the
+        // native job that takes over ends the row (NativePawnActivities.Started), often before the brain reads it.
+        foreach (var pawn in map.mapPawns.AllPawnsSpawned)
+            if (coordinationParticipants.Contains(pawn.GetUniqueLoadID()) && NativePawnActivities.Read(pawn)?.Method != coordinationMethod)
+                coordinationReleased.Add(pawn.GetUniqueLoadID());
         return FixtureKit.Reply(new Fx.CoordinationRead
         {
-            Tick = Find.TickManager.TicksGame, Joint = coordinationJoint, Interrupted = coordinationInterrupted, Recovered = coordinationRecovered,
-            Forced = coordinationForced, Delivered = coordinationDelivered,
+            Tick = Find.TickManager.TicksGame, Interrupted = coordinationInterrupted, Recovered = coordinationRecovered,
+            Forced = coordinationForced,
             Participants = coordinationParticipants.OrderBy(s => s).ToArray(), Released = coordinationReleased.OrderBy(s => s).ToArray(),
-            FinishedKinds = coordinationFinishedKinds.OrderBy(s => s).ToArray(),
-            PhysicalFood = coordinationMode == "food" ? deliveryCell.GetThingList(map).Where(t => t.def == harvestProduct).Sum(t => t.stackCount) : 0,
-            PhysicalBuildings = map.listerThings.AllThings.OfType<Verse.Building>().Count(b => b.Faction == Faction.OfPlayer && (b is Building_Bed || b.def == ThingDefOf.Wall)),
+            FinishedKinds = coordinationFinishedKinds.OrderBy(s => s).ToArray(), Purposes = coordinationPurposes.OrderBy(s => s).ToArray(),
+            PhysicalFood = coordinationMode == "food" && harvestProduct != null ? map.listerThings.ThingsOfDef(harvestProduct).Sum(t => t.stackCount) : 0,
+            RingWalls = coordinationMode == "construction" ? RingCells().Count(c => c.GetEdifice(map) is { } b && b.def == ThingDefOf.Wall && b.Faction == Faction.OfPlayer) : 0,
+            RingWallCells = coordinationMode == "construction" ? RingCells().Count() : 0,
             Active = coordinationParticipants.Count(id => map.mapPawns.AllPawnsSpawned.Any(p => p.GetUniqueLoadID() == id && NativePawnActivities.Read(p)?.Method == coordinationMethod)),
         });
     }, ct).ConfigureAwait(false);
+
+    // The staged barracks' 5x5 ring less its door: the cells the shell's walls stand on.
+    private static IEnumerable<IntVec3> RingCells() => new CellRect(barracks.x - 1, barracks.z - 1, 5, 5).EdgeCells.Where(c => c != barracksDoor);
 }

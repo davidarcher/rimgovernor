@@ -76,6 +76,12 @@ public sealed class PlannedRoomSelectionTelemetryTests
         Assert.Equal(true, room["selected"]);
         Assert.True((double)room["roots"]! > 0);
 
+        // The shell's thermal valuation survives the cap: the ledger loss and per-pawn exposure inputs of both sides (task 6.1).
+        Assert.Equal(large.BaselineVector.Value.Ledger.Thermal is LedgerTerm.Priced(var baselineLoss) ? baselineLoss : (double?)null, ((Dictionary<string, object?>)row["baseline"]!)["thermal"] as double?);
+        Assert.Equal(large.SelectedVector.Value.Ledger.Thermal is LedgerTerm.Priced(var selectedLoss) ? selectedLoss : (double?)null, ((Dictionary<string, object?>)row["selected"]!)["thermal"] as double?);
+        Assert.Equal(large.Baseline.ThermalExposure.Count, List(row["baseline_thermal_exposure"]).Count);
+        Assert.Equal(large.Selected.ThermalExposure.Count, List(row["selected_thermal_exposure"]).Count);
+
         // The rejected subsets touching room 1 lead, each with its ids and reason; the budget left filler out.
         var rejected = List(row["rejected"]).Cast<Dictionary<string, object?>>().ToArray();
         var firstRoom = roomRejected[0];

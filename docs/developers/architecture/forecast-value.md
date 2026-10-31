@@ -188,7 +188,7 @@ Other terms use expected values.
 **Ties and explanation.** Every term is a loss, so the portfolio that loses fewer capability-days wins.
 Two outcomes are compared on the terms both assess, and the per-term differences are summed
 (`ForecastValueResult.LossAgainst`); a term one side cannot assess never counts for or against it, and its finding is
-still reported. A difference within `TieResolution` capability-days is a tie. A tie goes to the terms that have no
+still reported. A difference within `TieResolution` capability-days is a tie. Under a credible native food risk (the food owner's `NativeFoodAssessment` needs a response), a tie first goes to the outcome whose allocated work yields more net nutrition, capped at the reviewed deficit (`food_risk_supply`; unassessed without a response, an item catalog or a moved resource's nutrition; native-led-labor-execution task 6.1). A remaining tie goes to the terms that have no
 mechanical conversion yet, in this order: first-care time of urgent care, thermal relief, pending care batches, tend
 quality and room factors (same care services only), maintenance missing XP, joy threshold exposure, unsupplied demand and first-care time; then the incumbent, then less labor. Every decision
 reports each term's contribution in capability-days, the floors it passed, and which constants it used (the nested

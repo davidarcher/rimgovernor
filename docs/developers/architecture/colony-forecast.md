@@ -1133,9 +1133,13 @@ Their native cases check physical output and explicit revision after refusal,
 with fixture-selected assignments.
 Those fixture cases prove execution, not selection; the nightly
 `coordination/food-delegated` and `coordination/food-carried-recovery` cases
-prove the selected chain and observed loose-food rebinding under normal Method
-admission and Hands dispatch; an interrupted carry ends its attempt and is never
-reissued (task 5.6). Mixed-ingredient cooking is an
+prove that under a credible food risk the shared comparison selects a preventive
+harvest (`food_risk_supply` stage), the intervention gate justifies it and normal
+Method admission and Hands dispatch it with its `FoodRisk` purpose; native work
+harvests it and the participant's ownership ends, and an interrupted harvest ends
+its attempt and is never reissued (task 5.6; both executed PASS on 2026-10-31,
+[labor evidence](../../requirements/colony-labor.md#task-61-executed-native-results)).
+Mixed-ingredient cooking is an
 explicit unsupported-recipe finding.
 
 The existing Method journal now checks activity payload attribution against its

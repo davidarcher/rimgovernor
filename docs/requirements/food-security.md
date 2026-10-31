@@ -243,9 +243,14 @@ Both cases run through Hands with a bounded purpose.
 
 | Native case | Claim | Execution evidence |
 | --- | --- | --- |
-| `food/ordinary-cooking` | The served bill, cooking and work families create a Target-mode (FoodTarget) cooking bill and leave Cooking enabled. Native pawns cook from them without any exact order, and the colony stock gains usable meals. | PASS, 38.0 s, 2026-10-31; meals 0 → 4; `.rimgovernor/ordinary-cooking-0224/food/ordinary-cooking/result.json` (fixture build from `27f8c15c` plus the 5.1/5.2 edits, save `5c4cf06d…`, fixture `60eca9a3c6e03991`). |
+| `food/ordinary-cooking` | The served bill, cooking and work families create a Target-mode (FoodTarget) cooking bill and leave Cooking enabled. Native pawns cook from them without any exact order, and the colony stock gains usable meals. | PASS, 33.4 s (wall 33284 ms), 2026-10-31 (task 6.1 rerun); meals 0 → 4; `.rimgovernor/task61-final-food-ordinary-cooking/food/ordinary-cooking/result.json` (fixture build of dirty `3e719c20a`, source tree `f0c717fa…422d`, save `0cbccd31…c618`, fixture `60eca9a3c6e03991`). Earlier: PASS, 38.0 s, `.rimgovernor/ordinary-cooking-0224/` (build from `27f8c15c` plus the 5.1/5.2 edits, save `5c4cf06d…`). |
+| `coordination/food-delegated` | A credible food risk (no stock, native recovery known too late) with one ripe wild potato no native setting harvests: the served comparison selects the harvest (`food_risk_supply` stage), the gate justifies it as `CredibleRisk`, and it reaches Hands as one exact Harvest with its `FoodRisk` purpose; the native game harvests it and the participant's ownership ends. | PASS, 17.8 s (wall 17754 ms), 2026-10-31; tick 398, physical food 13, finished `Work:Harvest`, purposes `[FoodRisk]`, active 0, participant released; `.rimgovernor/task61-final-coordination-food-delegated/coordination/food-delegated/result.json` (same build and save). |
+| `coordination/food-carried-recovery` | The same justified harvest, its job ended once: the failed step ends its attempt, no later revision reissues it, and the participant's ownership ends. | PASS, 17.2 s (wall 17141 ms), 2026-10-31; tick 61, interrupted, not recovered, purposes `[FoodRisk]`, active 0, participant released; `.rimgovernor/task61-final-coordination-food-carried-recovery/coordination/food-carried-recovery/result.json` (same build and save). |
 
-These are domain tests and a registration. They do not establish sustained
+The domain tests above and these short executed cases are the evidence; full
+provenance and the remaining limits are in [labor task 6.1](colony-labor.md#task-61-executed-native-results).
+The staged harvest cases prove one preventive intervention's path and its
+release, not that a starving colony recovers. They do not establish sustained
 colony feeding or any RG-FOOD outcome in game.
 
 ## Additional confirmed requirements awaiting implementation assessment

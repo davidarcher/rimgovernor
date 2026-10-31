@@ -116,7 +116,10 @@ defines the enforced boundary and current local valuation limits.
 Native release retains the last release in the existing transient assignment row
 for idempotent receipt retry, but reports no ownership and intercepts no jobs.
 Fresh acquisition starts from expected revision zero. A stale release cannot
-erase a subsequent assignment. World/authority changes clear this transient row.
+erase a subsequent assignment. A release that finds the pawn already unowned (a
+native job takeover or fault released it after the brain read the row) is already
+satisfied and accepted: it ends no job and erases no assignment (task 6.1).
+World/authority changes clear this transient row.
 Journal/policy tests cover lifecycle decisions and transactional continuation;
 the prepared pawn lifecycle case checks repeated release and reacquisition.
 

@@ -284,12 +284,16 @@ bounded result is not a globally optimal colony plan.
 
 The registered `coordination/food-delegated`, `coordination/food-carried-recovery`
 and `coordination/construction-delegated` prepared cases use normal Colony review and
-Hands. Their fixture establishes facts, captures exact installed ownership and
-injects one carrying failure; it installs no chosen tasks. They assert native
-completion, physical output and observed cleanup, and fail if the failed carry is
-reissued (a failed step ends its attempt, task 5.6). The construction case also compares native pawn comfort and safe-temperature minima with the selected shell comparison: both exposure inputs must be assessed, and the shell must reduce positive baseline `value.thermal` capability-days lost to hypothermia/heatstroke. `value.harm` is raid loss, so zero there does not imply absent cold injury. The staged -10 C temperature and worn apparel remain unchanged. Registration/compilation does
-not establish that these game scenarios have passed; nightly execution supplies
-that evidence. Pure and journal tests cover choice reversals, partial progress,
+Hands. Their fixture establishes facts, captures exact installed ownership and, in
+the carried-recovery case, ends the harvest's job once; it installs no chosen tasks.
+The food cases assert the justified harvest's `FoodRisk` purpose, native completion
+or the ended attempt, and that the participant's ownership ended (an applied release,
+or the native row ending when a native job took over the terminal order), and fail
+if the failed harvest is reissued (a failed step ends its attempt, task 5.6). The
+construction case asserts that native builders stand the whole ring with no exact
+pawn order. It also compares native pawn comfort and safe-temperature minima with the selected shell comparison, read from its `planned_room_selection` companion: both exposure inputs must be assessed, and the shell must reduce positive baseline `value.thermal` capability-days lost to hypothermia/heatstroke. `value.harm` is raid loss, so zero there does not imply absent cold injury. The staged -10 C temperature and worn apparel remain unchanged. All three executed PASS on 2026-10-31
+([labor evidence](../../requirements/colony-labor.md#task-61-executed-native-results));
+a registration or compilation alone does not establish a pass. Pure and journal tests cover choice reversals, partial progress,
 rebinding, unknowns, deadlines, refusal and stale atomic revisions.
 
 ### Intervention purposes and observed outcomes

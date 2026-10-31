@@ -17,13 +17,13 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// stale prerequisite, and neither issue an open purpose twice nor reissue one from a justification older than its end.</summary>
 public sealed class InterventionHandsTests
 {
-    private static CancellationToken Ct => TestContext.Current.CancellationToken;
-    private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
+    internal static CancellationToken Ct => TestContext.Current.CancellationToken;
+    internal static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
     private static readonly InterventionPurpose Hunger = new(InterventionPurposeKind.NeedShortfall, "food", "a", 100);
-    private sealed class Clock : IClock { public DateTimeOffset Now() => DateTimeOffset.UtcNow; }
+    internal sealed class Clock : IClock { public DateTimeOffset Now() => DateTimeOffset.UtcNow; }
 
     // Exercises real journal/Hands and typed transport. It makes no claim about native job execution.
-    private sealed class Native : IBoundary
+    internal sealed class Native : IBoundary
     {
         public List<PawnActivities> Written { get; } = [];
         public Task<IntentInspection> InspectIntentAsync(Target target, CancellationToken ct) => Task.FromResult(new IntentInspection
@@ -40,7 +40,7 @@ public sealed class InterventionHandsTests
         }
     }
 
-    private static Journal Open(ReviewFacts facts)
+    internal static Journal Open(ReviewFacts facts)
     {
         IntentActionRules.RegisterIntentKinds();
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-intervention-" + Guid.NewGuid().ToString("N") + ".db"), Ct);
@@ -57,7 +57,7 @@ public sealed class InterventionHandsTests
     private static NeedCommit Commit(Journal journal, PlanSpec plan, GenerationSnapshot? world = null) =>
         journal.CommitClaimedMethod(AdminFamily.WorkAssignments, world ?? World, new(plan.Id.Value[..^"-plan".Length]), "", plan, Ct);
 
-    private static void Install(Journal journal, PlanSpec plan)
+    internal static void Install(Journal journal, PlanSpec plan)
     {
         var scope = World with { Plan = plan.Id };
         journal.Prepare(plan.Id, plan.Actions[0].Id, scope, new(100), Ct);
@@ -305,17 +305,8 @@ public sealed class InterventionHandsTests
     [Fact]
     public async Task ACredibleFoodRiskReachesHandsAsAJustifiedHarvestFromTheGenerator()
     {
-        var facts = ForecastCoupledSelectionTests.Review(level: .9) with { Items = InterventionJustificationTests.Catalog };
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!.Priced();
-        (ForecastCoupledSelection, ForecastCoupledCandidates) Compared(NativeFoodAssessment food)
-        {
-            var candidates = generated with { Context = generated.Context with { NativeFood = food } };
-            var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay, facts with { CoupledAlternatives = candidates },
-                new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
-            return (ForecastCoupledSelection.CompareActivityOutcomes(request, candidates), candidates);
-        }
-        var harvest = generated.Context.Activities.Activities.First(t => t.NativeExecution && t.Prerequisites.Length == 0
-            && generated.Context.Bindings.ContainsKey((t.Id, "pawn")));
+        var (_, generated, harvest) = NativeLedLaborIntegrationTests.HarvestColony();
+        static (ForecastCoupledSelection, ForecastCoupledCandidates) Compared(NativeFoodAssessment food) => NativeLedLaborIntegrationTests.CompareHarvestColony(food);
         Assert.Equal(PawnActivityKind.Work, generated.Context.Bindings[(harvest.Id, "pawn")].Kind);
         var plan = new ForecastActivityPlan([new(harvest.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
 
