@@ -35,7 +35,14 @@ public sealed partial class ColonyReview
         var traded = AdmitSelectedTrade(selection, candidates, facts, snapshot, call, epoch);
         external = (external.Admitted || traded.Admitted, external.Failure ?? traded.Failure);
         if (selection.Selection.Selected.Length == 0)
-        { Capture(ForecastAdmission.Continued); RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive); return; }
+        {
+            Capture(ForecastAdmission.Continued);
+            // A winner whose exact orders this review's premise gate refused: the native baseline continues, named with the refusal.
+            if (selection.Justification is InterventionJustification.Refused refused)
+                RecordCoupledSelection(selection, facts.Tick.Value, InterventionNotJustifiedTarget, facts.CoupledWorkActive, reason: refused.Reason);
+            else RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive);
+            return;
+        }
         // The activity is the admin/work-assignments Need's Method (#3304); a runtime without the Need starts none.
         if (!Needs.Contains(AdminFamily.WorkAssignments)) { Capture(ForecastAdmission.Selected); return; }
         var id = PlanIds.MintPlanId();
@@ -87,12 +94,16 @@ public sealed partial class ColonyReview
             rooms.ContainsKey);
     }
 
-    private static void RecordCoupledSelection(ForecastCoupledSelection selection, long tick, string method, bool protectedContinuation = false, string? admissionFailure = null)
+    /// <summary>The target of a selection whose winner's exact orders the intervention premise gate refused (RG-LABOR-004).</summary>
+    internal const string InterventionNotJustifiedTarget = "intervention_not_justified";
+
+    private static void RecordCoupledSelection(ForecastCoupledSelection selection, long tick, string method, bool protectedContinuation = false,
+        string? admissionFailure = null, string? reason = null)
         => Tel.Decide(new Decision
         {
             Kind = TelemetryKinds.CoupledSelectionKind, Component = "rounds", Target = method,
             Verdict = admissionFailure is not null ? "deferred" : protectedContinuation || selection.Selection.Selected.Length == 0 ? "continue" : "selected",
-            Reason = admissionFailure is not null ? "method_not_admitted" : protectedContinuation ? "protected_method_ownership" : selection.Selection.SearchTruncated ? "best_found_bounded" : "shared_consequences",
+            Reason = admissionFailure is not null ? "method_not_admitted" : reason ?? (protectedContinuation ? "protected_method_ownership" : selection.Selection.SearchTruncated ? "best_found_bounded" : "shared_consequences"),
             Attrs = CoupledSelectionAttrs(selection, tick, protectedContinuation, admissionFailure)
         });
 
@@ -159,6 +170,7 @@ public sealed partial class ColonyReview
                 ["search_phases"] = selection.SearchPhases.ToDictionary(p => p.Phase, p => (object?)p.Expansions),
                 ["selected_phase"] = selection.SelectedPhase, ["warm_start"] = selection.WarmStart,
                 ["uncertainty"] = selection.Selection.Findings,
+                ["justification"] = JustificationAttrs(selection.Justification),
                 ["planned_rooms"] = selection.Selected.PlannedRooms.Select(r => new Dictionary<string, object?>
                 { ["room"] = r.Room, ["completed_sites"] = r.CompletedSites.ToArray(), ["complete"] = r.Complete.ToArray() }).ToArray(),
                 ["beneficiaries"] = selection.Selected.Needs.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => new Dictionary<string, object?>
@@ -365,6 +377,37 @@ public sealed partial class ColonyReview
 
     private static Dictionary<string, object?> FloorAttrs(ForecastFloor floor) => new()
         { ["assessed"] = floor.Assessed, ["passed"] = floor.Assessed ? floor.Excess <= 0 : null, ["excess"] = floor.Assessed ? floor.Excess : null };
+
+    /// <summary>The <c>coupled_selection</c> row's <c>justification</c> attr: the winner's intervention premise gate, null when none ran.</summary>
+    internal static Dictionary<string, object?>? JustificationAttrs(InterventionJustification? justification)
+    {
+        if (justification is null) return null;
+        var premise = justification.Premise switch
+        {
+            InterventionPremise.ObservedShortfall s => new Dictionary<string, object?> { ["kind"] = "observed_shortfall", ["need"] = s.Need, ["pawn"] = s.Pawn, ["evidence"] = s.Evidence },
+            InterventionPremise.CredibleRisk r => new() { ["kind"] = "credible_risk", ["risk"] = r.Risk.ToString(), ["runway_days"] = r.RunwayDays, ["recovery_timing"] = r.Timing.ToString() },
+            InterventionPremise.CapabilityOpportunity c => new() { ["kind"] = "capability_opportunity", ["requirement"] = c.Requirement, ["pawn"] = c.Pawn, ["skill"] = c.Skill, ["gap"] = c.Gap.ToString() },
+            InterventionPremise.Unassessed u => new() { ["kind"] = "unassessed", ["reason"] = u.Reason },
+            InterventionPremise.None => new() { ["kind"] = "none" },
+            var other => throw new RequiredFactException("intervention premise:" + other),
+        };
+        var (state, basis) = justification.Response switch
+        {
+            NativeResponse.Supported s => ("supported", s.Basis),
+            NativeResponse.KnownTooLate t => ("known_too_late", t.Basis),
+            NativeResponse.Unassessed u => ("unassessed", u.Reason),
+            var other => throw new RequiredFactException("native response:" + other),
+        };
+        return new()
+        {
+            ["verdict"] = justification is InterventionJustification.Justified ? "justified" : "refused",
+            ["reason"] = (justification as InterventionJustification.Refused)?.Reason,
+            ["premise"] = premise, ["response"] = state, ["response_basis"] = basis, ["stage"] = justification.Stage,
+            ["displaced"] = justification.Displaced.Count, ["displaced_service"] = justification.Displaced.NativeService.ToArray(),
+            ["displaced_work"] = justification.Displaced.NativeWork.ToArray(), ["displaced_unread"] = justification.Displaced.Unread.ToArray(),
+            ["uncertainty"] = justification.Uncertainty.ToArray(),
+        };
+    }
 
     private static Dictionary<string, object?> NativeFoodAttrs(NativeFoodAssessment assessment)
     {

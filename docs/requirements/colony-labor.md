@@ -700,6 +700,58 @@ read only by pawn valuation; the vector carries `NativeFood` for explanation and
 task 4.1's premise without ranking on it. None of these is a native prediction or
 dispatch authority. Overall progress is 14/24.
 
+Task 4.1's first increment adds the pure intervention premise gate,
+`InterventionRules.Justify`, inside the shared comparison. It runs only for a
+`NativeOperation` winner that would install exact pawn orders (the dispatch that
+survives `ForDispatch` and incumbent holding) or is ordinary service alone, and
+replaces the former routine-only override as the single premise gate. A premise
+is read from current observations of the work dispatched: an observed shortfall
+(a pawn at or below its need threshold with no captured native service), the
+food owner's credible risk (`NativeFoodAssessment.Reviewed` needing a response),
+or an assigned capability requirement the dispatched practice trains, unmet now
+or lapsing within the horizon. The native response is `Supported` when confirmed
+recovery arrives before runway, `KnownTooLate` at or after it, otherwise
+unassessed; displaced pawns are counted as native service, native work or
+unread, never priced or treated as free. Refusals are named: routine-only
+winners keep `native_service_response_without_intervention_premise`; a winner
+beating the baseline only below the safety floors with no premise is
+`marginal_gain_without_premise`; a floor-stage win without a premise is
+`forecast_benefit_without_premise`; food dispatch whose advantage rests on an
+unprojected native response is `no_modeled_service_rescue`; a supported timely
+settings response refuses any premise except an observed harm with
+`settings_response_supported`; missing premise evidence is
+`premise_unassessed:<reason>`. Food work is classified by the catalog's item
+nutrition, the same rule as the stock walk; a resource the catalog never read is
+`nutrition_per_unit:<resource>`, not "not food". No numeric materiality
+threshold or wait timeout was added; "marginal" is the comparator's own stage.
+The justification is recomputed by every review and stored nowhere; a refused
+winner leaves the native baseline selected, recorded as
+`intervention_not_justified` with its reason, and `StartCoupledActivity` refuses
+to bind a batch without this review's justified verdict. The `coupled_selection`
+row exposes verdict, premise, response, stage, displaced counts and uncertainty.
+
+`InterventionJustificationTests` covers the task's bullets through the real
+comparison: marginal speedup under adequate conditions refused; a rescue from a
+no-modeled-service baseline refused; prevention justified from supported
+reserve/recovery evidence before harm; settings known too late permitting
+immediate action while both vectors' food terms stay unassessed; a supported
+timely response refusing a non-harm premise; fresh native progress (risk gone,
+service in progress, skill restored) invalidating a stale premise with the old
+plan throwing when carried forward; routine-only refusal preserved; assigned
+practice dispatching only while its observed capability premise holds; and
+food classification by nutrition rather than current targets. `PracticeHarmTests`
+now records that a priced unassigned bout ranks but is not admitted. Practice
+is the only coupled family still binding fresh exact orders; all food, support,
+construction, clothing, research and sowing work is native execution. Remaining
+for 4.1: a `DemonstratedStall` premise has no observed source in the comparison
+context (the dispatcher's observed `UnmetThroughput` is not yet exposed there),
+and the premise is assessed per portfolio rather than per intervention; both are
+taken up with task 4.2's per-intervention purpose binding. Rules 7–9: pure policy
+owns the gate; Runtime records it; Methods, claims and Hands are unchanged; a
+missing fact names a state and authorizes nothing. Complexity: added one pure
+justification rule, one telemetry attr group and ten regressions / removed the
+routine-only override and the target-inferred edible set / orphans left: none.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |

@@ -118,7 +118,7 @@ public sealed class PracticeHarmTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void TheProductionComparisonSchedulesABoutWhoseXpTheHarmPricesAndAFreshColonyNone(bool priced)
+    public void TheProductionComparisonRanksABoutWhoseXpTheHarmPricesButAdmitsNoneWithoutAPremise(bool priced)
     {
         // The production path (#3822): Work fills the work pawns' Skills and the practice read's workers;
         // GenerateCoupledActivities builds the bout's tasks and the context's practice sessions; the review's tier-2 marginals
@@ -144,6 +144,16 @@ public sealed class PracticeHarmTests
         var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
             facts with { CoupledAlternatives = generated }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
-        Assert.Equal(priced, selected.Selection.Selected.Length > 0);
+        // The priced bout beats the baseline on the ledger alone, a gain below the safety floors with no assigned capability it
+        // trains: the intervention gate refuses it (RG-LABOR-004) and the native baseline stands.
+        Assert.Empty(selected.Selection.Selected);
+        Assert.Equal(priced, selected.Rejected.Any(r => r.Reason == InterventionJustification.MarginalGainWithoutPremise));
+        if (priced)
+        {
+            var refused = Assert.IsType<InterventionJustification.Refused>(selected.Justification);
+            Assert.Equal(ForecastCoupledSelection.LedgerStage, refused.Stage);
+            Assert.IsType<InterventionPremise.None>(refused.Premise);
+        }
+        else Assert.Null(selected.Justification);
     }
 }

@@ -46,10 +46,13 @@ mechanics without treating the current order as an absent food source or claimin
 that vanilla will interrupt it.
 
 Shared admission and retirement retain an observed active queue independently
-of its dispatch acknowledgment. Policy decisions to start, replace or cancel an
-intervention remain in the open labor migration; the adapter does not establish
-intervention justification. Routine portfolio selection does not produce
-`OrderedWork` actions.
+of its dispatch acknowledgment. Shared comparison establishes intervention
+justification
+([native need response](forecast-contracts.md#current-native-need-response)), and
+`StartCoupledActivity` binds exact orders only under this review's `Justified`
+verdict. The adapter does not establish justification. Replacement and
+cancellation decisions remain in the open labor migration. Routine portfolio
+selection does not produce `OrderedWork` actions.
 
 Native baby feeding and its associated safe return are occupied work. A standing
 colonist doing that care is not preemptible, including while carrying the baby
@@ -80,8 +83,9 @@ exact running governor job; native progress alone grants no release authority.
 Existing exact commitments also hand ordinary service back at a task boundary,
 including when their Need is unlisted. Independent running orders remain exact;
 dependent attempts end without crediting the service as complete. See
-[continuation](method-continuation.md#pawn-activity-methods). Productive caller
-and general intervention migration remain incomplete in the
+[continuation](method-continuation.md#pawn-activity-methods). Exact orders that
+remain after binding need an observed premise, as noted above. Productive caller
+migration remains incomplete in the
 [native-led labor change](../../../openspec/changes/native-led-labor-execution/design.md).
 
 Exact cell assignments use `CellActivityStep`, which carries a required canonical

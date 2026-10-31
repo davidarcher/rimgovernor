@@ -60,6 +60,11 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     /// work could leave a pawn's rest unassessed in some plan) or <c>relief_gate_order</c> (a single construction root the relief
     /// gate must see). The evaluations so started are the phases' <see cref="ForecastSearchPhase.Unbounded"/>.</summary>
     public EquatableArray<string> BoundsUnavailable { get; init; }
+    /// <summary>The intervention premise gate of the winning portfolio (<see cref="InterventionRules"/>), recomputed by every
+    /// comparison from current facts: null when the winner installs no exact order and is not ordinary service alone, when
+    /// nothing beat the baseline, or under <see cref="ForecastComparisonBasis.ConditionalScenario"/>. A refused winner leaves the
+    /// baseline selected with this refusal and its <see cref="Rejected"/> evidence.</summary>
+    public InterventionJustification? Justification { get; init; }
 }
 /// <summary>
 /// One phase the search reached: its scheduler expansions and, for the profile (#3556), its wall, the schedule
@@ -263,7 +268,7 @@ public sealed partial record ForecastCoupledSelection
                 Findings = findings.ToArray(),
                 Expansions = ledger.Expansions, SearchTruncated = selection.Selection.SearchTruncated || orders.Selection.SearchTruncated,
             },
-            Deferred = orders.Deferred,
+            Deferred = orders.Deferred, Justification = orders.Justification,
             OutcomeEvaluations = ledger.Evaluations, BaselineEvaluations = ledger.BaselineEvaluations, BaselineExpansions = ledger.BaselineExpansions,
             SearchPhases = EquatableArray.From(selection.SearchPhases.Concat(orders.SearchPhases.Select(p => p with { Phase = ReselectPhasePrefix + p.Phase }))),
             BoundsUnavailable = EquatableArray.From(selection.BoundsUnavailable.Concat(orders.BoundsUnavailable).Distinct().Order(StringComparer.Ordinal)),
@@ -881,15 +886,21 @@ public sealed partial record ForecastCoupledSelection
             if (!route.Open && !unassessedGoalRoutes.Contains(goal)) findings.Add(GoalInfeasiblePrefix + goal + ":" + route.Floor);
         foreach (var goal in unassessedGoalRoutes)
             if (!goalRoutes.TryGetValue(goal, out var route) || !route.Open) findings.Add(GoalRouteUnassessedPrefix + goal);
-        // Keep service counterfactuals during search: they may expose a useful complementary investment.
-        // A service-only winner, however, supplies no independent reason to take over native execution.
-        if (basis == ForecastComparisonBasis.NativeOperation && !bestIsBaseline && NativeNeedServices.RoutineOnly(best.Plan, candidates.Context))
+        // Keep service counterfactuals during search: they may expose a useful complementary investment. A winner that would
+        // install exact orders, or is ordinary service alone, still needs a concrete premise from current observations; a
+        // refused winner is evidence and the native baseline stands.
+        InterventionJustification? justification = null;
+        if (basis == ForecastComparisonBasis.NativeOperation && !bestIsBaseline)
         {
-            evidence.Add(new(EquatableArray.From(selected), bestVector.Vector, NativeNeedServices.RoutineResponse));
-            best = baseline;
-            bestVector = baselineVector;
-            selected = [];
-            selectedPhase = "baseline";
+            justification = InterventionRules.Gate(selected, best.Plan, baselineVector.Vector, bestVector.Vector, candidates.Context, request.Facts.Items);
+            if (justification is InterventionJustification.Refused refused)
+            {
+                evidence.Add(new(EquatableArray.From(selected), bestVector.Vector, refused.Reason));
+                best = baseline;
+                bestVector = baselineVector;
+                selected = [];
+                selectedPhase = "baseline";
+            }
         }
         findings.Add("beyond_horizon_unassessed");
         // The selected and baseline vectors are public and complete (#3723): priced here when no comparison reached their ledgers.
@@ -915,7 +926,7 @@ public sealed partial record ForecastCoupledSelection
             Deferred = deferred,
             SearchPhases = EquatableArray.From(phases), SelectedPhase = selectedPhase, WarmStart = warmStartState,
             Budget = ledger.Budget, OutcomeEvaluations = ledger.Evaluations, BaselineEvaluations = ledger.BaselineEvaluations, BaselineExpansions = ledger.BaselineExpansions,
-            BoundsUnavailable = EquatableArray.From(boundsUnavailable) };
+            BoundsUnavailable = EquatableArray.From(boundsUnavailable), Justification = justification };
     }
 
     /// <summary>The urgent-zero unserved-pawn bound (#3724), as pruning evidence and <see cref="BoundsUnavailable"/> name it: a pawn none of
@@ -1261,8 +1272,11 @@ public sealed partial record ForecastCoupledSelection
         if (selection.Basis == ForecastComparisonBasis.ConditionalScenario) return null;
         if (selection.Selection.Selected.Any(id => candidates.Incumbents.Any(c => c.Id == id)))
             throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
-        return Methods.Binding.CoordinatedActivityBinding.StartSelected(selection.Selection,
+        var batch = Methods.Binding.CoordinatedActivityBinding.StartSelected(selection.Selection,
             candidates.Context.Bindings, authority, method, tick, candidates.Context, candidates.Context.PlannedSites);
+        if (batch is not null && selection.Justification is not InterventionJustification.Justified)
+            throw new DomainException("exact pawn orders need this review's justified intervention premise");
+        return batch;
     }
 
     /// <summary>The unselected colonists whose observed needs stay above every supported threshold for at least a tick: the

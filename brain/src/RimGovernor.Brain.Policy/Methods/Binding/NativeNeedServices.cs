@@ -44,6 +44,4 @@ internal static class NativeNeedServices
     /// <summary>A pure native-service portfolio supplies no independent intervention premise.</summary>
     internal static bool RoutineOnly(ForecastActivityPlan plan, ForecastCoupledContext context) =>
         plan.Allocations.Length != 0 && plan.Allocations.All(a => RoutineTask(a.Activity, a.Pawn, context));
-
-    public const string RoutineResponse = "native_service_response_without_intervention_premise";
 }

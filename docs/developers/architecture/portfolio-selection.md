@@ -8,7 +8,9 @@ the WorkAssignments Concern and existing Method journal. Hands remains the
 only order writer. The path is enabled for observed food, needs, existing
 construction sites, planned shelter completion, planned rooms and clothing
 production. Binding filters migrated routine work at native execution boundaries.
-Remaining caller migration and intervention justification are tracked by the
+Exact orders need an observed intervention premise
+([justification](../contracts/forecast-contracts.md#current-native-need-response)).
+Remaining caller migration is tracked by the
 active native-led labor change. Planned rooms are compared and selected; binding skips their
 allocations and the room reconcile places them (see [planned rooms](#planned-rooms)).
 

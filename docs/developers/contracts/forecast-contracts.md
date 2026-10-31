@@ -54,9 +54,53 @@ ineligible pawn or missing need-task metadata grants no exact-service authority;
 the binding recognizes the service kind independently of that evidence. Known
 blockers still inform assessment and provisioning. The same dispatch
 projection governs interruption accounting and the work-assignment Need. This
-does not complete the general native execution baseline: productive callers,
-reserve/recovery comparisons and general intervention materiality remain in the
-active labor change.
+does not complete the general native execution baseline: productive callers and
+reserve/recovery comparisons remain in the active labor change.
+
+**Intervention justification.** A native-operation winner that would start
+exact pawn orders also needs a pure `InterventionJustification`
+(`InterventionRules.Justify`), recomputed by every comparison from that review's
+observations and never stored on the Method. Forecast benefit is not a premise.
+The justification names:
+
+- the premise. `ObservedShortfall` is a food pawn at or below its threshold with
+  no observed service. `CredibleRisk` is a `NativeFoodAssessment` that needs a
+  response (supply below minimum, or a recovery gap) with its runway and
+  recovery timing. `CapabilityOpportunity` is a held assigned requirement whose
+  baseline XP gap is projected: `UnmetNow`, or `LapsesWithinHorizon` while an
+  alternative still meets it. `Unassessed(reason)` covers missing food or
+  maintenance evidence. `None` means no premise applies.
+- the native response: `Supported`, `KnownTooLate` or `Unassessed(reason)`.
+  Food recovery before runway is supported; recovery at or after runway is
+  known too late. Unconfirmed or uncaptured recovery, and the training work
+  type's unprojected XP, stay unassessed and are named in its uncertainty.
+- the displaced work: dispatched pawns in native service, in native work, or
+  unread.
+- the comparator stage that decided the win.
+
+Food work is work that uses food, or produces or moves a resource whose catalog
+`Nutrition` is positive (the stock walk's rule), whether or not any pawn has a
+current food target. A def the catalog read without `Nutrition` is not food. A
+resource the catalog never read leaves the premise
+`Unassessed(nutrition_per_unit:<resource>)`.
+
+Refusal reasons:
+
+- `native_service_response_without_intervention_premise`: a routine-only
+  portfolio.
+- `premise_unassessed:<reason>`.
+- `no_modeled_service_rescue`: food work whose benefit rests on the native food
+  response the comparison left unprojected.
+- `forecast_benefit_without_premise`: a floor-stage win with no premise.
+- `marginal_gain_without_premise`: a ledger or unconverted-term win with no
+  premise.
+- `settings_response_supported`: native settings answer a risk in time. An
+  observed shortfall is not answered by a later recovery.
+
+There is no universal materiality threshold: a premise justifies the order and
+the comparator ranks it. A refused winner yields to the native baseline.
+`StartCoupledActivity` refuses exact orders without this review's `Justified`
+verdict. The premise is assessed per portfolio, not per root.
 
 The shared comparison applies the same native-response assessment whether a
 routine service is omitted or appears in a selected hypothetical schedule. A
@@ -122,9 +166,9 @@ this assessment and reserve release; neither caller adds a native trajectory.
 
 This evidence can change available native work priorities without crediting
 production or intake. Both native comparison sides retain the current assessment;
-a hypothetical cooking allocation cannot clear it. Exact intervention materiality
-and evidenced delivery-versus-cooking bottlenecks remain pending in the labor
-change. Conditional investment vectors retain a named unassessed native-food
+a hypothetical cooking allocation cannot clear it. It supplies the food
+`CredibleRisk` premise and its native response for
+[intervention justification](#current-native-need-response). Conditional investment vectors retain a named unassessed native-food
 state rather than presenting their scenario as a fresh native observation.
 
 Productive capacity calibration distinguishes exact bill identity from actual
@@ -210,7 +254,7 @@ evidence of where the cook's sampled time went, not a hauling inference from
 stock or an idle bench, and it names no hauler or storage layout.
 The opening sample belongs to the window, so its observed work or inactive bill
 cannot be erased from the subsequent verdict. This is still dispatcher calibration; the portfolio's general native
-baseline and intervention materiality are separate, incomplete work.
+baseline is separate, incomplete work.
 
 Shared work-shortfall valuation uses unallocated supported capacity windows,
 counting overlapping commitments once. It does not use the whole unassigned
