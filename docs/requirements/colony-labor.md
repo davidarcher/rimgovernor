@@ -680,6 +680,26 @@ Verification: required gate PASS (2m39s), 4,305 domain tests and 30 workflow
 tests, native production/fixture builds, contract probes and no contract orphans;
 strict OpenSpec validation 5/5. Overall progress remains 13/24.
 
+Task 3.3 is closed on that evidence. The execution baseline under the normal
+basis is now the colony as observed: current needs and access through
+`NativeNeedServices` and the common no-service bound, usable supply, reserves
+and conditional recovery through `NativeFoodAssessment`, native occupation
+through `NativeLaborCapacity`, realized output through exact bill counters and
+the dispatcher window, and support through `NativeUnprojected`. Work-creation
+alternatives (bills, designations, investments) compete as portfolio roots;
+ordinary priority and timetable settings change freely through `WorkRules` and
+`PawnRules.RoutineTimetable` under decision 4 and need no place in the vector.
+Detailed activity forecasts stay what-if evidence: conditional results install
+nothing, routine-only winners are rejected, and routine bindings are removed.
+Known limits, carried forward rather than hidden: the detailed stock walk still
+draws continuous native consumption for consumers outside the needs read with
+no modeled native production, so its `external_stock_shortfall` refusal and the
+unread `food_consumer_shortfall` finding remain conditional what-if results;
+`WorkShortfallRules` remains a scheduler-derived conditional demand estimate
+read only by pawn valuation; the vector carries `NativeFood` for explanation and
+task 4.1's premise without ranking on it. None of these is a native prediction or
+dispatch authority. Overall progress is 14/24.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
