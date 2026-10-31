@@ -30,7 +30,7 @@ public sealed class SurgerySelectionTests
             Recipe = recipe,
             Part = new BodyPartRef { Index = part, DefName = body },
             Kind = kind,
-            Chance = new SurgeryChance.Rated(0.95, 0.95, new Dictionary<string, double>()),
+            Chance = new SurgeryChance.Rated(0.95, new Dictionary<string, double>()),
             EligibleDoctors = 1,
             IngredientsOnMap = stocked,
             Violation = false,
@@ -98,8 +98,17 @@ public sealed class SurgerySelectionTests
         var choice = Assert.Single(SurgeryRules.SelectSurgery(Census(pawn), null, new SurgeryContext()).Queue);
 
         Assert.Equal(("InstallBionicEye", EyePart, false), (choice.Recipe, choice.Part, choice.Elective));
-        // Without the chronic condition a healthy eye is no served operation (and no elective without a hospital bed).
-        Assert.Empty(SurgeryRules.SelectSurgery(Census(pawn with { Observed = pawn.Observed with { Health = pawn.Observed.Health with { Hediffs = [] } } }), null, new SurgeryContext()).Queue);
+        // Without the chronic condition a healthy eye is no served operation: the bionic eye is an elective, which no hospital bed
+        // gates (task 4.5). It is queued when its chance in the bed the patient is operated in (a plain bed, no medical bed standing)
+        // clears ElectiveFailureCap, and not when that bed leaves it short.
+        var healthy = pawn with { Observed = pawn.Observed with { Health = pawn.Observed.Health with { Hediffs = [] } } };
+        CareOperation Rated(double chance) => Op(SurgeryKind.Install, "InstallBionicEye", EyePart, "Eye", stocked: true, "BionicEye", tier: 1.25) is var op
+            ? op with { Operation = op.Operation with { Chance = new SurgeryChance.Rated(chance, new Dictionary<string, double>()) } } : op;
+        var elective = Assert.Single(SurgeryRules.SelectSurgery(Census(healthy with { Operations = [Rated(0.97)] }), null, new SurgeryContext()).Queue);
+        Assert.Equal(("InstallBionicEye", EyePart, true), (elective.Recipe, elective.Part, elective.Elective));
+        Assert.True(SurgeryRules.ElectiveSurgeryOwed(Census(healthy with { Operations = [Rated(0.97)] }), new SurgeryContext(), null));
+        Assert.Empty(SurgeryRules.SelectSurgery(Census(healthy with { Operations = [Rated(0.90)] }), null, new SurgeryContext()).Queue);
+        Assert.False(SurgeryRules.ElectiveSurgeryOwed(Census(healthy with { Operations = [Rated(0.90)] }), new SurgeryContext(), null));
     }
 
     [Fact]
@@ -200,5 +209,20 @@ public sealed class SurgerySelectionTests
 
         Assert.NotNull(recovery);
         Assert.Equal((Captive, "RemoveBodyPart", ArmPart, Colonist), (recovery.Prisoner, recovery.Recipe, recovery.Part, recovery.For));
+    }
+
+    [Fact]
+    public void OnlyAMissingCareBedMakesAnOperationBedShort()
+    {
+        // No bed the patient may be operated in (native FindPatientBedFor finds none): the hospital planner's demand.
+        CarePawn Leg(SurgeryChance chance) => Patient([CareFixtures.Operation(SurgeryKind.Restore, "InstallPegLeg", LegPart, "Leg", stocked: true, "PegLeg", tier: 0.6, chance: chance)]);
+        var bedless = Leg(new SurgeryChance.NoCareBed());
+        Assert.Empty(SurgeryRules.SelectSurgery(Census(bedless), null, new SurgeryContext()).Queue);
+        Assert.Contains(SurgeryRules.SelectSurgery(Census(bedless), null, new SurgeryContext()).Wants, w => w.Reason == SurgeryWantReason.BedShort);
+        Assert.Equal([Colonist], SurgeryRules.SurgeryBedShortPatients(Census(bedless)));
+        // A chance rated in the bed it would lie in that misses the cap is the doctor's shortfall, never an invented better bed's.
+        var risky = Leg(new SurgeryChance.Rated(0.5, new Dictionary<string, double>()));
+        Assert.DoesNotContain(SurgeryRules.SelectSurgery(Census(risky), null, new SurgeryContext()).Wants, w => w.Reason == SurgeryWantReason.BedShort);
+        Assert.Empty(SurgeryRules.SurgeryBedShortPatients(Census(risky)));
     }
 }

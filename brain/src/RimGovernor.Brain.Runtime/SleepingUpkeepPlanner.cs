@@ -82,7 +82,7 @@ public sealed partial class SleepingUpkeepPlanner
         }
         // One packed read per pass, shared by every owner of stored pieces.
         var stock = new PackedStock(Native, Boundary.Identity(state.Snapshot));
-        var request = SleepingRequest(facts, review);
+        var request = SleepingRequest(facts, review, HospitalPlanner.HeldSleeping(p.Journal, facts, state.Snapshot, call));
         var choice = SleepingRules.SelectSleepingMethod(request);
         // swapping flags a bedroom swap: native evicts the bed's owner.
         var swapping = false;
@@ -315,9 +315,9 @@ public sealed partial class BuildingPlanner
     /// Resolves the building ladder's definition and site from the same census the sleeping planner chose
     /// from: only a SleepingBuild choice furnishes; every other outcome is reported, never built around.
     /// </summary>
-    internal (BuildingPlanner? Planner, Verdict Verdict) SelectSleeping(RimGovernor.Brain.GameAccess.ColonyReading facts, Sto.ReviewState review)
+    internal (BuildingPlanner? Planner, Verdict Verdict) SelectSleeping(RimGovernor.Brain.GameAccess.ColonyReading facts, Sto.ReviewState review, CancellationToken call)
     {
-        var request = SleepingUpkeepPlanner.SleepingRequest(facts, review);
+        var request = SleepingUpkeepPlanner.SleepingRequest(facts, review, HospitalPlanner.HeldSleeping(Reviewer.Player.Journal, facts, review.Snapshot, call));
         var choice = SleepingRules.SelectSleepingMethod(request);
         switch (choice.Method)
         {
@@ -352,11 +352,13 @@ partial class SleepingUpkeepPlanner
 {
     /// <summary>
     /// Re-derives the sleeping targets from this step's census against the review's retained use history, so
-    /// the choice and the build site share one observation.
+    /// the choice and the build site share one observation. <paramref name="held"/> is that census with the beds care
+    /// patients' transports hold counted as theirs (<see cref="HospitalPlanner.HeldSleeping"/>, task 4.3): no slot,
+    /// assignment or build choice takes a held bed.
     /// </summary>
-    internal static Pol.SleepingRequest SleepingRequest(RimGovernor.Brain.GameAccess.ColonyReading facts, Sto.ReviewState review)
+    internal static Pol.SleepingRequest SleepingRequest(RimGovernor.Brain.GameAccess.ColonyReading facts, Sto.ReviewState review, SleepingObservation held)
     {
-        var sleeping = SleepingRules.ReviewSleeping(facts.Facts.Sleeping, review.Sleeping, facts.Identity.Tick);
+        var sleeping = SleepingRules.ReviewSleeping(held, review.Sleeping, facts.Identity.Tick);
         EquatableArray<Pol.BenchDefinition> definitions = [.. facts.Facts.Definitions.Select(d => new Pol.BenchDefinition { Name = d.Name, Available = d.Available })];
         var stocked = new HashSet<string>(StringComparer.Ordinal);
         foreach (var name in new[] { SleepingRules.SleepingBedrollDefinition, SleepingRules.SleepingCoupleBedrollDefinition })
@@ -369,7 +371,7 @@ partial class SleepingUpkeepPlanner
         var request = new Pol.SleepingRequest
         {
             Targets = sleeping.Targets,
-            Sleeping = facts.Facts.Sleeping,
+            Sleeping = held,
             Rooms = facts.Facts.Upkeep.Rooms,
             Definitions = definitions,
             Furniture = facts.Facts.Shapes.Furniture,
@@ -377,7 +379,7 @@ partial class SleepingUpkeepPlanner
             Traits = SleepingTraits(facts),
         };
         var tier = TechTierRules.SelectTechTier(facts.Tables.FinishedResearch.Select(x => new ResearchProjectId(x)).ToArray(), facts.Snapshot.PlayerTechLevel);
-        return request with { RoomTargets = RoomQualityRules.RoomQualityTargets(facts.Facts.Sleeping, request.Traits ?? new Dictionary<PawnId, Pol.TraitEffects>(), tier, facts.Facts.Impressiveness) };
+        return request with { RoomTargets = RoomQualityRules.RoomQualityTargets(held, request.Traits ?? new Dictionary<PawnId, Pol.TraitEffects>(), tier, facts.Facts.Impressiveness) };
     }
 
     /// <summary>Each colonist's trait effects from the work census, null while it is unknown.</summary>

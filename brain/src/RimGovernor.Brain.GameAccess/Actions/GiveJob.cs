@@ -19,6 +19,7 @@ public static class GiveJobRules
 
     public const string JobWear = "Wear";
     public const string JobRescue = "Rescue";
+    public const string JobLayDown = "LayDown";
     public const string JobCapture = "Capture";
     public const string JobArrest = "Arrest";
     public const string JobAttackMelee = "AttackMelee";
@@ -127,7 +128,14 @@ public static class GiveJobRules
     internal static RimGovernor.Brain.GameOrders.Operations.Action RescueAction(DomainAction action)
     {
         var v = action.Rescue ?? throw BridgeContractException.Contract("not a rescue action");
-        return GiveJob(v.Rescuer, JobRescue, v.Patient.Value);
+        return GiveJob(v.Rescuer, JobRescue, v.Patient.Value, v.Bed);
+    }
+
+    /// <summary>The walking patient itself lies down in its exact bed (vanilla LayDown, the bed its one target).</summary>
+    internal static RimGovernor.Brain.GameOrders.Operations.Action BedRestAction(DomainAction action)
+    {
+        var v = action.BedRest ?? throw BridgeContractException.Contract("not a bed rest action");
+        return GiveJob(v.Patient, JobLayDown, v.Bed);
     }
 
     /// <summary>

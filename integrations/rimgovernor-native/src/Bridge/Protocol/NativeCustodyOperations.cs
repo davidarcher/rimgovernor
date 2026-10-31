@@ -7,10 +7,13 @@ using Verse.AI;
 namespace RimGovernor.Native
 {
     // GiveJobIntent Capture and Rescue. Both are single fixed
-    // vanilla jobs (Capture, Rescue) that carry a downed patient to a bed -- a
-    // prisoner bed for capture, an ordinary or guest bed for rescue. Checked
-    // live at apply; a pawn already carrying out the job on the patient
-    // applies again.
+    // vanilla jobs (Capture, Rescue) that carry a downed patient to a bed. A
+    // capture takes the prisoner bed RestUtility.FindBedFor gives; a rescue
+    // carries the patient to the exact bed the brain chose (targets [patient,
+    // bed], JobDriver_TakeToBed's TargetIndex.B), refused unless
+    // RestUtility.IsValidBedFor passes for that patient and rescuer. Checked
+    // live at apply; a pawn already carrying out the job on the patient (and,
+    // for a rescue, to that bed) applies again.
     internal static class NativeCustodyOperations
     {
         // Manhunter mental state or a hostile faction. Rescue refuses a
@@ -39,18 +42,10 @@ namespace RimGovernor.Native
             && patient.Map == pawn.Map && !ReferenceEquals(patient, pawn)
             && HealthAIUtility.CanRescueNow(pawn, patient, true) && !HostileToPlayer(patient);
 
-        internal static bool FindBed(JobOrderKind kind, Pawn pawn, Pawn patient, out Building_Bed? bed)
-        {
-            bed = kind == JobOrderKind.Capture
-                ? RestUtility.FindBedFor(patient, pawn, false, false, GuestStatus.Prisoner)
-                : RestUtility.FindBedFor(patient, pawn, checkSocialProperness: false)
-                    ?? RestUtility.FindBedFor(patient, pawn, false, ignoreOtherReservations: true);
-            return bed != null;
-        }
-
         private static JobDef Def(JobOrderKind kind) => kind == JobOrderKind.Capture ? JobDefOf.Capture : JobDefOf.Rescue;
 
-        private static bool Running(JobOrderKind kind, Pawn pawn, Pawn patient) => pawn.CurJob != null && pawn.CurJob.def == Def(kind) && pawn.CurJob.targetA.Thing == patient;
+        private static bool Running(JobOrderKind kind, Pawn pawn, Pawn patient, Building_Bed? bed) => pawn.CurJob != null && pawn.CurJob.def == Def(kind) && pawn.CurJob.targetA.Thing == patient
+            && (kind == JobOrderKind.Capture || pawn.CurJob.targetB.Thing == bed);
 
         // A pawn studied at a holding platform is captured to a
         // holding platform, not a prisoner bed: the game's own order
@@ -96,14 +91,26 @@ namespace RimGovernor.Native
                     return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The pawn cannot reserve and reach the entity.");
                 return null;
             }
-            if (Running(intent.Kind, pawn, patient)) return null;
             bool capture = intent.Kind == JobOrderKind.Capture;
+            if (!capture)
+            {
+                if (!intent.HasBedId || !GameThread.IsIdentifier(intent.BedId))
+                    return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Rescue requires the exact bed.");
+                bed = RefIndex.Thing<Building_Bed>(GameThread.LoadedMap(context), intent.BedId);
+                if (bed == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "Exact rescue bed is not spawned on this map.");
+            }
+            if (Running(intent.Kind, pawn, patient, bed)) return null;
             if (capture ? !CaptureEligible(pawn, patient) : !RescueEligible(pawn, patient))
                 return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, capture
                     ? "Capture refused: the patient must be a downed, capturable hostile the pawn can carry."
                     : "Rescue refused: the patient must be a downed, non-hostile pawn the rescuer can carry.");
-            if (!FindBed(intent.Kind, pawn, patient, out bed) || bed == null)
-                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "No native bed is available for this worker and patient.");
+            if (capture)
+            {
+                bed = RestUtility.FindBedFor(patient, pawn, false, false, GuestStatus.Prisoner);
+                if (bed == null) return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, "No native prisoner bed is available for this worker and patient.");
+            }
+            else if (!RestUtility.IsValidBedFor(bed, patient, pawn, checkSocialProperness: false))
+                return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "Rescue refused: the bed is not a valid bed for this patient and rescuer.");
             if (!pawn.CanReserveAndReach(patient, PathEndMode.Touch, Danger.Deadly))
                 return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest, "The pawn cannot reserve and reach the patient.");
             return null;
@@ -128,7 +135,7 @@ namespace RimGovernor.Native
                 }
                 return NativeGiveJob.Evidence(pawn, patient, carry, true);
             }
-            if (Running(intent.Kind, pawn, patient)) return NativeGiveJob.Evidence(pawn, patient, pawn.CurJob, false);
+            if (Running(intent.Kind, pawn, patient, bed)) return NativeGiveJob.Evidence(pawn, patient, pawn.CurJob, false);
             var job = JobMaker.MakeJob(Def(intent.Kind), patient, bed);
             job.count = 1;
             if (!pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc) || pawn.CurJob == null || pawn.CurJob.loadID != job.loadID)

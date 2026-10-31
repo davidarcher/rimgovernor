@@ -63,6 +63,9 @@ namespace RimGovernor.Native
                     food.stackCount = food.def.stackLimit;
                     map.roofGrid.SetRoof(food.Position, RoofDefOf.RoofConstructed);
                 }
+                // The exact medical bed a rescue carries the downed visitor to (task 4.3: a rescue names its bed).
+                var ward = (Building_Bed)spawn("Bed", 13, 3);
+                ward.Medical = true;
                 spawn("MedicineIndustrial", 10, 4).stackCount = 20;
                 spawn("Gun_Revolver", 11, 4);
                 map.regionAndRoomUpdater.RebuildAllRegionsAndRooms();
@@ -103,7 +106,7 @@ namespace RimGovernor.Native
                 visitor.health.AddHediff(DefDatabase<HediffDef>.GetNamed("Bruise"), visitor.RaceProps.body.corePart).Severity = 3;
                 visitor.needs.food.CurLevelPercentage = .2f;
                 return new { success = true, candidate = candidate.GetUniqueLoadID(), prison = prison.GetUniqueLoadID(),
-                    visitor = visitor.GetUniqueLoadID(),
+                    visitor = visitor.GetUniqueLoadID(), ward = ward.GetUniqueLoadID(),
                     bedChecks = workers.Select(p => new { pawn = p.GetUniqueLoadID(),
                         usable = RestUtility.CanUseBedNow(prison, candidate, false, guestStatusOverride: GuestStatus.Prisoner),
                         reachable = p.CanReach(prison, PathEndMode.OnCell, Danger.Some),

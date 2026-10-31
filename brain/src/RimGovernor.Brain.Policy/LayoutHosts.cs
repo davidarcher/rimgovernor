@@ -82,6 +82,9 @@ public sealed record HostedRegroupInput(HostAlternative Host, RegroupInput Input
 
     /// <summary>The activity-site deviation an activity-site alternative is (ActivitySiteRules.Deviations); none for a host or bed-sharing one.</summary>
     public SiteDeviation Site { get; init; } = new SiteDeviation.None();
+
+    /// <summary>The medical beds a medical bed alternative fixes (LayoutHospitalBedRules); null for every other alternative.</summary>
+    public HospitalBedChoice? HospitalBeds { get; init; }
 }
 
 /// <summary>
@@ -91,6 +94,9 @@ public sealed record HostedRegroupInput(HostAlternative Host, RegroupInput Input
 public sealed record HostedRegroupInputs(IReadOnlyList<HostedRegroupInput> Alternatives, EquatableArray<HostDeviation> Omitted)
 {
     public EquatableArray<SiteTruncation> SitesOmitted { get; init; }
+
+    /// <summary>The medical bed candidate defs past LayoutHospitalBedRules.MaxDefTrials, compared by nobody.</summary>
+    public EquatableArray<string> MedicalBedsOmitted { get; init; }
 }
 
 /// <summary>

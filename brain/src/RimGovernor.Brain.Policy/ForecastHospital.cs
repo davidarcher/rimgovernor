@@ -27,7 +27,9 @@ public abstract record ForecastTendingTiming
 
 /// <summary>
 /// The Hospital role's credit (#3804, epic #3650 P1): what a patient gains from lying in the planned hospital's bed rather than in
-/// the bed it owns now (none: the ground, at the roomless scores). The room adds no tend quality (the doctor's, H1). Per colonist,
+/// the bed it would be cared in now: the existing medical bed it would be taken to (<see cref="NeedsForecastPawn.MedicalBedRoom"/>,
+/// task 4.1), else the bed it owns (none: the ground, at the roomless scores). The room adds no tend quality (the doctor's, H1).
+/// The infection, illness, surgery and mood parts all read that bed. Per colonist,
 /// a served day earns:
 /// <list type="bullet">
 /// <item>Wound infection: raids a day × (the risk-transformed harm of one raid tended in its owned bed's room, less tended in the
@@ -39,12 +41,14 @@ public abstract record ForecastTendingTiming
 /// ImmunityGainSpeedFactor, less at the hospital bed's, <see cref="ForecastCoupledContext.HospitalBed"/>, #3824).</item>
 /// <item>Mood: the patient-days a day (raids a day × one raid's tended days to healed, plus the illness's
 /// <see cref="IllnessPawn.PatientDaysPerDay"/>) × <see cref="ForecastHousing.GainPerDay"/> of the sleep thoughts the hospital bed
-/// trades: ThoughtWorker_HospitalPatientRoomStats at the predicted Impressiveness stage in a Hospital room gained, and the ones
-/// Toils_LayDown.ApplyBedThoughts gives in the owned bed lost (SleptOutside, SleptOnGround, the bedroom or barracks thought; a bed
-/// a pawn does not own gives none of those).</item>
+/// trades: ThoughtWorker_HospitalPatientRoomStats at the predicted Impressiveness stage in a Hospital room gained, and the ones of
+/// the bed it lies in now lost: an existing medical bed's (its own hospital patient thought, SleptOutside, SleptOnGround), else the
+/// ones Toils_LayDown.ApplyBedThoughts gives in the owned bed (SleptOutside, SleptOnGround, the bedroom or barracks thought).</item>
 /// <item>Surgery, once (<see cref="RoomGain.Once"/>): each queued Bill_Medical on the colonist the schedule does not finish before
 /// the hospital serves fails less often in the hospital bed: (the failure cost at the owned bed's SurgerySuccessChanceFactor, less at
-/// the hospital bed's def factor × the room's SurgerySuccessChanceCleanlinessFactor) at the best surgeon's quality. A failure costs
+/// the hospital bed's factor, its def's and the vitals monitor's the plan places beside it, × the room's
+/// SurgerySuccessChanceCleanlinessFactor) at the best surgeon's quality. Only a colonist's operation is credited: a prisoner, a slave or
+/// an animal may not lie in a colony hospital bed (SleepingRules.LegalBed), so the plan changes none of theirs. A failure costs
 /// its outcomes as SurgeryOutcomeEffectDef.GetOutcome tries them: death the rest of the horizon and the terminal value; a failure's
 /// totalDamage dealt as wounds (HarmConsequences.Wounds), tended in the room the surgery was in.</item>
 /// <item>Future surgery, a day (<see cref="SurgeryRate"/>, #3830): each surgery a future event queues on the colonist, at its rate a
@@ -72,15 +76,14 @@ internal static class ForecastHospital
     internal const double SurgeryBleedShare = 19d / 24;
 
     /// <summary>
-    /// The mechanics the credit leaves out, named with every served hospital: the vitals monitor and other facilities a planned bed would link, the BotchedMySurgery
-    /// thought, the temperature sleep thoughts, the medical beds the colony already has (#3817), the surgery outcome classes other
-    /// than success, death and failure, and the surgeries on non-colonists.
+    /// The mechanics the credit leaves out, named with every served hospital: the BotchedMySurgery thought, the temperature sleep
+    /// thoughts, the surgery outcome classes other than success, death and failure, and the surgeries on guests (the one non-colonist
+    /// class a colony hospital bed takes).
     /// </summary>
     internal static readonly string[] Unmodelled =
     [
-        "hospital_bed_facilities_unmodelled", "surgery_botched_thought_unmodelled",
-        "hospital_sleep_temperature_unmodelled", "hospital_standing_medical_beds_unmodelled", "surgery_other_outcomes_unmodelled",
-        "hospital_noncolonist_surgery_unmodelled",
+        "surgery_botched_thought_unmodelled", "hospital_sleep_temperature_unmodelled", "surgery_other_outcomes_unmodelled",
+        "hospital_guest_surgery_unmodelled",
     ];
 
     /// <summary>One colonist's per-day parts of a hospital's credit.</summary>
@@ -220,23 +223,29 @@ internal static class ForecastHospital
     }
 
     /// <summary>
-    /// The mood delta of one patient-day in the hospital <paramref name="prediction"/> predicts (see the class summary). Throws when
-    /// a thought stage row or the owned bed's room is unread.
+    /// The mood delta of one patient-day in the hospital <paramref name="prediction"/> predicts (see the class summary), against the
+    /// thoughts of the bed the patient would be cared in now: the existing medical bed's when it has one, else the owned bed's. Throws
+    /// when a thought stage row or the owned bed's room is unread.
     /// </summary>
     internal static double MoodDelta(NeedsForecastPawn pawn, PlannedRoomPrediction prediction)
     {
         var stages = pawn.ThoughtStages;
         double Row(string role) => stages.FirstOrDefault(r => r.Role == role && r.Stage == 0)?.Offset ?? throw new RequiredFactException(role + " thought stage");
-        var gained = 0.0;
-        if (prediction.Role == HospitalRole)
+        // ThoughtWorker_HospitalPatientRoomStats in a medical bed whose room is a Hospital, at its Impressiveness stage.
+        double Patient(string role, int stage)
         {
-            var rows = stages.Where(r => r.Role == PatientRole && r.Stage == prediction.Stage).DistinctBy(r => r.Thought).ToArray();
-            if (rows.Length == 0)
-            {
-                throw new RequiredFactException(PatientRole + " thought stage");
-            }
+            if (role != HospitalRole) return 0;
+            var rows = stages.Where(r => r.Role == PatientRole && r.Stage == stage).DistinctBy(r => r.Thought).ToArray();
+            return rows.Length == 0 ? throw new RequiredFactException(PatientRole + " thought stage") : rows.Sum(r => r.Offset);
+        }
 
-            gained = rows.Sum(r => r.Offset);
+        var gained = Patient(prediction.Role, prediction.Stage);
+        // Cared in an existing medical bed now (task 4.5): that bed's thoughts, never the owned bed's (ApplyBedThoughts gives the
+        // bedroom or barracks thought only in the owned bed, and a medical bed is owned by nobody).
+        if (pawn.MedicalBedRoom is { } medical)
+        {
+            return gained - (Patient(medical.Role, medical.Stage) + (medical.PsychologicallyOutdoors ? Row("slept_outside") : 0)
+                + (medical.Costless ? Row("slept_on_ground") : 0));
         }
 
         if (pawn.OwnedBed.Length == 0)
@@ -300,7 +309,13 @@ internal static class ForecastHospital
         var days = context.InvestmentHorizonDays;
         var horizon = days * GameTime.TicksPerDay;
         var tending = context.Tending ?? throw new RequiredFactException("tend_quality");
-        var bed = context.HospitalBed.Def.Length != 0 ? context.HospitalBed : throw new RequiredFactException("hospital_bed");
+        // A plan that builds no medical bed (its patients cared in reused or converted beds, CareCapacityRules) gains no hospital bed.
+        if (context.HospitalBed.Def.Length == 0)
+        {
+            return new([], []);
+        }
+
+        var bed = context.HospitalBed;
         var raidsPerDay = HarmLedger.RaidsPerDay(context.Harm, days) ?? throw new RequiredFactException(HarmLedger.ThreatScheduleUnknown);
         var schedule = context.Harm.Illness;
         if (!schedule.Assessed)
@@ -312,8 +327,8 @@ internal static class ForecastHospital
         double? hospitalInfection = null;
         double HospitalInfection() => hospitalInfection ??= PlannedRoomCleanlinessRules.InfectionChance(prediction, runs, filth);
         double Roomless(IReadOnlyList<CurvePoint> curve, double score, string unread) => curve.Count != 0 ? score : throw new RequiredFactException(unread);
-        double InfectionNow(NeedsForecastPawn pawn) => pawn.OwnedBed.Length == 0
-            ? Roomless(filth.InfectionChance, filth.InfectionChanceRoomless, "infection_chance_curve") : OwnedRoom(pawn).InfectionChanceFactor;
+        double InfectionNow(NeedsForecastPawn pawn) => pawn.MedicalBedRoom?.InfectionChanceFactor ?? (pawn.OwnedBed.Length == 0
+            ? Roomless(filth.InfectionChance, filth.InfectionChanceRoomless, "infection_chance_curve") : OwnedRoom(pawn).InfectionChanceFactor);
         HarmConsequences.Care Care(double roomFactor, double at = 0)
         {
             var actual = scheduled ? tending.On(at) : tending;
@@ -350,7 +365,7 @@ internal static class ForecastHospital
             double illness = 0;
             if (incidents > 0)
             {
-                var immunityNow = pawn.OwnedBed.Length == 0 ? 1 : OwnedRoom(pawn).ImmunityGainSpeedFactor;
+                var immunityNow = pawn.MedicalBedRoom?.ImmunityGainSpeedFactor ?? (pawn.OwnedBed.Length == 0 ? 1 : OwnedRoom(pawn).ImmunityGainSpeedFactor);
                 var now = IllnessForecast.Of(schedule, pawn, context.CapacityPenalties, Care(1), immunityNow, context.Value, horizon, context.Stock);
                 var hospital = IllnessForecast.Of(schedule, pawn, context.CapacityPenalties, Care(1), bed.ImmunityGainSpeedFactor, context.Value, horizon, context.Stock,
                     scheduled ? new IllnessForecast.BedChange(from, immunityNow) : null);
@@ -376,11 +391,11 @@ internal static class ForecastHospital
         var rows = pawns.ToDictionary(p => p.Pawn, StringComparer.Ordinal);
         var operations = new List<Operation>();
         double? hospitalSurgery = null;
-        // A surgery fails less in the hospital bed: the failure cost at the owned bed's factor less at the hospital's (see the class summary).
+        // A surgery fails less in the hospital bed: the failure cost at the bed it is cared in now less at the hospital's (see the class summary).
         double Saved(SurgeryModel surgery, NeedsForecastPawn patient, double at = 0)
         {
-            var now = patient.OwnedBed.Length == 0
-                ? Roomless(filth.SurgeryCleanliness, filth.SurgeryCleanlinessRoomless, "surgery_cleanliness_curve") : OwnedRoom(patient).SurgerySuccessFactor;
+            var now = patient.MedicalBedRoom?.SurgerySuccessFactor ?? (patient.OwnedBed.Length == 0
+                ? Roomless(filth.SurgeryCleanliness, filth.SurgeryCleanlinessRoomless, "surgery_cleanliness_curve") : OwnedRoom(patient).SurgerySuccessFactor);
             hospitalSurgery ??= bed.SurgerySuccessChanceFactor * PlannedRoomCleanlinessRules.SurgeryCleanliness(prediction, runs, filth);
             var remaining = Math.Max(0, days - at);
             return FailureCost(surgery, surgery.Quality * now, patient, context, Care(InfectionNow(patient), at), remaining * GameTime.TicksPerDay, remaining)
@@ -399,8 +414,8 @@ internal static class ForecastHospital
         patients = [.. patients.Select(p => p with { SurgeryPerDay = surgeries.TryGetValue(p.Pawn, out var perDay) ? perDay : 0 })];
         foreach (var demand in context.Support.Demands.Where(d => !scheduled && d.Kind == "surgery").OrderBy(d => d.Id, StringComparer.Ordinal))
         {
-            // A surgery on a prisoner, a slave or an animal is no colonist's (named in Unmodelled); one without an outcome effect cannot
-            // fail, and one that ignores its environment fails alike in either bed.
+            // A surgery on a prisoner, a slave or an animal never moves to a colony hospital bed (LegalBed), and a guest's is named in
+            // Unmodelled; one without an outcome effect cannot fail, and one that ignores its environment fails alike in either bed.
             if (!rows.TryGetValue(demand.Target, out var patient) || demand.SurgeryOutcomes.Count == 0 || !demand.SurgeryEnvironment)
             {
                 continue;

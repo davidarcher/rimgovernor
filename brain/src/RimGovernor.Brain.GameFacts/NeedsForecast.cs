@@ -915,6 +915,12 @@ public sealed record NeedsForecastPawn
     /// <summary>The owned bed's room and care (#3804, <see cref="NeedBedRoom"/>); null without an owned bed.</summary>
     public required NeedBedRoom? OwnedBedRoom { get; init; }
     /// <summary>
+    /// The room and care of the medical bed the pawn would be cared in were it a patient now (task 4.1: the closest reachable
+    /// Medical bed RestUtility.FindPatientBedFor would take, by its class, prison-cell, slot and forbidden checks), the existing
+    /// care a planned hospital bed competes with; null when the colony has none the pawn may use.
+    /// </summary>
+    public required NeedBedRoom? MedicalBedRoom { get; init; }
+    /// <summary>
     /// The pawn's own room (#3899, <c>Pawn_Ownership.OwnedRoom</c>: its owned bed's room when the room counts it among its owners),
     /// as the own-bedroom trait thoughts read it (ThoughtWorker_Greedy, ThoughtWorker_BedroomJealous, ThoughtWorker_Ascetic); null
     /// when it owns none.
@@ -1107,8 +1113,8 @@ public sealed record DiseasePartRead(string Part, double Coverage, double Effici
 /// medicine; null for a recipe that takes none) and whether that part is on the map (<c>RecipeDef.PotentiallyMissingIngredients</c>),
 /// whether medicine the patient's care allows is on the map and how many units the recipe takes (#3868: the stock-arrival model
 /// waits on what is missing), the eligible doctors, the best doctor's
-/// success chance in the colony's best medical bed and with an ideal bed (0 without a doctor or an outcome effect: the surgery block
-/// leaves those unread, which the autopilot refuses), whether it
+/// <see cref="SurgeryChance"/> in the bed the patient is operated in (as <see cref="PawnSurgery"/> rates an operation: no invented
+/// ideal bed), whether it
 /// is a violation or lethal; and its outcome model as a queued bill's (NativeSupportActivities.SurgeryOutcomesOf: the outcomes,
 /// whether the bed and room comp applies, the clamp), with the best eligible doctor's quality before the bed and the clamp.
 /// </summary>
@@ -1119,8 +1125,7 @@ public sealed record OrganReplacementRead(string Part, string Recipe)
     public bool MedicineOnMap { get; init; }
     public int MedicineCount { get; init; }
     public int EligibleDoctors { get; init; }
-    public double SuccessChance { get; init; }
-    public double DoctorSuccessChance { get; init; }
+    public required SurgeryChance Chance { get; init; }
     public bool Violation { get; init; }
     public bool Lethal { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<SurgeryOutcomeRead>))]

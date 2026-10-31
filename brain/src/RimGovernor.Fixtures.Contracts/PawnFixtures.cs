@@ -115,6 +115,9 @@ public sealed record PopulationSetup
 
     public string Prison { get; init; } = "";
 
+    /// <summary>The medical bed the visitor's rescue names.</summary>
+    public string Ward { get; init; } = "";
+
     public IReadOnlyList<PopulationBedCheck> BedChecks { get; init; } = [];
 }
 

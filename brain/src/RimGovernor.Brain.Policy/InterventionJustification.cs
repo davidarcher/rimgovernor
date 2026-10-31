@@ -373,7 +373,11 @@ public static class InterventionRules
         return observed.Stalls.FirstOrDefault(s => served.Contains((s.Site, s.Cause)));
     }
 
-    /// <summary>The tend demand a care binding serves (SupportMethodCandidates' <c>TendPatient</c> work on a support demand), or null.</summary>
+    /// <summary>
+    /// The tend demand a care binding serves (SupportMethodCandidates' <c>TendPatient</c> work on a support demand), or null. Every
+    /// such binding tends the patient where the census observed it lying (task 4.3 of <c>redefine-habitat-requirements</c>): a patient
+    /// moved to a bed is served only once a later census sees it there, never on the transport's receipt, so a failed move earns no credit.
+    /// </summary>
     private static string? CareServed(Methods.ActivityTaskCandidate binding) =>
         binding is { Kind: PawnActivityKind.Work, Job: CareTendJob } && binding.SupportDemand.Length != 0 ? binding.SupportDemand : null;
 

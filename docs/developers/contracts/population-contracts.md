@@ -31,10 +31,19 @@ sleep in. The habitat requirement (RG-HABITAT-001) is met per occupant, not by a
   `SleepingMethod`; only its observed use of an owned suitable bed meets the Need, the proof colonists need.
 - **Compatible slot.** `SleepingRules.CompatibleSlot` is the one test of a legal, reachable slot: a regular
   humanlike bed (not a crib, medical bed or prison bed) whose slave setting matches the pawn's (a slave only in a
-  slave bed, no colonist or guest in one) and that the pawn can reach. `SleepingRules.SlotShortfall` counts the sleepers
-  short of such a slot per class; the sleeping review, the slave-bed mark, foothold sleeping, the stand-in count
-  (`StandInsOwed`) and the hospital conversion spare (`LeavesSlots`) all use it, so a slave bed is never a
+  slave bed, no colonist or guest in one) and that the pawn can reach. It and `SleepingRules.CareSlot` share one
+  class rule, `SleepingRules.LegalBed` (an animal only an animal bed, a prisoner only a prison bed, a slave only a
+  slave bed that is no prison bed, a colonist or guest only a bed for neither). `SleepingRules.SlotShortfall` counts the
+  sleepers short of such a slot per class; the sleeping review, the slave-bed mark, foothold sleeping, the stand-in count
+  (`StandInsOwed`) and the care capacity comparison's conversions all use it, so a slave bed is never a
   colonist's spare and a conversion never takes a bed another sleeper needs.
+- **Medical beds and hosted patients.** A medical bed is no free slot, but a pawn that owns no regular slot and lies in a
+  legal medical bed, or seeks medical rest (`ShouldSeekMedicalRest`) and can reach one with a slot nobody lies in, is
+  held by it (`SleepingRules.HeldInMedicalBeds`): it counts once, so a patient whose own bed was converted is not also
+  short of a slot, and after care it wants a sleeping slot again, which the post-care review prices. A bed a care
+  transport holds is its patient's slot ([medical care](medical-care.md#care-capacity)). Guests and slaves hosted
+  by the colony are care patients in colony beds as their class allows; prisoners lie only in prison beds and animals
+  only in animal beds, so none of those can be moved into a colony hospital bed.
 - **Babies** are crib demand, not sleeping targets: the nursery sizes one crib per baby (a goal-named nursery with
   no baby yet still holds `MinNurseryBeds`), and the hosted slaves' and guests' babies join the station's crib demand
   (`StationFacts.HostedBabies`).
@@ -228,6 +237,15 @@ otherwise. A pawn no longer observable anywhere stays unknown.
   component; its presence alone never selects entity capture. The deciding rule is in
   [facilities](../architecture/facilities.md).
 - Rescue is the ordinary rescue path. Unknown prerequisites block new commitments.
+- A care rescue names its exact bed: `Rescue(patient, bed)` carries the patient to the bed the care
+  comparison chose, native checks `RestUtility.IsValidBedFor` for that patient and rescuer instead of searching, and
+  the bed is claimed until the patient lies in it ([medical care](medical-care.md#care-capacity)). Capture and the
+  combat rescue keep their own bed searches. A walking guest, prisoner or animal cannot be ordered to lie down, so it
+  is not moved by a bed-rest order; only a colonist or slave the player controls is.
+- Surgery legality for hosted and held pawns follows the bed: a surgery on a colony pawn is rated in the bed the
+  patient is operated in (`RestUtility.FindPatientBedFor`); `SurgeryChance.NoCareBed` is the absence of one, and the
+  forecast's hospital credit counts a colonist's operation only, naming `hospital_guest_surgery_unmodelled` for
+  guests (the one non-colonist class a colony hospital bed takes).
 
 ## Completion and integration
 

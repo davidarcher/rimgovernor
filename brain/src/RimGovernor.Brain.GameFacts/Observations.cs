@@ -803,25 +803,30 @@ public sealed record SurgeryYield
 
 /// <summary>
 /// An operation's success chance. <see cref="Rated"/>: vanilla's SurgeryOutcomeEffectDef quality with the best
-/// eligible doctor, the best colony medical bed (or the current bed) and the best permitted medicine on the map,
-/// the same with an ideal bed and room (a clean, roofed Bed's factor), and each eligible doctor's chance keyed by
-/// pawn id. Else the recipe has <see cref="NoOutcomeEffect"/>, or there is <see cref="NoEligibleDoctor"/>.
+/// eligible doctor and the best permitted medicine on the map in the bed the patient is operated in (RestUtility.FindPatientBedFor:
+/// its current bed while a medical bed it may use, else the closest such medical bed it reaches, else the bed it would sleep in;
+/// that bed's own SurgerySuccessChanceFactor, never a bed it cannot use), and each eligible doctor's chance keyed by pawn id.
+/// Else the recipe has <see cref="NoOutcomeEffect"/>, there is <see cref="NoEligibleDoctor"/>, or the patient has
+/// <see cref="NoCareBed"/>: no bed it may be operated in.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(SurgeryChance.Rated), "rated")]
 [JsonDerivedType(typeof(SurgeryChance.NoOutcomeEffect), "no_outcome_effect")]
 [JsonDerivedType(typeof(SurgeryChance.NoEligibleDoctor), "no_eligible_doctor")]
+[JsonDerivedType(typeof(SurgeryChance.NoCareBed), "no_care_bed")]
 public abstract record SurgeryChance
 {
     private SurgeryChance()
     {
     }
 
-    public sealed record Rated(double Success, double IdealSuccess, IReadOnlyDictionary<string, double> Doctors) : SurgeryChance;
+    public sealed record Rated(double Success, IReadOnlyDictionary<string, double> Doctors) : SurgeryChance;
 
     public sealed record NoOutcomeEffect : SurgeryChance;
 
     public sealed record NoEligibleDoctor : SurgeryChance;
+
+    public sealed record NoCareBed : SurgeryChance;
 }
 
 /// <summary>

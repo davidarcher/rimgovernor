@@ -89,6 +89,7 @@ public static class IntentActionRules
         [ActionKind.Equip] = GiveJobRules.EquipAction,
         [ActionKind.DropEquipment] = GiveJobRules.DropEquipmentAction,
         [ActionKind.Rescue] = GiveJobRules.RescueAction,
+        [ActionKind.BedRest] = GiveJobRules.BedRestAction,
         [ActionKind.Capture] = GiveJobRules.CaptureAction,
         [ActionKind.GearReplace] = GiveJobRules.WearAction,
         [ActionKind.UseItem] = GiveJobRules.UseItemAction,

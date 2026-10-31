@@ -313,12 +313,24 @@ public sealed class RepairConverter : ObjectCodec<Repair>
 
 public sealed class RescueConverter : ObjectCodec<Rescue>
 {
-    protected override Rescue Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Rescuer", o), e.Get<PawnId>("Patient", o));
+    protected override Rescue Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Rescuer", o), e.Get<PawnId>("Patient", o), e.Str("BedId"));
 
     protected override void WriteFields(Utf8JsonWriter w, Rescue v, Codecs o)
     {
         w.Put("Rescuer", v.Rescuer, o);
         w.Put("Patient", v.Patient, o);
+        w.WriteString("BedId", v.Bed);
+    }
+}
+
+public sealed class BedRestConverter : ObjectCodec<BedRest>
+{
+    protected override BedRest Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Patient", o), e.Str("BedId"));
+
+    protected override void WriteFields(Utf8JsonWriter w, BedRest v, Codecs o)
+    {
+        w.Put("Patient", v.Patient, o);
+        w.WriteString("BedId", v.Bed);
     }
 }
 

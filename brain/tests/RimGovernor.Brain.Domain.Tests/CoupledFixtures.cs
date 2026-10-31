@@ -8,14 +8,25 @@ internal static class CoupledFixtures
 {
     internal static PracticeActivityRead NoPractice => new() { Workers = [] };
     internal static SowingActivityRead NoSowing => new() { Workers = [], Findings = [] };
-    internal static SupportActivityRead NoSupport => new() { Demands = [], Workers = [], Deliveries = [], Findings = [] };
+    internal static SupportActivityRead NoSupport => new() { Demands = [], Workers = [], Deliveries = [], Findings = [], Patients = [] };
     internal static FoodActivityRead NoFood => new() { Options = [] };
+
+    /// <summary>A comfortable room's temperature (21) for a patient comfortable from 16 to 26: no exposure either side.</summary>
+    internal static CareTemperature Comfortable => new CareTemperature.Read(21);
+
+    /// <summary>A tendable care patient that does not bleed, at a comfortable temperature, with no field spot read.</summary>
+    internal static SupportCarePatient CarePatient(string demand, string pawn, BedOccupant who, CarePosture posture, CareConduct conduct, params SupportCareBed[] beds) =>
+        new(demand, pawn, who, posture, conduct)
+        {
+            Beds = [.. beds], Tendable = true, Bleeding = new CareBleeding.Stable(), Temperature = Comfortable, ComfortMin = 16, ComfortMax = 26,
+            FieldSpot = new CareFieldSpot.None("in_bed"),
+        };
 
     /// <summary>A support demand in a room that changes no infection or surgery chance, for a surgery with no outcome model.</summary>
     internal static SupportDemand Demand(string id, string kind, string target, Cell location, double poison, double bleed)
         => new(id, kind, target, location, poison, bleed)
         {
-            InfectionChanceFactor = 1, SurgerySuccessFactor = 1, Served = false, SurgeryOutcomes = [], SurgeryEnvironment = false,
+            InfectionChanceFactor = 1, SurgerySuccessFactor = 1, SurgeryBed = "surgery-bed", Served = false, SurgeryOutcomes = [], SurgeryEnvironment = false,
             SurgeryQualityMin = 0, SurgeryQualityMax = float.MaxValue,
         };
 

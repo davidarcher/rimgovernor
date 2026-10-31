@@ -103,7 +103,11 @@ public sealed class SkillHealthGoalTests
         Assert.Equal((GoalState.Pursuing, MedicalRules.SurgeryNeed), (open.State, open.Owner));
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, HealthFacts(goal, Patient(true, "BionicEye"))).State);
 
-        Assert.Equal((GoalState.Blocked, "no_hospital_bed"), Reason(GoalRules.Evaluate(goal, HealthFacts(goal, Patient(true), bed: false))));
+        // No medical bed standing blocks nothing: the operation is rated in the bed the patient is operated in (task 4.5).
+        Assert.Equal(GoalState.Pursuing, GoalRules.Evaluate(goal, HealthFacts(goal, Patient(true), bed: false)).State);
+        // Only no bed the patient may be operated in at all (RestUtility.FindPatientBedFor finds none) blocks it.
+        var bedless = Patient(true) with { Operations = [CareFixtures.Operation(SurgeryKind.Install, Recipe, EyePart, "Eye", true, "BionicEye", chance: new SurgeryChance.NoCareBed())] };
+        Assert.Equal((GoalState.Blocked, "no_care_bed"), Reason(GoalRules.Evaluate(goal, HealthFacts(goal, bedless))));
         Assert.Equal((GoalState.NoMethod, "unknown_recipe"), Reason(GoalRules.Evaluate(goal with { Qualifier = "Nope" }, HealthFacts(goal, Patient(true)))));
         Assert.Equal((GoalState.NoMethod, "unavailable"), Reason(GoalRules.Evaluate(goal, HealthFacts(goal, Patient(true) with { Operations = [] }))));
         Assert.Equal((GoalState.NoMethod, "not_a_colonist"), Reason(GoalRules.Evaluate(goal with { Target = "other" }, HealthFacts(goal, Patient(true)))));
@@ -117,7 +121,7 @@ public sealed class SkillHealthGoalTests
         var stocked = HealthFacts(goal, Patient(true));
         var facts = GoalRules.Stamp(stocked.ReviewState, GoalRules.DemandOf(stocked));
         Assert.Equal([new SurgeryGoal(new PawnId("colonist"), Recipe)], facts.GoalSurgeries.Items);
-        var ctx = facts.SurgeryContextOf() with { HospitalBed = true };
+        var ctx = facts.SurgeryContextOf();
 
         // A tier-0 implant is never an elective of its own; the goal queues it.
         Assert.Empty(SurgeryRules.SelectSurgery(facts.MedicalPawns, null, ctx with { Goals = [] }).Queue);

@@ -377,6 +377,7 @@ namespace RimGovernor.Native
             if (p.Downed) pawn.health.AddHediff(HediffDefOf.Anesthetic);
             foreach (var name in p.Hediffs) pawn.health.AddHediff(FixtureKit.Def<HediffDef>(name));
             if (p.Injured) pawn.TakeDamage(new DamageInfo(DamageDefOf.Blunt, 8f));
+            if (p.Cut > 0f) pawn.TakeDamage(new DamageInfo(DamageDefOf.Cut, p.Cut));
             foreach (var name in p.Gear?.Inventory ?? new List<string>())
             {
                 var def = FixtureKit.Def<ThingDef>(name);

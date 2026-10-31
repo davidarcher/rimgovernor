@@ -369,6 +369,9 @@ public sealed record StagePawn
     /// <summary>Bruised by one blunt blow, without bleeding.</summary>
     public bool Injured { get; init; }
 
+    /// <summary>Above zero, cut by one sharp blow of that much damage (DamageDefOf.Cut on a part the native picks), bleeding until tended.</summary>
+    public float Cut { get; init; }
+
     public int StunTicks { get; init; }
 
     /// <summary>Where the pawn stands; null leaves an existing colonist where it is (a generated pawn needs a cell).</summary>

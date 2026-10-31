@@ -119,6 +119,7 @@ internal static class NativeNeedsForecast
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
                 OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
                 OwnedBedRoom = pawn.ownership?.OwnedBed is { } ownedBed ? BedRoomOf(ownedBed) : null,
+                MedicalBedRoom = MedicalBed(pawn) is { } medicalBed ? BedRoomOf(medicalBed) : null,
                 OwnedRoom = OwnedRoomOf(pawn),
                 Ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true, RivalRooms = RivalRoomsOf(pawn, map),
                 ThoughtStages = ThoughtStagesOf(pawn, map), Apparel = ApparelOf(pawn),
@@ -340,6 +341,22 @@ internal static class NativeNeedsForecast
         return new(roof != null, roof?.isThickRoof == true, roof?.isNatural == true,
             cell.UsesOutdoorTemperature(map), cell.GetRoom(map)?.PsychologicallyOutdoors ?? true)
             { NearbyFires = new RimGovernor.Brain.GameFacts.Observations.NeedNearbyFires.Counted(NativeJoinerTraits.FiresAt(map, cell)) };
+    }
+    /// <summary>
+    /// The medical bed the pawn would be cared in were it a patient now (task 4.1 of redefine-habitat-requirements): the closest
+    /// reachable one RestUtility.FindPatientBedFor would take, by CanUseBedNow's own checks short of the ShouldSeekMedicalRest a
+    /// healthy pawn fails: a Medical bed it fits (CanUseBedEver), set for its guest status (ForPrisoners, ForSlaves), a prison bed
+    /// in a prison cell, a slot free or the pawn's own, and not forbidden to it. Null with none.
+    /// </summary>
+    private static Building_Bed? MedicalBed(Pawn pawn)
+    {
+        if (!pawn.Spawned) return null;
+        var status = pawn.GuestStatus;
+        return (Building_Bed?)GenClosest.ClosestThingReachable(pawn.Position, pawn.Map, ThingRequest.ForGroup(ThingRequestGroup.Bed), PathEndMode.OnCell,
+            TraverseParms.For(pawn), 9999f, t => t is Building_Bed b && b.Medical && RestUtility.CanUseBedEver(pawn, b.def)
+                && b.ForPrisoners == (status == GuestStatus.Prisoner) && b.ForSlaves == (status == GuestStatus.Slave)
+                && (!b.ForPrisoners || b.Position.IsInPrisonCell(b.Map)) && (b.AnyUnoccupiedSleepingSlot || b.CurOccupants.Contains(pawn))
+                && !b.IsForbidden(pawn));
     }
     /// <summary>
     /// The bed's room as ApplyBedThoughts reads it: Room.Role and RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(Impressiveness));

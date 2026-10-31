@@ -14,6 +14,7 @@ public enum ActionKind
     AutoRefuel,
     [WireName("bed_medical")]
     BedUse,
+    BedRest,
     Building,
     BuildingTemperature,
     BuildRoof,

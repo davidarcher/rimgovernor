@@ -214,10 +214,6 @@ public static partial class SurgeryRules
     public static IReadOnlyList<SurgeryWant> ChosenElectives(EquatableArray<CarePawn> pawns, SurgeryContext ctx)
     {
         var rows = pawns;
-        if (!ctx.HospitalBed)
-        {
-            return [];
-        }
         var profiles = new Dictionary<PawnId, PawnProfile>();
         foreach (var p in ctx.Profiles)
         {

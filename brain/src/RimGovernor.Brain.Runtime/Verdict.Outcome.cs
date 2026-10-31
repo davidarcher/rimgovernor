@@ -244,7 +244,6 @@ partial record struct Verdict
     public static readonly Verdict BuildingReasonWorkshopResearch = Verdict.AwaitingPlan("research", "workshop");
     public static readonly Verdict BuildingReasonResearchBench = Verdict.AwaitingPlan("research_bench", "");
     public static readonly Verdict BuildingReasonResearchBenchUnavailable = Verdict.AwaitingPlan("research_bench", "unbuildable");
-    public static readonly Verdict BuildingReasonHospitalUnavailable = Verdict.AwaitingPlan("buildable_bed", "hospital");
     public static readonly Verdict BuildingReasonSleepingUnavailable = Verdict.AwaitingPlan("buildable_bed", "");
 
     /// <summary>Holds a site search that anchors on the layout plan until one exists: nothing is sited on where the colonists stand.</summary>

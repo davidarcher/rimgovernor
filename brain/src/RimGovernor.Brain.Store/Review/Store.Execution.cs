@@ -25,6 +25,7 @@ public sealed partial class Store
         ActionKind.Subdue,
         ActionKind.Tend,
         ActionKind.Rescue,
+        ActionKind.BedRest,
         ActionKind.Capture,
         ActionKind.UseItem,
         ActionKind.Haul,

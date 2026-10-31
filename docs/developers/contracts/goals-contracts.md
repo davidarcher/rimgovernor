@@ -28,7 +28,7 @@ in the kind's unit (projects, tiers, items, colonists or animals short; 1 for an
 | `VeneratedAnimal` | the ideoligion venerates the race | the ideoligion reform adds the animal, one per reform, gated by development points (#3517, [ideology contracts](ideology-contracts.md#creation-and-reform)); `Blocked` `venerated_animal_unavailable:<def>` for an animal the game never offers (insects, dryads) or past the limit; the other states as `Precept`, `Meme` | `ideology/reform` |
 | `Believers` | every free colonist (`Count` 0) or `Count` colonists share the ideoligion | moral-guide conversion of the free colonist with the lowest certainty, and conversion of recruitable prisoners whatever their worth (#3501, [conversion](ideology-contracts.md#conversion)) | `ideology/convert/<pawn>` |
 | `Skill` | the pawn's (`Target`) skill (`Qualifier`, aptitudes included) is at least `Count`, from the work pawn read; `NoMethod` `not_a_colonist`, `unknown_skill` or `incapable` (the skill is disabled) | the work planner gives the pawn priority 1 on every work type of the skill it is able for, beside the owners fitness picks (`ReviewFacts.GoalTraining`, `WorkDemand.Training`; the safety floors stay), and its reading policy allows textbooks | `admin/work-assignments` |
-| `Health` | the pawn (`Target`) carries the hediff the recipe (`Qualifier`) adds (`RecipeFacts.AddedHediffs`, from the catalog); `NoMethod` `unknown_recipe` (the recipe adds none), `not_a_colonist` or `unavailable` (the pawn's operations do not list it); `Blocked` `no_hospital_bed` | the surgery planner queues the recipe as the pawn's elective when its part is stocked, else wants the part for the part bill and trade paths (`ReviewFacts.GoalSurgeries`, `SurgeryContext.Goals`); a served operation still comes first | `medical/surgery` |
+| `Health` | the pawn (`Target`) carries the hediff the recipe (`Qualifier`) adds (`RecipeFacts.AddedHediffs`, from the catalog); `NoMethod` `unknown_recipe` (the recipe adds none), `not_a_colonist` or `unavailable` (the pawn's operations do not list it); `Blocked` `no_care_bed` (every operation of the recipe is `SurgeryChance.NoCareBed`: the patient has no bed it may be operated in, `RestUtility.FindPatientBedFor`; never a room label) | the surgery planner queues the recipe as the pawn's elective when its part is stocked, else wants the part for the part bill and trade paths (`ReviewFacts.GoalSurgeries`, `SurgeryContext.Goals`); a served operation still comes first | `medical/surgery` |
 | every other kind | Unknown | none: `NoMethod` `no_pursuit` | none |
 
 A kind with no pursuit is accepted and reported, never refused. A goal's demand is replaced each review, so a
@@ -70,7 +70,9 @@ asking after the room stands: dropping the need would end the role in the plan a
 - **Worship.** The ideoligion's required buildings already size `WorshipRoomNeed`; the goal adds no need of its own and
   reports `no_required_buildings` when the ideoligion requires none.
 - **Hospital.** `GoalBuildDemand.HospitalBeds` is the goal's `Count` (at least 1, the largest of several goals). It is the
-  minimum bed count of `HospitalRules.SelectHospitalBed` (`HospitalRequest.MinBeds`: demand is `max(patients, floor)`)
+  medical bed floor of `CareCapacityRules.Plan` (`CareCapacityRequest.MinBeds`: free beds are converted below it, and
+  a restore never drops the hosted medical beds under it), the layout comparison's bed demand
+  (`LayoutHospitalBedRules.Demand` = `max(patients, floor)`, [spatial contracts](spatial-contracts.md#hospital-bed-alternatives))
   and the station graph's injured floor. The hospital step runs only while `medical/care` is unmet, so
   `MedicalFacts.HospitalShort` (hosted medical beds below the floor, read in `MedicalFamily.ReadAsync`) keeps the
   Need unmet while no patient is sick.

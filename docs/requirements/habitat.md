@@ -30,8 +30,10 @@ only when its owners' gain beats its cost; and each herd's open pen, barn and
 animal sleeping spot are compared by exposure deaths avoided
 ([H9](#h9--hosted-occupants-bed-sharing-and-herd-shelter)). Barn execution (task 6.2),
 a human pregnancy fact, hosted babies in the nursery's sizing and the room-quality
-minimums remain gaps.
-Evidence H1–H2, H6, H9.
+minimums remain gaps. Milestone 4 adds that a medical bed is no free sleeping slot, a
+patient held in one counts once, and a bed a care transport holds is its patient's
+([H11](#h11--care-locations-compared-by-readiness-movement-delay-and-outcome)).
+Evidence H1–H2, H6, H9, H11.
 
 ## RG-HABITAT-002 — Keep essential facilities usable
 
@@ -107,6 +109,32 @@ counted again.
 
 ([H10](#h10--spot-bridges-retirement-and-activity-sites-compared-as-layout-alternatives)).
 Evidence H7, H8 and H10 prove the policy path; they do not establish sustained native colony performance.
+
+## RG-HABITAT-004 — Provide suitable places for treatment and recovery
+
+The governor should compare care locations with medical needs: existing beds, a
+bed made medical for the occasion, an improvised sleeping spot and an equipped
+hospital. A bed serving care should not also count as free sleeping or treatment
+capacity, and a separate hospital is not a prerequisite for an operation.
+
+**Intent:** Documented in [medical care](../developers/contracts/medical-care.md#care-capacity),
+[support work](../developers/contracts/support-work.md#care-census),
+[spatial](../developers/contracts/spatial-contracts.md#hospital-bed-alternatives) and
+[population](../developers/contracts/population-contracts.md) contracts.
+**Implementation:** Supported as executed policy and boundary checks, not as a native
+result. Each care patient's alternatives (reuse a ready medical bed, tend in place,
+convert its own or another bed, a field sleeping spot, a self-tend before a later
+walk, or defer) are priced from native facts: the bed's legality, occupants and
+reachability, the tend's quality and infection weight, delay against the time the
+patient bleeds out, the hypothermia or heatstroke each place adds, healing, and
+where its queued operations are done at each bed's actual success factor. A
+conversion that leaves another sleeper without a slot is excluded. The chosen
+move is an exact typed order (`Rescue` to the bed, or `BedRest`), the bed is held
+for its patient until the patient is seen in it, and the hold is re-derived from the
+journal. New capacity is a layout alternative. No ideal bed, hospital room label or
+conversion-surplus gate remains. Gaps are listed under
+[H11](#h11--care-locations-compared-by-readiness-movement-delay-and-outcome).
+Evidence H11.
 
 ## Evidence and inspection coverage
 
@@ -377,3 +405,90 @@ The [spatial](../developers/contracts/spatial-contracts.md#host-chains-and-pairs
 [mood](../developers/contracts/mood-control.md#activity-sites) and
 [method-continuation](../developers/contracts/method-continuation.md#workshop-host-construction)
 contracts own the behavior.
+
+
+### H11 — Care locations compared by readiness, movement, delay and outcome
+
+Milestone 4 replaces the ideal-bed, hospital-label and conversion-surplus logic with a
+comparison of where each patient is cared in
+([medical care](../developers/contracts/medical-care.md#care-capacity)).
+
+- **Census and legality.** [SupportMethodTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SupportMethodTests.cs)
+  check that a bed tend is the care capacity choice and never a coupled alternative, and
+  that a surgery with no bed to be operated in is not credited.
+  [HabitatOccupantTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HabitatOccupantTests.cs)
+  check that each occupant kind is legal only in its own bed class
+  (`SleepingRules.LegalBed`) and that a patient held in a medical bed is no free slot and
+  wants no second one.
+- **Capacity.** [CareCapacityTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/CareCapacityTests.cs)
+  check converting the patient's own bed against waiting for a new one and a ready ward,
+  another occupant's bed converted only when they keep a slot, a partner sharing the bed
+  protected, a post-care restore only when its sleeper needs the bed, a refused conversion
+  chosen without at the next review, a bed the census does not describe left unassessed by
+  name, the goal floor converting a planned medical bed first, and new medical beds as layout
+  alternatives the shared comparator decides.
+- **Transport and holds.** [CareTransportTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/CareTransportTests.cs)
+  check a downed patient carried and a walking colonist laying down in the exact bed, a
+  walking guest, prisoner or animal excluded naming its state, a held bed free for no second
+  patient or sleeper, a refused transport excluding its bed and crediting nothing, a hold
+  released only for the patient the census no longer cares for, an open transport claiming its
+  bed against every other order, and payloads that require their exact bed.
+- **Field care.** [CareFieldTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/CareFieldTests.cs)
+  check a field spot beating a carry the bleeding does not survive, exposure priced over a
+  common horizon, an unread temperature leaving its alternative unassessed, a placed spot
+  made medical then carried to and a refused placement excluded, a stabilizing self-tend
+  moving nobody until the census reads the patient recovering, and a recovering patient
+  walked from its spot with no bed converted.
+- **Surgery location.** [SurgeryLocationTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SurgeryLocationTests.cs)
+  check an operation proceeding in a non-medical bed when none gives a better chance, a hospital
+  transfer winning only when its chance gap outweighs the move, a prisoner's operation compared
+  over its prison-legal beds, a vitals monitor raising the chance through the bed's stat, and an
+  unread bed factor leaving an alternative unassessed naming the fact.
+  [SurgerySelectionTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SurgerySelectionTests.cs),
+  [SkillHealthGoalTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SkillHealthGoalTests.cs)
+  and [HospitalCreditTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HospitalCreditTests.cs)
+  were rewritten: only a missing care bed makes an operation bed short
+  (`SurgeryChance.NoCareBed` replaces the ideal-bed heuristic), a health goal is blocked
+  `no_care_bed` only when no operation has a bed, electives depend on the rated chance alone,
+  and the hospital credit trades the patient's existing medical bed's thoughts and gives a bed as
+  good as the hospital's no surgery credit.
+
+These are executed policy and boundary checks through the full gate (4,454 domain
+tests and 30 workflow tests at the last milestone commit, contract orphans none). The
+OnDemand native case `medical/field-treatment`
+([FieldTreatment](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Medical/FieldTreatment.cs))
+stages a downed colonist cut and bleeding about 30 cells from the only bed with a
+doctor beside it, and passes when the bleeding stops or every cut is tended and the
+patient is alive. It is registered and compiles but was not executed, nor was the
+`StagePawn.Cut` staging. The nightly `custody/population` case now names a ward bed for
+its rescue and checks the no-bed and guest lay-down refusals; it changed and was not
+run. No live-game run has read the new native facts (`CareSurgeryFactor`, bleed and
+temperature, `BedRest`, exact `Rescue`), so no native evidence exists for this milestone.
+
+Known gaps, stated rather than priced:
+
+- a failure's price is a heal-days proxy (damage over the bed's healing a day), not
+  `HarmConsequences.Wounds`;
+- the surgeon's approach to the operating bed is read to the patient's current cell,
+  and transit temperature uses the current cell;
+- a planned bed's `MedicalTendQualityOffset` is unpriced;
+- a recovering patient's carried transfer has no issuer (walks only);
+- a deleted field spot cannot be placed again under the same native authority, and a
+  leftover medical spot is restored only by the post-care pass;
+- the rescuer a rescue names (`RescuerFor`) may differ from the one priced;
+- a downed patient outside the care census is left to native rescue;
+- `MedicalPawns` and `CarePawn` are not widened: prisoner operations stay on
+  `OrganHarvest` and animals on `HerdWard`;
+- `hospital_guest_surgery_unmodelled` stays, because a guest's operation in a colony
+  hospital bed is not credited.
+
+Placement is tracked apart from use throughout: a placed spot, an accepted order or a
+claimed bed establishes neither treatment nor access. A patient is credited only when a
+later census sees it lying in the bed, which keeps RG-HABITAT-011's separation of
+provision from outcome for care. The [medical](../developers/contracts/medical-care.md#care-capacity),
+[support-work](../developers/contracts/support-work.md#care-census),
+[population](../developers/contracts/population-contracts.md),
+[spatial](../developers/contracts/spatial-contracts.md#hospital-bed-alternatives),
+[persistence](../developers/contracts/persistence-contracts.md) (schema 73),
+[action](../developers/contracts/action-contracts.md) and
+[method-continuation](../developers/contracts/method-continuation.md#care-chains) contracts own the behavior.

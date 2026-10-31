@@ -421,7 +421,7 @@ public sealed partial record ForecastCoupledCandidates
             PrisonBeds = ForecastPrison.BedsOf(facts.PlannedShelters, allPlannedSites, facts.Sleeping, facts.SleepingBeds, facts.LayoutPlan),
             NurserySites = EquatableArray.From(allPlannedSites.Where(s => s.Op == OpKind.Build && roomFunctions.GetValueOrDefault(s.Room).Contains(PlannedRole.Nursery))),
             ComfortCurve = facts.ComfortCurve,
-            HospitalBed = facts.HospitalBed,
+            HospitalBed = LayoutHospitalBedRules.PlannedBed(facts.LayoutPlan, facts.MedicalBeds, facts.HospitalMonitor),
             Stock = facts.StockArrival,
             TradeWork = tradeWork,
             NonproductiveOccupancy = EquatableArray.From(tradeWork.Where(w => w.Mission is not null).Select(w => w.Task)),

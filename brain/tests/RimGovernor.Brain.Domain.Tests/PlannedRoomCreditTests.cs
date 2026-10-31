@@ -784,10 +784,23 @@ public sealed class PlannedRoomCreditTests
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * r.Room), Z = 5, Width = 3, Height = 3 }) })],
             PlannedRoomPredictions = EquatableArray.From(review.PlannedRoomPredictions.Concat(roles.Select(r => PlannedRoomPredictionTests.Closed(
                 r.Room.ToString(System.Globalization.CultureInfo.InvariantCulture), "", PredictedRole(r.Role), 30d, 0, 9, 0, false)))),
-            // Read furnishes the planned hospital with the catalog's hospital bed.
-            HospitalBed = new RoomFurniture { Beds = [new() { Def = "Bed", Slots = 1, ImmunityGainSpeedFactor = 1.07 }] }.HospitalBed(),
+            // The plan furnishes its hospital with a medical bed piece of the def the layout comparison chose; Read carries the catalog's candidates.
+            LayoutPlan = WithMedicalBed(review.LayoutPlan, roles.First(r => r.Role == PlannedRole.Hospital).Room, "Bed"),
+            MedicalBeds = EquatableArray.From(new RoomFurniture { Beds = [new() { Def = "Bed", Slots = 1, ImmunityGainSpeedFactor = 1.07 }] }.MedicalBedCandidates()),
         };
         return facts;
+    }
+
+    /// <summary><paramref name="plan"/> (or an empty one) with one medical bed piece of <paramref name="def"/> in <paramref name="room"/>.</summary>
+    internal static LayoutPlan WithMedicalBed(LayoutPlan? plan, int room, string def)
+    {
+        plan ??= new LayoutPlan();
+        var pieces = plan.Pieces.ToDictionary(p => p.Key, p => p.Value);
+        pieces[room] = [.. pieces.GetValueOrDefault(room) ?? [], new InteriorPiece
+        {
+            Slot = "medical", Def = def, Row = LayoutGraphRules.NodeId(def, StationPurpose.SleepMed), Size = new(1, 2), Rect = new RimGovernor.Brain.Policy.Rectangle { X = 0, Z = 0, Width = 1, Height = 2 },
+        }];
+        return plan with { Pieces = pieces };
     }
 
     /// <summary>The role native predicts a furnished planned room at: a dining room's tables and a rec room's joy buildings score their RoomRoleDef (#3803).</summary>

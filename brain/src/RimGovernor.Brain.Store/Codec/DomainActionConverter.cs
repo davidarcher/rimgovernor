@@ -171,6 +171,8 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
                 return DomainAction.NewRepairAction(id, Payload<Repair>());
             case ActionKind.Rescue:
                 return DomainAction.NewRescueAction(id, Payload<Rescue>());
+            case ActionKind.BedRest:
+                return DomainAction.NewBedRestAction(id, Payload<BedRest>());
             case ActionKind.ResearchSelect:
                 return DomainAction.NewResearchSelectAction(id, Payload<ResearchSelect>());
             case ActionKind.Ritual:

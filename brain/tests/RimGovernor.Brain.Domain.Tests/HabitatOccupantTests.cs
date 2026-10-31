@@ -199,4 +199,42 @@ public sealed class HabitatOccupantTests
         // A half-owned double bed keeps one slot.
         Assert.Equal("", QuestHospitality.HospitalityAdmission(offer, With(Bed("one"), Bed("double", owners: [A], slots: 2))).Value);
     }
+
+    [Fact]
+    public void EachOccupantKindIsLegalOnlyInItsOwnBedClass()
+    {
+        // (humanlike, prisoners, slaves): a regular, prison, slave and animal bed.
+        var regular = (true, false, false); var prison = (true, true, false); var slave = (true, false, true); var animal = (false, false, false);
+        bool Legal((bool H, bool P, bool S) bed, BedOccupant who) => SleepingRules.LegalBed(bed.H, bed.P, bed.S, who);
+        Assert.Equal([true, false, false, false], new[] { regular, prison, slave, animal }.Select(b => Legal(b, BedOccupant.Colonist)));
+        Assert.Equal([true, false, false, false], new[] { regular, prison, slave, animal }.Select(b => Legal(b, BedOccupant.Guest)));
+        Assert.Equal([false, true, false, false], new[] { regular, prison, slave, animal }.Select(b => Legal(b, BedOccupant.Prisoner)));
+        Assert.Equal([false, false, true, false], new[] { regular, prison, slave, animal }.Select(b => Legal(b, BedOccupant.Slave)));
+        Assert.Equal([false, false, false, true], new[] { regular, prison, slave, animal }.Select(b => Legal(b, BedOccupant.Animal)));
+        // The sleeping slot keeps the same core: a slave bed is a slave's slot, never a colonist's; a medical bed nobody's.
+        Assert.True(SleepingRules.CompatibleSlot(Bed("s", slaves: true), S, slave: true));
+        Assert.False(SleepingRules.CompatibleSlot(Bed("s", slaves: true), A, slave: false));
+        Assert.False(SleepingRules.CompatibleSlot(Bed("m", medical: true), A, slave: false));
+    }
+
+    [Fact]
+    public void APatientHeldInAMedicalBedIsNoFreeSlotAndWantsNoSecondOne()
+    {
+        var B = new PawnId("b");
+        // The patient lies in the medical bed it does not own; nobody owns a regular bed.
+        SleepingObservation Colony(params SleepingPerson[] people) => new()
+        {
+            Colonists = people.Length, People = [.. people], BedBuildable = true,
+            Beds = [Bed("medical", users: [A], medical: true, reach: [A, B])],
+        };
+        // The held bed is the patient's slot while it lies there: no duplicate slot is short for it.
+        Assert.Equal((0, 0), SleepingRules.SlotShortfall(Colony(Person(A))));
+        Assert.Equal([A], SleepingRules.HeldInMedicalBeds(Colony(Person(A)), [Person(A)], slave: false));
+        // Nor is it a free slot for another sleeper, who stays short of one.
+        Assert.Equal((1, 0), SleepingRules.SlotShortfall(Colony(Person(A), Person(B))));
+        // A patient that owns a regular slot keeps that one and is not held twice.
+        var owned = Colony(Person(A, bed: "own")) with { Beds = [Bed("medical", users: [A], medical: true), Bed("own", owners: [A])] };
+        Assert.Empty(SleepingRules.HeldInMedicalBeds(owned, owned.People, slave: false));
+        Assert.Equal((0, 0), SleepingRules.SlotShortfall(owned));
+    }
 }

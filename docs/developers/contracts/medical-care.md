@@ -34,8 +34,8 @@ or dependent who is bleeding, downed or needs a tend, or whom a life-saving
 amputation would save. The pawn and medical censuses are total. Native reads every spawned colonist each frame, without a cap; missing sections, unresolved colonist references and disagreeing rosters fail the read. A stale emergency census fails the planner boundary. The Needs run in the immediate pass on the emergency census
 and the doctors' and patients' pawn rows alone. Every patient's Need reads the same
 greedy pairing (`TendPairs`, `RescuePairs`) over the pawns no open tend or rescue
-holds, takes its own pair, and commits `tend-<patient>` or `rescue-<patient>` under
-the Need owner. A tend or rescue claims both pawns (`care/<pawn>`), so two patients'
+holds, takes its own pair, and commits `tend-<patient>` or `rescue-<patient>/<bed>` under
+the Need owner. A tend or rescue claims both pawns (`care/<pawn>`; a rescue claims its exact bed too), so two patients'
 tends run side by side and an order that would take a held pawn is a claim conflict.
 The exact tend answers an observed emergency only (RG-LABOR-004, task 5.5 of
 `native-led-labor-execution`): the pairing takes a patient who is downed, bleeding
@@ -128,6 +128,101 @@ chronic conditions from urgent tending.
   routine enables PatientBedRest and retains rest until the tracked condition reaches
   full immunity or leaves a complete census. Death is a failure.
 
+## Care capacity
+
+Where a care patient lies is compared, not read from a ladder (RG-HABITAT-004, habitat 4.1 to 4.5). There is no
+"hospital bed" prerequisite: a bed is a place with a class, occupants, a room and a surgery factor, and a patient
+may be cared in any bed it may legally lie in. The `medical/care` Need's hospital step runs
+`CareCapacityRules.Plan` (`Policy/Hospital.cs`) over the native care census (`SupportActivityRead.Patients`, see
+[support work](support-work.md#care-census)), the sleeping and room census, the Hospital goal's bed floor, the
+refused orders and the beds held by transports. Every patient's alternatives (`CareCapacityKind`) are:
+
+| Alternative | What it is |
+| --- | --- |
+| `Reuse` | A medical bed that stands `Ready` for the patient; nothing is ordered. |
+| `InPlace` | The bed the patient lies in now, or the ground where it lies when in none. |
+| `ConvertOwn` | The patient's own bed made medical (`Building_Bed.Medical` evicts owners). |
+| `ConvertOther` | Another free legal bed made medical, only when no other sleeper loses their slot. |
+| `FieldSpot` | A `SleepingSpot` placed facing south near a patient lying in no bed, made medical, the patient moved there. It has the spot def's own tend offset, room infection factor and `bed_healPerDay` (0), never a ward's; it takes no sleeper's slot. |
+| `Stabilize` | A walking patient's self-tend where it stands, then a later walk to a ready bed. It moves nobody now; the transfer is the choice of a later review that reads the patient recovering. |
+| `Defer` | No bed now: the wounds go untended until a later review. It always stays choosable and is flagged `BleedsOut` for a bleeding patient. |
+
+An alternative is `Assessed` with a `CareEffect`, `Excluded` by a named constraint or `Unassessed` naming the unread
+fact; an unassessed alternative is never chosen (rule 9). The `CareSites` states name each missing prerequisite of a
+bed for a patient: `IllegalBed`, `BedTaken`, `ConversionRequired`, `NativeRefused` (the bed's own,
+`SleepingRules.CareSlot` over the one `SleepingRules.LegalBed` rule that `CompatibleSlot` shares), the patient's
+conduct (`PatientFleeing`, `PatientAggressive`, `PatientPrisonBreaking`, `PatientHostile`), `Unreachable` and
+`NoReachingDoctor`. Only a `Ready` bed becomes an alternative, apart from conversions of a `ConversionRequired` one.
+Other exclusions are `displaces_sleeper` (the converted census leaves more sleepers short of a compatible slot, or
+evicts an owner the census does not count), `bed_taken_by_patient` (an earlier patient's decision took it),
+`bed_held_by_patient`, `patient_not_orderable:<occupant>` (a walking guest, prisoner or animal cannot be ordered to
+lie down), `refused:<reason>` (a transport, bed order or field spot the native refused in this world, under the
+refusal budget), `recovering_ready_beds_only`, `rest_requires_bed`, `no_reaching_doctor` and
+`bleeds_out_before_tend`.
+
+**Pricing.** Each alternative is priced from native facts. A tend's quality is `CalculateBaseTendQuality` plus the
+bed's `MedicalTendQualityOffset`; its infection weight is `HarmConsequences.TendInfectionFactor(quality, room
+InfectionChanceFactor)` when the tend ends before the wounds' pending infection check, else 1; the time is the later
+of the doctor's approach and the patient's move plus the tend's work ticks (a carried move is the rescuer's walk and
+carry); `Orders` counts the bed orders it takes. Exposure is the hypothermia and heatstroke the places the patient
+lies in add over a common horizon (the latest settle or tend end plus one day,
+`ForecastValue.ThermalGainPerTick` at each place's temperature against the patient's comfort range). A patient whose
+`BleedRateTotal` kills it (`TicksUntilDeathDueToBloodLoss`) before an alternative's tend ends excludes that
+alternative (`bleeds_out_before_tend`); `Defer` is then flagged `BleedsOut` and ranks after every alternative that tends in time. `HealPerDay` is natural
+healing (8, 4 more lying) plus the bed's `bed_healPerDay`. The order of comparison is `BleedsOut`, exposure,
+surgery loss, infection weight, healing per day (higher first), tend time, orders, then bed id. A recovering
+patient (not downed, `ShouldSeekMedicalRest`, lying in no bed or in a sleeping spot) is listed without a demand: its
+alternatives have no tend and are priced by their move, and it is moved to standing medical capacity only.
+
+**Surgery location.** Where a patient's queued operations are done is part of the same comparison
+(`CareCapacityRules.SurgeryLossOf`). The bed an alternative has them done in is its own bed once the patient lies
+there medical (reuse, conversion, field spot, the bed walked to once stabilized, a medical bed it lies in), else the
+bed the native operates in (`RestUtility.FindPatientBedFor`, `SupportDemand.SurgeryBed`). The loss is the move there
+(a carried move counts the rescuer too) plus each operation's outcomes at `clamp(best surgeon quality x
+bed SurgerySuccessChanceFactor)`: death costs `DeathTerminalValue`, a failure its damage divided by the bed's lying
+heal rate (12 plus `bed_healPerDay`), a heal-days proxy rather than `HarmConsequences.Wounds`. No hospital room label
+is asked for: a transfer is chosen only when the failures it saves outweigh the move. An unread bed factor or a
+native bed the census does not list leaves the alternative `Unassessed`, naming the fact.
+
+**Orders and binding.** The plan's bed orders are bed-use intents (`hospital-convert-<bed>` makes a bed medical,
+`hospital-restore-<bed>` returns it to sleeping), issued one at a time and read back first
+(`care_bed_order_in_flight` waits while one is open). Below the Hospital goal's floor a free bed whose conversion
+costs no sleeper a slot is converted, a planned medical bed first. A medical bed nobody is cared in and nobody is
+held by is restored after care when that gives a short sleeper a slot and the hosted medical beds stay at the floor
+(`BedUse.NewBedMedical(bed, false)`, reason `post_care_restore`). A refused order is a `RefusedCareOrder` fact the
+next review reads: that alternative is excluded in that world and never retried. With no bed order, the first field
+spot is placed as one building method (`hospital-field-<patient>`, previewed natively, claiming the patient and the
+spot's cell), then made medical by the review that lists it, then the patient is moved there; a refused placement
+excludes the spot (`refused:<reason>`). With neither, the first walking patient's transport is issued, else the plan's
+unbuilt medical bed is built through the shared building planner. New capacity is a layout alternative
+([spatial contracts](spatial-contracts.md#hospital-bed-alternatives)), not a ladder here.
+
+**Transport and holds.** A chosen ready medical bed the patient does not lie in is reached by an exact typed
+operation (`CareTransportRules.Of`): a downed patient is carried by `Rescue(patient, bed)` (a rescue to the exact bed;
+the critical Need's rescue uses the care plan's carried bed and waits `rescue_bed_unread` or
+`rescue_bed_unchosen` when the census has none), a walking colonist or slave the player controls lies down with
+`BedRest(patient, bed)` (native `LayDown`; downed, drafted, mentally broken or uncontrolled patients are refused with
+native's reason). A conversion or a field spot is moved to only once its bed reads as medical; an in-place, deferred
+or stabilizing choice moves nobody. An open transport claims its bed (MethodClaims), and
+`CareTransportRules.Holds` re-derives the held beds each review from the journal (Decision 4, no owner store): an open
+transport, or one accepted under the current native authority, whose patient is still a care patient and lies in no
+other bed. A held slot counts as its holder's (`CareCapacityRules.Holding`, `HospitalPlanner.HeldSleeping`), so no
+other patient, bed order, floor conversion, restore or sleeper takes it. A hold ends when its patient leaves the care
+census (healed, dead, gone, no longer the colony's) or lies in another bed, and only that patient's; a doctor or
+rescuer changing releases nothing. An accepted walk whose patient is not yet seen in the bed is ordered again
+(native applies a running lay-down again).
+
+**Credit.** The coupled forecast compares only tends that happen where the patient lies and dispatches none in a bed it
+must first reach; `CareServed` credits an in-place tend only, so a move earns credit once a later census sees the
+patient in the bed. Bed tends are compared, never dispatched (native Doctor work tends them). A recovering
+patient's carried transfer has no issuer: only a walk is ordered for it.
+
+**Left to native.** `MedicalPawns` and `CarePawn` are not widened: prisoner operations stay on
+`OrganHarvest`, animals on `HerdWard`. A humanlike out-of-bed tend is impossible natively
+(`GoodLayingStatusForTend` requires a bed), so an in-place alternative for such a patient is `no_reaching_doctor`
+rather than invented. A downed patient outside the care census is left to native rescue.
+The `medical/field-treatment` case (OnDemand) is registered and has not been executed.
+
 ## Medicine selection
 
 The work-assignment routine caps each pawn's medical care by class and medicine
@@ -167,10 +262,14 @@ are independent Needs: the stock never waits on the sick resting.
 
 Surgery facts ride on the per-pawn care read (`PawnHealth.missing_parts`,
 `PawnHealth.operations`). Native discovers recipes through
-`RecipeWorker.GetPartsToApplyOn`/`AvailableOnNow` and computes `success_chance` with
-the recipe's own `SurgeryOutcomeEffectDef` comps for the best eligible doctor,
-substituting the best colony medical bed when the patient is not in bed and the best
-permitted medicine on the map. It also reports the eligible doctor count, whether
+`RecipeWorker.GetPartsToApplyOn`/`AvailableOnNow` and computes the rated `Chance`
+(`SurgeryChance`) with the recipe's own `SurgeryOutcomeEffectDef` comps for each
+eligible doctor in the bed the patient is operated in (`RestUtility.FindPatientBedFor`:
+its current medical bed, else the closest reachable one, else the bed it would sleep
+in) and the best permitted medicine on the map. `Rated` carries the chance per doctor;
+`NoCareBed` (a doctor is eligible but the patient has no bed to be operated in),
+`NoEligibleDoctor` and `NoOutcomeEffect` are the other states, so no ideal bed or
+colony-best bed is substituted. It also reports the eligible doctor count, whether
 ingredients and medicine are on the map, vanilla `IsViolationOnPawn`, and `lethal`
 (`WouldDieAfterAddingHediff`, or an execution). The brain maps them into `policy.CarePawn`
 and does no surgery math.
@@ -187,8 +286,10 @@ ingredients are on the map (bionic, then prosthetic, then peg) that some eligibl
 doctor performs with a native failure chance of 20% or less. Each patient queues its
 most valuable part (capacity weight times part tier) as one medical
 `ProductionBillIntent`, and gets no second while a bill is queued or a surgery action
-is open. Otherwise the reason names the want: `surgery_part_short` or
-`surgery_no_doctor`. The Need is met when the operation leaves the census (the
+is open. Otherwise the reason names the want: `surgery_part_short`,
+`surgery_no_doctor` or, when a doctor is eligible and the patient has no bed to be operated in
+(`SurgeryChance.NoCareBed`), `surgery_bed_short`, which sizes the ward the hospital step
+plans for (`SurgeryBedShortPatients`). The Need is met when the operation leaves the census (the
 health change), never when the bill disappears. A pending step keeps it unmet.
 
 **Chronic conditions** join the same ranking under the same 20% cap: a `cure`
@@ -224,7 +325,8 @@ loses 70 goodwill (850); a colony of seven does not. The harvest queues a medica
 `ProductionBillIntent` with `acknowledge_violation`.
 
 **Electives** are bionic or archotech installs on a healthy part. They need a
-medical bed, a stocked part and a failure chance within 5% (`ElectiveFailureCap`). No
+stocked part and a failure chance within 5% (`ElectiveFailureCap`) in the bed the patient is operated in; no
+hospital room label gates them (`SurgeryRules.HospitalBedReady` is gone). No
 wealth budget and no colony-wide one-at-a-time rule limits them: the doctor's ability,
 the stocked part and the patient's own state do. A patient with a served operation
 (restore, cure, chronic replacement) or a queued bill gets no elective. Each patient's

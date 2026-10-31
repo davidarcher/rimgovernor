@@ -10,7 +10,7 @@ public sealed partial class BuildingPlanner
     {
         if (!FacilityLadder() && Concern != FoodRules.CookingNeed.FilingKey) return (this, new BuildingResult(), false);
         var layout = facts.Facts.LayoutPlan;
-        var room = layout is null ? null : PlannedRules.PlannedStationRoom(layout, Definition, facts.Facts.CurrentConstruction);
+        var room = StationRoom ?? (layout is null ? null : PlannedRules.PlannedStationRoom(layout, Definition, facts.Facts.CurrentConstruction));
         if (room is null)
             return (null, new BuildingResult { Verdict = AwaitingPlan("station_room", Definition) }, true);
 

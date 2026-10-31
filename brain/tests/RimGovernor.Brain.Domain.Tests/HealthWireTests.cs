@@ -44,7 +44,7 @@ public sealed class HealthWireTests
                 new SurgeryOperation
                 {
                     Recipe = "InstallPegLeg", Part = Leg, Kind = SurgeryKind.Restore,
-                    Chance = new SurgeryChance.Rated(0.9, 0.95, new Dictionary<string, double> { ["doc"] = 0.9 }),
+                    Chance = new SurgeryChance.Rated(0.9, new Dictionary<string, double> { ["doc"] = 0.9 }),
                     EligibleDoctors = 1, IngredientsOnMap = true, Violation = false, Lethal = false, Yield = null, AddedPartHediff = null,
                     MedicineMarketValue = 18, MedicineCareLimited = false,
                 },
@@ -76,7 +76,7 @@ public sealed class HealthWireTests
         Assert.Contains("""{"defName":"Flu","part":null,"severity":0.2,"visible":true,"tend":{"type":"untended"},"immunizable":{"immunity":0.1,"severityPerDay":0.5,"gain":{"type":"per_day","value":0.3}}}""", json);
         Assert.Contains("""{"type":"no_record"}""", json);
         Assert.Contains("""{"type":"within","hours":5.5}""", json);
-        Assert.Contains("""{"type":"rated","success":0.9,"idealSuccess":0.95,"doctors":{"doc":0.9}}""", json);
+        Assert.Contains("""{"type":"rated","success":0.9,"doctors":{"doc":0.9}}""", json);
         Assert.Contains("""{"type":"no_eligible_doctor"}""", json);
         Assert.Contains("""{"type":"no_outcome_effect"}""", json);
         Assert.Contains("""{"thingDef":"Kidney","marketValue":250}""", json);

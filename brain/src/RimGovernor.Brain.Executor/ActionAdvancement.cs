@@ -38,7 +38,7 @@ public sealed partial class ActionAdvancement(ActionAdvancementConfig config)
     [
         ActionKind.Building, ActionKind.OwnedDraft, ActionKind.Undraft, ActionKind.Subdue,
         ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.WorkAssignment, ActionKind.PawnActivities, ActionKind.OrderedWork, ActionKind.Acquisition, ActionKind.AcquisitionWithdraw, ActionKind.ZoneCreate,
-        ActionKind.ProductionBill, ActionKind.Tend, ActionKind.Rescue, ActionKind.Capture, ActionKind.UseItem, ActionKind.Haul, ActionKind.Equip, ActionKind.DropEquipment,
+        ActionKind.ProductionBill, ActionKind.Tend, ActionKind.Rescue, ActionKind.BedRest, ActionKind.Capture, ActionKind.UseItem, ActionKind.Haul, ActionKind.Equip, ActionKind.DropEquipment,
         ActionKind.GearReplace, ActionKind.ApparelPolicy, ActionKind.RecoveryService, ActionKind.Movement, ActionKind.Husbandry,
         ActionKind.PrisonerInteraction, ActionKind.Repair, ActionKind.MineAcquisition,
         ActionKind.BuildingTemperature, ActionKind.BedUse, ActionKind.GrowerCrop, ActionKind.ClaimBuilding, ActionKind.AutoRefuel, ActionKind.Surgery, ActionKind.AutoHomeArea, ActionKind.PawnSettings, ActionKind.Area,

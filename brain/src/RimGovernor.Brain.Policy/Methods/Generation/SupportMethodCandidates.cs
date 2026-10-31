@@ -38,13 +38,16 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
         }
         foreach (var demand in read.Demands.Where(d => d.Kind is "care" or "surgery").OrderBy(d => d.Id, StringComparer.Ordinal))
         {
-            foreach (var service in read.Workers.Where(w => w.Demand == demand.Id && w.Job is "TendPatient" or "DoBill")
+            // Only a treatment where the patient lies now is a coupled alternative (task 4.3): the bed a patient is moved to is the care
+            // capacity comparison's choice, its move a typed transport, and its tend there one of these once the patient is seen in it.
+            foreach (var service in read.Workers.Where(w => w.Demand == demand.Id && w.Job is "TendPatient" or "DoBill" && w.CareBed.Length == 0)
                 .GroupBy(w => (Medicine: w.Medicine?.Id ?? "", Recipe: (w.Treatment as SupportTreatment.Surgery)?.Recipe.Bill ?? "")))
             {
                 var care = "support/care/" + Key(demand.Id) + "/" + Key(service.Key.Medicine + service.Key.Recipe);
                 var choice = "support/care/" + Key(demand.Id);
                 if (!Space()) break;
-                operations.Add(new(new(care, Location(demand.Location), Location(demand.Location), []) { NativeExecution = true }, ServiceInputs(service.First()), []) { ChoiceGroup = choice });
+                var site = Location(demand.Location);
+                operations.Add(new(new(care, site, site, []) { NativeExecution = true }, ServiceInputs(service.First()), []) { ChoiceGroup = choice });
                 foreach (var worker in service) Worker(care, worker, demand.Id);
                 roots.Add(new(care, []) { ActivityCompletions = [care], ExclusiveOutcome = choice });
             }

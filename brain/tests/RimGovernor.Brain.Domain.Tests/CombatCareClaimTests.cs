@@ -22,7 +22,7 @@ public sealed class CombatCareClaimTests
         journal.Review(new() { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(),
             Facts = WorkResourceTestFacts.Create("rescuer", "fighter-a", "fighter-b", "civilian", "patient") with { Hostiles = HostileCensus.Of(1) } }, ct);
         PawnId patient = new("patient");
-        var rescue = new PlanSpec(new("rescue"), new(1), [DomainAction.NewRescueAction(new("rescue-0"), new(new("rescuer"), patient))]);
+        var rescue = new PlanSpec(new("rescue"), new(1), [DomainAction.NewRescueAction(new("rescue-0"), new(new("rescuer"), patient, "Bed_ward"))]);
         var medicalReading = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var releaseMedical = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var peerRunning = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

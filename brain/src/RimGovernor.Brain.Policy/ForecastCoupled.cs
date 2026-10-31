@@ -55,7 +55,7 @@ public sealed record ForecastCoupledContext
     public required WorkResourceView Resources { get; init; }
     /// <summary>The construction read the candidates came from; null for a context built without one.</summary>
     public ConstructionActivityRead? Construction { get; init; }
-    public SupportActivityRead Support { get; init; } = new() { Demands = [], Workers = [], Deliveries = [], Findings = [] };
+    public SupportActivityRead Support { get; init; } = new() { Demands = [], Workers = [], Deliveries = [], Findings = [], Patients = [] };
     public CoupledThermalRead? Thermal { get; init; }
     public EquatableArray<ForecastShelterPlan> Shelters { get; init; }
     /// <summary>The planned sites generated as construction activities (#3276), and the room alternatives they make up.</summary>
@@ -200,7 +200,7 @@ public sealed record ForecastCoupledContext
     public StockArrival Stock { get; init; } = new();
     /// <summary>The review's stock before the selected requests; a reference, not a second read or store.</summary>
     internal StockArrival? StockBeforeRequests { get; init; }
-    /// <summary>The bed a planned hospital is furnished with (#3804): the first of RoomFurniture.HospitalBeds, with its def's stats; no def without a catalog.</summary>
+    /// <summary>The bed a planned hospital is furnished with (#3804): the def the plan's medical bed pieces use (LayoutHospitalBedRules.PlannedBed), with its stats; no def when the plan builds none.</summary>
     public FurnitureBed HospitalBed { get; init; } = new();
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
     public EquatableArray<CoupledFoodUse> FoodUses { get; init; }

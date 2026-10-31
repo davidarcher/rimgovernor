@@ -41,13 +41,16 @@ public sealed record StationFacts
     /// <summary>The hosted slaves' and guests' babies (SleepingObservation.HostedBabies): each a crib slot, never a regular bed.</summary>
     public int HostedBabies { get; init; }
 
-    /// <summary>Patients and Surgical size the hospital ward as SelectHospitalBed does.</summary>
+    /// <summary>Patients and Surgical size the hospital ward the medical bed alternatives compare (LayoutHospitalBedRules.Demand).</summary>
     public EquatableArray<CarePawn> Patients { get; init; }
 
     public IReadOnlyList<PawnId> Surgical { get; init; } = [];
 
     /// <summary>The goals' hospital beds and nursery: floors under the injured and baby counts the graph sizes beds for (#3496).</summary>
     public GoalBuildDemand GoalBuild { get; init; } = GoalBuildDemand.None;
+
+    /// <summary>The medical beds a medical bed alternative fixes (LayoutHospitalBedRules); null plans the baseline's.</summary>
+    public HospitalBedChoice? HospitalBeds { get; init; }
 
     /// <summary>The held prisoners.</summary>
     public int Prisoners { get; init; }
@@ -245,6 +248,7 @@ public sealed record StationFacts
             Items = Items,
             Recipes = Recipes,
             Population = population,
+            MedicalBed = population.Injured > 0 ? LayoutHospitalBedRules.ChoiceOf(this)?.Def ?? "" : "",
             NutritionPerDay = nutrition,
             Orders = orders,
             Stock = stock,
@@ -503,15 +507,14 @@ public static partial class LayoutStationPlanRules
     private static int NurseryFloor(StationFacts f) =>
         f.GoalBuild.Rooms.Items.Contains(RoomRole.Nursery) && f.Catalog.Contributors(RoomRole.Nursery).Count > 0 ? ChildRoomsRules.MinNurseryBeds : 0;
 
-    /// <summary>The people the graph sizes beds for. Babies sleep in cribs, so they leave the colonists; the hosted slaves and guests sleep beside the colonists; the injured are colonists who need a medical bed now (IllPatients).</summary>
+    /// <summary>The people the graph sizes beds for. Babies sleep in cribs, so they leave the colonists; the hosted slaves and guests sleep beside the colonists; the injured are the medical beds the medical bed alternative plans (LayoutHospitalBedRules.ChoiceOf): the patients' and goal floor's, or only the floor when the patients are cared in reused or converted beds.</summary>
     public static StationPopulation StationPopulationOf(StationFacts f)
     {
         var colonists = f.Colonists;
-        var ill = HospitalRules.IllPatients(f.Patients, f.Surgical);
         var prisoners = f.Prisoners;
         var pawns = f.WorkPawns.Pawns;
         var babies = BabyCount(pawns);
-        return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Hosted = f.Hosted, Injured = Math.Max(ill.Count, f.GoalBuild.HospitalBeds), Prisoners = prisoners, Babies = Math.Max(babies + f.HostedBabies, NurseryFloor(f)), Herds = f.Herds };
+        return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Hosted = f.Hosted, Injured = f.HospitalBeds?.Count ?? LayoutHospitalBedRules.Demand(f), Prisoners = prisoners, Babies = Math.Max(babies + f.HostedBabies, NurseryFloor(f)), Herds = f.Herds };
     }
 
     /// <summary>The pawns still in a crib: the newborn and baby stages ChildRoomNeeds gives a nursery bed. A pawn whose stage is unknown owes nothing, as there.</summary>
@@ -597,9 +600,10 @@ public static partial class LayoutStationPlanRules
         var sites = ActivitySiteRules.Deviations(f.ActivitySites).Select(d => new HostedRegroupInput(
             baseline.Host with { Id = ActivitySiteRules.IdOf(d.Deviation) }, RegroupInputOf(f with { ActivitySites = d.Ask }, baseline.Host)) { Site = d.Deviation });
         // The free-bed pool's shared, private and held provision are compared as alternatives of the baseline hosts.
-        return new([baseline, .. LayoutBedShareRules.AlternativesOf(baseline).Skip(1), .. sites, .. inputs.Skip(1)], hosts.Omitted)
+        return new([baseline, .. LayoutBedShareRules.AlternativesOf(baseline).Skip(1), .. LayoutHospitalBedRules.AlternativesOf(f, baseline), .. sites, .. inputs.Skip(1)], hosts.Omitted)
         {
             SitesOmitted = EquatableArray.From(ActivitySiteRules.Truncations(f.ActivitySites)),
+            MedicalBedsOmitted = EquatableArray.From(LayoutHospitalBedRules.DeviationsOf(f).Omitted),
         };
     }
 

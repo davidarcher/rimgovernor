@@ -262,4 +262,74 @@ public sealed class SupportMethodTests
         Assert.True(ForecastCoupledSelection.CompareConsequences(relief, unchanged) < 0);
         Assert.IsType<ForecastSupportAssessment.NativeUnprojected>(relief.Support);
     }
+
+    // Task 4.1 of redefine-habitat-requirements: care beds as support alternatives, each with its own prerequisites and effects.
+    private static SupportCareBed CareBed(string id, bool medical = true, bool prisoners = false, CareMovement? movement = null,
+        EquatableArray<string> occupants = default, bool usable = true, double infection = 1) =>
+        new(id, new(2, 2), 1)
+        {
+            Medical = medical, Prisoners = prisoners, Slaves = false, Humanlike = true, Occupants = occupants, UsableNow = usable,
+            Movement = movement ?? new CareMovement.Walk(30), InfectionChanceFactor = infection, Temperature = CoupledFixtures.Comfortable, HealPerDay = 0, SurgerySuccessFactor = new CareSurgeryFactor.Read(1),
+        };
+    private static SupportActivityRead StandingCare(BedOccupant who, CareConduct conduct, SupportCareBed[] beds, params SupportWorker[] workers) =>
+        CoupledFixtures.NoSupport with
+        {
+            Demands = [CoupledFixtures.Demand("care", "care", "patient", new(1, 1), default, 0d)],
+            Workers = [.. workers],
+            Patients = [CoupledFixtures.CarePatient("care", "patient", who, new CarePosture.Standing(), conduct, beds)],
+        };
+    /// <summary>A doctor's tend in <paramref name="bed"/> once the patient lies there, at the quality that bed gives, its batch's check after the tend.</summary>
+    private static SupportWorker BedTend(string bed, double quality, double approach = 10) =>
+        new("care", "pawn", "patient", "TendPatient", "DoctorTend", new(2, 2), approach, 20d)
+            { CareBed = bed, Medicine = null, Treatment = CoupledFixtures.Tend(quality, new InfectionCheck.Pending(1000)) };
+    private static CareBedState State(SupportActivityRead read, string bed) => CareSites.Of(read).Single(s => s.Bed == bed).State;
+
+    [Fact]
+    public void ABedTendIsTheCareCapacityChoiceNeverACoupledAlternative()
+    {
+        // The native refuses a standing humanlike patient an external tend where it stands (GoodLayingStatusForTend): its care is a
+        // bed it must reach first. Task 4.3: that bed is the care capacity comparison's choice and its move a typed transport, so
+        // the coupled forecast neither compares nor dispatches a tend there: a failed move can never be credited as a tend.
+        var read = StandingCare(BedOccupant.Colonist, CareConduct.Calm, [CareBed("medical")], BedTend("medical", .5));
+        Assert.Equal(CareBedState.Ready, State(read, "medical"));
+        var facts = Facts(read); var result = Select(facts);
+        Assert.DoesNotContain(SelectedBindings(facts, result), t => t.Job == "TendPatient");
+        Assert.Empty(Tasks(facts, result));
+
+        // A tend where the patient lies now is still a coupled alternative and is dispatched.
+        var lying = read with { Workers = [BedTend("", .5)], Patients = [read.Patients[0] with { Posture = new CarePosture.InBed("medical") }] };
+        var inPlace = Facts(lying); var served = Select(inPlace);
+        Assert.Contains(SelectedBindings(inPlace, served), t => t.Job == "TendPatient" && t.SupportDemand == "care");
+
+        // Each missing prerequisite is its own named state the comparison excludes the bed by.
+        Assert.Equal(CareBedState.PatientAggressive, State(read with { Patients = [read.Patients[0] with { Conduct = CareConduct.Aggressive }] }, "medical"));
+        Assert.Equal(CareBedState.PatientFleeing, State(read with { Patients = [read.Patients[0] with { Conduct = CareConduct.Fleeing }] }, "medical"));
+        Assert.Equal(CareBedState.PatientHostile, State(read with { Patients = [read.Patients[0] with { Conduct = CareConduct.Hostile }] }, "medical"));
+        Assert.Equal(CareBedState.Unreachable, State(StandingCare(BedOccupant.Colonist, CareConduct.Calm,
+            [CareBed("medical", movement: new CareMovement.Unreachable())], BedTend("medical", .5)), "medical"));
+        Assert.Equal(CareBedState.NoReachingDoctor, State(read with { Workers = [] }, "medical"));
+        Assert.Equal(CareBedState.BedTaken, State(StandingCare(BedOccupant.Colonist, CareConduct.Calm,
+            [CareBed("medical", occupants: ["other"])], BedTend("medical", .5)), "medical"));
+        Assert.Equal(CareBedState.Ready, State(StandingCare(BedOccupant.Colonist, CareConduct.Calm,
+            [CareBed("medical", occupants: ["patient"])], BedTend("medical", .5)), "medical"));
+        Assert.Equal(CareBedState.NativeRefused, State(StandingCare(BedOccupant.Colonist, CareConduct.Calm,
+            [CareBed("medical", usable: false)], BedTend("medical", .5)), "medical"));
+        Assert.Equal(CareBedState.ConversionRequired, State(StandingCare(BedOccupant.Colonist, CareConduct.Calm,
+            [CareBed("regular", medical: false)], BedTend("regular", .5)), "regular"));
+        Assert.Equal(CareBedState.IllegalBed, State(StandingCare(BedOccupant.Prisoner, CareConduct.Calm,
+            [CareBed("colony-medical")], BedTend("colony-medical", .9)), "colony-medical"));
+    }
+
+    [Fact]
+    public void ASurgeryWithoutABedToBeOperatedInIsNotCredited()
+    {
+        var read = CoupledFixtures.NoSupport with { Demands = [CoupledFixtures.Demand("surgery", "surgery", "patient", new(1, 1), default, 0d)
+                with { SurgeryBed = "", SurgerySuccessFactor = 0 }], Workers =
+            [new("surgery", "pawn", "patient", "DoBill", "Doctor", new(1, 1), 0d, 20d)
+                { Medicine = null, Treatment = CoupledFixtures.Surgery(new("selected-medical-bill", "selected-operation", [])) }] };
+        var facts = Facts(read); var result = Select(facts);
+        var consequences = Conditional(result.SelectedVector);
+        Assert.Equal(0, consequences.SurgeryRoomFactor);
+        Assert.Contains("surgery_care_bed_missing:surgery", consequences.Findings);
+    }
 }

@@ -109,11 +109,13 @@ public static partial class LayoutRegroupRules
             var alternative = hosts.Alternatives[i];
             var proposal = alternative.Share is BedShare.Fixed { Size: var shared }
                 ? new RegroupProposal(LayoutBedShareRules.BedShareMove, LayoutBedShareRules.FreeBeds, shared.ToString(System.Globalization.CultureInfo.InvariantCulture), [])
+                : alternative.HospitalBeds is { } medical
+                ? new RegroupProposal(LayoutHospitalBedRules.HospitalBedMove, LayoutHospitalBedRules.MedicalBeds, LayoutHospitalBedRules.NameOf(medical), [])
                 : alternative.Site is SiteDeviation.Move site
                     ? new RegroupProposal(ActivitySiteRules.SiteMove, ActivitySiteRules.ActivityKey(site.Kind), ActivitySiteRules.NameOf(site), [])
                     : alternative.Host.Change is { } change
                         ? new RegroupProposal(LayoutHostRules.HostMove, change.Recipe, LayoutHostRules.NameOf(change.Host), [])
-                        : throw new ArgumentException("an alternative names neither a host change, a bed-sharing size nor an activity site", nameof(hosts));
+                        : throw new ArgumentException("an alternative names neither a host change, a bed-sharing size, medical beds nor an activity site", nameof(hosts));
             decisions.Add(i == chosen ? Decision(proposal, seeds[0], seeds[i], true) : Decision(proposal, seeds[chosen], seeds[i], false));
         }
         decisions.AddRange(hosts.Omitted.Select(o => new RegroupDecision
@@ -125,6 +127,10 @@ public static partial class LayoutRegroupRules
         {
             Kind = ActivitySiteRules.SiteMove, A = ActivitySiteRules.ActivityKey(o.Kind),
             B = o.Rooms.ToString(System.Globalization.CultureInfo.InvariantCulture) + " rooms", Verdict = RegroupSkipped, Reason = LayoutHostRules.HostTruncated,
+        }));
+        decisions.AddRange(hosts.MedicalBedsOmitted.Select(def => new RegroupDecision
+        {
+            Kind = LayoutHospitalBedRules.HospitalBedMove, A = LayoutHospitalBedRules.MedicalBeds, B = def, Verdict = RegroupSkipped, Reason = LayoutHostRules.HostTruncated,
         }));
         var search = searches[chosen];
         var current = seeds[chosen];

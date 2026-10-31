@@ -45,7 +45,7 @@ internal static class CareFixtures
             Recipe = recipe,
             Part = new BodyPartRef { Index = part, DefName = body },
             Kind = kind,
-            Chance = chance ?? new SurgeryChance.Rated(0.95, 0.95, new Dictionary<string, double>()),
+            Chance = chance ?? new SurgeryChance.Rated(0.95, new Dictionary<string, double>()),
             EligibleDoctors = doctors,
             IngredientsOnMap = stocked,
             Violation = false,

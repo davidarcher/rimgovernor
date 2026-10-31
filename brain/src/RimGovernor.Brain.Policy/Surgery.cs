@@ -4,14 +4,14 @@ using RimGovernor.Brain.GameOrders.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// What ranking and electives need beyond the care read: each pawn's profile for role weights (absent weighs 1),
-/// whether a medical bed stands (HospitalBedReady) and the operations the player's health goals ask for.
+/// What ranking and electives need beyond the care read: each pawn's profile for role weights (absent weighs 1) and the
+/// operations the player's health goals ask for. No room label gates an operation (task 4.5): each is rated in the bed the patient
+/// is operated in (SurgeryChance.Rated, RestUtility.FindPatientBedFor), a medical bed or not, against its kind's failure cap.
 /// </summary>
 public sealed record SurgeryContext
 {
     public IReadOnlyList<PawnProfile> Profiles { get; init; } = [];
 
-    public bool HospitalBed { get; init; }
 
     /// <summary>The unmet health goals (#3508): each recipe is its pawn's first elective, an implant included.</summary>
     public IReadOnlyList<SurgeryGoal> Goals { get; init; } = [];
@@ -19,14 +19,13 @@ public sealed record SurgeryContext
 
 public static class FactsSurgeryExtensions
 {
-    /// <summary>The surgery ranking context over f: the hospital bed, the work profiles and the health goals.</summary>
+    /// <summary>The surgery ranking context over f: the work profiles and the health goals.</summary>
     public static SurgeryContext SurgeryContextOf(this ReviewFacts f)
     {
         var profiles = f.WorkProfiles;
         return new SurgeryContext
         {
             Profiles = profiles,
-            HospitalBed = SurgeryRules.HospitalBedReady(f.Sleeping),
             Goals = f.GoalSurgeries.Items,
         };
     }
@@ -46,8 +45,8 @@ public enum SurgeryWantReason
     NoDoctor,
 
     /// <summary>
-    /// An eligible doctor clears the cap with an ideal bed and room but not with the colony's best medical bed;
-    /// the hospital planner builds a Bed ward for it (SurgeryBedShortPatients).
+    /// An eligible doctor would operate, but the patient has no bed it may be operated in (SurgeryChance.NoCareBed: native
+    /// RestUtility.FindPatientBedFor finds none); the hospital planner builds a Bed ward for it (SurgeryBedShortPatients).
     /// </summary>
     [WireName("surgery_bed_short")]
     BedShort,
@@ -102,7 +101,7 @@ public static partial class SurgeryRules
 
     /// <summary>
     /// The highest failure chance an elective upgrade (a better part on a healthy one) may carry; electives also
-    /// need a hospital bed and no restore or cure pending colony-wide.
+    /// need no restore or cure pending colony-wide.
     /// </summary>
     public const double ElectiveFailureCap = 0.05;
 
@@ -203,7 +202,7 @@ public static partial class SurgeryRules
     }
 
     /// <summary>
-    /// An elective upgrade could be queued now (stocked, within ElectiveFailureCap, a hospital bed) on a living colonist without a queued bill. It keeps the medical/surgery Need unmet; a blocked elective never does.
+    /// An elective upgrade could be queued now (stocked, within ElectiveFailureCap in the bed it is operated in) on a living colonist without a queued bill. It keeps the medical/surgery Need unmet; a blocked elective never does.
     ///
     /// A chosen elective whose part is missing (ChosenElectives) also holds it open while a usable bench can
     /// fabricate the part: the part bill is the work. fabricable is FabricableParts; null fabricates nothing.
@@ -211,10 +210,6 @@ public static partial class SurgeryRules
     public static bool ElectiveSurgeryOwed(EquatableArray<CarePawn> pawns, SurgeryContext ctx, IReadOnlySet<Resource>? fabricable)
     {
         var rows = pawns;
-        if (!ctx.HospitalBed)
-        {
-            return false;
-        }
         foreach (var want in ChosenElectives(pawns, ctx))
         {
             if (FabricableItems(want.Items, fabricable).Count > 0)
@@ -240,15 +235,11 @@ public static partial class SurgeryRules
         return false;
     }
 
-    /// <summary>Some humanlike, non-prisoner bed is flagged medical.</summary>
-    public static bool HospitalBedReady(SleepingObservation sleeping) =>
-        sleeping.Beds.Any(bed => bed.Medical && bed.Humanlike && !bed.Prisoners);
-
     /// <summary>
     /// Ranks every living patient's served operations. A patient with a queued bill or an open surgery action
     /// (inFlight) gets nothing new. Each part picks its best stocked recipe (bionic, then prosthetic, then peg)
     /// that some eligible doctor performs within the kind's failure cap; the patient queues its most valuable
-    /// part, weighted by its role (UpgradeRoleWeight). When electives are allowed, healthy parts compete with
+    /// part, weighted by its role (UpgradeRoleWeight). Healthy parts compete with
     /// their gain over the natural part. A patient with a served operation queues that first; two patients never queue the same part item in one review.
     /// </summary>
     public static SurgerySelection SelectSurgery(EquatableArray<CarePawn> pawns, IReadOnlySet<PawnId>? inFlight, SurgeryContext ctx)
@@ -257,7 +248,6 @@ public static partial class SurgeryRules
         var queue = new List<SurgeryChoice>();
         var rowList = pawns;
         var rows = rowList;
-        var electives = ctx.HospitalBed;
         var profiles = new Dictionary<PawnId, PawnProfile>();
         foreach (var p in ctx.Profiles)
         {
@@ -285,7 +275,7 @@ public static partial class SurgeryRules
                 var part = PartOf(op.Operation);
                 var weight = ServedSurgery(pawn, op);
                 var name = op.Operation.Part?.DefName ?? "";
-                if (weight <= 0 && electives && ElectiveUpgrade(op))
+                if (weight <= 0 && ElectiveUpgrade(op))
                 {
                     weight = PartWeight(name);
                     elective[part] = true;
@@ -334,7 +324,7 @@ public static partial class SurgeryRules
                 }
             }
             // A health goal's stocked operation is the patient's elective (#3508); a served operation outranks it.
-            if (electives && GoalChoice(pawn.Id, ops, GoalRecipes(ctx, pawn.Id)) is { } goal)
+            if (GoalChoice(pawn.Id, ops, GoalRecipes(ctx, pawn.Id)) is { } goal)
             {
                 bestElective = goal;
             }
@@ -391,7 +381,7 @@ public static partial class SurgeryRules
             {
                 if (reason != SurgeryWantReason.BedShort)
                 {
-                    reason = SurgeryBedBlocked(op.Operation, failureCap) ? SurgeryWantReason.BedShort : SurgeryWantReason.NoDoctor;
+                    reason = SurgeryBedBlocked(op.Operation) ? SurgeryWantReason.BedShort : SurgeryWantReason.NoDoctor;
                 }
                 continue;
             }
@@ -438,7 +428,7 @@ public static partial class SurgeryRules
     /// picks a restore: the candidates by tier, best first, the first whose part and medicine are on the map within
     /// <see cref="RestoreFailureCap"/>; else the first within the cap whose missing part or medicine <paramref name="stock"/> brings
     /// within <paramref name="days"/> of the loss, with what it waits on. None (with why) when no candidate's stock arrives
-    /// (PartShort) or none clears the cap (BedShort when the ideal bed would clear it, else NoDoctor).
+    /// (PartShort) or none clears the cap (BedShort when the patient has no bed to be operated in, else NoDoctor).
     /// </summary>
     internal static (OrganReplacementRead? Pick, SurgeryWantReason Reason, StockWait? Wait) RestorePick(IEnumerable<(OrganReplacementRead Read, double Tier)> candidates,
         StockArrival stock, double days)
@@ -467,15 +457,14 @@ public static partial class SurgeryRules
 
     private static bool Pickable(OrganReplacementRead read, ref SurgeryWantReason reason)
     {
-        if (SurgeryAcceptable(read.EligibleDoctors, read.SuccessChance, read.Violation, read.Lethal, RestoreFailureCap))
+        if (read.Chance is SurgeryChance.Rated rated && SurgeryAcceptable(read.EligibleDoctors, rated.Success, read.Violation, read.Lethal, RestoreFailureCap))
         {
             return true;
         }
 
         if (reason != SurgeryWantReason.BedShort)
         {
-            reason = SurgeryAcceptable(read.EligibleDoctors, read.DoctorSuccessChance, read.Violation, read.Lethal, RestoreFailureCap)
-                ? SurgeryWantReason.BedShort : SurgeryWantReason.NoDoctor;
+            reason = BedBlocked(read.Chance, read.EligibleDoctors, read.Violation, read.Lethal) ? SurgeryWantReason.BedShort : SurgeryWantReason.NoDoctor;
         }
 
         return false;
@@ -498,9 +487,11 @@ public static partial class SurgeryRules
         return EquatableArray.From(needs);
     }
 
-    /// <summary>The operation fails the cap as observed but passes it with the doctor's ideal-bed chance, so the bed or room is the blocker.</summary>
-    private static bool SurgeryBedBlocked(SurgeryOperation op, double failureCap) =>
-        op.Chance is SurgeryChance.Rated rated && Acceptable(op, rated.IdealSuccess, failureCap);
+    /// <summary>The operation is refused only for want of a bed the patient may be operated in: a doctor is eligible and it is neither a violation nor lethal.</summary>
+    private static bool SurgeryBedBlocked(SurgeryOperation op) => BedBlocked(op.Chance, op.EligibleDoctors, op.Violation, op.Lethal);
+
+    private static bool BedBlocked(SurgeryChance chance, int doctors, bool violation, bool lethal) =>
+        chance is SurgeryChance.NoCareBed && doctors > 0 && !violation && !lethal;
 
     /// <summary>The living colonists whose served operation waits only on a better bed or room: the hospital planner's surgical demand, which needs a Bed, not a sleeping spot.</summary>
     public static IReadOnlyList<PawnId> SurgeryBedShortPatients(EquatableArray<CarePawn> pawns)

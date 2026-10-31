@@ -670,8 +670,8 @@ by side and an order on a held pawn is a claim conflict. The immediate pass
 protects only the family's Tend and Rescue work (`FamilySchedule.ProtectionKinds`).
 In the ordinary pass a patient's Need first queues a life-saving amputation.
 `medical/care` (unmet while a sick colonist rests or is in bad condition; its work
-is the hospital bed, built through the shared building planner or flagged medical
-once per bed) and `medical/reserves` (unmet below the medicine target, no entry
+is the care capacity comparison's: bed conversions and restores, field spots, exact transports and the planned medical bed built through the shared building planner,
+[medical care](../contracts/medical-care.md#care-capacity)) and `medical/reserves` (unmet below the medicine target, no entry
 bar; healroot withdrawals and harvests, the ledger's stock bill) are independent
 Wellbeing Needs: the Medical phase latch (`Latches.Medical`, `Phase.MedicalCare`,
 `Phase.MedicalReserves`, `Restocks`) is deleted with no precondition in its place,

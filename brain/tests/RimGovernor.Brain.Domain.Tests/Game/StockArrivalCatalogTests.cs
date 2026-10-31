@@ -81,7 +81,7 @@ public sealed class StockArrivalCatalogTests
         var stock = new Dictionary<Resource, long> { [new Resource("Plasteel")] = 100 };
         var replacement = new OrganReplacementRead("Arm", "InstallBionicArm")
         {
-            PartThing = "BionicArm", PartOnMap = false, MedicineOnMap = true, MedicineCount = 2, EligibleDoctors = 1, SuccessChance = 0.95, DoctorSuccessChance = 0.95,
+            PartThing = "BionicArm", PartOnMap = false, MedicineOnMap = true, MedicineCount = 2, EligibleDoctors = 1, Chance = new SurgeryChance.Rated(0.95, new Dictionary<string, double>()),
         };
 
         var fresh = StockArrivalTestFacts.Craft(recipes, [], crafters, stock) with { Medicines = [new Resource("MedicineHerbal")] };
@@ -284,7 +284,7 @@ public sealed class StockArrivalCatalogTests
         var stock = FreshStock(catalog, storyteller, 2000);
         var replacement = new OrganReplacementRead("Arm", "InstallBionicArm")
         {
-            PartThing = "BionicArm", PartOnMap = false, MedicineOnMap = true, MedicineCount = 2, EligibleDoctors = 1, SuccessChance = 0.95, DoctorSuccessChance = 0.95,
+            PartThing = "BionicArm", PartOnMap = false, MedicineOnMap = true, MedicineCount = 2, EligibleDoctors = 1, Chance = new SurgeryChance.Rated(0.95, new Dictionary<string, double>()),
         };
         var (pick, _, wait) = SurgeryRules.RestorePick([(replacement, 1.0)], stock, 30);
         Assert.Equal("InstallBionicArm", pick!.Recipe);

@@ -120,18 +120,12 @@ public sealed class RoomRoleGoalTests
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, two).State);
     }
 
-    private static HospitalRequest Ward(int floor, params SleepingBed[] beds) => new()
+    private static CareCapacityRequest Ward(int floor, params SleepingBed[] beds) => new()
     {
-        Doctors = 1,
-        Patients = [],
+        Support = CoupledFixtures.NoSupport,
         Sleeping = new SleepingObservation { Beds = [.. beds] },
         Rooms = RoomFixtures.Census(Standing(RoomRole.Hospital, [.. beds.Select(b => b.Id)])),
-        Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }] },
-        Definitions = [new BenchDefinition { Name = "Bed", Available = true}],
         MinBeds = floor,
-        // Native's sleeping capacities leave the medical beds out.
-        BedCapacity = beds.Count(b => !b.Medical),
-        IndoorCapacity = beds.Count(b => !b.Medical),
     };
 
     [Fact]
@@ -139,28 +133,28 @@ public sealed class RoomRoleGoalTests
     {
         var medical = Bed("medical", true);
         var bedroom = Ward(1, medical) with { Rooms = RoomFixtures.Census(Standing(RoomRole.Bedroom, "medical")) };
-        Assert.Equal(HospitalMethod.Existing, HospitalRules.SelectHospitalBed(bedroom).Method);
+        Assert.Empty(CareCapacityRules.Plan(bedroom).Orders);
         Assert.False(HospitalRules.BedsShort(1, bedroom.Rooms, bedroom.Sleeping, false));
     }
 
     [Fact]
-    public void TheGoalBedFloorIsDemandWithNoPatientAndNeverLowersThePatientsOwn()
+    public void TheGoalBedFloorConvertsOnlyAFreeBedAndLeavesNewCapacityToTheLayoutComparison()
     {
-        Assert.Equal(HospitalMethod.NoDemand, HospitalRules.SelectHospitalBed(Ward(0)).Method);
+        Assert.Empty(CareCapacityRules.Plan(Ward(0)).Orders);
 
-        var short1 = HospitalRules.SelectHospitalBed(Ward(2, Bed("b1", true)));
-        Assert.Equal((HospitalMethod.Build, 2, "Bed"), (short1.Method, short1.Needed, short1.Definition));
+        // Short of the floor with no free bed: no order here; the plan's medical beds are the layout comparison's (LayoutHospitalBedRules).
+        var short1 = Ward(2, Bed("b1", true));
+        Assert.Empty(CareCapacityRules.Plan(short1).Orders);
+        Assert.True(HospitalRules.BedsShort(2, short1.Rooms, short1.Sleeping, false));
 
-        var spare = HospitalRules.SelectHospitalBed(Ward(2, Bed("b1", true), Bed("b2", false)));
-        Assert.Equal((HospitalMethod.Convert, "b2"), (spare.Method, spare.Bed));
+        // A free bed whose conversion costs nobody a slot is converted for the floor (no surplus-only gate).
+        Assert.Equal([new CareBedOrder("b2", true, CareCapacityRules.FloorReason)], CareCapacityRules.Plan(Ward(2, Bed("b1", true), Bed("b2", false))).Orders);
 
-        Assert.Equal(HospitalMethod.Existing, HospitalRules.SelectHospitalBed(Ward(2, Bed("b1", true), Bed("b2", true))).Method);
+        Assert.Empty(CareCapacityRules.Plan(Ward(2, Bed("b1", true), Bed("b2", true))).Orders);
 
-        var sick = Ward(1, Bed("b1", true)) with
-        {
-            Patients = [.. SickIds.Select(id => CareFixtures.Patient(id) with { Observed = CareFixtures.NativePatient(id) with { Health = PawnFixtures.Healthy with { ShouldSeekMedicalRest = true } } })],
-        };
-        Assert.Equal(3, HospitalRules.SelectHospitalBed(sick).Needed);
+        // The patients' own demand never lowers below the floor: each who seeks medical rest is a patient.
+        var sick = SickIds.Select(id => CareFixtures.Patient(id) with { Observed = CareFixtures.NativePatient(id) with { Health = PawnFixtures.Healthy with { ShouldSeekMedicalRest = true } } });
+        Assert.Equal(3, HospitalRules.IllPatients([.. sick], []).Count);
     }
 
     [Fact]

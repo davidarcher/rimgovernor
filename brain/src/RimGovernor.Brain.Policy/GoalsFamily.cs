@@ -143,7 +143,7 @@ public sealed record GoalBuildDemand
     /// <summary>The roles whose child room a goal names: the nursery, classroom and deathrest chamber (<see cref="ChildRoomsRules.GoalRoomNeeds"/>).</summary>
     public EquatableArray<RoomRole> Rooms { get; init; }
 
-    /// <summary>The hosted medical beds a Hospital goal asks for; 0 for none. It is the minimum bed count of <see cref="HospitalRules.SelectHospitalBed"/> and the station graph's injured floor.</summary>
+    /// <summary>The hosted medical beds a Hospital goal asks for; 0 for none. It is the medical bed floor of <see cref="CareCapacityRules.Plan"/> and the station graph's injured floor (LayoutHospitalBedRules.Demand).</summary>
     public int HospitalBeds { get; init; }
 
     /// <summary>The turret count a built-count goal for a turret asks for; 0 for none. It is a floor under <see cref="DefenseBudget.TurretBudget"/>.</summary>
@@ -542,8 +542,9 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, one);
         }
-        return !SurgeryRules.HospitalBedReady(f.ReviewState.Sleeping)
-            ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, "no_hospital_bed", owner, one)
+        // Blocked only when no bed the patient may be operated in exists (RestUtility.FindPatientBedFor finds none), never for a room label.
+        return pawn.Operations.Where(op => op.Operation.Recipe == goal.Qualifier).All(op => op.Operation.Chance is SurgeryChance.NoCareBed)
+            ? new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, NoCareBed, owner, one)
             : Pursued(goal, f, owner, one);
     }
 
@@ -837,6 +838,9 @@ public static partial class GoalRules
     private const string NotAPrisoner = "not a prisoner";
 
     private const string NotAColonist = "not_a_colonist";
+
+    /// <summary>The blocked reason of a health goal whose operation has no bed the patient may be operated in.</summary>
+    internal const string NoCareBed = "no_care_bed";
 
     private const string Expired = "expired";
 

@@ -38,6 +38,9 @@ public sealed partial class BuildingPlanner
 
     internal string Definition { get; set; } = "";
 
+    /// <summary>The planned room a bound station is furnished in (the care Need's unbuilt medical bed); null finds the room by Definition.</summary>
+    internal PlannedRoom? StationRoom { get; set; }
+
     internal double RecreationPowerW { get; set; }
 
     internal string Stuff { get; set; } = "";
@@ -372,7 +375,7 @@ public sealed partial class BuildingPlanner
             }
             else if (r.Phase == Pol.Phase.HousingSleeping)
             {
-                (resolved, reason) = r.SelectSleeping(facts, review);
+                (resolved, reason) = r.SelectSleeping(facts, review, call);
             }
             else if (r.Phase == Pol.Phase.ComfortBasic)
             {

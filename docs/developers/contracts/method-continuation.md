@@ -123,6 +123,23 @@ World/authority changes clear this transient row.
 Journal/policy tests cover lifecycle decisions and transactional continuation;
 the prepared pawn lifecycle case checks repeated release and reacquisition.
 
+## Care chains
+
+A care patient's move to its chosen bed is a short chain of ordinary Methods of the `medical/care` Need
+(or, for a downed patient, its critical Need), not a stored plan
+([medical care](medical-care.md#care-capacity), habitat 4.2 to 4.4): `hospital-convert-<bed>` or
+`hospital-restore-<bed>` (a bed-use intent, read back first), `hospital-field-<patient>` (a field spot's placement),
+`hospital-transport-<patient>/<bed>` (a `BedRest`) and `rescue-<patient>/<bed>` (a `Rescue` to the exact bed). The chain's state is not stored: each
+review re-derives it from the journal (`HospitalPlanner.Transports`, `FieldSpots`, `RefusedOrders`). An action
+still open holds its bed (`CareTransportRules.Holds`); one accepted under the current native authority holds it
+while its patient is still a care patient and lies in no other bed; a refused one holds nothing and is excluded
+under the refusal budget (`refused:<reason>`). A load or an authority change ends accepted evidence, so a placed spot
+or an accepted transport is re-read, not trusted. A hold ends only for its own patient: when it leaves the census
+(healed, dead, gone, no longer the colony's) or lies in another bed. A doctor or rescuer changing, or a patient
+drafted, releases nothing, and an accepted lay-down whose patient is not yet in the bed is ordered again (native
+applies a running lay-down again). A completed order never certifies care: only a later census seeing the patient in
+the bed lets its tend be credited.
+
 ## Combat shelter
 
 Entry requires live threats and no viable combat assignment. Shelter selects

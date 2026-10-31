@@ -203,22 +203,85 @@ public static partial class SleepingRules
     /// colony/load/map changes or time moves backwards. Throws DomainException on an invalid census or history.
     /// </summary>
     /// <summary>
+    /// Whether a bed of this class takes <paramref name="who"/> (RestUtility.CanUseBedNow's ForPrisoners and ForSlaves checks and
+    /// CanUseBedEver's humanlike check): an animal only an animal bed; a prisoner only a prison bed; a slave only a slave bed that
+    /// is no prison bed; a colonist or guest only a bed for neither. The one legality core of sleeping slots
+    /// (<see cref="CompatibleSlot"/>) and care beds (<see cref="CareSlot"/>); medical use and body size are the caller's.
+    /// </summary>
+    public static bool LegalBed(bool humanlike, bool prisoners, bool slaves, RimGovernor.Brain.GameFacts.Observations.BedOccupant who) =>
+        who == RimGovernor.Brain.GameFacts.Observations.BedOccupant.Animal ? !humanlike
+        : who == RimGovernor.Brain.GameFacts.Observations.BedOccupant.Prisoner ? humanlike && prisoners
+        : who == RimGovernor.Brain.GameFacts.Observations.BedOccupant.Slave ? humanlike && !prisoners && slaves
+        : humanlike && !prisoners && !slaves;
+
+    /// <summary>
     /// Whether <paramref name="b"/> is a slot <paramref name="pawn"/> may legally sleep in and reach: a regular humanlike
-    /// bed (no crib, medical or prison bed) whose slave setting matches the pawn's (a colonist never in a slave bed, a slave
-    /// only in one), that the pawn can reach. Occupancy is the census's: capacity is these slots, never a second count.
+    /// bed (no crib or medical bed) that <see cref="LegalBed"/> gives a colonist or a slave (a colonist never in a slave or prison
+    /// bed, a slave only in a slave bed), that the pawn can reach. Occupancy is the census's: capacity is these slots, never a
+    /// second count; a medical bed is never a free sleeping slot.
     /// </summary>
     public static bool CompatibleSlot(SleepingBed b, PawnId pawn, bool slave) =>
-        b.Humanlike && !b.Crib && !b.Medical && !b.Prisoners && b.Slaves == slave && b.AccessibleTo.Contains(pawn);
+        !b.Crib && !b.Medical && LegalBed(b.Humanlike, b.Prisoners, b.Slaves, slave ? RimGovernor.Brain.GameFacts.Observations.BedOccupant.Slave : RimGovernor.Brain.GameFacts.Observations.BedOccupant.Colonist) && b.AccessibleTo.Contains(pawn);
+
+    /// <summary>
+    /// The state of <paramref name="bed"/> as the place <paramref name="patient"/> is cared in (task 4.1): Ready when it lies
+    /// there now, or the bed is a medical bed <see cref="LegalBed"/> gives it with a slot free or held by the patient and the
+    /// native's own CanUseBedNow passes; else the first missing prerequisite: IllegalBed, BedTaken (every slot held by another
+    /// occupant), ConversionRequired (a legal free bed that is not medical; converting it is a separate decision) or
+    /// NativeRefused (CanUseBedNow fails, a prison bed outside a prison cell for one).
+    /// </summary>
+    public static CareBedState CareSlot(RimGovernor.Brain.GameFacts.Observations.SupportCareBed bed, RimGovernor.Brain.GameFacts.Observations.SupportCarePatient patient)
+    {
+        if (bed.Movement is RimGovernor.Brain.GameFacts.Observations.CareMovement.AlreadyHere) return CareBedState.Ready;
+        if (!LegalBed(bed.Humanlike, bed.Prisoners, bed.Slaves, patient.Occupant)) return CareBedState.IllegalBed;
+        if (!bed.Occupants.Contains(patient.Patient) && bed.Occupants.Count >= bed.Slots) return CareBedState.BedTaken;
+        if (!bed.Medical) return CareBedState.ConversionRequired;
+        return bed.UsableNow ? CareBedState.Ready : CareBedState.NativeRefused;
+    }
+
+    /// <summary>
+    /// The sleepers a medical bed holds while their care lasts (tasks 4.1 and 4.2): a pawn who owns no regular slot and lies in a
+    /// medical bed it may sleep in by class, or who seeks medical rest (HealthAIUtility.ShouldSeekMedicalRest) and can reach such a
+    /// bed with a slot nobody lies in, each free slot holding one. The held bed is its slot while care lasts, so it is no free slot
+    /// for another sleeper and no second slot is wanted for it: a patient whose own bed was converted counts once. Once care ends
+    /// it seeks no medical rest, is held by nothing and wants a sleeping slot again, which the post-care review prices.
+    /// </summary>
+    public static IReadOnlySet<PawnId> HeldInMedicalBeds(SleepingObservation v, IEnumerable<SleepingPerson> who, bool slave)
+    {
+        var occupant = slave ? RimGovernor.Brain.GameFacts.Observations.BedOccupant.Slave : RimGovernor.Brain.GameFacts.Observations.BedOccupant.Colonist;
+        bool Legal(SleepingBed b) => b.Medical && !b.Crib && LegalBed(b.Humanlike, b.Prisoners, b.Slaves, occupant);
+        var held = new HashSet<PawnId>();
+        var seeking = new List<SleepingPerson>();
+        foreach (var p in who)
+        {
+            if (v.Beds.Any(b => b.Owners.Contains(p.Id) && CompatibleSlot(b, p.Id, slave))) continue;
+            if (v.Beds.Any(b => Legal(b) && b.Users.Contains(p.Id))) held.Add(p.Id);
+            else if (p.Pawn.Health.ShouldSeekMedicalRest) seeking.Add(p);
+        }
+        var free = v.Beds.Where(Legal).ToDictionary(b => b.Id, b => b.Slots - b.Users.Count, StringComparer.Ordinal);
+        foreach (var p in seeking.OrderBy(p => p.Id.Value, StringComparer.Ordinal))
+        {
+            var bed = v.Beds.Where(b => Legal(b) && b.AccessibleTo.Contains(p.Id) && free[b.Id] > 0).OrderBy(b => b.Id, StringComparer.Ordinal).FirstOrDefault();
+            if (bed is null) continue;
+            free[bed.Id]--;
+            held.Add(p.Id);
+        }
+        return held;
+    }
 
     /// <summary>
     /// The sleepers short of a compatible reachable slot (<see cref="CompatibleSlot"/>), per bed class: the colonists and
     /// guests (babies sleep in cribs, the nursery's demand) against the regular beds one of them can reach, the slaves
-    /// against the beds set for slaves one of them can reach. A slot of the other class is never capacity.
+    /// against the beds set for slaves one of them can reach. A slot of the other class is never capacity. A sleeper a medical
+    /// bed holds (<see cref="HeldInMedicalBeds"/>) is in its slot and wants no other.
     /// </summary>
     public static (int Regular, int Slave) SlotShortfall(SleepingObservation v)
     {
-        var regular = v.People.Concat(v.Guests).Where(p => !p.Baby).ToList();
-        var slaves = v.Slaves.Where(p => !p.Baby).ToList();
+        var people = v.People.Concat(v.Guests).Where(p => !p.Baby).ToList();
+        var bonded = v.Slaves.Where(p => !p.Baby).ToList();
+        var heldPeople = HeldInMedicalBeds(v, people, slave: false); var heldSlaves = HeldInMedicalBeds(v, bonded, slave: true);
+        var regular = people.Where(p => !heldPeople.Contains(p.Id)).ToList();
+        var slaves = bonded.Where(p => !heldSlaves.Contains(p.Id)).ToList();
         int Slots(List<SleepingPerson> who, bool slave) => v.Beds.Where(b => who.Any(p => CompatibleSlot(b, p.Id, slave))).Sum(b => b.Slots);
         return (Math.Max(0, regular.Count - Slots(regular, false)), Math.Max(0, slaves.Count - Slots(slaves, true)));
     }

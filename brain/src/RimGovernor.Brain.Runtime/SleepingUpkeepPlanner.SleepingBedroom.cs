@@ -116,7 +116,7 @@ public sealed partial class SleepingUpkeepPlanner
         {
             return new BuildingResult { Verdict = BuildingReasonSuiteStock };
         }
-        var request = SleepingRequest(facts, review);
+        var request = SleepingRequest(facts, review, HospitalPlanner.HeldSleeping(Reviewer.Player.Journal, facts, state.Snapshot, call));
         var (bed, method) = SleepingRules.SleepingDefinition(facts.Facts.Shapes.Furniture, request.Definitions, request.Stocked, false, true);
         if (method != Pol.SleepingMethod.Build)
         {

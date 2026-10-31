@@ -226,7 +226,8 @@ namespace RimGovernor.Native
                         bed = dest.InBounds(map) ? dest.GetFirstBuilding(map) as Building_Bed : null;
                         if (bed == null || !RestUtility.IsValidBedFor(bed, patient, pawn, checkSocialProperness: false)) return "no_bed";
                     }
-                    else if (!NativeCustodyOperations.FindBed(JobOrderKind.Rescue, pawn, patient, out bed) || bed == null) return "no_bed";
+                    else if ((bed = RestUtility.FindBedFor(patient, pawn, checkSocialProperness: false)
+                        ?? RestUtility.FindBedFor(patient, pawn, false, ignoreOtherReservations: true)) == null) return "no_bed";
                     if (!pawn.CanReserveAndReach(patient, PathEndMode.Touch, Danger.Deadly)) return "unreachable";
                     var made = JobMaker.MakeJob(JobDefOf.Rescue, patient, bed);
                     made.count = 1;

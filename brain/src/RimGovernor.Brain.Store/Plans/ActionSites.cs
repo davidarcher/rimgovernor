@@ -33,6 +33,7 @@ internal static class ActionSites
             SupplyAllow p => Site(default, p.Thing, p.Cell),
             Tend p => Site(p.Doctor, p.Patient.Value, null),
             Rescue p => Site(p.Rescuer, p.Patient.Value, null),
+            BedRest p => Site(p.Patient, p.Bed, null),
             DropEquipment p => Site(p.Pawn, p.Thing, null),
             Capture p => Site(p.Capturer, p.Patient.Value, null),
             UseItem p => Site(p.Pawn, p.Target.Value, null),

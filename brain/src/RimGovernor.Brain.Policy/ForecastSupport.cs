@@ -69,9 +69,16 @@ public static class ForecastSupport
             foreach (var task in service)
             {
                 careServices.Add(demand.Id + "/" + (task.Binding.Recipe?.Bill ?? "tend"));
-                var worker = read.Workers.First(w => w.Demand == demand.Id && w.Pawn == task.Binding.Pawn && (w.Medicine?.Id ?? "") == task.Binding.Medicine);
-                if (demand.Kind == "surgery") surgery += demand.SurgerySuccessFactor;
-                // A tend's room counts when the batch's infection check falls after the tend ends.
+                var worker = read.Workers.First(w => w.Demand == demand.Id && w.Pawn == task.Binding.Pawn && (w.Medicine?.Id ?? "") == task.Binding.Medicine
+                    && w.CareBed.Length == 0);
+                // A surgery is credited in the bed the patient is operated in, and only with one (no invented bed).
+                if (demand.Kind == "surgery")
+                {
+                    if (demand.SurgeryBed.Length != 0) surgery += demand.SurgerySuccessFactor;
+                    else findings.Add("surgery_care_bed_missing:" + demand.Id);
+                }
+                // A tend's room counts when the batch's infection check falls after the tend ends: the patient's room, where it lies
+                // and is tended.
                 else if (worker.Treatment is SupportTreatment.Tend { Infection: InfectionCheck.Pending(var check) } && check > task.Allocation.End)
                     careFactor += demand.InfectionChanceFactor;
                 if (worker.Treatment is SupportTreatment.Tend tend) quality += tend.Quality;

@@ -165,8 +165,11 @@ public sealed partial record ReviewFacts
     /// <summary>The comfort need's NeedDef curve (StationCatalog.Comfort.Comfort, #3840) the bedroom credit's comfort term runs; unknown without a catalog.</summary>
     public NeedCurve ComfortCurve { get; init; }
 
-    /// <summary>The bed a planned hospital is furnished with (RoomFurniture.HospitalBed, #3804); no def without a catalog.</summary>
-    public FurnitureBed HospitalBed { get; init; } = new();
+    /// <summary>The beds a planned hospital may be furnished with (RoomFurniture.MedicalBedCandidates, #3804); the plan's medical bed pieces name which (LayoutHospitalBedRules.PlannedBed).</summary>
+    public EquatableArray<FurnitureBed> MedicalBeds { get; init; }
+
+    /// <summary>The vitals monitor a planned hospital places beside its beds (RoomFurniture.Monitor, task 4.5): its offsets price the planned bed; none without a catalog.</summary>
+    public FacilityLink HospitalMonitor { get; init; } = new();
 
     /// <summary>The catalog's filth model (StationCatalog.Filth) a planned room's predicted cleanliness reads (#3797, #3800), and the kitchen and butchery credits its poisoning (#3802); the zero model without a catalog.</summary>
     /// <summary>The current station-flow SleepDisturbed mood points per sleeper in each planned room.</summary>

@@ -199,6 +199,7 @@ internal static class CodecRegistry
         codecs.Register(new RemoveRoofConverter());
         codecs.Register(new RepairConverter());
         codecs.Register(new RescueConverter());
+        codecs.Register(new BedRestConverter());
         codecs.Register(new ResearchSelectConverter());
         codecs.Register(new ReserveSupplyConverter());
         codecs.Register(new ResourceConverter());

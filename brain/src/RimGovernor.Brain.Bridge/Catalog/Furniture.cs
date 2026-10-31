@@ -35,14 +35,22 @@ public sealed partial class DefinitionCatalog
     private double BedStat(string bed, string stat) =>
         ThingRow(bed).statBases.Seq().LastOrDefault(modifier => modifier.stat?.defName == stat)?.value ?? DefRow<StatDef>(stat)?.defaultBaseValue ?? 1;
 
+    private P.FurnitureBed FurnitureBed(BedRank b) => new()
+    {
+        Def = b.Def, Slots = b.Slots, Free = b.Free,
+        ImmunityGainSpeedFactor = BedStat(b.Def, nameof(StatDefOf.ImmunityGainSpeedFactor)), SurgerySuccessChanceFactor = BedStat(b.Def, nameof(StatDefOf.SurgerySuccessChanceFactor)),
+    };
+
     /// <summary>The furniture the room planners place for the shapes (the plannable shape of every buildable def).</summary>
     public P.RoomFurniture RoomFurniture(IReadOnlyDictionary<string, P.InteriorPieceDef> shapes)
     {
         var beds = Beds();
         var furniture = new P.RoomFurniture
         {
-            Beds = Domain.EquatableArray.From(beds.Sleeping.Select(b => new P.FurnitureBed { Def = b.Def, Slots = b.Slots, Free = b.Free,
-                ImmunityGainSpeedFactor = BedStat(b.Def, nameof(StatDefOf.ImmunityGainSpeedFactor)), SurgerySuccessChanceFactor = BedStat(b.Def, nameof(StatDefOf.SurgerySuccessChanceFactor)) })),
+            Beds = Domain.EquatableArray.From(beds.Sleeping.Select(FurnitureBed)),
+            // The beds medical by default a hospital may be planned with (task 4.2): one slot, humanlike, for any pawn, buildable.
+            MedicalBeds = Domain.EquatableArray.From(beds.All.Where(b => b.Humanlike && b.Medical && !b.Crib && b.Unrestricted && b.Slots == 1 && !double.IsNegativeInfinity(b.Ratio))
+                .Order(Comparer<BedRank>.Create(CompareBeds)).Select(FurnitureBed)),
             Heater = CheapestHeater(),
             FueledHeaters = Domain.EquatableArray.From(FueledHeaters()),
             Sarcophagus = CheapestOfClass<Building_Sarcophagus>(),
@@ -328,6 +336,11 @@ public sealed partial class DefinitionCatalog
 
         return best is null
             ? null
-            : new P.FacilityLink { Def = best.Def, MaxDistance = best.MaxDistance, MaxSimultaneous = best.MaxSimultaneous, Adjacent = best.Adjacent, CardinalToHead = best.CardinalToHead };
+            : new P.FacilityLink
+            {
+                Def = best.Def, MaxDistance = best.MaxDistance, MaxSimultaneous = best.MaxSimultaneous, Adjacent = best.Adjacent, CardinalToHead = best.CardinalToHead,
+                ImmunityGainSpeedOffset = best.Offsets.GetValueOrDefault(nameof(StatDefOf.ImmunityGainSpeedFactor)),
+                SurgerySuccessChanceOffset = best.Offsets.GetValueOrDefault(nameof(StatDefOf.SurgerySuccessChanceFactor)),
+            };
     }
 }

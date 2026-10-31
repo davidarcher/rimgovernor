@@ -41,6 +41,14 @@ public sealed record FacilityLink
 
     /// <summary>Set when it must stand cardinally beside a bed's head.</summary>
     public bool CardinalToHead { get; init; }
+
+    /// <summary>
+    /// The facility's CompProperties_Facility statOffsets a linked bed gains (task 4.5): ImmunityGainSpeedFactor and
+    /// SurgerySuccessChanceFactor, 0 where it offsets neither.
+    /// </summary>
+    public double ImmunityGainSpeedOffset { get; init; }
+
+    public double SurgerySuccessChanceOffset { get; init; }
 }
 
 /// <summary>
@@ -60,6 +68,9 @@ public sealed record FacilityLink
 public sealed partial record RoomFurniture
 {
     public EquatableArray<FurnitureBed> Beds { get; init; }
+
+    /// <summary>The single-slot humanlike beds medical by default (bed_defaultMedical), which Beds leaves out, in the same order.</summary>
+    public EquatableArray<FurnitureBed> MedicalBeds { get; init; }
 
     public string Sarcophagus { get; init; } = "";
 
@@ -98,13 +109,15 @@ public sealed partial record RoomFurniture
     public IReadOnlyList<string> SleepingBeds() => BedDefs(SlotBeds(1));
 
     /// <summary>
-    /// The beds the hospital planner stages, the sleeping beds except a bedroll, which only the sleeping
-    /// planner stages (it checks the stuff on hand, the hospital planner does not).
+    /// The beds a medical bed may be planned as (task 4.2), in preference order: the costed sleeping beds (a bedroll never: the
+    /// hospital checks no stuff on hand), the beds medical by default (<see cref="MedicalBeds"/>), then the free ones. Which of them
+    /// a planned hospital is furnished with, and how many, is the layout comparison's (LayoutHospitalBedRules).
     /// </summary>
-    public IReadOnlyList<string> HospitalBeds() => SleepingBeds().Where(def => !SleepingRules.SleepingBedrolls.Contains(def)).ToList();
-
-    /// <summary>The bed a planned hospital is furnished with (#3804): the first of <see cref="HospitalBeds"/>; no def when the catalog has none.</summary>
-    public FurnitureBed HospitalBed() => HospitalBeds() is [var first, ..] ? Beds.First(b => b.Def == first) : new();
+    public IReadOnlyList<FurnitureBed> MedicalBedCandidates()
+    {
+        var sleeping = SlotBeds(1).Where(b => !SleepingRules.SleepingBedrolls.Contains(b.Def)).ToList();
+        return [.. sleeping.Where(b => !b.Free), .. MedicalBeds, .. sleeping.Where(b => b.Free)];
+    }
 
     /// <summary>The single bed the planners stage first (the jail's bed, the bedroom and hospital templates' default bed); empty when the catalog has none.</summary>
     public string PrimaryBed()
@@ -166,6 +179,7 @@ public sealed partial record RoomFurniture
     public IReadOnlyList<string> Definitions()
     {
         var output = BedDefs(Beds);
+        output.AddRange(BedDefs(MedicalBeds));
         output.AddRange([Sarcophagus, Heater, AnimalSpot, AnimalBed]);
         output.AddRange(Bench.Values);
         foreach (var link in Facilities())

@@ -40,7 +40,7 @@ internal static class CustodyPopulation
         // The fixture runs before authority is acquired: its direct spawns would revoke a held grant.
         var setup = await s.FixtureAsync("setup", Setup, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         s.Record("fixture", ServedOps.Json(setup));
-        if (!setup.Success || setup.Candidate.Length == 0 || setup.Visitor.Length == 0 || setup.Prison.Length == 0)
+        if (!setup.Success || setup.Candidate.Length == 0 || setup.Visitor.Length == 0 || setup.Prison.Length == 0 || setup.Ward.Length == 0)
         {
             throw new AcceptanceException("setup: missing fixture ids");
         }
@@ -59,7 +59,7 @@ internal static class CustodyPopulation
 
         await RefusedAsync(s, "capture-guest", TypedPawnOps.GiveJob(capturer, "Capture", setup.Visitor), r => r.Reason?.Contains("Capture refused", StringComparison.Ordinal) == true, cancellationToken).ConfigureAwait(false);
         await RefusedAsync(s, "capture-missing", TypedPawnOps.GiveJob(capturer, "Capture", "Thing_NoSuchPatient"), r => r.Code == RimGovernor.Brain.GameFacts.Common.FailureCode.NotFound, cancellationToken).ConfigureAwait(false);
-        await OrderedAsync(s, "custody-capture", capturer, setup.Candidate, "Capture", cancellationToken).ConfigureAwait(false);
+        await OrderedAsync(s, "custody-capture", capturer, [setup.Candidate], "Capture", cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("observe-capture", CaptureTicks, Until(s, setup.Candidate, p => p.Prisoner && p.InBed), cancellationToken).ConfigureAwait(false);
 
         // Prisoner interaction: the captured candidate.
@@ -92,7 +92,10 @@ internal static class CustodyPopulation
             throw new AcceptanceException($"visitor-before: want a downed guest out of bed, got downed={visitor.Downed} inBed={visitor.InBed}");
         }
 
-        await OrderedAsync(s, "custody-rescue", capturer, setup.Visitor, "Rescue", cancellationToken).ConfigureAwait(false);
+        // A rescue names its exact bed; a guest is no pawn the player orders to lie down.
+        await RefusedAsync(s, "rescue-no-bed", TypedPawnOps.GiveJob(capturer, "Rescue", setup.Visitor), r => r.Reason?.Contains("Rescue requires targets", StringComparison.Ordinal) == true, cancellationToken).ConfigureAwait(false);
+        await RefusedAsync(s, "laydown-guest", TypedPawnOps.GiveJob(setup.Visitor, "LayDown", setup.Ward), _ => true, cancellationToken).ConfigureAwait(false);
+        await OrderedAsync(s, "custody-rescue", capturer, [setup.Visitor, setup.Ward], "Rescue", cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("observe-rescue", s.TicksLeft, Until(s, setup.Visitor, p => p.InBed), cancellationToken).ConfigureAwait(false);
     }
 
@@ -100,15 +103,15 @@ internal static class CustodyPopulation
         new RimGovernor.Brain.GameOrders.Operations.PrisonerInteractionIntent { PawnId = pawn, Interaction = mode };
 
     /// <summary>Applies one custody order, requires an issued <paramref name="job"/> job, then resends it and requires no second job.</summary>
-    private static async Task OrderedAsync(TypedSession s, string key, string capturer, string target, string job, CancellationToken cancellationToken)
+    private static async Task OrderedAsync(TypedSession s, string key, string capturer, string[] targets, string job, CancellationToken cancellationToken)
     {
-        var issued = (await TypedPawns.AppliedAsync(s, key, TypedPawnOps.GiveJob(capturer, job, target), cancellationToken).ConfigureAwait(false))?.Job;
+        var issued = (await TypedPawns.AppliedAsync(s, key, TypedPawnOps.GiveJob(capturer, job, targets), cancellationToken).ConfigureAwait(false))?.Job;
         if (issued is not { Issued: true } || issued.PawnId != capturer || issued.JobDef != job)
         {
             throw new AcceptanceException($"{key}: want an issued {job} job by {capturer}, got {OrdersJson.Serialize(issued)}");
         }
 
-        var again = (await TypedPawns.AppliedAsync(s, key + "-resend", TypedPawnOps.GiveJob(capturer, job, target), cancellationToken).ConfigureAwait(false))?.Job;
+        var again = (await TypedPawns.AppliedAsync(s, key + "-resend", TypedPawnOps.GiveJob(capturer, job, targets), cancellationToken).ConfigureAwait(false))?.Job;
         if (again?.Issued == true)
         {
             throw new AcceptanceException($"{key}: the resend issued a second job: {OrdersJson.Serialize(again)}");

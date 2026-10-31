@@ -855,28 +855,33 @@ term](../contracts/forecast-contracts.md#creepjoiner-downside-term-3844)) earn t
 creepjoiner has a lord and ignores its allowed area, and the hediffs act on the creepjoiner alone.
 
 *Hospital credit (#3804).* A planned hospital the outcome serves is credited through the same seam
-(`ForecastHospital.HospitalCredit`) what a patient gains lying in its bed instead of the bed it owns now (none: the ground, at the
+(`ForecastHospital.HospitalCredit`) what a patient gains lying in its bed instead of the bed it would be cared in now: the existing medical bed it would be taken to
+(`NeedsForecastPawn.MedicalBedRoom`, the closest reachable bed `RestUtility.FindPatientBedFor` takes, habitat 4.1), else the bed it owns (none: the ground, at the
 roomless scores), per colonist under `hospital/<room>/<pawn>`. The room adds no tend quality; the doctor's is the one tier 2 reads
 off its trajectory (`ColonyValue.TendingOverHorizon`, #3868: the best tender's quality with the best medicine held, averaged over
 the horizon as the run's medicine runs out or is crafted, untended without a tender), first care at once. Three per-day parts, summed:
-wound infection, raids a day × (one raid's risk-transformed harm, `HarmLedger.RaidOn`, tended with the owned bed room's stored
-`InfectionChanceFactor` less with the hospital's, its stat curve at the predicted steady cleanliness,
+wound infection, raids a day × (one raid's risk-transformed harm, `HarmLedger.RaidOn`, tended with that bed room's stored
+`InfectionChanceFactor` (the medical bed's room when the colony has one the pawn may use, else the owned bed's) less with the hospital's, its stat curve at the predicted steady cleanliness,
 `PlannedRoomCleanlinessRules.InfectionChance`); illness, disease incidents a day × (one incident's cost with immunity gained at the
 owned bed's `ImmunityGainSpeedFactor` less at the hospital bed def's, #3824); and mood, the patient-days a day (raids a day × one
 raid's tended days from first care to healed, `HarmDistribution.PatientDays`, plus the illness's) × `GainPerDay` of the sleep
 thoughts the bed trades: `ThoughtWorker_HospitalPatientRoomStats` at the predicted stage when the prediction is a Hospital, against
-the ones `ApplyBedThoughts` gives in the owned bed (`SleptOutside`, `SleptOnGround` for a costless bed or none, the bedroom or
+the ones of the bed it lies in now: an existing medical bed's (its own hospital patient thought, `SleptOutside`, `SleptOnGround`), else the ones
+`ApplyBedThoughts` gives in the owned bed (`SleptOutside`, `SleptOnGround` for a costless bed or none, the bedroom or
 barracks thought for a non-ascetic), registered in `BreakShifts`. Each queued `Bill_Medical` on a colonist the schedule does not
-finish before the hospital serves adds a `Once` gain under `hospital/<room>/surgery:<demand>`: the failure cost at the owned bed's
-`SurgerySuccessChanceFactor` less at the hospital bed def's × the room's `SurgerySuccessChanceCleanlinessFactor`, at the best
+finish before the hospital serves adds a `Once` gain under `hospital/<room>/surgery:<demand>`: the failure cost at the factor of the bed it is cared in now (an existing medical bed's, else the owned bed's)
+less at the hospital bed's, its def's and the vitals monitor's the plan places touching it (`FacilityLink` offsets) × the room's `SurgerySuccessChanceCleanlinessFactor`, at the best
 surgeon's quality (`SupportWorker.SurgeryQuality`, every other outcome comp applied), the outcomes walked in
 `SurgeryOutcomeEffectDef.GetOutcome`'s order (`SupportDemand.SurgeryOutcomes`): death the horizon's rest and `DeathTerminalValue`,
 a failure its `totalDamage` dealt as wounds of the read mean severity, bleeding at 19/24 of the model rate (`HarmConsequences.Wounds`), tended in
 the surgery's room. A future surgery is a rate (`ForecastHospital.SurgeryRate`: patient, outcome model, surgeries a day): an illness's stocked organ replacements (#3830) come at incidents a day × their probability, and a raid's stocked part replacements (#3847, `RaidPartLoss`) at raids a day × their probability in one hospital-tended raid (`ForecastHospital.Surgeries`), by recipe, each credited per day the same failure cost saved, read from the replacement's `OrganReplacementRead` outcomes and best doctor's quality. No raid, disease or surgery to expect credits nothing. An unread fact throws a `RequiredFactException`: the
 prediction, layout room, filth curves, threat or disease schedule, tending, hospital bed, a colonist's harm reads, outfit, owned
-bed room or thought rows, or a patient's mood. Named as not modelled with each served hospital: a planned bed's linked facilities (`hospital_bed_facilities_unmodelled`), the
-`BotchedMySurgery` thought, the temperature sleep thoughts, the colony's standing medical beds (#3817), outcome classes other
-than success, death and failure, and surgeries on non-colonists. Two planned hospitals each credit every patient.
+bed room or thought rows, or a patient's mood. Named as not modelled with each served hospital: the
+`BotchedMySurgery` thought, the temperature sleep thoughts, outcome classes other
+than success, death and failure, and surgeries on guests (`hospital_guest_surgery_unmodelled`: the one non-colonist class a colony hospital bed takes;
+a prisoner, slave or animal may not lie in a colony hospital bed, `SleepingRules.LegalBed`, so the plan changes none of theirs). A plan with no
+medical bed piece (its patients cared in reused or converted beds) gains no hospital bed and credits nothing. Only a colonist's operation is credited.
+Two planned hospitals each credit every patient.
 
 *Prison credit (#3805, #3899).* A planned prison the outcome serves is credited (`ForecastPrison.PrisonCredit`) the recruitment it
 enables, per prisoner under `prison/<room>/<prisoner>`. The room's credit adds an accommodation term for bedless prisoners (`ForecastPrison.PrisonRoomCredit`; [forecast contracts](../contracts/forecast-contracts.md#prison-accommodation-credit)). A held prisoner without a prison bed is never recruited; the outcome's

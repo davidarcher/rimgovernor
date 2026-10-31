@@ -348,7 +348,7 @@ public sealed class HospitalCreditTests
                 Parts = [new("Lung", 0.025, 1) { Incidents = [decay], Hediffs = [] }, new("Lung", 0.025, 1) { Incidents = [decay], Hediffs = [] }],
                 Replacements = [new("Lung", "InstallNaturalLung")
                 {
-                    PartThing = "Lung", PartOnMap = stocked, MedicineOnMap = stocked, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9,
+                    PartThing = "Lung", PartOnMap = stocked, MedicineOnMap = stocked, EligibleDoctors = 1, Chance = new SurgeryChance.Rated(0.9, new Dictionary<string, double>()),
                     Outcomes = [new("success", 0, 0, 0), new("death", 0.5, 0, 0)], Environment = true, QualityMax = 0.98, Quality = 0.9,
                 }],
             },
@@ -420,25 +420,31 @@ public sealed class HospitalCreditTests
     }
 
     [Fact]
-    public void AFreshColonysProductionContextCarriesTheHospitalBedWithoutThrowing()
+    public void AFreshColonysProductionContextCarriesThePlannedMedicalBedWithoutThrowing()
     {
-        // The production path (#3822): Read furnishes the planned hospital with the catalog's first hospital bed (a bedroll
-        // never), and GenerateCoupledActivities carries it into the context; tier 2 adds the tending (ColonyValue.TendingOverHorizon).
+        // The production path (#3822): the plan's medical bed pieces name the def the layout comparison chose (a bedroll never a
+        // candidate), Read carries the catalog's candidates, and GenerateCoupledActivities prices that def's stats; tier 2 adds the
+        // tending (ColonyValue.TendingOverHorizon).
         var furniture = new RoomFurniture
         {
             Beds = [new() { Def = SleepingRules.SleepingBedrollDefinition, Slots = 1 }, new() { Def = "Bed", Slots = 1, ImmunityGainSpeedFactor = 1.07, SurgerySuccessChanceFactor = 1.1 }],
         };
-        Assert.Equal("Bed", furniture.HospitalBed().Def);
+        Assert.DoesNotContain(furniture.MedicalBedCandidates(), b => b.Def == SleepingRules.SleepingBedrollDefinition);
         var facts = ForecastCoupledTests.ConstructionReview() with
         {
             PlannedShelters = [new() { Id = 2, Role = PlannedRole.Hospital, Region = RegionRules.RectRegion(new() { X = 10, Z = 0, Width = 5, Height = 5 }) }],
-            HospitalBed = furniture.HospitalBed(),
+            MedicalBeds = EquatableArray.From(furniture.MedicalBedCandidates()),
         };
+        facts = facts with { LayoutPlan = PlannedRoomCreditTests.WithMedicalBed(facts.LayoutPlan, 2, "Bed") };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         Assert.Equal(PlannedRole.Hospital, context.PlannedRoomRoles[2]);
         Assert.True(context.RoomCredits.ContainsKey(PlannedRole.Hospital));
         Assert.Equal(1.07, context.HospitalBed.ImmunityGainSpeedFactor);
         Assert.Empty(ForecastHospital.Shifts(context));
+
+        // A plan that builds no medical bed (its patients cared in converted beds) prices no hospital bed rather than throwing.
+        var none = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { LayoutPlan = null })!.Context;
+        Assert.Equal("", none.HospitalBed.Def);
     }
 
     [Fact]
@@ -448,5 +454,34 @@ public sealed class HospitalCreditTests
         Assert.Equal(3 + 4, ForecastHospital.MoodDelta(pawn, Prediction()));
         // A room the prediction does not make a Hospital gives no patient thought.
         Assert.Equal(4, ForecastHospital.MoodDelta(pawn, Prediction(role: "Bedroom")));
+    }
+
+    [Fact]
+    public void ThePatientsExistingMedicalBedNotItsOwnedBedIsTheMoodItTrades()
+    {
+        // Cared in an existing medical bed now (task 4.5), the patient loses that bed's thoughts, never its owned bedroom's (-2):
+        // a medical bed in a bedroom gives no patient thought, so the hospital's +3 is all gain.
+        var bedroom = Patient() with { MedicalBedRoom = NeedsFixtures.BedRoom("Bedroom", 0, false) };
+        Assert.Equal(3, ForecastHospital.MoodDelta(bedroom, Prediction()));
+        // An existing hospital at the same stage already gives the +3: the new one trades nothing.
+        var hospital = Patient() with { MedicalBedRoom = NeedsFixtures.BedRoom(ForecastHospital.HospitalRole, 2, false) };
+        Assert.Equal(0, ForecastHospital.MoodDelta(hospital, Prediction()));
+        // A medical sleeping spot outdoors loses the ground and outside thoughts the hospital bed ends.
+        var spot = Patient() with { MedicalBedRoom = NeedsFixtures.BedRoom("", 0, false) with { Costless = true, PsychologicallyOutdoors = true } };
+        Assert.Equal(3 + 4 + 5, ForecastHospital.MoodDelta(spot, Prediction()));
+        // The owned bed's thoughts are the trade only with no medical bed it would be cared in.
+        Assert.Equal(3 + 2, ForecastHospital.MoodDelta(Patient(), Prediction()));
+    }
+
+    [Fact]
+    public void AnExistingMedicalBedAsGoodAsTheHospitalsLeavesTheNewBedNoSurgeryCredit()
+    {
+        // The patient would be operated in the colony's existing medical bed (factor 1.2): 0.9 x 1.2 clamps at 0.98 as the
+        // hospital's does, so the new bed saves nothing; without it the owned bedroom bed's 0.8 leaves the hospital its credit.
+        var context = SurgeryContext(new("success", 0, 0, 0), new("death", 0.5, 0, 0));
+        var existing = context with { Needs = context.Needs with { Pawns = [Patient() with
+            { MedicalBedRoom = NeedsFixtures.BedRoom("Hospital", 2, false) with { InfectionChanceFactor = 0.5, SurgerySuccessFactor = 1.2, ImmunityGainSpeedFactor = 1.25 } }] } };
+        Assert.True(Credits(ForecastValue.Of(Served(0), context, Day)).Sum(r => r.Value) < 0);
+        Assert.Equal(0, Credits(ForecastValue.Of(Served(0), existing, Day)).Sum(r => r.Value), 9);
     }
 }

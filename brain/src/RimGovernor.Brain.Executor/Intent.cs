@@ -87,6 +87,7 @@ public sealed partial class Executor
         ActionKind.Equip,
         ActionKind.DropEquipment,
         ActionKind.Rescue,
+        ActionKind.BedRest,
         ActionKind.Capture,
         ActionKind.GearReplace,
         ActionKind.UseItem,

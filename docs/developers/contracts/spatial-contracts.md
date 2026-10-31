@@ -804,6 +804,36 @@ a roof blocker, that step takes the roof off the whole retired ground but a kept
 roofs the ring too.
 No new OpKind; the native ClearanceTargets request stays rectangles.
 
+#### Hospital bed alternatives
+
+New medical capacity is a layout alternative of the same comparator (`LayoutHospitalBedRules`, habitat 4.2), not a
+catalog ladder. The baseline keeps the def the held plan's medical bed pieces use (else the first
+`RoomFurniture.MedicalBedCandidates` def that the station graph can place and the planning census describes as
+buildable now, a `SleepingSpot` never while an operation waits on a better bed) at `Demand` beds: each patient who
+needs rest or an operation (`HospitalRules.IllPatients`), at least the Hospital goal's floor
+(`GoalBuildDemand.HospitalBeds`, which is also the care comparison's bed floor and the station graph's injured
+floor). Deviations (`HostedRegroupInput.HospitalBeds`, `HostedRegroupInputsOf`) plan another candidate def among the
+first `MaxDefTrials` (3) at the baseline count, or the goal's floor alone (fewer beds) when the patients ask for more,
+so the patients are cared in reused or converted beds (`CareCapacityRules`) and no duplicate slot is built for them.
+Each candidate past the bound is a skipped decision. The decision is a `layout_regroup` row of `move`
+`hospital_beds` (`a` `medical_beds`, `b` `<def>x<count>`), decided by `RegroupAsync` like the host alternatives; the
+baseline keeps ties. A candidate station the census does not describe throws a `RequiredFactException`
+(`bed_definition:<def>`). The forecast prices the plan's own medical bed
+(`LayoutHospitalBedRules.PlannedBed`: its def's stats plus the offsets of a vitals monitor the plan places touching it,
+`FacilityLink`) against the bed each patient would be cared in now; a plan with no medical bed piece gains no
+hospital bed. The runtime binds the chosen pieces (`HospitalRules.UnbuiltMedicalBed`: the first room by id with more
+planned medical bed pieces of a def than built and sited ones) and never re-selects.
+
+Planned medical bed cells (`HospitalRules.PlannedMedicalCells`) are capacity the layout chose: the care comparison's
+floor converts a free bed on one first and a post-care restore never returns one to sleeping. A bed a care
+transport holds is its patient's in slot derivation (`CareCapacityRules.Holding`, `HospitalPlanner.HeldSleeping`
+feed the sleeping census every sleeping rule reads), so a held bed is no free slot, assignment or medical-rest slot for
+another sleeper. A field spot (a `SleepingSpot` placed near a patient lying in no bed, `hospital-field-<patient>`) is
+not a layout piece: it is a single building method of the care Need at the cell the native census found
+(`GenConstruct.CanPlaceBlueprintAt`, no pawn on its footprint, reachable), and a deleted spot cannot be re-placed under
+the same native authority. A medical spot left after care is restored only by the post-care pass. See
+[medical care](medical-care.md#care-capacity).
+
 ### Stockpile maintenance
 
 The `admin/stockpiles` Need (#3304; toggle `stockpiles`) applies the stores the store owners declare
@@ -1177,7 +1207,7 @@ producing an unspecified hold.
 Native observation and operation geometry uses the same Domain.Cell value that
 policy reads. Mandatory cells are required fields; no wire cell is decoded into
 a second coordinate record. An operation without an exact cell names its meaning:
-rescue searches for a bed, mortar aim is cleared, a designation resolves its exact
+a combat rescue searches for a bed (a care rescue names its exact bed), mortar aim is cleared, a designation resolves its exact
 target, and a ritual that is not beginning carries NotStarting. A relocation
 move carries its destination together with its rotation; uninstall has neither.
 

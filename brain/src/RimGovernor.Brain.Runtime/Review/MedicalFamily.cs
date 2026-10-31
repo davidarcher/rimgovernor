@@ -7,8 +7,8 @@ namespace RimGovernor.Brain.Runtime;
 /// in the ordinary pass the owned colony census the care, reserves and surgery Needs and the amputations read. Its
 /// work, each committed under the Need and admitted by claims:
 /// <list type="bullet">
-/// <item>a critical patient's tend, else its rescue, paired under the step's arbiter, and in the ordinary pass a
-/// life-saving amputation;</item>
+/// <item>a critical patient's tend, else (in the ordinary pass, which reads the care census) its rescue to the exact bed the
+/// care capacity comparison chose, paired under the step's arbiter, and in the ordinary pass a life-saving amputation;</item>
 /// <item>care's hospital bed, built through the shared building planner or converted;</item>
 /// <item>reserves' stalled-source withdrawals and herb harvest (its medicine bill is the work ledger's);</item>
 /// <item>surgery's restore and harvest plans.</item>
@@ -115,6 +115,11 @@ public sealed class MedicalReview
                 HospitalShort = HospitalRules.BedsShort(f.GoalBuild.HospitalBeds, reading.Reading.Facts.Upkeep.Rooms, f.Sleeping, SurgeryRules.SurgeryBedShortPatients(f.MedicalPawns).Count > 0),
             };
             medicalPawns = f.MedicalPawns;
+            if (_rescue is not null
+                && HospitalPlanner.CareCapacityRequestOf(journal, journal.LoadNeed(MedicalRules.MedicalCareNeed, scope.World, ct), reading.Reading, scope.World, ct) is { } request)
+            {
+                facts = facts with { Transports = CareTransportRules.Of(CareCapacityRules.Plan(request), request.Support) };
+            }
             emergency = EmergencySnapshot.New(scope.World, expected.Tick, reading.Emergency);
             emergencyTick = expected.Tick;
             emergencyFacts = reading.Emergency;
@@ -337,7 +342,8 @@ public sealed class MedicalReview
 
     /// <summary>
     /// A critical patient's work. Its open tend or rescue continues. Otherwise the patient's tend pair is ordered,
-    /// else its rescue pair; and in the ordinary pass a life-saving amputation goes beside them. With no pair the
+    /// else its rescue pair, carrying the patient to the exact bed the care capacity comparison chose for it (task 4.3; the
+    /// immediate pass reads no care census and waits); and in the ordinary pass a life-saving amputation goes beside them. With no pair the
     /// Need lends a window: only game time frees a doctor or brings the patient into reach.
     /// </summary>
     private async Task<Verdict> CriticalAsync(NeedWork work, MedicalFacts facts, PawnId patient, CancellationToken call)
@@ -372,13 +378,25 @@ public sealed class MedicalReview
                 return CommitCare(work, new MethodId("tend-" + patient.Value), id => DomainAction.NewTendAction(new ActionId($"{id}-0"), tend), call);
             }
         }
+        string? rescueWait = null;
         if (_rescue is not null)
         {
             var (rescuer, ok) = MedicalRules.RescuerFor(care, patient);
-            if (ok && work.Arbiter!.TryClaim([rescuer, patient]))
+            // The rescue carries the patient to the exact bed the care capacity comparison chose (CareTransport.Carried); with the
+            // care census unread there is no bed to carry it to, and with no carried transport the comparison chose no bed move.
+            var carried = facts.Transports?.OfType<CareTransport.Carried>().FirstOrDefault(t => t.Patient == patient.Value);
+            if (ok && facts.Transports is null)
             {
-                var rescue = new Rescue((Domain.PawnId)rescuer, (Domain.PawnId)patient);
-                return CommitCare(work, new MethodId("rescue-" + patient.Value), id => DomainAction.NewRescueAction(new ActionId($"{id}-0"), rescue), call);
+                rescueWait = RescueBedUnread;
+            }
+            else if (ok && carried is null)
+            {
+                rescueWait = RescueBedUnchosen;
+            }
+            else if (ok && carried is not null && work.Arbiter!.TryClaim([rescuer, patient], "bed:" + carried.Bed))
+            {
+                var rescue = new Rescue((Domain.PawnId)rescuer, (Domain.PawnId)patient, carried.Bed);
+                return CommitCare(work, HospitalPlanner.TransportMethodOf(carried), id => DomainAction.NewRescueAction(new ActionId($"{id}-0"), rescue), call);
             }
         }
         // A patient who only needs tend (in bed, neither bleeding out nor life-threatened) is ordinary native Doctor work:
@@ -387,16 +405,26 @@ public sealed class MedicalReview
         {
             return Verdict.WaitFor(Cause.MethodUsed, OrdinaryTendReason);
         }
+        if (rescueWait is not null)
+        {
+            return Verdict.WaitFor(Cause.MethodUsed, rescueWait);
+        }
         // No pair to order: the patient is up and out of bed, or every doctor is ineligible, busy or walled off
         // from the patient. Only game time changes that.
         return Verdict.WaitFor(Cause.MethodUsed, _tend is not null ? "medical_pair" : "rescue_pairing");
     }
 
+    /// <summary>The wait of a critical rescue whose bed is unread: the immediate pass reads no care census, so it names no bed.</summary>
+    internal const string RescueBedUnread = "rescue_bed_unread";
+
+    /// <summary>The wait of a critical rescue the care capacity comparison moves to no bed (it is cared where it lies, deferred or its bed is still converted).</summary>
+    internal const string RescueBedUnchosen = "rescue_bed_unchosen";
+
     /// <summary>The wait of a critical patient whose tend is ordinary native Doctor work (<see cref="TendRules.Emergency"/>).</summary>
     internal const string OrdinaryTendReason = "ordinary_tend_native_doctor_work";
 
     /// <summary>Whether a Method of a critical Need is its care order (a tend or a rescue), not an amputation.</summary>
-    internal static bool IsCareMethod(MethodId method) => method.Value.StartsWith("tend-", StringComparison.Ordinal) || method.Value.StartsWith("rescue-", StringComparison.Ordinal);
+    internal static bool IsCareMethod(MethodId method) => method.Value.StartsWith("tend-", StringComparison.Ordinal) || method.Value.StartsWith(HospitalPlanner.RescueMethod, StringComparison.Ordinal);
 
     /// <summary>
     /// Commits one care order as <paramref name="method"/> of the patient's Need. The MethodId is the patient's: a

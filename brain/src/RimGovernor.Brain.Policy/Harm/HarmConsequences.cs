@@ -74,8 +74,8 @@ public static class HarmConsequences
     // Pawn_HealthTracker.HealthTick, every 600 ticks: one injury heals 8 (+4 when not standing) x health scale x 0.01 x
     // InjuryHealingFactor, so 8 (12 lying) severity a day per health scale; a tended and healing injury heals a further
     // 8 x Lerp(0.5, 1.5, tend quality) x health scale x 0.01 x InjuryHealingFactor.
-    private const double NaturalHealPerDay = 8;
-    private const double LyingHealPerDay = 12;
+    internal const double NaturalHealPerDay = 8;
+    internal const double LyingHealPerDay = 12;
     private const double TendedHealPerDay = 8;
     private const double TendedHealBase = 0.5;
 
@@ -133,6 +133,13 @@ public static class HarmConsequences
     private const double InfectionChance = 0.15;
     private const double InfectionTendFactorUntendedQuality = 0.7;
     private const double InfectionTendFactorFullQuality = 0.4;
+    /// <summary>
+    /// The factor a tend puts on its wounds' infection chance (HediffComp_Infecter.CheckMakeInfection): the tend-quality curve
+    /// (0 -> 0.7, 1 -> 0.4) times the InfectionChanceFactor of the room it was given in, which the tended comp stores.
+    /// </summary>
+    public static double TendInfectionFactor(double tendQuality, double roomFactor) =>
+        (InfectionTendFactorUntendedQuality + (InfectionTendFactorFullQuality - InfectionTendFactorUntendedQuality) * tendQuality) * roomFactor;
+
     private const double InfectionSeverityFactorLo = 0.1;
     private const double InfectionSeverityLo = 1;
     private const double InfectionSeverityHi = 12;
@@ -667,7 +674,7 @@ public static class HarmConsequences
             var immunizable = table.Immunizable!;
             var wounds = severity * mix.Wounds / mix.MeanDamage;
             var chance = InfectionChance
-                * (tended ? Lerp(InfectionTendFactorUntendedQuality, InfectionTendFactorFullQuality, tendQuality) * careRoomFactor : 1)
+                * (tended ? TendInfectionFactor(tendQuality, careRoomFactor) : 1)
                 * Lerp(InfectionSeverityFactorLo, 1, Math.Clamp((mix.MeanDamage / mix.Wounds - InfectionSeverityLo) / (InfectionSeverityHi - InfectionSeverityLo), 0, 1));
             var infected = 1 - Math.Exp(-wounds * chance);
             if (infected <= 0)

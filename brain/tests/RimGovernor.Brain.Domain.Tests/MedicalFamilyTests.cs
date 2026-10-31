@@ -199,7 +199,7 @@ public sealed class MedicalFamilyTests
 
     private static DomainAction Tend(string doctor, PawnId patient) => DomainAction.NewTendAction(new("tend-" + doctor + "-" + patient.Value), new Tend(new(doctor), patient));
 
-    private static DomainAction Rescue(string rescuer, PawnId patient) => DomainAction.NewRescueAction(new("rescue-" + rescuer + "-" + patient.Value), new Rescue(new(rescuer), patient));
+    private static DomainAction Rescue(string rescuer, PawnId patient) => DomainAction.NewRescueAction(new("rescue-" + rescuer + "-" + patient.Value), new Rescue(new(rescuer), patient, "Bed_ward"));
 
     private static Colony Open()
     {

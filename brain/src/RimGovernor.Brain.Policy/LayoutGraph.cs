@@ -145,6 +145,9 @@ public sealed record StationGraphInput
     /// <summary>The colony's people.</summary>
     public StationPopulation Population { get; init; } = new();
 
+    /// <summary>The def the medical beds are planned as (LayoutHospitalBedRules.ChoiceOf); empty when none is planned.</summary>
+    public string MedicalBed { get; init; } = "";
+
     /// <summary>What the colonists eat a day (FoodForecast's consumers, summed).</summary>
     public double NutritionPerDay { get; init; }
 
@@ -438,11 +441,10 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         var p = In.Population;
         var f = In.Furniture;
         var nurseries = In.Catalog.Contributors(RoomRole.Nursery);
-        var hospital = f.HospitalBeds();
         (StationPurpose Purpose, int People, string Def)[] kinds =
         [
             (StationPurpose.Sleep, p.Sleepers, f.PrimaryBed()),
-            (StationPurpose.SleepMed, p.Injured, LayoutGraphRules.First(hospital)),
+            (StationPurpose.SleepMed, p.Injured, In.MedicalBed),
             (StationPurpose.SleepPrison, p.Prisoners, f.PrimaryBed()),
             (StationPurpose.SleepBaby, p.Babies, LayoutGraphRules.First(nurseries)),
         ];

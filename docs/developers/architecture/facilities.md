@@ -360,7 +360,7 @@ for the candidate budget, native batching and deterministic CPU cost.
 `RegroupAsync` proposes clustered, embedded candidates from the live colony. The runtime tiles each candidate, reads its native facts and runs canonical portfolio selection before adopting the winner through the same first-plan/replan owner. `AdviseStations` finishes a supplied candidate, and `TileStations` hands its geometry to `TileEmbedding`. The advice itself is held in memory by the ColonyReview and is not persisted. At each layout review
 `ColonyReview.stationAdvice` reads `StationFacts` from the
 projection (the unknown stays unknown, never zero): the people (colonists less
-babies, the ward from `SelectHospitalBed`'s ill set, held prisoners, the pen
+babies, the ward from `HospitalRules.IllPatients` (the patients who need rest and the surgical ones; `LayoutHospitalBedRules.Demand`), held prisoners, the pen
 herd), the colonists' nutrition a day (the food census consumers' rates), the
 work ledger's orders (only while the ledger is `reconciled`), the resource
 demand as stock, and the catalog's recipe flows, stack limits and rot

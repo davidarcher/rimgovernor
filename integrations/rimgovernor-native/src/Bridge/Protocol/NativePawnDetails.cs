@@ -135,7 +135,8 @@ namespace RimGovernor.Native
                 .Select(m => new RimGovernor.Brain.GameFacts.Observations.MissingBodyPart {Part=PartRef(pawn,m.Part,"Missing")}).ToList();
             var operations=new System.Collections.Generic.List<RimGovernor.Brain.GameFacts.Observations.SurgeryOperation>();
             var facts=SurgeryScope.Facts(map);
-            var bestBed=facts.BestBed; var bedFactor=facts.BedFactor; var idealFactor=facts.IdealFactor;
+            // The bed the patient is operated in: the native's own patient bed (task 4.1), never the colony's best or an ideal one.
+            var surgeryBed=facts.Bed(pawn);
             foreach(var def in pawn.def.AllRecipes) {
                 if(!def.AvailableNow || def.Worker==null || !def.Worker.AvailableReport(pawn).Accepted) continue;
                 var targets=def.targetsBodyPart?def.Worker.GetPartsToApplyOn(pawn,def).ToList()
@@ -175,12 +176,12 @@ namespace RimGovernor.Native
                     RimGovernor.Brain.GameFacts.Observations.SurgeryChance chance;
                     if(def.surgeryOutcomeEffect==null) chance=new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.NoOutcomeEffect();
                     else if(doctors.Count==0) chance=new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.NoEligibleDoctor();
+                    else if(surgeryBed==null) chance=new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.NoCareBed();
                     else {
-                        float? real=pawn.InBed()?(float?)null:bestBed?.GetStatValue(StatDefOf.SurgerySuccessChanceFactor) ?? 1f;
                         // each doctor's chance, so training can name one.
                         var chances=new System.Collections.Generic.Dictionary<string,double>();
-                        foreach(var d in doctors) chances[d.GetUniqueLoadID()]=Number(Chance(def,d,pawn,part,medicine,real));
-                        chance=new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.Rated(chances.Values.Max(),Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,idealFactor))),chances);
+                        foreach(var d in doctors) chances[d.GetUniqueLoadID()]=Number(Chance(def,d,pawn,part,medicine,surgeryBed));
+                        chance=new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.Rated(chances.Values.Max(),chances);
                     }
                     operations.Add(new RimGovernor.Brain.GameFacts.Observations.SurgeryOperation {Recipe=Id(def.defName),Part=part!=null?PartRef(pawn,part,"Surgery"):null,Kind=kind,
                         Chance=chance,
@@ -195,8 +196,8 @@ namespace RimGovernor.Native
             return new RimGovernor.Brain.GameFacts.Observations.PawnSurgery { SurgeryBills=[.. bills], MissingParts=[.. missingParts], Operations=[.. operations] };
         }
 
-        // #3830: an install recipe on a part as if it were missing, read as Surgery reads an operation (a patient not yet in bed is
-        // scored in the colony's best medical bed), with the outcome model a queued bill's demand carries and the best eligible
+        // #3830: an install recipe on a part as if it were missing, read as Surgery reads an operation (in the bed the patient is
+        // operated in, SurgeryBed), with the outcome model a queued bill's demand carries and the best eligible
         // doctor's quality before the bed and the clamp (NativeSupportActivities).
         internal static RimGovernor.Brain.GameFacts.Observations.OrganReplacementRead Replacement(Pawn pawn,RecipeDef def,BodyPartRecord part,MapFacts facts,Map map)
         {
@@ -214,14 +215,20 @@ namespace RimGovernor.Native
                 PartThing=partThing==null?null:Id(partThing.defName),
                 PartOnMap=partThing==null || !recipe.Missing.Contains(partThing),
                 MedicineOnMap=!recipe.UsesMedicine || medicine!=null, MedicineCount=medicineCount, EligibleDoctors=doctors.Count,
-                Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer), Lethal=Lethal(pawn,def,part) };
+                Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer), Lethal=Lethal(pawn,def,part),
+                Chance=new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.NoOutcomeEffect() };
             var bill=new Bill_Medical {recipe=def};
             if(medicine!=null) bill.consumedMedicine[medicine]=1;
-            if(def.surgeryOutcomeEffect!=null && doctors.Count>0) {
-                var real=facts.BestBed==null?1f:facts.BedFactor;
-                row = row with { SuccessChance = doctors.Max(d => Number(Chance(def,d,pawn,part,medicine,real))),
-                    DoctorSuccessChance = doctors.Max(d => Number(Chance(def,d,pawn,part,medicine,facts.IdealFactor))),
-                    Quality = doctors.Max(d => NativeSupportActivities.SurgeryQualityOf(d,pawn,def,part,bill)) };
+            if(def.surgeryOutcomeEffect!=null) {
+                var bed=facts.Bed(pawn);
+                if(doctors.Count==0) row = row with { Chance = new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.NoEligibleDoctor() };
+                else if(bed==null) row = row with { Chance = new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.NoCareBed() };
+                else {
+                    var chances=new System.Collections.Generic.Dictionary<string,double>();
+                    foreach(var d in doctors) chances[d.GetUniqueLoadID()]=Number(Chance(def,d,pawn,part,medicine,bed));
+                    row = row with { Chance = new RimGovernor.Brain.GameFacts.Observations.SurgeryChance.Rated(chances.Values.Max(),chances) };
+                }
+                if(doctors.Count>0) row = row with { Quality = doctors.Max(d => NativeSupportActivities.SurgeryQualityOf(d,pawn,def,part,bill)) };
             }
             var (outcomes,min,max,environment)=NativeSupportActivities.SurgeryModel(pawn,def,part,true);
             if(outcomes!=null) row = row with { Outcomes = [.. outcomes] };
@@ -237,7 +244,7 @@ namespace RimGovernor.Native
                 .Select(t => t.def).OrderByDescending(d => d.GetStatValueAbstract(StatDefOf.MedicalPotency)).FirstOrDefault();
 
         // The pawn-independent surgery facts of one capture: the
-        // unforbidden medicine stock, the best medical bed, and per recipe
+        // unforbidden medicine stock and, per recipe
         // its eligible doctors and ingredient availability. Table() opens a
         // scope so every pawn of the frame shares them; a lone Surgery call
         // gets a throwaway one, so a read is always from the current map.
@@ -269,7 +276,6 @@ namespace RimGovernor.Native
 
         internal sealed class MapFacts
         {
-            internal readonly Building_Bed? BestBed; internal readonly float BedFactor, IdealFactor;
             private readonly System.Collections.Generic.List<Pawn> colonists;
             private readonly System.Collections.Generic.List<Thing> stock;
             private readonly System.Collections.Generic.Dictionary<RecipeDef,RecipeFacts> recipes=new System.Collections.Generic.Dictionary<RecipeDef,RecipeFacts>();
@@ -280,14 +286,6 @@ namespace RimGovernor.Native
                 colonists=map.mapPawns.FreeColonistsSpawned.ToList();
                 stock=map.listerThings.ThingsInGroup(ThingRequestGroup.Medicine)
                     .Where(t => !t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map)).ToList();
-                foreach(var bed in map.listerBuildings.AllBuildingsColonistOfClass<Building_Bed>()) {
-                    if(!bed.Medical) continue;
-                    var f=bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor);
-                    if(BestBed==null || f>BedFactor) {BestBed=bed;BedFactor=f;}
-                }
-                // The ideal bed and room: a plain Bed's factor off the map
-                // (as if clean, roofed and lit), never below the neutral 1.
-                IdealFactor=System.Math.Max(1f,ThingDefOf.Bed.GetStatValueAbstract(StatDefOf.SurgerySuccessChanceFactor,GenStuff.DefaultStuffFor(ThingDefOf.Bed)));
             }
 
             // Doctors include every eligible colonist; the caller drops the patient.
@@ -305,6 +303,15 @@ namespace RimGovernor.Native
                 return facts;
             }
 
+            private readonly System.Collections.Generic.Dictionary<Pawn,Building_Bed?> beds=new System.Collections.Generic.Dictionary<Pawn,Building_Bed?>();
+
+            // The pawn's SurgeryBed, searched once a capture.
+            internal Building_Bed? Bed(Pawn pawn)
+            {
+                if(!beds.TryGetValue(pawn,out var bed)) beds[pawn]=bed=SurgeryBed(pawn);
+                return bed;
+            }
+
             internal ThingDef? Medicine(Pawn pawn,RecipeDef def,bool care)
             {
                 // The care policy is the only pawn input: key by its category.
@@ -315,19 +322,24 @@ namespace RimGovernor.Native
             }
         }
 
-        // Vanilla SurgeryOutcomeEffectDef.GetQuality, except a patient not yet
-        // in bed is scored in the best colony medical bed it will lie in.
-        // bedFactor, when set, replaces the bed and room factor (the best
-        // medical bed's, or the ideal one's); null keeps vanilla's.
-        private static double Chance(RecipeDef def,Pawn surgeon,Pawn patient,BodyPartRecord? part,ThingDef? medicine,float? bedFactor)
+        // The bed a patient is operated in (task 4.1): RestUtility.FindPatientBedFor, the bed
+        // JobGiver_PatientGoToBed takes it to (its current bed while a medical bed it may use,
+        // else the closest such reachable medical bed, else the bed it would sleep in); null with none.
+        internal static Building_Bed? SurgeryBed(Pawn pawn) => pawn.Spawned ? RestUtility.FindPatientBedFor(pawn) : null;
+
+        // Vanilla SurgeryOutcomeEffectDef.GetQuality with the patient lying in
+        // bed: SurgeryOutcomeComp_BedAndRoomQuality multiplies by that bed's
+        // SurgerySuccessChanceFactor (its def, linked facilities and room),
+        // where vanilla reads CurrentBed once the patient lies there.
+        private static double Chance(RecipeDef def,Pawn surgeon,Pawn patient,BodyPartRecord? part,ThingDef? medicine,Building_Bed bed)
         {
             var bill=new Bill_Medical {recipe=def};
             if(medicine!=null) bill.consumedMedicine[medicine]=1;
             var ingredients=new System.Collections.Generic.List<Thing>();
             float quality=1f;
             foreach(var comp in def.surgeryOutcomeEffect.comps ?? new System.Collections.Generic.List<SurgeryOutcomeComp>()) {
-                if(comp is SurgeryOutcomeComp_BedAndRoomQuality && bedFactor.HasValue) {
-                    if(!def.surgeryIgnoreEnvironment) quality*=bedFactor.Value;
+                if(comp is SurgeryOutcomeComp_BedAndRoomQuality) {
+                    if(!def.surgeryIgnoreEnvironment) quality*=bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor);
                     continue;
                 }
                 if(comp.Affects(def,surgeon,patient,part)) comp.AffectQuality(def,surgeon,patient,ingredients,part,bill,ref quality);

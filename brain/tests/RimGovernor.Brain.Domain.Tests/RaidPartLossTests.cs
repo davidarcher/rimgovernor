@@ -58,7 +58,7 @@ public sealed class RaidPartLossTests
 
     private static OrganReplacementRead Replacement(string recipe, bool stocked = true, int doctors = 1) => new("Arm", recipe)
     {
-        PartThing = recipe.Replace("Install", ""), PartOnMap = stocked, MedicineOnMap = stocked, EligibleDoctors = doctors, SuccessChance = 0.9, DoctorSuccessChance = 0.9,
+        PartThing = recipe.Replace("Install", ""), PartOnMap = stocked, MedicineOnMap = stocked, EligibleDoctors = doctors, Chance = new SurgeryChance.Rated(0.9, new Dictionary<string, double>()),
         Outcomes = [new("success", 0, 0, 0), new("death", 0.5, 0, 0)], Environment = true, QualityMax = 0.98, Quality = 0.9,
     };
 

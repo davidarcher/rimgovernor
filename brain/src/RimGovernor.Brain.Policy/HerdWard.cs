@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // surgery applies the bed's success factor only to a patient lying in a bed. The game gives an animal no human bed
 // (RestUtility.CanUseBedEver wants the bed's bed_humanlike to match the pawn's), so the hospital also holds
 // AnimalBeds: beds that are not humanlike, so they neither change the hospital's room role nor count as a patient
-// bed (SelectHospitalBed counts humanlike beds only).
+// bed (CareCapacityRules counts humanlike beds only).
 //
 // The ward is the hospital's free floor beside its human beds that holds an animal bed and keeps the room
 // walkable; it is sized from the animals that need it (WardBeds) and the slots are whatever the room has left.

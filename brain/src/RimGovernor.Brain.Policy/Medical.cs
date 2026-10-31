@@ -36,6 +36,13 @@ public sealed record MedicalFacts
     /// <summary>The care candidates read for the critical patients; null when there are none or nothing was read.</summary>
     public CriticalCare? Care { get; init; }
 
+    /// <summary>
+    /// The transports the care capacity comparison asks for (<see cref="CareTransportRules.Of"/>): a critical patient's rescue
+    /// carries it to the exact bed its <see cref="CareTransport.Carried"/> names. Null when the care census is unread (the
+    /// immediate pass reads none), so no rescue is planned without its bed.
+    /// </summary>
+    public IReadOnlyList<CareTransport>? Transports { get; init; }
+
     /// <summary>The colony's care census: no sick colonist resting or in bad condition. Unresolved tracked patients keep recovery false.</summary>
     public bool CareRecovered { get; init; }
 

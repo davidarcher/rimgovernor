@@ -9,9 +9,9 @@ namespace RimGovernor.Native
 {
     // The single-target jobs a GiveJobIntent names, each validated and built
     // by its own operations class against live state.
-    internal enum JobOrderKind { Repair, Tend, Equip, DropWeapon, Wear, Rescue, Capture, Arrest, Subdue, FixBreakdown, Refuel, InvestigateMonolith, ActivateMonolith, InteractThing, InspectGravEngine, OfferHelp }
+    internal enum JobOrderKind { Repair, Tend, Equip, DropWeapon, Wear, Rescue, Capture, Arrest, Subdue, FixBreakdown, Refuel, InvestigateMonolith, ActivateMonolith, InteractThing, InspectGravEngine, OfferHelp, LayDown }
 
-    // One pawn, one target (and Arrest's bed) for a JobOrderKind.
+    // One pawn, one target (and Arrest's or Rescue's bed) for a JobOrderKind.
     internal sealed class JobOrder
     {
         internal JobOrderKind Kind;
@@ -32,7 +32,7 @@ namespace RimGovernor.Native
             ["Rescue"] = JobOrderKind.Rescue, ["Capture"] = JobOrderKind.Capture, ["Arrest"] = JobOrderKind.Arrest,
             ["AttackMelee"] = JobOrderKind.Subdue, ["FixBrokenDownBuilding"] = JobOrderKind.FixBreakdown,
             ["Refuel"] = JobOrderKind.Refuel,
-            ["OfferHelp"] = JobOrderKind.OfferHelp,
+            ["OfferHelp"] = JobOrderKind.OfferHelp, ["LayDown"] = JobOrderKind.LayDown,
             ["InvestigateMonolith"] = JobOrderKind.InvestigateMonolith, ["ActivateMonolith"] = JobOrderKind.ActivateMonolith, ["InteractThing"] = JobOrderKind.InteractThing, ["InspectGravEngine"] = JobOrderKind.InspectGravEngine,
         };
         internal const string UseItem = "UseItem";
@@ -63,9 +63,13 @@ namespace RimGovernor.Native
             }
             if (Kinds.TryGetValue((intent.Job ?? ""), out var kind))
             {
-                var arrest = kind == JobOrderKind.Arrest;
-                if (targets.Count != (arrest ? 2 : 1)) { refusal = arrest ? "Arrest requires targets [target, prisoner bed]." : (intent.Job ?? "") + " requires one target."; return Arm.Invalid; }
-                order = new JobOrder { Kind = kind, PawnId = pawn, TargetId = (targets[0] ?? throw new InvalidOperationException("The job target is unavailable.")), BedId = arrest ? targets[1] : null };
+                var bedded = kind is JobOrderKind.Arrest or JobOrderKind.Rescue;
+                if (targets.Count != (bedded ? 2 : 1) || bedded && targets[0] == targets[1])
+                {
+                    refusal = kind == JobOrderKind.Arrest ? "Arrest requires targets [target, prisoner bed]." : kind == JobOrderKind.Rescue ? "Rescue requires targets [patient, bed]." : (intent.Job ?? "") + " requires one target.";
+                    return Arm.Invalid;
+                }
+                order = new JobOrder { Kind = kind, PawnId = pawn, TargetId = (targets[0] ?? throw new InvalidOperationException("The job target is unavailable.")), BedId = bedded ? targets[1] : null };
                 return Arm.Order;
             }
             if (options != null && options.Prioritized)
@@ -133,6 +137,7 @@ namespace RimGovernor.Native
                 case JobOrderKind.InteractThing: return NativeInteractOperations.Validate(order, context);
                 case JobOrderKind.InspectGravEngine: return NativeGravEngineInspectionOperations.Validate(order, context);
                 case JobOrderKind.OfferHelp: return NativeQuestJoinerOperations.Validate(order, context);
+                case JobOrderKind.LayDown: return NativeBedRestOperations.Validate(order, context);
                 default: return GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.Unsupported, "Unsupported job order.");
             }
         }
@@ -154,6 +159,7 @@ namespace RimGovernor.Native
                 case JobOrderKind.InteractThing: return NativeInteractOperations.Apply(order, context);
                 case JobOrderKind.InspectGravEngine: return NativeGravEngineInspectionOperations.Apply(order, context);
                 case JobOrderKind.OfferHelp: return NativeQuestJoinerOperations.Apply(order, context);
+                case JobOrderKind.LayDown: return NativeBedRestOperations.Apply(order, context);
                 default: throw new InvalidOperationException("Unsupported job order.");
             }
         }

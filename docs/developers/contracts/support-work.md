@@ -118,15 +118,60 @@ already-resolved check carries no room factor. Unsupported component state
 and treatment finishing outside the observed window remain unknown. Comparison
 uses the room factor only for applicable treatment completed before that window.
 It is not an absolute infection probability, prognosis or guaranteed health improvement.
-Surgery uses the native room cleanliness success factor for the same supported
-operation. That factor is distinct from an overall surgical success probability;
-other native success conditions still apply.
+Surgery uses the success factor of the bed the patient is operated in
+(`SupportDemand.SurgeryBed`, `RestUtility.FindPatientBedFor`; `SurgeryBed` is empty and
+`SurgerySuccessFactor` 0 without one): that bed's `SurgerySuccessChanceFactor` (its def,
+linked facilities, room cleanliness, glow, outdoors and quality parts) that
+`SurgeryOutcomeComp_BedAndRoomQuality` multiplies. A support surgery with no such bed
+gets no credit and names `surgery_care_bed_missing:<demand>`. That factor is distinct
+from an overall surgical success probability; other native success conditions still
+apply.
 
-External doctors require the humanlike patient to be in bed under native rules.
-The current graph does not own a joint patient-bed retention obligation. When the
-patient is standing, the census reports
-`care_patient_not_in_bed_external_doctor_unavailable`; it does not invent an
-external-doctor candidate. Legal self-tending remains an alternative.
+### Care census
+
+The support read's `Patients` (`SupportCarePatient`, habitat 4.1 to 4.5) lists every
+patient the care comparison prices: player-faction pawns and pawns the colony hosts
+(colonists, slaves, guests, prisoners, colony animals) with a tend demand or a queued
+`ShouldDoNow` `Bill_Medical`, plus recovering patients (not downed,
+`ShouldSeekMedicalRest`, lying in no bed or in a sleeping spot) listed without a demand
+(`Tendable` false) so their transfer is a later review's choice. A downed patient
+outside the census is left to native rescue. Each patient carries:
+
+- its `BedOccupant` (Colonist, Slave, Prisoner, Guest, Animal), posture (`InBed`,
+  `Lying`, `Standing`) and `CareConduct` (Calm, Fleeing, Aggressive, PrisonBreaking,
+  Hostile: whether a doctor can treat it);
+- `Bleeding` (`Stable` or the bleed rate and `TicksUntilDeathDueToBloodLoss`), the
+  `Temperature` where it lies (`Read` or the unread fact) and its comfort range;
+- its candidate `Beds` (`SupportCareBed`): its current bed, else the nearest it fits
+  (at most four medical and two other beds, `care_beds_truncated:<demand>` naming a
+  cut). Each bed has its class (`Medical`, `Prisoners`, `Slaves`, `Humanlike`),
+  `Occupants`, `Slots`, the native `CanUseBedNow` (`UsableNow`), its room's
+  `InfectionChanceFactor`, `Temperature`, `bed_healPerDay`, its
+  `SurgerySuccessFactor` (`CareSurgeryFactor.Read` or `Unread`) and how the patient
+  gets there (`CareMovement`: `AlreadyHere`, `Walk(ticks)`, `Carried(rescuer, ticks)`
+  with the shortest walk-and-carry of a free colonist able to do Doctor work,
+  `Unreachable`);
+- a `FieldSpot` (`Site` with the nearest cell where a `SleepingSpot` can be placed
+  facing south, `GenConstruct.CanPlaceBlueprintAt` and reachable, or `None` naming why).
+
+A bed tend's `SupportWorker.CareBed` names the bed it is given in once the patient lies
+there; its quality is `CalculateBaseTendQuality` plus that bed's `MedicalTendQualityOffset`
+(def, linked facilities and room parts), and its walk ends at the bed. `CareSites.Of`
+derives each bed's `CareBedState` (Ready, IllegalBed, BedTaken, ConversionRequired,
+NativeRefused, the conduct states, Unreachable, NoReachingDoctor); only Ready beds are
+alternatives and a conversion is a separate decision. The census names its standing
+limits as `Findings`.
+
+External doctors require the humanlike patient to be in bed under native rules, so
+a bed tend is a different alternative from a tend where the patient lies. The care
+census (below) lists each patient's candidate beds, and the care comparison
+([medical care](medical-care.md#care-capacity)) prices a tend in a bed after the
+patient has been moved there; a standing or fallen humanlike patient has no external
+tender where it lies (the in-place alternative is excluded as `no_reaching_doctor`),
+and legal self-tending remains an alternative. Bed tends are compared, never dispatched:
+the coupled forecast neither compares nor dispatches a tend in a bed the patient must
+first reach, and `Served` credits only a tend observed where the patient lies, so a
+move earns credit once a later census sees the patient in the bed.
 Tend eligibility checks every installed native tending subclass for each observed
 worker/patient pair; an urgent-only giver cannot stand in for routine or self care.
 Equivalent legal givers are deduplicated by stable definition name, and the chosen

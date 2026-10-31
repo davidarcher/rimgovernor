@@ -1317,7 +1317,7 @@ costs each pawn.
   victim chance × contract chance and the rest a point at 0. Immunity gains at the pawn's `ImmunityGainSpeed` read without its bed
   (native divides `StatPart_BedStat`'s current-bed `ImmunityGainSpeedFactor` out) times the factor of the bed it is cared in: the
   harm term's is its owned bed's (`NeedsForecastPawn.OwnedBedRoom`, 1 without one), the hospital credit's the planned hospital
-  bed's (#3804). The course walks severity from its initial value under the
+  bed's (#3804) against the existing medical bed the pawn would be cared in now (`NeedsForecastPawn.MedicalBedRoom`, habitat 4.1). The course walks severity from its initial value under the
   Immunizable, SeverityPerDay and tended rates (tended from the support's first care at its tend quality, retended as the
   TendDuration comp allows), ending at 0, the Disappears time, the cure tend quality, the lethal severity on a threatened part, or the
   max severity with `DestroyOrgan`. The struck part is drawn by coverage among the pawn's open parts (#3830); a stage's
@@ -1476,6 +1476,23 @@ A first tending before the hospital serves keeps its original room infection fac
 service. A disease already in progress integrates immunity gained before and after bed availability through the same course
 walker. Replacement surgery retains its loss day and selects supply on that day; native visits before the want cannot fill it.
 The hospital values surgery only when supplies arrive while it serves, with the remaining recovery horizon at that arrival.
+Care capacity terms (habitat 4.1 to 4.5) are priced from the support read, not from a hospital label. The hospital credit's
+baseline is the existing medical bed the pawn would be cared in (`MedicalBedRoom`): its room's infection, immunity and surgery
+factors and its trade of sleep thoughts, so a colony that already has a usable medical bed is credited only what a planned bed
+adds over it. A planned bed's surgery factor is its def's plus a touching vitals monitor's `FacilityLink` offsets
+(`LayoutHospitalBedRules.PlannedBed`); a plan with no medical bed gains no credit. A support surgery is credited only in a
+bed it is operated in (`SupportDemand.SurgeryBed`) and names `surgery_care_bed_missing:<demand>` without one; electives and
+restores depend only on their rated chance against the failure cap, never on a hospital room being ready. The care comparison
+(`CareCapacityRules`, [medical care](medical-care.md#care-capacity)) ranks alternatives by the same terms: a tend's infection
+weight (`HarmConsequences.TendInfectionFactor` of the tend quality, bed offset included, times the room's `InfectionChanceFactor`
+when the tend ends before the batch's pending check), exposure (`ForecastValue.ThermalGainPerTick` at each place's temperature
+over a common horizon), whether the tend ends before the patient bleeds out, natural healing a day, and `SurgeryLoss`: the move to
+the operating bed (a carried one counts the rescuer too) plus each operation's outcomes at `clamp(surgeon quality x bed
+SurgerySuccessChanceFactor)` with a death priced `DeathTerminalValue` and a failure its damage divided by the bed's lying heal rate
+(12 plus `bed_healPerDay`, a heal-days proxy, not `HarmConsequences.Wounds`). An unread temperature, bed factor or native surgery
+bed leaves that alternative unassessed naming the fact. Not priced: the planned bed's `MedicalTendQualityOffset`, the surgeon's
+approach to a bed (read to the patient's cell) and the transit temperature (the patient's current cell).
+
 `StockArrival` owns this arrival measure: native visit, selected delivery and craft probability masses remain at exact dates;
 continuous MTB intervals use the established 32-point harm grid for nonlinear surgery value. Its analytical expected-wait
 reader shares the same arrival cuts. These are derived policy values and introduce no persistent schedule or care store.

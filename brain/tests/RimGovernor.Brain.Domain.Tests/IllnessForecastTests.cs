@@ -162,7 +162,7 @@ public sealed class IllnessForecastTests
     private static OrganReplacementRead Replacement(string part, string recipe, bool stocked = true, int doctors = 1, double chance = 0.9) =>
         new(part, recipe)
         {
-            PartThing = part, PartOnMap = stocked, MedicineOnMap = stocked, EligibleDoctors = doctors, SuccessChance = chance, DoctorSuccessChance = chance,
+            PartThing = part, PartOnMap = stocked, MedicineOnMap = stocked, EligibleDoctors = doctors, Chance = new SurgeryChance.Rated(chance, new Dictionary<string, double>()),
             Outcomes = [new("success", 0, 0, 0), new("death", 0.5, 0, 0)], Environment = true, QualityMax = 0.98, Quality = 0.9,
         };
 
