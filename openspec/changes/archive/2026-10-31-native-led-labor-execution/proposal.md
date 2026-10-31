@@ -30,7 +30,7 @@ Affected owners include `WorkAssignment`, `PawnSchedule`, coupled candidate gene
 
 Update the owning work-assignment, pawn-activities, voluntary-control, Method continuation, support-work, forecast and persistence contracts as affected, with documentation-map links. Labor implementation evidence belongs in a new `docs/requirements/colony-labor.md` evidence page; existing food evidence remains in `docs/requirements/food-security.md`. Creating planning artifacts establishes no implementation or gameplay pass.
 
-This proposal supersedes the conflicting execution design in [coordinate-baby-feeding](../coordinate-baby-feeding/design.md), not its confirmed food obligations or useful observations. That change remains incomplete and unlanded. Its local checkpoint and later dirty implementation must be reconciled explicitly during apply; do not land either execution design independently, discard unrelated fixes, mark its tasks complete or close [#4040](https://github.com/davidarcher/rimgovernor/issues/4040) from planning alone. This proposal does not edit the earlier change's artifacts.
+This proposal supersedes the conflicting execution design in [coordinate-baby-feeding](../../coordinate-baby-feeding/design.md), not its confirmed food obligations or useful observations. That change remains incomplete and unlanded. Its local checkpoint and later dirty implementation must be reconciled explicitly during apply; do not land either execution design independently, discard unrelated fixes, mark its tasks complete or close [#4040](https://github.com/davidarcher/rimgovernor/issues/4040) from planning alone. This proposal does not edit the earlier change's artifacts.
 
 ## Decision provenance and review boundary
 

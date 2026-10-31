@@ -86,7 +86,7 @@ dependent attempts end without crediting the service as complete. See
 [continuation](method-continuation.md#pawn-activity-methods). Exact orders that
 remain after binding need an observed premise, as noted above. No routine exact
 caller remains: task 5.6 of the
-[native-led labor change](../../../openspec/changes/native-led-labor-execution/design.md)
+[native-led labor change](../../../openspec/changes/archive/2026-10-31-native-led-labor-execution/design.md)
 removed the last routine-exclusive adapters (see [exact work](#exact-work-families)).
 
 Exact cell assignments use `CellActivityStep`, which carries a required canonical

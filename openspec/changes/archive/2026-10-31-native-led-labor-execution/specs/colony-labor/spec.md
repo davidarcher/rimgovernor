@@ -4,7 +4,7 @@
 
 Manage the colony's available labor toward its goals through native routine work, adaptive operating settings and justified direct interventions, accounting for interruptions and actual outcomes.
 
-The maintainer-confirmed direction and proposed-detail boundary are recorded in the [decision provenance](../../proposal.md#decision-provenance-and-review-boundary). These new RG-LABOR IDs formalize that direction; scenarios illustrate acceptance and do not establish gameplay passes. Existing RG IDs and the [confirmed food specification](../../../../specs/food-security/spec.md) are unchanged. The [labor evidence page](../../../../../docs/requirements/colony-labor.md) owns implementation inspection, migration coverage and proof limits separately from food evidence.
+The maintainer-confirmed direction and proposed-detail boundary are recorded in the [decision provenance](../../proposal.md#decision-provenance-and-review-boundary). These new RG-LABOR IDs formalize that direction; scenarios illustrate acceptance and do not establish gameplay passes. Existing RG IDs and the [confirmed food specification](../../../../../specs/food-security/spec.md) are unchanged. The [labor evidence page](../../../../../../docs/requirements/colony-labor.md) owns implementation inspection, migration coverage and proof limits separately from food evidence.
 
 ## ADDED Requirements
 

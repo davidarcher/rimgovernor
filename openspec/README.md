@@ -8,7 +8,10 @@ owns RG-FOOD-001–013, based on the maintainer-confirmed policy in the
 [decision record](changes/redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary).
 The [evidence page](../docs/requirements/food-security.md) retains historical source
 and test inspection, results and proof limits; it does not certify the expanded
-requirements. Other standing capabilities remain in the existing collection.
+requirements. The [colony labor specification](specs/colony-labor/spec.md) owns RG-LABOR-001–008,
+synchronized from the archived [native-led labor change](changes/archive/2026-10-31-native-led-labor-execution/proposal.md);
+its [evidence page](../docs/requirements/colony-labor.md) owns inspection, migration
+coverage and proof limits. Other standing capabilities remain in the existing collection.
 The active [change](changes/redefine-food-requirements/proposal.md) also captures
 related acquisition, hunting, growing and herd drafts. Design and implementation
 tasks are outside this requirements capture; the change remains active.

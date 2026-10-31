@@ -6,7 +6,7 @@ See [proposal.md](proposal.md) for motivation and authority, and [the labor delt
 
 Inspection at the proposal checkpoint established the following starting behavior.
 Some of that behavior has since been replaced by the completed tasks; the
-[labor evidence page](../../../docs/requirements/colony-labor.md) records landed
+[labor evidence page](../../../../docs/requirements/colony-labor.md) records landed
 behavior and verification separately from this migration design.
 
 | Existing owner | Behavior relevant to this change |
@@ -192,7 +192,7 @@ Code inspection already proves today's selection obstruction. Do not write or ru
 
 ## Evidence and completion
 
-Implementation will create `docs/requirements/colony-labor.md` as the owning labor evidence page and link it from the labor spec, requirements collection and documentation map. Until then this section names the owner without a broken link to a nonexistent file. Preserve [food evidence](../../../docs/requirements/food-security.md) and record only the feeding claims actually established there. Planning status, registered cases, executed results and passed outcomes must remain distinct.
+Implementation will create `docs/requirements/colony-labor.md` as the owning labor evidence page and link it from the labor spec, requirements collection and documentation map. Until then this section names the owner without a broken link to a nonexistent file. Preserve [food evidence](../../../../docs/requirements/food-security.md) and record only the feeding claims actually established there. Planning status, registered cases, executed results and passed outcomes must remain distinct.
 
 Use focused xUnit tests for intervention decisions, native-work opportunity cost, bounded capacity, takeover ownership/claims, partial outcomes and stale-order rejection. Use short staged native cases for actual selection/takeover and cleanup, both feeding modes, native forced/queue lifecycle and representative ordinary production. Native cases use typed reads and registered telemetry, one physical claim each, about a minute expected wall time and under two including startup. No planner lottery, inflated tick budget or post-setup harness rescue.
 

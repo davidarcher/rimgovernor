@@ -1,9 +1,10 @@
 schema: spec-driven
 
 context: |
-  Food security is the only migrated capability. Read openspec/README.md and
-  docs/requirements/food-security.md before planning food changes. Other
-  capabilities remain in docs/requirements. AGENTS.md governs work and landing.
+  Food security and colony labor are the migrated capabilities. Read
+  openspec/README.md and the owning evidence page (docs/requirements/food-security.md
+  or docs/requirements/colony-labor.md) before planning food or labor changes.
+  Other capabilities remain in docs/requirements. AGENTS.md governs work and landing.
 
 rules:
   specs:

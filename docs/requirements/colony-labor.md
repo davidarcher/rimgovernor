@@ -1,10 +1,10 @@
 # Colony labor: implementation and evidence
 
-[Collection](README.md) · [Labor requirements](../../openspec/changes/native-led-labor-execution/specs/colony-labor/spec.md) · [Design](../../openspec/changes/native-led-labor-execution/design.md)
+[Collection](README.md) · [Labor requirements](../../openspec/specs/colony-labor/spec.md) · [Design](../../openspec/changes/archive/2026-10-31-native-led-labor-execution/design.md)
 
 ## Intent and evidence ownership
 
-The maintainer confirmed native-led routine execution, full control of settings and meaningful direct interventions in the 2026-10-26 discussion recorded in the [proposal](../../openspec/changes/native-led-labor-execution/proposal.md#decision-provenance-and-review-boundary). RG-LABOR-001–008 live in that change's delta pending explicit synchronization. This page owns implementation inspection and proof limits, not new requirements. Other requirements retain their IDs and ownership.
+The maintainer confirmed native-led routine execution, full control of settings and meaningful direct interventions in the 2026-10-26 discussion recorded in the [proposal](../../openspec/changes/archive/2026-10-31-native-led-labor-execution/proposal.md#decision-provenance-and-review-boundary). RG-LABOR-001–008 live in that change's delta pending explicit synchronization. This page owns implementation inspection and proof limits, not new requirements. Other requirements retain their IDs and ownership.
 
 ## Current evidence
 
@@ -362,7 +362,7 @@ thermal comparison row passed the 64 KiB payload cap). Causes and fixes are in
 
 ### RG-LABOR scenario evidence map
 
-Each scenario of the [colony-labor delta](../../openspec/changes/native-led-labor-execution/specs/colony-labor/spec.md)
+Each scenario of the [colony-labor delta](../../openspec/specs/colony-labor/spec.md)
 is mapped to its policy (pure unit test), boundary (real admission, journal or Hands with a
 simulated native side) and native (executed in-game result) evidence. **Analytical only**
 marks a scenario with no executed native result: its claim rests on policy and boundary

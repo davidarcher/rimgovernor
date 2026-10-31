@@ -38,7 +38,7 @@ claimed. The docs-only gate supplies no new gameplay evidence.
 
 ## Capability map
 
-The [colony labor evidence page](colony-labor.md) tracks the maintainer-confirmed [native-led labor change](../../openspec/changes/native-led-labor-execution/proposal.md), its explicit routine-call migration inventory and unverified execution claims. This adds no implementation support label to the historical capability audit below.
+The [colony labor evidence page](colony-labor.md) tracks the maintainer-confirmed [native-led labor change](../../openspec/changes/archive/2026-10-31-native-led-labor-execution/proposal.md), its explicit routine-call migration inventory and unverified execution claims. This adds no implementation support label to the historical capability audit below.
 
 Each area has a representative trace from intent or observed need through
 decision, execution and observable outcome. Test assertions qualify which parts
