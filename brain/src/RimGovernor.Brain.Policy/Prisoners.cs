@@ -26,7 +26,8 @@ public sealed record PrisonersFacts
 /// joiners and anomaly families are the rest (#3302).
 /// <list type="bullet">
 /// <item><c>prisoners/recruit</c> (Development): every living prisoner has the interaction the colony has a use for
-/// (recruit, convert, enslave or release, <see cref="PopulationRules.PrisonerUse"/>). Each Method sets one
+/// (recruit, convert, enslave or release, <see cref="PopulationRules.PrisonerUse"/>) and a prison bed of its own
+/// (<see cref="Unbedded"/>), whatever its recruitment value. Each Method sets one
 /// prisoner's interaction, named <c>prisoner-&lt;mode&gt;-&lt;pawn&gt;</c>, one per prisoner owed a change; the runtime also stages the jail (ring,
 /// bed, prisoner flag) while the Need is unmet.</item>
 /// <item><c>prisoners/custody</c> (Wellbeing): no downed humanlike is owed a capture or rescue
@@ -107,7 +108,11 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
 
     private static Need RecruitNeed(PrisonersFacts facts, PrisonerPolicy policy)
     {
-        var owed = facts.Prisoners.Count(row => PopulationRules.PrisonerUse(row, facts.Colony, facts.FoodDays, policy) is not null);
+        // Accommodation is owed every living held prisoner whatever its use (RG-HABITAT-001): one owning no bed (a
+        // prisoner can own only a bed set for prisoners) holds the Need, so the jail is staged for it though the colony
+        // has no interaction to set.
+        var owed = facts.Prisoners.Count(row => PopulationRules.PrisonerUse(row, facts.Colony, facts.FoodDays, policy) is not null
+            || Unbedded(row));
         return new Need
         {
             Id = Recruit,
@@ -116,6 +121,9 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
             Deficit = (double)owed,
         };
     }
+
+    /// <summary>A living held prisoner that owns no bed: native lets a prisoner own only a bed set for prisoners, so it has no legal slot.</summary>
+    public static bool Unbedded(PrisonerFacts row) => !row.Dead && row.Observed.OwnedBed is null;
 
     private static Need CustodyNeed(IReadOnlyList<CustodyFacts> census)
     {

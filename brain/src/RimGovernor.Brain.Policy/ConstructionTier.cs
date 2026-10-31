@@ -27,6 +27,7 @@ public static class ConstructionTierRules
         [PlannedRole.Worship] = ConstructionTier.Comfort,
         [PlannedRole.Suite] = ConstructionTier.Comfort,
         [PlannedRole.Pen] = ConstructionTier.Comfort,
+        [PlannedRole.Barn] = ConstructionTier.Comfort,
 
         [PlannedRole.Workshop] = ConstructionTier.Produce,
 

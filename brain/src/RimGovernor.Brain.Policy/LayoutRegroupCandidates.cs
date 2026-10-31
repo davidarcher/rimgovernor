@@ -28,7 +28,9 @@ public static partial class LayoutRegroupRules
     /// <summary>
     /// Compares the host alternatives' seeds in one evaluated batch (RG-HABITAT-005): the best by the canonical ledger
     /// becomes the incumbent, the baseline keeping ties, so a site's or prerequisite's consequences can change which bench
-    /// definition is planned. Each compared deviation and each omitted one is a decision (host, applied/kept/skipped).
+    /// definition is planned. The free-bed pool's bed-sharing alternatives (LayoutBedShareRules) are compared the same way,
+    /// so a barracks wins only when its occupants' forecast beats the bedrooms' net of what each costs. Each compared
+    /// deviation and each omitted one is a decision (host or bed_share, applied/kept/skipped).
     /// The geometry search then continues over the chosen graph.
     /// </summary>
     public static async Task<Regrouping> RegroupAsync(HostedRegroupInputs hosts,
@@ -103,8 +105,12 @@ public static partial class LayoutRegroupRules
             if (Better(seeds[i], seeds[chosen])) chosen = i;
         for (var i = 1; i < seeds.Length; i++)
         {
-            var change = hosts.Alternatives[i].Host.Change ?? throw new ArgumentException("a host deviation names no change", nameof(hosts));
-            var proposal = new RegroupProposal(LayoutHostRules.HostMove, change.Recipe, LayoutHostRules.NameOf(change.Host), []);
+            var alternative = hosts.Alternatives[i];
+            var proposal = alternative.Share is BedShare.Fixed { Size: var shared }
+                ? new RegroupProposal(LayoutBedShareRules.BedShareMove, LayoutBedShareRules.FreeBeds, shared.ToString(System.Globalization.CultureInfo.InvariantCulture), [])
+                : alternative.Host.Change is { } change
+                    ? new RegroupProposal(LayoutHostRules.HostMove, change.Recipe, LayoutHostRules.NameOf(change.Host), [])
+                    : throw new ArgumentException("an alternative names neither a host change nor a bed-sharing size", nameof(hosts));
             decisions.Add(i == chosen ? Decision(proposal, seeds[0], seeds[i], true) : Decision(proposal, seeds[chosen], seeds[i], false));
         }
         decisions.AddRange(hosts.Omitted.Select(o => new RegroupDecision

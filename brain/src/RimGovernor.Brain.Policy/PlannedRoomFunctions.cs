@@ -49,6 +49,9 @@ public static partial class PlannedRoomCredits
 
     public static bool Cold(LayoutPlan? layout, PlannedRoom room) => room.Role == PlannedRole.Freezer || HasPurpose(layout, room.Id, StationPurpose.StoreCold);
 
+    /// <summary>Whether a planned room's credit reads its own temperature: a cold room, or a barn (ForecastHerdShelter). The shelter model and the planned thermal read always sample one.</summary>
+    public static bool HoldsTemperature(LayoutPlan? layout, PlannedRoom room) => Cold(layout, room) || room.Role == PlannedRole.Barn;
+
     /// <summary>Every function the room's actual stations serve, once each. Its primary layout role is always present.</summary>
     internal static IEnumerable<PlannedRole> Functions(ForecastCoupledContext context, int room) =>
         context.PlannedRoomFunctions.GetValueOrDefault(room).Items

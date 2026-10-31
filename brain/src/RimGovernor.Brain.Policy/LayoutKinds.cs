@@ -84,6 +84,10 @@ public enum PlannedRole
     [WireName("worship")]
     Worship,
 
+    /// <summary>A pen unit's roofed shelter, beside its pen and joined to it (HerdShelterRules): planned only where its herd's exposure makes it win.</summary>
+    [WireName("barn")]
+    Barn,
+
     [WireName("pen")]
     Pen,
 

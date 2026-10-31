@@ -104,6 +104,7 @@ public static partial class LayoutOverlayRules
             [LayoutRingRules.PlannedSparringRing] = St(PlanBrown, "sparring ring"),
             [LayoutYardRules.PlannedYard] = St(PlanTan, "materials yard"),
             [PlannedRole.Pen] = St(PlanGreen, "pen"),
+            [PlannedRole.Barn] = St(PlanBrown, "barn"),
             [LayoutThroneRules.PlannedThrone] = St(PlanAmber, "throne room"),
             [PlannedRole.Nursery] = St(PlanGreen, "nursery"),
             [PlannedRole.Classroom] = St(PlanWhite, "classroom"),

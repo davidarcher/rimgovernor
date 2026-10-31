@@ -12,6 +12,8 @@ public static class StatDefNames
     public const string StatWorkToBuild = "WorkToBuild";
     public const string StatDoorOpenSpeed = "DoorOpenSpeed";
     public const string StatFlammability = "Flammability";
+    public const string StatBeauty = "Beauty";
+    public const string StatMarketValue = "MarketValue";
     public const string StatWorkTableWorkSpeedFactor = "WorkTableWorkSpeedFactor";
     public const string StatMedicalTendQualityOffset = "MedicalTendQualityOffset";
     public const string StatResearchSpeedFactor = "ResearchSpeedFactor";

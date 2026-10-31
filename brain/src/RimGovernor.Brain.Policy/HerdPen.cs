@@ -93,17 +93,6 @@ public static class HerdPenRules
         return (w, Math.Max(h, 1));
     }
 
-    /// <summary>The cells the pens still lack, summed over the wants: the replan trigger for a herd whose grazing outgrew its pens.</summary>
-    public static int PensOwed(LayoutPlan plan, IReadOnlyList<PenWant> wants)
-    {
-        var n = 0;
-        foreach (var w in wants)
-        {
-            n += Math.Max(w.Cells - plan.PenCells(w.Race), 0);
-        }
-        return n;
-    }
-
     /// <summary>Reports a PenMarker standing in room.</summary>
     public static bool PenMarkerStanding(PlannedRoom room, IReadOnlyList<CurrentBuilding> built)
     {

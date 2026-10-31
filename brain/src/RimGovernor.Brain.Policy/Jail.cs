@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 // Furnishing the jail. While a prisoner is held, prisoners/recruit keeps one bed set for prisoners in a
-// planned jail per held prisoner: it sets every unflagged bed standing in a jail for prisoners at once (owner
+// planned jail per held prisoner: it sets every unflagged unowned bed standing in a jail for prisoners at once (owner
 // type is room-level in the game, so a jail is never left mixed), reports the crib and slave beds as strays
 // (native refuses a crib; a slave bed is not the jail's to flip), and otherwise reconciles the room
 // (ReconcileRoom) to the next free template bed: the ring, the floor and the bed, installed from packed stock
@@ -73,8 +73,10 @@ public static class JailRules
                 {
                     continue;
                 }
-                // Native refuses a crib for prisoners, and a slave bed the plan did not put there stays as it is.
-                if (!b.Crib && !b.Slaves)
+                // Native refuses a crib for prisoners, and a slave bed the plan did not put there stays as it is. Setting
+                // a bed for prisoners drops every owner (ForOwnerType), so a bed someone owns is its owner's slot: the jail
+                // selects no alternative for that occupant, so it never takes the bed.
+                if (!b.Crib && !b.Slaves && b.Owners.Count == 0)
                 {
                     marks.Add(b.Id);
                 }

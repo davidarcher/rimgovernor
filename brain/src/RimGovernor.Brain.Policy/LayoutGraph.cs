@@ -60,13 +60,19 @@ public enum StationPurpose
 public sealed class StationGraphException(string message) : DomainException(message);
 
 /// <summary>
-/// Who needs a place. Colonists are the free people who sleep in a regular bed and eat at a table; Injured are
-/// the colonists who need a medical bed now. Prisoners and Babies sleep in their own kind of bed.
+/// Who needs a place. Colonists are the free people who sleep in a regular bed and eat at a table; Hosted are the
+/// slaves and hosted guests who also sleep in a regular bed but are neither workers nor table demand here; Injured
+/// are the colonists who need a medical bed now. Prisoners and Babies sleep in their own kind of bed.
 /// Herds are the pen herd by race (the planned ceilings the pens are sized for, #2996).
 /// </summary>
 public sealed record StationPopulation
 {
     public int Colonists { get; init; }
+
+    public int Hosted { get; init; }
+
+    /// <summary>The people the ordinary sleep node beds: the colonists and the hosted slaves and guests.</summary>
+    public int Sleepers => Colonists + Hosted;
 
     public int Injured { get; init; }
 
@@ -428,7 +434,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
         var hospital = f.HospitalBeds();
         (StationPurpose Purpose, int People, string Def)[] kinds =
         [
-            (StationPurpose.Sleep, p.Colonists, f.PrimaryBed()),
+            (StationPurpose.Sleep, p.Sleepers, f.PrimaryBed()),
             (StationPurpose.SleepMed, p.Injured, LayoutGraphRules.First(hospital)),
             (StationPurpose.SleepPrison, p.Prisoners, f.PrimaryBed()),
             (StationPurpose.SleepBaby, p.Babies, LayoutGraphRules.First(nurseries)),
@@ -969,18 +975,6 @@ public static partial class LayoutGraphRules
     }
 
     internal static string First(IReadOnlyList<string> list) => list.Count == 0 ? string.Empty : list[0];
-
-    internal static string FirstNonEmpty(params string[] list)
-    {
-        foreach (var s in list)
-        {
-            if (s != string.Empty)
-            {
-                return s;
-            }
-        }
-        return string.Empty;
-    }
 
     /// <summary>The research bench's work a day (#3659): one worker's day. It prices the bench's trips and conflicts; no recipe sizes research.</summary>
     public const double ResearchDailyWork = GameTime.TicksPerDay;

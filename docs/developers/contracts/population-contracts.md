@@ -14,9 +14,43 @@ The population concern is `Population-<pawn ID>` per observed candidate, run as 
   consume reserved capacity but stay distinct from admitted colonists. Shared food and shelter methods
   can provision future capacity.
 - Custody orders require the food floor and available assigned doctors and wardens, and no spare
-  colonist bed (#3749). A capture goes to the roster's [warden](work-assignment.md#situational-roles) while one is
+  bed (#3749). A capture goes to the roster's [warden](work-assignment.md#situational-roles) while one is
   available, otherwise the first available colonist by ID. Native capture/rescue previews separately
   require an eligible worker, reachable target and suitable available custody bed.
+
+## Accommodation of hosted people
+
+Every living person the colony hosts owns a slot of its own, and no pawn is counted into a bed it may not
+sleep in. The habitat requirement (RG-HABITAT-001) is met per occupant, not by a colonist head count:
+
+- **Colonists, guests and slaves.** `SleepingObservation` (the `shelter/sleeping` census) holds `People` (the
+  colonists), `Slaves` and `Guests`; `Hosted` is the slaves and guests, `HostedSleepers` is `Hosted` less its babies and
+  less the secure slaves the colonist count already holds (`CensusSlaves`, taken out of `People` by the bridge so
+  each sleeper counts once), and `HostedBabies` is the babies among them. A hosted guest with no suitable bed owned
+  and used stays a sleeping target, so `shelter/sleeping` stays unmet and builds the guest a bed through
+  `SleepingMethod`; only its observed use of an owned suitable bed meets the Need, the proof colonists need.
+- **Compatible slot.** `SleepingRules.CompatibleSlot` is the one test of a legal, reachable slot: a regular
+  humanlike bed (not a crib, medical bed or prison bed) whose slave setting matches the pawn's (a slave only in a
+  slave bed, no colonist or guest in one) and that the pawn can reach. `SleepingRules.SlotShortfall` counts the sleepers
+  short of such a slot per class; the sleeping review, the slave-bed mark, foothold sleeping, the stand-in count
+  (`StandInsOwed`) and the hospital conversion spare (`LeavesSlots`) all use it, so a slave bed is never a
+  colonist's spare and a conversion never takes a bed another sleeper needs.
+- **Babies** are crib demand, not sleeping targets: the nursery sizes one crib per baby (a goal-named nursery with
+  no baby yet still holds `MinNurseryBeds`), and the hosted slaves' and guests' babies join the station's crib demand
+  (`StationFacts.HostedBabies`).
+- **Known arrivals.** `QuestHospitality.KnownArrivals` counts, per accepted (Ongoing) hosting quest of a classified
+  people family, the lodgers its active `HostLodgers` objective names that no census holds yet (joined by pawn id).
+  They are sleeper demand now: regular-bed lodgers join the station's hosted count, held prisoners its prisoner
+  count. An offer not yet accepted brings nobody. The hospitality gate admits a quest only while vacant compatible
+  reachable slots (`VacantArrivalSlots`, a colonist's reach standing for the arrival's) cover every lodger.
+- **Prisoners.** `prisoners/recruit` is unmet while a living held prisoner owns no bed (`PrisonersFamily.Unbedded`),
+  whatever its recruitment value, so the jail is staged for it; a prisoner can own only a bed set for prisoners.
+  The jail marking never takes a bed its occupant owns (`JailRules.NextJailStep`). The Prison room credit prices the
+  accommodation separately from recruitment ([forecast contracts](forecast-contracts.md#prison-accommodation-credit)).
+
+Not modelled: no human pregnancy fact is read, so an expected birth is not crib demand before the baby exists; hosted
+babies are not in `ChildRoomNeeds` (it counts colonist babies only); a prisoner outside a cell is not fed by wardens and
+its hunger course is not priced (`prisoner_unfed_outside_cell_not_modelled`).
 
 ## Prisoner read and interactions
 
@@ -78,9 +112,10 @@ rescue or capture is the `prisoners/custody` Need; both remain held (see
 The `population-joiner` routine family (on in the autonomous default; selected by
 `RIMGOVERNOR_ROUTINE_FAMILIES` like every family) runs the `joiners` family (#3302), whose
 `joiners/offers` and `joiners/letters` Needs answer joiner quests and letters from population capacity. The shared gate: living admitted colonists plus guests and prisoners are below
-the population target, the food runway is at or above the food floor, and an unowned humanlike,
-non-medical, non-prisoner bed reads back. Without known capacity or room the offer is left to expire
-through its own native timeout; nothing is rejected natively. Expired, changed and unsupported offers
+the population target and the food runway is at or above the food floor (`policy.JoinerCapacity`). No
+spare bed is read or required (#3749): the joiner is a hosted sleeper at once, so `shelter/sleeping` stands in a
+spot for it and the layout builds its bed ([accommodation](#accommodation-of-hosted-people)). Without a known food runway the offer
+is left to expire through its own native timeout; nothing is rejected natively. Expired, changed and unsupported offers
 are never answered.
 
 - **Quests.** The rounds read the visible quest census and accept a not-yet-accepted

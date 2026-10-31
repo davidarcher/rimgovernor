@@ -143,6 +143,10 @@ public sealed record ForecastCoupledContext
     public WorshipFacts Worship { get; init; } = new();
     /// <summary>The planned pens by room id, each its herd's key (ReviewFacts.PlannedPens, #3812).</summary>
     public IReadOnlyDictionary<int, string> PenHerds { get; init; } = new Dictionary<int, string>();
+    /// <summary>The herd shelter's facts (ReviewFacts.HerdShelterInput, RG-HABITAT-001): the penned animals' comfort ranges and values, the climate and the thermal tables a served barn's credit reads.</summary>
+    public HerdShelterInput HerdShelter { get; init; } = new();
+    /// <summary>The layout plan's room links (ReviewFacts.PlannedLinks): a barn earns only through a link into a pen of its herd.</summary>
+    public EquatableArray<RoomLink> PlannedLinks { get; init; }
     /// <summary>The player's roamers (AnimalUpkeepObservation.Roamers, #3812); null when native could not read the animal census,
     /// which a served pen's credit raises as a required fact.</summary>
     public IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.ColonyAnimal>? Roamers { get; init; }

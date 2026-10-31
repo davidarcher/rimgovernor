@@ -34,6 +34,43 @@ public static partial class ForecastValue
     private const double IntervalTicks = 60;
 
     /// <summary>
+    /// The severity a giver adds a tick at a constant <paramref name="temperature"/> (hypothermia on the cold side, heatstroke on
+    /// the hot), 0 inside the safe range: the herd shelter's seasonal walk (HerdShelterRules) reads the same mirrored rates.
+    /// </summary>
+    internal static double ThermalGainPerTick(bool coldSide, double temperature, double comfortMin, double comfortMax)
+    {
+        if (coldSide)
+        {
+            var safeMin = comfortMin - SafeMargin;
+            return temperature < safeMin ? Math.Max(HypothermiaFloor, ThermalPerDegree * (safeMin - temperature)) / IntervalTicks : 0;
+        }
+        var safeMax = comfortMax + SafeMargin;
+        return temperature > safeMax ? Math.Max(HeatstrokeFloor, ThermalPerDegree * Curve(temperature - safeMax).Value) / IntervalTicks : 0;
+    }
+
+    /// <summary>Whether a constant temperature lets the side's severity fall: inside the comfort range on that side.</summary>
+    internal static bool ThermalRecovers(bool coldSide, double temperature, double comfortMin, double comfortMax) =>
+        coldSide ? temperature > comfortMin : temperature < comfortMax;
+
+    /// <summary>The severity left after <paramref name="ticks"/> of recovery at Clamp(severity * 0.027, 0.0015, 0.015) per interval (the closed form <see cref="Recover"/> walks).</summary>
+    internal static double RecoveredSeverity(double severity, double ticks)
+    {
+        const double upper = RecoveryMax / RecoveryFraction;
+        const double lower = RecoveryMin / RecoveryFraction;
+        while (ticks > 0 && severity > 0)
+        {
+            var regime = severity > upper ? Clock.FallingFast : severity > lower ? Clock.FallingExponential : Clock.FallingSlow;
+            var clock = new Clock(regime, severity, 0, 0);
+            var stop = regime switch { Clock.FallingFast => upper, Clock.FallingExponential => lower, _ => 0 };
+            var reach = clock.TimeTo(stop);
+            if (reach >= ticks) return Math.Max(0, clock.Level(ticks));
+            severity = stop;
+            ticks -= reach;
+        }
+        return Math.Max(0, severity);
+    }
+
+    /// <summary>
     /// A pawn's capability-days lost to hypothermia and heatstroke over its thermal spans, from the severities it has now. Null
     /// (unassessed) when any occupancy is unknown, so a pawn is never free by omission, or its capacities are unobserved.
     /// A severity that reaches the def's lethal value charges the remaining horizon and the policy's terminal value.

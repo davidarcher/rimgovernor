@@ -65,6 +65,22 @@ public sealed class PrisonersFamilyTests
     }
 
     [Fact]
+    public void ANonRecruitedPrisonerWithoutABedStillHoldsTheNeedSoTheJailIsStaged()
+    {
+        // Already on the interaction the colony wants (nothing to set), but owning no prison bed: accommodation is owed
+        // whatever its recruitment value, so the Need holds and the runtime stages the jail.
+        var bedless = Prisoner("a", PrisonerInteractionMode.Recruit) with { Observed = Prisoner("a").Observed with { OwnedBed = null } };
+        Assert.True(PrisonersFamily.Unbedded(bedless));
+        var unmet = Derive(Census(Colony1, bedless), PrisonersFamily.Recruit);
+        Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit));
+        // No interaction Method is owed for it: the jail staging is the work.
+        Assert.Empty(new PrisonersFamily(Policy, true, false).Propose([unmet], Census(Colony1, bedless)));
+        // A dead prisoner is owed nothing; a bedded one is accommodated.
+        Assert.False(PrisonersFamily.Unbedded(bedless with { Observed = bedless.Observed with { Dead = true } }));
+        Assert.Equal(Satisfaction.Met, Derive(Census(Colony1, Prisoner("a", PrisonerInteractionMode.Recruit)), PrisonersFamily.Recruit).Satisfaction);
+    }
+
+    [Fact]
     public void ALowWorthPrisonerNamedByAGoalIsRecruitedAndOtherwiseKeepsTodaysIntent()
     {
         var drifter = Prisoner("a") with { Prospect = PopulationFixtures.Prospect("a") };

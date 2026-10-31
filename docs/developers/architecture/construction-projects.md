@@ -103,9 +103,10 @@ Each proposal carries a cost (catalog pricing, the same route as walls and floor
 terms the ranker already weighs (`PlanSupply`: value per labor and distance, scaled by `Priority`). The
 colony then spends its budget on the best of all of them: a bench, a bed, a dresser, a wall.
 
-Today this is the opposite. `NextRoomUpgrade` (`RoomQualityUpgrade.cs`) takes the first room by id, in a fixed
-slot order (end table, dresser, lamp), only below the room's target, one piece at a time, with no cost or benefit
-in sight. That is a hard-coded build order. The proposal form replaces it: the weakest-stat reasoning (space
+Today a bedroom piece is partly priced. `NextRoomUpgrade` (`RoomQualityUpgrade.cs`) takes the first room by id, in a fixed
+slot order (end table, dresser, lamp), one piece at a time, and places a piece only when `RoomImprovementValue.Due`:
+its owners' gain at the Impressiveness stage it reaches, over the horizon, beats its build cost. That is a priced gate
+on a hard-coded order; the ordering is not yet a ranking. The proposal form replaces it: the weakest-stat reasoning (space
 weakest means a suite, not a table) becomes the benefit estimate, not a filter.
 
 Open: how a proposal's benefit is judged. No common unit: the forecast (the coupled scenario with and without the proposal) judges outcomes, and mood and infrastructure effects are still unsupported domains there. Slot
@@ -120,8 +121,7 @@ labor the coupled construction candidates already cost), with an outcome that re
 forecast's needs model says; until #3132 supplies it the candidate carries an unknown benefit and is not
 ranked against other actions on a guess.
 
-Consequences: no break-day currency, no stat-to-stage tables here, and no second scenario type. Until the
-forecast can value the outcome, `NextRoomUpgrade` keeps its current ordering; replacing it waits on #3132.
+Consequences: no break-day currency, no stat-to-stage tables here, and no second scenario type. `NextRoomUpgrade` keeps its fixed slot order; ranking proposals waits on #3132.
 Open: slot identity stable across a re-tile.
 
 ## Proposal

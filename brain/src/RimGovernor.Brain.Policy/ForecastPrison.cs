@@ -602,7 +602,8 @@ public static partial class ForecastPrison
     public static EquatableArray<PlannedRouteProbe> RouteProbes(IEnumerable<PlannedRoomShape> shapes, IReadOnlyDictionary<int, Cell[]> beds,
         IEnumerable<Cell> origins, PrisonRecruitRead? prison)
     {
-        if (prison is null || !prison.Prisoners.Any(p => p.Recruitable)) return [];
+        // A recruitable prisoner's chats and an unbedded prisoner's carry to its bed both walk a warden to the bed.
+        if (prison is null || !prison.Prisoners.Any(p => p.Recruitable || !p.PrisonBed)) return [];
         var work = origins.Distinct().ToHashSet();
         // Every possible Touch/sight endpoint is inside or adjacent to a prisoner anchor. Probe these actual cells
         // as future origins; the native path owner decides which are reachable and where the interaction ends.

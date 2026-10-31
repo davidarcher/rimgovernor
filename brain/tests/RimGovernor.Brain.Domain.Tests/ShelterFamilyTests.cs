@@ -47,12 +47,15 @@ public sealed class ShelterFamilyTests
     [Fact]
     public void AColonyOfThreeSleepsInThreePlacesWithNoSpare()
     {
-        // The station graph's sleep nodes count the colonists exactly (#3749): three colonists, three sleep slots.
+        // The station graph's sleep nodes count the hosted sleepers exactly (#3749): three colonists, three sleep slots.
         var input = FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild").GraphInput();
         Assert.Equal(3, input.Population.Colonists);
         Assert.Equal(3, StationGraph.SleepGraph(input).Nodes.Where(n => n.Purpose == StationPurpose.Sleep).Sum(n => n.Count));
 
-        // The shelter target is the colonist count: three places for three colonists owe nothing, two owe one.
+        // A hosted slave or guest is one more sleep slot, still no spare.
+        Assert.Equal(4, StationGraph.SleepGraph((FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild") with { Hosted = 1 }).GraphInput()).Nodes.Where(n => n.Purpose == StationPurpose.Sleep).Sum(n => n.Count));
+
+        // The shelter target is the hosted sleepers: three places for three colonists owe nothing, two owe one.
         var housed = new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { ColonistCount = 3, BedCapacity = 3, IndoorSleepingCapacity = 3 }, };
         Assert.Equal(0, ShelterRules.StandInsOwed(housed).Missing);
         Assert.Equal((3L, 1), ShelterRules.StandInsOwed(housed with { Census = housed.Census with { BedCapacity = 2, IndoorSleepingCapacity = 2 } }));

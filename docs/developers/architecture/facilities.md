@@ -580,8 +580,9 @@ bedroom's actual infection and surgery factors.
 
 Room sharing is selected after geometry and native prediction. The existing
 search tries at most eight proposals in each of four rounds on the chosen graph,
-after reading one seed per compared workshop host alternative (at most nine):
-at most 41 distinct canonical portfolio evaluations, fewer when groupings or
+after reading one seed per compared workshop host alternative and per bed-sharing
+alternative (the baseline, at most eight host and three bed-sharing deviations, so at most twelve):
+at most 44 distinct canonical portfolio evaluations, fewer when groupings or
 native footprints are identical. Native construction and room reads are batched
 per round with candidate identities. Each evaluation may itself run several
 deterministic ColonyModel outcomes within the existing portfolio budget. This
@@ -928,7 +929,11 @@ pieces at the wall and door price. A built bedroom merged back saves only its he
 so a mood swinging about the switch line switches once; a bedroom on paper is free
 to drop, its flapping held by `TieResolution` and the daily replan floor (the mood is no part of the replan key). The k beds are one group
 planned `Barracks`, the rest stay single bedrooms; the decision is the advice's
-`bed_merge` attribute. The tiler keeps the cell past each barracks bed's end clear and
+`bed_merge` attribute. That price is the clustering's proposal only: the shared ledger compares it with the
+fixed alternatives of the same pool (every bed private, one barracks of the whole pool, the held barracks;
+`LayoutBedShareRules.AlternativesOf`, `BedShare.Fixed`), each priced by its occupants' mood against its build with the
+baseline keeping ties, and the winning size is the regroup move `bed_share`
+([spatial contracts](../contracts/spatial-contracts.md#layout-planner)). The tiler keeps the cell past each barracks bed's end clear and
 reached from the doors, so no bed is boxed in by the others. The runtime (`reconcileBedroom`) picks the bed from the sleeping
 ladder, takes its slots from `policy.BedroomFurnishing` (the bedroom template's
 bed slot, for suites too; a barracks's tiled bed slots,
@@ -970,6 +975,16 @@ wing, and the native tier gate orders delivery across them (see
 gate. Move, clear and the bed replacement, sculpture and upgrade levers
 are unchanged. The stand-in `SleepingSpot` (#3659) keeps its own guard
 (`standInBed`): the reconciler leaves a spot alone.
+
+The bedroom ladder does not queue a hosted sleeper behind the colonists' comfort. `SleepingRules.BedroomsFirst`
+lets a bedroom step answer a sleeping choice first only when no bed is buildable or every sleeper short of a bed is a
+colonist the ladder's census houses; while a hosted guest or slave lacks one, the bed build proceeds. A stand-in spot
+clears the immediate need (nothing is owed by `StandInsOwed`), yet the bedroom stays owed, and its gain is measured
+from the stand-in. A furnishing piece (`NextRoomUpgrade`, `RoomImprovementValue`) is placed only when its owners'
+priced gain at the Impressiveness stage the piece reaches, over the horizon, beats its build cost; a piece that leaves
+the stage gains nothing, and an unread piece stat, mood or material value leaves it unassessed and unplanned. A title's
+bedroom requirement still asks for a piece. Still fixed minimums, not priced: the room-quality targets for bed
+replacement, beauty floors, sculptures and the common rooms (dining and recreation mood).
 
 #### Stale furniture
 

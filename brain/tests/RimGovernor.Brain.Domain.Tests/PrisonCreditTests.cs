@@ -635,12 +635,64 @@ public sealed class PrisonCreditTests
     }
 
     [Fact]
-    public void ALoyalPrisonerEarnsNothing()
+    public void ALoyalPrisonerEarnsNoRecruitmentButStillItsAccommodation()
     {
-        var review = Of(c => [Prisoner(c, recruitable: false)]);
+        var review = Of(c => [Bedless(Prisoner(c, recruitable: false))]);
         Assert.Empty(review.Gains());
         Assert.Contains(ForecastPrison.Unrecruitable, review.Findings());
         Assert.Contains(ForecastPrison.NoRecruit, review.Findings());
+        // Accommodation is owed whatever the recruitment value (RG-HABITAT-001): the room spares the bedless mood.
+        var accommodation = Assert.Single(Accommodation(review));
+        Assert.Equal("accommodate/prisoner", accommodation.Subject);
+        Assert.Equal(review.Context.Value.WellbeingWeight * 6 / 100, accommodation.PerDay, 12);
+    }
+
+    // The prisoner keeps renewing a -6 slept-on-the-ground memory until bedded (MemoryGroupRead.BedlessRenewal).
+    private static PrisonerRecruitRead Bedless(PrisonerRecruitRead prisoner) => prisoner with
+    {
+        Mood = prisoner.Mood! with
+        {
+            Memories = [new MemoryGroupRead(1)
+            {
+                BedlessRenewal = new NeedMemory("SleptOnGround", -6, new MemoryLife.Expires(Day), false) { StackLimit = 1 },
+                Members = [new NeedMemory("SleptOnGround", -6, new MemoryLife.Expires(Day / 2), false) { StackLimit = 1 }],
+            }],
+        },
+    };
+
+    private static IReadOnlyList<RoomGain> Accommodation(Review review) =>
+        ForecastPrison.AccommodationCredit(Served, review.Outcome, review.Commitments, review.Context, review.Horizon);
+
+    private static string[] AccommodationFindings(Review review) =>
+        [.. ForecastPrison.AccommodationFindings(Served, review.Outcome, review.Commitments, review.Context, review.Horizon)];
+
+    [Fact]
+    public void ANonRecruitedPrisonerStillGetsAccommodationCreditedApartFromRecruitment()
+    {
+        // Held, not recruited (no goal names it): recruitment is zero, accommodation positive, and both reach the ledger as
+        // separate rows of the room's shipped credit.
+        var person = PopulationFixtures.Held("prisoner", bedded: false);
+        var census = PopulationFixtures.Census([person]);
+        var review = Of(c => [Bedless(Prisoner(c))], census: census);
+        Assert.Empty(review.Gains());
+        Assert.Contains(ForecastPrison.NotRecruited, review.Findings());
+        var gain = Assert.Single(Accommodation(review));
+        Assert.True(gain.PerDay > 0);
+        var rows = new List<ForecastInvestmentContribution>();
+        PlannedRoomCredits.Credit(review.Outcome, review.Commitments, review.Context, review.Horizon, rows, new SortedSet<string>(StringComparer.Ordinal));
+        var row = Assert.Single(rows);
+        Assert.Equal(("prison/1/accommodate/prisoner", Horizon - 1), (row.Key, row.Units));
+        Assert.Contains("prisoner_unfed_outside_cell_not_modelled", AccommodationFindings(review));
+
+        // A prisoner already in a legal prison bed is known-zero, named, not unread.
+        var bedded = Of(c => [Bedless(Prisoner(c)) with { PrisonBed = true, OwnedPrisonBedPosition = new(new(50, 50)) }], census: census);
+        Assert.Empty(Accommodation(bedded));
+        Assert.Contains(ForecastPrison.Accommodated + "prisoner", AccommodationFindings(bedded));
+
+        // Without a warden to carry it to the bed the room accommodates nobody, and says so.
+        var unwarded = Of(c => [Bedless(Prisoner(c))], census: census, warden: false);
+        Assert.Empty(Accommodation(unwarded));
+        Assert.Contains(ForecastPrison.NoWarden, AccommodationFindings(unwarded));
     }
 
     [Fact]
@@ -655,6 +707,9 @@ public sealed class PrisonCreditTests
         Assert.Empty(held.Gains());
         Assert.Contains(ForecastPrison.NotRecruited, held.Findings());
         Assert.Contains(ForecastPrison.NoRecruit, held.Findings());
+        // Its accommodation is its own term: a prisoner with no bedless mood cost is known-zero there, never unread.
+        Assert.Empty(Accommodation(held));
+        Assert.Contains(ForecastPrison.AccommodationNoMoodCost + "prisoner", AccommodationFindings(held));
 
         var named = census with { Colony = census.Colony with { NamedPrisoners = [new("prisoner")] } };
         Assert.Equal(PrisonerInteractionMode.Recruit, PopulationRules.RecruitIntent(person, named.Colony));
@@ -863,6 +918,9 @@ public sealed class PrisonCreditTests
         var review = Of(c => [Prisoner(c) with { PrisonBed = true, OwnedPrisonBedPosition = new(new(90, 90)) }]);
         Assert.Empty(review.Gains());
         Assert.Contains(ForecastPrison.NoRecruit, review.Findings());
+        // Already accommodated: the accommodation term is known-zero and takes no bed it owns.
+        Assert.Empty(Accommodation(review));
+        Assert.Contains(ForecastPrison.Accommodated + "prisoner", AccommodationFindings(review));
     }
 
     [Fact]

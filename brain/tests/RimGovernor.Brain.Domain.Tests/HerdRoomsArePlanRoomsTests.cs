@@ -33,7 +33,7 @@ public sealed class HerdRoomsArePlanRoomsTests
     public void APenIsANodeOfTheGraphPerHerdShortOfCells()
     {
         var plan = Core(Home(1, 38, 38));
-        var nodes = LayoutPlan.HerdRoomNodes(plan, [new PenWant("Muffalo", 30), new PenWant("", 12)]);
+        var nodes = LayoutPlan.HerdRoomNodes(plan, [new PenWant("Muffalo", 30), new PenWant("", 12)], []);
         Assert.Equal(["", "Muffalo"], nodes.Select(n => n.Herd));
         Assert.All(nodes, n =>
         {
@@ -43,12 +43,16 @@ public sealed class HerdRoomsArePlanRoomsTests
         Assert.Equal(nodes.Count, nodes.Select(n => n.Id).Distinct().Count());
         // A standing pen is a node of its own floor and keeps its herd's key; a herd it holds asks for no more.
         var pen = new PlannedRoom { Id = 2, Role = PlannedRole.Pen, Herd = "Muffalo", Outdoor = true, Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 5 }), Door = new Cell(12, 9), DoorSide = new DoorSide.Doored(Rotation.South) };
-        var held = LayoutPlan.HerdRoomNodes(plan with { Rooms = [.. plan.Rooms, pen] }, [new PenWant("Muffalo", 30)]);
+        var held = LayoutPlan.HerdRoomNodes(plan with { Rooms = [.. plan.Rooms, pen] }, [new PenWant("Muffalo", 30)], []);
         Assert.Equal([("Muffalo", 30)], held.Select(n => (n.Herd, n.Area)));
+        // A standing barn of the herd is a node of its own floor beside the herd's pen, whether or not a barn is still wanted.
+        var barn = new PlannedRoom { Id = 3, Role = PlannedRole.Barn, Herd = "Muffalo", Region = RegionRules.RectRegion(new Rectangle { X = 17, Z = 10, Width = 2, Height = 2 }), Door = new Cell(17, 12), DoorSide = new DoorSide.Doored(Rotation.North) };
+        var sheltered = LayoutPlan.HerdRoomNodes(plan with { Rooms = [.. plan.Rooms, pen, barn] }, [new PenWant("Muffalo", 30)], []);
+        Assert.Equal([(PlannedRole.Pen, "", 30), (PlannedRole.Barn, sheltered[0].Id, 4)], sheltered.Select(n => (n.Role, n.Beside, n.Area)));
     }
 
     [Fact]
-    public void APlanSavedWithReservationsLoadsThePenAsARoomAndDropsTheBarn()
+    public void APlanSavedWithReservationsLoadsThePenAndTheBarnAsRooms()
     {
         var plan = Core(Home(1, 38, 38));
         var area = Json(RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 8, Height = 8 }));
@@ -58,21 +62,26 @@ public sealed class HerdRoomsArePlanRoomsTests
         using var doc = JsonDocument.Parse(json);
         var back = Codecs.Default.Read<LayoutPlan>(doc.RootElement);
         Assert.Empty(back.Reservations);
-        Assert.Equal([PlannedRole.Pen], back.Rooms.Skip(1).Select(r => r.Role));
-        var room = Assert.Single(back.Rooms.Skip(1));
-        Assert.Equal("Muffalo", room.Herd);
-        Assert.True(room.Id > 1);
+        Assert.Equal([PlannedRole.Barn, PlannedRole.Pen], back.Rooms.Skip(1).Select(r => r.Role));
+        Assert.All(back.Rooms.Skip(1), room =>
+        {
+            Assert.Equal("Muffalo", room.Herd);
+            Assert.True(room.Id > 1);
+        });
+        Assert.False(back.Rooms[1].Outdoor);
+        Assert.True(back.Rooms[2].Outdoor);
     }
 
     [Fact]
-    public void APlanSavedWithABarnRoomLoadsWithoutIt()
+    public void APlanSavedWithABarnRoomLoadsItWithItsLinks()
     {
         var plan = Core(Home(1, 38, 38), new PlannedRoom { Id = 2, Role = PlannedRole.Pen, Herd = "Muffalo", Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 5 }), Door = new Cell(12, 9), DoorSide = new DoorSide.Doored(Rotation.South) });
         var json = Json(plan with { Links = [new RoomLink { A = 1, B = 2, Cell = new Cell(12, 9) }] }).Replace("\"Role\":\"pen\"", "\"Role\":\"barn\"", StringComparison.Ordinal);
         Assert.Contains("\"barn\"", json, StringComparison.Ordinal);
         using var doc = JsonDocument.Parse(json);
         var back = Codecs.Default.Read<LayoutPlan>(doc.RootElement);
-        Assert.Equal([LayoutSurveyRules.PlannedBedroom], back.Rooms.Select(r => r.Role));
-        Assert.Empty(back.Links);
+        Assert.Equal([LayoutSurveyRules.PlannedBedroom, PlannedRole.Barn], back.Rooms.Select(r => r.Role));
+        Assert.Equal("Muffalo", back.Rooms[1].Herd);
+        Assert.Equal([(1, 2)], back.Links.Select(l => (l.A, l.B)));
     }
 }

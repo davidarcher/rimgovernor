@@ -112,7 +112,7 @@ partial class BuildingPlanner
             Cells = facts.PlanningWindow.Cells,
             HeatCampfires = FacilityPlanningRules.HeatCampfires(facts.Facts, candidates.Where(candidate => candidate.Heats && candidate.Fuels.Count > 0)
                 .Select(candidate => candidate.Name).ToHashSet(StringComparer.Ordinal)),
-            Sleepers = [.. facts.Facts.Sleeping.People, .. facts.Facts.Sleeping.Slaves],
+            Sleepers = [.. facts.Facts.Sleeping.People, .. facts.Facts.Sleeping.Slaves, .. facts.Facts.Sleeping.Guests],
         };
     }
 }

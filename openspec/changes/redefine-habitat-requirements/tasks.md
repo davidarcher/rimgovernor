@@ -18,11 +18,11 @@ from executed passes in the existing habitat evidence page.
 
 ## 2. Accommodation for every occupant (001, 003, 007, 011)
 
-- [ ] 2.1 Remove guest no-vacancy/no-construction exclusions and derive station sleeper demand from hosted population, not colonist count alone. Verify normal review selects, builds and assigns accommodation for a guest with no vacant bed while retaining its unmet Need and excluding the guest from worker availability.
-- [ ] 2.2 Integrate custody, slaves, babies/children and known arrivals with compatible, reachable slots and legal bed modes. Verify a non-recruited prisoner still gets accommodation, incompatible occupants cannot share capacity, and departures release only actual obligations.
-- [ ] 2.3 Integrate animal resting/shelter alternatives with species, observed climate, containment and feeding access. Verify susceptible exposed animals generate useful shelter while suitable pasture does not mandate a barn or manufactured bed.
-- [ ] 2.4 Compare shared/private/temporary provision and useful decoration/thermal improvements. Extend barracks and stand-in tests to prove a permanent barracks can win and temporary capacity does not erase an unresolved functional shortage; register or extend a focused normal-path native accommodation case.
-- [ ] 2.5 Update population, spatial, facilities and husbandry contracts plus habitat evidence; remove unused colonist-only capacity projections/helpers/assertions, check readers/links and pass the repository gate before committing and landing.
+- [x] 2.1 Remove guest no-vacancy/no-construction exclusions and derive station sleeper demand from hosted population, not colonist count alone. Verify normal review selects, builds and assigns accommodation for a guest with no vacant bed while retaining its unmet Need and excluding the guest from worker availability.
+- [x] 2.2 Integrate custody, slaves, babies/children and known arrivals with compatible, reachable slots and legal bed modes. Verify a non-recruited prisoner still gets accommodation, incompatible occupants cannot share capacity, and departures release only actual obligations.
+- [x] 2.3 Integrate animal resting/shelter alternatives with species, observed climate, containment and feeding access. Verify susceptible exposed animals generate useful shelter while suitable pasture does not mandate a barn or manufactured bed.
+- [x] 2.4 Compare shared/private/temporary provision and useful decoration/thermal improvements. Extend barracks and stand-in tests to prove a permanent barracks can win and temporary capacity does not erase an unresolved functional shortage; register or extend a focused normal-path native accommodation case.
+- [x] 2.5 Update population, spatial, facilities and husbandry contracts plus habitat evidence; remove unused colonist-only capacity projections/helpers/assertions, check readers/links and pass the repository gate before committing and landing.
 
 ## 3. Production and activity sites (003, 005, 007, 010)
 

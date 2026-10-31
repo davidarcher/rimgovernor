@@ -287,6 +287,30 @@ public sealed class StaleFurnitureTests
     }
 
     [Fact]
+    public void AJailMarkNeverTakesABedItsCurrentOccupantOwns()
+    {
+        // Setting a bed for prisoners drops every owner: the colonist's bed in the jail room is its slot, and the jail
+        // selects it no alternative, so only the vacant bed is marked.
+        var prison = Room(PlannedRole.Prison);
+        var rooms = RoomFixtures.Census((RoomFixtures.State("jail"), prison.Region.Cells().ToList()));
+        static SleepingBed Bed(string id, params PawnId[] owners) => new()
+        {
+            Native = SleepingNativeFixtures.Bed(id, room: "jail", owners: [.. owners]),
+            Building = SleepingNativeFixtures.Building(id),
+            Humanlike = true,
+        };
+        var plan = new LayoutPlan { Rooms = [prison], NextRoomId = 2 };
+        var colonist = new PawnId("colonist");
+        var step = JailRules.NextJailStep(plan, rooms, 1, [Bed("owned", colonist), Bed("vacant")], []);
+        Assert.Equal(JailStepKind.Mark, step.Kind);
+        Assert.Equal(["vacant"], step.Marks);
+        // With only the owned bed standing, nothing is marked: the jail is furnished with its own bed instead.
+        var only = JailRules.NextJailStep(plan, rooms, 1, [Bed("owned", colonist)], []);
+        Assert.NotEqual(JailStepKind.Mark, only.Kind);
+        Assert.Empty(only.Marks);
+    }
+
+    [Fact]
     public void ATombListsItsStandingSarcophagiBesideTheOneOwedSoOnlyTheFreshSlotIsBuilt()
     {
         var tomb = Room(PlannedRole.Tomb);

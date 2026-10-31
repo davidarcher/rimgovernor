@@ -15,9 +15,9 @@ public static partial class ShelterRules
     private static readonly PlannedRole[] SleepingRoles = [PlannedRole.Bedroom, PlannedRole.Barracks, PlannedRole.Suite];
 
     /// <summary>
-    /// The stand-in sleeping spots owed this review: the foothold count less the standing sleeping places, while the
-    /// foothold sleeping and indoor places are not both met; no Missing once they are. Count is the foothold count
-    /// the shortfall is of.
+    /// The stand-in sleeping spots owed this review: the foothold sleepers (colonists, slaves and hosted guests) less
+    /// the standing sleeping places, while the foothold sleeping and indoor places are not both met; no Missing once
+    /// they are. Count is the foothold sleeper count the shortfall is of.
     /// </summary>
     public static (long Count, int Missing) StandInsOwed(ReviewFacts f)
     {
@@ -25,12 +25,13 @@ public static partial class ShelterRules
         {
             return (0, 0);
         }
-        var count = Rules.FootholdCount(f);
-        return (count, (int)Math.Max(0, count - f.Census.BedCapacity));
+        var count = Rules.FootholdSleepers(f);
+        // A spot is a regular slot: a slave short of a slave bed is the sleeping Need's to mark or build for.
+        return (count, (int)Math.Max(Math.Max(0, count - f.Census.BedCapacity), SleepingRules.SlotShortfall(f.Sleeping).Regular));
     }
 
     /// <summary>
-    /// The stand-in Method for <paramref name="missing"/> spots short of <paramref name="count"/> colonists: one per
+    /// The stand-in Method for <paramref name="missing"/> spots short of <paramref name="count"/> sleepers: one per
     /// shortfall, so a spot lost while the floor is short is placed again.
     /// </summary>
     public static string StandInMethod(long count, int missing) =>

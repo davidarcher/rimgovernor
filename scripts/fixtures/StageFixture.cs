@@ -300,6 +300,8 @@ namespace RimGovernor.Native
             var kind = FixtureKit.Def<PawnKindDef>(p.Kind ?? throw new ArgumentException($"Pawn {p.Name} names neither a Kind nor a Colonist."));
             if (p.Manhunter && faction != null) throw new ArgumentException($"Pawn {p.Name}: a manhunter has no faction.");
             if (p.Prisoner && p.Faction == StageFaction.Player) throw new ArgumentException($"Pawn {p.Name}: a prisoner is not the colony's own.");
+            if (p.Guest && (p.Prisoner || p.Faction is StageFaction.Player or StageFaction.Hostile))
+                throw new ArgumentException($"Pawn {p.Name}: a guest is neither a prisoner, the colony's own nor hostile.");
             var request = kind.RaceProps.Humanlike
                 ? new PawnGenerationRequest(kind, faction, forceGenerateNewPawn: true, canGeneratePawnRelations: false, mustBeCapableOfViolence: true, allowAddictions: false,
                     fixedBiologicalAge: p.Age, fixedChronologicalAge: p.Age, forceBaselinerChance: 1f, developmentalStages: DevelopmentalStage.Adult)
@@ -320,6 +322,7 @@ namespace RimGovernor.Native
                 pawn.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
                 prisoners.Add(pawn);
             }
+            else if (p.Guest) pawn.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Guest);
             else if (raider) raiders.Add(pawn);
             else if (p.Faction == StageFaction.Insect) insects.Add(pawn);
             else if (p.Faction == StageFaction.Mechanoid) mechs.Add(pawn);

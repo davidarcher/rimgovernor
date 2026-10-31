@@ -73,8 +73,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 67 retains each exact intervention order's purpose and the activity plan's retirement tick (<c>plans.retired_tick</c>) for stale-justification admission; older session journals are replaced.
     /// Version 68 removes an activity task's product stuff: bill work runs through native bills and work settings, never an exact order; older session journals are replaced.
     /// Version 69 removes activity set steps (step targets and cells), exact surgery recipes and task/output retry budgets: routine work is native and a failed exact step is never reissued; older session journals are replaced.
+    /// Version 70 keeps the layout plan's barn rooms and their links (a barn is a planned herd room beside its pen); older journals are replaced.
     /// </summary>
-    public const int SchemaVersion = 69;
+    public const int SchemaVersion = 70;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

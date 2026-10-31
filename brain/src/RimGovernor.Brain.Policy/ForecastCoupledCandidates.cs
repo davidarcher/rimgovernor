@@ -150,7 +150,7 @@ public sealed partial record ForecastCoupledCandidates
         var physicalRooms = urgent.Count != 0
             ? facts.Upkeep.Rooms with { Rooms = [] } : facts.Upkeep.Rooms;
         var shelter = Methods.Generation.CoupledShelterCandidates.Generate(shelterRooms.OrderBy(r => r.Id).Select(r =>
-            new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor) { Unbounded = PlannedRoomCredits.Cold(facts.LayoutPlan, r) }),
+            new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor) { Unbounded = PlannedRoomCredits.HoldsTemperature(facts.LayoutPlan, r) }),
             physicalRooms, read.Thermal, construction.Operations, construction.Bindings, plannedSites, planned.Sites, deadline, horizon);
         findings.UnionWith(shelter.Findings); truncated |= shelter.Truncated;
         foreach (var outcome in construction.Outcomes.Where(o => !construction.Bindings.Values.Any(b => b.Id == o.Completion)))
@@ -424,6 +424,8 @@ public sealed partial record ForecastCoupledCandidates
             NonproductiveOccupancy = EquatableArray.From(tradeWork.Where(w => w.Mission is not null).Select(w => w.Task)),
             Worship = facts.Worship,
             PenHerds = facts.PlannedPens,
+            HerdShelter = facts.PlannedShelters.Any(r => r.Role == PlannedRole.Barn) ? facts.HerdShelterInput() : new(),
+            PlannedLinks = facts.PlannedLinks,
             Roamers = facts.AnimalUpkeep.Roamers,
             Sparring = practice.Sparring, Range = practice.Range,
             InitialLots = EquatableArray.From(lots),

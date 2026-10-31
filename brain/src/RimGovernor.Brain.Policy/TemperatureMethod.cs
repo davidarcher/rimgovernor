@@ -184,7 +184,7 @@ public static partial class TemperatureMethodRules
     /// remains outside its sleepers' comfortable range. A standing facility does not prove recovery.
     /// </summary>
     public static bool TemperatureOwed(RoomObservation rooms, SleepingObservation s, IReadOnlyList<HeatCampfire> heatCampfires) =>
-        TemperatureOwed(rooms, heatCampfires, [.. s.People, .. s.Slaves]);
+        TemperatureOwed(rooms, heatCampfires, [.. s.People, .. s.Slaves, .. s.Guests]);
 
     private static bool TemperatureOwed(RoomObservation v, IReadOnlyList<HeatCampfire> heatCampfires, IReadOnlyList<SleepingPerson> sleepers)
     {

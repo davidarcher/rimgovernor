@@ -35,6 +35,9 @@ public sealed record RoomGrowth
     /// </summary>
     public IReadOnlyList<PenWant> Pens { get; init; } = [];
 
+    /// <summary>The barns the herd shelter chose (HerdShelterRules.BarnWants): each unit short of its barn cells gets a barn node beside its pen (HerdRoomNodes).</summary>
+    public IReadOnlyList<BarnWant> Barns { get; init; } = [];
+
     /// <summary>The superseded bedrooms a pawn still owns a bed in (SleptBedrooms): they stay in the plan after their successor stands.</summary>
     public HashSet<int> Slept { get; init; } = [];
 
@@ -285,7 +288,7 @@ partial record LayoutPlan
     public static (LayoutPlan Prev, StationFacts Facts) ReplanFacts(LayoutPlan prev, StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers, RoomGrowth growth)
     {
         prev = prev.WithRoomIDs();
-        f = f with { Plan = prev, Pinned = TilePinned(prev, growth), Held = HeldRooms(prev, growth), Pens = growth.Pens };
+        f = f with { Plan = prev, Pinned = TilePinned(prev, growth), Held = HeldRooms(prev, growth), Pens = growth.Pens, Barns = growth.Barns };
         return (prev, LayoutReplanTiledRules.ReplanTileFacts(f, s, geysers));
     }
 

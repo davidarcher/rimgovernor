@@ -68,6 +68,13 @@ public sealed record BedMergePrice
     /// spent on each, so a split being built is not merged back by the next review; a room on paper is free to drop.
     /// </summary>
     public EquatableArray<ShellPieces> Committed { get; init; }
+
+    /// <summary>
+    /// Whether the clustering's own price proposes the barracks size or a bed-sharing layout alternative fixes it
+    /// (RG-HABITAT-001, <see cref="LayoutBedShareRules"/>), clamped to the sizes whose room fits. The shared ledger, not
+    /// this price, selects between the alternatives.
+    /// </summary>
+    public BedShare Share { get; init; } = new BedShare.Proposed();
 }
 
 /// <summary>The free-bed pool's priced choice (#3748): the barracks size (1 keeps every bed single) and the interior areas of that room and of each single bedroom.</summary>
@@ -84,14 +91,19 @@ public static partial class LayoutClusterRules
     /// </summary>
     public static BedMergeChoice? BedMergeChoiceOf(ClusterInput input)
     {
-        var c = new Clusterer(input, MaxRoomArea(input.RoofDistance));
+        if (input.BedMerge is not { } price || PoolNodeOf(input) is not { } i) return null;
+        return new Clusterer(input, MaxRoomArea(input.RoofDistance)).ChooseBeds(i, input.Graph.Nodes[i].Count, price);
+    }
+
+    /// <summary>The beds of the input's free-bed pool (its ground-floor sleep node), null when the graph has none.</summary>
+    public static int? BedPoolOf(ClusterInput input) => PoolNodeOf(input) is { } i ? input.Graph.Nodes[i].Count : null;
+
+    private static int? PoolNodeOf(ClusterInput input)
+    {
         for (var i = 0; i < input.Graph.Nodes.Count; i++)
         {
             var n = input.Graph.Nodes[i];
-            if (n.Purpose == StationPurpose.Sleep && n.Floor == 0 && n.Count > 0 && input.BedMerge is { } price)
-            {
-                return c.ChooseBeds(i, n.Count, price);
-            }
+            if (n.Purpose == StationPurpose.Sleep && n.Floor == 0 && n.Count > 0) return i;
         }
         return null;
     }
@@ -325,7 +337,7 @@ internal sealed partial class Clusterer
             // valuing a hypothetical room's mood/heat. The normal tiler still proves that the beds fit.
             var single = FurnishedArea([new ClusterUnit(n, 1)], Eval([new ClusterUnit(n, 1)]));
             var choice = new BedMergeChoice(1, single, single);
-            for (var k = 2; k <= count; k++)
+            for (var k = 2; k <= (price.Share is BedShare.Fixed { Size: var cap } ? Math.Min(count, cap) : count); k++)
             {
                 var units = new[] { new ClusterUnit(n, k) };
                 if (Eval(units).Area > MaxArea) break;
@@ -413,6 +425,16 @@ internal sealed partial class Clusterer
             {
                 best = k;
             }
+        }
+        if (price.Share is BedShare.Fixed { Size: var shared })
+        {
+            // A bed-sharing alternative fixes the size; only its room areas are chosen here.
+            var size = Math.Clamp(shared, 1, top);
+            while (size > 1 && double.IsNegativeInfinity(values[size]))
+            {
+                size--; // no block up to the area limit furnishes this size
+            }
+            return new BedMergeChoice(size, areas[size], best1.Area);
         }
         var incumbent = Math.Max(1, price.Incumbent);
         if (incumbent <= top && best != incumbent && values[best] - values[incumbent] <= new ForecastValuePolicy().TieResolution)

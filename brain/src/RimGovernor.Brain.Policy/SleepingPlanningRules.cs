@@ -112,7 +112,17 @@ public static class SleepingPlanningRules
             targets.TryAdd(id, t);
         }
         targets = WithRequirementTargets(facts, targets);
-        return RoomQualityRules.NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, finished, targets), FurnitureRoomsRules.FurnitureRooms(rooms!, census, RequiredCells(cells)), def => ColonyPlanningRules.DefinitionAvailable(facts, def));
+        // Read once, when a piece is first priced.
+        var improvement = new Lazy<(RoomImprovementFacts Facts, IReadOnlyDictionary<Resource, long> Stock)>(() => (new RoomImprovementFacts
+        {
+            Gains = BedroomGainFacts.Of(facts),
+            Levels = facts.Impressiveness,
+            Values = facts.CoupledAlternatives?.Context.MaterialValues,
+        }, ResourceStockRules.Count(facts.Census.Resources)));
+        RoomImprovementValue Value(UpkeepRoom room, InteriorPiece piece) => RoomQualityRules.ImprovementValueOf(room,
+            [.. obs!.Beds.Where(b => b.Room == room.Id).SelectMany(b => b.Owners).Distinct()],
+            ColonyPlanningRules.RoomPieceOf(facts, improvement.Value.Stock, piece.Def, piece.Size), improvement.Value.Facts);
+        return RoomQualityRules.NextRoomUpgrade(obs!, UpgradeTargetsOf(facts, finished, targets), FurnitureRoomsRules.FurnitureRooms(rooms!, census, RequiredCells(cells)), def => ColonyPlanningRules.DefinitionAvailable(facts, def), Value);
     }
 
     public static (BedReplacement Replacement, bool Due) BedReplacementOf(ReviewFacts facts, IReadOnlyList<ResearchProjectId> finished, IReadOnlyList<SiteCell>? cells)

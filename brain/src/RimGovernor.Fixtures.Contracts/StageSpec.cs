@@ -329,6 +329,10 @@ public sealed record StagePawn
     /// <summary>Held as the colony's prisoner, with no lord.</summary>
     public bool Prisoner { get; init; }
 
+    /// <summary>Hosted as the colony's guest (GuestStatus.Guest, the player its host faction), as a quest lodger is, with no
+    /// lord; its faction is neither the colony's nor hostile.</summary>
+    public bool Guest { get; init; }
+
     /// <summary>A wild animal gone permanently manhunter.</summary>
     public bool Manhunter { get; init; }
 

@@ -2,14 +2,12 @@ using System.Collections.Immutable;
 
 namespace RimGovernor.Brain.Policy;
 
-// Room quality gap closer: an owned bedroom (or a dining or rec room, against CommonRoomTargets) below its
-// RoomTarget.Min gets one furniture piece at a time from the bedroom template's optional slots. The weakest
-// of wealth, beauty, space and cleanliness decides whether a piece helps at all:
-//   - space weakest: nothing is added, since every furniture tile costs the room 0.9 space and the weakest
-//     stat carries about half the score; the owner is given a suite instead (SuiteClaims);
-//   - otherwise the slots go in lever order (end table, dresser, then the lamp), each adding wealth.
-// Flooring is not a lever here: The rooms/flooring Need already floors every bedroom at the living tier. A room
-// marked NeverUpgrade, or at or above its Max, is never touched.
+// Room furnishing improvement (RG-HABITAT-001): a room gets one furniture piece at a time from the bedroom
+// template's optional slots (end table, dresser, then the lamp) when the piece is worth building: its owners'
+// gain sleeping at the Impressiveness stage it reaches, over the horizon, beats its building cost
+// (RoomImprovementValue). No tier floor asks for it: a room already at the stage the piece would leave it gains
+// nothing. A title's bedroom requirement (reason "title") is a requirement, not a comfort, and asks for a piece
+// while the room is below it. A room marked NeverUpgrade, or at or above its Max, is never touched.
 
 /// <summary>Names one input of the native Impressiveness stat.</summary>
 public enum RoomStat
@@ -91,19 +89,21 @@ public static partial class RoomQualityRules
 
     /// <summary>
     /// The first (by room id) upgrade due, false when none. rooms are the furniture rooms (FurnitureRooms);
-    /// available reports a definition the colony can build now.
+    /// available reports a definition the colony can build now; value prices a piece in its room
+    /// (RoomImprovementValue). A room below a title's bedroom requirement takes the next piece unless space is its
+    /// weakest stat; any other room takes only a piece whose value is due.
     /// </summary>
     public static (RoomUpgrade Upgrade, bool Ok) NextRoomUpgrade(
         SleepingObservation obs,
         IReadOnlyDictionary<string, RoomTarget> targets,
         IReadOnlyList<FurnitureRoom> rooms,
-        Func<string, bool> available)
+        Func<string, bool> available,
+        Func<UpkeepRoom, InteriorPiece, RoomImprovementValue> value)
     {
-        var census = obs.Rooms;
-        var quality = new Dictionary<string, RoomQuality>(StringComparer.Ordinal);
-        foreach (var r in census)
+        var census = new Dictionary<string, UpkeepRoom>(StringComparer.Ordinal);
+        foreach (var r in obs.Rooms)
         {
-            quality[r.Id] = r.Quality;
+            census[r.Id] = r;
         }
         var furniture = new Dictionary<string, FurnitureRoom>(StringComparer.Ordinal);
         foreach (var r in rooms)
@@ -113,14 +113,15 @@ public static partial class RoomQualityRules
         foreach (var id in targets.Keys.Order(StringComparer.Ordinal))
         {
             var t = targets[id];
-            var qk = quality.TryGetValue(id, out var q);
+            var qk = census.TryGetValue(id, out var upkeep);
             var rk = furniture.TryGetValue(id, out var room);
-            if (!qk || !rk || t.NeverUpgrade || t.Min <= 0 || q!.Impressiveness >= t.Min || (t.Max > 0 && q.Impressiveness >= t.Max))
+            if (!qk || !rk || t.NeverUpgrade || (t.Max > 0 && upkeep!.Quality.Impressiveness >= t.Max))
             {
                 continue;
             }
-            var weakest = WeakestRoomStat(q);
-            if (weakest == RoomStat.Space)
+            var q = upkeep!.Quality;
+            var required = t.Reasons.Contains("title") && q.Impressiveness < t.Min;
+            if (required && WeakestRoomStat(q) == RoomStat.Space)
             {
                 continue;
             }
@@ -138,7 +139,8 @@ public static partial class RoomQualityRules
             {
                 foreach (var piece in plan.Pieces)
                 {
-                    if (piece.Slot != slot || have.Contains(piece.Def) || !available(piece.Def) || RoomPieceOverlaps(room.Pieces, piece.Rect))
+                    if (piece.Slot != slot || have.Contains(piece.Def) || !available(piece.Def) || RoomPieceOverlaps(room.Pieces, piece.Rect)
+                        || (!required && !value(upkeep, piece).Due))
                     {
                         continue;
                     }

@@ -1,19 +1,19 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// What a shelter/sleeping deficit needs next: ownership of a vacant suitable bed for one colonist, or one more
+/// What a shelter/sleeping deficit needs next: ownership of a vacant suitable bed for one sleeper (a colonist, slave or hosted guest), or one more
 /// humanlike bed staged in a room that can host a Bedroom. Observed sleep in the assigned bed, never an
 /// assignment or construction receipt, completes the goal (ReviewSleeping).
 /// </summary>
 public enum SleepingMethod
 {
-    /// <summary>Every colonist owns a suitable bed; the goal waits on observed use.</summary>
+    /// <summary>Every sleeper owns a suitable bed; the goal waits on observed use.</summary>
     NoDemand,
 
     /// <summary>Transfer ownership of Bed to Pawn (AssignIntent).</summary>
     Assign,
 
-    /// <summary>Stage Definition in a Bedroom-hosting room whose temperature suits the colonists still waiting; the next review assigns it.</summary>
+    /// <summary>Stage Definition in a Bedroom-hosting room whose temperature suits the sleepers still waiting; the next review assigns it.</summary>
     Build,
 
     /// <summary>Set Bed, a vacant colonist bed that would suit the waiting slave Pawn, for slaves (BuildingPatchIntent for_slaves); the next review assigns it.</summary>
@@ -54,7 +54,7 @@ public sealed record SleepingChoice
     public SleepingMethod Method { get; init; }
 
     /// <summary>
-    /// Waiting counts the colonists still without observed use of a suitable owned bed; Unhoused counts those
+    /// Waiting counts the sleepers (colonists, slaves and hosted guests) still without observed use of a suitable owned bed; Unhoused counts those
     /// among them with no bed to be assigned, the number of beds still to stage.
     /// </summary>
     public int Waiting { get; init; }
@@ -70,7 +70,7 @@ public sealed record SleepingChoice
 
     public string Definition { get; init; } = "";
 
-    /// <summary>The hosting-room cells whose observed temperature suits the waiting colonists; a build is sited only there.</summary>
+    /// <summary>The hosting-room cells whose observed temperature suits the waiting sleepers; a build is sited only there.</summary>
     public EquatableArray<Cell> Cells { get; init; }
 }
 
@@ -169,7 +169,7 @@ public static partial class SleepingRules
     /// Picks one bounded step for the sleeping deficit. Assignment comes first (the lowest pawn ID with a
     /// vacant suitable bed, the lowest bed ID), since it costs nothing and the review already vetted the bed's
     /// roof, temperature and access for that pawn. Otherwise one bed is staged in a hosting room warm enough
-    /// for the waiting colonists; a room too cold or hot for them is not a site, so the temperature family
+    /// for the waiting sleepers; a room too cold or hot for them is not a site, so the temperature family
     /// keeps that deficit. It issues no orders and reserves nothing. Throws DomainException when the bedroom
     /// facility is missing.
     /// </summary>
@@ -181,7 +181,7 @@ public static partial class SleepingRules
         {
             return choice with { Method = SleepingMethod.NoDemand };
         }
-        // A hosted guest is assigned after every colonist, and never causes a bed to be built.
+        // A hosted guest is assigned after every colonist; with nothing to be assigned it is unhoused like one.
         var guests = new HashSet<PawnId>();
         foreach (var g in r.Sleeping.Guests)
         {
@@ -219,14 +219,14 @@ public static partial class SleepingRules
             return choice with { Method = SleepingMethod.MarkSlaves, Pawn = pawn, Bed = markBed };
         }
         var band = new Dictionary<PawnId, (double Min, double Max)>();
-        foreach (var p in sleeping.People.Concat(sleeping.Slaves))
+        foreach (var p in sleeping.People.Concat(sleeping.Slaves).Concat(sleeping.Guests))
         {
             band[p.Id] = (p.ComfortableMin, p.ComfortableMax);
         }
         var unhoused = 0;
         foreach (var t in ordered)
         {
-            if (t.Kind == SleepingNeedKind.UseNeeded || guests.Contains(t.Pawn))
+            if (t.Kind == SleepingNeedKind.UseNeeded)
             {
                 continue;
             }
@@ -261,6 +261,20 @@ public static partial class SleepingRules
     }
 
     /// <summary>
+    /// Whether the bedroom ladder answers a sleeping choice first: with no demand, when no bed is buildable, and ahead of
+    /// a bed build while every sleeper it would house is a colonist the ladder's census houses (bedrooms before bedrolls).
+    /// A hosted guest's or a slave's shortage lies outside that census, so no bedroom step postpones its build
+    /// (RG-HABITAT-001): the hosted population's functional need is never queued behind the colonists' comfort.
+    /// </summary>
+    public static bool BedroomsFirst(SleepingRequest r, SleepingChoice choice)
+    {
+        if (choice.Method is SleepingMethod.NoDemand or SleepingMethod.Unavailable) return true;
+        if (choice.Method != SleepingMethod.Build) return false;
+        var colonists = r.Sleeping.People.Select(p => p.Id).ToHashSet();
+        return r.Targets.Where(t => t.Kind != SleepingNeedKind.UseNeeded).All(t => colonists.Contains(t.Pawn));
+    }
+
+    /// <summary>
     /// The first waiting slave with nothing to be assigned and the lowest-ID vacant colonist bed that would
     /// suit it set for slaves: a standing bed no waiting colonist can take (assignment already ran), so
     /// marking it costs no colonist a bed. None leaves the build path to stage one more bed, which a later
@@ -284,8 +298,9 @@ public static partial class SleepingRules
             foreach (var b in beds)
             {
                 var temperature = b.Temperature;
-                if (!b.Humanlike || b.Medical || b.Prisoners || b.Slaves || !b.Roofed || b.Owners.Count != 0 || b.Definition.Value == SleepingSpotDefinition
-                    || b.RestEffectiveness <= 0 || temperature < lo || temperature > hi || !b.AccessibleTo.Contains(p.Id))
+                // A vacant regular bed the slave reaches becomes its slot once set for slaves; an owned bed is its owner's.
+                if (!SleepingRules.CompatibleSlot(b, p.Id, slave: false) || !b.Roofed || b.Owners.Count != 0 || b.Definition.Value == SleepingSpotDefinition
+                    || b.RestEffectiveness <= 0 || temperature < lo || temperature > hi)
                 {
                     continue;
                 }

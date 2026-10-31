@@ -185,6 +185,9 @@ public static class HospitalRules
             spare = [];
             owned = [];
         }
+        // A bed is spare only when the sleepers keep a compatible slot without it: a slave's bed is no colonist's surplus.
+        spare = [.. spare.Where(b => LeavesSlots(sleeping, b))];
+        owned = [.. owned.Where(b => LeavesSlots(sleeping, b))];
         foreach (var candidates in new[] { spare, owned })
         {
             if (candidates.Count == 0)
@@ -217,13 +220,18 @@ return choice with { Method = HospitalMethod.Unavailable };
 
     /// <summary>
     /// Reports whether one regular bed can turn medical without dropping bed or indoor sleeping capacity below
-    /// the colonist count. Native IndoorSleepingCapacity excludes medical beds, so converting a needed
-    /// bed deadlocks the sleeping gate; a new bed is staged instead (and converted once it stands, when
-    /// the surplus it adds allows).
+    /// the hosted sleepers (the colonists, slaves and guests). Native IndoorSleepingCapacity excludes medical
+    /// beds, so converting a needed bed deadlocks the sleeping gate; a new bed is staged instead (and converted
+    /// once it stands, when the surplus it adds allows).
     /// </summary>
     private static bool HospitalConversionSpare(HospitalRequest r, SleepingObservation sleeping)
     {
-        var required = Math.Max(sleeping.Colonists, r.Colonists);
+        // The colonist count holds the secure slaves Hosted also counts: each sleeper once.
+        var required = Math.Max(sleeping.Colonists + sleeping.CensusSlaves, r.Colonists) + sleeping.Hosted - sleeping.CensusSlaves;
         return Math.Min(r.BedCapacity, r.IndoorCapacity) - 1 >= required;
     }
+
+    /// <summary>Whether converting <paramref name="bed"/> leaves every sleeper the compatible slot it has now (SleepingRules.SlotShortfall does not grow).</summary>
+    private static bool LeavesSlots(SleepingObservation sleeping, SleepingBed bed) =>
+        SleepingRules.SlotShortfall(sleeping with { Beds = EquatableArray.From(sleeping.Beds.Where(b => b.Id != bed.Id)) }) == SleepingRules.SlotShortfall(sleeping);
 }

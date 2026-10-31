@@ -51,7 +51,7 @@ public static partial class PlannedRoomCredits
     /// chamber mood its caskets and accelerators give each deathrester (#3810); Hospital by the infection, illness, sleep mood
     /// and queued surgery failures its bed relieves (#3804); ContainmentCell by the escapes its strength stops and the study it adds
     /// for the entity it holds, or the study less the escapes of the entity it captures (#3811); SparringRing by the raid harm its
-    /// trainees' Melee saves (#3813); TrainingRange by the raid harm its trainees' Shooting saves (#3846); IsolationRoom by the first agony pulse a held creepjoiner keeps from the other colonists (#3844); Prison by the days sooner each prisoner it beds is recruited, at its value as a colonist (#3805); Classroom by the lesson XP each child it seats is taught, less the teacher's lesson ticks (#3809); Dining and Rec by the impressive-room memory each colonist's meals or joy activities gain in them, Dining also by the AteWithoutTable its tables lift (#3803); Nursery by the cries and giggles of its babies it keeps from the colonists who hear them now (#3854).</summary>
+    /// trainees' Melee saves (#3813); TrainingRange by the raid harm its trainees' Shooting saves (#3846); IsolationRoom by the first agony pulse a held creepjoiner keeps from the other colonists (#3844); Prison by the days sooner each prisoner it beds is recruited, at its value as a colonist (#3805), and by the bedless mood each held prisoner it beds is spared whatever its recruitment value (RG-HABITAT-001); Classroom by the lesson XP each child it seats is taught, less the teacher's lesson ticks (#3809); Dining and Rec by the impressive-room memory each colonist's meals or joy activities gain in them, Dining also by the AteWithoutTable its tables lift (#3803); Nursery by the cries and giggles of its babies it keeps from the colonists who hear them now (#3854); Barn by the exposure deaths its steady temperature stops for the penned animals of its herd (RG-HABITAT-001).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -76,12 +76,13 @@ public static partial class PlannedRoomCredits
         [PlannedRole.SparringRing] = ForecastSparring.RingCredit,
         [PlannedRole.TrainingRange] = ForecastTrainingRange.RangeCredit,
         [PlannedRole.IsolationRoom] = ForecastIsolation.IsolationCredit,
-        [PlannedRole.Prison] = ForecastPrison.PrisonCredit,
+        [PlannedRole.Prison] = ForecastPrison.PrisonRoomCredit,
         [PlannedRole.Classroom] = ForecastClassroom.ClassroomCredit,
         [PlannedRole.Dining] = ForecastRoomThoughts.DiningCredit,
         [PlannedRole.Rec] = ForecastRoomThoughts.RecCredit,
         [PlannedRole.Nursery] = ForecastNursery.NurseryCredit,
         [PlannedRole.Freezer] = ForecastFreezer.Credit,
+        [PlannedRole.Barn] = ForecastHerdShelter.BarnCredit,
     };
 
     /// <summary>
@@ -99,11 +100,12 @@ public static partial class PlannedRoomCredits
         [PlannedRole.SparringRing] = (_, _, _, _, _) => ForecastSparring.Unmodelled,
         [PlannedRole.TrainingRange] = (_, _, _, _, _) => ForecastTrainingRange.Unmodelled,
         [PlannedRole.IsolationRoom] = ForecastIsolation.Findings,
-        [PlannedRole.Prison] = ForecastPrison.Findings,
+        [PlannedRole.Prison] = ForecastPrison.PrisonRoomFindings,
         [PlannedRole.Classroom] = ForecastClassroom.Findings,
         [PlannedRole.Dining] = ForecastRoomThoughts.DiningFindings,
         [PlannedRole.Rec] = ForecastRoomThoughts.RecFindings,
         [PlannedRole.Nursery] = ForecastNursery.Findings,
+        [PlannedRole.Barn] = ForecastHerdShelter.Findings,
     };
 
     /// <summary>

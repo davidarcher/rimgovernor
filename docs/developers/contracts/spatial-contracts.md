@@ -359,7 +359,12 @@ Hot and NextRoomID.
   (`exteriorDoorMovements`). Trip weights stay one way; `exteriorDoorMovements` doubles
   them (a visit is a passage in and one out). The graph's `PurposeOutside` node
   (`OutsideNode`, no station, ignored by clustering) carries the colonist day cycle: one
-  edge from the bed per healthy colonist a day (wake out, sleep back). Clustering splits
+  edge from the bed per healthy colonist a day (wake out, sleep back). The ordinary sleep node beds `StationPopulation.Sleepers`: the
+  colonists and the hosted slaves and guests (`Hosted`, from `SleepingObservation.HostedSleepers`, plus the lodgers of
+  accepted hosting quests not yet on the map, `QuestHospitality.KnownArrivals`), so a hosted guest's bed is planned with the
+  colonists'. Colonists alone still size eating, hauling, joy, suites and the day cycle; babies are one crib each
+  (the colony's babies plus `StationFacts.HostedBabies`, the goal-named nursery floor only while none lives), and held
+  prisoners are prison-bed demand. A population change changes the layout key, so an arrival replans. Clustering splits
   it onto `RoomGroup.Outside`, the tiler onto `LayoutPlan.OutsideTrips`, and each such trip
   is walked from its room to the nearest entrance. A herd's pen is an outdoor `PenNode`
   (`StationGraph.Pens`, one per race of `StationPopulation.Herds`, the plan's ceilings;
@@ -625,7 +630,7 @@ holds the station-chain design.
 Runtime first plans and replans compare complete tiled grouping candidates before saving a
 winner. `RegroupAsync` reads the seed of every compared host alternative (below) in one
 batch, then keeps the bound of eight proposals over four rounds on the chosen graph: at
-most nine seeds plus 32 geometry evaluations, 41 distinct candidate evaluations. Each round batches native construction
+most twelve seeds (the baseline, up to eight host deviations and up to three bed-sharing deviations) plus 32 geometry evaluations, 44 distinct candidate evaluations. Each round batches native construction
 sites, then routes and closed-room predictions, with candidate-qualified ids so two trials
 of room 1 cannot exchange answers. Each trial retains its exact tiled geometry and full
 station pieces and projected field cells, and derives resource demand from that candidate's owed construction.
@@ -662,6 +667,26 @@ as its effect) excludes only that trial; a winner that is unassessed rethrows it
 How the adopted host is built is [Layout reconcile](#layout-reconcile)'s host binding and the forecast side is
 [workshop credits](forecast-contracts.md#workshop-and-laboratory-bench-credits).
 
+**Bed-sharing alternatives (RG-HABITAT-001).** The free-bed pool (the graph's ground-floor sleep node) is not sized
+by the clustering's local price alone. `LayoutBedShareRules.AlternativesOf` adds, beside the baseline (the barracks size
+`Clusterer.ChooseBeds` proposes, `BedShare.Proposed`), one deviation per other distinct size among: every bed its own
+room (1), one barracks of the whole pool, and the barracks the plan already holds (`BedMergePrice.Incumbent`, clamped
+to the pool). Each fixes the size through `BedMergePrice.Share = BedShare.Fixed(k)` (the chooser then picks only the
+rooms' areas, dropping to a smaller size when no block furnishes it) and is read as a seed in the same `RegroupAsync`
+batch as the host alternatives, on the baseline hosts; a pool of fewer than two beds has none. The canonical ledger
+prices the mood each arrangement's occupants sleep in (`BedroomCredit`) against what it costs to build, the baseline
+keeping ties; a winning deviation is the regroup move `bed_share` (`a` `free_beds`, `b` the size k;
+[signals](otel-signals.md)). A bed-sharing deviation is never omitted by `HostTrials`. The clustering's price still
+proposes the baseline, so the comparison, not that price, decides a barracks.
+
+**Herd shelter (RG-HABITAT-001).** Each pen unit (the herd's race; the misc unit is `""`) is offered three resting
+arrangements by `HerdShelterRules.Assess`, each valued by the consequence it avoids: open pen ground (a known-zero
+baseline, `open_baseline`); a barn beside the pen; an animal sleeping spot (a known zero, `animal_bed_no_thermal_effect`,
+excluded as `no_animal_sleeping_spot` when the catalog has none). The barn is a planned room (`PlannedRole.Barn`, matched
+by the unit's herd) the station graph places only `Beside` the unit's pen node, and only when its alternative wins
+(`HerdShelterRules.BarnWants`); a unit without a pen excludes it (`barn_without_pen`). See [husbandry](husbandry-contracts.md#herd-shelter-alternatives)
+for the valuation and the forecast credit; its execution (owner step, animal flap at the pen link, spot assignment,
+heater) is not built yet.
 Replan preparation retains the hourly survey and its pinned rooms. The completed review
 prices its candidates after model preparation and adopts the winner before the authoritative
 review selects and admits work, so that review's room selection refers to the adopted geometry.

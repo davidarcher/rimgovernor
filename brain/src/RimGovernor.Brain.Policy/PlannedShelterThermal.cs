@@ -20,12 +20,12 @@ public static partial class PlannedRules
     public static PlannedThermalRequest? PlannedThermalRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites, IReadOnlyCollection<string> heaters, string cooler = "", double freezerTarget = 0, LayoutPlan? layout = null)
     {
         var owed = sites.Where(s => s.Zone.Length == 0).Select(s => s.Room).ToHashSet();
-        var chosen = rooms.Where(r => !r.Outdoor && r.Id > 0 && (PlannedRoomCredits.Cold(layout, r) || owed.Contains(r.Id)))
+        var chosen = rooms.Where(r => !r.Outdoor && r.Id > 0 && (PlannedRoomCredits.HoldsTemperature(layout, r) || owed.Contains(r.Id)))
             .Select(r => (Room: r, Bounds: r.Region.Bounds(), Cells: r.Region.Cells().Count))
             .Where(r => r.Cells > 0 && r.Bounds.Width * r.Bounds.Height == r.Cells
-                && (PlannedRoomCredits.Cold(layout, r.Room) || r.Bounds.Width <= PlannedThermalSide && r.Bounds.Height <= PlannedThermalSide))
+                && (PlannedRoomCredits.HoldsTemperature(layout, r.Room) || r.Bounds.Width <= PlannedThermalSide && r.Bounds.Height <= PlannedThermalSide))
             .OrderBy(r => r.Room.Id).ToList();
-        chosen = chosen.Where(r => PlannedRoomCredits.Cold(layout, r.Room)).Concat(chosen.Where(r => !PlannedRoomCredits.Cold(layout, r.Room)).Take(PlannedThermalRooms)).OrderBy(r => r.Room.Id).ToList();
+        chosen = chosen.Where(r => PlannedRoomCredits.HoldsTemperature(layout, r.Room)).Concat(chosen.Where(r => !PlannedRoomCredits.HoldsTemperature(layout, r.Room)).Take(PlannedThermalRooms)).OrderBy(r => r.Room.Id).ToList();
         if (chosen.Count == 0)
         {
             return null;

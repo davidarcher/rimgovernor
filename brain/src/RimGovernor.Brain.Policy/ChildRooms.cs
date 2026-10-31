@@ -217,14 +217,17 @@ public sealed record ChildRoomStep
 
 public static class ChildRoomsRules
 {
-    /// <summary>The baby bed count below which the game scores a room no Nursery at all.</summary>
+    /// <summary>
+    /// The baby bed count below which the game scores a room no Nursery at all (RoomRoleWorker_Nursery's private MinBabyBeds):
+    /// the size of a nursery a goal names before any baby lives. A baby's crib demand is its own slot, never this floor.
+    /// </summary>
     internal const int MinNurseryBeds = 2;
 
     /// <summary>Whether the catalog assigns the definition the role.</summary>
     public static bool HasRole(this FurnitureDefinition d, FurnitureRole role) => d.Roles.Contains(role.Value);
 
     /// <summary>
-    /// The child rooms the pawns owe, in role order: a nursery (beds for every newborn and baby, at least the game's two, and a toy box
+    /// The child rooms the pawns owe, in role order: a nursery (a crib slot for every newborn and baby, no more, and a toy box
     /// for their play) while one lives, a classroom (a desk per child and
     /// one blackboard) while a child does, and a deathrest chamber while a deathrester does: a casket per deathrester, which
     /// does not count toward its deathrest capacity, and the buildings that raise its deathrest efficiency (a factor above 1,
@@ -300,7 +303,7 @@ public static class ChildRoomsRules
             // placed once the catalog has one available, and the room is a nursery without it.
             Furniture = EquatableArray.From(
                 [
-                    new ChildFurniture { Role = FurnitureRole.BabyBed, Count = Math.Max(babies, MinNurseryBeds) },
+                    new ChildFurniture { Role = FurnitureRole.BabyBed, Count = babies },
                     new ChildFurniture { Role = FurnitureRole.Toy, Count = 1, Optional = true },
                 ]
             ),
@@ -366,29 +369,6 @@ public static class ChildRoomsRules
                 case RoomRole.DeathrestChamber:
                     output.Add(DeathrestNeed(1, []));
                     break;
-            }
-        }
-
-        return output;
-    }
-
-    /// <summary>
-    /// The shapes of the owed child rooms the plan holds no fitting room for; empty while every owed room is
-    /// planned or its furniture is unknown.
-    /// </summary>
-    public static List<ChildRoomShape> ChildRoomsOwed(LayoutPlan plan, IEnumerable<ChildRoomNeed> needs, IReadOnlyList<FurnitureDefinition> defs)
-    {
-        var output = new List<ChildRoomShape>();
-        foreach (var n in needs)
-        {
-            if (n.Shape(defs) is not { } s)
-            {
-                continue;
-            }
-
-            if (!plan.ChildRoomFor(s, out _))
-            {
-                output.Add(s);
             }
         }
 

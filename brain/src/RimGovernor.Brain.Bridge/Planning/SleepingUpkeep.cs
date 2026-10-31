@@ -37,10 +37,15 @@ public static class SleepingUpkeepReads
         {
             throw new ObservationContractException($"sleeping census lists {u.People.Count} colonists for a colony of {v.ColonistCount}");
         }
+        // Native's colonist census (IsFreeColonist) includes the secure slaves the slave census also lists; a slave is
+        // housed only as a slave (a bed set for slaves), so the colonists are the rest.
+        var enslaved = u.Slaves.Select(p => p.Pawn).ToHashSet();
+        var free = u.People.Where(p => !enslaved.Contains(p.Pawn)).ToList();
         var r = new SleepingObservation
         {
-            Colonists = (int)v.ColonistCount,
-            People = People(u.People),
+            Colonists = free.Count,
+            CensusSlaves = u.People.Count - free.Count,
+            People = People(free),
             Slaves = People(u.Slaves),
             Guests = People(u.Guests),
         };

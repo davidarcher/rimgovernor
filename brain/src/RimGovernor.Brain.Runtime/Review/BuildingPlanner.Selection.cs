@@ -157,12 +157,14 @@ public sealed partial class BuildingPlanner
                 }
                 return (1, new MethodId(string.Create(CultureInfo.InvariantCulture, $"sleeping-{Definition}-{Sleeping.Unhoused}")), default);
             }
-            var demand = FacilityPlanningRules.IndoorSleepingDemand(count, facts.Facts.Census.IndoorSleepingCapacity);
+            // Indoor places for every hosted sleeper: the colonists, slaves and guests.
+            var sleepers = Rules.FootholdSleepers(facts.Facts);
+            var demand = FacilityPlanningRules.IndoorSleepingDemand(sleepers, facts.Facts.Census.IndoorSleepingCapacity);
             return demand.Method switch
             {
                 IndoorSleepingMethod.NoDeficit => (0, default, BuildingReasonNoDeficit),
                 IndoorSleepingMethod.Bound => (0, default, NoSpace("housing_bound")),
-                IndoorSleepingMethod.Build => (demand.Count, new MethodId(string.Create(CultureInfo.InvariantCulture, $"indoor-sleeping-{count}-{demand.Count}")), default),
+                IndoorSleepingMethod.Build => (demand.Count, new MethodId(string.Create(CultureInfo.InvariantCulture, $"indoor-sleeping-{sleepers}-{demand.Count}")), default),
                 var invalid => throw new ControlException($"invalid indoor sleeping method {invalid}"),
             };
         }

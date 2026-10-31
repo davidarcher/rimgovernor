@@ -13,6 +13,12 @@ public sealed record SleepingPerson
     public EquatableArray<PawnId> Partners => Native.Partners;
     public bool BedSharingAllowed => Native.BedSharingAllowed;
     public RoyalTitle? Title { get; init; }
+
+    /// <summary>
+    /// A newborn or baby (Biotech developmental stage): it sleeps in a crib, never a regular bed, so its slot is crib
+    /// demand (ChildRoomsRules.ChildRoomNeeds' nursery), not a sleeping target. A pawn without Biotech is no baby.
+    /// </summary>
+    public bool Baby => Pawn.Biotech is RimGovernor.Brain.GameFacts.Observations.PawnBiotechState.Active { Facts.DevelopmentalStage: RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Newborn or RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Baby };
 }
 
 /// <summary>The actual upkeep and building rows, joined with catalog bed properties.</summary>
@@ -54,11 +60,30 @@ public sealed record SleepingObservation
     public EquatableArray<SleepingPerson> Slaves { get; init; }
 
     /// <summary>
-    /// The hosted guests (HostFaction is the player, quest lodgers included), outside Colonists and People:
-    /// each is offered a vacant suitable bed through Assign, a titled one the beds fitting its title first. A
-    /// guest never causes a bed to be built.
+    /// The hosted guests (HostFaction is the player, quest lodgers included), outside Colonists and People and
+    /// never workers: each is offered a vacant suitable bed through Assign after every colonist, a titled one the
+    /// beds fitting its title first, and a guest with none to take has a bed built for it like a colonist.
     /// </summary>
     public EquatableArray<SleepingPerson> Guests { get; init; }
+
+    /// <summary>The hosted people outside Colonists who sleep in a regular bed: the slaves and the guests (prisoners sleep in prison beds).</summary>
+    public int Hosted => Slaves.Count + Guests.Count;
+
+    /// <summary>
+    /// The slaves the colony's colonist count (ColonyFactsSnapshot.ColonistCount, native IsFreeColonist) also counts:
+    /// the secure slaves. They are Slaves here, never People, so a sum of the colonist count and Hosted counts them once
+    /// only after taking these off.
+    /// </summary>
+    public int CensusSlaves { get; init; }
+
+    /// <summary>
+    /// The hosted people beside the colonist count who need a regular bed slot: Hosted less its babies (a crib each,
+    /// <see cref="HostedBabies"/>) and less the secure slaves the colonist count already holds.
+    /// </summary>
+    public int HostedSleepers => Math.Max(0, Slaves.Concat(Guests).Count(p => !p.Baby) - CensusSlaves);
+
+    /// <summary>The hosted slaves' and guests' babies: crib demand beside the colonists' babies.</summary>
+    public int HostedBabies => Slaves.Concat(Guests).Count(p => p.Baby);
 
     public EquatableArray<SleepingBed> Beds { get; init; }
 
@@ -128,7 +153,7 @@ public sealed record SleepingReview
 
     public EquatableArray<SleepingTarget> Targets { get; init; }
 
-    /// <summary>Every colonist owns, and was seen using, a suitable bed.</summary>
+    /// <summary>Every colonist, slave and hosted guest owns, and was seen using, a suitable bed.</summary>
     public bool Recovered() => Targets.Count == 0;
 }
 
@@ -177,6 +202,27 @@ public static partial class SleepingRules
     /// Use is retained only for the same pawn and exact bed identity. The journal resets history when the
     /// colony/load/map changes or time moves backwards. Throws DomainException on an invalid census or history.
     /// </summary>
+    /// <summary>
+    /// Whether <paramref name="b"/> is a slot <paramref name="pawn"/> may legally sleep in and reach: a regular humanlike
+    /// bed (no crib, medical or prison bed) whose slave setting matches the pawn's (a colonist never in a slave bed, a slave
+    /// only in one), that the pawn can reach. Occupancy is the census's: capacity is these slots, never a second count.
+    /// </summary>
+    public static bool CompatibleSlot(SleepingBed b, PawnId pawn, bool slave) =>
+        b.Humanlike && !b.Crib && !b.Medical && !b.Prisoners && b.Slaves == slave && b.AccessibleTo.Contains(pawn);
+
+    /// <summary>
+    /// The sleepers short of a compatible reachable slot (<see cref="CompatibleSlot"/>), per bed class: the colonists and
+    /// guests (babies sleep in cribs, the nursery's demand) against the regular beds one of them can reach, the slaves
+    /// against the beds set for slaves one of them can reach. A slot of the other class is never capacity.
+    /// </summary>
+    public static (int Regular, int Slave) SlotShortfall(SleepingObservation v)
+    {
+        var regular = v.People.Concat(v.Guests).Where(p => !p.Baby).ToList();
+        var slaves = v.Slaves.Where(p => !p.Baby).ToList();
+        int Slots(List<SleepingPerson> who, bool slave) => v.Beds.Where(b => who.Any(p => CompatibleSlot(b, p.Id, slave))).Sum(b => b.Slots);
+        return (Math.Max(0, regular.Count - Slots(regular, false)), Math.Max(0, slaves.Count - Slots(slaves, true)));
+    }
+
     public static SleepingReview ReviewSleeping(SleepingObservation v, SleepingHistory previous, Tick tick)
     {
         var r = new SleepingReview { History = new SleepingHistory { Uses = previous.Uses } };
@@ -292,33 +338,44 @@ public static partial class SleepingRules
         var ordered = everyone.OrderBy(p => p.Id).ToList();
         foreach (var p in ordered)
         {
-            var (lo, hi) = (p.ComfortableMin, p.ComfortableMax);
-            bool Safe(SleepingBed b)
+            // A baby's slot is a crib the nursery need sizes, never a regular bed.
+            if (p.Baby)
             {
-                var temperature = b.Temperature;
-                return b.Humanlike && !b.Medical && !b.Prisoners && b.Slaves == slave.Contains(p.Id) && b.Roofed && b.AccessibleTo.Contains(p.Id) && temperature >= lo && temperature <= hi;
+                continue;
             }
+            var (lo, hi) = (p.ComfortableMin, p.ComfortableMax);
+            bool Safe(SleepingBed b) => CompatibleSlot(b, p.Id, slave.Contains(p.Id)) && b.Roofed && b.Temperature >= lo && b.Temperature <= hi;
             bool Suitable(SleepingBed b) => Safe(b) && SleepingRung(b.Definition, v.BedBuildable) && b.RestEffectiveness > 0;
             var bedId = p.OwnedBed ?? "";
             var exists = beds.TryGetValue(bedId, out var owned);
             if (guest.Contains(p.Id))
             {
-                // A guest is only offered a vacant bed: housed in a suitable bed it owns, or with none to take, it needs nothing from us.
+                // A guest is housed like a colonist, by observed use of a suitable bed it owns; without one it stays a
+                // target whether or not a vacant bed stands, so the Need holds and a bed is built for it.
                 if (exists && Suitable(owned!) && owned!.Owners.Contains(p.Id))
                 {
+                    if (owned.Users.Contains(p.Id))
+                    {
+                        uses[p.Id] = new SleepingUse(p.Id, owned.Id, tick);
+                    }
+                    if (uses.TryGetValue(p.Id, out var guestUse) && guestUse.Bed == owned.Id)
+                    {
+                        next.Add(guestUse);
+                        continue;
+                    }
+                    targets.Add(new SleepingTarget { Pawn = p.Id, Kind = SleepingNeedKind.UseNeeded, PreviousBed = bedId });
                     continue;
                 }
-                var availableGuest = GuestBeds(v, p, Suitable);
-                if (availableGuest.Count == 0)
+                if (uses.TryGetValue(p.Id, out var guestKept))
                 {
-                    continue;
+                    next.Add(guestKept);
                 }
                 var guestKind = SleepingNeedKind.Upgrade;
                 if (exists && !Safe(owned!))
                 {
                     guestKind = SleepingNeedKind.Unsafe;
                 }
-                targets.Add(new SleepingTarget { Pawn = p.Id, Kind = guestKind, PreviousBed = bedId, Available = EquatableArray.From(availableGuest) });
+                targets.Add(new SleepingTarget { Pawn = p.Id, Kind = guestKind, PreviousBed = bedId, Available = EquatableArray.From(GuestBeds(v, p, Suitable)) });
                 continue;
             }
             var kind = SleepingNeedKind.Upgrade;

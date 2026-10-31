@@ -2,8 +2,8 @@ namespace RimGovernor.Brain.Runtime;
 
 /// <summary>
 /// Answers the shelter family's sleeping Need (shelter/sleeping, #3257). While the day-one floor is short it first places
-/// stand-in sleeping spots (StandInSpotsAsync, #3659). It transfers ownership of a vacant suitable bed to a colonist
-/// without one (a one-shot AssignIntent native checks for roof, access, allowed area and the pawn's
+/// stand-in sleeping spots (StandInSpotsAsync, #3659). It transfers ownership of a vacant suitable bed to a colonist,
+/// slave or hosted guest without one (a one-shot AssignIntent native checks for roof, access, allowed area and the pawn's
 /// comfortable band), and when no bed can be assigned it stages one through the same building ladder the
 /// hospital walks (furnish a Bedroom-hosting room warm enough for the waiting colonists, else a starter shell
 /// first), assigning it on a later review. Neither the assignment nor the construction receipt meets the
@@ -92,7 +92,7 @@ public sealed partial class SleepingUpkeepPlanner
         {
             return couple;
         }
-        if (BedroomsFirst(choice.Method) && BedroomStepOf(facts).Kind != Pol.BedroomStepKind.None)
+        if (SleepingRules.BedroomsFirst(request, choice) && BedroomStepOf(facts).Kind != Pol.BedroomStepKind.None)
         {
             choice = choice with { Method = Pol.SleepingMethod.NoDemand };
         }
@@ -387,14 +387,6 @@ partial class SleepingUpkeepPlanner
     /// <summary>The next room quality swap: a jealous colonist into the best solo bedroom, an ascetic into the plainest.</summary>
     internal static (Pol.BedroomSwap Swap, bool Ok) BedroomSwapOf(RimGovernor.Brain.GameAccess.ColonyReading facts) =>
         SleepingPlanningRules.BedroomSwapOf(facts.Facts);
-
-    /// <summary>
-    /// Whether the bedroom ladder answers a sleeping choice: with no demand, and ahead of a barracks bed while
-    /// colonists own only spots or no bed is buildable (bedrooms before bedrolls). A colonist owning no bed is
-    /// unhoused there too.
-    /// </summary>
-    internal static bool BedroomsFirst(Pol.SleepingMethod method) =>
-        method == Pol.SleepingMethod.NoDemand || method == Pol.SleepingMethod.Build || method == Pol.SleepingMethod.Unavailable;
 
     /// <summary>The stuff a bed step builds definition from: a bedroll's first stuff option in stock, else the cheapest the rows allow.</summary>
     internal static string BedStuff(RimGovernor.Brain.GameAccess.ColonyReading facts, string definition)

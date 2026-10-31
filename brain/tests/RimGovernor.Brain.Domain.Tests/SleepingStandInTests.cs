@@ -30,6 +30,9 @@ public sealed class SleepingStandInTests
         Assert.Equal(0, ShelterRules.StandInsOwed(bare with { Census = bare.Census with { BedCapacity = 3 } }).Missing);
         Assert.Equal(0, ShelterRules.StandInsOwed(bare with { Census = bare.Census with { BedCapacity = 3, IndoorSleepingCapacity = 3 } }).Missing);
         Assert.Equal("stand-in-sleeping-3-2", ShelterRules.StandInMethod(3, 2));
+        // A hosted slave sleeps on the floor too: a place for each colonist leaves one owed.
+        var slave = new SleepingPerson { Native = SleepingNativeFixtures.Person(new PawnId("s")), Pawn = SleepingNativeFixtures.Pawn(new PawnId("s")) };
+        Assert.Equal((4L, 1), ShelterRules.StandInsOwed(bare with { Census = bare.Census with { BedCapacity = 3 }, Sleeping = new SleepingObservation { Slaves = [slave] } }));
         // The stand-ins are the floor, Survive tier; bed ownership and bedrooms stay Sustain.
         Assert.Equal(ConstructionTier.Survive, ConstructionTierRules.PlannerTier(ShelterFamily.Sleeping.FilingKey, Phase.HousingShelter));
         Assert.Equal(ConstructionTier.Sustain, ConstructionTierRules.PlannerTier(ShelterFamily.Sleeping.FilingKey, Phase.HousingSleeping));
@@ -106,6 +109,34 @@ public sealed class SleepingStandInTests
 
         // The spot stands inside the enclosed bedroom: the bedroom still owes its bed.
         var step = Step(OneBedroom, [Standing("bedroom", Bedroom, "x")], sleeping);
+        Assert.Equal((BedroomStepKind.Reconcile, Bedroom.Id), (step.Kind, step.Room.Id));
+    }
+
+    [Fact]
+    public void TemporaryCapacityMeetsTheImmediateNeedButDoesNotEraseTheFunctionalShortage()
+    {
+        // The colonist sleeps on a stand-in spot inside the standing bedroom: a place to sleep and a roof for everyone.
+        var original = WorkResourceTestFacts.Create("a");
+        var facts = new ReviewFacts
+        {
+            Census = original.Census with { ColonistCount = 1, BedCapacity = 1, IndoorSleepingCapacity = 1 },
+            ForecastObserved = original.ForecastObserved,
+            Upkeep = new() { Rooms = RoomFixtures.Census(Standing("bedroom", Bedroom, "x")) },
+            LayoutPlan = OneBedroom,
+            Sleeping = new SleepingObservation
+            {
+                Colonists = 1,
+                People = [new SleepingPerson { Native = SleepingNativeFixtures.Person(id: A), Pawn = SleepingNativeFixtures.Pawn(id: A, ownedBed: "x") }],
+                Beds = [Bed("x", SleepingRules.SleepingSpotDefinition, "bedroom", A)],
+            },
+        };
+
+        // The immediate need is met: no stand-in is owed and the foothold's sleeping place stands.
+        Assert.Equal(0, ShelterRules.StandInsOwed(facts).Missing);
+        // The functional shortage stays: the spot houses no one, so the bedroom's bed is still owed, its gain read
+        // against the stand-in the colonist sleeps on now (ForecastHousing.SleepNow).
+        Assert.True(SleepingPlanningRules.BedroomsOwedOf(facts, [], null));
+        var step = Step(OneBedroom, [Standing("bedroom", Bedroom, "x")], facts.Sleeping!);
         Assert.Equal((BedroomStepKind.Reconcile, Bedroom.Id), (step.Kind, step.Room.Id));
     }
 

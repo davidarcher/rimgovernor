@@ -29,6 +29,22 @@ public static partial class ColonyPlanningRules
             ? (work, option.Costs) : null;
     }
 
+    /// <summary>
+    /// A furniture piece's effect on its room (RoomImprovementValue) in the stuff an ordinary placement builds it from
+    /// (BuildStuff): its Beauty and MarketValue stats, its footprint, its work and cost list. Null where the catalog
+    /// shows no row, no stuff option or one of those stats for it, which leaves the improvement unassessed.
+    /// </summary>
+    public static RoomPieceEffect? RoomPieceOf(ReviewFacts facts, IReadOnlyDictionary<Resource, long> stock, string name, Cell size)
+    {
+        if (!TryDefinition(facts, name, out var def) || def.StuffOptions.FirstOrDefault(o => o.Stuff == BuildStuff(facts, stock, name)) is not { } option)
+        {
+            return null;
+        }
+        return option.Stats.TryGetValue(Domain.StatDefNames.StatBeauty, out var beauty) && option.Stats.TryGetValue(Domain.StatDefNames.StatMarketValue, out var wealth)
+            && option.Stats.TryGetValue(Domain.StatDefNames.StatWorkToBuild, out var work)
+            ? new RoomPieceEffect(beauty, wealth, Math.Max(size.X, 1) * Math.Max(size.Z, 1), work, option.Costs) : null;
+    }
+
     /// <summary>Name's resolved planning row.</summary>
     public static bool TryDefinition(ReviewFacts facts, string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PlanningDefinition? definition)
     {

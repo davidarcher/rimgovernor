@@ -18,11 +18,13 @@ internal static class PopulationFixtures
         return new PrisonerProspect { Observed = observed with { Biography = observed.Biography with { BiologicalAgeYears = 30, Skills = skills } } };
     }
 
-    internal static PrisonerFacts Held(string pawn, bool recruitable = true, string? ideo = null)
+    /// <summary>A held prisoner, accommodated in a prison bed of its own unless <paramref name="bedded"/> is false.</summary>
+    internal static PrisonerFacts Held(string pawn, bool recruitable = true, string? ideo = null, bool bedded = true)
     {
         var held = new RimGovernor.Brain.GameFacts.Observations.PersonCustody.Prisoner(0, "MaintainOnly", 0, null, 0);
         var prospect = Prospect(pawn);
-        var observed = prospect.Observed with { Prisoner = true, Colonist = false, FreeColonist = false, Settings = prospect.Observed.Settings with { Care = new RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured(RimGovernor.Brain.GameFacts.Operations.MedicalCare.HerbalOrWorse, false, RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee) } };
+        var observed = prospect.Observed with { Prisoner = true, Colonist = false, FreeColonist = false,
+            OwnedBed = bedded ? new RimGovernor.Brain.GameFacts.Common.Ref { Id = "prison-bed-" + pawn } : null, Settings = prospect.Observed.Settings with { Care = new RimGovernor.Brain.GameFacts.Observations.PawnCare.Configured(RimGovernor.Brain.GameFacts.Operations.MedicalCare.HerbalOrWorse, false, RimGovernor.Brain.GameFacts.Operations.HostilityResponse.Flee) } };
         return new PrisonerFacts
         {
             Person = NativePerson(pawn, recruitable, ideo) with { Custody = held, Guest = true },

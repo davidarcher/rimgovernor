@@ -879,7 +879,7 @@ bed room or thought rows, or a patient's mood. Named as not modelled with each s
 than success, death and failure, and surgeries on non-colonists. Two planned hospitals each credit every patient.
 
 *Prison credit (#3805, #3899).* A planned prison the outcome serves is credited (`ForecastPrison.PrisonCredit`) the recruitment it
-enables, per prisoner under `prison/<room>/<prisoner>`. A held prisoner without a prison bed is never recruited; the outcome's
+enables, per prisoner under `prison/<room>/<prisoner>`. The room's credit adds an accommodation term for bedless prisoners (`ForecastPrison.PrisonRoomCredit`; [forecast contracts](../contracts/forecast-contracts.md#prison-accommodation-credit)). A held prisoner without a prison bed is never recruited; the outcome's
 served prisons, in service order, bed the recruitable ones (not unwaveringly loyal) that the shared
 `PopulationRules.RecruitIntent` actually selects for recruitment or conversion, up to their beds (planned beds plus the
 prediction's), the most valuable first. The best-NegotiationAbility warden and each selected converter share their available

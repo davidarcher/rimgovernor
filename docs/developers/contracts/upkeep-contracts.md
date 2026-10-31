@@ -350,7 +350,7 @@ or second demand owner is introduced. See [roof preparation](pawn-activities.md#
 Housing is one Need of the shelter family (#3257, #3659): `shelter/sleeping` (bed
 ownership and upgrades, no precondition), whose planner's Methods are admitted by claims
 under it. No Need keeps a spare indoor place (#3749): the plan houses the colonists
-exactly, and a colonist the beds do not yet house sleeps on a stand-in spot. There is no
+exactly, and a sleeper the beds do not yet house (a colonist, or a hosted guest or slave: [population](population-contracts.md#accommodation-of-hosted-people)) sleeps on a stand-in spot. There is no
 starter shelter and no Construction labor hold.
 
 - Day-one floor: while a sleeping and an indoor place do not both stand for everyone,
@@ -364,8 +364,8 @@ starter shelter and no Construction labor hold.
   no one in the bedroom census, so its sleeper is still walked into a bedroom, and a
   vacant spot is cleared once the beds in enclosed rooms take everyone.
 
-- `shelter/sleeping` is composed by the `sleeping` toggle. Each review re-derives targets (colonists without an owned suitable bed or without
-  observed use of one) from the upkeep census and retained use history.
+- `shelter/sleeping` is composed by the `sleeping` toggle. Each review re-derives targets (colonists, hosted guests and slaves without an owned suitable bed or without
+  observed use of one; a baby is crib demand, never a target; a suitable bed is a `SleepingRules.CompatibleSlot`: not a crib, medical or prison bed, a slave only in a slave bed, reachable) from the upkeep census and retained use history.
 - Assign first: the lowest waiting colonist with a vacant suitable bed gets the lowest
   such bed through the typed `assign` operation, one per Episode, carrying the colonist's
   expected previous bed so a player change is refused, not overwritten. An attempt the
@@ -381,7 +381,9 @@ starter shelter and no Construction labor hold.
   covers) is on hand. A bedroll is suitable only while `Bed` is unavailable, after which
   its owners are upgrade targets. A sleeping spot is never suitable. While every
   colonist owns some bed the bedroom ladder (shell with door, furnish, move) runs ahead
-  of any barracks bed at every tier. Furnishing falls back to a `SleepingSpot` the owner
+  of any barracks bed at every tier, and (`SleepingRules.BedroomsFirst`) ahead of a bed build only while every
+  unhoused sleeper is a colonist the ladder houses: a hosted guest or slave lacking a bed never waits behind a bedroom.
+  A stand-in spot meets the immediate need but the bedroom stays owed. Furnishing falls back to a `SleepingSpot` the owner
   moves into; a vacant stand-in spot is deconstructed once the indoor beds take everyone.
 - Assignment and construction receipts do not complete the deficit. Recovery requires
   observed use by the assigned pawn in a suitable bed, kept for that bed and load.
@@ -417,8 +419,8 @@ work); with none, one pen marker claims the yard inside the defensive wall once 
 the supply-room enclosure checks. Fences or a marker do not meet the Need: the animal
 must be observed in a suitable pen. No breeding, bonding, master or removal setting changes.
 
-Herd layout: a pen per herd holding roamers (husbandry-contracts, Pens); there is no barn, for
-animals sleep in the open. There is no vet room: the hospital holds
+Herd layout: a pen per herd holding roamers (husbandry-contracts, Pens), and a barn beside it only where
+its exposure deaths avoided beat the open pen ([herd shelter](husbandry-contracts.md#herd-shelter-alternatives)). There is no vet room: the hospital holds
 `AnimalBed` stations sized from the injured animals (`policy.WardBeds`), and an animal enters
 it when carried or via the bot-owned `Hospital` allowed area (`HospitalAreaKey`).
 

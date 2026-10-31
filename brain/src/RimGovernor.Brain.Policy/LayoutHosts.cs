@@ -54,7 +54,11 @@ public sealed record HostAlternatives(EquatableArray<HostAlternative> Alternativ
 }
 
 /// <summary>One host alternative with the regroup input over the station graph built for it.</summary>
-public sealed record HostedRegroupInput(HostAlternative Host, RegroupInput Input);
+public sealed record HostedRegroupInput(HostAlternative Host, RegroupInput Input)
+{
+    /// <summary>The barracks size a bed-sharing alternative fixes (LayoutBedShareRules); a host alternative leaves it proposed.</summary>
+    public BedShare Share { get; init; } = new BedShare.Proposed();
+}
 
 /// <summary>The regroup inputs of every compared host alternative, the baseline first, and the deviations the bound omitted.</summary>
 public sealed record HostedRegroupInputs(IReadOnlyList<HostedRegroupInput> Alternatives, EquatableArray<HostDeviation> Omitted);

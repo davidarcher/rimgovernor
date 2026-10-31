@@ -55,7 +55,7 @@ public static class PlanningViewReads
     }
 
     // The stats a stuff option carries for the stuff criteria and the work read.
-    private static readonly CatalogStat[] OptionStats = [CatalogStats.MaxHitPoints, CatalogStats.Flammability, CatalogStats.BedRestEffectiveness, CatalogStats.WorkToBuild, CatalogStats.DoorOpenSpeed, ];
+    private static readonly CatalogStat[] OptionStats = [CatalogStats.MaxHitPoints, CatalogStats.Flammability, CatalogStats.BedRestEffectiveness, CatalogStats.WorkToBuild, CatalogStats.DoorOpenSpeed, CatalogStats.Beauty, CatalogStats.MarketValue, ];
     private static PlanningDefinition ThingView(DefinitionCatalog catalog, string name, Verse.ThingDef row)
     {
         var v = new PlanningDefinition

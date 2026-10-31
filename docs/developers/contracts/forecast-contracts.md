@@ -953,6 +953,27 @@ approximation and conditional acoustic bounds; they are not an error certificate
 The brain mirrors the game literals these mechanics use; each constant cites its
 1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).
 
+### Prison accommodation credit
+
+The Prison room's credit (`ForecastPrison.PrisonRoomCredit`) is two additive terms. The recruitment term (`PrisonCredit`) is
+unchanged. The accommodation term (`ForecastPrison.AccommodationCredit`, RG-HABITAT-001) is never derived from it: for
+each held prisoner owning no bed that a served prison gives a free prison-bed position its warden reaches, one row
+`accommodate/<pawn>` worth a day the mood its bedless memories cost (`BedlessMoodCost`, the negative offsets of the
+groups carrying `BedlessRenewal`) at `ForecastValuePolicy.WellbeingWeight` capability-days per mood-day. Positions are
+taken in served-prison order and never one a bedded prisoner owns; the warden is the colonist of the best negotiation
+ability, and a position its route cannot reach is `prison_accommodation_unreachable:<cell>`. Known zeros and states are
+named: `prison_accommodated:<pawn>` (already bedded), `prison_accommodation_no_mood_cost:<pawn>` (no bedless memory
+renewed, or no mood need), `prison_accommodation_no_bed:<pawn>` (no position left) and `prison_no_warden`. Every served prison
+also names `prisoner_unfed_outside_cell_not_modelled`: wardens feed only a prisoner inside a cell
+(`WorkGiver_Warden_DeliverFood`), so the hunger course of an unbedded prisoner is not priced.
+
+### Barn credit
+
+A planned barn's credit (`ForecastHerdShelter.BarnCredit`) pays each penned animal of its herd the market value over its
+days to death (`HerdShelterRules.LossPerDay`) that the barn's own steady temperature, from the shared shelter model, saves
+it from over the twelve seasonal means. It pays only through a plan link into a pen of the herd, and rows are
+keyed by the animal id. See [herd shelter](husbandry-contracts.md#herd-shelter-alternatives).
+
 ### Capacity penalty tables and per-pawn capacities
 
 The capability-days ledger ([forecast value](../architecture/forecast-value.md#capability-days),

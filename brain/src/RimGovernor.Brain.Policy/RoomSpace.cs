@@ -19,6 +19,10 @@ public static class RoomSpaceRules
     // RoomStatWorker_Space: a standable cell's space and the cap.
     private const double StandableSpace = 1.4;
     private const double MaxSpace = 350;
+    private const double WalkableSpace = 0.5;
+
+    /// <summary>The space a furniture cell takes from its room: a standable cell made walkable but not standable.</summary>
+    internal const double FurnishedSpaceLoss = StandableSpace - WalkableSpace;
 
     // RoomStatWorker_Impressiveness: each stat's normaliser, the min's weight and the space ceiling's factor and pull.
     internal const double WealthScale = 1500;

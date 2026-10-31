@@ -445,6 +445,9 @@ public sealed partial record ReviewFacts
         init => _gear = value;
     }
 
+    /// <summary>The map's climate when the gear census is read, else null: the herd shelter names the unread census itself.</summary>
+    internal GearClimate? ClimateRead => _gear?.Climate;
+
     /// <summary>The finished buildings counted by definition: what a built-count goal is judged by (#3496).</summary>
     public EquatableArray<Amount> BuiltBuildings { get; init; }
 
@@ -740,9 +743,19 @@ public static partial class Rules
     /// <summary>The colonist count the foothold sizes for.</summary>
     internal static long FootholdCount(ReviewFacts f) => f.Census.ColonistCount;
 
-    internal static bool FootholdSleeping(ReviewFacts f) => FootholdCount(f) > 0 && f.Census.BedCapacity >= FootholdCount(f);
+    /// <summary>The people the foothold beds: the colonists and the hosted slaves and guests (SleepingObservation.Hosted), a secure slave the colonist count holds counted once.</summary>
+    public static long FootholdSleepers(ReviewFacts f) => FootholdCount(f) + f.Sleeping.Hosted - f.Sleeping.CensusSlaves;
 
-    internal static bool FootholdShelter(ReviewFacts f) => FootholdCount(f) > 0 && f.Census.IndoorSleepingCapacity >= FootholdCount(f);
+    /// <summary>The foothold sleepers short of a compatible reachable slot: a slave bed is no colonist's place, a regular bed no slave's (<see cref="SleepingRules.SlotShortfall"/>).</summary>
+    internal static int FootholdSlotShortfall(ReviewFacts f)
+    {
+        var (regular, slave) = SleepingRules.SlotShortfall(f.Sleeping);
+        return regular + slave;
+    }
+
+    internal static bool FootholdSleeping(ReviewFacts f) => FootholdCount(f) > 0 && f.Census.BedCapacity >= FootholdSleepers(f) && FootholdSlotShortfall(f) == 0;
+
+    internal static bool FootholdShelter(ReviewFacts f) => FootholdCount(f) > 0 && f.Census.IndoorSleepingCapacity >= FootholdSleepers(f);
 
     internal static bool FootholdProduction(ReviewFacts f) => f.Census.ColonistCount > 0 && f.GrowingCells >= f.Census.ColonistCount * 10;
 

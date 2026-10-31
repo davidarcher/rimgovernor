@@ -9,5 +9,6 @@ public static class BedCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(BedAssign.Case());
         registry.Register(BedBuiltForBedless.Case());
+        registry.Register(BedBuiltForGuest.Case());
     }
 }

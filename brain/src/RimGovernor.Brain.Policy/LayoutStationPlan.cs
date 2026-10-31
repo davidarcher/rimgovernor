@@ -31,6 +31,12 @@ public sealed record StationFacts
     /// <summary>The colony's people.</summary>
     public long Colonists { get; init; }
 
+    /// <summary>The hosted slaves and guests who sleep in a regular bed beside the colonist count (SleepingObservation.HostedSleepers); they size sleep nodes only.</summary>
+    public int Hosted { get; init; }
+
+    /// <summary>The hosted slaves' and guests' babies (SleepingObservation.HostedBabies): each a crib slot, never a regular bed.</summary>
+    public int HostedBabies { get; init; }
+
     /// <summary>Patients and Surgical size the hospital ward as SelectHospitalBed does.</summary>
     public EquatableArray<CarePawn> Patients { get; init; }
 
@@ -147,6 +153,9 @@ public sealed record StationFacts
 
     /// <summary>The pens the herd asks for (HerdPlan.PenWants): each unit short of its cells gets a pen node. Empty while the animal census or the pasture table is unread, which asks for none.</summary>
     public IReadOnlyList<PenWant> Pens { get; init; } = [];
+
+    /// <summary>The barns the herd shelter chose (HerdShelterRules.BarnWants): each unit short of its barn cells gets a barn node beside its pen. Empty when no unit's barn wins.</summary>
+    public IReadOnlyList<BarnWant> Barns { get; init; } = [];
     /// <summary>The shapes of the child rooms the colony owes (ChildRoomShapes); the classroom and deathrest chamber among them are room nodes.</summary>
     public IReadOnlyList<ChildRoomShape> Child { get; init; } = [];
 
@@ -195,7 +204,7 @@ public sealed record StationFacts
 
     /// <summary>The room nodes the facts ask beyond the station chain's: the tomb and morgue, the child rooms, the yards, and the pens.</summary>
     internal IReadOnlyList<RoomNode> RoomNodes() =>
-        [.. LayoutPlan.OutskirtsRoomNodes(Plan, Demand), .. LayoutPlan.ChildRoomNodes(Plan, Child), .. LayoutPlan.YardRoomNodes(Plan, Demand), .. LayoutPlan.HerdRoomNodes(Plan, Pens)];
+        [.. LayoutPlan.OutskirtsRoomNodes(Plan, Demand), .. LayoutPlan.ChildRoomNodes(Plan, Child), .. LayoutPlan.YardRoomNodes(Plan, Demand), .. LayoutPlan.HerdRoomNodes(Plan, Pens, Barns)];
 
     /// <summary>
     /// The work ledger's wanted orders: those of a reconciled ledger, or none for an inactive one (no planner declares
@@ -282,6 +291,7 @@ public sealed record StationFacts
             new("throne_area", KeyText.Of(ThroneArea)),
             new("demand", KeyText.Of(Demand)),
             new("pens", KeyText.Of(Pens)),
+            new("barns", KeyText.Of(Barns)),
             new("child", KeyText.Of(Child)),
             new("plan", KeyText.Of(Plan)),
             new("rest", KeyText.Of(Rest)),
@@ -478,7 +488,7 @@ public static partial class LayoutStationPlanRules
     private static int NurseryFloor(StationFacts f) =>
         f.GoalBuild.Rooms.Items.Contains(RoomRole.Nursery) && f.Catalog.Contributors(RoomRole.Nursery).Count > 0 ? ChildRoomsRules.MinNurseryBeds : 0;
 
-    /// <summary>The people the graph sizes beds for. Babies sleep in cribs, so they leave the colonists; the injured are colonists who need a medical bed now (IllPatients).</summary>
+    /// <summary>The people the graph sizes beds for. Babies sleep in cribs, so they leave the colonists; the hosted slaves and guests sleep beside the colonists; the injured are colonists who need a medical bed now (IllPatients).</summary>
     public static StationPopulation StationPopulationOf(StationFacts f)
     {
         var colonists = f.Colonists;
@@ -486,7 +496,7 @@ public static partial class LayoutStationPlanRules
         var prisoners = f.Prisoners;
         var pawns = f.WorkPawns.Pawns;
         var babies = BabyCount(pawns);
-        return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Injured = Math.Max(ill.Count, f.GoalBuild.HospitalBeds), Prisoners = prisoners, Babies = Math.Max(babies, NurseryFloor(f)), Herds = f.Herds };
+        return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Hosted = f.Hosted, Injured = Math.Max(ill.Count, f.GoalBuild.HospitalBeds), Prisoners = prisoners, Babies = Math.Max(babies + f.HostedBabies, NurseryFloor(f)), Herds = f.Herds };
     }
 
     /// <summary>The pawns still in a crib: the newborn and baby stages ChildRoomNeeds gives a nursery bed. A pawn whose stage is unknown owes nothing, as there.</summary>
@@ -559,12 +569,15 @@ public static partial class LayoutStationPlanRules
 
     /// <summary>
     /// The regroup inputs of every host alternative (RG-HABITAT-005), the baseline first, each over the station graph its
-    /// hosts give, with the deviations the bound omitted. RegroupAsync compares them by the canonical ledger.
+    /// hosts give, then the free-bed pool's bed-sharing alternatives (LayoutBedShareRules), with the deviations the bound
+    /// omitted. RegroupAsync compares them by the canonical ledger.
     /// </summary>
     public static HostedRegroupInputs HostedRegroupInputsOf(StationFacts f)
     {
         var hosts = f.HostAlternatives();
-        return new([.. hosts.Alternatives.Select(h => new HostedRegroupInput(h, RegroupInputOf(f, h)))], hosts.Omitted);
+        var inputs = hosts.Alternatives.Select(h => new HostedRegroupInput(h, RegroupInputOf(f, h))).ToList();
+        // The free-bed pool's shared, private and held provision are compared as alternatives of the baseline hosts.
+        return new([inputs[0], .. LayoutBedShareRules.AlternativesOf(inputs[0]).Skip(1), .. inputs.Skip(1)], hosts.Omitted);
     }
 
     /// <summary>The validated station graph of <paramref name="host"/> and the geometry shared by every canonical regroup trial.</summary>
@@ -652,6 +665,7 @@ public static partial class LayoutStationPlanRules
         nodes.AddRange(LayoutTrainingNodesRules.TrainingRoomNodes(1, 1));
         nodes.AddRange(LayoutPlan.YardRoomNodes(new LayoutPlan(), new RoomDemand()));
         nodes.Add(new RoomNode { Role = PlannedRole.Pen });
+        nodes.Add(new RoomNode { Role = PlannedRole.Barn });
         nodes.AddRange(LayoutTripsRules.SeedRoomNodes(new SeedRooms { ThroneArea = 1 }));
         nodes.Add(new RoomNode { Role = PlannedRole.Circulation });
         var output = new HashSet<PlannedRole>(nodes.Select(n => n.Role));
@@ -670,8 +684,8 @@ public static partial class LayoutStationPlanRules
     /// </summary>
     internal static HashSet<PlannedRole> RoomNodeRoles => RoomNodeRolesSet.Value;
 
-    /// <summary>The key a planned role is matched under: a pen's carries its herd, so a unit's pens are matched to the unit's nodes.</summary>
-    internal static string MatchKeyOf(PlannedRole planned, string herd) => planned == PlannedRole.Pen ? $"{Wire.Name(planned)}/{herd}" : Wire.Name(planned);
+    /// <summary>The key a planned role is matched under: a pen's and a barn's carry their herd, so a unit's herd rooms are matched to the unit's nodes.</summary>
+    internal static string MatchKeyOf(PlannedRole planned, string herd) => planned is PlannedRole.Pen or PlannedRole.Barn ? $"{Wire.Name(planned)}/{herd}" : Wire.Name(planned);
 
     /// <summary>
     /// The key a group is matched to rooms under: its predicted role, or the native role of the planned room its

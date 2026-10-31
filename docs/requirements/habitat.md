@@ -21,7 +21,17 @@ receive a temporary place while permanent capacity catches up.
 and [population](../developers/contracts/population-contracts.md) contracts.
 **Implementation:** Supported for sampled first-room construction and changing
 layout inputs. Repeated growth/loss recovery needs broader execution evidence.
-Evidence H1–H2, H6.
+Milestone 2 extends accommodation beyond colonists: a hosted guest or slave without a
+suitable bed stays a sleeping target and is built a bed; every occupant needs a
+compatible reachable slot of its own (a prisoner a prison bed, a baby a crib, a slave
+a slave bed); accepted hosting quests' lodgers count before they arrive; shared,
+private and held barracks are compared as layout alternatives; furnishing is built
+only when its owners' gain beats its cost; and each herd's open pen, barn and
+animal sleeping spot are compared by exposure deaths avoided
+([H9](#h9--hosted-occupants-bed-sharing-and-herd-shelter)). Barn execution (task 6.2),
+a human pregnancy fact, hosted babies in the nursery's sizing and the room-quality
+minimums remain gaps.
+Evidence H1–H2, H6, H9.
 
 ## RG-HABITAT-002 — Keep essential facilities usable
 
@@ -40,7 +50,8 @@ unavailable, the affected service and blocker should remain visible.
 **Implementation:** Partial. Fuel, roof/temperature, cooling and Home-area
 maintenance are supported. Ordinary repairs and door-to-wall replacement are
 explicitly held (H5). Resilience across repeated losses needs further evidence.
-Evidence H3–H6.
+A hosted guest's or slave's cold or hot sleeping room is temperature work like a
+colonist's (H9). Evidence H3–H6.
 
 ## RG-HABITAT-003 — Develop rooms for the benefit they provide
 
@@ -213,4 +224,52 @@ choice. The legacy workshop ladder remains for a Need with no layout plan or no
 owned unhosted load. The [spatial](../developers/contracts/spatial-contracts.md#layout-planner),
 [forecast](../developers/contracts/forecast-contracts.md#workshop-and-laboratory-bench-credits)
 and [essential-service](../developers/contracts/essential-services.md#hosted-workshop-loads)
+contracts own the behavior.
+
+### H9 — Hosted occupants, bed sharing and herd shelter
+
+Milestone 2 sizes sleeping demand and accommodation by occupant, not by colonist
+count. [GuestAccommodationTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/GuestAccommodationTests.cs)
+check that a hosted guest with no vacant bed stays a sleeping target, is built a bed
+and assigned it, meets the Need only by observed use of an owned suitable bed, that
+hosted guests and slaves size the sleep nodes but not the colonists' demand, and that
+no bedroom step postpones a guest's or slave's bed build.
+[HabitatOccupantTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HabitatOccupantTests.cs)
+check the compatible reachable slot (no crib, medical or prison bed, slave setting
+matching, reach), babies as one crib each, accepted hosting quests' lodgers as known
+arrivals, the hospitality gate counting vacant compatible slots, and the jail never
+marking an owned bed.
+[PrisonCreditTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PrisonCreditTests.cs)
+check that a loyal or non-recruited prisoner is still credited its accommodation apart from
+recruitment, and [PrisonersFamilyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PrisonersFamilyTests.cs)
+that `prisoners/recruit` stays unmet until a prisoner owns a bed.
+[HerdShelterTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HerdShelterTests.cs)
+check the open pen, barn and animal-spot alternatives: exposure deaths avoided decide
+the barn, a comfort range covering the climate is a known zero, an unread fact leaves
+only the barn unassessed, a barn without a pen is excluded, and the planned barn earns
+only through a link to its herd's pen.
+[BedShareAlternativeTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/BedShareAlternativeTests.cs)
+check the bed-sharing deviations (private, whole-pool and held barracks) against the
+baseline and that a worthwhile barracks can win.
+[RoomImprovementTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/RoomImprovementTests.cs)
+check that a piece is built only when its owners' stage gain beats its cost, a piece
+that leaves the stage gains nothing, and an unread fact leaves it unplanned.
+[SleepingStandInTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/SleepingStandInTests.cs)
+check stand-ins for hosted sleepers and that a stand-in leaves the bedroom owed.
+
+These are executed policy checks through the full gate (4,383 domain tests and 30 workflow tests, contract orphans none). The native case
+`bed/built-for-guest` (OnDemand) is registered and compiles but was not executed, nor
+was the `StageFixture` guest staging; no native evidence exists for this milestone.
+Known gaps, stated rather than priced: no human pregnancy fact is read, so an expected
+birth is not crib demand; a prisoner outside a cell is not fed by wardens and its hunger
+is not priced (`prisoner_unfed_outside_cell_not_modelled`); the nursery's sizing
+(`ChildRoomNeeds`) counts colonist babies only, hosted babies reaching crib demand only
+through the station graph; the room-quality minimums for bed replacement, beauty floors,
+sculptures and common rooms stay fixed and dining and recreation mood is unpriced; and
+the barn is planned and credited but not executed (owner step, animal flap at the pen
+link, spot assignment and heater are task 6.2 of `redefine-habitat-requirements`).
+The [population](../developers/contracts/population-contracts.md#accommodation-of-hosted-people),
+[spatial](../developers/contracts/spatial-contracts.md#layout-planner),
+[husbandry](../developers/contracts/husbandry-contracts.md#herd-shelter-alternatives)
+and [forecast](../developers/contracts/forecast-contracts.md#prison-accommodation-credit)
 contracts own the behavior.

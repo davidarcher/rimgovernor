@@ -15,8 +15,49 @@ public sealed record HospitalityWork
     public bool Waiting { get; init; }
 }
 
+/// <summary>
+/// The lodgers one accepted hosting quest's objective names who are not on the map yet: they arrive on acceptance, so
+/// they are sleeper demand now, <paramref name="Count"/> of them, held in prison beds when <paramref name="Prisoners"/>,
+/// else in regular beds.
+/// </summary>
+public sealed record KnownArrival(int Count, bool Prisoners);
+
 public static class QuestHospitality
 {
+    /// <summary>
+    /// The known arrivals (<see cref="KnownArrival"/>): for every accepted (Ongoing) hosting quest of a classified
+    /// people family, each active HostLodgers objective's named lodgers (QuestObjective.PawnIds) the sleeping and prisoner
+    /// censuses do not hold yet, joined by pawn id. An offer not yet accepted brings nobody; no arrival is inferred
+    /// beyond the lodgers the quest names, and none is timed later than now.
+    /// </summary>
+    public static IReadOnlyList<KnownArrival> KnownArrivals(ReviewFacts f)
+    {
+        var present = f.Sleeping.People.Concat(f.Sleeping.Slaves).Concat(f.Sleeping.Guests).Select(p => p.Id)
+            .Concat(f.Population.Prisoners.Select(p => p.Pawn)).ToHashSet();
+        var output = new List<KnownArrival>();
+        foreach (var offer in f.QuestOffers)
+        {
+            if (offer.State != RimGovernor.Brain.GameFacts.Receipts.QuestStatus.Ongoing
+                || f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || !HospitalityFamily(profile.Family) || profile.Family == QuestFamily.HospitalityAnimals)
+            {
+                continue;
+            }
+            foreach (var objective in offer.Objectives)
+            {
+                if (objective.Kind != RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.HostLodgers || !objective.Active)
+                {
+                    continue;
+                }
+                var count = objective.PawnIds.Count(id => !present.Contains(id));
+                if (count > 0)
+                {
+                    output.Add(new KnownArrival(count, profile.Family == QuestFamily.HospitalityPrisoners));
+                }
+            }
+        }
+        return output;
+    }
+
     public static bool HospitalityFamily(QuestFamily f) =>
         f is QuestFamily.HospitalityAnimals or QuestFamily.HospitalityJoiners or QuestFamily.HospitalityPrisoners or QuestFamily.HospitalityRefugee or QuestFamily.Laborers;
 
@@ -157,7 +198,27 @@ public static class QuestHospitality
         return new HospitalityWork();
     }
 
-    /// <summary>Requires vacant appropriate beds before adding guests.</summary>
+    /// <summary>
+    /// The vacant slots an arriving lodger may legally take: a roofed humanlike bed (no crib or medical bed) of the
+    /// arrival's kind (a prison bed for held lodgers, else a regular bed not set for slaves), each slot no owner or user
+    /// holds, in a bed a colonist reaches (the arrivals are not on the map, so a colonist's reach stands for theirs).
+    /// </summary>
+    internal static long VacantArrivalSlots(SleepingObservation sleeping, bool prisoners)
+    {
+        var colonists = sleeping.People.Select(p => p.Id).ToHashSet();
+        long spare = 0;
+        foreach (var bed in sleeping.Beds)
+        {
+            if (bed.Humanlike && !bed.Crib && !bed.Medical && !bed.Slaves && bed.Roofed && bed.Prisoners == prisoners
+                && bed.AccessibleTo.Any(colonists.Contains))
+            {
+                spare += Math.Max(0, bed.Slots - Math.Max(bed.Owners.Count, bed.Users.Count));
+            }
+        }
+        return spare;
+    }
+
+    /// <summary>Requires vacant compatible reachable slots for every lodger before adding guests: a gate, never a credit.</summary>
     public static QuestSkipReason HospitalityAdmission(QuestState offer, ReviewFacts f)
     {
         if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || !HospitalityFamily(profile.Family) || profile.Family == QuestFamily.HospitalityAnimals)
@@ -184,18 +245,7 @@ public static class QuestHospitality
             }
             return "guest_count_unknown";
         }
-        var sleeping = f.Sleeping;
-        long spare = 0;
-        foreach (var bed in sleeping.Beds)
-        {
-            if (bed.Owners.Count == 0 && bed.Users.Count == 0 && bed.Humanlike && bed.Roofed && !bed.Medical && !bed.Slaves
-                && ((profile.Family == QuestFamily.HospitalityPrisoners && bed.Prisoners)
-                    || (profile.Family != QuestFamily.HospitalityPrisoners && !bed.Prisoners)))
-            {
-                spare++;
-            }
-        }
-        if (spare < need)
+        if (VacantArrivalSlots(f.Sleeping, profile.Family == QuestFamily.HospitalityPrisoners) < need)
         {
             return "guest_bed_capacity";
         }
