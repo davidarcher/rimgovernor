@@ -968,6 +968,79 @@ added one observed field and its native read, one pure window observer with
 its memory, one premise, one purpose kind and 8 regressions / removed nothing
 beyond 5.3 / orphans left: none.
 
+Task 5.5 leaves ordinary care, hauling, refill, research and sowing to native
+work settings, and makes unmet care an observed exception. The support read
+now reports, per demand, whether a colonist's current job serves it
+(`SupportDemand.Served`: a `TendPatient` targeting the patient, or a `DoBill`
+of the bill or at the bench), filled natively in `NativeSupportActivities`.
+The review keeps one window per unserved tend demand
+(`ColonyReview.CareMemory`). `CareStalls.Observe` closes a window on any
+served reading, opens one on a first unserved reading or an earlier tick, and
+reports a `CareStall` only when the demand was unserved at every reading
+across `CareStalls.WindowTicks` (one game hour), so a single reading or a
+patient merely needing tend is never a stall; surgery, bench and delivery
+demands are native bills and are not tracked. The new premise `UnservedCare`
+holds for the pawn's support tend of that demand. It gives an
+`unserved_care` purpose naming the demand, which completes once the demand
+is no longer read; a support tend answers no other purpose, and an unread
+support read leaves it `premise_unassessed:care_service_unobserved`. The
+emergency medical orders keep their own premise: RG-LABOR-004 applies to
+them, and an observed emergency (downed, bleeding toward a finite death, or
+life-threatening; `TendRules.Emergency`) is that premise, with the patient's
+tended state as completion. A patient who only needs tend is no longer paired
+for an exact tend (`MedicalRules.TendDoctorFor`), and the critical Need waits
+with `ordinary_tend_native_doctor_work`; rescue is unchanged. Hauling and
+refill add no stall read: every capable colonist keeps Hauling enabled (3
+under a haul backlog), native bill workers gather ingredients, refuelable
+buildings refuel natively, and an ingredient delivery is re-admitted only
+under a production stall (task 5.3) or as food work. Practice is choice (b):
+it stays the one standing justified exact binding, because native range and
+sparring initiation is suppressed for controlled colonists and lifting that
+needs a native path no case proves; a selected practice reaches Hands only
+under `CapabilityOpportunity`. Research and sowing re-admit nothing (no food,
+stall or care served), and an old-shape research or sowing batch now hands
+back at its next task boundary (`CoordinatedActivityBinding`). Telemetry
+gains the `stalled_site` and `unserved_care` premise attrs; `stalled_site`
+was missing, so a justified construction stall would have failed its
+selection record. Verification:
+`InterventionHandsTests.AnUnservedCareDemandReachesHandsAsAJustifiedTendWithItsPurpose`
+(the tend reaches Hands with its purpose; the purpose's end conditions);
+`InterventionHandsTests.ACareDemandWithoutAnUnservedWindowReadmitsNothing`
+(a served demand, an open window, another demand's stall, an unobserved read);
+`CareStallsTests` ×7 (a whole-window stall, a served reading closing the
+window, a first reading, rewind or dropped demand, bill demands untracked, a
+missing read);
+`MedicalFamilyTests.AnOrdinaryInBedTendIsNativeDoctorWorkAndOnlyAnEmergencyIsPairedForAnExactTend`;
+`WorkOccupancyTests.OrdinaryCareAndHaulingAreReachableThroughNativeWorkSettings`;
+`NativeServiceContinuationTests.OldResearchOrSowingCommitmentReturnsToNativeAtBoundary`
+×4; and
+`NativeExecutionBindingTests.ResearchAndSowingAreNeverReadmittedUnderAnyPremise`
+×2. That is 17 regressions. Existing settings, safety and occupation
+regressions still pass: `MedicalFamilyTests.APatientWhoseCareIsWithheldOrUnmanagedIsNotPaired`,
+`MedicalFamilyTests.ACareOrderOnAPawnAnotherOrderHoldsIsAClaimConflict`,
+`ClimateStatesTests.ARefuelSwitchOutranksTheRoomMethodAndNamesTheCampfire`,
+`PowerMethodTests.OutOfFuelProducerWithCapacityHoldsForRefuel`,
+`WorkOccupancyTests.UsefulNativeWorkIsOccupiedAndKeepsItsRoleWithoutInventingDuration`,
+`NativeWorkShortfallTests.NativeOccupiedTimeCannotFinanceUnselectedWork`,
+`ActivityNeedBoundaryTests.ARunningTaskIsNeverInterruptedByAUrgentNeed`,
+`NativeServiceContinuationTests.OldSupportCommitmentReturnsToNativeAtBoundaryWithoutCompletingDependencies`
+×6, `InterventionJustificationTests.AssignedPracticeDispatchesOnlyWhileItsObservedCapabilityPremiseHolds`
+and `InterventionHandsTests.TheComparisonToHandsPathCarriesEachOrdersJustifiedPurpose`.
+Domain tests: 4341 passed, 0 failed. Rules 7–9: policy stays pure; the served
+fact is added to the wire rather than assumed; the window memory is in-memory
+derived state recorded in the persistence contract, and the purpose kind adds
+no schema shape. Known limits: the native `Served` read and the care window
+are unexecuted in game, and no acceptance case was registered or run for
+them; only a colonist's current job counts as service, so a tend queued behind
+another job reads unserved until it starts; a purpose never
+cancels on its own and relies on the order's deadline or failure; sowing has
+no deadline premise, so a late crop is native work; the support what-if
+bindings stay, since `ForecastSupport`, `ForecastCoupledEvaluation` and
+`ForecastHospital` read them. Complexity: added one observed field and its
+native read, one pure window observer with its memory, one premise, one
+purpose kind, one emergency predicate, one handback clause, two premise attrs
+and 17 regressions / removed nothing beyond 5.4 / orphans left: none.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
@@ -977,10 +1050,10 @@ The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `Fo
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Closed (task 5.3): ordinary clothing runs through native finite bills and cooking through bot-created native bills; no bill work is an exact order; only an ingredients-pending or delivery-bound stall re-admits the ingredient delivery feeding it |
 | `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Closed (task 5.4): ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; native hauling is migrated; only an observed construction stall re-admits its site's supply or supplied finish, under a `construction_stall` purpose; standing removal bindings and the native set driver await the task 5.6 cleanup |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Closed (task 5.4): selected rooms realize through reconciled native blueprints and designations; unplaced planned-site activities are never dispatched or re-admitted (`InterventionRules.Readmitted`, `PlannedRoomActivitiesTests`); a placed site's stall follows the construction row |
-| `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine delivery, tending and already-indicated surgery stay conditional and install no pawn orders; old commitments hand back at boundaries; meaningful interventions, native reachability/output evidence and final adapter audit remain |
-| `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
-| `SowingMethodCandidates.Generate`: conditional sowing work | Crop/zone choices and native growing priorities; fresh routine pawn binding removed | Work assignment, forecast; `NativeExecutionBindingTests` covers native-ready sowing selection without direct orders | Partial: fresh routine binding migrated; deadline intervention and incumbent reconciliation remain |
-| `PracticeMethodCandidates.Generate`: range and sparring | Native practice affordances/settings where available; bounded direct activity only for justified capability need | [Capability maintenance](../developers/contracts/capability-maintenance.md), [facilities](../developers/architecture/facilities.md); capability demand, actual native completion and interruption tests | Pending |
+| `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Closed (task 5.5): routine delivery, tending, hauling, refill and already-indicated surgery run through native work settings, care policies and bills and install no pawn orders; old commitments hand back at boundaries; only observed unserved care re-admits its own tend, under an `unserved_care` purpose; emergency tend/rescue stays the critical medical Need's, for an observed emergency only; the what-if bindings stay as forecast readers |
+| `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Closed (task 5.5): fresh routine binding migrated; an old-shape research batch hands back at its next task boundary; research re-admits nothing under any premise (`NativeExecutionBindingTests.ResearchAndSowingAreNeverReadmittedUnderAnyPremise`) |
+| `SowingMethodCandidates.Generate`: conditional sowing work | Crop/zone choices and native growing priorities; fresh routine pawn binding removed | Work assignment, forecast; `NativeExecutionBindingTests` covers native-ready sowing selection without direct orders | Closed (task 5.5): fresh routine binding migrated; an old-shape sowing batch hands back at its next task boundary; sowing re-admits nothing, and no deadline premise exists, so a late crop stays native work |
+| `PracticeMethodCandidates.Generate`: range and sparring | Native practice affordances/settings where available; bounded direct activity only for justified capability need | [Capability maintenance](../developers/contracts/capability-maintenance.md), [facilities](../developers/architecture/facilities.md); capability demand, actual native completion and interruption tests | Closed (task 5.5, choice b): practice stays the one standing justified exact binding, since native range and sparring initiation is suppressed for controlled colonists; a selected practice reaches Hands only under a `CapabilityOpportunity` premise with a `capability_practice` purpose (`InterventionJustificationTests.AssignedPracticeDispatchesOnlyWhileItsObservedCapabilityPremiseHolds`) |
 | Existing observed incumbent retention / `ForecastCoupledExecution` | Account for useful native work and actual intervention ownership; remove routine exclusive waiting/restarts | Pawn activities, forecast, continuation; native opportunity cost and lost-owner/dependency regressions | Pending |
 | `AdmitSelectedTrade` and world/mission alternatives | Keep existing trade/journey decisions; account for unavailable home labor without redesigning travel execution | [Trade](../developers/contracts/controllable-trade.md), forecast; no fabricated home capacity or duplicate inventory promises | Boundary audit pending |
 

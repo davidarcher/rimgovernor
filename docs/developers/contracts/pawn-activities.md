@@ -367,6 +367,7 @@ observations (never from elapsed ticks):
 | `production_stall` | product | the reconciled calibration holds no stall of the product | the stall's cause is one orders cannot answer (any but `ingredients_pending` or `delivery_bound`) |
 | `capability_practice` | requirement, subject pawn | the native baseline projects no missing XP | the requirement is withdrawn |
 | `construction_stall` | placed site | the site's observed progress changed after the stall closed (its progress window opened after the evidence tick), or the site is no longer read | never; a worked site without progress stays open until the order's own deadline or failure |
+| `unserved_care` | tend demand | the demand is no longer read (the patient needs no tend now) | never; a demand still read, served or not, stays open until the order's own deadline or failure |
 
 `InterventionPurposes.AtContinuation` reads need shortfalls from the worker's
 participant read (which also reads each purpose's subject pawn); the other kinds

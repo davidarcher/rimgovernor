@@ -152,6 +152,31 @@ public sealed class MedicalFamilyTests
         Assert.False(MedicalRules.TendDoctorFor(care, P1).Ok);
     }
 
+    [Fact]
+    public void AnOrdinaryInBedTendIsNativeDoctorWorkAndOnlyAnEmergencyIsPairedForAnExactTend()
+    {
+        // In bed, not bleeding out, nothing life-threatening: native Doctor work runs it, so no exact tend pairs it.
+        var ordinary = Patient(P1) with { Downed = false, InBed = true };
+        var care = new CriticalCare { Doctors = [Doctor("d1", 3)], TendPatients = [ordinary], Reach = Everyone("d1") };
+        Assert.False(TendRules.Emergency(ordinary));
+        Assert.False(MedicalRules.TendDoctorFor(care, P1).Ok);
+
+        // Bleeding toward a finite death, a life-threatening condition, or downed on the ground: an observed emergency.
+        foreach (var emergency in new[] { ordinary with { BleedOut = new BleedOut.Within(6) }, ordinary with { LifeThreatening = true }, Patient(P1) })
+        {
+            Assert.True(TendRules.Emergency(emergency));
+            Assert.Equal((new PawnId("d1"), true), MedicalRules.TendDoctorFor(care with { TendPatients = [emergency] }, P1));
+        }
+
+        // An ordinary patient never takes the one doctor ahead of an emergency, nor is paired after it.
+        var both = care with { TendPatients = [ordinary, Patient(P2)] };
+        Assert.True(MedicalRules.TendDoctorFor(both, P2).Ok);
+        Assert.False(MedicalRules.TendDoctorFor(both, P1).Ok);
+
+        // Safety stands over the emergency: a downed patient a live hostile stands beside is not paired, so the combat response answers first.
+        Assert.False(MedicalRules.TendDoctorFor(care with { TendPatients = [Patient(P1) with { Threatened = true }] }, P1).Ok);
+    }
+
     private sealed class Colony : IDisposable
     {
         public required Journal Journal { get; init; }

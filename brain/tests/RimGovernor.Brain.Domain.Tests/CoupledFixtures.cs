@@ -15,7 +15,7 @@ internal static class CoupledFixtures
     internal static SupportDemand Demand(string id, string kind, string target, Cell location, double poison, double bleed)
         => new(id, kind, target, location, poison, bleed)
         {
-            InfectionChanceFactor = 1, SurgerySuccessFactor = 1, SurgeryOutcomes = [], SurgeryEnvironment = false,
+            InfectionChanceFactor = 1, SurgerySuccessFactor = 1, Served = false, SurgeryOutcomes = [], SurgeryEnvironment = false,
             SurgeryQualityMin = 0, SurgeryQualityMax = float.MaxValue,
         };
 

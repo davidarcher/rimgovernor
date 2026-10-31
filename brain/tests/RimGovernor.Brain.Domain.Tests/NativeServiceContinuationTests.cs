@@ -138,6 +138,37 @@ public sealed class NativeServiceContinuationTests
         }
     }
 
+    /// <summary>Task 5.5: an old-shape research or sowing batch (exact orders issued before research and sowing were left to native
+    /// work settings) is released at its next task boundary like every other ordinary native work; nothing re-admits it
+    /// (NativeExecutionBindingTests.ResearchAndSowingAreNeverReadmittedUnderAnyPremise).</summary>
+    [Theory]
+    [InlineData("Research", false)]
+    [InlineData("Sow", false)]
+    [InlineData("Research", true)]
+    [InlineData("Sow", true)]
+    public void OldResearchOrSowingCommitmentReturnsToNativeAtBoundary(string job, bool dependent)
+    {
+        var (batch, read) = AtBoundary("food", true, target: false, dependent: dependent);
+        var task = batch.Tasks.Single(t => t.Id == "service");
+        task = task with { Step = task.Step with { Kind = PawnActivityKind.Work, Job = job, WorkGiver = job == "Sow" ? "GrowerSow" : "Research",
+            Count = job == "Sow" ? 1 : 0 } };
+        if (job == "Sow") task = task with { Step = task.Step.At(new(1, 1)) };
+        batch = batch with { Tasks = EquatableArray.From(batch.Tasks.Select(t => t.Id == task.Id ? task : t)) };
+        var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Unlisted, read));
+        Assert.True(next.Orders[0].Release);
+        Assert.Empty(read.SatisfiedTasks);
+        if (dependent)
+        {
+            Assert.All(next.Orders, order => Assert.True(order.Release));
+            Assert.Empty(next.Tasks);
+        }
+        else
+        {
+            Assert.True(PawnActivities.SameOrder(batch.Orders[1], next.Orders[1]));
+            Assert.Equal("independent", Assert.Single(next.Tasks).Id);
+        }
+    }
+
     private static (PawnActivities Batch, ActivityTaskRead Read) AtBoundary(string kind, bool preparing,
         bool target = true, bool dependent = false)
     {

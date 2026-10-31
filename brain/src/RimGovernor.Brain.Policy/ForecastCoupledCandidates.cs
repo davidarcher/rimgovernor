@@ -411,6 +411,7 @@ public sealed partial record ForecastCoupledCandidates
             ProductionOrders = facts.ProductionOrders,
             ProductionCalibration = facts.ProductionCalibration,
             ConstructionCalibration = facts.ConstructionCalibration,
+            CareCalibration = facts.CareCalibration,
             ProductionRecipes = facts.ProductionRecipes,
             LaboratoryBench = facts.LaboratoryBench,
             PlannedBeds = ForecastHousing.PlannedBedsOf(allPlannedSites, facts.SleepingBeds),

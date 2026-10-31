@@ -131,4 +131,26 @@ public sealed class WorkOccupancyTests
         Assert.Equal(0, Priority(rest, "doctor", WorkType.Cooking));
         Assert.Equal(0, Priority(rest, "doctor", WorkType.Construction));
     }
+
+    /// <summary>Task 5.5: ordinary care and hauling run through native work settings, not exact orders. The colony always owns
+    /// Doctor (the capable medic at priority 1, so native WorkGiver_Tend serves an ordinary tend), and every capable pawn keeps
+    /// Hauling enabled below skilled work at 4, rising to 3 under an observed haul backlog, so native storage hauling and bill
+    /// ingredient gathering are reachable without a stall read.</summary>
+    [Fact]
+    public void OrdinaryCareAndHaulingAreReachableThroughNativeWorkSettings()
+    {
+        var pawn = Pawn("medic");
+        pawn = pawn with
+        {
+            Work = PawnFixtures.WorkTable(true, [.. pawn.Work.Priorities(),
+                new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Doctor", Priority = 0, Disabled = false }, Skill = "Medicine", Order = 20 },
+                new() { Observed = new RimGovernor.Brain.GameFacts.Observations.WorkSetting { DefName = "Hauling", Priority = 0, Disabled = false }, Skill = "", Order = 30 }]),
+            Observed = pawn.Observed with { Biography = pawn.Observed.Biography with { Skills = [.. pawn.Skills,
+                new() { Passion = RimGovernor.Brain.GameFacts.Observations.Passion.None, DefName = "Medicine", Level = 10 }] } },
+        };
+        var ordinary = Plan(pawn);
+        Assert.Equal(1, Priority(ordinary, "medic", WorkType.Doctor));
+        Assert.Equal(4, Priority(ordinary, "medic", WorkType.Hauling));
+        Assert.Equal(3, Priority(WorkRules.PlanWork([pawn], [], new() { HaulBacklog = true }), "medic", WorkType.Hauling));
+    }
 }

@@ -253,12 +253,13 @@ public static partial class MedicalRules
     /// <summary>
     /// The doctor <paramref name="patient"/> is paired with among the tend pairs of every critical patient
     /// (<see cref="TendPairs"/>), leaving out the pawns an open tend or rescue holds; false when it gets none. The
-    /// pairing is the same for every patient's Need, so two patients' Needs never pick one doctor.
+    /// pairing is the same for every patient's Need, so two patients' Needs never pick one doctor. Only emergency patients
+    /// (<see cref="TendRules.Emergency"/>) are paired: an ordinary tend is native Doctor work, never an exact order.
     /// </summary>
     public static (PawnId Doctor, bool Ok) TendDoctorFor(CriticalCare care, PawnId patient)
     {
         var busy = care.Busy.ToHashSet();
-        foreach (var (doctor, paired) in TendPairs([.. care.Doctors.Where(d => !busy.Contains(d.Pawn))], [.. care.TendPatients.Where(p => !busy.Contains(p.Pawn))], care.Reach))
+        foreach (var (doctor, paired) in TendPairs([.. care.Doctors.Where(d => !busy.Contains(d.Pawn))], [.. care.TendPatients.Where(p => !busy.Contains(p.Pawn) && TendRules.Emergency(p))], care.Reach))
         {
             if (paired == patient)
             {

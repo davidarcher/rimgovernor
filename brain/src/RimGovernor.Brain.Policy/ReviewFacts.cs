@@ -149,6 +149,8 @@ public sealed partial record ReviewFacts
     public ProductionCalibration ProductionCalibration { get; init; } = new ProductionCalibration.Unobserved(ProductionCalibration.UnobservedReason);
     /// <summary>The review's observed construction stalls (ConstructionStalls.Observe over ColonyReview.ConstructionMemory); unobserved without a construction read.</summary>
     public ConstructionCalibration ConstructionCalibration { get; init; } = new ConstructionCalibration.Unobserved(ConstructionCalibration.UnobservedReason);
+    /// <summary>The review's observed unserved care (CareStalls.Observe over ColonyReview.CareMemory); unobserved without a coupled read.</summary>
+    public CareCalibration CareCalibration { get; init; } = new CareCalibration.Unobserved(CareCalibration.UnobservedReason);
     public IReadOnlyDictionary<string, RecipeFlow> ProductionRecipes { get; init; } = new Dictionary<string, RecipeFlow>();
 
     /// <summary>The bench a planned laboratory is furnished with (RoomFurniture.BenchFor of Laboratory, #3800); "" without a catalog.</summary>

@@ -32,6 +32,13 @@ public sealed record SupportDemand(string Id, string Kind, string Target, Cell L
     public required double InfectionChanceFactor { get; init; }
     public required double SurgerySuccessFactor { get; init; }
     /// <summary>
+    /// Whether a spawned colonist's current job serves this demand now (task 5.5 of <c>native-led-labor-execution</c>): a
+    /// TendPatient job whose target is the patient (a self-tend included), a DoBill job of the demand's bill (a surgery or an
+    /// ingredient delivery), or a DoBill job at the demand's bench (a bench demand). An observation of
+    /// the current job only, never a completed treatment; the review's care windows (CareStalls) read it.
+    /// </summary>
+    public required bool Served { get; init; }
+    /// <summary>
     /// A surgery bill's outcome model (#3804): the recipe's surgeryOutcomeEffect outcomes in the order GetOutcome tries them
     /// (empty without an effect: the surgery cannot fail), whether SurgeryOutcomeComp_BedAndRoomQuality applies (an effect comp of
     /// that class and not surgeryIgnoreEnvironment) and the SurgeryOutcomeComp_ClampToRange range the quality ends in (0 to

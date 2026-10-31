@@ -218,6 +218,12 @@ public static partial class TendRules
         return false;
     }
 
+    /// <summary>Whether the patient's tend is an observed emergency an exact order may answer (RG-LABOR-004, task 5.5 of
+    /// <c>native-led-labor-execution</c>): the patient is downed, bleeding toward a finite death or carrying a life-threatening
+    /// condition. A patient who only needs tend (in bed, not bleeding out, nothing life-threatening) is ordinary native Doctor
+    /// work, which work settings and the native medical-care setting run.</summary>
+    public static bool Emergency(TendPatientFacts p) => p.Downed || p.BleedOut is BleedOut.Within || p.LifeThreatening;
+
     /// <summary>Whether a doctor can tend the patient where they are: in a bed, or downed on the ground.</summary>
     private static bool Tendable(TendPatientFacts p) => p.Downed || p.InBed;
 }

@@ -108,6 +108,10 @@ public enum InterventionPurposeKind
     /// <summary>A placed construction site's observed stall: no native work targeted it over a whole progress window.</summary>
     [WireName("construction_stall")]
     ConstructionStall,
+
+    /// <summary>An observed tend demand no colonist's current job served over a whole care window.</summary>
+    [WireName("unserved_care")]
+    UnservedCare,
 }
 
 /// <summary>
@@ -118,7 +122,8 @@ public enum InterventionPurposeKind
 /// owner reviews no response needed and is cancelled when no consumer remains; a production stall completes when the
 /// reconciled calibration holds no stall of the <see cref="Subject"/> product and is cancelled when the standing stall's
 /// cause is one orders cannot answer; a construction stall completes when the <see cref="Subject"/> site's observed progress
-/// changes after the stall closed or the site is no longer read; a capability practice completes when the baseline projects no missing XP for the
+/// changes after the stall closed or the site is no longer read; an unserved care completes when the <see cref="Subject"/> tend
+/// demand is no longer read (the patient needs no tend now); a capability practice completes when the baseline projects no missing XP for the
 /// <see cref="Subject"/> requirement and is cancelled when the requirement is withdrawn. <see cref="EvidenceTick"/> is the
 /// tick of the observation that justified it: admission refuses a same-aim reissue whose evidence is not newer than the
 /// end of an earlier same-aim intervention.

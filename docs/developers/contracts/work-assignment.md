@@ -126,12 +126,24 @@ For each:
   not given a slot to keep a skill exercised.
 - **Everyone capable** takes 3 (level 8 or unskilled work) or 4 under manual
   priorities, enabled in checkbox mode. Firefighter, Patient, BedRest and
-  Childcare stay 1; Hauling, Cleaning and BasicWorker 3, Hauling and Cleaning
-  4 for the research owner. The mod's `RimGovernorTraining` work type
+  Childcare stay 1; BasicWorker 3; Hauling and Cleaning 4, rising to 3 under an
+  observed haul backlog (20 or more safe unforbidden loot stacks with storage
+  headroom) except for the research owner. The mod's `RimGovernorTraining` work type
   (range drill, [facilities](../architecture/facilities.md)) has no relevant
   skill, so every capable colonist takes 3: the matrix needs no training row,
   because the native work giver offers a lane only to a colonist under the
-  combat skill target with budget left.
+  combat skill target with budget left. On a controlled map that native
+  initiation is suppressed ([skill learning](skill-learning.md#old-writer-and-heuristic-audit-3167)),
+  so practice is the one standing justified exact binding (task 5.5 of
+  `native-led-labor-execution`): a selected range or sparring practice reaches
+  Hands only under a `CapabilityOpportunity` premise and its
+  `capability_practice` purpose.
+- **Ordinary labor runs through these settings** (task 5.5): Doctor is a core
+  role, so an ordinary tend is native `WorkGiver_Tend` work; every capable pawn
+  keeps Hauling enabled, so storage hauling and bill ingredient gathering are
+  native; research and sowing run under their work types and old exact batches
+  of either hand back at their next task boundary. Exact orders for them come
+  only from a justified intervention ([forecast](forecast-contracts.md)).
 
 `WorkDecision.Coverage` lists demand, owners and capable count per type
 (`ReviewFacts.WorkRoster`: `WorkRosterRead.Read` once the planner planned, `Unread` otherwise;

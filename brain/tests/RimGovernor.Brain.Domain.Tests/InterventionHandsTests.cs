@@ -553,4 +553,98 @@ public sealed class InterventionHandsTests
             unobserved.BaselineVector, unobserved.BaselineVector, context.Context, Lumber));
         Assert.Equal(InterventionJustification.PremiseUnassessedPrefix + ConstructionCalibration.UnobservedReason + ":pawn", unassessed.Reason);
     }
+
+    /// <summary>A patient at (1,1) whose tend demand <c>care:patient</c> the pawn can serve with a bare-handed tend. The generator's
+    /// tend is native execution; the context carries <paramref name="calibration"/> and the pawn is well fed (no food premise).</summary>
+    private static (ForecastCoupledSelection Selection, ForecastCoupledCandidates Candidates, ForecastActivity Tend) UntendedPatient(CareCalibration calibration)
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: .9, sourceCount: 0);
+        facts = facts with
+        {
+            ForecastObserved = facts.ForecastObserved with
+            {
+                Coupled = facts.ForecastObserved.Coupled! with { Support = CoupledFixtures.NoSupport with
+                {
+                    Demands = [CoupledFixtures.Demand("care:patient", CareStalls.TendKind, "patient", new(1, 1), default, .1)],
+                    Workers = [new("care:patient", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d) { Medicine = null, Treatment = CoupledFixtures.Tend() }],
+                } },
+            },
+        };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!.Priced();
+        var candidates = generated with { Context = generated.Context with { CareCalibration = calibration,
+            NativeFood = InterventionJustificationTests.Assess(NativeFoodAssessmentTests.Facts(10, 9)) } };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay, facts with { CoupledAlternatives = candidates },
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var tend = candidates.Context.Activities.Activities.Single(t => candidates.Context.Bindings.TryGetValue((t.Id, "pawn"), out var b) && b.Job == "TendPatient");
+        return (ForecastCoupledSelection.CompareActivityOutcomes(request, candidates), candidates, tend);
+    }
+
+    private static readonly ItemFacts NoItems = new();
+
+    private static CareCalibration.Observed Unserved(string demand, bool stalled) =>
+        new(["care:patient"], [new UnservedCareWindow(demand, 0)], stalled ? [new CareStall(demand, "patient", 3000)] : []);
+
+    /// <summary>(m) Task 5.5: a tend demand no colonist's current job served over a whole care window is observed unserved care. The
+    /// generator's tend of that demand, otherwise left to native Doctor work, is re-admitted and reaches Hands as a bounded tend
+    /// carrying the UnservedCare purpose of the demand, which completes once the demand is no longer read.</summary>
+    [Fact]
+    public async Task AnUnservedCareDemandReachesHandsAsAJustifiedTendWithItsPurpose()
+    {
+        var (compared, candidates, tend) = UntendedPatient(Unserved("care:patient", stalled: true));
+        var binding = candidates.Context.Bindings[(tend.Id, "pawn")];
+        Assert.Equal(("care:patient", "patient"), (binding.SupportDemand, binding.Target));
+        Assert.True(tend.NativeExecution);
+        var plan = new ForecastActivityPlan([new(tend.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+        Assert.Empty(CoordinatedActivityBinding.ForDispatch(plan, candidates.Context).Allocations);
+        Assert.Equal([tend.Id], InterventionRules.Readmitted(plan, compared.BaselineVector, compared.BaselineVector, candidates.Context, NoItems));
+
+        var justified = Assert.IsType<InterventionJustification.Justified>(InterventionRules.Gate([tend.Id], plan, compared.BaselineVector,
+            compared.BaselineVector, candidates.Context, NoItems));
+        Assert.Equal(new InterventionPremise.UnservedCare(new("care:patient", "patient", 3000)), justified.Premise);
+        Assert.Equal(new NativeResponse.Unassessed("care_native_response_unprojected"), justified.Response);
+        Assert.Equal([tend.Id], justified.Readmitted);
+        var selection = compared with { Selection = compared.Selection with { Selected = [tend.Id], Plan = plan }, Justification = justified };
+        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "coupled-care", 100));
+        var order = Assert.Single(batch.Orders, o => !o.Release);
+        Assert.Contains(order.Steps, s => s is { Kind: PawnActivityKind.Work, Job: "TendPatient", Target: "patient" });
+        Assert.Equal(new InterventionPurpose(InterventionPurposeKind.UnservedCare, "care:patient", "", 3000), order.Purpose);
+        Assert.Equal(order.Purpose, Assert.Single((await Deliver(batch, "coupled-care")).Orders, o => !o.Release).Purpose);
+
+        // The purpose stays open while the demand is read, served or not, and completes once it is no longer read; unobserved
+        // service leaves it open.
+        PurposeCondition At(CareCalibration calibration) =>
+            InterventionPurposes.AtReview(order.Purpose!, batch, candidates.Context with { CareCalibration = calibration }, null);
+        Assert.Equal(PurposeCondition.Open, At(Unserved("care:patient", stalled: true)));
+        Assert.Equal(PurposeCondition.Open, At(new CareCalibration.Observed(["care:patient"], [], [])));
+        Assert.Equal(PurposeCondition.Completed, At(new CareCalibration.Observed([], [], [])));
+        Assert.Equal(PurposeCondition.Open, At(new CareCalibration.Unobserved(CareCalibration.UnobservedReason)));
+    }
+
+    /// <summary>(n) Task 5.5: nothing else reaches Hands. A served demand (no window), an unserved demand whose window is still open,
+    /// or another demand's stall re-admits nothing and is refused without a premise; unobserved care service is an unassessed premise.</summary>
+    [Fact]
+    public void ACareDemandWithoutAnUnservedWindowReadmitsNothing()
+    {
+        foreach (var calibration in new CareCalibration[]
+        {
+            new CareCalibration.Observed(["care:patient"], [], []),
+            Unserved("care:patient", stalled: false),
+            Unserved("care:other", stalled: true),
+        })
+        {
+            var (compared, candidates, tend) = UntendedPatient(calibration);
+            var plan = new ForecastActivityPlan([new(tend.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+            Assert.Empty(InterventionRules.Readmitted(plan, compared.BaselineVector, compared.BaselineVector, candidates.Context, NoItems));
+            Assert.Null(InterventionRules.Gate([tend.Id], plan, compared.BaselineVector, compared.BaselineVector, candidates.Context, NoItems));
+            var refused = Assert.IsType<InterventionJustification.Refused>(InterventionRules.Justify(plan, plan.Allocations,
+                compared.BaselineVector, compared.BaselineVector, candidates.Context, NoItems));
+            Assert.IsType<InterventionPremise.None>(refused.Premise);
+        }
+        var (unobserved, context, work) = UntendedPatient(new CareCalibration.Unobserved(CareCalibration.UnobservedReason));
+        var single = new ForecastActivityPlan([new(work.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+        Assert.Empty(InterventionRules.Readmitted(single, unobserved.BaselineVector, unobserved.BaselineVector, context.Context, NoItems));
+        var unassessed = Assert.IsType<InterventionJustification.Refused>(InterventionRules.Justify(single, single.Allocations,
+            unobserved.BaselineVector, unobserved.BaselineVector, context.Context, NoItems));
+        Assert.Equal(InterventionJustification.PremiseUnassessedPrefix + CareCalibration.UnobservedReason + ":pawn", unassessed.Reason);
+    }
 }

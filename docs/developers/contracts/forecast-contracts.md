@@ -100,15 +100,30 @@ The justification names:
   `Unassessed(construction_native_response_unprojected)` and its evidence tick
   the stall's. Elapsed ticks alone, a single reading, an unplaced or forecast
   site are never a stall.
+  `UnservedCare` is an observed tend demand nobody served
+  (`CareStalls.Observe`, task 5.5): the review compares each `care` support
+  demand (a patient native wants tended now) with the window the previous
+  review kept (`ColonyReview.CareMemory`). A reading in which a colonist's
+  current job serves the demand (`SupportDemand.Served`: a `TendPatient` job
+  targeting the patient) closes its window; a first unserved reading or an
+  earlier tick opens one; a demand unserved at every reading across
+  `CareStalls.WindowTicks` (one game hour) is a stall. The premise holds for
+  the pawn's support tend of that demand; its response is
+  `Unassessed(care_native_response_unprojected)` and its evidence tick the
+  stall's. A patient merely needing tend, a served demand, a single reading, or
+  a surgery or bench demand (native bills) is never unserved care.
   `Unassessed(reason)` covers missing food or maintenance evidence, unobserved
   calibration (`stall_calibration_unobserved`), a stall whose cause the
-  dispatcher did not assess (`stall_cause_unassessed:<product>`) and construction
-  work without a progress read (`construction_progress_unobserved`). `None`
+  dispatcher did not assess (`stall_cause_unassessed:<product>`), construction
+  work without a progress read (`construction_progress_unobserved`) and a
+  support tend without a support read (`care_service_unobserved`). `None`
   means no premise applies.
 - the native response: `Supported`, `KnownTooLate` or `Unassessed(reason)`.
   Food recovery before runway is supported; recovery at or after runway is
   known too late. A rest or joy shortfall's response is
-  `Unassessed(<need>_native_response_unprojected)`. Unconfirmed or uncaptured recovery, and the training work
+  `Unassessed(<need>_native_response_unprojected)`; a construction stall's and an
+  unserved care's are `Unassessed(construction_native_response_unprojected)` and
+  `Unassessed(care_native_response_unprojected)`. Unconfirmed or uncaptured recovery, and the training work
   type's unprojected XP, stay unassessed and are named in its uncertainty.
 - the displaced work: dispatched pawns in native service, in native work, or
   unread.
@@ -147,7 +162,10 @@ delivery of nutrition) answers a `FoodRisk` or a food `NeedShortfall`; an
 ingredient delivery answers the `ProductionStall` of a product it feeds (its
 binding's `Feeds`); a construction supply or finish answers only the
 `ConstructionStall` of its own site whose cause it answers (task 5.4), and no
-other purpose; bill work itself (a `Recipe` binding) answers nothing and is
+other purpose; a support tend answers only the `UnservedCare` of its own demand
+while that demand still stands unserved (task 5.5), and no other purpose;
+research and sowing work answer nothing (they serve no food, stall or care);
+bill work itself (a `Recipe` binding) answers nothing and is
 never re-admitted, because bills run natively. The
 response check stands: a `Supported` settings response refuses, so it
 re-admits nothing. `InterventionRules.Gate` dispatches the re-admitted work

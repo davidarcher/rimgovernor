@@ -381,10 +381,19 @@ public sealed class MedicalReview
                 return CommitCare(work, new MethodId("rescue-" + patient.Value), id => DomainAction.NewRescueAction(new ActionId($"{id}-0"), rescue), call);
             }
         }
+        // A patient who only needs tend (in bed, neither bleeding out nor life-threatened) is ordinary native Doctor work:
+        // no exact order answers it, and the support review's unserved-care premise re-admits a tend only once nobody served it.
+        if (_tend is not null && care.TendPatients.FirstOrDefault(p => p.Pawn == patient) is { NeedsTend: true } ordinary && !TendRules.Emergency(ordinary))
+        {
+            return Verdict.WaitFor(Cause.MethodUsed, OrdinaryTendReason);
+        }
         // No pair to order: the patient is up and out of bed, or every doctor is ineligible, busy or walled off
         // from the patient. Only game time changes that.
         return Verdict.WaitFor(Cause.MethodUsed, _tend is not null ? "medical_pair" : "rescue_pairing");
     }
+
+    /// <summary>The wait of a critical patient whose tend is ordinary native Doctor work (<see cref="TendRules.Emergency"/>).</summary>
+    internal const string OrdinaryTendReason = "ordinary_tend_native_doctor_work";
 
     /// <summary>Whether a Method of a critical Need is its care order (a tend or a rescue), not an amputation.</summary>
     internal static bool IsCareMethod(MethodId method) => method.Value.StartsWith("tend-", StringComparison.Ordinal) || method.Value.StartsWith("rescue-", StringComparison.Ordinal);

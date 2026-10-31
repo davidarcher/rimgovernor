@@ -33,6 +33,11 @@ public abstract record InterventionPremise
     /// inferred from elapsed ticks or an unplaced or forecast site.</summary>
     public sealed record StalledSite(ConstructionStall Stall) : InterventionPremise;
 
+    /// <summary>The review's observed care calibration (<see cref="CareCalibration.Observed"/>) holds an unserved care window of the
+    /// tend demand the dispatched tend serves (<see cref="CareStalls"/>): no colonist's current job served it across the window. It is
+    /// never inferred from a patient merely needing tend, from elapsed ticks alone or from a forecast.</summary>
+    public sealed record UnservedCare(CareStall Stall) : InterventionPremise;
+
     /// <summary>The dispatched work serves something whose premise evidence is missing: neither a premise nor its absence is established.</summary>
     public sealed record Unassessed(string Reason) : InterventionPremise;
 
@@ -165,7 +170,9 @@ public static class InterventionRules
     /// recreation answers only its own <see cref="InterventionPurposeKind.NeedShortfall"/> of food, rest or joy; a
     /// <see cref="InterventionPurposeKind.ProductionStall"/> is answered only by an ingredient delivery feeding its product
     /// (<see cref="Methods.ActivityTaskCandidate.Feeds"/>); a <see cref="InterventionPurposeKind.ConstructionStall"/> only by the supply or
-    /// finish of its site whose cause the stall names; any other construction supply or finish answers nothing; other food work (<see cref="ServesFood"/>) answers a
+    /// finish of its site whose cause the stall names; any other construction supply or finish answers nothing; an
+    /// <see cref="InterventionPurposeKind.UnservedCare"/> only by the tend of its own demand while that demand still stands unserved, and a
+    /// support tend answers nothing else; other food work (<see cref="ServesFood"/>) answers a
     /// <see cref="InterventionPurposeKind.FoodRisk"/> or any food shortfall. Bill work itself (a <see cref="PawnActivityKind.Recipe"/>
     /// binding) is never re-admitted: native bills and work settings run it. Nothing else is re-admitted.</summary>
     private static bool Answers(InterventionPurpose purpose, ForecastActivityAllocation allocation, ForecastCoupledContext context, ItemFacts items)
@@ -180,7 +187,10 @@ public static class InterventionRules
             return SiteServed(binding) is { } served && served.Site == purpose.Subject
                 && context.ConstructionCalibration is ConstructionCalibration.Observed observed
                 && observed.Stalls.Any(s => s.Site == served.Site && s.Cause == served.Cause);
-        if (SiteServed(binding) is not null) return false;
+        if (purpose.Kind == InterventionPurposeKind.UnservedCare)
+            return CareServed(binding) == purpose.Subject
+                && context.CareCalibration is CareCalibration.Observed care && care.Stalls.Any(s => s.Demand == purpose.Subject);
+        if (SiteServed(binding) is not null || CareServed(binding) is not null) return false;
         return ServesFood([allocation], context, items, out _)
             && (purpose.Kind == InterventionPurposeKind.FoodRisk || purpose is { Kind: InterventionPurposeKind.NeedShortfall, Subject: "food" });
     }
@@ -251,12 +261,14 @@ public static class InterventionRules
         var response = premise is InterventionPremise.CapabilityOpportunity ? new NativeResponse.Unassessed("capability_native_response_unprojected")
             : premise is InterventionPremise.DemonstratedStall ? new NativeResponse.Unassessed("stall_native_response_unprojected")
             : premise is InterventionPremise.StalledSite ? new NativeResponse.Unassessed("construction_native_response_unprojected")
+            : premise is InterventionPremise.UnservedCare ? new NativeResponse.Unassessed("care_native_response_unprojected")
             : premise is InterventionPremise.ObservedShortfall { Need: not "food" } shortfall
                 ? new NativeResponse.Unassessed(shortfall.Need + "_native_response_unprojected")
             : FoodResponse(context.NativeFood);
         if (response is NativeResponse.Unassessed(var unprojected)) uncertainty.Add("native_response_unassessed:" + unprojected);
         var evidence = premise is InterventionPremise.DemonstratedStall(var demonstrated) ? demonstrated.ClosedTick
-            : premise is InterventionPremise.StalledSite(var site) ? site.ClosedTick : tick;
+            : premise is InterventionPremise.StalledSite(var site) ? site.ClosedTick
+            : premise is InterventionPremise.UnservedCare(var care) ? care.ClosedTick : tick;
         return new(pawn, activities, premise, response, evidence,
             response is NativeResponse.Supported && premise is not InterventionPremise.ObservedShortfall ? InterventionJustification.SettingsResponseSupported : "");
     }
@@ -330,6 +342,7 @@ public static class InterventionRules
                 return new InterventionPremise.ObservedShortfall(need, allocation.Pawn, InterventionJustification.UnansweredAtZero);
         if (StallOf(dispatch, context, ref missing, out unansweredStall) is { } stall) return new InterventionPremise.DemonstratedStall(stall);
         if (SiteStallOf(dispatch, context, ref missing) is { } site) return new InterventionPremise.StalledSite(site);
+        if (CareStallOf(dispatch, context, ref missing) is { } care) return new InterventionPremise.UnservedCare(care);
         return missing ?? (InterventionPremise)new InterventionPremise.None();
     }
 
@@ -358,6 +371,30 @@ public static class InterventionRules
             return null;
         }
         return observed.Stalls.FirstOrDefault(s => served.Contains((s.Site, s.Cause)));
+    }
+
+    /// <summary>The tend demand a care binding serves (SupportMethodCandidates' <c>TendPatient</c> work on a support demand), or null.</summary>
+    private static string? CareServed(Methods.ActivityTaskCandidate binding) =>
+        binding is { Kind: PawnActivityKind.Work, Job: CareTendJob } && binding.SupportDemand.Length != 0 ? binding.SupportDemand : null;
+
+    /// <summary>The native job of a support tend binding (SupportMethodCandidates).</summary>
+    private const string CareTendJob = "TendPatient";
+
+    /// <summary>The observed unserved care the dispatched tend answers: a standing stall of the tend demand it serves
+    /// (<see cref="CareServed"/>). A tend under unobserved care service is <see cref="CareCalibration.UnobservedReason"/>; a served
+    /// demand has no stall, so its tend has no premise.</summary>
+    private static CareStall? CareStallOf(IReadOnlyList<ForecastActivityAllocation> dispatch, ForecastCoupledContext context,
+        ref InterventionPremise.Unassessed? missing)
+    {
+        var served = dispatch.Select(a => context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding) ? CareServed(binding) : null)
+            .OfType<string>().ToHashSet(StringComparer.Ordinal);
+        if (served.Count == 0) return null;
+        if (context.CareCalibration is not CareCalibration.Observed observed)
+        {
+            missing ??= new(((CareCalibration.Unobserved)context.CareCalibration).Reason);
+            return null;
+        }
+        return observed.Stalls.FirstOrDefault(s => served.Contains(s.Demand));
     }
 
     /// <summary>The observed calibration stall the dispatched work answers: a standing closed short window of a product made

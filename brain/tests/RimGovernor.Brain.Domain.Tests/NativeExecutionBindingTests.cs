@@ -69,6 +69,41 @@ public sealed class NativeExecutionBindingTests
         Assert.Equal(WorkAssignmentsReview.Settled, Rules.WorkAssignmentsOwed(settingsSettled, selected));
     }
 
+    /// <summary>Task 5.5: research and sowing are ordinary native work run by work settings. Even for a pawn at zero food with no
+    /// observed service (an observed food shortfall), neither binding is re-admitted: it serves no food, no stall and no care, so its
+    /// own premise is None and the gate refuses it. An old-shape batch of either is released at its boundary
+    /// (NativeServiceContinuationTests.OldResearchOrSowingCommitmentReturnsToNativeAtBoundary).</summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ResearchAndSowingAreNeverReadmittedUnderAnyPremise(bool research)
+    {
+        const double horizon = 3000;
+        var facts = ForecastCoupledSelectionTests.Review(level: 0, fall: 0, sourceCount: 0, horizon: horizon);
+        var pawn = facts.ForecastObserved.Needs!.Pawns[0] with { Location = new(1, 1) };
+        var read = facts.ForecastObserved.Coupled! with
+        {
+            Research = research ? new() { Workers = [new("pawn", "bench", new(1, 1), "project", "Research", "Research", 1)
+                { ServicePosition = new ServicePositionRead.Located(new(1, 1)) }], Findings = [] } : ActivityContinuationFixtures.NoResearch,
+            Sowing = research ? CoupledFixtures.NoSowing : new() { Workers = [new("pawn", "zone", "GrowerSow", 0, 100, [new(1, 1)])
+                { SkillWork = ProductiveLearningTests.Work() with { WorkAmount = 1, WorkQuantum = 1 } }], Findings = [] },
+            Routes = [new("pawn", new(1, 1), new(1, 1), new RouteTicks.Reachable(0)) { FromStart = true }],
+        };
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read, Needs = NeedsFixtures.Read(100, pawn) } };
+        var made = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!.Priced();
+        var task = Assert.Single(made.Context.Activities.Activities, t => t.ProjectProgress is not null);
+        Assert.True(task.NativeExecution);
+        Assert.Equal(research ? "Research" : "Sow", made.Context.Bindings[(task.Id, "pawn")].Job);
+        var food = Assert.Single(made.Context.Needs.Pawns.Single(p => p.Pawn == "pawn").Needs, n => n.Kind == "food");
+        Assert.True(food.Level <= food.Threshold);
+        var plan = new ForecastActivityPlan([Allocation(task.Id, "pawn", 0, 100)], 100, 100);
+        var vector = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = made }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), made).BaselineVector;
+        Assert.Empty(InterventionRules.Readmitted(plan, vector, vector, made.Context, new()));
+        Assert.Null(InterventionRules.Gate([task.Id], plan, vector, vector, made.Context, new()));
+        Assert.Empty(CoordinatedActivityBinding.ForDispatch(plan, made.Context).Allocations);
+    }
+
     private static ForecastActivityAllocation Allocation(string task, string pawn, double start, double end) =>
         new(task, pawn, start, start, start, end, 0, end - start, end - start, 0);
 

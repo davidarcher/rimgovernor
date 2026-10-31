@@ -211,6 +211,7 @@ internal static class CoordinatedActivityBinding
                 || next.Step.Kind == PawnActivityKind.Work
                     && (next.Step.Job is "Uninstall" or "CutPlant" or "RemoveFloor" or "Mine"
                         || next.Step.Job == "Deconstruct")
+                || next.Step is { Kind: PawnActivityKind.Work, Practice: null, Job: "Research" or "Sow" }
                 || NativeNeedServices.Routine(next.Step.Kind))
                 return remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p)))
                     ? new(null, true)

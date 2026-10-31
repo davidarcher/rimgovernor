@@ -37,6 +37,14 @@ greedy pairing (`TendPairs`, `RescuePairs`) over the pawns no open tend or rescu
 holds, takes its own pair, and commits `tend-<patient>` or `rescue-<patient>` under
 the Need owner. A tend or rescue claims both pawns (`care/<pawn>`), so two patients'
 tends run side by side and an order that would take a held pawn is a claim conflict.
+The exact tend answers an observed emergency only (RG-LABOR-004, task 5.5 of
+`native-led-labor-execution`): the pairing takes a patient who is downed, bleeding
+toward a finite death or carrying a life-threatening condition
+(`TendRules.Emergency`). A patient who only needs tend (in bed, neither bleeding
+out nor life-threatened) is ordinary native Doctor work: no pair is ordered, and
+the Need waits with `ordinary_tend_native_doctor_work`. The emergency is the
+premise and the patient's tended state the completion, so the order is a bounded
+intervention without the coupled justification gate; rescue is unchanged.
 In the ordinary pass a patient's Need first queues a life-saving amputation
 (`amputate-<patient>-<part>-<window>`).
 
@@ -89,7 +97,11 @@ Ordinary tending and already-indicated surgery use native Doctor priorities,
 care policies and surgical bills. A selected hypothetical treatment is not an
 exact order or a completed tend. Native support assessment preserves current
 demand and leaves future timing/outcomes unprojected. The separate critical
-medical Need above continues to own its bounded interventions and receipts.
+medical Need above continues to own its bounded emergency interventions and
+receipts. An ordinary tend becomes an exact order only once its demand is observed
+unserved over a whole care window ([support work](support-work.md#shared-support-methods):
+the `UnservedCare` premise and its `unserved_care` purpose); a patient being
+served, or merely needing tend, re-admits nothing.
 It does not choose surgical indications or invent an infection prognosis. Vanilla
 cleans the room under the Cleaning priority; there is no coupled cleaning and no
 automatic cleaning finalizer.

@@ -23,7 +23,7 @@ internal static class NativeSupportActivities
             && b.BillStack.Bills.OfType<Bill_Production>().Any(bill => bill.ShouldDoNow())).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         foreach (var bench in benches)
         {
-            AddRoom(bench, bench.InteractionCell, "bench");
+            AddRoom(bench, bench.InteractionCell, "bench", served: Serving(map, job => job.def == JobDefOf.DoBill && job.targetA.Thing == bench));
             foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>().Where(b => b.ShouldDoNow()).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
             {
                 // Mixed ingredient substitution requires coupled recipe alternatives, not independent refill credit.
@@ -37,7 +37,8 @@ internal static class NativeSupportActivities
                     var deficit = needed - Staged(map, destination, source.def);
                     if (deficit <= 0 || source.Position == destination) continue;
                     var id = "bill:" + bill.GetUniqueLoadID() + ":" + source.def.defName;
-                    if (!demands.Any(d => d.Id == id)) demands.Add(Demand(id, "delivery", bench.GetUniqueLoadID(), destination, 0, 0));
+                    if (!demands.Any(d => d.Id == id)) demands.Add(Demand(id, "delivery", bench.GetUniqueLoadID(), destination, 0, 0,
+                        Serving(map, job => job.def == JobDefOf.DoBill && job.bill == bill)));
                     foreach (var pawn in roster)
                     {
                         if (!Available(pawn) || source.IsForbidden(pawn) || bench.IsForbidden(pawn)
@@ -58,7 +59,7 @@ internal static class NativeSupportActivities
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         foreach (var patient in patients)
         {
-            var id = AddRoom(patient, patient.Position, "care");
+            var id = AddRoom(patient, patient.Position, "care", served: Serving(map, job => job.def == JobDefOf.TendPatient && job.targetA.Thing == patient));
             if (patient.RaceProps.Humanlike && !patient.InBed()) findings.Add("care_patient_not_in_bed_external_doctor_unavailable:" + id);
             foreach (var pawn in roster)
             {
@@ -99,7 +100,7 @@ internal static class NativeSupportActivities
         {
             foreach (var bill in patient.BillStack.Bills.OfType<Bill_Medical>().Where(b => b.ShouldDoNow()).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
             {
-            var id = AddRoom(patient, patient.Position, "surgery", bill.GetUniqueLoadID());
+            var id = AddRoom(patient, patient.Position, "surgery", bill.GetUniqueLoadID(), Serving(map, job => job.def == JobDefOf.DoBill && job.bill == bill));
             demands[^1] = SurgeryOutcomesOf(demands[^1], patient, bill);
             foreach (var pawn in roster.Where(Available))
             {
@@ -134,20 +135,20 @@ internal static class NativeSupportActivities
             Workers = EquatableArray.From(workers), Deliveries = EquatableArray.From(deliveries), Findings = EquatableArray.From(findings.OrderBy(x => x, StringComparer.Ordinal)) };
 
         double? Route(Pawn pawn, IntVec3 from, IntVec3 to, PathEndMode mode) => legs.Cost(pawn, from, to, mode);
-        string AddRoom(Thing target, IntVec3 location, string kind, string suffix = "")
+        string AddRoom(Thing target, IntVec3 location, string kind, string suffix = "", bool served = false)
         {
             var id = kind + ":" + target.GetUniqueLoadID() + (suffix.Length == 0 ? "" : ":" + suffix);
             // A bench demand's target is a building, which does not bleed.
             demands.Add(Demand(id, kind, target.GetUniqueLoadID(), location, Stat(location.GetRoom(map), RoomStatDefOf.FoodPoisonChance),
-                target is Pawn patient ? patient.health.hediffSet.BleedRateTotal : 0));
+                target is Pawn patient ? patient.health.hediffSet.BleedRateTotal : 0, served));
             return id;
         }
-        RimGovernor.Brain.GameFacts.Observations.SupportDemand Demand(string id, string kind, string target, IntVec3 location, double poison, double bleed)
+        RimGovernor.Brain.GameFacts.Observations.SupportDemand Demand(string id, string kind, string target, IntVec3 location, double poison, double bleed, bool served)
         {
             var room = location.GetRoom(map);
             return new(id, kind, target, At(location), poison, bleed)
             {
-                InfectionChanceFactor = Stat(room, RoomStatDefOf.InfectionChanceFactor), SurgerySuccessFactor = Stat(room, SurgeryRoomStat()),
+                InfectionChanceFactor = Stat(room, RoomStatDefOf.InfectionChanceFactor), SurgerySuccessFactor = Stat(room, SurgeryRoomStat()), Served = served,
                 SurgeryOutcomes = [], SurgeryEnvironment = false, SurgeryQualityMin = 0, SurgeryQualityMax = float.MaxValue
             };
         }
@@ -213,6 +214,9 @@ internal static class NativeSupportActivities
         }
         return quality;
     }
+    /// <summary>Whether a spawned colonist's current job matches <paramref name="serves"/> (SupportDemand.Served): the current job
+    /// only, whoever ordered it; a queued job or a finished treatment does not serve the demand now.</summary>
+    private static bool Serving(Map map, Func<Job, bool> serves) => map.mapPawns.FreeColonistsSpawned.Any(p => p.CurJob is { } job && serves(job));
     private static double? Add(double? a, double? b) => a is { } x && b is { } y ? x + y : null;
     /// <summary>A room stat of <paramref name="room"/>, its roomlessScore without a room.</summary>
     private static double Stat(Room? room, RoomStatDef stat) => room == null ? stat.roomlessScore : room.GetStat(stat);

@@ -423,6 +423,8 @@ public sealed partial class ColonyReview
             InterventionPremise.CapabilityOpportunity c => new() { ["kind"] = "capability_opportunity", ["requirement"] = c.Requirement, ["pawn"] = c.Pawn, ["skill"] = c.Skill, ["gap"] = c.Gap.ToString() },
             InterventionPremise.DemonstratedStall d => new() { ["kind"] = "demonstrated_stall", ["order"] = d.Stall.Order, ["product"] = d.Stall.Product.Value,
                 ["bench_kind"] = d.Stall.BenchKind, ["short_per_day"] = d.Stall.ShortPerDay, ["cause"] = Wire.Name(d.Stall.Reason), ["closed_tick"] = d.Stall.ClosedTick },
+            InterventionPremise.StalledSite s => new() { ["kind"] = "stalled_site", ["site"] = s.Stall.Site, ["cause"] = Wire.Name(s.Stall.Cause), ["closed_tick"] = s.Stall.ClosedTick },
+            InterventionPremise.UnservedCare c => new() { ["kind"] = "unserved_care", ["demand"] = c.Stall.Demand, ["patient"] = c.Stall.Patient, ["closed_tick"] = c.Stall.ClosedTick },
             InterventionPremise.Unassessed u => new() { ["kind"] = "unassessed", ["reason"] = u.Reason },
             InterventionPremise.None => new() { ["kind"] = "none" },
             var other => throw new RequiredFactException("intervention premise:" + other),

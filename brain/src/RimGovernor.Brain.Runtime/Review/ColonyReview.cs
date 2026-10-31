@@ -84,6 +84,10 @@ public sealed partial class ColonyReview
     /// in-memory derived state, empty after a restart and for another world, so a stall needs a whole window of fresh readings.</summary>
     internal ReviewMemory<EquatableArray<ConstructionProgressWindow>> ConstructionMemory = new([]);
 
+    /// <summary>Each tend demand's open unserved window the latest review observed (CareStalls, task 5.5): in-memory derived state,
+    /// empty after a restart and for another world, so a stall needs a whole window of fresh readings.</summary>
+    internal ReviewMemory<EquatableArray<UnservedCareWindow>> CareMemory = new([]);
+
     /// <summary>Since when each room has had unfinished blueprints or frames; see noteStall.</summary>
     internal Dictionary<string, RoomStall> RoomStalls = [];
 
@@ -682,7 +686,9 @@ public sealed partial class ColonyReview
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills], ProductionOrders = WorkLedgerView(), ProductionCalibration = WorkLedgerCalibration() });
         var construction = ConstructionStalls.Observe(ConstructionMemory.Get(state.Snapshot), reading.Reading.Facts.ForecastObserved.Coupled?.Construction);
         if (construction is ConstructionCalibration.Observed observedConstruction) ConstructionMemory.Set(state.Snapshot, observedConstruction.Windows);
-        reading = reading.WithFacts(rf => rf with { ConstructionCalibration = construction });
+        var care = CareStalls.Observe(CareMemory.Get(state.Snapshot), reading.Reading.Facts.ForecastObserved.Coupled);
+        if (care is CareCalibration.Observed observedCare) CareMemory.Set(state.Snapshot, observedCare.Windows);
+        reading = reading.WithFacts(rf => rf with { ConstructionCalibration = construction, CareCalibration = care });
         fine.Lap("derive/bills");
         reading = reading.WithFacts(rf => rf with { UrgentSites = UrgentBuilds.Covered });
         // The harm term's creepjoiners and the pawn values their leaving prices (#3844), read before the coupled context's harm inputs.

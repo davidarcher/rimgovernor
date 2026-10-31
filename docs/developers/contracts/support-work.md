@@ -61,8 +61,27 @@ work can finish; at a task boundary an old support Method releases its remaining
 participant rather than installing another routine service. Unfinished cross-pawn
 dependencies end the coordinated attempt, without crediting their completion or
 cancelling unrelated work. Critical medical interventions retain their existing
-medical Need, journal, safeguards and Hands path; the general intervention policy
-remains under migration.
+medical Need, journal, safeguards and Hands path, for an observed emergency only
+(see [medical care](medical-care.md)).
+
+The one justified exception for ordinary care is observed unserved care (task 5.5
+of `native-led-labor-execution`). Each `care` demand of the support read carries
+`Served`: whether a colonist's current job is a `TendPatient` targeting the patient
+(`NativeSupportActivities`; a bench or delivery demand is served by a `DoBill` at
+the bench or of the bill, and a surgery demand by a `DoBill` of its bill, though
+only care is tracked). `CareStalls.Observe` keeps one window per unserved care
+demand in `ColonyReview.CareMemory`; a served reading closes it, and a demand
+unserved at every reading across one game hour is a `CareStall`. Only then is the
+`UnservedCare` premise met, and it re-admits only the support tend of that demand
+(`InterventionRules.Readmitted`), under an `unserved_care` purpose that completes
+once the demand is no longer read. A served demand, an open window and any other
+premise re-admit no tend; an unread support read leaves a tend
+`premise_unassessed:care_service_unobserved`. Hauling and refill have no stall
+read: they are reachable through native work settings (every capable colonist keeps
+Hauling enabled, at 3 under a haul backlog; native bill workers gather their own
+ingredients; refuelable buildings refuel natively, the brain switching auto-refuel
+only for a campfire's room temperature), and an ingredient delivery is re-admitted
+only under a production stall (task 5.3) or as food work under a food premise.
 There is no separate helper scheduler, demand ledger or progress store.
 
 Cleaning is not coupled support work (#3662): vanilla cleans the home area under
