@@ -63,8 +63,16 @@ routine service is omitted or appears in a selected hypothetical schedule. A
 modeled meal, sleep or recreation allocation cannot certify native recovery.
 The existing no-service need calculation supplies a common bound, computed once
 per comparison from the captured needs and horizon. It supplies neither a second
-native trajectory nor a new model run. For an eligible pawn, an empty target
-census also leaves future response unprojected. Missing food access is a current
+native trajectory nor a new model run. Future food, rest and joy response is
+unprojected for a pawn whose service is available, in progress or not observed,
+and for a pawn missing from the needs read (no bound exists for it, so every term
+is unassessed rather than decayed). An ineligible pawn (downed, a baby, sleep-blocked
+rest) keeps its conditional metric: its own owners govern it. For an eligible pawn,
+an empty target census also leaves future response unprojected.
+`NativeBaselineComparisonTests` pin that an empty modeled schedule is a
+no-modeled-service counterfactual: unassessed starvation never prunes, omitted
+native production claims no stall, and an unrelated supported decision is still
+selected. Missing food access is a current
 blocker; it establishes no future production rate or exact starvation trajectory.
 Native ground rest and spontaneous recreation need no captured service object.
 Current need levels and access observations remain intact. Supply/runway and
@@ -194,6 +202,12 @@ Active bills with stocked ingredients but no observed exact bill job name
 evidence. Targeting a bench for refuelling, repair, delivery or another bill is
 not progress on this order. Exact bill jobs include ingredient gathering and
 do not prove that cooking has started; only creation counters credit output.
+The window counts busy samples by their strongest job evidence (recipe work,
+pending ingredients, neither). When ingredients are stocked and pending
+ingredients account for at least `DeliveryBoundGatheringShare` (0.75) of the busy
+samples, a short window reports `delivery_bound` and withholds widening: this is
+evidence of where the cook's sampled time went, not a hauling inference from
+stock or an idle bench, and it names no hauler or storage layout.
 The opening sample belongs to the window, so its observed work or inactive bill
 cannot be erased from the subsequent verdict. This is still dispatcher calibration; the portfolio's general native
 baseline and intervention materiality are separate, incomplete work.

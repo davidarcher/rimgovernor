@@ -637,6 +637,49 @@ and demand are reused; Runtime only formats the existing signal; unknown native
 duration cannot finance labor. Complexity: added explicit shortfall uncertainty
 and consumer propagation / removed whole-horizon idle credit / orphans left: none.
 
+The next task 3.3 increment pins the native baseline boundary at the shared
+comparison and removes the last strongest-evidence shortcut from throughput
+calibration. `NativeExecutionOutcome` now leaves a pawn missing from the needs
+read unassessed rather than decayed: a missing observation is not positive
+absence and has no common bound, so its food/rest/joy terms and dependent mood
+stay unprojected. Ineligible pawns (downed, babies, sleep-blocked rest) keep the
+conditional metric because their own owners govern them. The new
+`NativeBaselineComparisonTests` drive `CompareActivityOutcomes` under the normal
+`NativeOperation` basis: accessible food with no selected meal leaves baseline
+starvation unassessed and prunes nothing; omitted native production with observed
+stock claims neither stall nor starvation and installs no bill or order; an
+unprojected need response does not block an unrelated supported decision (the
+capability-maintenance fixture is still selected while its urgent-zero floor stays
+unassessed); and changed food availability moves the `NativeFood` assessment from
+`NoDemonstratedShortfall` to `RecoveryGap` without manufacturing an eating
+trajectory. The omitted-production work-demand half remains covered by
+`NativeWorkShortfallTests`.
+
+Throughput windows now count busy samples by exact-bill evidence
+(`GatheringSamples`, `RecipeWorkSamples`) instead of retaining the strongest
+sample. With stocked ingredients and gathering in at least
+`DeliveryBoundGatheringShare` (0.75) of the busy samples, a short window reports
+`delivery_bound` and does not widen: a further bench would also gather. This is
+evidence of where the cook's sampled time went, not a hauling inference from
+stock or an idle bench; `work_unstarted` still owns the idle stocked bench.
+`ingredients_pending` now names only gathering below that share with no recipe
+work; `recipe_work_unassessed` and `benches_exhausted` are unchanged. The
+`UnmetReason` reader in `Workshop` still widens only on `NoBench`/`BenchesExhausted`;
+no priority or hauling change is driven from this verdict yet. Earlier paragraphs
+above describing `ingredients_pending` as the pending-ingredients verdict predate
+this increment. Both pieces are policy/boundary evidence; no new native gameplay
+claim is made. Task 3.3 remains incomplete: native-setting alternatives are not
+yet ranked in the comparison vector, `NativeFood` is carried but not compared,
+and `WorkShortfallRules` remains scheduler-derived; intervention materiality is
+task 4.1. Rules 7–9: pure policy owns the baseline overlay and calibration;
+Runtime supplies canonical facts; a missing observation names a state and
+cannot finance decay, idle labor or widening. Complexity: added two sample
+counters, one unmet reason and ten regressions / removed the strongest-evidence
+window field and missing-pawn decay / orphans left: none.
+Verification: required gate PASS (2m39s), 4,305 domain tests and 30 workflow
+tests, native production/fixture builds, contract probes and no contract orphans;
+strict OpenSpec validation 5/5. Overall progress remains 13/24.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |

@@ -212,7 +212,7 @@ public sealed class NativeThroughputTests
 
     [Theory]
     [InlineData(Obs.BillWorkEvidence.Unassessed, "bill", UnmetReason.RecipeWorkUnassessed, false)]
-    [InlineData(Obs.BillWorkEvidence.IngredientsPending, "bill", UnmetReason.IngredientsPending, false)]
+    [InlineData(Obs.BillWorkEvidence.IngredientsPending, "bill", UnmetReason.DeliveryBound, false)]
     [InlineData(Obs.BillWorkEvidence.RecipeWorkObserved, "bill", UnmetReason.None, true)]
     [InlineData(Obs.BillWorkEvidence.RecipeWorkObserved, "other-bill", UnmetReason.WorkUnstarted, false)]
     public void ExactBillEvidenceDistinguishesPendingIngredientsFromObservedRecipeWork(
@@ -261,10 +261,71 @@ public sealed class NativeThroughputTests
         Assert.True(result.Widen);
         var (reset, discarded) = WorkRules.CalibrateThroughput(window, next with { Basis = next.Basis! with { Order = new() { Target = 2 } } });
         Assert.False(discarded.Closed);
-        Assert.Equal(Obs.BillWorkEvidence.IngredientsPending, reset.BillWork);
+        Assert.Equal(1, reset.GatheringSamples);
+        Assert.Equal(0, reset.RecipeWorkSamples);
         var (_, fresh) = WorkRules.CalibrateThroughput(reset, next with { Tick = next.Tick + GameTime.TicksPerDay, Basis = reset.Basis });
-        Assert.Equal(UnmetReason.IngredientsPending, fresh.Reason);
+        Assert.Equal(UnmetReason.DeliveryBound, fresh.Reason);
         Assert.False(fresh.Widen);
+    }
+
+    // Samples one evidence per tick across a day, then closes the window with a final sample of the last evidence.
+    private static Calibration CloseWindow(Obs.BillWorkEvidence?[] samples, ThroughputIngredients ingredients = ThroughputIngredients.Stocked)
+    {
+        var start = Start() with { Ingredients = ingredients };
+        ThroughputObservation At(int i) => start with
+        {
+            Tick = start.Tick + (i == samples.Length - 1 ? GameTime.TicksPerDay : i), Busy = samples[i] is not null,
+            BillWork = samples[i] ?? Obs.BillWorkEvidence.Unassessed,
+        };
+        var window = new ThroughputWindow();
+        Calibration result = new();
+        for (var i = 0; i < samples.Length; i++) (window, result) = WorkRules.CalibrateThroughput(window, At(i));
+        Assert.True(result.Closed);
+        Assert.True(result.IsShort);
+        return result;
+    }
+
+    [Fact]
+    public void GatheringDominatedBusySamplesAreDeliveryBoundAndDoNotWiden()
+    {
+        const Obs.BillWorkEvidence G = Obs.BillWorkEvidence.IngredientsPending, R = Obs.BillWorkEvidence.RecipeWorkObserved;
+        var result = CloseWindow([G, G, R, G, G, G, G, G]);
+        Assert.Equal(UnmetReason.DeliveryBound, result.Reason);
+        Assert.False(result.Widen);
+    }
+
+    [Fact]
+    public void RecipeWorkInMostBusySamplesStillWidens()
+    {
+        const Obs.BillWorkEvidence G = Obs.BillWorkEvidence.IngredientsPending, R = Obs.BillWorkEvidence.RecipeWorkObserved;
+        var result = CloseWindow([G, R, R, G, R, R, R, R]);
+        Assert.Equal(UnmetReason.None, result.Reason);
+        Assert.True(result.Widen);
+    }
+
+    [Fact]
+    public void IdleStockedBenchIsWorkUnstartedNotDeliveryBound()
+    {
+        var result = CloseWindow([null, null, null]);
+        Assert.Equal(UnmetReason.WorkUnstarted, result.Reason);
+        Assert.False(result.Widen);
+    }
+
+    [Fact]
+    public void UnassessedOnlyEvidenceStaysUnassessed()
+    {
+        var result = CloseWindow([Obs.BillWorkEvidence.Unassessed, Obs.BillWorkEvidence.Unassessed, Obs.BillWorkEvidence.Unassessed]);
+        Assert.Equal(UnmetReason.RecipeWorkUnassessed, result.Reason);
+        Assert.False(result.Widen);
+    }
+
+    [Fact]
+    public void GatheringBelowTheShareWithoutRecipeWorkStaysIngredientsPending()
+    {
+        const Obs.BillWorkEvidence G = Obs.BillWorkEvidence.IngredientsPending, U = Obs.BillWorkEvidence.Unassessed;
+        var result = CloseWindow([G, U, U, G]);
+        Assert.Equal(UnmetReason.IngredientsPending, result.Reason);
+        Assert.False(result.Widen);
     }
 
     [Theory]

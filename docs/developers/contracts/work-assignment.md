@@ -472,10 +472,17 @@ of predicted output (and whose stock never reached the target) widens by one ben
 usable benches, unless the recipe's ingredient stock is at or below one unit
 (`ingredient_bound`) or every carrying bill is active, ingredients are present and
 no sampled current job carried one of the order's exact bill identities
-(`work_unstarted`). Widening also requires actual recipe-work evidence from
-those exact bill jobs. A window with pending ingredient targets but no observed
-recipe work reports `ingredients_pending`; otherwise missing recipe-work
-evidence reports `recipe_work_unassessed`. Neither reason adds a bench.
+(`work_unstarted`). The window counts, per sample, whether some exact bill job
+showed recipe work (`RecipeWorkSamples`), only pending ingredient targets
+(`GatheringSamples`) or neither; `Busy` is the total. With ingredients stocked and
+gathering in at least `DeliveryBoundGatheringShare` (0.75) of the busy samples,
+the window reports `delivery_bound`: it records where the cook's observed time
+went, so a further bench would also gather. It is not a hauling-stall inference
+from stock or an idle bench, and names neither a hauler nor a storage layout.
+Widening otherwise requires recipe work in some busy sample. Pending ingredient
+targets with no recipe work below that share report `ingredients_pending`;
+otherwise missing recipe-work evidence reports `recipe_work_unassessed`. None of
+these reasons adds a bench.
 The opening reading counts toward both bill activity and
 job evidence. Refuelling, repair, delivery to the same bench and work on another
 bill do not count as work on this order. `JobEvidence.BillId` is the native
@@ -484,8 +491,8 @@ current job's bill load identity; a job without a bill has no identity.
 `ticksSpentDoingRecipeWork` establishes work already performed in that job;
 otherwise `AnyIngredientsQueued` establishes pending ingredient targets. Other
 drivers or uncaptured stages are unassessed. This neither identifies the current
-toil nor counts completed output. The window retains the strongest sampled
-evidence, clearing it with the existing production basis. A recipe-work sample
+toil nor counts completed output. Each sample contributes its strongest
+evidence to the counts, which clear with the existing production basis. A recipe-work sample
 only permits the existing conditional capacity calibration; it does not prove a
 new bench is the sole remedy or guarantee continuous labor.
 An active bill job alone can still be gathering ingredients. This does not

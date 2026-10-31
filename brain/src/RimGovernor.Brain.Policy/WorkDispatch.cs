@@ -37,6 +37,14 @@ public enum UnmetReason
     [WireName("recipe_work_unassessed")]
     RecipeWorkUnassessed,
 
+    /// <summary>
+    /// Exact bill jobs were observed, ingredients are stocked, and ingredient gathering dominated the sampled bill work
+    /// (at least <see cref="WorkRules.DeliveryBoundGatheringShare"/> of the busy samples); a further bench would also gather.
+    /// It claims nothing about which pawn hauls or about storage layout, and is never inferred from stock or an idle bench.
+    /// </summary>
+    [WireName("delivery_bound")]
+    DeliveryBound,
+
     /// <summary>Production stays short with a bill on every usable bench; only a new bench can raise it.</summary>
     [WireName("benches_exhausted")]
     BenchesExhausted,
@@ -116,8 +124,11 @@ public sealed record ThroughputWindow
     /// <summary>Samples with a current job for one of the order's exact bills; this includes ingredient gathering, not just recipe work.</summary>
     public int Busy { get; init; }
 
-    /// <summary>Strongest observed work evidence from this window's exact bill jobs; no completed output is implied.</summary>
-    public BillWorkEvidence BillWork { get; init; }
+    /// <summary>Busy samples whose strongest exact-bill job evidence was pending ingredient targets and no recipe work.</summary>
+    public int GatheringSamples { get; init; }
+
+    /// <summary>Busy samples whose strongest exact-bill job evidence was recipe work already performed; no completed output is implied.</summary>
+    public int RecipeWorkSamples { get; init; }
 
     /// <summary>Set when a carrying bill was not known active.</summary>
     public bool Inactive { get; init; }
@@ -215,6 +226,9 @@ public static partial class WorkRules
 
     /// <summary>The ingredient stock at or below which a recipe is ingredient-bound.</summary>
     public const long IngredientBoundStock = 1;
+
+    /// <summary>The share of busy samples that must show ingredient gathering without recipe work for a short window to be delivery-bound.</summary>
+    public const double DeliveryBoundGatheringShare = 0.75;
 
     /// <summary>Whether the order is a stock target the rate model can size: the declarer named the product and the target is positive.</summary>
     public static bool Stocked(this OrderSpec s) => s.Product.Value.Length != 0 && WireClass(s.Mode) == BillMode.StockTarget && s.Target > 0;
@@ -380,8 +394,9 @@ public static partial class WorkRules
     /// Advances the order's window with this Round's reading. The window restarts whenever the carrying count
     /// changes, and only a full window gives a verdict. A short window widens by one bench unless the shortfall is
     /// ingredient-bound (a known ingredient stock at or below IngredientBoundStock) or unstarted (every carrying
-    /// bill active, ingredients present, yet no exact bill job observed all window); a short window with a bill
-    /// on every eligible bench is UnmetBenchesExhausted.
+    /// bill active, ingredients present, yet no exact bill job observed all window), delivery-bound (stocked
+    /// ingredients and gathering in at least DeliveryBoundGatheringShare of the busy samples), or lacking any
+    /// sampled recipe work; a short window with a bill on every eligible bench is UnmetBenchesExhausted.
     /// </summary>
     public static (ThroughputWindow Window, Calibration Calibration) CalibrateThroughput(ThroughputWindow w, ThroughputObservation o)
     {
@@ -405,7 +420,8 @@ public static partial class WorkRules
                 Met = stock >= o.Target,
                 Samples = 1,
                 Busy = o.Busy ? 1 : 0,
-                BillWork = o.Busy ? o.BillWork : BillWorkEvidence.Unassessed,
+                GatheringSamples = o.Busy && o.BillWork == BillWorkEvidence.IngredientsPending ? 1 : 0,
+                RecipeWorkSamples = o.Busy && o.BillWork == BillWorkEvidence.RecipeWorkObserved ? 1 : 0,
                 Inactive = !o.Active,
             };
         if (!w.Open || w.Carrying != o.Carrying || o.Tick < w.Start || w.LoadToken != loadToken
@@ -424,7 +440,8 @@ public static partial class WorkRules
         if (o.Busy)
         {
             w = w with { Busy = w.Busy + 1,
-                BillWork = o.BillWork == BillWorkEvidence.RecipeWorkObserved || w.BillWork == BillWorkEvidence.Unassessed ? o.BillWork : w.BillWork };
+                GatheringSamples = w.GatheringSamples + (o.BillWork == BillWorkEvidence.IngredientsPending ? 1 : 0),
+                RecipeWorkSamples = w.RecipeWorkSamples + (o.BillWork == BillWorkEvidence.RecipeWorkObserved ? 1 : 0) };
         }
         if (!o.Active)
         {
@@ -450,9 +467,14 @@ public static partial class WorkRules
             {
                 cal = cal with { Reason = UnmetReason.WorkUnstarted };
             }
-            else if (w.BillWork != BillWorkEvidence.RecipeWorkObserved)
+            else if (o.Ingredients == ThroughputIngredients.Stocked && w.Busy > 0
+                && w.GatheringSamples >= DeliveryBoundGatheringShare * w.Busy)
             {
-                cal = cal with { Reason = w.BillWork == BillWorkEvidence.IngredientsPending
+                cal = cal with { Reason = UnmetReason.DeliveryBound };
+            }
+            else if (w.RecipeWorkSamples == 0)
+            {
+                cal = cal with { Reason = w.GatheringSamples > 0
                     ? UnmetReason.IngredientsPending : UnmetReason.RecipeWorkUnassessed };
             }
             else if (o.Carrying < o.Eligible)

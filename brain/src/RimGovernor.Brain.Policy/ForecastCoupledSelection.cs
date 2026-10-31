@@ -1001,24 +1001,26 @@ public sealed partial record ForecastCoupledSelection
             var metrics = result.Needs.Select(metric =>
             {
                 var response = NativeNeedServices.Observe(context.Needs, pawn, metric.Kind);
-                if (metric.Kind is not ("food" or "rest" or "joy")
-                    || response is not (NativeNeedService.Available or NativeNeedService.InProgress or NativeNeedService.NoObservedService)) return metric;
-                var bound = unserved.TryGetValue((pawn, metric.Kind), out var found) ? found
+                // Ineligible pawns (downed, babies, sleep-blocked rest) keep the conditional metric: their own owners govern them.
+                if (metric.Kind is not ("food" or "rest" or "joy") || response == NativeNeedService.Ineligible) return metric;
+                // A pawn missing from the needs read has no common bound; its future response is unassessed, not decayed.
+                ForecastNeedMetric? bound = response == NativeNeedService.Unobserved ? null
+                    : unserved.TryGetValue((pawn, metric.Kind), out var found) ? found
                     : throw new RequiredFactException("native need bound:" + pawn + ":" + metric.Kind);
                 // The same no-service upper bound applies to every portfolio. A selected ordinary
                 // service remains hypothetical even when its conditional forecast recovers perfectly.
-                var bounded = bound.ThresholdExposureTicks is ForecastTerm.Assessed(0) && bound.ZeroTicks is ForecastTerm.Assessed(0);
+                var bounded = bound is { ThresholdExposureTicks: ForecastTerm.Assessed(0), ZeroTicks: ForecastTerm.Assessed(0) };
                 var reason = NativeResponseUnprojectedPrefix + pawn + ":" + metric.Kind;
                 findings.Add(reason);
                 var unread = new ForecastTerm.Unassessed(reason);
                 // A common bound that never needs service cannot defeat independent supported
                 // mood/outfit effects. Possible sleep before exhaustion still changes awake-only mood.
                 moodUnprojected |= !bounded || metric.Kind == "rest"
-                    && !(bound.FinalLevel is ForecastTerm.Assessed(var level)
+                    && !(bound!.FinalLevel is ForecastTerm.Assessed(var level)
                         && level > context.Needs.Pawns.Single(p => p.Pawn == pawn).SleepThreshold);
-                return metric with { FinalLevel = unread, ZeroTicks = bounded ? bound.ZeroTicks : unread,
-                    ThresholdExposureTicks = bounded ? bound.ThresholdExposureTicks : unread,
-                    ThresholdDepthTicks = bounded ? bound.ThresholdDepthTicks : unread, ZeroSpans = [], StageSpans = [] };
+                return metric with { FinalLevel = unread, ZeroTicks = bounded ? bound!.ZeroTicks : unread,
+                    ThresholdExposureTicks = bounded ? bound!.ThresholdExposureTicks : unread,
+                    ThresholdDepthTicks = bounded ? bound!.ThresholdDepthTicks : unread, ZeroSpans = [], StageSpans = [] };
             }).ToArray();
             rows.Add(pawn, findings.Count == 0 ? result : result with { Needs = EquatableArray.From(metrics),
                 Mood = moodUnprojected ? new ForecastMoodResult.Unprojected(EquatableArray.From(findings)) : result.Mood,
