@@ -62,9 +62,6 @@ public sealed partial class Player : IDisposable
 
     internal JournalStore Journal => _journal;
 
-    /// <summary>The finished tasks whose workers wait for the rounds review that decides who takes their next task (#3624): the
-    /// worker records them, the scheduler's next review clears them.</summary>
-    internal TaskReviews TaskReviews { get; } = new();
     internal ForecastEvidencePending ForecastEvidence { get; } = new();
 
     private Player(PlayerConfig config, JournalStore journal, IPlayerSession session, IWorldSource worlds, CancellationToken lifetime)

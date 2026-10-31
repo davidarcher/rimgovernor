@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods;
 using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.GameFacts.Observations;
@@ -67,16 +68,18 @@ public sealed class ClothingChoiceTests
     }
     // Material, travel, learning and yield assertions below inspect a conditional scenario.
     // The production entry leaves routine tailoring to native bills and installs no pawn activity.
-    private static PawnActivities? WhatIf(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
+    /// <summary>The bindings of the selected plan: the native bills (NativeProductionBinding) and deliveries the comparison chose.
+    /// Bill work never becomes an exact order (task 5.3), so the choice is read from the bindings, not a started batch.</summary>
+    private static ActivityTaskCandidate[]? WhatIf(GearObservation census, RecipeActivityRead read, WorkResourceView resources,
         out ForecastActivityOutcomeComparison? comparison)
     {
         var (generated, selected) = Compare(census, read, resources);
         comparison = selected.Selection;
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "clothing", 100));
         return selected.Selection.Plan is { Allocations.Length: > 0 } plan
-            ? RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Start(plan, generated.Context.Bindings, 1, "what-if", 100) : null;
+            ? plan.Allocations.Select(a => generated.Context.Bindings[(a.Activity, a.Pawn)]).ToArray() : null;
     }
-    private static PawnActivityRecipe Recipe(PawnActivities batch) => batch.Tasks.Single(t => t.Step.Recipe != null).Step.Recipe!;
+    private static PawnActivityRecipe Recipe(ActivityTaskCandidate[] bindings) => bindings.Single(b => b.Recipe != null).Recipe!;
 
     [Fact]
     public void RecipeTransitDelaysStationaryServiceEvenWithoutSkillLearning()
@@ -151,7 +154,7 @@ public sealed class ClothingChoiceTests
         var result = WhatIf(Census(), Read(unfinished), Resources(0, 0), out _)!;
         Assert.Equal("unfinished-shirt", Recipe(result).Unfinished);
         Assert.Empty(Recipe(result).Ingredients);
-        Assert.Equal("Cloth", result.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Deliver).ProductStuff);
+        Assert.Equal("Cloth", result.Single(b => b.Kind == PawnActivityKind.Deliver).ProductStuff);
     }
 
     [Fact]
@@ -175,7 +178,7 @@ public sealed class ClothingChoiceTests
         { Inputs = [Input("other-stack", "Cloth")], Destination = new(16, 15) };
         var bundle = WhatIf(Census(20, Garment("Shirt", "Cloth"), Garment("Pants", "Cloth", group: "Legs")),
             Read(Option("Cloth") with { Bill = "standing-bill" }, other), resources, out _)!;
-        Assert.Single(bundle.Tasks, t => t.Step.Recipe != null);
+        Assert.Single(bundle, b => b.Recipe != null);
     }
 
     [Fact]
@@ -186,11 +189,11 @@ public sealed class ClothingChoiceTests
         var pants = Option("Cloth", "Pants", pawn: "helper", bench: "other-bench") with
         { Inputs = [Input("shared", "Cloth", 20)], Destination = new(16, 15) };
         var together = WhatIf(census, Read(shirt, pants), Resources(), out _)!;
-        Assert.Equal(2, together.Tasks.Count(t => t.Step.Recipe != null));
-        Assert.Equal(20, together.Tasks.Where(t => t.Step.Recipe != null).Sum(t => t.Step.Recipe!.Ingredients.Sum(i => i.Count)));
+        Assert.Equal(2, together.Count(b => b.Recipe != null));
+        Assert.Equal(20, together.Where(b => b.Recipe != null).Sum(b => b.Recipe!.Ingredients.Sum(i => i.Count)));
         var tooSmall = Read(shirt with { Inputs = [Input("shared", "Cloth", 15)] }, pants with { Inputs = [Input("shared", "Cloth", 15)] });
-        Assert.Single(WhatIf(census, tooSmall, Resources(), out _)!.Tasks, t => t.Step.Recipe != null);
-        Assert.Single(WhatIf(census, Read(shirt, pants with { Destination = shirt.Destination }), Resources(), out _)!.Tasks, t => t.Step.Recipe != null);
+        Assert.Single(WhatIf(census, tooSmall, Resources(), out _)!, b => b.Recipe != null);
+        Assert.Single(WhatIf(census, Read(shirt, pants with { Destination = shirt.Destination }), Resources(), out _)!, b => b.Recipe != null);
     }
 
     [Fact]

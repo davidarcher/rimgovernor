@@ -18,7 +18,7 @@ internal static class ConstructionFixtures
     /// <summary>A construction read that answered nothing: no rows, sites, removals, routes or predictions.</summary>
     internal static ConstructionActivityRead NoConstruction(long tick = 0) => new()
     {
-        Context = Context(tick), Findings = [], Options = [], Planned = [], Removals = [], Routes = [], Thermal = null, RoomPredictions = [],
+        Context = Context(tick), Findings = [], Options = [], Planned = [], Removals = [], Routes = [], Thermal = null, RoomPredictions = [], Progress = [],
     };
 
     /// <summary>An activity-task read that bound nothing.</summary>

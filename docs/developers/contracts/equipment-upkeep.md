@@ -407,7 +407,10 @@ spent or unwanted bills. Candidate clothing products contribute to native work
 demand before a bill exists, so tailoring priorities can enable the first job.
 Vanilla owns gathering, timing, unfinished work, worker choice and output handling;
 forecast durations and outfit effects remain conditional estimates, not promises.
-There is no exact tailoring executor or private nonautonomous bill.
+There is no exact tailoring executor or private nonautonomous bill, and no bill
+work of any kind becomes an exact pawn order: a `Recipe` binding is refused as a
+step (task 5.3 of `native-led-labor-execution`), and a selected `GearBatch` is
+realized only through `NativeProductionBinding`'s native finite bill.
 A garment relieves no requirement (#3816): it is priced by the apparel thoughts
 and the armor it changes. Its outfit change (below) overlays the worn outfit from
 its delivery, or from a retained bill's completion; the apparel thoughts the

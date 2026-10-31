@@ -507,7 +507,7 @@ public static partial class ForecastCoupled
             var ordinary = Methods.Binding.CoordinatedActivityBinding.ForDispatch(plan with { Allocations = dispatched }, context);
             if (Methods.Binding.CoordinatedActivityBinding.Unbound(dispatchedIds, ordinary.Allocations, context.Bindings, pawns.Unplaced) is { } unbound)
                 Refuse("dispatch_allocation_unbound", unbound.Activity);
-            foreach (var incumbent in context.IncumbentHold.Unreleased(commitments.Keys, plan.Allocations, context.Bindings))
+            foreach (var incumbent in context.IncumbentHold.Unreleased(commitments.Keys))
                 Refuse("incumbent_release_unavailable", incumbent.Commitment);
             foreach (var l in context.InitialLots)
             {

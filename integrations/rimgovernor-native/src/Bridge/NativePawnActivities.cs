@@ -44,11 +44,11 @@ namespace RimGovernor.Native
         internal static JobDef? ServiceJob(PawnActivityKind kind) => kind switch
         {
             PawnActivityKind.Eat => JobDefOf.Ingest,
-            PawnActivityKind.Sleep => JobDefOf.LayDown, PawnActivityKind.Recipe => recipeDef,
+            // Bill work is never an exact order (task 5.3): its kind reads native DoBill, the job vanilla's bill giver starts.
+            PawnActivityKind.Sleep => JobDefOf.LayDown, PawnActivityKind.Recipe => JobDefOf.DoBill,
             _ => null,
         };
         private static JobDef? deliveryDef;
-        private static JobDef? recipeDef;
         private static JobDef? tendDef;
         private static bool replacing;
         /// <summary>
@@ -95,8 +95,6 @@ namespace RimGovernor.Native
             if (System.Threading.Interlocked.CompareExchange(ref installing, 1, 0) != 0) return;
             deliveryDef = new JobDef { defName = "RimGovernorDeliver", driverClass = typeof(JobDriver_GovernorDeliver), reportString = "Delivering to the colony plan's destination.", casualInterruptible = false };
             DefDatabase<JobDef>.Add(deliveryDef);
-            recipeDef = new JobDef { defName = "RimGovernorRecipe", driverClass = typeof(JobDriver_GovernorRecipe), reportString = "Making the colony plan's selected recipe.", casualInterruptible = false };
-            DefDatabase<JobDef>.Add(recipeDef);
             tendDef = new JobDef { defName = "RimGovernorTend", driverClass = typeof(JobDriver_GovernorTend), reportString = "Performing the selected treatment.", casualInterruptible = false };
             DefDatabase<JobDef>.Add(tendDef);
             var h = new Harmony(HarmonyOwner);
@@ -191,7 +189,6 @@ namespace RimGovernor.Native
                     if (step.Kind == PawnActivityKind.Sleep && !RestUtility.CanUseBedNow(target, pawn, true)) return Refuse("Selected bed unavailable.");
                     if (step.Kind == PawnActivityKind.Deliver && DeliveryRefusal(pawn, target, step) is { } deliveryWhy) return Refuse("Selected delivery unavailable: " + deliveryWhy + ".");
                     if (step.Kind == PawnActivityKind.Supply && !SupplyAllowed(pawn, target, step)) return Refuse("Selected material delivery unavailable.");
-                    if (step.Kind == PawnActivityKind.Recipe && !NativeActivityRecipe.Resolve(pawn, target, step, out _, out _, out var cookingReason)) return Refuse(cookingReason);
                 }
             }
             foreach (var task in batch.Tasks.Where(t => t.Step.Practice != null))
@@ -535,16 +532,6 @@ namespace RimGovernor.Native
                 job = JobMaker.MakeJob(deliveryDef, target, cell);
                 job.count = step.Count;
                 job.haulOpportunisticDuplicates = false;
-            }
-            else if (step.Kind == PawnActivityKind.Recipe)
-            {
-                if (!NativeActivityRecipe.Resolve(p, target, step, out var bill, out var ingredients, out var cookingReason)) throw new InvalidOperationException(cookingReason);
-                job = JobMaker.MakeJob(ServiceJob(step.Kind), target);
-                job.bill = bill;
-                job.targetQueueB = ingredients.Select(i => new LocalTargetInfo(i.Thing)).ToList();
-                job.countQueue = ingredients.Select(i => i.Count).ToList();
-                job.haulMode = HaulMode.ToCellNonStorage;
-                job.workGiverDef = DefDatabase<WorkGiverDef>.GetNamed(step.WorkGiver);
             }
             else if (step.Kind == PawnActivityKind.Supply)
             {

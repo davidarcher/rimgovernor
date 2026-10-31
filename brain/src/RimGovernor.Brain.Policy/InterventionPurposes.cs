@@ -80,6 +80,8 @@ public static class InterventionPurposes
         if (premise is InterventionPremise.CredibleRisk) return new(InterventionPurposeKind.FoodRisk, "food", "", evidenceTick);
         if (premise is InterventionPremise.DemonstratedStall stall)
             return new(InterventionPurposeKind.ProductionStall, stall.Stall.Product.Value, "", evidenceTick);
+        if (premise is InterventionPremise.StalledSite site)
+            return new(InterventionPurposeKind.ConstructionStall, site.Stall.Site, "", evidenceTick);
         if (premise is InterventionPremise.CapabilityOpportunity capability)
             return new(InterventionPurposeKind.CapabilityPractice, capability.Requirement, capability.Pawn, evidenceTick);
         // Unassessed and None premises justify nothing.
@@ -147,7 +149,8 @@ public static class InterventionPurposes
     /// The condition the review's context observes for every kind: a need shortfall as at continuation; a food risk completes
     /// once the food owner reviews no response needed and is cancelled once no consumer remains; a production stall completes
     /// once the reconciled calibration holds no stall of its product and is cancelled once that stall's cause is one orders
-    /// cannot answer; capability practice completes once the native baseline projects no missing XP and is cancelled once
+    /// cannot answer; a construction stall completes once its site's observed progress changed after the stall closed (a progress
+    /// window opened after the evidence) or the site is no longer read, a worked site without progress staying open; capability practice completes once the native baseline projects no missing XP and is cancelled once
     /// the requirement is withdrawn. Unread or unobserved evidence leaves it open.
     /// </summary>
     public static PurposeCondition AtReview(InterventionPurpose purpose, PawnActivities batch, ForecastCoupledContext context,
@@ -161,6 +164,10 @@ public static class InterventionPurposes
             return context.ProductionCalibration is not ProductionCalibration.Observed(var stalls) ? PurposeCondition.Open
                 : stalls.FirstOrDefault(s => s.Product.Value == purpose.Subject) is not { } stall ? PurposeCondition.Completed
                 : stall.AnsweredByOrders ? PurposeCondition.Open : PurposeCondition.Cancelled;
+        if (purpose.Kind == InterventionPurposeKind.ConstructionStall)
+            return context.ConstructionCalibration is not ConstructionCalibration.Observed observed ? PurposeCondition.Open
+                : observed.Windows.FirstOrDefault(w => w.Site == purpose.Subject) is not { } window || window.Opened > purpose.EvidenceTick
+                    ? PurposeCondition.Completed : PurposeCondition.Open;
         if (purpose.Kind != InterventionPurposeKind.CapabilityPractice) throw new DomainException("intervention purpose kind: " + purpose.Kind);
         return context.MaintenanceRequirements.All(r => r.Requirement.Id != purpose.Subject) ? PurposeCondition.Cancelled
             : baseline?.Maintenance.FirstOrDefault(m => m.Requirement == purpose.Subject)?.MissingXp is ForecastMaintenanceGap.Projected(<= 0)

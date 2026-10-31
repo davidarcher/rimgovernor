@@ -71,7 +71,6 @@ public record SelectedActivityTask(string Id, string Pawn, EquatableArray<string
     public Cell Source { get; init; } = Location;
     public string SiteDefinition { get; init; } = "";
     public string SupportDemand { get; init; } = "";
-    public string ProductStuff { get; init; } = "";
     public bool CompletionMustBeObserved { get; init; }
     public EquatableArray<SelectedActivityInput> Inputs { get; init; }
     public int AttemptsLeft { get; init; } = 3;
@@ -105,6 +104,10 @@ public enum InterventionPurposeKind
     /// <summary>An assigned capability requirement unmet now or lapsing within the horizon.</summary>
     [WireName("capability_practice")]
     CapabilityPractice,
+
+    /// <summary>A placed construction site's observed stall: no native work targeted it over a whole progress window.</summary>
+    [WireName("construction_stall")]
+    ConstructionStall,
 }
 
 /// <summary>
@@ -114,7 +117,8 @@ public enum InterventionPurposeKind
 /// reads above its threshold and is cancelled when native service of it is observed; a food risk completes when the food
 /// owner reviews no response needed and is cancelled when no consumer remains; a production stall completes when the
 /// reconciled calibration holds no stall of the <see cref="Subject"/> product and is cancelled when the standing stall's
-/// cause is one orders cannot answer; a capability practice completes when the baseline projects no missing XP for the
+/// cause is one orders cannot answer; a construction stall completes when the <see cref="Subject"/> site's observed progress
+/// changes after the stall closed or the site is no longer read; a capability practice completes when the baseline projects no missing XP for the
 /// <see cref="Subject"/> requirement and is cancelled when the requirement is withdrawn. <see cref="EvidenceTick"/> is the
 /// tick of the observation that justified it: admission refuses a same-aim reissue whose evidence is not newer than the
 /// end of an earlier same-aim intervention.
@@ -126,7 +130,7 @@ public sealed record InterventionPurpose(InterventionPurposeKind Kind, string Su
 
     public bool SameAim(InterventionPurpose other) => Kind == other.Kind && Subject == other.Subject && SubjectPawn == other.SubjectPawn;
 
-    /// <summary>Need shortfalls and capability practice name the pawn they serve; food risk and production stalls are colony-wide.</summary>
+    /// <summary>Need shortfalls and capability practice name the pawn they serve; food risk, production and construction stalls are colony-wide.</summary>
     internal bool Valid() => Wire.IsDefined(Kind) && IdText.IsValidText(Subject) && EvidenceTick >= 0
         && (Kind is InterventionPurposeKind.NeedShortfall or InterventionPurposeKind.CapabilityPractice
             ? IdText.IsValidText(SubjectPawn) : SubjectPawn.Length == 0);
@@ -207,11 +211,13 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 DomainException.Require((!step.FullLoad || step.Kind == PawnActivityKind.Supply)
                     && (step.Collect.Count == 0 || step.FullLoad && step.Collect.Count <= 16 && step.Collect.All(IdText.IsValidText)
                         && step.Collect.Distinct(StringComparer.Ordinal).Count() == step.Collect.Count && !step.Collect.Contains(step.Target)), "invalid full-load supply step");
-                if (step.Kind == PawnActivityKind.Recipe || step.Kind == PawnActivityKind.Work && step.Job == "DoBill")
+                // Bill work runs through native bills and work settings (task 5.3): a Recipe kind names a comparison binding, never a step.
+                DomainException.Require(step.Kind != PawnActivityKind.Recipe, "a bill step runs through native bills and work settings");
+                if (step.Kind == PawnActivityKind.Work && step.Job == "DoBill")
                 {
                     var cooking = step.Recipe;
                     DomainException.Require(cooking != null && (IdText.IsValidText(cooking.Bill) || IdText.IsValidText(cooking.Stuff)) && IdText.IsValidText(cooking.Recipe)
-                        && IdText.IsValidText(step.WorkGiver) && (step.Job.Length == 0 || step.Kind == PawnActivityKind.Work && step.Job == "DoBill") && step.Count == 0
+                        && IdText.IsValidText(step.WorkGiver) && step.Count == 0
                         && (cooking.Unfinished.Length != 0 ? cooking.Ingredients.Count == 0 : cooking.Ingredients.Count is > 0 and <= 16)
                         && cooking.Ingredients.All(i => i != null && IdText.IsValidText(i.Thing) && i.Count > 0)
                         && cooking.Ingredients.Select(i => i.Thing).Distinct(StringComparer.Ordinal).Count() == cooking.Ingredients.Count,

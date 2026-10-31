@@ -310,8 +310,8 @@ public sealed class InterventionJustificationTests
     [Fact]
     public void ADemonstratedStallJustifiesBillWorkOnlyForACauseOrdersAnswer()
     {
-        // The dispatcher observed a closed short window whose work never started: exact bill work answers it.
-        foreach (var cause in new[] { UnmetReason.WorkUnstarted, UnmetReason.IngredientsPending, UnmetReason.DeliveryBound })
+        // The dispatcher observed a closed short window whose ingredient gathering pended or dominated: work feeding it answers it.
+        foreach (var cause in new[] { UnmetReason.IngredientsPending, UnmetReason.DeliveryBound })
         {
             var justified = Assert.IsType<InterventionJustification.Justified>(JustifyBill(Stalled(cause), (Pawn, Component.Value)));
             var stall = Assert.IsType<InterventionPremise.DemonstratedStall>(justified.Premise).Stall;
@@ -324,6 +324,9 @@ public sealed class InterventionJustificationTests
         var noBench = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.NoBench), (Pawn, Component.Value)));
         Assert.Equal(InterventionJustification.StallNotAnsweredByOrders + ":ComponentIndustrial:no_bench:" + Pawn, noBench.Reason);
         Assert.IsType<InterventionPremise.None>(noBench.Premise);
+        // Unstarted bill work is answered by native bills and work settings (task 5.3), not by an exact order.
+        var unstarted = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.WorkUnstarted), (Pawn, Component.Value)));
+        Assert.Equal(InterventionJustification.StallNotAnsweredByOrders + ":ComponentIndustrial:work_unstarted:" + Pawn, unstarted.Reason);
         // A cause the dispatcher did not assess, and an unobserved calibration, leave the premise unassessed.
         var unassessedCause = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.RecipeWorkUnassessed), (Pawn, Component.Value)));
         Assert.Equal(InterventionJustification.PremiseUnassessedPrefix + "stall_cause_unassessed:ComponentIndustrial:" + Pawn, unassessedCause.Reason);
@@ -339,7 +342,7 @@ public sealed class InterventionJustificationTests
     public void EachDispatchedPawnsExactOrdersNeedTheirOwnPremise()
     {
         // One pawn answers the component stall; the other makes steel no stall names, so the portfolio is refused for it alone.
-        var refused = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.WorkUnstarted),
+        var refused = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.IngredientsPending),
             (Pawn, Component.Value), ("helper", "Steel")));
         Assert.EndsWith(":helper", refused.Reason, StringComparison.Ordinal);
         Assert.Equal(["helper", Pawn], refused.Interventions.Select(i => i.Pawn));
@@ -359,7 +362,8 @@ public sealed class InterventionJustificationTests
         var batch = new PawnActivities(1, [order]);
         PurposeCondition Review(ProductionCalibration calibration) =>
             InterventionPurposes.AtReview(stall, batch, candidates.Context with { ProductionCalibration = calibration }, null);
-        Assert.Equal(PurposeCondition.Open, Review(Stalled(UnmetReason.WorkUnstarted)));
+        Assert.Equal(PurposeCondition.Open, Review(Stalled(UnmetReason.IngredientsPending)));
+        Assert.Equal(PurposeCondition.Cancelled, Review(Stalled(UnmetReason.WorkUnstarted)));
         Assert.Equal(PurposeCondition.Completed, Review(new ProductionCalibration.Observed([])));
         Assert.Equal(PurposeCondition.Cancelled, Review(Stalled(UnmetReason.NoBench)));
         Assert.Equal(PurposeCondition.Open, Review(new ProductionCalibration.Unobserved(ProductionCalibration.UnobservedReason)));

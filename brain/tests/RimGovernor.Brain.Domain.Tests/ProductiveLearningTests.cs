@@ -172,8 +172,8 @@ public sealed class ProductiveLearningTests
     internal static ReviewFacts NormalFoodFacts(double learning = .1, double speed = 1)
     {
         var novice = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "SimpleMeal", 100 / speed) with
-            { AvailableInput = 8, Cooking = new FoodCooking.Cook(100 / speed, 0, Work(speed, learning)), CanSupply = false, Delivery = new FoodDelivery.CannotCarry() };
-        var facts = ForecastPortfolioChoiceTests.Observed([novice, novice with { Pawn = "helper", Cooking = new FoodCooking.Cook(91d, 0, null), CanSupply = true, Delivery = new FoodDelivery.Carried(1d) }],
+            { AvailableInput = 8, Cooking = new FoodCooking.Cook(100 / speed, Work(speed, learning)), CanSupply = false, Delivery = new FoodDelivery.CannotCarry() };
+        var facts = ForecastPortfolioChoiceTests.Observed([novice, novice with { Pawn = "helper", Cooking = new FoodCooking.Cook(91d, null), CanSupply = true, Delivery = new FoodDelivery.Carried(1d) }],
             [new("rice", "Rice", new(1, 1), 8, new FoodFreshness.Rots(2000d))], helper: true);
         var read = facts.ForecastObserved.Coupled!;
         var needs = facts.ForecastObserved.Needs!;

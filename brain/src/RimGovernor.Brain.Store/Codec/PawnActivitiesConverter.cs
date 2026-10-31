@@ -16,7 +16,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             EquatableArray.From(t.GetProperty("Prerequisites").EnumerateArray().Select(p => p.GetString()!)),
             ReadStep(t.GetProperty("Step")),
             new(t.GetProperty("X").GetInt32(), t.GetProperty("Z").GetInt32()), t.GetProperty("DepartTick").GetInt64())
-            { Resource = t.Str("Resource"), SupportDemand = t.Str("SupportDemand"), ProductStuff = t.Str("ProductStuff"), SiteDefinition = t.Str("SiteDefinition"), CompletionMustBeObserved = t.GetProperty("CompletionMustBeObserved").GetBoolean(), AttemptsLeft = t.GetProperty("AttemptsLeft").GetInt32(),
+            { Resource = t.Str("Resource"), SupportDemand = t.Str("SupportDemand"), SiteDefinition = t.Str("SiteDefinition"), CompletionMustBeObserved = t.GetProperty("CompletionMustBeObserved").GetBoolean(), AttemptsLeft = t.GetProperty("AttemptsLeft").GetInt32(),
                 Inputs = EquatableArray.From(t.GetProperty("Inputs").EnumerateArray().Select(i => new SelectedActivityInput(
                     i.Str("Resource"), i.Str("Lot"), i.GetProperty("Count").GetInt32(),
                     new(i.GetProperty("X").GetInt32(), i.GetProperty("Z").GetInt32()), i.Str("Provenance"))
@@ -72,7 +72,6 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             w.WriteNum("X", task.Location.X); w.WriteNum("Z", task.Location.Z); w.WriteNum("DepartTick", task.DepartTick);
             w.WriteNum("UseUntilTick", task.UseUntilTick);
             w.WriteString("Resource", task.Resource); w.WriteString("SiteDefinition", task.SiteDefinition); w.WriteNum("AttemptsLeft", task.AttemptsLeft);
-            w.WriteString("ProductStuff", task.ProductStuff);
             w.WriteString("SupportDemand", task.SupportDemand);
             w.WriteBoolean("CompletionMustBeObserved", task.CompletionMustBeObserved);
             w.WriteStartArray("Inputs");

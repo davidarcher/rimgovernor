@@ -821,7 +821,7 @@ the loss of its authority or hooks, and the review tick the last `Run` named, an
 else. The brain holds it for a coupled order, an autosave or a review when the bot stops acting,
 and for nothing else. Progress is never a hold and never an invalidation: a pawn
 activity completing or failing, or a controlled pawn with no activity, is an attempt outcome the next review
-reads (#3556); a colonist left without an activity Method, or a coupled worker that finished a task with a recipe left, makes that review step run the colony review (#3599, #3624). A zone turning ripe or any other observed fact change is an `ObservationInvalidated` event
+reads (#3556); a colonist left without an activity Method makes that review step run the colony review (#3599). A zone turning ripe or any other observed fact change is an `ObservationInvalidated` event
 that marks planners for the next review while the game keeps running.
 
 The cadence is the clock's (#3556). Every `Run` carries the tick native holds the clock at for
@@ -843,14 +843,6 @@ planner (a full step, an authority change) review first regardless. A colonist t
 activity Method (its order finished or it was released) is no reason to review early: it runs
 vanilla work under its work priorities until the next review (#3669; the `freed` reason of #3599
 retired with standby).
-The first review step after a coupled Method's worker finished a task while the Method has a
-recipe left reviews too (`task`, #3624): the worker reads native `completed` at its order's
-revision, records the finished task once (`TaskReviews`) and wakes the step loop at once
-(`WakeSignal.NotifyTaskReview`, a quiet Review step with the clock running, like a speed request),
-and the Method binds that worker no next task until a colony review has committed. The review
-may hand that worker's next task to a faster free cook while the Method's other participants
-keep working ([incumbent reconsideration](../contracts/essential-services.md)). A scheduler
-without a review coordinator clears the wait at its next step.
 While the colony's first layout plan holds the clock (`first_plan`, #3652) every step reviews
 again: a held clock advances no tick to make the review due, and only a review reads the station
 fact the plan waits for ([clock recovery](../contracts/clock-recovery.md)). An urgent build

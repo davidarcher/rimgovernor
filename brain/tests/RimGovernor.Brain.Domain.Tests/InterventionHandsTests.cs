@@ -254,9 +254,9 @@ public sealed class InterventionHandsTests
     }
 
     /// <summary>Commits <paramref name="batch"/> as <paramref name="method"/>'s claimed plan and runs it through real Hands.</summary>
-    private static async Task<PawnActivities> Deliver(PawnActivities batch, string method)
+    private static async Task<PawnActivities> Deliver(PawnActivities batch, string method, ReviewFacts? evidence = null)
     {
-        using var journal = Open(WorkResourceTestFacts.Create("pawn"));
+        using var journal = Open(evidence ?? WorkResourceTestFacts.Create("pawn"));
         var plan = new PlanSpec(new(method + "-plan"), new(1), [DomainAction.NewPawnActivitiesAction(new(method + "-plan-0"), batch)]);
         Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new(method), "", plan, Ct).Outcome);
         var native = new Native();
@@ -335,5 +335,222 @@ public sealed class InterventionHandsTests
         Assert.Contains(order.Steps, s => s.Kind == PawnActivityKind.Work);
         Assert.Equal(InterventionPurposeKind.FoodRisk, order.Purpose!.Kind);
         Assert.Equal(order.Purpose, Assert.Single((await Deliver(batch, "coupled-harvest")).Orders, o => !o.Release).Purpose);
+    }
+
+    /// <summary>A stove whose cooking bill makes Meal from 8 stored rice, under the dispatcher's <paramref name="calibration"/>: the
+    /// generator's own ingredient supply, cooking and delivery, all left to native bills and work settings, compared with the
+    /// pawn well fed and the food owner's recovery arriving in time (no food premise).</summary>
+    private static (ForecastCoupledSelection Selection, ForecastCoupledCandidates Candidates, ForecastActivity Supply) StalledKitchen(ProductionCalibration calibration)
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: .9, sourceCount: 0) with { Items = Kitchen };
+        facts = facts with
+        {
+            Census = facts.Census with { Resources = [new Quantity { DefName = "Rice", Units = 8 }] },
+            ForecastObserved = facts.ForecastObserved with
+            {
+                Coupled = facts.ForecastObserved.Coupled! with
+                {
+                    FoodSources = [new("rice-stack", "Rice", new(1, 1), 8, new FoodFreshness.Rots(1000.0))],
+                    FoodConversions = [CoupledFixtures.Conversion("rice-stack", "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1, new(1, 1), new(1, 1), new(1, 1),
+                        0.0, 10.0, 20.0, 10.0, 8, 8) with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }],
+                    FoodUses = [new("pawn", "Meal", new(1, 1), true, .8, 10.0, 1, new FoodFreshness.Rots(1000.0)) { Thoughts = [], Ingredient = "Rice" }],
+                },
+            },
+        };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!.Priced();
+        var candidates = generated with { Context = generated.Context with { ProductionCalibration = calibration,
+            NativeFood = InterventionJustificationTests.Assess(NativeFoodAssessmentTests.Facts(10, 9)) } };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay, facts with { CoupledAlternatives = candidates },
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var supply = candidates.Context.Activities.Activities.First(t => t.Id.Contains("/supply/", StringComparison.Ordinal)
+            && candidates.Context.Bindings.ContainsKey((t.Id, "pawn")));
+        return (ForecastCoupledSelection.CompareActivityOutcomes(request, candidates), candidates, supply);
+    }
+
+    private static readonly ItemFacts Kitchen = new()
+    {
+        Nutrition = new Dictionary<Resource, double> { [new("Rice")] = .05, [new("Meal")] = .9 },
+        Market = new Dictionary<Resource, double> { [new("Rice")] = 1.1, [new("Meal")] = 15 },
+    };
+
+    private static ProductionCalibration.Observed MealStall(UnmetReason reason) =>
+        new([new ProductionStall("bill", new("Meal"), "bench", 2, reason, 90)]);
+
+    /// <summary>(h) Task 5.3: a closed short window of the stove's Meal whose bill jobs showed pending ingredients is a demonstrated
+    /// stall. The generator's ingredient supply feeding that bill, otherwise left to native operation, is re-admitted alone (its
+    /// cooking never is) and reaches Hands as a bounded delivery carrying the ProductionStall purpose of Meal.</summary>
+    [Fact]
+    public async Task AStalledBillWithIngredientsPendingReachesHandsAsAJustifiedIngredientDelivery()
+    {
+        var (compared, candidates, supply) = StalledKitchen(MealStall(UnmetReason.IngredientsPending));
+        var binding = candidates.Context.Bindings[(supply.Id, "pawn")];
+        Assert.Equal(PawnActivityKind.Deliver, binding.Kind);
+        Assert.Equal(["Meal"], binding.Feeds);
+        var cook = candidates.Context.Bindings.Single(b => b.Value.Kind == PawnActivityKind.Recipe && b.Key.Pawn == "pawn"
+            && candidates.Context.Activities.Activities.Single(t => t.Id == b.Key.Task).Prerequisites.Contains(supply.Id)).Key.Task;
+        var plan = new ForecastActivityPlan([new(supply.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+        Assert.Empty(CoordinatedActivityBinding.ForDispatch(plan, candidates.Context).Allocations);
+        // Bill work itself is never re-admitted, even under the stall it would answer.
+        var withCook = plan with { Allocations = [.. plan.Allocations, new(cook, "pawn", 100, 100, 100, 200, 100, 200, 0, 0)] };
+        Assert.Equal([supply.Id], InterventionRules.Readmitted(withCook, compared.BaselineVector, compared.BaselineVector, candidates.Context, Kitchen).Order());
+
+        var justified = Assert.IsType<InterventionJustification.Justified>(InterventionRules.Gate([supply.Id], plan, compared.BaselineVector,
+            compared.BaselineVector, candidates.Context, Kitchen));
+        var stall = Assert.IsType<InterventionPremise.DemonstratedStall>(justified.Premise).Stall;
+        Assert.Equal((new Resource("Meal"), UnmetReason.IngredientsPending), (stall.Product, stall.Reason));
+        Assert.Equal([supply.Id], justified.Readmitted);
+        var selection = compared with { Selection = compared.Selection with { Selected = [supply.Id], Plan = plan }, Justification = justified };
+        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "coupled-ingredients", 100));
+        var order = Assert.Single(batch.Orders, o => !o.Release);
+        Assert.All(order.Steps, s => Assert.NotEqual(PawnActivityKind.Recipe, s.Kind));
+        Assert.Contains(order.Steps, s => s.Kind == PawnActivityKind.Deliver);
+        Assert.Equal(new InterventionPurpose(InterventionPurposeKind.ProductionStall, "Meal", "", 90), order.Purpose);
+        Assert.Equal(order.Purpose, Assert.Single((await Deliver(batch, "coupled-ingredients")).Orders, o => !o.Release).Purpose);
+    }
+
+    /// <summary>(i) Task 5.3: a stall whose bill has every usable bench (benches exhausted), or whose work merely stays unstarted,
+    /// is answered by no exact order: the same ingredient supply is refused <c>stall_not_answered_by_orders</c>, nothing is
+    /// re-admitted and nothing is dispatched.</summary>
+    [Theory]
+    [InlineData(UnmetReason.BenchesExhausted, "benches_exhausted")]
+    [InlineData(UnmetReason.WorkUnstarted, "work_unstarted")]
+    public void AStallNoOrderAnswersIsRefusedAndDispatchesNothing(UnmetReason reason, string cause)
+    {
+        var (compared, candidates, supply) = StalledKitchen(MealStall(reason));
+        var plan = new ForecastActivityPlan([new(supply.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+        Assert.Empty(InterventionRules.Readmitted(plan, compared.BaselineVector, compared.BaselineVector, candidates.Context, Kitchen));
+        Assert.Null(InterventionRules.Gate([supply.Id], plan, compared.BaselineVector, compared.BaselineVector, candidates.Context, Kitchen));
+        var refused = Assert.IsType<InterventionJustification.Refused>(InterventionRules.Justify(plan, plan.Allocations,
+            compared.BaselineVector, compared.BaselineVector, candidates.Context, Kitchen));
+        Assert.Equal(InterventionJustification.StallNotAnsweredByOrders + ":Meal:" + cause + ":pawn", refused.Reason);
+    }
+
+    /// <summary>A wall blueprint at (30,30) whose one row is the pawn's: owing 20 wood carried from (10,10), or, when
+    /// <paramref name="supplied"/>, holding its whole cost so only its finish remains. The generator's supply and finish are
+    /// native execution; the context carries <paramref name="calibration"/> and the pawn is well fed (no food premise).</summary>
+    private static (ForecastCoupledSelection Selection, ForecastCoupledCandidates Candidates, ForecastActivity Work) StalledSite(
+        ConstructionCalibration calibration, bool supplied = false)
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: .9, sourceCount: 0) with { Items = Lumber };
+        Row row = supplied
+            ? new("blueprint", "Wall", new(30, 30), "pawn", "WoodLog", "", new(10, 10), 0, 10, "FinishFrames", null, null, 20) { SiteApproachTicks = 20 }
+            : new("blueprint", "Wall", new(30, 30), "pawn", "WoodLog", "wood", new(10, 10), 20, 10, "FinishFrames", 0, 20, 20) { SiteApproachTicks = 0, AvailableInput = 20 };
+        facts = facts with
+        {
+            Census = facts.Census with { Resources = [new Quantity { DefName = "WoodLog", Units = 20 }] },
+            ForecastObserved = facts.ForecastObserved with
+            {
+                Coupled = facts.ForecastObserved.Coupled! with { Construction = ConstructionFixtures.NoConstruction(100) with { Options = [row] } },
+            },
+        };
+        facts = WorkRules.ReviewWorkResources(facts, new ProductionBatchCensus.Read([]), new([]));
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!.Priced();
+        var candidates = generated with { Context = generated.Context with { ConstructionCalibration = calibration,
+            NativeFood = InterventionJustificationTests.Assess(NativeFoodAssessmentTests.Facts(10, 9)) } };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 1900d / GameTime.TicksPerDay, facts with { CoupledAlternatives = candidates },
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var work = candidates.Context.Activities.Activities.First(t => candidates.Context.Bindings.TryGetValue((t.Id, "pawn"), out var b)
+            && (supplied ? b.Job == "FinishFrame" : b.Kind == PawnActivityKind.Supply));
+        return (ForecastCoupledSelection.CompareActivityOutcomes(request, candidates), candidates, work);
+    }
+
+    /// <summary>The admission evidence with the site's 20 wood stocked, so the delivery's observed input is not stale.</summary>
+    private static ReviewFacts Stocked()
+    {
+        var facts = WorkResourceTestFacts.Create("pawn");
+        return facts with { Census = facts.Census with { Resources = [new Quantity { DefName = "WoodLog", Units = 20 }] } };
+    }
+
+    private static readonly ItemFacts Lumber = new() { Market = new Dictionary<Resource, double> { [new("WoodLog")] = 1.2 } };
+
+    private static ConstructionCalibration.Observed SiteStall(string site, ConstructionStallCause cause) =>
+        new([new ConstructionProgressWindow(site, 0, 20, 0, 10, 10)], [new ConstructionStall(site, cause, 60010)]);
+
+    /// <summary>(j) Task 5.4: a placed wall no native job targeted over a whole progress window while it owed wood is an observed
+    /// construction stall. The generator's supply of that site, otherwise left to native construction, is re-admitted and reaches
+    /// Hands as a bounded supply carrying the ConstructionStall purpose of the site; its finish, waiting on the delivery, is not.</summary>
+    [Fact]
+    public async Task AStalledSiteReachesHandsAsAJustifiedSupplyWithItsPurpose()
+    {
+        var (compared, candidates, supply) = StalledSite(SiteStall("blueprint", ConstructionStallCause.SupplyUnstarted));
+        var binding = candidates.Context.Bindings[(supply.Id, "pawn")];
+        Assert.Equal(("blueprint", PawnActivityKind.Supply), (binding.Container, binding.Kind));
+        Assert.True(supply.NativeExecution);
+        var plan = new ForecastActivityPlan([new(supply.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+        Assert.Empty(CoordinatedActivityBinding.ForDispatch(plan, candidates.Context).Allocations);
+        var finish = candidates.Context.Bindings.Single(b => b.Value.Job == "FinishFrame").Key.Task;
+        var withFinish = plan with { Allocations = [.. plan.Allocations, new(finish, "pawn", 100, 100, 100, 200, 100, 200, 0, 0)] };
+        Assert.Equal([supply.Id], InterventionRules.Readmitted(withFinish, compared.BaselineVector, compared.BaselineVector, candidates.Context, Lumber).Order());
+
+        var justified = Assert.IsType<InterventionJustification.Justified>(InterventionRules.Gate([supply.Id], plan, compared.BaselineVector,
+            compared.BaselineVector, candidates.Context, Lumber));
+        Assert.Equal(new InterventionPremise.StalledSite(new("blueprint", ConstructionStallCause.SupplyUnstarted, 60010)), justified.Premise);
+        Assert.Equal(new NativeResponse.Unassessed("construction_native_response_unprojected"), justified.Response);
+        Assert.Equal([supply.Id], justified.Readmitted);
+        var selection = compared with { Selection = compared.Selection with { Selected = [supply.Id], Plan = plan }, Justification = justified };
+        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "coupled-site", 100));
+        var order = Assert.Single(batch.Orders, o => !o.Release);
+        Assert.Contains(order.Steps, s => s.Kind == PawnActivityKind.Supply && s.Target == binding.Target);
+        Assert.Equal(new InterventionPurpose(InterventionPurposeKind.ConstructionStall, "blueprint", "", 60010), order.Purpose);
+        Assert.Equal(order.Purpose, Assert.Single((await Deliver(batch, "coupled-site", Stocked())).Orders, o => !o.Release).Purpose);
+
+        // The purpose stays open while the site's progress is unchanged, worked or not, and completes once its progress changes
+        // after the stall closed or the site is no longer read; unobserved progress leaves it open.
+        ConstructionCalibration Windows(params ConstructionProgressWindow[] windows) => new ConstructionCalibration.Observed(EquatableArray.From(windows), []);
+        PurposeCondition At(ConstructionCalibration calibration) =>
+            InterventionPurposes.AtReview(order.Purpose!, batch, candidates.Context with { ConstructionCalibration = calibration }, null);
+        var open = new ConstructionProgressWindow("blueprint", 0, 20, 0, 10, 70000);
+        Assert.Equal(PurposeCondition.Open, At(Windows(open)));
+        Assert.Equal(PurposeCondition.Completed, At(Windows(open with { Delivered = 10, Opened = 70000 })));
+        Assert.Equal(PurposeCondition.Completed, At(Windows()));
+        Assert.Equal(PurposeCondition.Open, At(new ConstructionCalibration.Unobserved(ConstructionCalibration.UnobservedReason)));
+    }
+
+    /// <summary>(k) Task 5.4: a supplied frame no native job finished over a whole window re-admits its finish, which waits on
+    /// nothing, under the ConstructionStall purpose of the site.</summary>
+    [Fact]
+    public async Task AStalledSuppliedFrameReachesHandsAsAJustifiedFinish()
+    {
+        var (compared, candidates, finish) = StalledSite(SiteStall("blueprint", ConstructionStallCause.FinishUnstarted), supplied: true);
+        Assert.DoesNotContain(candidates.Context.Bindings.Values, b => b.Kind == PawnActivityKind.Supply);
+        Assert.Empty(finish.Prerequisites);
+        var plan = new ForecastActivityPlan([new(finish.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+        var justified = Assert.IsType<InterventionJustification.Justified>(InterventionRules.Gate([finish.Id], plan, compared.BaselineVector,
+            compared.BaselineVector, candidates.Context, Lumber));
+        Assert.Equal([finish.Id], justified.Readmitted);
+        var selection = compared with { Selection = compared.Selection with { Selected = [finish.Id], Plan = plan }, Justification = justified };
+        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "coupled-frame", 100));
+        var order = Assert.Single(batch.Orders, o => !o.Release);
+        Assert.Contains(order.Steps, s => s is { Kind: PawnActivityKind.Work, Job: "FinishFrame", Target: "blueprint" });
+        Assert.Equal(new InterventionPurpose(InterventionPurposeKind.ConstructionStall, "blueprint", "", 60010),
+            Assert.Single((await Deliver(batch, "coupled-frame")).Orders, o => !o.Release).Purpose);
+    }
+
+    /// <summary>(l) Task 5.4: nothing else reaches Hands. No stall, another site's stall, or a stall whose cause the work does not
+    /// answer re-admits nothing and is refused without a premise; unobserved progress is an unassessed premise.</summary>
+    [Fact]
+    public void ASiteWithoutAnAnsweredStallReadmitsNothing()
+    {
+        foreach (var calibration in new ConstructionCalibration[]
+        {
+            new ConstructionCalibration.Observed([], []),
+            SiteStall("other", ConstructionStallCause.SupplyUnstarted),
+            SiteStall("blueprint", ConstructionStallCause.FinishUnstarted),
+        })
+        {
+            var (compared, candidates, supply) = StalledSite(calibration);
+            var plan = new ForecastActivityPlan([new(supply.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+            Assert.Empty(InterventionRules.Readmitted(plan, compared.BaselineVector, compared.BaselineVector, candidates.Context, Lumber));
+            Assert.Null(InterventionRules.Gate([supply.Id], plan, compared.BaselineVector, compared.BaselineVector, candidates.Context, Lumber));
+            var refused = Assert.IsType<InterventionJustification.Refused>(InterventionRules.Justify(plan, plan.Allocations,
+                compared.BaselineVector, compared.BaselineVector, candidates.Context, Lumber));
+            Assert.IsType<InterventionPremise.None>(refused.Premise);
+        }
+        var (unobserved, context, work) = StalledSite(new ConstructionCalibration.Unobserved(ConstructionCalibration.UnobservedReason));
+        var single = new ForecastActivityPlan([new(work.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+        Assert.Empty(InterventionRules.Readmitted(single, unobserved.BaselineVector, unobserved.BaselineVector, context.Context, Lumber));
+        var unassessed = Assert.IsType<InterventionJustification.Refused>(InterventionRules.Justify(single, single.Allocations,
+            unobserved.BaselineVector, unobserved.BaselineVector, context.Context, Lumber));
+        Assert.Equal(InterventionJustification.PremiseUnassessedPrefix + ConstructionCalibration.UnobservedReason + ":pawn", unassessed.Reason);
     }
 }

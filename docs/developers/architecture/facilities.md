@@ -8,6 +8,21 @@ minimum finishing skill continue to apply to ordinary workers. Existing exact
 commitments finish in-flight work, then hand back at a task boundary; unresolved
 cross-pawn dependencies end the attempt rather than count as completed work.
 
+A placed site native work leaves untouched is the one exception (task 5.4 of
+`native-led-labor-execution`). The construction read reports each placed
+blueprint or frame's progress (`ConstructionSiteProgress`: materials delivered of
+its cost, frame work done, whether a colonist's current job targets it), and the
+review keeps one progress window per site (`ConstructionStalls`). A site whose
+progress held while no job targeted it for one game day is an observed
+`supply_unstarted` or `finish_unstarted` stall. Only then is the generator's
+supply of that site, or a supplied frame's finish, re-admitted as an exact order
+carrying a `construction_stall` purpose, which completes once the site's progress
+changes or the site is gone. Material, tier and minimum-skill constraints stay
+native settings (`ConstructionTierGate`, `ConstructionSkillGuard`) and still
+apply to that order, and a held site is not taken by another native worker
+(`NativePawnActivities.SiteHeld`). The finish of an unsupplied site waits on its
+delivery and is never re-admitted.
+
 Ordinary roof building follows the same boundary: room reconciliation installs
 the native BuildRoof area once the ring stands, and Construction priorities make
 that work available. Per-cell forecasts estimate conditional shelter benefits;

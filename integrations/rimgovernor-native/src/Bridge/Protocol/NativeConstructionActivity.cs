@@ -142,7 +142,20 @@ internal static class NativeConstructionActivity
         var predictions = EquatableArray.From(NativeRoomPrediction.Predict(map, request.RoomPredictions).Select(p => p with
             { Routes = EquatableArray.From(projected.Where(r => r.Projection == p.Room + "/" + p.Stuff)) }));
         Lap("predictions");
-        return new() { Context = context,
+        // Each placed site's progress (task 5.4): the materials it holds of its cost, its frame's work done, and whether a
+        // colonist's current job targets it. The brain compares two readings; native infers no stall.
+        var colonists = map.mapPawns.FreeColonistsSpawned;
+        var progress = placed.Where(s => s.Thing is IConstructible).Select(s =>
+        {
+            var thing = s.Thing!;
+            var constructible = (IConstructible)thing;
+            var required = constructible.TotalMaterialCost().Sum(c => c.count);
+            var owed = constructible.TotalMaterialCost().Sum(c => constructible.ThingCountNeeded(c.thingDef));
+            var worked = colonists.Any(p => p.CurJob is { } job && (job.targetA.Thing == thing || job.targetB.Thing == thing || job.targetC.Thing == thing));
+            return new RimGovernor.Brain.GameFacts.Observations.ConstructionSiteProgress(s.Id, required - owed, required,
+                thing is Frame frame ? frame.workDone : 0, worked);
+        }).OrderBy(p => p.Site, StringComparer.Ordinal).ToArray();
+        return new() { Context = context, Progress = EquatableArray.From(progress),
             Options = EquatableArray.From(options), Planned = EquatableArray.From(answers), Routes = EquatableArray.From(routes),
             Removals = EquatableArray.From(runRemovals),
             Thermal = thermal, RoomPredictions = predictions,

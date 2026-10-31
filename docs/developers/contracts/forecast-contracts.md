@@ -81,13 +81,30 @@ The justification names:
   partner's requirement. `DemonstratedStall` is a closed short window of the
   work dispatcher's observed calibration (`ProductionCalibration.Observed`, read
   only while the work ledger is reconciled) for a product the pawn's bill work
-  makes or feeds (its activities and every activity waiting on them), with a
-  cause exact orders answer: `ingredients_pending`, `delivery_bound` or
-  `work_unstarted`. An idle bench or omitted native production is never a stall.
+  makes or feeds (its activities, the products its ingredient deliveries feed,
+  and every activity waiting on them), with a cause exact orders answer:
+  `ingredients_pending` or `delivery_bound`. Unstarted bill work is answered by
+  native bills and work settings, not an order (task 5.3). An idle bench or
+  omitted native production is never a stall.
+  `StalledSite` is a placed construction site's observed stall
+  (`ConstructionStalls.Observe`, task 5.4): the review compares each placed
+  blueprint or frame's native progress reading (`ConstructionSiteProgress`:
+  materials delivered of its cost, work done, whether a colonist's current job
+  targets it) with the window the previous review kept, and a site whose
+  progress held and no job targeted it for `ConstructionStalls.WindowTicks` (one
+  game day, the dispatcher's throughput window) is `supply_unstarted` while it
+  owes materials, else `finish_unstarted`. Changed progress, a first reading or
+  an earlier tick reopens the window; a targeting job restarts its quiet span.
+  The premise holds for the pawn's construction supply of that site
+  (`supply_unstarted`) or its finish (`finish_unstarted`); its response is
+  `Unassessed(construction_native_response_unprojected)` and its evidence tick
+  the stall's. Elapsed ticks alone, a single reading, an unplaced or forecast
+  site are never a stall.
   `Unassessed(reason)` covers missing food or maintenance evidence, unobserved
-  calibration (`stall_calibration_unobserved`) and a stall whose cause the
-  dispatcher did not assess (`stall_cause_unassessed:<product>`). `None` means no
-  premise applies.
+  calibration (`stall_calibration_unobserved`), a stall whose cause the
+  dispatcher did not assess (`stall_cause_unassessed:<product>`) and construction
+  work without a progress read (`construction_progress_unobserved`). `None`
+  means no premise applies.
 - the native response: `Supported`, `KnownTooLate` or `Unassessed(reason)`.
   Food recovery before runway is supported; recovery at or after runway is
   known too late. A rest or joy shortfall's response is
@@ -117,7 +134,7 @@ Refusal reasons:
   observed shortfall is not answered by a later recovery.
 - `stall_not_answered_by_orders:<product>:<cause>`: no other premise, and the
   product's observed stall has a cause orders cannot answer (`no_bench`,
-  `bench_slots_full`, `ingredient_bound`, `benches_exhausted`).
+  `bench_slots_full`, `ingredient_bound`, `benches_exhausted`, `work_unstarted`).
 
 **Re-admission.** `InterventionRules.Readmitted` is the one pure place withheld
 work is re-admitted to dispatch. Before dispatch filtering, each pawn's
@@ -126,7 +143,12 @@ are assessed together exactly as dispatched work is. An allocation is
 re-admitted only when that assessment is justified with a purpose answering it:
 the pawn's own eat, sleep or recreation answers only its own
 `NeedShortfall` of food, rest or joy; other food work (harvest, cooking,
-delivery of nutrition) answers a `FoodRisk` or a food `NeedShortfall`. The
+delivery of nutrition) answers a `FoodRisk` or a food `NeedShortfall`; an
+ingredient delivery answers the `ProductionStall` of a product it feeds (its
+binding's `Feeds`); a construction supply or finish answers only the
+`ConstructionStall` of its own site whose cause it answers (task 5.4), and no
+other purpose; bill work itself (a `Recipe` binding) answers nothing and is
+never re-admitted, because bills run natively. The
 response check stands: a `Supported` settings response refuses, so it
 re-admits nothing. `InterventionRules.Gate` dispatches the re-admitted work
 with the rest and records the justified verdict's `Readmitted` set, which

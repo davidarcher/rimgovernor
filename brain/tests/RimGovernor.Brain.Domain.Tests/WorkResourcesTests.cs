@@ -171,20 +171,6 @@ public sealed class WorkResourcesTests
     }
 
     [Fact]
-    public void ActualUnfinishedRecipeOwnsConsumedInputsOutsideLooseStock()
-    {
-        var action = DomainAction.NewPawnActivitiesAction(new("tailor"), new(1, [new("tailor", "garment", "method", 0, 1, false,
-            [new(PawnActivityKind.Recipe, "bench", "Tailor", "", 0, 500)
-            { Recipe = new("", "shirt", [new("cloth", 6)]) { Resource = "Rice", Stuff = "Rice" } }])]));
-        var facts = WorkResourceTestFacts.Create("tailor");
-        Assert.Equal(4, View(facts, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount());
-        facts = facts with { Census = facts.Census with { WorkResources = [
-            new("tailor", "garment", 1, "started", "", "", 0) { LocalHour = 12, Unfinished = "actual-uft" }] } };
-        Assert.Equal(10, View(facts, Pending(action)).Materials.AssessedBalances()[new("Rice")].ExactCount());
-        Assert.Contains("tailor", View(facts, Pending(action)).Claims.Pawns);
-    }
-
-    [Fact]
     public void BlueprintShortOfStockIsPlacedAndHoldsItsCostAgainstOtherWork()
     {
         // A naked start owns no wood: the shelter and the storage room blueprints were refused materials_short, so

@@ -70,10 +70,11 @@ public sealed record ProductionStall(string Order, Resource Product, string Benc
     public UnmetThroughput Unmet => new() { BenchKind = BenchKind, ShortPerDay = ShortPerDay, Reason = Reason };
 
     /// <summary>
-    /// The stall's cause is one an exact pawn order can answer: work stays unstarted, or ingredient gathering pends or
-    /// dominates while ingredients are stocked. A bench shortage, full bill slots or missing ingredients are not.
+    /// The stall's cause is one an exact pawn order can answer: ingredient gathering pends or dominates while ingredients are
+    /// stocked, which a bounded ingredient delivery answers. Unstarted bill work is answered by native bills and work settings,
+    /// not an exact recipe order; a bench shortage, full bill slots or missing ingredients are answered by no order.
     /// </summary>
-    public bool AnsweredByOrders => Reason is UnmetReason.IngredientsPending or UnmetReason.DeliveryBound or UnmetReason.WorkUnstarted;
+    public bool AnsweredByOrders => Reason is UnmetReason.IngredientsPending or UnmetReason.DeliveryBound;
 }
 
 /// <summary>The dispatcher's observed calibration for this Round, or why it was not observed.</summary>

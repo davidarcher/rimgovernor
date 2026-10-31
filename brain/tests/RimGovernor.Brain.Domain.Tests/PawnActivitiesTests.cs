@@ -122,7 +122,7 @@ public sealed class PawnActivitiesTests
     private static PawnActivities Batch() => new(1, [new("pawn", "assignment", "method", 0, 1, false,
         [new(PawnActivityKind.Hold, "", "", "", 0, 1234), new(PawnActivityKind.Eat, "meal", "", "", 1, 2345),
          new PawnActivityStep(PawnActivityKind.Deliver, "harvest", "", "", 3, 3456).At(new Cell(12, 34)),
-         new(PawnActivityKind.Recipe, "bench", "cooking", "", 0, 4567)
+         new(PawnActivityKind.Work, "bench", "cooking", "DoBill", 0, 4567)
          { Recipe = new("bill", "recipe", [new("stack-a", 4), new("stack-b", 6)]) }])]);
     [Fact]
     public void HandsIntentAndJournalRetainExactTargetsAndDeadlines()
@@ -194,7 +194,7 @@ public sealed class PawnActivitiesTests
         Refused(cut with { Targets = ["", "Thing_Plant_TreeOak2", "Thing_Plant_TreeOak3"] });
     }
     [Fact]
-    public void CookingRejectsMissingOrAmbiguousIngredientAuthorization()
+    public void BillWorkRejectsMissingOrAmbiguousIngredientAuthorization()
     {
         var b = Batch();
         var cook = b.Orders[0].Steps[3];
@@ -211,6 +211,8 @@ public sealed class PawnActivitiesTests
         Refused(cook with { Job = "choose-bill" });
         Refused(cook with { Count = 2 });
         Refused(cook with { Kind = PawnActivityKind.Hold });
+        // Bill work runs through native bills and work settings (task 5.3): a Recipe-kind step is never an exact order.
+        Refused(cook with { Kind = PawnActivityKind.Recipe, Job = "" });
     }
     [Fact]
     public void DeliveryRequiresAnExactCellAndPositiveCountWithoutWorkSelection()

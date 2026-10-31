@@ -1355,8 +1355,9 @@ interruption, unknowns, protected work, distance and bounded generation.
 [Ordinary tailoring](../contracts/equipment-upkeep.md#live-clothing-requirement-selection)
 uses these same stages. Generation retains garment/recipe/stuff/stack/worker and
 destination alternatives. Evaluation compares capped equipment-owned requirement
-relief and total labor under shared resource claims; binding emits only selected
-exact recipes and observed-output delivery tasks. Conflicting wearables and
+relief and total labor under shared resource claims; binding turns selected
+recipes into native finite bills (`NativeProductionBinding`) and emits no exact
+recipe order. Conflicting wearables and
 shared destinations exclude one another. Normal clothing alternatives feed the
 coupled trajectory and shared portfolio comparison; the retired family-local
 winner and continuation wrappers are not executable selection paths.

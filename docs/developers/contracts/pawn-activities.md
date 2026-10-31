@@ -150,9 +150,15 @@ Heterogeneous ingredient substitution and hypothetical benches without observed
 bill intent remain unsupported.
 
 Ordinary ingredient collection, cooking and output handling run through native
-bills and work settings. These conditional graphs install no routine pawn order.
-The explicit native recipe primitive remains fixture-driven pending the general
-intervention/adapter audit; it does not establish normal execution authority.
+bills and work settings. These conditional graphs install no routine pawn order,
+and no bill work is ever an exact order: the exact recipe primitive, its driver
+and its fixture case were deleted (task 5.3 of `native-led-labor-execution`), and
+a `Recipe` kind names a comparison binding only, refused as a step. A bill whose
+closed short window showed pending or delivery-bound ingredients
+(`ProductionStall`, IngredientsPending or DeliveryBound) re-admits only the
+generator's ingredient delivery feeding it (the binding's `Feeds`), under a
+`ProductionStall` purpose naming the product; a stall whose benches are exhausted
+or whose work merely stays unstarted is refused `stall_not_answered_by_orders`.
 Nominal nutrition is not eater-specific survival value.
 
 ## Live material delivery and building
@@ -358,8 +364,9 @@ observations (never from elapsed ticks):
 |---|---|---|---|
 | `need_shortfall` | need, subject pawn | the pawn's need reads above its threshold | native service of that need is observed for a pawn the batch does not order |
 | `food_risk` | `food` | the food owner reviews no response needed | no food consumer remains |
-| `production_stall` | product | the reconciled calibration holds no stall of the product | the stall's cause is one orders cannot answer |
+| `production_stall` | product | the reconciled calibration holds no stall of the product | the stall's cause is one orders cannot answer (any but `ingredients_pending` or `delivery_bound`) |
 | `capability_practice` | requirement, subject pawn | the native baseline projects no missing XP | the requirement is withdrawn |
+| `construction_stall` | placed site | the site's observed progress changed after the stall closed (its progress window opened after the evidence tick), or the site is no longer read | never; a worked site without progress stays open until the order's own deadline or failure |
 
 `InterventionPurposes.AtContinuation` reads need shortfalls from the worker's
 participant read (which also reads each purpose's subject pawn); the other kinds
@@ -428,7 +435,7 @@ before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
 The initial step families are exact thing-target work (Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([roof preparation](#roof-preparation), #3617); a standing designation the room reconcile stood by Designate is ordinary native work; its read-back removal op remains conditional forecast evidence, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
-selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach and Hold. Unsupported families are refused, not sent to a
+selected bed/rest, selected recreation building, exact delivery, material Supply, FinishFrame, Approach and Hold. Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. No brain policy selects firefighting: vanilla fights home-area fires, and native releases committed orders for them ([home-area fire](#home-area-fire)). Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
@@ -456,34 +463,8 @@ still at the source, and a new planner decision must inspect that state. An exac
 require fresh observed identities and a revised assignment; future output IDs are
 not guessed.
 
-`Recipe` names the exact bench, existing bill, recipe, cooking WorkGiver and up to
-16 distinct ingredient stacks with positive counts. It authorizes one recipe
-iteration, regardless of the bill's remaining repeat count. Bill creation and
-configuration remain separate Hands actions; cooking neither creates nor edits a
-bill. The selected bill must explicitly use DropOnFloor. Native production places
-the output near the worker; observing its actual identity/location and assigning
-delivery is a separate planner decision, not native storage selection.
-
-The initial cooking adapter supports ordinary single-product nutrition recipes
-with the base RecipeWorker, no unfinished item or special products, and one
-ingredient definition across all selected stacks. Every recipe slot must accept
-that definition; selected quantities must exactly equal the sum of native slot
-requirements, including nutrition-based requirements. Mixed ingredients are
-refused rather than resolved locally. Eligibility includes the selected bill's
-filters, worker restrictions, native skills/capacities, bench recipe availability,
-fuel/power usability, ingredient radius, reachability and reservations.
-
-The custom cooking driver uses native ingredient collection, recipe work,
-consumption and product generation with the already-selected ingredient queue.
-It does not call the WorkGiver's bill/ingredient selector. All selected inputs and
-the bench must reserve successfully; loss or shortage of placed ingredients,
-an unusable/forbidden bench, bill deletion/suspension, or a changed recipe/store
-mode fails visibly. It verifies complete input quantities before work and again
-before consumption. Output quantity, poisoning and other native effects remain
-RimWorld-owned. A successful job still requires physical output observation for
-forecast credit. Interrupted collection can leave carried or placed ingredients;
-there is no automatic retry, refund or assertion that those inputs remain at
-their original locations.
+Surgery remains a `Work` step with job `DoBill` naming its existing medical bill;
+that is the only step that carries bill arguments.
 
 The requested first job is offered for an installed assignment. Once work runs,
 native selection and overrides can choose replacements; constant think-tree,
@@ -597,15 +578,6 @@ through native activity installation; it does not prove forecast selection, norm
 Colony review/Hands dispatch or autonomous recovery. Domain tests separately round-trip
 the exact delivery payload through the journal codec and Hands intent builder.
 
-`control/pawn-activity-cooking` prepares a fueled stove with a competing bill and
-unselected food. It checks wrong-quantity refusal without changing ownership,
-idempotent installation, failure after losing a selected stack or blocking the
-bench, then one explicit revision's exact ingredient consumption, edible output
-and selected-bill decrement. The other bill and unselected stack must remain
-unchanged. This fixture-driven execution case does not establish live forecast
-selection or autonomous recovery. Journal/Hands intent tests preserve the cooking
-recipe, bill and ingredient identities/counts and reject ambiguous payloads.
-
 ## Needs forecast support matrix
 
 The [needs forecast](../architecture/colony-forecast.md#needs-alternatives-and-future-capacity)
@@ -644,9 +616,7 @@ The private nonautonomous tailoring bill and exact tailoring executor have been
 removed. Regenerate fixtures/saves containing that retired bill class. Old
 journaled tailoring attempts return participants at task boundaries without
 crediting unobserved work or starting dependent tasks. Routine cooking also stays
-native; the explicit fixture-driven recipe primitive still uses the generic driver
-and is not routine forecast dispatch. Its remaining migration is tracked in the
-labor inventory. See
+native, and no exact recipe primitive remains (task 5.3). See
 [equipment upkeep](equipment-upkeep.md#live-clothing-requirement-selection).
 
 ## Voluntary ownership and bounded no-change

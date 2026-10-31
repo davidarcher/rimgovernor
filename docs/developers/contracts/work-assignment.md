@@ -482,7 +482,11 @@ from stock or an idle bench, and names neither a hauler nor a storage layout.
 Widening otherwise requires recipe work in some busy sample. Pending ingredient
 targets with no recipe work below that share report `ingredients_pending`;
 otherwise missing recipe-work evidence reports `recipe_work_unassessed`. None of
-these reasons adds a bench.
+these reasons adds a bench. Bill work stays native: only `ingredients_pending` and
+`delivery_bound` can justify an exact order, and that order is the generator's
+ingredient delivery feeding the bill under a `production_stall` purpose
+([intervention justification](forecast-contracts.md)); `work_unstarted` and the
+bench reasons are refused `stall_not_answered_by_orders`.
 The opening reading counts toward both bill activity and
 job evidence. Refuelling, repair, delivery to the same bench and work on another
 bill do not count as work on this order. `JobEvidence.BillId` is the native

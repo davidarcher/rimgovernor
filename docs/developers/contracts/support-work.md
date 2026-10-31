@@ -80,8 +80,11 @@ The food plan and work ledger retain bill ownership; no support-work scheduler
 assigns the routine cook. The generator's harvest, cooking and delivery
 bindings are comparison templates. One is dispatched only when
 `InterventionRules.Readmitted` re-admits it under a justified `food_risk`, or a
-food `need_shortfall`, for its pawn
-([forecast](forecast-contracts.md)). The `food/ordinary-cooking` case is
+food `need_shortfall`, for its pawn, or an ingredient delivery under the
+`production_stall` of a product it feeds
+([forecast](forecast-contracts.md)). Bill work itself is never an exact order:
+the cooking binding names native bill work only (task 5.3 of
+`native-led-labor-execution`). The `food/ordinary-cooking` case is
 registered to check that a served FoodTarget bill and work settings make native
 pawns cook usable meals. It has not been executed.
 

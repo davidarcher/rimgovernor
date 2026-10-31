@@ -99,9 +99,9 @@ sufficiency.
 planning connections, including cooking-facility selection (F14). Recovery after
 losing a stove has no current native outcome evidence.
 
-**Evidence:** F2/F3 connect selected cooking to game work. F6 checks ingredient
-consumption, food creation and two failures. The test directs each attempt and
-ends at food production. Autonomous recovery and eating need additional evidence.
+**Evidence:** F2/F3 connect selected cooking to game work. Cooking runs through
+native bills and work settings; F6's exact recipe case was retired with the exact
+recipe path. Autonomous recovery and eating need additional evidence.
 
 **Open work:** [T2](review-queue.md#t2--recover-and-get-fed) targets recovery through
 to a meal eaten.
@@ -115,8 +115,7 @@ missing-information checks. Autonomous recovery through a later meal still needs
 native outcome evidence.
 
 **Evidence:** F4 supplies observations to check changed ingredients, actual meal
-output and release of failed work. F6 exercises failures in the game with
-test-directed recovery. The connection from failure to an autonomously chosen
+output and release of failed work. The connection from failure to an autonomously chosen
 replacement remains the main evidence gap.
 
 **Open work:** [T2](review-queue.md#t2--recover-and-get-fed) checks that connection;
@@ -333,10 +332,12 @@ and save/reload remains pending.
   `AnAbsentFoodPlanOrRunwayRaisesAtTheReaderThatNeedsIt` checks explicit failure
   for missing planning information.
 - [FoodCookingContinuationTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/FoodCookingContinuationTests.cs):
-  `SupplyRebindsChangedIngredientThenCookingRequiresObservedMealForDelivery`,
-  `InterruptedCookingLostBenchAndChangedRecipeCannotReplayConsumption` and
-  `FreshDemandCanRetireProductiveWork` check continuation against supplied
-  observations. Automatic recovery in game needs separate execution evidence.
+  `AnEndedIngredientDeliveryReturnsToNativeWithoutCreditingMeals` and
+  `FreshDemandCanRetireProductiveWork` check that a re-admitted ingredient
+  delivery returns to native work against supplied observations; the bill it
+  feeds runs through native bills and work settings (task 5.3 of
+  `native-led-labor-execution`). Automatic recovery in game needs separate
+  execution evidence.
 
 **F5 — Existing game test: `food/forage-unarmed`.**
 [FoodForageUnarmed](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Food/FoodForageUnarmed.cs)
@@ -350,15 +351,13 @@ Malnutrition recovery and repeated food replacement are outside its assertions.
 [#3668](https://github.com/davidarcher/rimgovernor/issues/3668) reports landing
 `07f32fe50`.
 
-**F6 — Existing game test: `control/pawn-activity-cooking`.**
-[ControlCooking](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Control/ControlCooking.cs)
-is registered in CaseCatalog as OnDemand. It stages a stove, competing bills and
-selected/unselected ingredients. Two test-directed attempts lose an ingredient or
-usable bench and must fail without producing meals or consuming the remaining
-inputs. A third must make exactly the expected output while leaving the other
-bill and unselected stack alone. Recovery is directed by the test; eating is
-outside its assertions. [#3398](https://github.com/davidarcher/rimgovernor/issues/3398)
-records the porting work.
+**F6 — Retired game test: `control/pawn-activity-cooking`.**
+The case directed exact recipe attempts with selected ingredients. Bill work no
+longer runs as an exact order (task 5.3 of `native-led-labor-execution`), so the
+case and its fixture were deleted with the exact recipe path. Native cooking is
+observed by `production/development-lifecycle` and the productive cooking cases;
+a stalled bill re-admits only its ingredient delivery
+(`InterventionHandsTests.AStalledBillWithIngredientsPendingReachesHandsAsAJustifiedIngredientDelivery`).
 
 **Additional sampled case:**
 [FoodStarvingRecovery](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Food/FoodStarvingRecovery.cs)

@@ -120,7 +120,7 @@ internal static class CoordinatedActivityBinding
                     { Practice = task.Practice, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
                         Targets = task.Targets, Cells = task.Cells, FullLoad = task.FullLoad, Collect = task.Collect, Recipe = task.Recipe }),
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
-                    { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
+                    { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition,
                         Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand,
                         UseUntilTick = SelectedActivityTask.UseUntil(tick, a.Depart, a.End) };
         }).ToArray();
@@ -205,8 +205,7 @@ internal static class CoordinatedActivityBinding
             // Reconcile only at a task boundary, preserving in-flight work. If another participant
             // depends on this participant's remaining work, end the coordinated attempt rather
             // than erase an unobserved prerequisite and accidentally authorize its dependent.
-            if (batch.Tasks.Any(t => t.Pawn == order.Pawn && t.Step.Kind == PawnActivityKind.Recipe) || next.ProductStuff.Length > 0
-                || next.Step.Kind == PawnActivityKind.Supply || next.SupportDemand.Length > 0
+            if (next.Step.Kind == PawnActivityKind.Supply || next.SupportDemand.Length > 0
                 || next.Step.Kind == PawnActivityKind.Deliver && next.SiteDefinition.Length > 0
                 || next.Step.Kind == PawnActivityKind.Work && next.Step.Job is "FinishFrame" or "BuildRoof"
                 || next.Step.Kind == PawnActivityKind.Work
@@ -285,7 +284,6 @@ internal static class CoordinatedActivityBinding
     private static bool CompatibleActivityBinding(SelectedActivityTask task, PawnActivityStep bound) =>
         bound.Kind == task.Step.Kind && bound.Deadline == task.Step.Deadline && bound.WorkGiver == task.Step.WorkGiver
         && bound.Practice == task.Step.Practice && bound.Medicine == task.Step.Medicine && bound.SupportDemand == task.Step.SupportDemand
-        && (bound.Kind != PawnActivityKind.Recipe || bound.Target == task.Step.Target)
         && bound.Job == task.Step.Job && (bound.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply)
             || bound.Count > 0 && bound.Count <= task.Step.Count)
         && bound.FullLoad == task.Step.FullLoad && bound.Collect.All(task.Step.Collect.Contains)

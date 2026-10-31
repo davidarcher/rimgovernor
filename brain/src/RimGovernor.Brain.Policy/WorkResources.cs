@@ -328,7 +328,6 @@ public static partial class WorkRules
                 {
                     Take(task.Step.Target);
                     if (recipe.Bill.Length != 0) Take(recipe.Bill);
-                    if (recipe.Unfinished.Length != 0) Take(recipe.Unfinished);
                 }
             }
             foreach (var order in batch.Orders)
@@ -375,7 +374,6 @@ public static partial class WorkRules
                     if (step.Recipe is { } cooking)
                     {
                         if (observed?.State is "completed" or "failed") continue; // Fresh stock owns any remaining/consumed ingredients.
-                        if (observed is { Unfinished.Length: > 0 }) continue; // Actual UFT owns consumed ingredients outside loose stock.
                         if (cooking.Resource.Length == 0) { findings.Add("unknown_cooking_materials:" + row.Action.Id.Value); continue; }
                         var carried = observed?.CarriedResource == cooking.Resource ? observed.CarriedCount : 0;
                         claims.Add(new(new(cooking.Resource), new MaterialUnits.Exact(Math.Max(0, cooking.Ingredients.Sum(i => i.Count) - carried)), cooking.Bill));
@@ -516,7 +514,7 @@ public static partial class WorkRules
         {            var observed = view.Evidence.Pawns.SingleOrDefault(p => p.Pawn == pawn);
             if (observed is null || !observed.Available || !observed.Applies) return "pawn_unavailable:" + pawn;
             if (retainedParticipants?.Contains(pawn) != true && proposed.Actions.SelectMany(a => a.PawnActivities?.Orders ?? []).Any(o => o.Pawn == pawn
-                && o.Steps.Any(s => s.Kind is PawnActivityKind.Work or PawnActivityKind.Deliver or PawnActivityKind.Recipe or PawnActivityKind.Approach or PawnActivityKind.Supply))
+                && o.Steps.Any(s => s.Kind is PawnActivityKind.Work or PawnActivityKind.Deliver or PawnActivityKind.Approach or PawnActivityKind.Supply))
                 && (!view.Capacity.TryGetValue(pawn, out var capacity) || capacity.Capacity.Windows is not ForecastCapacityWindows.Read(var windows)
                     || !windows.Any(w => w.Start == 0 && w.End > 0))) return "pawn_capacity_unavailable:" + pawn;
         }

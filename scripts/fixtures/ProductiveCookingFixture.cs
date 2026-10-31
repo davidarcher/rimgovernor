@@ -22,6 +22,11 @@ public sealed partial class PawnControlFixture
     private static readonly Dictionary<string, int> productiveCompletions = new(StringComparer.Ordinal);
     private static readonly HashSet<string> productiveJobs = new(StringComparer.Ordinal);
     private static readonly HashSet<string> productiveStartedJobs = new(StringComparer.Ordinal);
+    private static Building_WorkTable cookingBench = null!;
+    private static Bill_Production selectedBill = null!;
+
+    private static Bill_Production StagedBill(Building_WorkTable bench, string id) =>
+        bench.BillStack.Bills.OfType<Bill_Production>().FirstOrDefault(b => b.GetUniqueLoadID() == id) ?? throw new ArgumentException($"No staged bill {id}.");
 
     [Tool("test/productive_cooking_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged cook, stove, simple-meal bill and rice; clear other food; set near-next-level cooks, no selected worker or activity. Verify native counterfactual rates before normal planner starts.")]
     public async Task<object> ProductiveCookingPrepare(INativeContext ctx, CancellationToken ct,

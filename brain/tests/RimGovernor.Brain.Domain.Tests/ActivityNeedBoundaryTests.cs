@@ -20,23 +20,14 @@ public sealed class ActivityNeedBoundaryTests
             Needs = [NeedsFixtures.Rate("rest", rest, .00002, .3), NeedsFixtures.Rate("food", .9, .00003, .3)] }] }
     };
 
-    [Fact]
-    public void TiredCookFinishingSupplyIsReleasedInsteadOfStartingTheMeal()
+    /// <summary>A finished ingredient delivery returns its pawn to native work, tired or rested: the bill it fed is native work.</summary>
+    [Theory]
+    [InlineData(.08)]
+    [InlineData(.9)]
+    public void AFinishedIngredientDeliveryReturnsToNativeWhateverTheCarriersRest(double rest)
     {
-        var supply = ActivityContinuationFixtures.Cooking();
-        var cook = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, ActivityNeed.Owed, Read(supply, "completed", .08) with { Bindings = [new ActivityTaskBinding.Bound(cook.Id, cook.Step)] })!;
-        Assert.True(Assert.Single(next.Orders).Release);
-        Assert.Empty(next.Tasks);
-    }
-
-    [Fact]
-    public void RestedCookFinishingSupplyAlsoReturnsToNative()
-    {
-        var supply = ActivityContinuationFixtures.Cooking();
-        var cook = supply.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Recipe);
-        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, ActivityNeed.Owed, Read(supply, "completed", .9) with
-        { Bindings = [new ActivityTaskBinding.Bound(cook.Id, cook.Step)] })!;
+        var supply = ActivityContinuationFixtures.IngredientDelivery();
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, ActivityNeed.Owed, Read(supply, "completed", rest))!;
         Assert.True(Assert.Single(next.Orders).Release);
         Assert.Empty(next.Tasks);
     }
@@ -183,7 +174,7 @@ public sealed class ActivityNeedBoundaryTests
     [Fact]
     public void ARunningTaskIsNeverInterruptedByAUrgentNeed()
     {
-        var supply = ActivityContinuationFixtures.Cooking();
+        var supply = ActivityContinuationFixtures.IngredientDelivery();
         Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, ActivityNeed.Owed, Read(supply, "started", .08)));
     }
 }

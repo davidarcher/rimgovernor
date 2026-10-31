@@ -19,7 +19,7 @@ internal static class CoupledFixtures
             SurgeryQualityMin = 0, SurgeryQualityMax = float.MaxValue,
         };
 
-    /// <summary>A food conversion its pawn can supply, cook (in workTicks, never poisoned, training no skill) and carry back in
+    /// <summary>A food conversion its pawn can supply, cook (in workTicks, training no skill) and carry back in
     /// deliveryTicks, from a source that needs harvesting.</summary>
     internal static CoupledFoodConversion Conversion(string source, string pawn, string bench, string recipe, string ingredient,
         int ingredientCount, string product, int productCount, Cell sourceCell, Cell benchCell, Cell destination,
@@ -28,7 +28,7 @@ internal static class CoupledFixtures
             approachTicks, supplyTicks, carryingCapacity, availableInput)
         {
             CanSupply = true, RequiresHarvest = true, WorkGiver = "", Bill = "",
-            Cooking = new FoodCooking.Cook(workTicks, 0, null), Delivery = new FoodDelivery.Carried(deliveryTicks),
+            Cooking = new FoodCooking.Cook(workTicks, null), Delivery = new FoodDelivery.Carried(deliveryTicks),
         };
 
     /// <summary>A tend of this base quality whose batch has no pending infection check unless one is given.</summary>

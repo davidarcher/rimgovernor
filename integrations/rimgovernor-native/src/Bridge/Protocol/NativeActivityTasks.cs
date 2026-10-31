@@ -70,8 +70,7 @@ internal static class NativeActivityTasks
                     foreach (var item in candidates.Take(16))
                     {
                         if (--budget < 0) { truncated = true; break; }
-                        if (item.def.defName != task.Resource || task.ProductStuff.Length != 0 && item.Stuff?.defName != task.ProductStuff
-                            || item.Destroyed || item.IsForbidden(pawn)
+                        if (item.def.defName != task.Resource || item.Destroyed || item.IsForbidden(pawn)
                             || carried == null && !pawn.CanReserveAndReach(item, PathEndMode.Touch, Danger.None)) continue;
                         var count = Math.Min(task.Step.Count, Math.Min(item.stackCount, pawn.carryTracker.MaxStackSpaceEver(item.def)));
                         if (step.SupportDemand.Length != 0) count = Math.Min(count, NativeSupportActivities.Remaining(map, step, item.def));

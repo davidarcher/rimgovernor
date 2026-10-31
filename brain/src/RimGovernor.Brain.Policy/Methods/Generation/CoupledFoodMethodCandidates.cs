@@ -77,6 +77,7 @@ internal static class FoodMethodCandidates
             .ThenBy(c => c.Group.Key.Bench, StringComparer.Ordinal).ThenBy(c => c.Group.Key.Recipe, StringComparer.Ordinal))
         {
             var group = candidate.Group; var first = group.First(); var batch = candidate.Batch;
+            var feeds = EquatableArray.From(group.Select(c => c.Product).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
             var unread = group.Select(c => c.Product).Distinct().Where(p => Fresh(p) is null).OrderBy(p => p, StringComparer.Ordinal).FirstOrDefault();
             if (unread is not null) { findings.Add("food_shelf_life_unread:" + unread); continue; }
             if (!Space(2 * batch)) break;
@@ -118,7 +119,7 @@ internal static class FoodMethodCandidates
                                 : back?.Ticks is RouteTicks.Reachable(var walk) ? trips * row.SupplyTicks + (trips - 1) * walk : null;
                             if (row.CanSupply && row.CarryingCapacity > 0 && ticks is { } carry) Option(supply, row.Pawn, carry);
                             bindings[(supply, row.Pawn)] = new CellActivityTaskCandidate(new ActivityTaskCandidate(supply, row.Pawn, [], PawnActivityKind.Deliver,
-                                row.RequiresHarvest ? "observed-output" : row.Source, "", "", quantity, deadline, row.SourceCell) { Resource = row.Ingredient, Source = row.SourceCell, Capacity = row.CarryingCapacity }, row.BenchCell);
+                                row.RequiresHarvest ? "observed-output" : row.Source, "", "", quantity, deadline, row.SourceCell) { Resource = row.Ingredient, Source = row.SourceCell, Capacity = row.CarryingCapacity, Feeds = feeds }, row.BenchCell);
                         }
                     }
                 }
@@ -138,8 +139,7 @@ internal static class FoodMethodCandidates
                         if (cooking.SkillWork is null) findings.Add("productive_learning_unassessed:" + row.Pawn + ":" + row.Recipe);
                         findings.Add("cooking_poisoning_and_future_environment_unassessed");
                         bindings[(cook, row.Pawn)] = new(cook, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.BenchCell)
-                        { Resource = row.Ingredient, Source = row.BenchCell, Recipe = new(row.Bill, row.Recipe, [new("observed-output", row.IngredientCount)]) { Resource = row.Ingredient },
-                          FoodPoisonChance = cooking.FoodPoisonChance };
+                        { Resource = row.Ingredient, Source = row.BenchCell, Recipe = new(row.Bill, row.Recipe, [new("observed-output", row.IngredientCount)]) { Resource = row.Ingredient } };
                     }
                     if (row.Delivery is FoodDelivery.Carried(var carried)) Option(deliver, row.Pawn, carried);
                     bindings[(deliver, row.Pawn)] = new CellActivityTaskCandidate(new ActivityTaskCandidate(deliver, row.Pawn, [], PawnActivityKind.Deliver, "observed-output", "", "", row.ProductCount, deadline, row.BenchCell) { Resource = row.Product, Source = row.BenchCell }, row.Destination);

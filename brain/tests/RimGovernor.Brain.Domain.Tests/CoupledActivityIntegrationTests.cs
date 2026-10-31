@@ -115,12 +115,10 @@ public sealed class CoupledActivityIntegrationTests
     [Theory]
     [InlineData(PawnActivityKind.Sleep)]
     [InlineData(PawnActivityKind.Recreation)]
-    [InlineData(PawnActivityKind.Recipe)]
     [InlineData(PawnActivityKind.Eat)]
     public void OrdinaryServiceReturnsToNativeRegardlessOfProviderBinding(PawnActivityKind kind)
     {
-        var step = new PawnActivityStep(kind, kind == PawnActivityKind.Eat ? "observed-output" : "selected-target", "", "", kind == PawnActivityKind.Eat ? 2 : 0, 1000)
-        { Recipe = kind == PawnActivityKind.Recipe ? new("bill", "recipe", [new("ingredient", 2)]) { Resource = "Rice" } : null };
+        var step = new PawnActivityStep(kind, kind == PawnActivityKind.Eat ? "observed-output" : "selected-target", "", "", kind == PawnActivityKind.Eat ? 2 : 0, 1000);
         var task = new SelectedActivityTask("service", "pawn", [], step, new(1, 1), 100);
         var order = new PawnActivityOrder("pawn", "coupled/pawn", "coupled", 0, 1, false,
             [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 1000).At(new(1, 1)),

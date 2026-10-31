@@ -14,10 +14,8 @@ public sealed partial record ForecastCoupledExecution
     /// <summary>Retained work remains under its existing Method. Counterfactual replacement first releases
     /// exact ownership; a subsequent observed review may admit new work for the released pawn. No forecast invents a
     /// release receipt. The rest of the selection is dispatched in the same review (#3598): every allocation except what the
-    /// incumbents hold (<see cref="ForecastIncumbentHold.Dispatched"/>). A reconsidered productive Method (one with
-    /// bills, #3167) has no retain commitment: when the selection gives one of its reconsidered workers' bills to a pawn other
-    /// than its cooks, those workers alone are released and its other participants keep working (#3624); otherwise it keeps its
-    /// owners like any retained incumbent (<see cref="ForecastObservedIncumbent.ReleasedBy"/>). An incumbent it releases but cannot
+    /// incumbents hold (<see cref="ForecastIncumbentHold.Dispatched"/>). A retained incumbent keeps its owners unless the selection
+    /// drops its commitment (<see cref="ForecastObservedIncumbent.ReleasedBy"/>). An incumbent it releases but cannot
     /// (<see cref="ForecastIncumbentHold.Release"/>) leaves the review dispatching nothing, which the forecast refuses (#3889).</summary>
     public static ForecastCoupledExecution ReviewCoupledExecution(ForecastCoupledSelection selection,
         EquatableArray<ForecastObservedIncumbent> incumbents, long tick, IReadOnlyList<ForecastActivity>? activities = null,
@@ -27,7 +25,7 @@ public sealed partial record ForecastCoupledExecution
         if (incumbents.Count == 0) return new([], selection);
         var retained = selection.Selection.Selected.ToHashSet(StringComparer.Ordinal);
         var releases = new List<ForecastIncumbentRelease>();
-        foreach (var incumbent in incumbents.Where(i => i.ReleasedBy(retained, selection.Selection.Plan?.Allocations, candidates?.Context.Bindings)))
+        foreach (var incumbent in incumbents.Where(i => i.ReleasedBy(retained)))
         {
             // The forecast refuses an outcome that releases an incumbent without a release (ForecastIncumbentHold.Unreleased).
             if (ForecastIncumbentHold.Release(incumbent, tick) is not { } release) return new([], null);
@@ -80,17 +78,14 @@ public sealed record ForecastIncumbentHold(EquatableArray<string> Commitments, E
     }
 
     /// <summary>An incumbent's release at <paramref name="tick"/>, or null when it cannot be released (its ownership no longer
-    /// matches its orders): a reconsidered Method releases only the workers its review decided for, and the rest keep working
-    /// (#3624). A review that releases an incumbent without a release dispatches nothing.</summary>
-    internal static PawnActivities? Release(ForecastObservedIncumbent incumbent, long tick) => incumbent.Bills.Count > 0
-        ? Methods.Binding.CoordinatedActivityBinding.Release(incumbent.Batch, incumbent.Reconsidered)
-        : ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, ActivityNeed.Ended, tick, incumbent.Owned).Release;
+    /// matches its orders). A review that releases an incumbent without a release dispatches nothing.</summary>
+    internal static PawnActivities? Release(ForecastObservedIncumbent incumbent, long tick) =>
+        ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, ActivityNeed.Ended, tick, incumbent.Owned).Release;
 
-    /// <summary>The incumbents a review of <paramref name="selected"/> on <paramref name="allocations"/> releases
-    /// (<see cref="ForecastObservedIncumbent.ReleasedBy"/>) but cannot: the review then dispatches nothing.</summary>
-    internal IEnumerable<ForecastObservedIncumbent> Unreleased(IEnumerable<string> selected, IReadOnlyList<ForecastActivityAllocation> allocations,
-        IReadOnlyDictionary<(string Task, string Pawn), Methods.ActivityTaskCandidate> bindings)
-        => Unreleasable.Where(i => i.ReleasedBy(selected, allocations, bindings));
+    /// <summary>The incumbents a review of <paramref name="selected"/> releases (<see cref="ForecastObservedIncumbent.ReleasedBy"/>)
+    /// but cannot: the review then dispatches nothing.</summary>
+    internal IEnumerable<ForecastObservedIncumbent> Unreleased(IEnumerable<string> selected)
+        => Unreleasable.Where(i => i.ReleasedBy(selected));
 
     /// <summary>The selection the review dispatches now: its ids but the incumbents' commitments, and its allocations but the
     /// incumbents' own tasks, any task of an incumbent's pawn and any task waiting on one of those (by

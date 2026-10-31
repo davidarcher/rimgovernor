@@ -57,7 +57,6 @@ public static class CaseCatalog
         registry.Register(ControlPreemptHolder.Case());
 
         registry.Register(ControlDelivery.Case());
-        registry.Register(ControlCooking.Case());
         registry.Register(ProductionClothingActivity.Case());
         registry.Register(ProductionClothingActivity.Case(interrupted: true));
         registry.Register(CoordinatedWork.Food());

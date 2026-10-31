@@ -25,9 +25,10 @@ internal record ActivityTaskCandidate(string Id, string Pawn, EquatableArray<str
     public PawnActivityRecipe? Recipe { get; init; }
     public PawnActivityPractice? Practice { get; init; }
     public string ProductStuff { get; init; } = "";
+    /// <summary>The products an ingredient delivery feeds (a cooking supply's recipe products): the
+    /// <see cref="InterventionPurposeKind.ProductionStall"/> subjects that delivery answers. Empty on every other binding.</summary>
+    public EquatableArray<string> Feeds { get; init; }
     public EquatableArray<SelectedActivityInput> SelectedInputs { get; init; }
-    /// <summary>A cook binding's chance its meal is poisoned (CoupledFoodConversion.FoodPoisonChance, #3167); unread on every other binding.</summary>
-    public double FoodPoisonChance { get; init; }
     /// <summary>A set step's members (#3613): the Work repeats over these thing ids, or over <see cref="Cells"/> (#3615); Count is their number.</summary>
     public EquatableArray<string> Targets { get; init; }
     public EquatableArray<Cell> Cells { get; init; }

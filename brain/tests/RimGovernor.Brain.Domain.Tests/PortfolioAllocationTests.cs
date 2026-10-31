@@ -51,8 +51,8 @@ public sealed class PortfolioAllocationTests
                 {
                     FoodSources = EquatableArray.From(read.FoodSources.Select(s => s with { Count = 16 })),
                     FoodConversions = [novice with { AvailableInput = 16 }, experienced with { AvailableInput = 16 },
-                        experienced with { Pawn = "diner", Cooking = new FoodCooking.Cook(105d, 0, null), AvailableInput = 16 },
-                        experienced with { Pawn = "porter", Cooking = new FoodCooking.Cook(110d, 0, null), AvailableInput = 16 }],
+                        experienced with { Pawn = "diner", Cooking = new FoodCooking.Cook(105d, null), AvailableInput = 16 },
+                        experienced with { Pawn = "porter", Cooking = new FoodCooking.Cook(110d, null), AvailableInput = 16 }],
                     FoodUses = [.. read.FoodUses, read.FoodUses[0] with { Pawn = "diner" }],
                     Routes = EquatableArray.From(read.Routes.Concat(read.Routes.Where(r => r.Pawn == "helper")
                         .SelectMany(r => new[] { r with { Pawn = "diner" }, r with { Pawn = "porter" } })))

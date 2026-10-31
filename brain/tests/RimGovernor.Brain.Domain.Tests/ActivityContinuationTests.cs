@@ -64,29 +64,6 @@ public sealed class ActivityContinuationTests
         Assert.All(release.Orders.Zip(persisted.Orders), pair => Assert.True(PawnActivities.SameOrder(pair.First, pair.Second)));
     }
 
-    /// <summary>#3624: a coupled worker read completed while a recipe is left is one finished task, keyed by its order, so a
-    /// continuation deferred at that boundary and read again is the same event; none when no recipe is left or mid-task.</summary>
-    [Fact]
-    public void ACoupledWorkerThatFinishedATaskWithBillsLeftIsOneFinishedTask()
-    {
-        var recipe = new PawnActivityStep(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000) { Recipe = new("bill/CookRice", "CookRice", []) };
-        var first = new SelectedActivityTask("cook-1", "pawn", [], recipe, new(2, 1), 0);
-        var order = new PawnActivityOrder("pawn", "assignment", "coupled-cook", 0, 1, false, [recipe]) { Task = first.Id };
-        var batch = new PawnActivities(1, [order]) { Tasks = [first, first with { Id = "cook-2" }] };
-        var completed = new ActivityOwnership("pawn", "assignment", "coupled-cook", 1, "completed");
-        Assert.Equal(["coupled-cook/pawn/1"], ActivityContinuationRules.FinishedTasks(batch, [completed]));
-        Assert.Empty(ActivityContinuationRules.FinishedTasks(batch, [completed with { State = "started" }]));
-        Assert.Empty(ActivityContinuationRules.FinishedTasks(batch with { Tasks = [first] }, [completed]));
-        Assert.Empty(ActivityContinuationRules.FinishedTasks(batch, [completed with { Revision = 2 }]));
-        // Any one worker counts while another participant works on; one whose remaining recipes are another pawn's does not.
-        var busy = new PawnActivityOrder("busy", "busy-assignment", "coupled-cook", 0, 1, false, [recipe]) { Task = "busy-1" };
-        var both = batch with { Orders = [order, busy], Tasks = [.. batch.Tasks, first with { Id = "busy-1", Pawn = "busy" }] };
-        var started = new ActivityOwnership("busy", "busy-assignment", "coupled-cook", 1, "started");
-        Assert.Equal(["coupled-cook/pawn/1"], ActivityContinuationRules.FinishedTasks(both, [completed, started]));
-        var handed = both with { Tasks = [first, first with { Id = "cook-2", Pawn = "busy" }, first with { Id = "busy-1", Pawn = "busy" }] };
-        Assert.Empty(ActivityContinuationRules.FinishedTasks(handed, [completed, started]));
-    }
-
     [Fact]
     public void TerminalHoldCleanupDoesNotReadmitDeliveryAgainstAnotherMethodsResidualMeal()
     {

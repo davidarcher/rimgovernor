@@ -25,9 +25,9 @@ public sealed class FoodCookingContinuationTests
     [Theory]
     [InlineData("completed")]
     [InlineData("failed")]
-    public void OldRecipeChainReturnsToNativeWithoutRebindingInputsOrCreditingMeals(string state)
+    public void AnEndedIngredientDeliveryReturnsToNativeWithoutCreditingMeals(string state)
     {
-        var batch = ActivityContinuationFixtures.Cooking();
+        var batch = ActivityContinuationFixtures.IngredientDelivery();
         var read = Done(batch, state);
         var next = Assert.IsType<PawnActivities>(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, read));
         Assert.True(Assert.Single(next.Orders).Release);
@@ -39,7 +39,7 @@ public sealed class FoodCookingContinuationTests
     [Fact]
     public void FreshDemandCanRetireProductiveWork()
     {
-        var supply = ActivityContinuationFixtures.Cooking();
+        var supply = ActivityContinuationFixtures.IngredientDelivery();
         supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Append(new("eat", "pawn", [],
                 new(PawnActivityKind.Eat, "meal", "", "", 1, 500), new(8, 9), 200))) };
         var read = Done(supply) with { Needs = NeedsFixtures.Empty with { Tick = new(200), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", State = "eligible",

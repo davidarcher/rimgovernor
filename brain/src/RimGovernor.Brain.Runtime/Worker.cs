@@ -94,8 +94,6 @@ public sealed partial class Worker
     // Policy continuation can admit a successor Method independently of action advancement.
     private bool _advanced;
 
-    // The finished tasks already recorded for a review (#3624), so each finished task is one review however often it is read.
-    private readonly HashSet<string> _finishedTasks = new(StringComparer.Ordinal);
 
     private Worker(Player player, IWorkerSession session, WorkerConfig config, CancellationTokenSource lifetime)
     {

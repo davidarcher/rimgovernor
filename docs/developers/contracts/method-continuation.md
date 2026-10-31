@@ -5,7 +5,10 @@ installed exact commitment preserves a running task but does not start another
 Supply, FinishFrame or BuildRoof at its next observed boundary. It releases the participant;
 if another participant depends on its remaining work, the attempt ends and releases
 its exact owners. This supplies no completion evidence or material refund, and
-leaves an unrelated running participant unchanged.
+leaves an unrelated running participant unchanged. A justified supply or finish of
+an observed construction stall (task 5.4) is one such task: it runs once under
+its `construction_stall` purpose and hands back at its boundary like any other;
+the review releases it earlier once the site's observed progress changes.
 
 Deconstruct, Uninstall, CutPlant, RemoveFloor and
 Mine follow the same boundary handback, including planned footprint clearance.

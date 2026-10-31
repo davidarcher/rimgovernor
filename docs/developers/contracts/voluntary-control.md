@@ -104,12 +104,9 @@ and job start) passes through for it, and native publishes nothing for it, so it
 never holds the clock (#3518). A colonist that lost its activity Method, or whose
 next service the comparison deferred, runs vanilla work until a review selects
 something for it; it is no reason to review early, and there is no separate timed
-defer and no explicit standby order. When a coupled worker
-finishes a task with bills left, the review its finished task raises decides who
-takes the next one before that worker starts it (#3624): the same worker, or an
-unowned colonist that does it faster
-([incumbent reconsideration](essential-services.md)); only that worker's next
-task is re-decided, and the Method's other participants keep working.
+defer and no explicit standby order. Bill work runs through native bills and
+work settings (task 5.3 of `native-led-labor-execution`), so no exact order holds
+bills a finished task could hand to another worker.
 An unsupported need/state blocker is a visible finding
 (`unsupported_voluntary_state:<pawn>:<blocker>`), not a capacity exclusion: the
 pawn's supported needs and labor stay selectable, so it is fed and worked like any
@@ -189,7 +186,6 @@ epic (#3124).
 | `production/clothing-activity-unfinished` | Keep observed unfinished-item resumption and conservation, without spending loose inputs twice. |
 | `control/pawn-activities` | Keep exact job execution, supported needs mechanics, preemption and refusal checks. It is an execution contract, not normal-planner economic evidence. |
 | `control/activity-*` | Keep save/load, ownership, revision, continuation and release mechanics. |
-| `control/pawn-activity-cooking` | Keep exact recipe/input execution and unavailable/reserved-target refusal. |
 | `control/pawn-activity-delivery` | Keep exact quantities, blocked destination/filter legality and observed delivery. |
 | `observations/pawn-activity`, `observations/planned-room-prediction` | Keep native schema and coherent observations; a fact that cannot be read fails the case ([rule 9](../architecture/rules.md#review-items)); none proves dispatch. |
 | `needs/freeze` | Keep fixture control mechanics; production outcome cases must explicitly leave the needs they exercise live. |

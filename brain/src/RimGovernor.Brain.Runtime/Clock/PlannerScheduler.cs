@@ -61,11 +61,6 @@ public sealed partial class PlannerScheduler
     private ReviewResult? _lastReview;
     private ReadValidity? _validity;
 
-    // A coupled Method's worker finished a task with bills left since the last review, and the last finished task the next
-    // review covers (#3624): committing it lets those workers start their next tasks.
-    private bool _taskFinished;
-    private long _taskReviewedThrough;
-
     // The urgent placements whose dispatch had settled when this step began (#3537): its rounds review covers them.
     private IReadOnlyList<PlanId> _urgentCovered = [];
 
@@ -183,8 +178,7 @@ public sealed partial class PlannerScheduler
     /// Why a step that runs planners runs the reviewer first, or null when its planners read the last committed
     /// review instead (#3556): <c>all</c> when every planner runs (a full step, an authority change), <c>due</c> when
     /// no review has been committed since the scheduler started, the tick went back, or the last review at
-    /// <paramref name="lastTick"/> has stood <paramref name="every"/> ticks at <paramref name="tick"/>, and <c>task</c> when a coupled Method's worker finished a task with bills left (<paramref name="task"/>, #3624): the
-    /// review reconsiders who takes that worker's next task, one event per finished task, and <c>first_plan</c> while the
+    /// <paramref name="lastTick"/> has stood <paramref name="every"/> ticks at <paramref name="tick"/>, and <c>first_plan</c> while the
     /// colony's first layout plan holds the clock (<paramref name="firstPlan"/>, #3652): the held clock advances no tick,
     /// so only a review reads the fact it waits for, and <c>urgent_build</c> while an urgent placement waits for a review
     /// to compare its sites (<paramref name="urgent"/>, #3537): the clock is held until one does. A colonist whose activity
@@ -195,7 +189,7 @@ public sealed partial class PlannerScheduler
     /// and the reviewer's review is the step's cost, so re-running it on a wake seconds after a due review held the
     /// clock paused for it on a hosted runner (#3726).
     /// </summary>
-    internal static string? Selection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every, bool task = false, bool firstPlan = false, bool urgent = false)
+    internal static string? Selection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every, bool firstPlan = false, bool urgent = false)
     {
         if (everyPlanner)
         {
@@ -205,7 +199,7 @@ public sealed partial class PlannerScheduler
         {
             return "due";
         }
-        return firstPlan ? "first_plan" : urgent ? "urgent_build" : task ? "task" : null;
+        return firstPlan ? "first_plan" : urgent ? "urgent_build" : null;
     }
 
     /// <summary>Whether an urgent placement waits for a rounds review to compare its sites (#3537): the run driver holds the clock meanwhile.</summary>
@@ -336,26 +330,17 @@ public sealed partial class PlannerScheduler
             sel = await SelectPlannersAsync(reason, statusTick, call).ConfigureAwait(false);
             if (Config.ReviewState is not null)
             {
-                if (_player.TaskReviews.Pending() is { } through)
-                {
-                    (_taskFinished, _taskReviewedThrough) = (true, through);
-                }
-                if ((_taskFinished || FirstPlanHeld || UrgentBuildsWaiting) && !sel.Planners)
+                if ((FirstPlanHeld || UrgentBuildsWaiting) && !sel.Planners)
                 {
                     // Nothing else is dirty or due: the step runs the reviewer alone.
                     sel = sel with { Planners = true, Pick = static _ => false, Why = new Dictionary<string, string>(StringComparer.Ordinal) };
                 }
             }
-            else if (_player.TaskReviews.Pending() is { } unreviewed)
-            {
-                // No reviewer reviews a finished task here: its worker goes on as it would after a review that kept it.
-                _player.TaskReviews.Reviewed(unreviewed);
-            }
             result.Stages.Lap("select");
             result.Waiting = [.. sel.Waiting];
             if (sel.Planners && Config.ReviewState is not null)
             {
-                rounds = Selection(reason.Cause, sel.Pick is null, statusTick, _reviewReviewed, _lastReviewTick, Config.ReviewEveryTicks, _taskFinished, FirstPlanHeld, UrgentBuildsWaiting);
+                rounds = Selection(reason.Cause, sel.Pick is null, statusTick, _reviewReviewed, _lastReviewTick, Config.ReviewEveryTicks, FirstPlanHeld, UrgentBuildsWaiting);
                 try
                 {
                     result.Planners = await RunPlannerWaveAsync(result, sel, statusTick, false, rounds, call, epoch).ConfigureAwait(false);
@@ -594,12 +579,8 @@ public sealed partial class PlannerScheduler
             output.Stages.Lap("rounds");
             if (!immediate)
             {
-                if (_taskFinished)
-                {
-                    _player.TaskReviews.Reviewed(_taskReviewedThrough);
-                }
                 reviewer.UrgentBuilds.Reviewed(_urgentCovered);
-                (_lastReviewTick, _reviewReviewed, _lastReview, _taskFinished) = (tick, true, review, false);
+                (_lastReviewTick, _reviewReviewed, _lastReview) = (tick, true, review);
                 await EstablishExtentAsync(review.Review.Tick, call).ConfigureAwait(false);
                 output.Stages.Lap("extent");
             }

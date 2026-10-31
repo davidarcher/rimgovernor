@@ -28,6 +28,11 @@ public abstract record InterventionPremise
     /// (<see cref="ProductionStall.AnsweredByOrders"/>). It is never inferred from omitted native production or an idle bench.</summary>
     public sealed record DemonstratedStall(ProductionStall Stall) : InterventionPremise;
 
+    /// <summary>The review's observed construction calibration (<see cref="ConstructionCalibration.Observed"/>) holds a stall of the
+    /// site the dispatched supply or finish serves, whose cause that work answers (<see cref="ConstructionStalls"/>). It is never
+    /// inferred from elapsed ticks or an unplaced or forecast site.</summary>
+    public sealed record StalledSite(ConstructionStall Stall) : InterventionPremise;
+
     /// <summary>The dispatched work serves something whose premise evidence is missing: neither a premise nor its absence is established.</summary>
     public sealed record Unassessed(string Reason) : InterventionPremise;
 
@@ -105,7 +110,7 @@ public abstract record InterventionJustification(InterventionPremise Premise, Na
     /// <summary>The response state of a refusal decided before any premise needed a response.</summary>
     public const string NoPremiseToAnswer = "no_intervention_premise";
     /// <summary>No other premise, and the observed calibration stall of the work's product has a cause exact orders cannot
-    /// answer (no bench, full bill slots, missing ingredients or exhausted benches): <c>stall_not_answered_by_orders:&lt;product&gt;:&lt;cause&gt;</c>.</summary>
+    /// answer (no bench, full bill slots, missing ingredients, unstarted work or exhausted benches): <c>stall_not_answered_by_orders:&lt;product&gt;:&lt;cause&gt;</c>.</summary>
     public const string StallNotAnsweredByOrders = "stall_not_answered_by_orders";
     /// <summary>The evidence of an <see cref="InterventionPremise.ObservedShortfall"/> read from <see cref="NativeNeedService.Unanswered"/>.</summary>
     public const string UnansweredAtZero = "at_zero_without_native_service";
@@ -157,14 +162,25 @@ public static class InterventionRules
     }
 
     /// <summary>Whether a justified <paramref name="purpose"/> answers one withheld activity: the pawn's own eat, sleep or
-    /// recreation answers only its own <see cref="InterventionPurposeKind.NeedShortfall"/> of food, rest or joy; other food work
-    /// (<see cref="ServesFood"/>) answers a <see cref="InterventionPurposeKind.FoodRisk"/> or any food shortfall. Nothing else is
-    /// re-admitted.</summary>
+    /// recreation answers only its own <see cref="InterventionPurposeKind.NeedShortfall"/> of food, rest or joy; a
+    /// <see cref="InterventionPurposeKind.ProductionStall"/> is answered only by an ingredient delivery feeding its product
+    /// (<see cref="Methods.ActivityTaskCandidate.Feeds"/>); a <see cref="InterventionPurposeKind.ConstructionStall"/> only by the supply or
+    /// finish of its site whose cause the stall names; any other construction supply or finish answers nothing; other food work (<see cref="ServesFood"/>) answers a
+    /// <see cref="InterventionPurposeKind.FoodRisk"/> or any food shortfall. Bill work itself (a <see cref="PawnActivityKind.Recipe"/>
+    /// binding) is never re-admitted: native bills and work settings run it. Nothing else is re-admitted.</summary>
     private static bool Answers(InterventionPurpose purpose, ForecastActivityAllocation allocation, ForecastCoupledContext context, ItemFacts items)
     {
-        var kind = context.Bindings[(allocation.Activity, allocation.Pawn)].Kind;
-        if (NativeNeedServices.Routine(kind))
-            return purpose.Kind == InterventionPurposeKind.NeedShortfall && purpose.Subject == NativeNeedServices.NeedOf(kind) && purpose.SubjectPawn == allocation.Pawn;
+        var binding = context.Bindings[(allocation.Activity, allocation.Pawn)];
+        if (binding.Kind == PawnActivityKind.Recipe) return false;
+        if (NativeNeedServices.Routine(binding.Kind))
+            return purpose.Kind == InterventionPurposeKind.NeedShortfall && purpose.Subject == NativeNeedServices.NeedOf(binding.Kind) && purpose.SubjectPawn == allocation.Pawn;
+        if (purpose.Kind == InterventionPurposeKind.ProductionStall)
+            return binding.Kind == PawnActivityKind.Deliver && binding.Feeds.Contains(purpose.Subject);
+        if (purpose.Kind == InterventionPurposeKind.ConstructionStall)
+            return SiteServed(binding) is { } served && served.Site == purpose.Subject
+                && context.ConstructionCalibration is ConstructionCalibration.Observed observed
+                && observed.Stalls.Any(s => s.Site == served.Site && s.Cause == served.Cause);
+        if (SiteServed(binding) is not null) return false;
         return ServesFood([allocation], context, items, out _)
             && (purpose.Kind == InterventionPurposeKind.FoodRisk || purpose is { Kind: InterventionPurposeKind.NeedShortfall, Subject: "food" });
     }
@@ -234,11 +250,13 @@ public static class InterventionRules
                     ? InterventionJustification.ForecastBenefitWithoutPremise : InterventionJustification.MarginalGainWithoutPremise);
         var response = premise is InterventionPremise.CapabilityOpportunity ? new NativeResponse.Unassessed("capability_native_response_unprojected")
             : premise is InterventionPremise.DemonstratedStall ? new NativeResponse.Unassessed("stall_native_response_unprojected")
+            : premise is InterventionPremise.StalledSite ? new NativeResponse.Unassessed("construction_native_response_unprojected")
             : premise is InterventionPremise.ObservedShortfall { Need: not "food" } shortfall
                 ? new NativeResponse.Unassessed(shortfall.Need + "_native_response_unprojected")
             : FoodResponse(context.NativeFood);
         if (response is NativeResponse.Unassessed(var unprojected)) uncertainty.Add("native_response_unassessed:" + unprojected);
-        var evidence = premise is InterventionPremise.DemonstratedStall(var demonstrated) ? demonstrated.ClosedTick : tick;
+        var evidence = premise is InterventionPremise.DemonstratedStall(var demonstrated) ? demonstrated.ClosedTick
+            : premise is InterventionPremise.StalledSite(var site) ? site.ClosedTick : tick;
         return new(pawn, activities, premise, response, evidence,
             response is NativeResponse.Supported && premise is not InterventionPremise.ObservedShortfall ? InterventionJustification.SettingsResponseSupported : "");
     }
@@ -311,11 +329,40 @@ public static class InterventionRules
                 && NativeNeedServices.Observe(context.Needs, allocation.Pawn, need) == NativeNeedService.Unanswered)
                 return new InterventionPremise.ObservedShortfall(need, allocation.Pawn, InterventionJustification.UnansweredAtZero);
         if (StallOf(dispatch, context, ref missing, out unansweredStall) is { } stall) return new InterventionPremise.DemonstratedStall(stall);
+        if (SiteStallOf(dispatch, context, ref missing) is { } site) return new InterventionPremise.StalledSite(site);
         return missing ?? (InterventionPremise)new InterventionPremise.None();
     }
 
+    /// <summary>The placed site a construction binding serves and the stall cause it answers: a supply's container answers
+    /// <see cref="ConstructionStallCause.SupplyUnstarted"/>, a finish's target <see cref="ConstructionStallCause.FinishUnstarted"/>.</summary>
+    private static (string Site, ConstructionStallCause Cause)? SiteServed(Methods.ActivityTaskCandidate binding) =>
+        binding.Kind == PawnActivityKind.Supply && binding.Container.Length != 0 ? (binding.Container, ConstructionStallCause.SupplyUnstarted)
+        : binding is { Kind: PawnActivityKind.Work, Job: ConstructionFinishJob } ? (binding.Target, ConstructionStallCause.FinishUnstarted)
+        : null;
+
+    /// <summary>The native job of a construction finish binding (ConstructionMethodCandidates).</summary>
+    private const string ConstructionFinishJob = "FinishFrame";
+
+    /// <summary>The observed construction stall the dispatched supply or finish answers: a standing stall of the site it serves
+    /// with the cause it answers (<see cref="SiteServed"/>). Construction work under unobserved progress is
+    /// <see cref="ConstructionCalibration.UnobservedReason"/>.</summary>
+    private static ConstructionStall? SiteStallOf(IReadOnlyList<ForecastActivityAllocation> dispatch, ForecastCoupledContext context,
+        ref InterventionPremise.Unassessed? missing)
+    {
+        var served = dispatch.Select(a => context.Bindings.TryGetValue((a.Activity, a.Pawn), out var binding) ? SiteServed(binding) : null)
+            .OfType<(string Site, ConstructionStallCause Cause)>().ToArray();
+        if (served.Length == 0) return null;
+        if (context.ConstructionCalibration is not ConstructionCalibration.Observed observed)
+        {
+            missing ??= new(((ConstructionCalibration.Unobserved)context.ConstructionCalibration).Reason);
+            return null;
+        }
+        return observed.Stalls.FirstOrDefault(s => served.Contains((s.Site, s.Cause)));
+    }
+
     /// <summary>The observed calibration stall the dispatched work answers: a standing closed short window of a product made
-    /// or fed by the chain of the dispatched activities and every activity waiting on them (by prerequisites). Bill work under
+    /// or fed by the chain of the dispatched activities and every activity waiting on them (by prerequisites), or fed by an
+    /// ingredient delivery in it (<see cref="ActivityTaskCandidate.Feeds"/>). Bill work under
     /// unobserved calibration is <see cref="ProductionCalibration.UnobservedReason"/>; a stall whose cause the dispatcher did
     /// not assess is <c>stall_cause_unassessed:&lt;product&gt;</c>; one whose cause orders cannot answer is returned through
     /// <paramref name="unanswered"/>.</summary>
@@ -330,10 +377,11 @@ public static class InterventionRules
             foreach (var activity in context.Activities.Activities.Where(a => !chain.Contains(a.Id) && a.Prerequisites.Any(chain.Contains)))
                 grew |= chain.Add(activity.Id);
         }
-        var recipes = context.Bindings.Where(b => chain.Contains(b.Key.Task) && b.Value.Recipe is not null).Select(b => b.Value.Recipe!).ToArray();
-        if (recipes.Length == 0) return null;
+        var bill = context.Bindings.Where(b => chain.Contains(b.Key.Task) && (b.Value.Recipe is not null || b.Value.Feeds.Count != 0)).Select(b => b.Value).ToArray();
+        if (bill.Length == 0) return null;
         var products = context.Activities.Activities.Where(a => chain.Contains(a.Id)).SelectMany(a => a.Outputs.Select(o => o.Resource.Value))
-            .Concat(recipes.Select(r => r.Resource).Where(r => r.Length != 0)).ToHashSet(StringComparer.Ordinal);
+            .Concat(bill.Select(b => b.Recipe?.Resource ?? "").Where(r => r.Length != 0)).Concat(bill.SelectMany(b => b.Feeds))
+            .ToHashSet(StringComparer.Ordinal);
         if (context.ProductionCalibration is not ProductionCalibration.Observed(var stalls))
         {
             missing ??= new(((ProductionCalibration.Unobserved)context.ProductionCalibration).Reason);

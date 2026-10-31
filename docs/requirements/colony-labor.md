@@ -875,15 +875,108 @@ guard and seven regressions / removed the native Eat/Sleep/Recreation rebind
 branch, one native acceptance case, its fixture and its build switch /
 orphans left: none.
 
+Task 5.3 leaves bill work to native bills and work settings: no bill work is
+an exact pawn order any longer. The exact recipe primitive
+(`NativeActivityRecipe.cs`), its driver branch, its only native case
+`control/pawn-activity-cooking` (`ControlCooking`), its fixture
+`PawnCookingFixture` and build switch, the `CookingRead` contract and a task's
+`ProductStuff` are deleted. A `Recipe` kind now names a comparison binding only;
+`PawnActivities.Validate` refuses it as a step, and surgery's `Work`/`DoBill` is
+the one step that carries bill arguments. With no exact recipe task left, the
+incumbent reconsideration for a worker that finished a task between reviews is
+deleted too: `TaskReviews`, `ActivityContinuation.FinishedTasks`,
+`ColonyEventConsumer.NotifyTaskReview`, the scheduler's `task` cause, and the
+unfinished-thing lines in `WorkResources`. Schema 68 replaces older journals.
+The one meaningful exception is a closed short window of a product whose bill
+jobs showed pending or delivery-bound ingredients (`ProductionStall`,
+`ingredients_pending` or `delivery_bound`). It re-admits only the generator's
+ingredient delivery feeding that bill (the binding's new `Feeds`) under a
+`production_stall` purpose naming the product. `work_unstarted`, exhausted
+benches and the bench causes are refused `stall_not_answered_by_orders`.
+Ordinary clothing already creates native finite bills (`NativeProductionBinding`).
+Verification:
+`InterventionHandsTests.AStalledBillWithIngredientsPendingReachesHandsAsAJustifiedIngredientDelivery`
+(the delivery alone reaches Hands with its purpose; its cooking is never
+re-admitted);
+`InterventionHandsTests.AStallNoOrderAnswersIsRefusedAndDispatchesNothing` ×2;
+`PawnActivitiesTests.BillWorkRejectsMissingOrAmbiguousIngredientAuthorization`;
+`ActivityNeedBoundaryTests.AFinishedIngredientDeliveryReturnsToNativeWhateverTheCarriersRest`
+×2; and `FoodCookingContinuationTests.AnEndedIngredientDeliveryReturnsToNativeWithoutCreditingMeals`
+×2. That is 8 regressions. The existing clothing, stock-target, partial-batch
+and unavailable-ingredient regressions (`ClothingChoiceTests`,
+`WorkResourcesTests`, `CoupledActivityIntegrationTests`) still pass unchanged
+apart from the removed recipe shape. Rules 7–9: policy stays pure; the feeding
+relation is added as a binding field rather than inferred; schema 68 is the
+amended persisted shape, and no scheduler, holding or fallback lane is added.
+Known limits: an unstarted bill is left to native work even when stocked
+ingredients idle; only the generator's own ingredient delivery can answer a
+stall; no native gameplay run is claimed. Complexity: added one binding field
+(`Feeds`), one stall re-admission rule, one step guard and 8 regressions /
+removed the exact recipe primitive and driver, one native case, its fixture
+and build switch, `CookingRead`, `ProductStuff`, the cook binding's `FoodPoisonChance` and
+the wire `FoodCooking.Cook.FoodPoisonChance` with its native fill (their last
+reader was the deleted incumbent reconsideration), the task-review chain, the
+unfinished-thing claims and 12 obsolete test methods / orphans left: none.
+
+Task 5.4 leaves ordinary construction supply and frame completion to native
+blueprints, frames and Construction/Hauling priorities, and makes the justified
+exception observable. The construction read now reports each placed site's
+progress (`ConstructionSiteProgress`: materials delivered of its cost, frame
+work done, and whether a colonist's current job targets it), filled natively in
+`NativeConstructionActivity.Read`. The review keeps one progress window per site
+(`ColonyReview.ConstructionMemory`). `ConstructionStalls.Observe` reports a
+stall only when the site's progress held and no job targeted it for
+`ConstructionStalls.WindowTicks`, one game day and the dispatcher's throughput
+window, so two readings at least a window apart are needed. The cause is
+`supply_unstarted` while the site owes materials, otherwise `finish_unstarted`.
+Changed progress, a first reading or an earlier tick reopens the window, and a
+targeting job restarts the quiet span, so no stall is fabricated from ticks.
+The new premise `StalledSite` holds for the pawn's supply of that site or its
+supplied frame's finish. It gives a `construction_stall` purpose naming the
+site, which completes once the site's progress changes after the stall closed
+or the site is gone; a worked site without progress stays open. Material,
+tier and minimum-skill constraints stay native settings
+(`ConstructionTierGate`, `ConstructionSkillGuard`), and a held site stays its
+order's (`NativePawnActivities.SiteHeld`, `CarryHeld`). An unsupplied site's
+finish waits on its delivery and is never re-admitted. Verification:
+`InterventionHandsTests.AStalledSiteReachesHandsAsAJustifiedSupplyWithItsPurpose`
+(the supply alone reaches Hands with its purpose; the finish waiting on it does
+not; the purpose's end conditions);
+`InterventionHandsTests.AStalledSuppliedFrameReachesHandsAsAJustifiedFinish`;
+`InterventionHandsTests.ASiteWithoutAnAnsweredStallReadmitsNothing` (no stall,
+another site's stall, a cause the work does not answer, unobserved progress);
+and `ConstructionStallsTests` ×5 (a whole-window stall of each cause, a single
+reading, reopening on progress or rewind, a targeting job restarting the quiet
+span, dropped sites and a missing read). That is 8 regressions. Existing
+material, quality, skill, delivery-dependency, interrupted-work and
+observed-completion regressions still pass:
+`ConstructionNativeObservationTests.SiteReadsNativeIdentityDefinitionMaterialsAndFinishingGuards`,
+`ConstructionCensusTests.NativeConstructionProjectionRetainsOwedMaterialsGateAndMinimum`,
+`ConstructionHelpReadyTests.QualityFreeHelpersUseTheObservedNativeSkill`,
+`CoordinatedConstructionTests.ASiteNoOneStackCoversIsSuppliedFromEveryStackOfItsSet`
+and `NativeServiceContinuationTests.OldConstructionCommitmentReturnsToNativeWithoutCreditingDependentCompletion`
+×6. Domain tests: 4324 passed, 0 failed. Rules 7–9: policy stays pure; the
+progress fact is added to the wire rather than assumed; the window memory is
+in-memory derived state recorded in the persistence contract, and the purpose
+kind adds no schema shape. Known limits: a site a native worker abandons
+without progress restarts its quiet span, so the next stall waits a further
+window; a purpose never cancels on its own and relies on the order's deadline
+or failure; standing removal bindings, the native set driver and the `control/`
+removal cases stay until task 5.6 because their exact primitives are still
+registered native evidence; no native gameplay run is claimed. Complexity:
+added one observed field and its native read, one pure window observer with
+its memory, one premise, one purpose kind and 8 regressions / removed nothing
+beyond 5.3 / orphans left: none.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
 | --- | --- | --- | --- |
 | `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; justified meal and FoodRisk work re-admitted per pawn (task 5.1); `food/ordinary-cooking` executed PASS 2026-10-31 (meals 0 → 4 under bot-created bill and work settings); formation hunting stays in its own planners outside the comparison |
 | `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Closed (task 5.2): ordinary binding, continuation and rebinding stay native; only an unanswered need at zero re-admits its own pawn's service; old-shape orders are released |
-| `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
-| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; native hauling is migrated; general intervention audit remains |
-| `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |
+| `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Closed (task 5.3): ordinary clothing runs through native finite bills and cooking through bot-created native bills; no bill work is an exact order; only an ingredients-pending or delivery-bound stall re-admits the ingredient delivery feeding it |
+| `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Closed (task 5.4): ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; native hauling is migrated; only an observed construction stall re-admits its site's supply or supplied finish, under a `construction_stall` purpose; standing removal bindings and the native set driver await the task 5.6 cleanup |
+| `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Closed (task 5.4): selected rooms realize through reconciled native blueprints and designations; unplaced planned-site activities are never dispatched or re-admitted (`InterventionRules.Readmitted`, `PlannedRoomActivitiesTests`); a placed site's stall follows the construction row |
 | `SupportMethodCandidates.Generate`: care, delivery, hauling and refill | Native work/settings and observed current occupation; justified direct exceptions | Support work, [medical care](../developers/contracts/medical-care.md); reachable native support and stale-care dispatch tests | Partial: routine delivery, tending and already-indicated surgery stay conditional and install no pawn orders; old commitments hand back at boundaries; meaningful interventions, native reachability/output evidence and final adapter audit remain |
 | `ResearchMethodCandidates.Generate`: conditional research blocks | Existing research goal/current project plus native priorities; fresh routine pawn binding removed | [Research](../developers/contracts/research.md), [work assignment](../developers/contracts/work-assignment.md); `NativeExecutionBindingTests` covers real selection without direct orders | Partial: fresh routine binding migrated; incumbent reconciliation and justified exceptions still require the general migration |
 | `SowingMethodCandidates.Generate`: conditional sowing work | Crop/zone choices and native growing priorities; fresh routine pawn binding removed | Work assignment, forecast; `NativeExecutionBindingTests` covers native-ready sowing selection without direct orders | Partial: fresh routine binding migrated; deadline intervention and incumbent reconciliation remain |

@@ -149,7 +149,7 @@ internal static class NativeBabySocial
             typeof(JobDriver_RemoveFloor), typeof(JobDriver_RemoveRoof), typeof(JobDriver_BuildRoof),
             typeof(JobDriver_Deconstruct), typeof(JobDriver_Uninstall),
             typeof(JobDriver_Ingest), typeof(JobDriver_LayDown), typeof(JobDriver_DoBill),
-            typeof(JobDriver_GovernorRecipe), typeof(JobDriver_GovernorTend),
+            typeof(JobDriver_GovernorTend),
             typeof(RimGovernor.Runtime.JobDriver_TrainRange), typeof(RimGovernor.Runtime.JobDriver_Spar),
         };
         foreach (var def in DefDatabase<JobDef>.AllDefsListForReading.Where(d => normal.Contains(d.driverClass)))

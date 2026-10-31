@@ -37,37 +37,6 @@ public sealed record ControlRead
     public bool Forced { get; init; }
 }
 
-/// <summary><c>test/pawn_cooking_read</c>: the cook's execution, the ingredient stock, the edible meals and both bills.</summary>
-public sealed record CookingRead
-{
-    public ActivityExecution? Execution { get; init; }
-
-    /// <summary>Raw ingredient units on the map, now and when the attempt was installed.</summary>
-    public int Raw { get; init; }
-
-    public int BeforeRaw { get; init; }
-
-    /// <summary>The units one selected recipe iteration consumes.</summary>
-    public int Required { get; init; }
-
-    /// <summary>The unselected stack's units.</summary>
-    public int Unselected { get; init; }
-
-    /// <summary>Edible units of the selected recipe's product, and the units one iteration makes.</summary>
-    public int Meals { get; init; }
-
-    public int ExpectedMeals { get; init; }
-
-    /// <summary>The selected and the competing bill's remaining repeat counts.</summary>
-    public int SelectedRemaining { get; init; }
-
-    public int OtherRemaining { get; init; }
-
-    public bool BenchUsable { get; init; }
-
-    public bool Forced { get; init; }
-}
-
 /// <summary><c>test/pawn_sow_read</c>: the sower's execution and how many cells of the zone stand sown.</summary>
 public sealed record SowRead
 {

@@ -91,12 +91,9 @@ internal static class NativeCoupledFood
                     if (!canCook && !canHaul) continue;
                     // The ingredient delivery is strict-exact-destination: it refuses a cell holding any item, staged rice included.
                     var stage = NativeSupportActivities.Staging(map, bench, c => JobDriver_GovernorDeliver.DestinationAvailable(pawn, c));
-                    // CompFoodPoisonable.Notify_RecipeProduced: the room's chance first, then the cook's own.
-                    var room = bench.InteractionCell.GetRoom(map);
-                    var roomPoison = room?.GetStat(RoomStatDefOf.FoodPoisonChance) ?? RoomStatDefOf.FoodPoisonChance.roomlessScore;
                     RimGovernor.Brain.GameFacts.Observations.FoodCooking cooking = canCook
                         ? new RimGovernor.Brain.GameFacts.Observations.FoodCooking.Cook(recipe.WorkAmountTotal(null) / (double)speed,
-                            roomPoison + (1 - roomPoison) * (double)pawn.GetStatValue(StatDefOf.FoodPoisonChance), NativeProductiveSkill.Read(pawn, recipe, bench))
+                            NativeProductiveSkill.Read(pawn, recipe, bench))
                         : new RimGovernor.Brain.GameFacts.Observations.FoodCooking.Incapable();
                     foreach (var product in recipe.products)
                     {

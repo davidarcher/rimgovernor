@@ -228,6 +228,14 @@ public sealed record PlannedSiteAnswer(string Site)
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedSiteClearing>))]
     public required EquatableArray<PlannedSiteClearing> Clearing { get; init; }
 }
+/// <summary>
+/// One placed site's observed progress (task 5.4 of <c>native-led-labor-execution</c>): the materials its blueprint or frame
+/// holds of its total cost (<see cref="Delivered"/> of <see cref="Required"/>), the frame's work done (0 on a blueprint) and
+/// whether a colonist's current job targets the site (<see cref="Worked"/>: its construction, or a haul whose container it is).
+/// It is native's reading at the read's tick, never a prediction; the construction stall window compares two of them.
+/// </summary>
+public sealed record ConstructionSiteProgress(string Site, int Delivered, int Required, double WorkDone, bool Worked);
+
 public sealed record ConstructionActivityRead
 {
     public required ObservationContext Context { get; init; }
@@ -263,6 +271,9 @@ public sealed record ConstructionActivityRead
     public required EquatableArray<CoupledRoute> Routes { get; init; }
     /// <summary>The answer to the requested thermal plan; null when nothing was asked.</summary>
     public required CoupledThermalRead? Thermal { get; init; }
+    /// <summary>Each asked placed site's observed progress, by site id (<see cref="ConstructionSiteProgress"/>).</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionSiteProgress>))]
+    public required EquatableArray<ConstructionSiteProgress> Progress { get; init; }
     /// <summary>The answer to the requested room predictions, one row per asked room and stuff whose ring closes a room (a shape with no passable interior cell closes none and has no row).</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomPrediction>))]
     public required EquatableArray<PlannedRoomPrediction> RoomPredictions { get; init; }

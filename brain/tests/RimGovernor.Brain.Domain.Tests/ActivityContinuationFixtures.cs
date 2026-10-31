@@ -26,18 +26,14 @@ internal static class ActivityContinuationFixtures
             { Tasks = [worker, delivery] };
     }
 
-    internal static PawnActivities Cooking()
+    /// <summary>A re-admitted ingredient delivery to a stalled bill's bench (task 5.3): the bill itself runs natively, so the
+    /// batch holds the delivery alone.</summary>
+    internal static PawnActivities IngredientDelivery()
     {
         var supply = new SelectedActivityTask("supply", "pawn", [],
             new PawnActivityStep(PawnActivityKind.Deliver, "raw", "", "", 10, 500).At(new(5, 6)), new(3, 4), 100)
             { Resource = "Rice", Source = new(3, 4) };
-        var cook = new SelectedActivityTask("cook", "pawn", [supply.Id],
-            new(PawnActivityKind.Recipe, "bench", "cook-giver", "", 0, 500)
-                { Recipe = new("bill", "recipe", [new("raw", 10)]) { Resource = "Rice" } }, new(5, 5), 101);
-        var delivery = new SelectedActivityTask("delivery", "pawn", [cook.Id],
-            new PawnActivityStep(PawnActivityKind.Deliver, "observed-output", "", "", 1, 500).At(new(8, 9)), new(5, 5), 102)
-            { Resource = "Meal", Source = new(5, 5) };
         return new(1, [new("pawn", "method/pawn", "method", 0, 1, false, [supply.Step]) { Task = supply.Id }])
-            { Tasks = [supply, cook, delivery] };
+            { Tasks = [supply] };
     }
 }

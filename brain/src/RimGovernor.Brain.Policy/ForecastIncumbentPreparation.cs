@@ -7,37 +7,13 @@ public sealed record ForecastObservedIncumbent(PlanId Plan, PawnActivities Batch
 {
     public EquatableArray<string> Activities { get; init; }
     public EquatableArray<ActivityOwnership> ReleasedOwnership { get; init; }
-    /// <summary>A productive Method's other reconsidered workers, owned and observed at a boundary with it (#3167).</summary>
-    public EquatableArray<ActivityOwnership> Participants { get; init; }
-    /// <summary>A productive Method's participants still working, or at a boundary but bound to the reconsidered workers' tasks
-    /// (#3624): they keep their orders whatever the review decides.</summary>
-    public EquatableArray<ActivityOwnership> Working { get; init; }
-    /// <summary>The reconsidered workers' remaining bills. Non-empty marks a reconsidered Method: it has no retain commitment, and
-    /// only its reconsidered workers are released, when the selection moves one of these bills to a pawn outside it (#3167, #3624).</summary>
-    public EquatableArray<string> Bills { get; init; }
-    public IReadOnlyList<ActivityOwnership> Owned => [Ownership, .. Participants, .. Working, .. ReleasedOwnership];
-    /// <summary>The workers a reconsidered Method's review decides for: its owner and the other reconsidered participants.</summary>
-    public IReadOnlySet<string> Reconsidered => new[] { Ownership }.Concat(Participants).Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
+    public IReadOnlyList<ActivityOwnership> Owned => [Ownership, .. ReleasedOwnership];
 
-    /// <summary>Whether a review of <paramref name="selected"/> on <paramref name="allocations"/> releases this incumbent (#3598,
-    /// #3889): a retained service unless its commitment is selected; a reconsidered Method when the allocations give one of its
-    /// bills to a pawn other than its cooks (#3624), never without the bindings that name the bills. The review releases by it,
-    /// and the forecast refuses an outcome that releases an incumbent it cannot release (<see cref="ForecastIncumbentHold.Release"/>).</summary>
-    internal bool ReleasedBy(IEnumerable<string> selected, IReadOnlyList<ForecastActivityAllocation>? allocations,
-        IReadOnlyDictionary<(string Task, string Pawn), Methods.ActivityTaskCandidate>? bindings)
-    {
-        if (Bills.Count == 0) return !selected.Contains(Commitment);
-        var cooks = CooksOf(Batch, Bills);
-        return bindings is not null && allocations is not null && allocations.Any(a => !cooks.Contains(a.Pawn)
-            && bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Recipe?.Bill is { } bill && Bills.Contains(bill));
-    }
-
-    /// <summary>The pawns a batch has cooking one of <paramref name="bills"/>.</summary>
-    public static HashSet<string> CooksOf(PawnActivities batch, IEnumerable<string> bills)
-    {
-        var set = bills.ToHashSet(StringComparer.Ordinal);
-        return batch.Tasks.Where(t => t.Step.Recipe is { } recipe && set.Contains(recipe.Bill)).Select(t => t.Pawn).ToHashSet(StringComparer.Ordinal);
-    }
+    /// <summary>Whether a review of <paramref name="selected"/> releases this retained service (#3598, #3889): unless its
+    /// commitment is selected. The review releases by it, and the forecast refuses an outcome that releases an incumbent it
+    /// cannot release (<see cref="ForecastIncumbentHold.Release"/>). Bill work is never an exact order (task 5.3), so no
+    /// incumbent holds bills a selection could move.</summary>
+    internal bool ReleasedBy(IEnumerable<string> selected) => !selected.Contains(Commitment);
 }
 
 public static class ForecastIncumbentPreparation
@@ -86,7 +62,7 @@ public static class ForecastIncumbentPreparation
                 || order.Task != task.Id || order.Pawn != task.Pawn || task.Prerequisites.Count != 0 || task.Inputs.Count != 0
                 || task.Step.Kind is not (PawnActivityKind.Sleep or PawnActivityKind.Recreation)
                 || task.Step.Recipe is not null || task.Step.Medicine.Length != 0 || task.Resource.Length != 0
-                || task.SupportDemand.Length != 0 || task.SiteDefinition.Length != 0 || task.ProductStuff.Length != 0
+                || task.SupportDemand.Length != 0 || task.SiteDefinition.Length != 0
                 || task.CompletionMustBeObserved || task.Step.Deadline <= facts.Tick.Value) continue;
             var observations = needs.Pawns.Where(p => p.Pawn == order.Pawn).ToArray();
             var physical = native.Where(p => p.Pawn == order.Pawn).ToArray();
@@ -141,32 +117,13 @@ public static class ForecastIncumbentPreparation
         var truncated = eligible.Count > 4;
         var chosen = eligible.Take(4).ToArray();
         var servicePawns = chosen.Select(e => e.Owner.Pawn).ToHashSet(StringComparer.Ordinal);
-        var methods = BoundaryMethods(facts, actions, original.Evidence, native)
-            .Where(m => !m.Owners.Any(o => servicePawns.Contains(o.Pawn))).ToList();
-        ForecastCoupledCandidates? Generate()
-        {
-            var omitted = chosen.Select(e => (e.Row.Plan, e.Row.Action.Id)).Concat(methods.Select(m => (m.Row.Plan, m.Row.Action.Id))).ToHashSet();
-            var releasedPawns = servicePawns.Concat(methods.SelectMany(m => m.Owners.Select(o => o.Pawn))).ToHashSet(StringComparer.Ordinal);
-            var evidence = original.Evidence with { Pawns = EquatableArray.From(availability.Select(p =>
-                releasedPawns.Contains(p.Pawn) ? p with { Occupied = false } : p)) };
-            // The participants still working keep their claims: the Method as it stands after its reconsidered workers leave.
-            var kept = methods.Where(m => m.Working.Length > 0)
-                .Select(m => m.Row with { Action = DomainAction.NewPawnActivitiesAction(m.Row.Action.Id, m.Kept) });
-            var conditional = WorkRules.WorkResourcesOf(evidence, batches,
-                actions.Actions.Where(a => !omitted.Contains((a.Plan, a.Action.Id))).Concat(kept), actions.Truncated);
-            return ForecastCoupledCandidates.GenerateCoupledActivities(facts with { WorkView = conditional });
-        }
-        if (chosen.Length == 0 && methods.Count == 0) return Protected();
-        var generated = Generate();
-        // A Method is reconsidered only while a pawn outside it is offered its bills at a faster rate than its own cooks:
-        // otherwise its owners stay protected and the comparison runs on the claims as admitted.
-        if (generated is not null)
-        {
-            var before = methods.Count;
-            methods.RemoveAll(m => !FasterOutside(generated, m));
-            if (methods.Count != before) generated = chosen.Length == 0 && methods.Count == 0 ? null : Generate();
-        }
-        if (generated is null) return Protected();
+        if (chosen.Length == 0) return Protected();
+        var omitted = chosen.Select(e => (e.Row.Plan, e.Row.Action.Id)).ToHashSet();
+        var evidence = original.Evidence with { Pawns = EquatableArray.From(availability.Select(p =>
+            servicePawns.Contains(p.Pawn) ? p with { Occupied = false } : p)) };
+        var conditional = WorkRules.WorkResourcesOf(evidence, batches,
+            actions.Actions.Where(a => !omitted.Contains((a.Plan, a.Action.Id))), actions.Truncated);
+        if (ForecastCoupledCandidates.GenerateCoupledActivities(facts with { WorkView = conditional }) is not { } generated) return Protected();
         var incumbents = new List<ForecastObservedIncumbent>();
         var activities = generated.Context.Activities.Activities.ToList();
         var options = generated.Context.Activities.Options.ToList();
@@ -210,12 +167,6 @@ public static class ForecastIncumbentPreparation
                 { Activities = EquatableArray.From(graph), ReleasedOwnership = entry.Released });
             foreach (var unknown in service.Unsupported) findings.Add("incumbent:" + pawn + ":" + unknown);
         }
-        foreach (var method in methods)
-            incumbents.Add(new(method.Row.Plan, method.Batch, "method/" + method.Row.Plan.Value + "/" + method.Row.Action.Id.Value, method.Owners[0])
-            {
-                Activities = EquatableArray.From(method.Batch.Tasks.Select(t => t.Id)), Participants = EquatableArray.From(method.Owners.Skip(1)),
-                Working = EquatableArray.From(method.Working), ReleasedOwnership = method.Released, Bills = method.Bills,
-            });
         if (truncated) findings.Add("incumbent_preparation_truncated:protected_remaining_owners");
         var prepared = generated with
         {
@@ -231,113 +182,5 @@ public static class ForecastIncumbentPreparation
             }
         };
         return (facts with { CoupledAlternatives = prepared }, EquatableArray.From(incumbents));
-    }
-
-    private sealed record BoundaryMethod(WorkAction Row, PawnActivities Batch, ActivityOwnership[] Owners, ActivityOwnership[] Working,
-        EquatableArray<ActivityOwnership> Released, EquatableArray<string> Bills, PawnActivities Kept);
-
-    /// <summary>A coupled Method with bills still to cook and any worker between tasks (its task completed, or holding for the
-    /// next) observed exactly at its order, carrying nothing (#3167, #3624). Such a worker is reconsidered alone: the review
-    /// decides who takes its next task, and the participants still working keep theirs. A worker some other participant's
-    /// task waits on (a prerequisite, an input it produces, or a bill both hold) is reconsidered only with that participant,
-    /// so releasing it strands nobody. Nothing reconsidered is in flight, so a release interrupts no recipe; the bills say what
-    /// moving the work would mean.</summary>
-    private static List<BoundaryMethod> BoundaryMethods(ReviewFacts facts, WorkActionCensus actions, WorkAdmissionEvidence evidence,
-        EquatableArray<WorkResourcePawn> native)
-    {
-        var methods = new List<BoundaryMethod>();
-        foreach (var row in actions.Actions.OrderBy(a => a.Plan.Value, StringComparer.Ordinal).ThenBy(a => a.Action.Id.Value, StringComparer.Ordinal))
-        {
-            if (
-                row.Progress.Unresolved
-                || !row.Progress.Received(Receipt.Accepted)
-                || row.Progress.Stage is not (Stage.Completed or Stage.Cancelled)
-                || row.Progress.Tick > facts.Tick
-                || row.Action.PawnActivities is not { Tasks.Count: > 0 } batch
-            )
-                continue;
-            var orders = batch.Orders.Where(o => !o.Release).ToArray();
-            if (orders.Length == 0 || orders.Any(o => !PawnActivities.Intervention(o))) continue;
-            var done = orders.Where(o => !o.Preparing).Select(o => o.Task).ToHashSet(StringComparer.Ordinal);
-            var rows = new List<ActivityOwnership>();
-            var boundary = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var order in orders)
-            {
-                var physical = native.Where(p => p.Pawn == order.Pawn).ToArray();
-                if (physical.Length != 1 || physical[0].Assignment != order.Assignment || physical[0].Revision != order.Revision) break;
-                var p = physical[0];
-                rows.Add(new(order.Pawn, order.Assignment, order.Method, order.Revision, p.State) { Reason = p.Reason });
-                if ((order.Preparing ? p.State == "holding" : p.State == "completed")
-                    && p.CarriedCount == 0 && p.CarriedThing.Length == 0 && p.CarriedResource.Length == 0
-                    && p.Bill.Length == 0 && p.Unfinished.Length == 0) boundary.Add(order.Pawn);
-            }
-            if (rows.Count != orders.Length) continue;
-            // A worker stays with the Method while a participant kept working needs one of its tasks.
-            static string? Bill(SelectedActivityTask t) => t.Step.Recipe?.Bill is { Length: > 0 } bill ? bill : null;
-            for (var changed = true; changed;)
-            {
-                changed = false;
-                foreach (var pawn in boundary.ToArray())
-                {
-                    var own = batch.Tasks.Where(t => t.Pawn == pawn).ToArray();
-                    var ids = own.Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
-                    var bills = own.Where(t => !done.Contains(t.Id)).Select(Bill).OfType<string>().ToHashSet(StringComparer.Ordinal);
-                    if (!batch.Tasks.Any(t => !boundary.Contains(t.Pawn) && (t.Prerequisites.Any(ids.Contains)
-                        || t.Inputs.Any(i => i.Producers.Any(ids.Contains)) || Bill(t) is { } held && bills.Contains(held)))) continue;
-                    changed |= boundary.Remove(pawn);
-                }
-            }
-            var reconsidered = batch.Tasks.Where(t => boundary.Contains(t.Pawn) && !done.Contains(t.Id)).Select(Bill).OfType<string>()
-                .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-            if (reconsidered.Length == 0) continue;
-            var released = new List<ActivityOwnership>();
-            foreach (var tombstone in batch.Orders.Where(o => o.Release))
-            {
-                var tombstones = native.Where(p => p.Pawn == tombstone.Pawn).ToArray();
-                if (tombstones.Length != 1 || tombstones[0].Assignment == tombstone.Assignment) break;
-                released.Add(new(tombstones[0].Pawn, tombstones[0].Assignment, "", tombstones[0].Revision, tombstones[0].State) { Reason = tombstones[0].Reason });
-            }
-            if (released.Count != batch.Orders.Count(o => o.Release)) continue;
-            var others = WorkRules.WorkClaimsOf(evidence, actions.Actions.Where(a => a.Plan != row.Plan || a.Action.Id != row.Action.Id)).Pawns;
-            if (boundary.Any(others.Contains)) continue;
-            if (Methods.Binding.CoordinatedActivityBinding.Release(batch, boundary) is not { } kept) continue;
-            methods.Add(new(row, batch, rows.Where(r => boundary.Contains(r.Pawn)).ToArray(), rows.Where(r => !boundary.Contains(r.Pawn)).ToArray(),
-                EquatableArray.From(released), EquatableArray.From(reconsidered), kept));
-        }
-        return methods;
-    }
-
-    /// <summary>Whether a pawn other than the Method's cooks is offered one of its bills' recipes faster than the best of them
-    /// (#3167): its total ticks, travelling from where it stands to the ingredients, carrying them to the bench and cooking, are
-    /// lower, or no higher with a lower chance the meal is poisoned (the game's rule, read natively per cook and bench). A pawn
-    /// offered no single haul of the whole ingredient count is timed walking straight to the bench.</summary>
-    private static bool FasterOutside(ForecastCoupledCandidates generated, BoundaryMethod method)
-    {
-        var own = ForecastObservedIncumbent.CooksOf(method.Batch, method.Bills);
-        var context = generated.Context;
-        var options = context.Activities.Options.Where(o => double.IsFinite(o.WorkTicks) && o.WorkTicks >= 0)
-            .GroupBy(o => (o.Activity, o.Pawn)).ToDictionary(g => g.Key, g => g.First().WorkTicks);
-        var routes = context.Activities.Routes.Where(r => r.Ticks is RouteTicks.Reachable(var ticks) && double.IsFinite(ticks))
-            .GroupBy(r => (r.Pawn, r.From, r.To)).ToDictionary(g => g.Key, g => ((RouteTicks.Reachable)g.First().Ticks).Ticks);
-        double? Route(string pawn, Cell to) => routes.TryGetValue((pawn, "start", Methods.Generation.ForecastLocations.Of(to)), out var ticks) ? ticks : null;
-        var offered = new List<(string Pawn, double Total, double Poison)>();
-        foreach (var cook in context.Bindings.Values.Where(b => b.Kind == PawnActivityKind.Recipe
-            && b.Recipe?.Bill is { } bill && method.Bills.Contains(bill)))
-        {
-            if (!options.TryGetValue((cook.Id, cook.Pawn), out var work) || work <= 0) continue;
-            var needed = cook.Recipe?.Ingredients.Sum(i => i.Count) ?? 0;
-            var fetch = context.Bindings.Values.Where(b => b.Pawn == cook.Pawn && b.Kind == PawnActivityKind.Deliver
-                    && b.Resource == cook.Resource && b is Methods.CellActivityTaskCandidate cell && cell.Destination == cook.Source && b.Count >= needed)
-                .Select(b => options.TryGetValue((b.Id, b.Pawn), out var haul) && Route(b.Pawn, b.Source) is { } approach ? approach + haul : (double?)null)
-                .Where(t => t is not null).Min() ?? Route(cook.Pawn, cook.Location);
-            if (fetch is null) continue;
-            offered.Add((cook.Pawn, fetch.Value + work, cook.FoodPoisonChance));
-        }
-        var mine = offered.Where(o => own.Contains(o.Pawn)).OrderBy(o => o.Total)
-            .ThenBy(o => o.Poison).ToArray();
-        if (mine.Length == 0) return offered.Any(o => !own.Contains(o.Pawn));
-        var best = mine[0];
-        return offered.Any(o => !own.Contains(o.Pawn) && (o.Total < best.Total || o.Total <= best.Total
-            && o.Poison < best.Poison));
     }
 }

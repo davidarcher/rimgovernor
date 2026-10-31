@@ -80,6 +80,10 @@ public sealed partial class ColonyReview
     /// <summary>The pawn values of the latest review that valued pawns (#3825): the next review's creepjoiner Leaves and Aggressive price (#3844); derived state, empty until the first such review after a restart.</summary>
     internal ReviewMemory<EquatableArray<PawnValue>> PawnValueMemory = new([]);
 
+    /// <summary>Each placed site's open construction progress window the latest review observed (ConstructionStalls, task 5.4):
+    /// in-memory derived state, empty after a restart and for another world, so a stall needs a whole window of fresh readings.</summary>
+    internal ReviewMemory<EquatableArray<ConstructionProgressWindow>> ConstructionMemory = new([]);
+
     /// <summary>Since when each room has had unfinished blueprints or frames; see noteStall.</summary>
     internal Dictionary<string, RoomStall> RoomStalls = [];
 
@@ -676,6 +680,9 @@ public sealed partial class ColonyReview
         // The ledger's declared batches are read after the declaration above.
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills], ProductionOrders = WorkLedgerView(), ProductionCalibration = WorkLedgerCalibration() });
+        var construction = ConstructionStalls.Observe(ConstructionMemory.Get(state.Snapshot), reading.Reading.Facts.ForecastObserved.Coupled?.Construction);
+        if (construction is ConstructionCalibration.Observed observedConstruction) ConstructionMemory.Set(state.Snapshot, observedConstruction.Windows);
+        reading = reading.WithFacts(rf => rf with { ConstructionCalibration = construction });
         fine.Lap("derive/bills");
         reading = reading.WithFacts(rf => rf with { UrgentSites = UrgentBuilds.Covered });
         // The harm term's creepjoiners and the pawn values their leaving prices (#3844), read before the coupled context's harm inputs.

@@ -10,8 +10,6 @@ public sealed partial class Worker
     private async Task ContinueActivityMethodsAsync(GenerationSnapshot current, CancellationToken ct)
     {
         var methods = _player.Journal.ActivityMethods(current, ct);
-        var live = methods.SelectMany(m => m.Batch.Orders.Select(o => o.Method)).ToHashSet(StringComparer.Ordinal);
-        _finishedTasks.RemoveWhere(k => !live.Contains(k[..k.IndexOf('/', StringComparison.Ordinal)]));
         if (methods.Count == 0 || _config.Pawns is null) return;
         var ids = methods.SelectMany(m => m.Batch.Orders.Select(o => o.Pawn)).Distinct(StringComparer.Ordinal).ToArray();
         var (rows, tick) = await ActionObservations.ReadPawnsAsync(_config.Pawns, current, ids, ct).ConfigureAwait(false);
@@ -35,24 +33,6 @@ public sealed partial class Worker
                     _advanced = true;
                     continue;
                 }
-                // A worker finished a task and bills are left: the scheduler's next step reviews who takes its next task, and
-                // that worker starts no next task until the review has run (#3624); participants still working are not touched, and
-                // the Method's other transitions wait the same short while. The step is woken now, with the clock running.
-                // Without a step loop to wake (no Wake signal) nothing reviews, and the worker goes on.
-                var finished = _config.Wake is null ? [] : ActivityContinuationRules.FinishedTasks(method.Batch, participants);
-                var signalled = false;
-                foreach (var key in finished.Where(_finishedTasks.Add))
-                {
-                    _player.TaskReviews.Await(key);
-                    signalled = true;
-                }
-                if (signalled)
-                {
-                    _config.Wake?.NotifyTaskReview();
-                    Tel.Decide(new Decision { Kind = "coupled_observed", Component = "worker", Target = method.Method.Value, Verdict = "deferred",
-                        Reason = "awaiting_task_review", Attrs = new Dictionary<string, object?> { ["observed_tick"] = taskTick, ["finished"] = finished.ToArray() } });
-                }
-                if (finished.Any(_player.TaskReviews.Waiting)) continue;
                 var needed = ForecastServiceInvestments.ReviewServiceActivityNeed(method.Batch, method.Needed, read);
                 var purpose = InterventionPurposes.Ended(method.Batch, p => InterventionPurposes.AtContinuation(p, method.Batch, read.Needs));
                 var releaseReason = purpose == PurposeCondition.Open ? "" : InterventionPurposes.PurposeEndedReason;

@@ -24,7 +24,7 @@ public static class ForecastServiceInvestments
     {
         var needs = read.Needs;
         if (read.Context.Tick != needs.Tick.Value
-            || batch.Tasks.Any(t => t.Step.Kind is not (PawnActivityKind.Recipe or PawnActivityKind.Deliver or PawnActivityKind.Eat)
+            || batch.Tasks.Any(t => t.Step.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Eat)
                 && !(t.Step.Kind == PawnActivityKind.Work && t.Step.Job == "Harvest"))
             || batch.Orders.Any(o => !o.Release && read.Pawns.FirstOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State is not ("completed" or "holding" or "failed"))) return false;
         var eaters = batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Eat).GroupBy(t => t.Pawn).ToArray();

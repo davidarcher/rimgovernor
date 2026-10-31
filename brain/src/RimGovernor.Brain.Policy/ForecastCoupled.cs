@@ -134,6 +134,8 @@ public sealed record ForecastCoupledContext
     public LedgerView? ProductionOrders { get; init; }
     /// <summary>The work dispatcher's observed calibration stalls (ReviewFacts.ProductionCalibration); unobserved until the ledger reconciles.</summary>
     public ProductionCalibration ProductionCalibration { get; init; } = new ProductionCalibration.Unobserved(ProductionCalibration.UnobservedReason);
+    /// <summary>The review's observed construction stalls (ReviewFacts.ConstructionCalibration); unobserved without a construction read.</summary>
+    public ConstructionCalibration ConstructionCalibration { get; init; } = new ConstructionCalibration.Unobserved(ConstructionCalibration.UnobservedReason);
     public IReadOnlyDictionary<string, RecipeFlow> ProductionRecipes { get; init; } = new Dictionary<string, RecipeFlow>();
     /// <summary>The worship room's believers, presence demands and rituals (ReviewFacts.Worship, #3808).</summary>
     public WorshipFacts Worship { get; init; } = new();

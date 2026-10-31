@@ -113,7 +113,6 @@ public static class FixtureJson
 [JsonSerializable(typeof(ControlRead))]
 [JsonSerializable(typeof(VanillaJobRead))]
 [JsonSerializable(typeof(PreemptHaulRead))]
-[JsonSerializable(typeof(CookingRead))]
 [JsonSerializable(typeof(DeliveryRead))]
 [JsonSerializable(typeof(SowRead))]
 [JsonSerializable(typeof(QuietStorytellerRead))]

@@ -30,10 +30,8 @@ public sealed record CoupledFoodConversion(string Source, string Pawn, string Be
 public abstract record FoodCooking
 {
     private protected FoodCooking() { }
-    /// <summary>The recipe's work at the pawn's and bench's speed; the chance its meal is poisoned, by
-    /// CompFoodPoisonable.Notify_RecipeProduced: the bench room's FoodPoisonChance stat r (the roomless score without a room),
-    /// else the cook's FoodPoisonChance stat c, so r + (1 - r) c (#3167); the skill the work trains, when it trains one.</summary>
-    public sealed record Cook(double WorkTicks, double FoodPoisonChance, ProductiveSkillWork? SkillWork) : FoodCooking;
+    /// <summary>The recipe's work at the pawn's and bench's speed; the skill the work trains, when it trains one.</summary>
+    public sealed record Cook(double WorkTicks, ProductiveSkillWork? SkillWork) : FoodCooking;
     /// <summary>The pawn cannot cook it: cooking disabled, the recipe's skill unmet, no resolvable job, or no work speed.</summary>
     public sealed record Incapable : FoodCooking;
 }
