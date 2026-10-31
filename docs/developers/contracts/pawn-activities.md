@@ -345,6 +345,54 @@ completion, physical output and observed cleanup. The construction case also com
 not establish that these game scenarios have passed; nightly execution supplies
 that evidence. Pure and journal tests cover choice reversals, partial progress,
 rebinding, unknowns, deadlines, refusal and stale atomic revisions.
+
+### Intervention purposes and observed outcomes
+
+Every non-release order of a `coupled-` Method (`PawnActivities.InterventionMethodPrefix`)
+carries the `InterventionPurpose` its pawn's justified premise gave it; `Validate`
+refuses one without a valid purpose, and the purpose is unchanged across
+continuation revisions. Kinds and their end conditions, read only from
+observations (never from elapsed ticks):
+
+| Kind | Subject | Completed when | Cancelled when |
+|---|---|---|---|
+| `need_shortfall` | need, subject pawn | the pawn's need reads above its threshold | native service of that need is observed for a pawn the batch does not order |
+| `food_risk` | `food` | the food owner reviews no response needed | no food consumer remains |
+| `production_stall` | product | the reconciled calibration holds no stall of the product | the stall's cause is one orders cannot answer |
+| `capability_practice` | requirement, subject pawn | the native baseline projects no missing XP | the requirement is withdrawn |
+
+`InterventionPurposes.AtContinuation` reads need shortfalls from the worker's
+participant read (which also reads each purpose's subject pawn); the other kinds
+stay open there. `AtReview` reads every kind from the review's context, and the
+review releases an incumbent whose every purpose has ended whatever the selection
+retains. Unread or unobserved evidence leaves a purpose open.
+
+The observed outcome of one order (`InterventionPurposes.Observe`) is read from
+the native execution row: `accepted` (installed or offered; no step started),
+`running` (started, or a preparation holding), `completed`, `failed` (the owned
+order's own condition, deadline or an involuntary state), `replaced` (another
+owner's row, or the order's own failure with reason `native_job_takeover`) and
+`released` (no native owner). Accepted is not completed, and a release or
+replacement is never completed work; a failure or replacement ends the attempt.
+The review classifies with the same `Observe`: `InterventionPurposes.ReviewOutcomes`
+reads every installed `coupled-` Method's orders against the review's native
+ownership rows (`WorkResourcePawn`, which carries the execution's `Method` and
+stop `Reason` as the continuation read does, via `InterventionPurposes.Ownership`),
+so a native job takeover reads `replaced` at both.
+
+Admission refuses, as a `SharedAdmission` refusal before the claim overlap: a
+stale prerequisite against the review's frozen evidence
+(`stale_prerequisite:pawn_unavailable:<pawn>`, drafted, downed, in a mental
+state or native care; `stale_prerequisite:input_consumed:<task>:<resource>`, an
+observed stock input the evidence no longer holds); the same pawn and aim on an
+open or installed plan (`intervention_already_open:<pawn>:<aim>`); and the same
+pawn and aim on a plan retired at or after the candidate's evidence tick
+(`stale_justification:<pawn>:<aim>`); every retirement path records
+`plans.retired_tick`, so a purpose ended by the review's settled-plan retirement,
+combat or load retirement is as stale as one continuation or resolution ended. Continuation ends an attempt whose next
+task's target no longer binds as `stale_prerequisite:target_gone:<task>`. Inputs
+are claimed once through the existing lot claims, so an open purpose never
+debits stock twice.
 ## Exact activity execution
 
 The existing executor journals the domain action and dispatches its typed intent

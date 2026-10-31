@@ -147,7 +147,7 @@ public sealed class PracticeHarmTests
         // The priced bout beats the baseline on the ledger alone, a gain below the safety floors with no assigned capability it
         // trains: the intervention gate refuses it (RG-LABOR-004) and the native baseline stands.
         Assert.Empty(selected.Selection.Selected);
-        Assert.Equal(priced, selected.Rejected.Any(r => r.Reason == InterventionJustification.MarginalGainWithoutPremise));
+        Assert.Equal(priced, selected.Rejected.Any(r => r.Reason.StartsWith(InterventionJustification.MarginalGainWithoutPremise + ":", StringComparison.Ordinal)));
         if (priced)
         {
             var refused = Assert.IsType<InterventionJustification.Refused>(selected.Justification);

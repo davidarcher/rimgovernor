@@ -15,7 +15,7 @@ internal static class StoreSchema
 {
     private const string CoreDdl = """
         CREATE TABLE metadata(singleton INTEGER PRIMARY KEY CHECK(singleton=1), controller_session_id TEXT NOT NULL) STRICT;
-        CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL, method_id TEXT, superseded_by TEXT REFERENCES plans(id), retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1))) STRICT;
+        CREATE TABLE plans(id TEXT PRIMARY KEY, revision TEXT NOT NULL, method_id TEXT, superseded_by TEXT REFERENCES plans(id), retired INTEGER NOT NULL DEFAULT 0 CHECK(retired IN (0,1)), retired_tick INTEGER, CHECK(retired=0 OR retired_tick IS NOT NULL)) STRICT;
         CREATE INDEX active_plans ON plans(id) WHERE retired=0;
         CREATE TABLE actions(id TEXT PRIMARY KEY, plan_id TEXT NOT NULL REFERENCES plans(id), ordinal INTEGER NOT NULL, kind TEXT NOT NULL, fight TEXT, body TEXT NOT NULL, UNIQUE(plan_id,ordinal)) STRICT;
         CREATE TABLE transitions(sequence INTEGER PRIMARY KEY, action_id TEXT NOT NULL REFERENCES actions(id), payload TEXT NOT NULL) STRICT;
@@ -27,7 +27,7 @@ internal static class StoreSchema
     private static readonly string[] _coreChecks =
     [
         "SELECT singleton,controller_session_id FROM metadata LIMIT 0",
-        "SELECT p.id,p.revision,p.method_id,p.superseded_by,p.retired,a.id,a.ordinal,a.kind,a.fight,a.body,t.sequence,t.payload FROM plans p LEFT JOIN actions a ON a.plan_id=p.id LEFT JOIN transitions t ON t.action_id=a.id LIMIT 0",
+        "SELECT p.id,p.revision,p.method_id,p.superseded_by,p.retired,p.retired_tick,a.id,a.ordinal,a.kind,a.fight,a.body,t.sequence,t.payload FROM plans p LEFT JOIN actions a ON a.plan_id=p.id LEFT JOIN transitions t ON t.action_id=a.id LIMIT 0",
         "SELECT plan_id,action_id,requires_id,coupled FROM action_dependencies LIMIT 0",
         "SELECT action_id,payload FROM admissions LIMIT 0",
     ];

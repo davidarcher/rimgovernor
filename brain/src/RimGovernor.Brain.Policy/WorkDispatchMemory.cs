@@ -30,7 +30,7 @@ public sealed class DispatchMemory
 
     public Dictionary<string, int> Widen { get; } = [];
 
-    public Dictionary<string, UnmetThroughput> Shortfalls { get; } = [];
+    public Dictionary<string, ProductionStall> Shortfalls { get; } = [];
 
     /// <summary>
     /// Sizes every declared order (the copies ReconcileLedger wants), then feeds the Round's measurement of each
@@ -83,7 +83,7 @@ public sealed class DispatchMemory
             }
             else if (cal.Closed && cal.IsShort)
             {
-                Shortfalls[k] = new UnmetThroughput { BenchKind = order.BenchKind, ShortPerDay = cal.ShortPerDay, Reason = cal.Reason };
+                Shortfalls[k] = new ProductionStall(k, order.Product, order.BenchKind, cal.ShortPerDay, cal.Reason, input.Tick);
             }
             else if (cal.Closed)
             {
@@ -105,6 +105,10 @@ public sealed class DispatchMemory
         return (copies, dispatch);
     }
 
+    /// <summary>The standing stalls as this Round's observed calibration, in order-key order.</summary>
+    public ProductionCalibration Calibration() => new ProductionCalibration.Observed(
+        EquatableArray.From(Shortfalls.Keys.Order(StringComparer.Ordinal).Select(k => Shortfalls[k])));
+
     /// <summary>
     /// The Round's unmet throughput per bench kind: the standing calibration shortfalls, the orders the rate model
     /// wants more benches for than exist and the orders no bench could take (unplaced).
@@ -119,7 +123,7 @@ public sealed class DispatchMemory
         // Summed in key order: float addition is not associative, and a map's order is not fixed.
         foreach (var k in Shortfalls.Keys.Order(StringComparer.Ordinal))
         {
-            items.Add(Shortfalls[k]);
+            items.Add(Shortfalls[k].Unmet);
         }
         foreach (var k in dispatch.Keys.Order(StringComparer.Ordinal))
         {

@@ -79,7 +79,7 @@ public static class ForecastIncumbentPreparation
                 var rows = native.Where(p => p.Pawn == tombstone.Pawn).ToArray();
                 if (rows.Length != 1 || rows[0].Assignment == tombstone.Assignment) break;
                 var actual = rows[0];
-                released.Add(new(actual.Pawn, actual.Assignment, "", actual.Revision, actual.State));
+                released.Add(new(actual.Pawn, actual.Assignment, "", actual.Revision, actual.State) { Reason = actual.Reason });
             }
             if (released.Count != batch.Orders.Count(o => o.Release)) continue;
             if (order.OutputDelivery is not null
@@ -131,7 +131,7 @@ public static class ForecastIncumbentPreparation
                 || !double.IsFinite(remaining) || remaining <= 0
                 || remaining > GameTime.TicksPerDay || remaining > task.Step.Deadline - facts.Tick.Value
                 || !double.IsFinite(rate) || rate <= 0 || !double.IsFinite(rate * remaining)) continue;
-            eligible.Add((row, service, new(order.Pawn, order.Assignment, order.Method, order.Revision, physical[0].State),
+            eligible.Add((row, service, new(order.Pawn, order.Assignment, order.Method, order.Revision, physical[0].State) { Reason = physical[0].Reason },
                 start, wait, travel, EquatableArray.From(released)));
         }
         // Ambiguous/mixed owners remain protected, including duplicate current journal rows.
@@ -257,7 +257,7 @@ public static class ForecastIncumbentPreparation
             )
                 continue;
             var orders = batch.Orders.Where(o => !o.Release).ToArray();
-            if (orders.Length == 0 || orders.Any(o => !o.Method.StartsWith("coupled-", StringComparison.Ordinal))) continue;
+            if (orders.Length == 0 || orders.Any(o => !PawnActivities.Intervention(o))) continue;
             var done = orders.Where(o => !o.Preparing).Select(o => o.Task).ToHashSet(StringComparer.Ordinal);
             var rows = new List<ActivityOwnership>();
             var boundary = new HashSet<string>(StringComparer.Ordinal);
@@ -266,7 +266,7 @@ public static class ForecastIncumbentPreparation
                 var physical = native.Where(p => p.Pawn == order.Pawn).ToArray();
                 if (physical.Length != 1 || physical[0].Assignment != order.Assignment || physical[0].Revision != order.Revision) break;
                 var p = physical[0];
-                rows.Add(new(order.Pawn, order.Assignment, order.Method, order.Revision, p.State));
+                rows.Add(new(order.Pawn, order.Assignment, order.Method, order.Revision, p.State) { Reason = p.Reason });
                 if ((order.Preparing ? p.State == "holding" : p.State == "completed")
                     && p.CarriedCount == 0 && p.CarriedThing.Length == 0 && p.CarriedResource.Length == 0
                     && p.Bill.Length == 0 && p.Unfinished.Length == 0) boundary.Add(order.Pawn);
@@ -295,7 +295,7 @@ public static class ForecastIncumbentPreparation
             {
                 var tombstones = native.Where(p => p.Pawn == tombstone.Pawn).ToArray();
                 if (tombstones.Length != 1 || tombstones[0].Assignment == tombstone.Assignment) break;
-                released.Add(new(tombstones[0].Pawn, tombstones[0].Assignment, "", tombstones[0].Revision, tombstones[0].State));
+                released.Add(new(tombstones[0].Pawn, tombstones[0].Assignment, "", tombstones[0].Revision, tombstones[0].State) { Reason = tombstones[0].Reason });
             }
             if (released.Count != batch.Orders.Count(o => o.Release)) continue;
             var others = WorkRules.WorkClaimsOf(evidence, actions.Actions.Where(a => a.Plan != row.Plan || a.Action.Id != row.Action.Id)).Pawns;

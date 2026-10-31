@@ -25,7 +25,7 @@ public sealed class SharedStackRemainderTests
     { Tasks = [EatTask("eat-now", "pawn", 1, 100), EatTask("eat-later", "pawn", 15, 700)] };
     private static PlanSpec Plan(string id, PawnActivities batch) => new(new(id), new(1), [DomainAction.NewPawnActivitiesAction(new(id + "-action"), batch)]);
     private static PlanSpec HelperEats(int count) => Plan("helper-" + count, new PawnActivities(1,
-        [new("helper", "coupled-helper/helper", "coupled-helper", 0, 1, false, [Eat(count)]) { Task = "helper-eat" }])
+        [new("helper", "coupled-helper/helper", "coupled-helper", 0, 1, false, [Eat(count)]) { Task = "helper-eat", Purpose = TestNeed.Purpose }])
         { Tasks = [EatTask("helper-eat", "helper", count, 200)] });
 
     private static ReviewFacts Facts(double stock, long tick = 100, params WorkResourcePawn[] native)

@@ -114,7 +114,7 @@ public sealed class ActivityGenerationClaimsTests
         using var command = connection.CreateCommand();
         command.CommandText = $"""
             WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i+1 FROM n WHERE i<$count)
-            INSERT INTO plans(id,revision,method_id,superseded_by,retired) SELECT 'old-'||i,'1','old-'||i,NULL,1 FROM n;
+            INSERT INTO plans(id,revision,method_id,superseded_by,retired,retired_tick) SELECT 'old-'||i,'1','old-'||i,NULL,1,0 FROM n;
             INSERT INTO plan_owner(plan_id,kind) SELECT id,(SELECT o.kind FROM actions a JOIN plan_owner o ON o.plan_id=a.plan_id
                 WHERE a.kind=$kind AND a.plan_id NOT LIKE 'old-%' LIMIT 1) FROM plans WHERE id LIKE 'old-%';
             INSERT INTO need_methods(colony,load_token,map_id,need_id,method_id,attempt,plan_id,kind,reason)

@@ -33,6 +33,21 @@ public sealed partial class Store
     }
 
     /// <summary>
+    /// The one plan retirement write: <paramref name="plan"/> retires at <paramref name="observed"/>, the observation tick that
+    /// ended it (<c>plans.retired_tick</c>, which the schema requires of every retired plan), superseded by <paramref name="next"/>
+    /// when given. Admission reads the tick to refuse a justification no newer than a retired purpose.
+    /// </summary>
+    internal static void RetirePlanIn(StoreTransaction tx, PlanId plan, Tick observed, PlanId? next = null) =>
+        _ = next is { } successor
+            ? tx.Execute("UPDATE plans SET retired=1,superseded_by=$next,retired_tick=$tick WHERE id=$id",
+                ("$next", successor), ("$tick", observed.Value), ("$id", plan))
+            : tx.Execute("UPDATE plans SET retired=1,retired_tick=$tick WHERE id=$id", ("$tick", observed.Value), ("$id", plan));
+
+    /// <summary>The newest observation a plan's own progress holds: the retirement tick of an owner that retires a plan on its
+    /// recorded outcome (combat, load) rather than on a review's read. A plan without progress observed nothing (tick 0).</summary>
+    internal static Tick ObservedTickIn(PlanState plan) => plan.Progress.Count == 0 ? new Tick(0) : plan.Progress.Max(p => p.View.Tick);
+
+    /// <summary>
     /// Only settled autopilot methods retire. The current root plan, unresolved effects, cleanup and unsuccessful
     /// work keep their complete catalog entries. <paramref name="floors"/> collects the newest settled tick per
     /// world; the caller raises the shared floors with it once the transaction commits.
@@ -117,7 +132,7 @@ public sealed partial class Store
                     floors[key] = floors.TryGetValue(key, out var floor) && floor > w.Tick ? floor : w.Tick;
                 }
             }
-            _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", plan));
+            RetirePlanIn(tx, plan, tick);
         }
     }
 }

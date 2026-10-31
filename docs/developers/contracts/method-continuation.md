@@ -71,6 +71,18 @@ Stable needed work is left alone. A known recovered Concern, failed assignment
 or expired final deadline produces an explicit release through the existing
 journal and Hands. Different/newer native ownership is never released on behalf
 of the old Method. Positive absence resolves the old obligation without a write.
+An exact intervention's Method also ends when every purpose its orders carry has
+completed or been cancelled (`ForecastServiceInvestments.ReviewServiceActivityNeed`
+reads `InterventionPurposes.AtContinuation`; the review reads `AtReview`), and
+continuation reads each participant's observed outcome, so a native job
+takeover (`replaced`) or the order's own failure ends it while accepted and
+running work goes on ([observed outcomes](pawn-activities.md#intervention-purposes-and-observed-outcomes)).
+Every plan retirement goes through the one Store write `RetirePlanIn`, which
+records the observation tick that ended the plan as `plans.retired_tick` (the
+schema rejects a retired plan without one): continuation, resolution and the
+review's settled-plan retirement record their observation tick, and combat and
+load retirement the newest tick the plan's own progress observed. Admission
+reads it to refuse a stale justification.
 
 `ContinueActivityMethod` replaces the Method's current plan atomically, retaining
 the old plan as superseded history and keeping the Method identity. It refuses

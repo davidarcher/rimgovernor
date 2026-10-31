@@ -60,6 +60,38 @@ public sealed record UnmetThroughput
     public UnmetReason Reason { get; init; }
 }
 
+/// <summary>
+/// One order's standing calibration shortfall: a closed rolling window whose actual recipe output fell under the
+/// prediction, the measured cause, and the tick that window closed on. It is the dispatcher's observation, not a forecast.
+/// </summary>
+public sealed record ProductionStall(string Order, Resource Product, string BenchKind, double ShortPerDay, UnmetReason Reason, long ClosedTick)
+{
+    /// <summary>The bench-kind view the facilities ladder reads.</summary>
+    public UnmetThroughput Unmet => new() { BenchKind = BenchKind, ShortPerDay = ShortPerDay, Reason = Reason };
+
+    /// <summary>
+    /// The stall's cause is one an exact pawn order can answer: work stays unstarted, or ingredient gathering pends or
+    /// dominates while ingredients are stocked. A bench shortage, full bill slots or missing ingredients are not.
+    /// </summary>
+    public bool AnsweredByOrders => Reason is UnmetReason.IngredientsPending or UnmetReason.DeliveryBound or UnmetReason.WorkUnstarted;
+}
+
+/// <summary>The dispatcher's observed calibration for this Round, or why it was not observed.</summary>
+public abstract record ProductionCalibration
+{
+    public const string UnobservedReason = "stall_calibration_unobserved";
+
+    private ProductionCalibration()
+    {
+    }
+
+    /// <summary>The reconciled ledger's standing stalls, in order-key order.</summary>
+    public sealed record Observed(EquatableArray<ProductionStall> Stalls) : ProductionCalibration;
+
+    /// <summary>The ledger was not reconciled this world, so no calibration window is known.</summary>
+    public sealed record Unobserved(string Reason) : ProductionCalibration;
+}
+
 /// <summary>How the rate model sized one order.</summary>
 public abstract record DispatchSizing
 {

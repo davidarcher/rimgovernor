@@ -10,8 +10,13 @@ public sealed record ForecastServiceInvestment(ServiceTarget Target, EquatableAr
 
 public static class ForecastServiceInvestments
 {
+    /// <summary>The Need a coupled attempt continues under: ended at a service construction boundary, when productive food
+    /// demand ended, or when every intervention purpose its orders carry has completed or been cancelled
+    /// (<see cref="InterventionPurposes.AtContinuation"/>).</summary>
     public static ActivityNeed ReviewServiceActivityNeed(PawnActivities batch, ActivityNeed needed, ActivityTaskRead read)
-        => ServiceConstructionBoundary(batch, read) || ProductiveFoodDemandEnded(batch, read) ? ActivityNeed.Ended : needed;
+        => ServiceConstructionBoundary(batch, read) || ProductiveFoodDemandEnded(batch, read)
+            || InterventionPurposes.Ended(batch, p => InterventionPurposes.AtContinuation(p, batch, read.Needs)) != PurposeCondition.Open
+            ? ActivityNeed.Ended : needed;
 
     /// <summary>Reconsider only at a physical work boundary. Fresh needs can retire the supported
     /// ingestion-only investment; missing observations cannot establish demand satisfaction.</summary>
@@ -90,7 +95,7 @@ public static class ForecastServiceInvestments
     /// finished site (its FinishFrame or BuildRoof ended): a frame's ended Supply is not one, since the material is in the frame
     /// and its finish, or the carry's retry, is the only use of it, so the binding goes on (#3537).</summary>
     private static bool ServiceConstructionBoundary(PawnActivities batch, ActivityTaskRead read)
-        => batch.Orders.Any(o => o.Method.StartsWith("coupled-", StringComparison.Ordinal))
+        => batch.Orders.Any(PawnActivities.Intervention)
             && batch.Tasks.Any(t => t.SiteDefinition.Length != 0 || t.Step.Job == "BuildRoof")
             && !read.Truncated
             && batch.Orders.Where(o => !o.Release).All(o => read.Pawns.SingleOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State

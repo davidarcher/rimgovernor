@@ -3,7 +3,12 @@ using RimGovernor.Brain.GameOrders.Observations;
 
 namespace RimGovernor.Brain.Policy.Methods.Binding;
 
-internal sealed record ActivityTaskTransition(PawnActivities? Batch, bool Release);
+/// <summary><see cref="Reason"/> names why a released attempt ended when the binding knows: a stale prerequisite
+/// (<c>stale_prerequisite:target_gone:&lt;task&gt;</c>, its next task's target no longer bindable); "" otherwise.</summary>
+internal sealed record ActivityTaskTransition(PawnActivities? Batch, bool Release)
+{
+    public string Reason { get; init; } = "";
+}
 
 internal static class CoordinatedActivityBinding
 {
@@ -228,7 +233,7 @@ internal static class CoordinatedActivityBinding
             if (binding is null)
             {
                 if (read.Truncated) return new(null, false);
-                return new(null, true);
+                return new(null, true) { Reason = InterventionPurposes.StalePrerequisitePrefix + "target_gone:" + next.Id };
             }
             if (order.Revision == long.MaxValue) return new(null, false);
             if (binding is ActivityTaskBinding.Supply supply)

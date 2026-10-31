@@ -132,7 +132,8 @@ namespace RimGovernor.Native
                     var carried = p.carryTracker?.CarriedThing;
                     return new RimGovernor.Brain.GameFacts.Observations.WorkResourcePawn(p.GetUniqueLoadID(), execution?.Assignment ?? "", execution?.Revision ?? 0,
                         execution?.State ?? "", carried?.GetUniqueLoadID() ?? "", carried?.def.defName ?? "", carried?.stackCount ?? 0)
-                        { LocalHour = GenLocalDate.HourFloat(map), Bill = p.CurJob?.bill?.GetUniqueLoadID() ?? "",
+                        { LocalHour = GenLocalDate.HourFloat(map), Method = execution?.Method ?? "", Reason = execution?.Reason ?? "",
+                            Bill = p.CurJob?.bill?.GetUniqueLoadID() ?? "",
                             Target = p.CurJob?.targetA.Thing?.GetUniqueLoadID() ?? "",
                             Unfinished = (p.CurJob?.targetB.Thing as UnfinishedThing)?.GetUniqueLoadID() ?? "",
                             OrderedWork = NativeOrderedWork.Observe(p) };

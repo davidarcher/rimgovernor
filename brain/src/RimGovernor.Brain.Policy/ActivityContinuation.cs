@@ -1,7 +1,11 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One positively read pawn. Missing rows are unknown, not unowned.</summary>
-public sealed record ActivityOwnership(string Pawn, string Assignment, string Method, long Revision, string State);
+/// <summary>One positively read pawn. Missing rows are unknown, not unowned. <see cref="Reason"/> is the native execution's
+/// stop or release reason ("" while it runs), which tells a native job takeover from the order's own failure.</summary>
+public sealed record ActivityOwnership(string Pawn, string Assignment, string Method, long Revision, string State)
+{
+    public string Reason { get; init; } = "";
+}
 public sealed record ActivityContinuationDecision(PawnActivities? Release, bool OwnershipEnded);
 
 /// <summary>Whether the Need an installed activity Method serves still owes its work.</summary>
@@ -35,7 +39,8 @@ public static class ActivityContinuationRules
         if (batch.Orders.Any(o => !rows.ContainsKey(o.Pawn))) return new(null, false);
         var owned = batch.Orders.Where(o => !o.Release && MatchesActivityOwner(o, rows[o.Pawn])).ToArray();
         if (owned.Length == 0) return new(null, true);
-        var failed = owned.Any(o => rows[o.Pawn].State == "failed");
+        // An owned failure (its own job condition) and a native job takeover of the owned order alike end the attempt.
+        var failed = owned.Any(o => InterventionPurposes.Observe(o, rows[o.Pawn]) is ObservedOutcome.Failed or ObservedOutcome.Replaced);
         var takenOver = batch.Orders.Any(o => !o.Release && !MatchesActivityOwner(o, rows[o.Pawn]));
         var expired = owned.Any(o => o.Steps.Length > 0 && o.Steps.Max(s => s.Deadline) <= tick);
         if (needed != ActivityNeed.Ended && !takenOver && !failed && !expired) return new(null, false);
@@ -52,7 +57,7 @@ public static class ActivityContinuationRules
     /// </summary>
     public static IReadOnlyList<string> FinishedTasks(PawnActivities batch, IReadOnlyList<ActivityOwnership> observed)
     {
-        var orders = batch.Orders.Where(o => !o.Release && !o.Preparing && o.Method.StartsWith("coupled-", StringComparison.Ordinal)).ToArray();
+        var orders = batch.Orders.Where(o => !o.Release && !o.Preparing && PawnActivities.Intervention(o)).ToArray();
         var current = orders.Select(o => o.Task).ToHashSet(StringComparer.Ordinal);
         return orders.Where(o => batch.Tasks.Any(t => t.Pawn == o.Pawn && !current.Contains(t.Id) && t.Step.Recipe?.Bill is { Length: > 0 })
                 && observed.Any(r => r.State == "completed" && MatchesActivityOwner(o, r)))

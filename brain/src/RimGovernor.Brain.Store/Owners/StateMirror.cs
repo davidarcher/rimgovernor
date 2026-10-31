@@ -334,7 +334,9 @@ public sealed partial class Store
         Run(
             tx =>
             {
-                _ = tx.Execute("UPDATE plans SET retired=1 WHERE retired=0 AND id IN (SELECT plan_id FROM plan_owner)");
+                foreach (var id in tx.Query("SELECT plan_id FROM plan_owner WHERE plan_id IN (SELECT id FROM plans WHERE retired=0) ORDER BY plan_id", [],
+                    r => new PlanId(r.GetString(0))))
+                    RetirePlanIn(tx, id, ObservedTickIn(LoadIn(tx, id)));
                 CloseOpenCombatFightsIn(tx);
             },
             cancellationToken

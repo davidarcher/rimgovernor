@@ -113,7 +113,7 @@ public sealed partial class Store
         if (tx.Execute("UPDATE need_methods SET plan_id=$next WHERE plan_id=$previous", ("$next", next.Id), ("$previous", previous)) != 1)
             throw new ConflictException("activity Method changed");
         _ = tx.Execute("UPDATE plans SET method_id=$method WHERE id=$next", ("$method", prior.Method), ("$next", next.Id));
-        _ = tx.Execute("UPDATE plans SET retired=1,superseded_by=$next WHERE id=$previous", ("$next", next.Id), ("$previous", previous));
+        RetirePlanIn(tx, previous, observedTick, next.Id);
         return ActivityContinuationAdmission.Admitted;
     }, ct);
 
@@ -140,7 +140,7 @@ public sealed partial class Store
             || !ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Ended, observedTick.Value, observed).OwnershipEnded)
             throw new ConflictException("activity ownership is not known ended");
         tx.Floors.Guard(current, observedTick);
-        _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", previous));
+        RetirePlanIn(tx, previous, observedTick);
     }, ct);
 
     private static bool InstalledActivity(ProgressView progress) => !progress.Unresolved

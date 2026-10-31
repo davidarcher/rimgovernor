@@ -146,6 +146,20 @@ public sealed partial class ColonyReview
         return view is null || view.Status == "" ? WorkRules.NewLedgerView(WorkRules.LedgerViewNone) : view;
     }
 
+    /// <summary>
+    /// The dispatcher's observed calibration (its standing stalls) once the latest review reconciled the ledger;
+    /// otherwise unobserved, never an empty observation.
+    /// </summary>
+    public ProductionCalibration WorkLedgerCalibration()
+    {
+        lock (Ledger.Mu)
+        {
+            return Ledger.View is { Status: WorkRules.LedgerViewReconciled }
+                ? Ledger.Dispatch.Calibration()
+                : new ProductionCalibration.Unobserved(ProductionCalibration.UnobservedReason);
+        }
+    }
+
     internal IReadOnlyList<string> LedgerFurtherBenches(IReadOnlyList<GearBench> benches)
     {
         lock (Ledger.Mu)

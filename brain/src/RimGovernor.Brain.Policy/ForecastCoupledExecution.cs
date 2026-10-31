@@ -1,6 +1,11 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed record ForecastIncumbentRelease(ForecastObservedIncumbent Incumbent, PawnActivities Batch);
+/// <summary>One incumbent's release. <see cref="Reason"/> is <see cref="InterventionPurposes.PurposeEndedReason"/> when the review
+/// released it because every intervention purpose of its orders completed or was cancelled; "" when the selection released it.</summary>
+public sealed record ForecastIncumbentRelease(ForecastObservedIncumbent Incumbent, PawnActivities Batch)
+{
+    public string Reason { get; init; } = "";
+}
 public sealed partial record ForecastCoupledExecution(EquatableArray<ForecastIncumbentRelease> Releases,
     ForecastCoupledSelection? Dispatch);
 
@@ -28,6 +33,14 @@ public sealed partial record ForecastCoupledExecution
             if (ForecastIncumbentHold.Release(incumbent, tick) is not { } release) return new([], null);
             releases.Add(new(incumbent, release));
         }
+        // An exact intervention whose every purpose this review observes completed or cancelled is released whatever the
+        // selection retains (task 4.2); one that cannot be released at this tick keeps working until its ownership reads again.
+        if (candidates is not null)
+            foreach (var incumbent in incumbents.Where(i => !releases.Any(r => ReferenceEquals(r.Incumbent, i))
+                && InterventionPurposes.Ended(i.Batch, p => InterventionPurposes.AtReview(p, i.Batch, candidates.Context, selection.BaselineVector))
+                    != PurposeCondition.Open))
+                if (ForecastIncumbentHold.Release(incumbent, tick) is { } ended)
+                    releases.Add(new(incumbent, ended) { Reason = InterventionPurposes.PurposeEndedReason });
         if (selection.Selection.Plan is not { } plan) return new(EquatableArray.From(releases), null);
         var hold = ForecastIncumbentHold.Of(incumbents, tick);
         var (selected, allocations) = hold.Dispatched(selection.Selection.Selected, plan.Allocations,

@@ -86,6 +86,52 @@ public record SelectedActivityTask(string Id, string Pawn, EquatableArray<string
 }
 
 public sealed record ActivityOutputDelivery(string Resource, Cell Origin, Cell Destination, int Count, long Deadline, int AttemptsLeft);
+
+/// <summary>The concrete premise an exact intervention answers (forecast-contracts "Intervention justification").</summary>
+public enum InterventionPurposeKind
+{
+    /// <summary>A pawn's need at or below its native threshold without observed native service.</summary>
+    [WireName("need_shortfall")]
+    NeedShortfall,
+
+    /// <summary>The food owner's credible supply risk before harm.</summary>
+    [WireName("food_risk")]
+    FoodRisk,
+
+    /// <summary>A closed calibration window's production stall that exact orders can answer.</summary>
+    [WireName("production_stall")]
+    ProductionStall,
+
+    /// <summary>An assigned capability requirement unmet now or lapsing within the horizon.</summary>
+    [WireName("capability_practice")]
+    CapabilityPractice,
+}
+
+/// <summary>
+/// What an exact intervention order is for, carried with the order so continuation and the next review re-evaluate it
+/// rather than its elapsed ticks. <see cref="Kind"/> fixes the completion and cancellation semantics (pawn-activities
+/// contract, "Intervention purpose"): a need shortfall completes when <see cref="SubjectPawn"/>'s <see cref="Subject"/> need
+/// reads above its threshold and is cancelled when native service of it is observed; a food risk completes when the food
+/// owner reviews no response needed and is cancelled when no consumer remains; a production stall completes when the
+/// reconciled calibration holds no stall of the <see cref="Subject"/> product and is cancelled when the standing stall's
+/// cause is one orders cannot answer; a capability practice completes when the baseline projects no missing XP for the
+/// <see cref="Subject"/> requirement and is cancelled when the requirement is withdrawn. <see cref="EvidenceTick"/> is the
+/// tick of the observation that justified it: admission refuses a same-aim reissue whose evidence is not newer than the
+/// end of an earlier same-aim intervention.
+/// </summary>
+public sealed record InterventionPurpose(InterventionPurposeKind Kind, string Subject, string SubjectPawn, long EvidenceTick)
+{
+    /// <summary>The purpose's aim without its evidence: what two interventions must share to duplicate one another.</summary>
+    public string Aim => Wire.Name(Kind) + ":" + Subject + (SubjectPawn.Length == 0 ? "" : ":" + SubjectPawn);
+
+    public bool SameAim(InterventionPurpose other) => Kind == other.Kind && Subject == other.Subject && SubjectPawn == other.SubjectPawn;
+
+    /// <summary>Need shortfalls and capability practice name the pawn they serve; food risk and production stalls are colony-wide.</summary>
+    internal bool Valid() => Wire.IsDefined(Kind) && IdText.IsValidText(Subject) && EvidenceTick >= 0
+        && (Kind is InterventionPurposeKind.NeedShortfall or InterventionPurposeKind.CapabilityPractice
+            ? IdText.IsValidText(SubjectPawn) : SubjectPawn.Length == 0);
+}
+
 public sealed record PawnActivityOrder(string Pawn, string Assignment, string Method, long ExpectedRevision,
     long Revision, bool Release, PawnActivityStep[] Steps)
 {
@@ -93,16 +139,22 @@ public sealed record PawnActivityOrder(string Pawn, string Assignment, string Me
     public ActivityOutputDelivery? OutputDelivery { get; init; }
     public string Task { get; init; } = "";
     public bool Preparing { get; init; }
+    /// <summary>The bounded purpose of an exact intervention order, required on the non-release orders of a Method named with
+    /// <see cref="PawnActivities.InterventionMethodPrefix"/>. Only a justified intervention gives one; routine orders carry none.</summary>
+    public InterventionPurpose? Purpose { get; init; }
 }
 
 /// <summary>One atomic execution-table edit under the existing world/authority.</summary>
 public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder[] Orders) : IActionPayload
 {
+    /// <summary>The MethodId prefix of the shared comparison's exact interventions (ColonyReview's coupled Method).</summary>
+    public const string InterventionMethodPrefix = "coupled-";
     public EquatableArray<SelectedActivityTask> Tasks { get; init; }
+    public static bool Intervention(PawnActivityOrder order) => order.Method.StartsWith(InterventionMethodPrefix, StringComparison.Ordinal);
     public static bool SameOrder(PawnActivityOrder a, PawnActivityOrder b) => a.Pawn == b.Pawn && a.Assignment == b.Assignment
         && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision
         && a.Release == b.Release && a.OutputDelivery == b.OutputDelivery && a.Task == b.Task && a.Preparing == b.Preparing
-        && a.Steps.SequenceEqual(b.Steps);
+        && a.Purpose == b.Purpose && a.Steps.SequenceEqual(b.Steps);
     /// <summary>A set step (#3613) is Work over distinct thing ids or cells, never both, with <c>Count</c> the set's size.</summary>
     private static void ValidateSet(PawnActivityStep step)
     {
@@ -136,6 +188,8 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 && IdText.IsValidText(order.Assignment) && IdText.IsValidText(order.Method)
                 && order.ExpectedRevision >= 0 && order.Revision > order.ExpectedRevision
                 && order.Steps != null && (order.Release ? order.Steps.Length == 0 : order.Steps.Length is > 0 and <= 64), "invalid activity assignment");
+            DomainException.Require(order.Purpose is { } purpose ? purpose.Valid() : order.Release || !Intervention(order),
+                "an exact intervention order needs a valid purpose");
             foreach (var step in order.Steps)
             {
                 DomainException.Require(step != null && Enum.IsDefined(step.Kind) && step.Deadline > 0

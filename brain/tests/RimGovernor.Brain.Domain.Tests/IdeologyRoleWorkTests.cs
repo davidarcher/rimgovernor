@@ -35,7 +35,7 @@ public sealed class IdeologyRoleWorkTests
     {
         var order = new PawnActivityOrder(pawn, "haul-1", "coupled-1", 0, 1, false,
             [new PawnActivityStep(PawnActivityKind.Deliver, "Thing_1", "", "", 5, 1000).At(new Cell(3, 3))]);
-        var action = DomainAction.NewPawnActivitiesAction(new ActionId("p-0"), new PawnActivities(1, [order]));
+        var action = DomainAction.NewPawnActivitiesAction(new ActionId("p-0"), TestNeed.Purposed(new PawnActivities(1, [order])));
         return new([new WorkAction(new PlanId("p"), action, new ProgressView { Action = action.Id, Stage = Stage.Completed })]);
     }
 
@@ -67,7 +67,7 @@ public sealed class IdeologyRoleWorkTests
 
         var order = new PawnActivityOrder("a", "cut-1", "coupled-1", 0, 1, false,
             [new PawnActivityStep(PawnActivityKind.Work, "Plant_1", "PlantsCut", "CutPlant", 1, 1000)]);
-        var action = DomainAction.NewPawnActivitiesAction(new ActionId("p-0"), new PawnActivities(1, [order]));
+        var action = DomainAction.NewPawnActivitiesAction(new ActionId("p-0"), TestNeed.Purposed(new PawnActivities(1, [order])));
         var unread = IdeologyRolesRules.SelectedWork(new([new WorkAction(new PlanId("p"), action, new ProgressView { Action = action.Id, Stage = Stage.Pending })]), [], NoGiver);
         Assert.IsType<PawnCommitment.GiverMissing>(Assert.IsType<WorkCommitments.Listed>(unread).ByPawn[new PawnId("a")]);
         Assert.Equal(new PawnId("b"), Assigned(IdeologyRolesRules.RoleAssignments(Ideo(), Pawns(Colonist("a", 10), Colonist("b", 6)), unread)));

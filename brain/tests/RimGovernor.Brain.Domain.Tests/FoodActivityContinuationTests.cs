@@ -240,7 +240,7 @@ public sealed class FoodActivityContinuationTests
         var first = new SelectedActivityTask("harvest", "pawn", [], step, new(2, 1), 0);
         var cook = new SelectedActivityTask("cook", "pawn", [first.Id], new(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000)
             { Recipe = new("bill/CookRice", "CookRice", [new("raw", 10)]) }, new(2, 1), 0);
-        var order = new PawnActivityOrder("pawn", "coupled-cook/pawn", "coupled-cook", 0, 1, false, [step]) { Task = first.Id };
+        var order = new PawnActivityOrder("pawn", "coupled-cook/pawn", "coupled-cook", 0, 1, false, [step]) { Task = first.Id, Purpose = TestNeed.Purpose };
         var batch = new PawnActivities(1, [order]) { Tasks = [first, cook] };
         var plan = new PlanSpec(new("cook"), new(1), [DomainAction.NewPawnActivitiesAction(new("cook-action"), batch)]);
         TestNeed.Commit(journal, Root, new("coupled-cook"), plan, ct);

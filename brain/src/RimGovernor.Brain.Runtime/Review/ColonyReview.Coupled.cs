@@ -5,8 +5,12 @@ public sealed partial class ColonyReview
     /// <summary>Normal review sequencing only. Policy selected the graph; the admin/work-assignments Need's
     /// claimed commit, the Method journal and Hands retain admission, claims, execution and observed continuation.</summary>
     private void AdmitCoupledSelection(ReviewResult review, ReviewFacts facts, EquatableArray<ForecastObservedIncumbent> incumbents, GenerationSnapshot snapshot,
-        CancellationToken call, CancellationToken epoch)
+        EquatableArray<InterventionReviewOutcome> outcomes, CancellationToken call, CancellationToken epoch)
     {
+        // Every row this review records carries the installed interventions' observed outcomes.
+        void RecordCoupledSelection(ForecastCoupledSelection selection, long tick, string method, bool protectedContinuation = false,
+            string? admissionFailure = null, string? reason = null) =>
+            RecordSelection(selection, tick, method, outcomes, protectedContinuation, admissionFailure, reason);
         if (review.Needs.CoupledSelection is not { } selection || facts.CoupledAlternatives is not { } candidates) return;
         TradeWaits.Set(snapshot, (ForecastTradeRequests.SelectedWaits(selection, candidates), candidates.Context.Stock.Medicines));
         var forecast = selection;
@@ -27,7 +31,14 @@ public sealed partial class ColonyReview
                         [DomainAction.NewPawnActivitiesAction(new ActionId($"{next}-0"), release.Batch)]), call);
             }
             // The released pawn waits for fresh native ownership evidence; the rest of the selection is admitted now (#3598).
-            if (execution.Dispatch is null) { Capture(ForecastAdmission.Selected); RecordCoupledSelection(selection, facts.Tick.Value, "release_for_reconsideration"); return; }
+            if (execution.Dispatch is null)
+            {
+                Capture(ForecastAdmission.Selected);
+                // Releases of ended intervention purposes name that reason (task 4.2); the selection's own releases do not.
+                RecordCoupledSelection(selection, facts.Tick.Value, "release_for_reconsideration",
+                    reason: execution.Releases.All(r => r.Reason == InterventionPurposes.PurposeEndedReason) ? InterventionPurposes.PurposeEndedReason : null);
+                return;
+            }
         }
         if (execution.Dispatch is not { } dispatch)
         { Capture(ForecastAdmission.Continued); RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return; }
@@ -46,7 +57,7 @@ public sealed partial class ColonyReview
         // The activity is the admin/work-assignments Need's Method (#3304); a runtime without the Need starts none.
         if (!Needs.Contains(AdminFamily.WorkAssignments)) { Capture(ForecastAdmission.Selected); return; }
         var id = PlanIds.MintPlanId();
-        var method = new MethodId($"coupled-{id}");
+        var method = new MethodId(PawnActivities.InterventionMethodPrefix + id);
         var activity = ForecastCoupledSelection.StartCoupledActivity(selection, candidates, snapshot.Native.Value, method.Value, facts.Tick.Value);
         if (activity is null)
         {
@@ -97,14 +108,14 @@ public sealed partial class ColonyReview
     /// <summary>The target of a selection whose winner's exact orders the intervention premise gate refused (RG-LABOR-004).</summary>
     internal const string InterventionNotJustifiedTarget = "intervention_not_justified";
 
-    private static void RecordCoupledSelection(ForecastCoupledSelection selection, long tick, string method, bool protectedContinuation = false,
-        string? admissionFailure = null, string? reason = null)
+    private static void RecordSelection(ForecastCoupledSelection selection, long tick, string method,
+        EquatableArray<InterventionReviewOutcome> outcomes, bool protectedContinuation, string? admissionFailure, string? reason)
         => Tel.Decide(new Decision
         {
             Kind = TelemetryKinds.CoupledSelectionKind, Component = "rounds", Target = method,
             Verdict = admissionFailure is not null ? "deferred" : protectedContinuation || selection.Selection.Selected.Length == 0 ? "continue" : "selected",
             Reason = admissionFailure is not null ? "method_not_admitted" : reason ?? (protectedContinuation ? "protected_method_ownership" : selection.Selection.SearchTruncated ? "best_found_bounded" : "shared_consequences"),
-            Attrs = CoupledSelectionAttrs(selection, tick, protectedContinuation, admissionFailure)
+            Attrs = CoupledSelectionAttrs(selection, tick, protectedContinuation, admissionFailure, outcomes)
         });
 
     /// <summary>The search's accounting on the <c>rounds_review</c> row (#3722; keys in <see cref="ReviewTelemetry"/>): scheduler
@@ -148,8 +159,11 @@ public sealed partial class ColonyReview
 
     /// <summary>The <c>coupled_selection</c> row's attrs (docs/developers/contracts/otel-signals.md); the acceptance reader
     /// <c>CoupledSelections.Row</c> reads them back, the search accounting (#3722) included.</summary>
-    internal static Dictionary<string, object?> CoupledSelectionAttrs(ForecastCoupledSelection selection, long tick, bool protectedContinuation, string? admissionFailure) => new()
+    internal static Dictionary<string, object?> CoupledSelectionAttrs(ForecastCoupledSelection selection, long tick, bool protectedContinuation, string? admissionFailure,
+        IReadOnlyList<InterventionReviewOutcome>? outcomes = null) => new()
             {
+                ["intervention_outcomes"] = (outcomes ?? []).Select(o => new Dictionary<string, object?>
+                    { ["plan"] = o.Plan.Value, ["observed_outcomes"] = o.Outcomes.ToArray() }).ToArray(),
                 [RimGovernor.Brain.Telemetry.Otlp.ForecastHandoffReader.Key] = RimGovernor.Brain.Telemetry.Otlp.ForecastHandoffReader.Fields(ForecastHandoffPolicy.Project(selection.Selected)),
                 ["observed_tick"] = tick, ["horizon_ticks"] = selection.Horizon,
                 ["protected_continuation"] = protectedContinuation, ["admission_failure"] = admissionFailure,
@@ -382,32 +396,46 @@ public sealed partial class ColonyReview
     internal static Dictionary<string, object?>? JustificationAttrs(InterventionJustification? justification)
     {
         if (justification is null) return null;
-        var premise = justification.Premise switch
+        var (state, basis) = ResponseAttrs(justification.Response);
+        return new()
+        {
+            ["verdict"] = justification is InterventionJustification.Justified ? "justified" : "refused",
+            ["reason"] = (justification as InterventionJustification.Refused)?.Reason,
+            ["premise"] = PremiseAttrs(justification.Premise), ["response"] = state, ["response_basis"] = basis, ["stage"] = justification.Stage,
+            ["displaced"] = justification.Displaced.Count, ["displaced_service"] = justification.Displaced.NativeService.ToArray(),
+            ["displaced_work"] = justification.Displaced.NativeWork.ToArray(), ["displaced_unread"] = justification.Displaced.Unread.ToArray(),
+            ["uncertainty"] = justification.Uncertainty.ToArray(),
+            // One assessment per dispatched pawn (task 4.2): each pawn's exact orders answer their own premise.
+            ["interventions"] = justification.Interventions.Select(i => new Dictionary<string, object?>
+            {
+                ["pawn"] = i.Pawn, ["activities"] = i.Activities.ToArray(), ["premise"] = PremiseAttrs(i.Premise),
+                ["response"] = ResponseAttrs(i.Response).State, ["evidence_tick"] = i.EvidenceTick,
+                ["refusal"] = i.Justified ? null : i.Refusal, ["purpose"] = i.Purpose?.Aim,
+            }).ToArray(),
+        };
+    }
+
+    private static Dictionary<string, object?> PremiseAttrs(InterventionPremise premise)
+        => premise switch
         {
             InterventionPremise.ObservedShortfall s => new Dictionary<string, object?> { ["kind"] = "observed_shortfall", ["need"] = s.Need, ["pawn"] = s.Pawn, ["evidence"] = s.Evidence },
             InterventionPremise.CredibleRisk r => new() { ["kind"] = "credible_risk", ["risk"] = r.Risk.ToString(), ["runway_days"] = r.RunwayDays, ["recovery_timing"] = r.Timing.ToString() },
             InterventionPremise.CapabilityOpportunity c => new() { ["kind"] = "capability_opportunity", ["requirement"] = c.Requirement, ["pawn"] = c.Pawn, ["skill"] = c.Skill, ["gap"] = c.Gap.ToString() },
+            InterventionPremise.DemonstratedStall d => new() { ["kind"] = "demonstrated_stall", ["order"] = d.Stall.Order, ["product"] = d.Stall.Product.Value,
+                ["bench_kind"] = d.Stall.BenchKind, ["short_per_day"] = d.Stall.ShortPerDay, ["cause"] = Wire.Name(d.Stall.Reason), ["closed_tick"] = d.Stall.ClosedTick },
             InterventionPremise.Unassessed u => new() { ["kind"] = "unassessed", ["reason"] = u.Reason },
             InterventionPremise.None => new() { ["kind"] = "none" },
             var other => throw new RequiredFactException("intervention premise:" + other),
         };
-        var (state, basis) = justification.Response switch
+
+    private static (string State, string Basis) ResponseAttrs(NativeResponse response)
+        => response switch
         {
             NativeResponse.Supported s => ("supported", s.Basis),
             NativeResponse.KnownTooLate t => ("known_too_late", t.Basis),
             NativeResponse.Unassessed u => ("unassessed", u.Reason),
             var other => throw new RequiredFactException("native response:" + other),
         };
-        return new()
-        {
-            ["verdict"] = justification is InterventionJustification.Justified ? "justified" : "refused",
-            ["reason"] = (justification as InterventionJustification.Refused)?.Reason,
-            ["premise"] = premise, ["response"] = state, ["response_basis"] = basis, ["stage"] = justification.Stage,
-            ["displaced"] = justification.Displaced.Count, ["displaced_service"] = justification.Displaced.NativeService.ToArray(),
-            ["displaced_work"] = justification.Displaced.NativeWork.ToArray(), ["displaced_unread"] = justification.Displaced.Unread.ToArray(),
-            ["uncertainty"] = justification.Uncertainty.ToArray(),
-        };
-    }
 
     private static Dictionary<string, object?> NativeFoodAttrs(NativeFoodAssessment assessment)
     {

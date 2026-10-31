@@ -7,6 +7,13 @@ receipt and the pawn's `Job.OrderedWork` readback. See
 [finite native ordered work](pawn-activities.md#finite-native-ordered-work) for
 sequence, ordering, retry and cancellation rules.
 
+An exact intervention `PawnActivities` action is the same: its completed dispatch
+is the native receipt of installation (outcome `accepted`), not the purpose's
+completion. Each of its non-release orders carries its `InterventionPurpose`; the
+observed outcome (`accepted`, `running`, `completed`, `failed`, `replaced`,
+`released`) and the purpose's end are read later from native execution rows
+([observed outcomes](pawn-activities.md#intervention-purposes-and-observed-outcomes)).
+
 `ideoligion_reform` is a journaled Hands intent for an eligible fluid
 ideoligion. Expected selections and reform count guard stale state; native
 checks normal reform limits, consumes development once, and returns observed

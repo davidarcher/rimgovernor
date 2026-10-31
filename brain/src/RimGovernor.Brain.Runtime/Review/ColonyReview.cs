@@ -556,7 +556,7 @@ public sealed partial class ColonyReview
         reading = reading.WithFacts(rf => rf with { CoupledWorkActive = plans.Any(plan => !plan.Retired
             && plan.SupersededBy.IsEmpty
             && plan.Progress.Any(a => a.Action.PawnActivities is { Tasks.Count: > 0 } batch
-                && batch.Orders.Any(o => !o.Release && o.Method.StartsWith("coupled-", StringComparison.Ordinal))
+                && batch.Orders.Any(o => !o.Release && PawnActivities.Intervention(o))
                 && a.View.Stage is not (Stage.Unsuccessful or Stage.Cancelled))) });
         reading = reading.WithFacts(rf => rf with { Dash = DashPlanRules.ReviewDash(previous.Latches.Dash, reading.Reading.Facts, reading.Reading.Facts.ForecastObserved.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) });
         reading = reading.WithFacts(rf => rf with { UrgentPatients = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
@@ -675,7 +675,7 @@ public sealed partial class ColonyReview
         fine.Lap("derive/ledger");
         // The ledger's declared batches are read after the declaration above.
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills], ProductionOrders = WorkLedgerView() });
+        reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills], ProductionOrders = WorkLedgerView(), ProductionCalibration = WorkLedgerCalibration() });
         fine.Lap("derive/bills");
         reading = reading.WithFacts(rf => rf with { UrgentSites = UrgentBuilds.Covered });
         // The harm term's creepjoiners and the pawn values their leaving prices (#3844), read before the coupled context's harm inputs.
@@ -763,7 +763,8 @@ public sealed partial class ColonyReview
         // The first plan reads the ledger and the demand this review derived (#3652).
         await ReviewFirstPlanAsync(state.Snapshot, result.Review.Snapshot, reading.Reading, result.Needs.Latches, goalFacts, stockpileRequest, batches, workActions, ct).ConfigureAwait(false);
         stages.Lap("first_plan");
-        AdmitCoupledSelection(result, reading.Reading.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
+        AdmitCoupledSelection(result, reading.Reading.Facts, reconsideration.Incumbents, state.Snapshot,
+            InterventionPurposes.ReviewOutcomes(workActions, reading.Reading.Facts.WorkView?.Evidence.WorkResources ?? []), ct, epoch);
         result = result with { FirstPlanUnread = FirstPlanUnread };
         stages.Lap("admit");
         var attrs = new List<(string Key, object? Value)>

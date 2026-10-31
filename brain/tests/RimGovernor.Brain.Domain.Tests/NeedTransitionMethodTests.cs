@@ -26,7 +26,7 @@ public sealed class NeedTransitionMethodTests
         var need = TestNeed.Id;
         var method = new MethodId("coupled-d67a4637-3335-4f0b-89b5-a609e587d024");
         var plan = new PlanSpec(new("coupled-plan"), new(1), [DomainAction.NewPawnActivitiesAction(new("coupled-plan-0"),
-            new(1, [new("pawn", "assignment", method.Value, 0, 1, false, [new(PawnActivityKind.Hold, "", "", "", 0, 500)])]))]);
+            TestNeed.Purposed(new(1, [new("pawn", "assignment", method.Value, 0, 1, false, [new(PawnActivityKind.Hold, "", "", "", 0, 500)])])))]);
         TestNeed.Commit(journal, Root, method, plan, ct);
         var filings = new Dictionary<FilingKey, PlannerFiling>();
         PlannerReasons.FileReason(filings, need.FilingKey, Verdict.BuildingReasonExistingWork);

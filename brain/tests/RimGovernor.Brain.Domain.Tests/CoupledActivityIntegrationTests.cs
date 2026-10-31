@@ -31,8 +31,8 @@ public sealed class CoupledActivityIntegrationTests
         Assert.NotEmpty(selection.Selection.Selected);
         Assert.True(selection.SelectedVector.Urgent[0].Number() < selection.BaselineVector.Urgent[0].Number());
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-observed", 100));
-        var batch = CoordinatedActivityBinding.Start(selection.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings,
-            1, "coupled-observed", 100);
+        var batch = TestNeed.Purposed(CoordinatedActivityBinding.Start(selection.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings,
+            1, "coupled-observed", 100));
         Assert.Equal(2, Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver).Step.Count);
         Assert.Equal(PawnActivityKind.Work, Assert.Single(batch.Orders).Steps[0].Kind);
         return (facts, batch);
@@ -100,8 +100,8 @@ public sealed class CoupledActivityIntegrationTests
         var choice = ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!,
             basis: ForecastComparisonBasis.ConditionalScenario);
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(choice, facts.CoupledAlternatives!, 1, "coupled-independent", 100));
-        var next = CoordinatedActivityBinding.Start(choice.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings,
-            1, "coupled-independent", 100);
+        var next = TestNeed.Purposed(CoordinatedActivityBinding.Start(choice.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings,
+            1, "coupled-independent", 100));
         Assert.All(next.Orders, order => Assert.Equal("helper", order.Pawn));
         Assert.DoesNotContain(next.Tasks, task => task.Step.Target == "plant-a" || task.Step is CellActivityStep { Destination: var destination } && destination == new Cell(2, 1));
         var secondPlan = new PlanSpec(new("second"), new(1), [DomainAction.NewPawnActivitiesAction(new("second-action"), next)]);

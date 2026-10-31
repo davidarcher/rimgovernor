@@ -752,6 +752,62 @@ missing fact names a state and authorizes nothing. Complexity: added one pure
 justification rule, one telemetry attr group and ten regressions / removed the
 routine-only override and the target-inferred edible set / orphans left: none.
 
+Task 4.1 is closed and task 4.2 binds justified interventions to native work.
+`DemonstratedStall` now has an observed source: the work dispatcher's
+calibration (`ProductionCalibration.Observed`, read only while the work ledger
+is reconciled, else `stall_calibration_unobserved`) supplies closed short
+windows per product, and only a cause exact orders answer (ingredients pending,
+delivery bound, work unstarted) is a premise; other causes are named
+`stall_not_answered_by_orders:<product>:<cause>`. The premise is assessed per
+intervention: each dispatched pawn's orders are one `InterventionAssessment`,
+and the first refused pawn refuses the portfolio as `<reason>:<pawn>`. A
+justified assessment gives its orders a typed `InterventionPurpose` (kind,
+subject, subject pawn, evidence tick), which `PawnActivities.Validate` requires
+on every non-release `coupled-` order. `InterventionPurposes` is the one pure
+reader: continuation and review end a Method once each purpose completes or is
+cancelled on the observation its kind names, never on elapsed ticks. One
+classifier, `InterventionPurposes.Observe`, gives each order's `ObservedOutcome`
+(accepted, running, completed, failed, replaced, released) to both readers:
+continuation from its activity read (`coupled_observed`), and the review from
+its native ownership rows, which now carry the execution's method and stop
+reason (`WorkResourcePawn.Method`/`Reason`), so a `native_job_takeover` reads
+replaced at both (`coupled_selection` attr `intervention_outcomes`). Admission
+refuses a stale prerequisite (unavailable pawn, consumed observed input), a
+second open purpose of the same pawn and aim, and a justification whose
+evidence tick is not newer than that purpose's retirement. Every retirement
+path now writes `plans.retired_tick` through one Store write, `RetirePlanIn`,
+and the schema (67) rejects a retired plan without it: continuation,
+resolution and the review's settled-plan retirement record their observation
+tick, combat and load retirement the newest tick the plan observed.
+Continuation names a vanished next target.
+
+`InterventionHandsTests` exercises the real journal and Hands: outcomes are
+distinguished and an accepted receipt is not completion; the review classifies
+a native job takeover of an installed intervention as replaced, not failed,
+and reports it; a drafted pawn, a consumed input and a vanished target are
+refused at admission or continuation; an open purpose is not issued twice; an
+ended purpose is not reissued from evidence at or before its end, whether
+resolution or the review's plan retirement ended it, while newer evidence is
+admitted; and the comparison-to-Hands path carries each order's justified
+purpose, while a refused premise or a bare exact order cannot reach Hands.
+`InterventionJustificationTests` adds the stall premise (answerable causes
+justified, unanswerable named, unassessed and unobserved calibration
+unassessed, no stall no premise), per-pawn premises, and purpose end
+conditions. Read where two readings conflict, duplicates are keyed by pawn and
+aim (design decision 5's bounded purpose), and a same-review reissue after a
+release at that tick is stale. Two limits are known. A vanished target is
+named only at continuation: the review's frozen admission evidence holds no
+target read to check it against. And no separate input-debit record exists:
+inputs are claimed once through the existing lot claims, so an open or retired
+purpose cannot debit stock twice by construction. Rules 7–9: policy stays
+pure; the Store owns admission, retirement and the retired-purpose record;
+Hands is unchanged. Complexity: added one purpose record and kind, two outcome
+enums, one pure purpose and outcome reader with its review row, one
+calibration fact, two native ownership fields, one persisted column with its
+check, one retirement write and ten regressions / removed the per-portfolio
+premise, five `coupled-` string literals and nine ad hoc retirement updates /
+orphans left: none.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |

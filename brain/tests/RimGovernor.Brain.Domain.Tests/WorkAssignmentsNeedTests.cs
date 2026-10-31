@@ -193,7 +193,7 @@ public sealed class WorkAssignmentsNeedTests
         var method = "coupled-" + coupled.Value;
         var held = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId(method), "shared colony consequence portfolio",
             new PlanSpec(coupled, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId(coupled.Value + "-0"),
-                new PawnActivities(1, [new PawnActivityOrder("a", method + "/a", method, 0, 1, false, [new PawnActivityStep(PawnActivityKind.Hold, "", "", "", 0, long.MaxValue)])]))]), ct);
+                TestNeed.Purposed(new PawnActivities(1, [new PawnActivityOrder("a", method + "/a", method, 0, 1, false, [new PawnActivityStep(PawnActivityKind.Hold, "", "", "", 0, long.MaxValue)])])))]), ct);
         Assert.Equal(ClaimOutcome.Admitted, held.Outcome);
         Assert.True(StorePackage.PlanOpen(journal.LoadPlan(held.Owner.Methods[0].Plan, ct)));
         Assert.Empty(Runtime.WorkPlanner.OpenWorkPlans(journal, held.Owner, ct));

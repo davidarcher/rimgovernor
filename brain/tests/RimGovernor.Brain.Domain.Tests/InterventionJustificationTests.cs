@@ -65,7 +65,7 @@ public sealed class InterventionJustificationTests
 
     /// <summary>CapabilityMaintenanceTests' assigned Shooting fixture: a role requires Shooting 1 of a level-1 pawn whose XP
     /// (<paramref name="xp"/>) decays towards the loss threshold, beside a training range.</summary>
-    private static (ForecastCoupledSelection Selection, ForecastCoupledCandidates Candidates) Practice(double xp)
+    internal static (ForecastCoupledSelection Selection, ForecastCoupledCandidates Candidates) Practice(double xp)
     {
         var facts = ForecastPortfolioChoiceTests.Observed([], []);
         var requirement = new RoleDef(1, [new([new("Shooting", 1)])]);
@@ -119,10 +119,10 @@ public sealed class InterventionJustificationTests
         // The bout leads the shared comparison on the ledger alone and trains no assigned capability.
         Assert.Empty(candidates.Context.MaintenanceRequirements);
         var refused = Assert.IsType<InterventionJustification.Refused>(selection.Justification);
-        Assert.Equal(InterventionJustification.MarginalGainWithoutPremise, refused.Reason);
+        Assert.StartsWith(InterventionJustification.MarginalGainWithoutPremise + ":", refused.Reason);
         Assert.Equal(ForecastCoupledSelection.LedgerStage, refused.Stage);
         Assert.IsType<InterventionPremise.None>(refused.Premise);
-        Assert.Contains(selection.Rejected, r => r.Reason == InterventionJustification.MarginalGainWithoutPremise && r.Commitments.Count > 0);
+        Assert.Contains(selection.Rejected, r => r.Reason.StartsWith(InterventionJustification.MarginalGainWithoutPremise + ":", StringComparison.Ordinal) && r.Commitments.Count > 0);
         // The native baseline stands: nothing is selected or started.
         Assert.Empty(selection.Selection.Selected);
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "marginal", 100));
@@ -137,7 +137,7 @@ public sealed class InterventionJustificationTests
         Assert.Equal(NativeNeedService.Available, NativeNeedServices.Observe(candidates.Context.Needs, Pawn, "food"));
         Assert.Contains(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + Pawn + ":food", selection.Selection.Findings);
         var refused = Assert.IsType<InterventionJustification.Refused>(JustifyDelivery(selection, candidates.Context));
-        Assert.Equal(InterventionJustification.NoModeledServiceRescue, refused.Reason);
+        Assert.StartsWith(InterventionJustification.NoModeledServiceRescue + ":", refused.Reason);
         Assert.IsType<InterventionPremise.None>(refused.Premise);
     }
 
@@ -177,7 +177,7 @@ public sealed class InterventionJustificationTests
         Assert.Equal(NativeFoodRisk.SupplyBelowMinimum, Assert.IsType<NativeFoodAssessment.Reviewed>(short_).Risk);
         var (selection, candidates) = FoodColony(.9, stock: 20, short_);
         var refused = Assert.IsType<InterventionJustification.Refused>(JustifyDelivery(selection, candidates.Context));
-        Assert.Equal(InterventionJustification.SettingsResponseSupported, refused.Reason);
+        Assert.StartsWith(InterventionJustification.SettingsResponseSupported + ":", refused.Reason);
         Assert.IsType<InterventionPremise.CredibleRisk>(refused.Premise);
         Assert.Equal(new NativeResponse.Supported("food_recovery_before_runway"), refused.Response);
         // An observed harm is not answered by a later recovery: a hungry pawn without any food target has no observed service, and the
@@ -188,7 +188,7 @@ public sealed class InterventionJustificationTests
         // Missing food evidence names the blocker instead of assuming a crisis or adequate service.
         var (unread, blind) = FoodColony(.9, stock: 20, new NativeFoodAssessment.Unassessed("food_runway_unobserved"));
         var unassessed = Assert.IsType<InterventionJustification.Refused>(JustifyDelivery(unread, blind.Context));
-        Assert.Equal(InterventionJustification.PremiseUnassessedPrefix + "native_food:food_runway_unobserved", unassessed.Reason);
+        Assert.StartsWith(InterventionJustification.PremiseUnassessedPrefix + "native_food:food_runway_unobserved" + ":", unassessed.Reason);
     }
 
     [Fact]
@@ -247,7 +247,7 @@ public sealed class InterventionJustificationTests
         Assert.NotEmpty(dispatch);
         var refused = Assert.IsType<InterventionJustification.Refused>(InterventionRules.Justify(selection.Selected.Plan, dispatch,
             selection.BaselineVector, selection.SelectedVector, unassigned, new ItemFacts()));
-        Assert.Equal(InterventionJustification.MarginalGainWithoutPremise, refused.Reason);
+        Assert.StartsWith(InterventionJustification.MarginalGainWithoutPremise + ":", refused.Reason);
         Assert.Equal("maintenance_xp", refused.Stage);
     }
 
@@ -262,10 +262,113 @@ public sealed class InterventionJustificationTests
         // A def the catalog read without Nutrition is no food: the same delivery has no food premise.
         var inedible = new ItemFacts { Market = new Dictionary<Resource, double> { [new("Rice")] = 1.1 } };
         var marginal = Assert.IsType<InterventionJustification.Refused>(JustifyDelivery(selection, candidates.Context, inedible));
-        Assert.Equal(InterventionJustification.MarginalGainWithoutPremise, marginal.Reason);
+        Assert.StartsWith(InterventionJustification.MarginalGainWithoutPremise + ":", marginal.Reason);
         // A resource the catalog never read is not assumed inedible: the classification is named unassessed.
         var unread = Assert.IsType<InterventionJustification.Refused>(JustifyDelivery(selection, candidates.Context, new ItemFacts()));
-        Assert.Equal(InterventionJustification.PremiseUnassessedPrefix + "nutrition_per_unit:Rice", unread.Reason);
+        Assert.StartsWith(InterventionJustification.PremiseUnassessedPrefix + "nutrition_per_unit:Rice" + ":", unread.Reason);
         Assert.Equal(new InterventionPremise.Unassessed("nutrition_per_unit:Rice"), unread.Premise);
+    }
+    private static readonly Resource Component = new("ComponentIndustrial");
+
+    /// <summary>The catalog plus two read non-food products, so bill work making them is classified without a food premise.</summary>
+    private static readonly ItemFacts Industry = new()
+    {
+        Nutrition = Catalog.Nutrition,
+        Market = new Dictionary<Resource, double>(Catalog.Market) { [new("ComponentIndustrial")] = 10, [new("Steel")] = 1.9 },
+    };
+
+    /// <summary>Forged bill work: per pawn, one recipe making <paramref name="products"/>[i] at a bench, under the dispatcher's
+    /// <paramref name="calibration"/>.</summary>
+    private static (ForecastCoupledContext Context, ForecastActivityPlan Plan) WithBillWork(ForecastCoupledContext context,
+        ProductionCalibration calibration, params (string Pawn, string Product)[] work)
+    {
+        var activities = context.Activities.Activities.ToList();
+        var bindings = new Dictionary<(string Task, string Pawn), ActivityTaskCandidate>(context.Bindings);
+        var allocations = new List<ForecastActivityAllocation>();
+        foreach (var (pawn, product) in work)
+        {
+            var id = "bill/" + product + "/" + pawn;
+            activities.Add(new ForecastActivity(id, "start", "start", []) { Outputs = [new(new Resource(product), 1)] });
+            bindings[(id, pawn)] = new ActivityTaskCandidate(id, pawn, [], PawnActivityKind.Recipe, "bench", "", "", 1, 1000, new(1, 1))
+                { Recipe = new("bill/" + product, "Make_" + product, []) { Resource = product } };
+            allocations.Add(new ForecastActivityAllocation(id, pawn, 0, 0, 0, 100, 0, 100, 0, 0));
+        }
+        return (context with { Activities = context.Activities with { Activities = [.. activities] }, Bindings = bindings,
+            ProductionCalibration = calibration }, new([.. allocations], 100, 100));
+    }
+
+    private static InterventionJustification JustifyBill(ProductionCalibration calibration, params (string Pawn, string Product)[] work)
+    {
+        var (selection, candidates) = FoodColony(.9, stock: 20, Assess(NativeFoodAssessmentTests.Facts(10, 9)));
+        var (forged, plan) = WithBillWork(candidates.Context, calibration, work);
+        return InterventionRules.Justify(plan, plan.Allocations, selection.BaselineVector, selection.BaselineVector, forged, Industry);
+    }
+
+    private static ProductionCalibration.Observed Stalled(UnmetReason reason) =>
+        new ProductionCalibration.Observed([new ProductionStall("bill/ComponentIndustrial", Component, "TableMachining", 2, reason, 90)]);
+
+    [Fact]
+    public void ADemonstratedStallJustifiesBillWorkOnlyForACauseOrdersAnswer()
+    {
+        // The dispatcher observed a closed short window whose work never started: exact bill work answers it.
+        foreach (var cause in new[] { UnmetReason.WorkUnstarted, UnmetReason.IngredientsPending, UnmetReason.DeliveryBound })
+        {
+            var justified = Assert.IsType<InterventionJustification.Justified>(JustifyBill(Stalled(cause), (Pawn, Component.Value)));
+            var stall = Assert.IsType<InterventionPremise.DemonstratedStall>(justified.Premise).Stall;
+            Assert.Equal((Component, cause, 90L), (stall.Product, stall.Reason, stall.ClosedTick));
+            var assessed = Assert.Single(justified.Interventions);
+            Assert.Equal(new InterventionPurpose(InterventionPurposeKind.ProductionStall, Component.Value, "", 90), assessed.Purpose);
+            Assert.Contains("native_response_unassessed:stall_native_response_unprojected", justified.Uncertainty);
+        }
+        // A stall whose cause orders cannot answer (no bench) is named, not justified.
+        var noBench = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.NoBench), (Pawn, Component.Value)));
+        Assert.Equal(InterventionJustification.StallNotAnsweredByOrders + ":ComponentIndustrial:no_bench:" + Pawn, noBench.Reason);
+        Assert.IsType<InterventionPremise.None>(noBench.Premise);
+        // A cause the dispatcher did not assess, and an unobserved calibration, leave the premise unassessed.
+        var unassessedCause = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.RecipeWorkUnassessed), (Pawn, Component.Value)));
+        Assert.Equal(InterventionJustification.PremiseUnassessedPrefix + "stall_cause_unassessed:ComponentIndustrial:" + Pawn, unassessedCause.Reason);
+        var unobserved = Assert.IsType<InterventionJustification.Refused>(JustifyBill(
+            new ProductionCalibration.Unobserved(ProductionCalibration.UnobservedReason), (Pawn, Component.Value)));
+        Assert.Equal(InterventionJustification.PremiseUnassessedPrefix + ProductionCalibration.UnobservedReason + ":" + Pawn, unobserved.Reason);
+        // An observed calibration holding no stall of the product: omitted native production alone is no stall.
+        var none = Assert.IsType<InterventionJustification.Refused>(JustifyBill(new ProductionCalibration.Observed([]), (Pawn, Component.Value)));
+        Assert.IsType<InterventionPremise.None>(none.Premise);
+    }
+
+    [Fact]
+    public void EachDispatchedPawnsExactOrdersNeedTheirOwnPremise()
+    {
+        // One pawn answers the component stall; the other makes steel no stall names, so the portfolio is refused for it alone.
+        var refused = Assert.IsType<InterventionJustification.Refused>(JustifyBill(Stalled(UnmetReason.WorkUnstarted),
+            (Pawn, Component.Value), ("helper", "Steel")));
+        Assert.EndsWith(":helper", refused.Reason, StringComparison.Ordinal);
+        Assert.Equal(["helper", Pawn], refused.Interventions.Select(i => i.Pawn));
+        Assert.False(refused.Interventions.Single(i => i.Pawn == "helper").Justified);
+        var answered = refused.Interventions.Single(i => i.Pawn == Pawn);
+        Assert.True(answered.Justified);
+        Assert.IsType<InterventionPremise.DemonstratedStall>(answered.Premise);
+        Assert.Null(refused.Interventions.Single(i => i.Pawn == "helper").Purpose);
+    }
+
+    [Fact]
+    public void APurposeEndsOnlyOnTheObservationItsKindNames()
+    {
+        var (_, candidates) = FoodColony(.9, stock: 20, Assess(NativeFoodAssessmentTests.Facts(10, 9)));
+        var stall = new InterventionPurpose(InterventionPurposeKind.ProductionStall, Component.Value, "", 90);
+        var order = new PawnActivityOrder(Pawn, "coupled-x/" + Pawn, "coupled-x", 0, 1, false, [new(PawnActivityKind.Hold, "", "", "", 0, 900)]) { Purpose = stall };
+        var batch = new PawnActivities(1, [order]);
+        PurposeCondition Review(ProductionCalibration calibration) =>
+            InterventionPurposes.AtReview(stall, batch, candidates.Context with { ProductionCalibration = calibration }, null);
+        Assert.Equal(PurposeCondition.Open, Review(Stalled(UnmetReason.WorkUnstarted)));
+        Assert.Equal(PurposeCondition.Completed, Review(new ProductionCalibration.Observed([])));
+        Assert.Equal(PurposeCondition.Cancelled, Review(Stalled(UnmetReason.NoBench)));
+        Assert.Equal(PurposeCondition.Open, Review(new ProductionCalibration.Unobserved(ProductionCalibration.UnobservedReason)));
+        // A need shortfall completes once its pawn reads above threshold; elapsed ticks never end it.
+        var hunger = new InterventionPurpose(InterventionPurposeKind.NeedShortfall, "food", Pawn, 100);
+        var hungry = batch with { Orders = [order with { Purpose = hunger }] };
+        Assert.Equal(PurposeCondition.Completed, InterventionPurposes.AtContinuation(hunger, hungry, candidates.Context.Needs));
+        Assert.Equal(PurposeCondition.Completed, InterventionPurposes.Ended(hungry, p => InterventionPurposes.AtContinuation(p, hungry, candidates.Context.Needs)));
+        var (_, low) = FoodColony(.2, stock: 20, Assess(NativeFoodAssessmentTests.Facts(10, 9)));
+        Assert.Equal(PurposeCondition.Open, InterventionPurposes.AtContinuation(hunger, hungry, low.Context.Needs));
     }
 }

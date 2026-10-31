@@ -68,8 +68,17 @@ The justification names:
   response (supply below minimum, or a recovery gap) with its runway and
   recovery timing. `CapabilityOpportunity` is a held assigned requirement whose
   baseline XP gap is projected: `UnmetNow`, or `LapsesWithinHorizon` while an
-  alternative still meets it. `Unassessed(reason)` covers missing food or
-  maintenance evidence. `None` means no premise applies.
+  alternative still meets it; a sparring partner's practice answers its
+  partner's requirement. `DemonstratedStall` is a closed short window of the
+  work dispatcher's observed calibration (`ProductionCalibration.Observed`, read
+  only while the work ledger is reconciled) for a product the pawn's bill work
+  makes or feeds (its activities and every activity waiting on them), with a
+  cause exact orders answer: `ingredients_pending`, `delivery_bound` or
+  `work_unstarted`. An idle bench or omitted native production is never a stall.
+  `Unassessed(reason)` covers missing food or maintenance evidence, unobserved
+  calibration (`stall_calibration_unobserved`) and a stall whose cause the
+  dispatcher did not assess (`stall_cause_unassessed:<product>`). `None` means no
+  premise applies.
 - the native response: `Supported`, `KnownTooLate` or `Unassessed(reason)`.
   Food recovery before runway is supported; recovery at or after runway is
   known too late. Unconfirmed or uncaptured recovery, and the training work
@@ -96,11 +105,22 @@ Refusal reasons:
   premise.
 - `settings_response_supported`: native settings answer a risk in time. An
   observed shortfall is not answered by a later recovery.
+- `stall_not_answered_by_orders:<product>:<cause>`: no other premise, and the
+  product's observed stall has a cause orders cannot answer (`no_bench`,
+  `bench_slots_full`, `ingredient_bound`, `benches_exhausted`).
 
 There is no universal materiality threshold: a premise justifies the order and
 the comparator ranks it. A refused winner yields to the native baseline.
 `StartCoupledActivity` refuses exact orders without this review's `Justified`
-verdict. The premise is assessed per portfolio, not per root.
+verdict. The premise is assessed per intervention: each dispatched pawn's exact
+orders are one `InterventionAssessment` with its own premise, native response,
+evidence tick and refusal, and the portfolio is justified only when every pawn's
+is. The first refused pawn refuses it as `<reason>:<pawn>`; the top-level premise
+and response are that assessment's (the first one's when all pass). A justified
+assessment gives its pawn's orders an `InterventionPurpose` (kind, subject,
+subject pawn, evidence tick: the needs read, or the stall's closed window); the
+purpose, not the justification, is what the Method retains
+([observed outcomes](pawn-activities.md#intervention-purposes-and-observed-outcomes)).
 
 The shared comparison applies the same native-response assessment whether a
 routine service is omitted or appears in a selected hypothetical schedule. A

@@ -409,6 +409,7 @@ public sealed partial record ForecastCoupledCandidates
             ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
             WorkBenchSpeeds = facts.WorkBenchSpeeds,
             ProductionOrders = facts.ProductionOrders,
+            ProductionCalibration = facts.ProductionCalibration,
             ProductionRecipes = facts.ProductionRecipes,
             LaboratoryBench = facts.LaboratoryBench,
             PlannedBeds = ForecastHousing.PlannedBedsOf(allPlannedSites, facts.SleepingBeds),

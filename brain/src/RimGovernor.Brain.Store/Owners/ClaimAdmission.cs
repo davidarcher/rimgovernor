@@ -78,11 +78,59 @@ public sealed partial class Store
             return new(ClaimOutcome.Refused, owner, Refusal: new(RefusalKind.SharedAdmission, $"need {need.Value} has no current enabled review"));
         if (owner.BoundPlan(tx, method) is not null) return new(ClaimOutcome.Continued, owner);
         if (SafeguardRefusal(tx, owner) is { } vetoed) return new(ClaimOutcome.Refused, owner, Refusal: vetoed);
+        if (InterventionRefusalIn(tx, current, plan) is { } stale) return new(ClaimOutcome.Refused, owner, Refusal: new(RefusalKind.SharedAdmission, stale));
         var (conflict, truncated) = ClaimOverlapIn(tx, current, plan);
         if (truncated) return new(ClaimOutcome.Refused, owner, Refusal: new(RefusalKind.SharedAdmission, "claim_census_truncated"));
         if (conflict is not null) return new(ClaimOutcome.Conflict, owner, conflict);
         if (BindOwnerMethod(tx, owner, method, reason, plan) is { } refused) return new(ClaimOutcome.Refused, owner, Refusal: refused);
         return new(ClaimOutcome.Admitted, LoadNeedIn(tx, need, current));
+    }
+
+    /// <summary>
+    /// The admission refusal of an exact intervention candidate (task 4.2), or null. In order, for its purposed orders:
+    /// a stale prerequisite against the current review's frozen evidence (<see cref="InterventionPurposes.StalePrerequisite"/>);
+    /// an open plan in the world whose order of the same pawn carries the same aim
+    /// (<c>intervention_already_open:&lt;pawn&gt;:&lt;aim&gt;</c>); and a retired plan of a Method chain in the world whose order
+    /// of the same pawn carried the same aim and retired at or after the candidate's evidence tick
+    /// (<c>stale_justification:&lt;pawn&gt;:&lt;aim&gt;</c>: the justification predates that purpose's end). The chain is read back
+    /// from <c>need_methods</c> through <c>superseded_by</c>; more plans than the census bound refuse the candidate.
+    /// </summary>
+    private static string? InterventionRefusalIn(StoreTransaction tx, GenerationSnapshot current, PlanSpec plan)
+    {
+        var batches = plan.Actions.Select(a => a.PawnActivities).OfType<PawnActivities>().ToArray();
+        var purposed = batches.SelectMany(b => b.Orders).Where(o => !o.Release && o.Purpose is not null).ToArray();
+        if (purposed.Length == 0) return null;
+        var review = LoadReview(tx);
+        if (review.Snapshot == current && review.WorkEvidence is { } evidence)
+            foreach (var batch in batches)
+                if (InterventionPurposes.StalePrerequisite(evidence, batch) is { } stale) return stale;
+        var since = purposed.Min(o => o.Purpose!.EvidenceTick);
+        var rows = tx.Query("""
+            WITH RECURSIVE chain(id) AS (
+                SELECT n.plan_id FROM need_methods n WHERE n.colony=$colony AND n.load_token=$load AND n.map_id=$map
+                UNION SELECT p.id FROM plans p JOIN chain c ON p.superseded_by=c.id)
+            SELECT p.id,p.retired,COALESCE(p.retired_tick,-1) FROM chain c JOIN plans p ON p.id=c.id
+            WHERE p.retired=0 OR COALESCE(p.retired_tick,-1)>=$since
+            ORDER BY 1 LIMIT 1025
+            """, [("$colony", current.Colony), ("$load", current.Load), ("$map", current.Map), ("$since", since)],
+            r => (Plan: new PlanId(r.GetString(0)), Retired: r.GetInt64(1) == 1, RetiredTick: r.GetInt64(2)));
+        if (rows.Count > MaxClaimPlans) return "intervention_census_truncated";
+        foreach (var row in rows.OrderBy(r => r.Retired))
+        {
+            var held = LoadIn(tx, row.Plan);
+            var open = !row.Retired && (WorkProgress.Open(held.Progress) || held.Progress.Count == 1 && InstalledActivity(held.Progress[0].View));
+            if (!row.Retired && !open) continue;
+            foreach (var order in held.Progress.Select(p => p.Action.PawnActivities).OfType<PawnActivities>()
+                .Where(b => b.AuthorityGeneration == current.Native.Value || row.Retired).SelectMany(b => b.Orders))
+            {
+                if (order.Release || order.Purpose is not { } carried) continue;
+                if (purposed.FirstOrDefault(o => o.Pawn == order.Pawn && o.Purpose!.SameAim(carried)
+                        && (open || o.Purpose.EvidenceTick <= row.RetiredTick)) is not { } candidate) continue;
+                return (open ? InterventionPurposes.AlreadyOpenPrefix : InterventionPurposes.StaleJustificationPrefix)
+                    + candidate.Pawn + ":" + carried.Aim;
+            }
+        }
+        return null;
     }
 
     /// <summary>

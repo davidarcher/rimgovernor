@@ -145,6 +145,8 @@ public sealed partial record ReviewFacts
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
     public IReadOnlyDictionary<string, BenchSpeedModel> WorkBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
     public LedgerView? ProductionOrders { get; init; }
+    /// <summary>The work dispatcher's observed calibration stalls (DispatchMemory.Calibration); unobserved until the ledger reconciles.</summary>
+    public ProductionCalibration ProductionCalibration { get; init; } = new ProductionCalibration.Unobserved(ProductionCalibration.UnobservedReason);
     public IReadOnlyDictionary<string, RecipeFlow> ProductionRecipes { get; init; } = new Dictionary<string, RecipeFlow>();
 
     /// <summary>The bench a planned laboratory is furnished with (RoomFurniture.BenchFor of Laboratory, #3800); "" without a catalog.</summary>

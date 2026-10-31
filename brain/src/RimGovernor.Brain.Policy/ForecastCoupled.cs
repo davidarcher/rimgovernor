@@ -132,6 +132,8 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
     public IReadOnlyDictionary<string, BenchSpeedModel> WorkBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
     public LedgerView? ProductionOrders { get; init; }
+    /// <summary>The work dispatcher's observed calibration stalls (ReviewFacts.ProductionCalibration); unobserved until the ledger reconciles.</summary>
+    public ProductionCalibration ProductionCalibration { get; init; } = new ProductionCalibration.Unobserved(ProductionCalibration.UnobservedReason);
     public IReadOnlyDictionary<string, RecipeFlow> ProductionRecipes { get; init; } = new Dictionary<string, RecipeFlow>();
     /// <summary>The worship room's believers, presence demands and rituals (ReviewFacts.Worship, #3808).</summary>
     public WorshipFacts Worship { get; init; } = new();

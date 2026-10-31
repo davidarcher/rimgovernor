@@ -1274,9 +1274,12 @@ public sealed partial record ForecastCoupledSelection
             throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
         var batch = Methods.Binding.CoordinatedActivityBinding.StartSelected(selection.Selection,
             candidates.Context.Bindings, authority, method, tick, candidates.Context, candidates.Context.PlannedSites);
-        if (batch is not null && selection.Justification is not InterventionJustification.Justified)
+        if (batch is null) return null;
+        if (selection.Justification is not InterventionJustification.Justified justified)
             throw new DomainException("exact pawn orders need this review's justified intervention premise");
-        return batch;
+        // Each pawn's exact orders carry the purpose of the premise its own assessment justified (task 4.2).
+        return batch with { Orders = [.. batch.Orders.Select(o => o.Release ? o : o with { Purpose = justified.Interventions
+            .FirstOrDefault(i => i.Pawn == o.Pawn)?.Purpose ?? throw new DomainException("an exact pawn order has no justified intervention purpose of its own") })] };
     }
 
     /// <summary>The unselected colonists whose observed needs stay above every supported threshold for at least a tick: the

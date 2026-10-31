@@ -15,6 +15,14 @@ internal static class TestNeed
 {
     internal static NeedId Id => AdminFamily.WorkAssignments;
 
+    /// <summary>The purpose a hand-built exact intervention (<c>coupled-</c>) order carries in these tests: an open food risk,
+    /// which no continuation read ends.</summary>
+    internal static readonly InterventionPurpose Purpose = new(InterventionPurposeKind.FoodRisk, "food", "", 0);
+
+    /// <summary><paramref name="batch"/> with <see cref="Purpose"/> on every non-release order.</summary>
+    internal static PawnActivities Purposed(PawnActivities batch) =>
+        batch with { Orders = [.. batch.Orders.Select(o => o.Release ? o : o with { Purpose = Purpose })] };
+
     /// <summary>Commits <paramref name="plan"/> as <paramref name="method"/> under the Need and requires admission.</summary>
     internal static NeedOwner Commit(Journal journal, GenerationSnapshot world, MethodId method, PlanSpec plan, CancellationToken ct)
     {

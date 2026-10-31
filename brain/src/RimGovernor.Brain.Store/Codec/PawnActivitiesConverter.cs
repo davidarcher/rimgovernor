@@ -9,7 +9,8 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
             r.Str("Pawn"), r.Str("Assignment"), r.Str("Method"), r.GetProperty("ExpectedRevision").GetInt64(),
             r.GetProperty("Revision").GetInt64(), r.GetProperty("Release").GetBoolean(),
             r.GetProperty("Steps").EnumerateArray().Select(ReadStep).ToArray())
-            { OutputDelivery = ReadOutput(r.GetProperty("OutputDelivery")), Task = r.Str("Task"), Preparing = r.GetProperty("Preparing").GetBoolean() }).ToArray();
+            { OutputDelivery = ReadOutput(r.GetProperty("OutputDelivery")), Task = r.Str("Task"), Preparing = r.GetProperty("Preparing").GetBoolean(),
+              Purpose = ReadPurpose(r.GetProperty("Purpose")) }).ToArray();
         var value = new PawnActivities(e.GetProperty("AuthorityGeneration").GetUInt64(), orders)
         { Tasks = EquatableArray.From(e.GetProperty("Tasks").EnumerateArray().Select(t => new SelectedActivityTask(t.Str("Id"), t.Str("Pawn"),
             EquatableArray.From(t.GetProperty("Prerequisites").EnumerateArray().Select(p => p.GetString()!)),
@@ -53,6 +54,10 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
     private static PawnActivityRecipe? ReadRecipe(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Bill"), e.Str("Recipe"), EquatableArray.From(e.GetProperty("Ingredients").EnumerateArray()
             .Select(i => new PawnActivityIngredient(i.Str("Thing"), i.GetProperty("Count").GetInt32())))) { Resource = e.Str("Resource"), Stuff = e.Str("Stuff"), Unfinished = e.Str("Unfinished") };
+    private static InterventionPurpose? ReadPurpose(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
+        : new(Wire.TryParse<InterventionPurposeKind>(e.Str("Kind"), out var kind) ? kind
+                : throw new StoreCorruptException("unknown intervention purpose kind \"" + e.Str("Kind") + "\""),
+            e.Str("Subject"), e.Str("SubjectPawn"), e.GetProperty("EvidenceTick").GetInt64());
     private static ActivityOutputDelivery? ReadOutput(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Resource"), new(e.GetProperty("Origin").GetProperty("X").GetInt32(), e.GetProperty("Origin").GetProperty("Z").GetInt32()),
             new(e.GetProperty("Destination").GetProperty("X").GetInt32(), e.GetProperty("Destination").GetProperty("Z").GetInt32()),
@@ -100,6 +105,12 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
                 w.WriteEndObject();
             }
             else w.WriteNull("OutputDelivery");
+            if (r.Purpose is { } purpose)
+            {
+                w.WriteStartObject("Purpose"); w.WriteString("Kind", Wire.Name(purpose.Kind)); w.WriteString("Subject", purpose.Subject);
+                w.WriteString("SubjectPawn", purpose.SubjectPawn); w.WriteNum("EvidenceTick", purpose.EvidenceTick); w.WriteEndObject();
+            }
+            else w.WriteNull("Purpose");
             w.WriteStartArray("Steps");
             foreach (var s in r.Steps) WriteStep(w, s);
             w.WriteEndArray(); w.WriteEndObject();

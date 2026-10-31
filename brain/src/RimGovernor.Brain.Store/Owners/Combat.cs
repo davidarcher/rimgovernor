@@ -322,7 +322,7 @@ public sealed partial class Store
                 {
                     return;
                 }
-                _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", id));
+                RetirePlanIn(tx, id, ObservedTickIn(p));
             },
             cancellationToken
         );
@@ -362,7 +362,7 @@ public sealed partial class Store
             if (progress.View.Attempt.Value == 0)
             {
                 _ = AdvanceIn(tx, id, progress.Action.Id, new Transition(TransitionKind.Cancel));
-                _ = tx.Execute("UPDATE plans SET retired=1,superseded_by=$next WHERE id=$id", ("$next", next), ("$id", id));
+                RetirePlanIn(tx, id, ObservedTickIn(p), next);
                 continue;
             }
             var transferred = true;
@@ -381,7 +381,7 @@ public sealed partial class Store
             }
             if (transferred)
             {
-                _ = tx.Execute("UPDATE plans SET retired=1,superseded_by=$next WHERE id=$id", ("$next", next), ("$id", id));
+                RetirePlanIn(tx, id, ObservedTickIn(p), next);
             }
         }
     }
@@ -504,7 +504,7 @@ public sealed partial class Store
                         continue;
                     }
                     priorIds.Add(prior.Spec.Id);
-                    _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", prior.Spec.Id));
+                    RetirePlanIn(tx, prior.Spec.Id, ObservedTickIn(prior));
                 }
                 BindOwnerMethodOrThrow(tx, state, new MethodId("restore-" + plan.Id.Value), "", plan);
                 foreach (var prior in priorIds)
@@ -573,7 +573,7 @@ public sealed partial class Store
                 }
                 SupersedeCombatBatches(tx, owner, plan, restored: true);
                 _ = tx.Execute("DELETE FROM combat_restoration");
-                _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", plan));
+                RetirePlanIn(tx, plan, ObservedTickIn(p));
             },
             cancellationToken
         );

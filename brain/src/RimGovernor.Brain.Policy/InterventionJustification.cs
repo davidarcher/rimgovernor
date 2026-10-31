@@ -21,6 +21,11 @@ public abstract record InterventionPremise
     /// observed skill level now, or lapsing within the horizon under the observed skill decay.</summary>
     public sealed record CapabilityOpportunity(string Requirement, string Pawn, string Skill, CapabilityGap Gap) : InterventionPremise;
 
+    /// <summary>The work dispatcher's observed calibration (<see cref="ProductionCalibration.Observed"/>) holds a closed short
+    /// window of a product the dispatched work makes or feeds, for a cause exact orders can answer
+    /// (<see cref="ProductionStall.AnsweredByOrders"/>). It is never inferred from omitted native production or an idle bench.</summary>
+    public sealed record DemonstratedStall(ProductionStall Stall) : InterventionPremise;
+
     /// <summary>The dispatched work serves something whose premise evidence is missing: neither a premise nor its absence is established.</summary>
     public sealed record Unassessed(string Reason) : InterventionPremise;
 
@@ -52,11 +57,27 @@ public sealed record DisplacedWork(EquatableArray<string> NativeService, Equatab
     public int Count => NativeService.Count + NativeWork.Count;
 }
 
-/// <summary>The premise gate of an exact intervention, recomputed by every comparison from current facts and never stored on a
-/// Method. <see cref="Stage"/> is the comparator stage at which the winner beat the native baseline.</summary>
+/// <summary>One dispatched pawn's exact orders and the premise they answer (task 4.2: each exact order needs its own premise).
+/// <see cref="Refusal"/> is "" when it is justified; <see cref="EvidenceTick"/> is the tick of the observation the premise reads
+/// (the needs read, or a stall's closed calibration window), carried onto the orders' <see cref="InterventionPurpose"/>.</summary>
+public sealed record InterventionAssessment(string Pawn, EquatableArray<string> Activities, InterventionPremise Premise,
+    NativeResponse Response, long EvidenceTick, string Refusal)
+{
+    public bool Justified => Refusal.Length == 0;
+
+    /// <summary>The purpose a justified assessment gives its pawn's exact orders; null when it is refused.</summary>
+    public InterventionPurpose? Purpose => Justified ? InterventionPurposes.Of(Premise, EvidenceTick) : null;
+}
+
+/// <summary>The premise gate of an exact intervention, recomputed by every comparison from current facts. Only its justified
+/// purposes reach the Method (<see cref="InterventionPurpose"/>); the justification itself is never stored. <see cref="Stage"/>
+/// is the comparator stage at which the winner beat the native baseline. <see cref="Interventions"/> holds one assessment per
+/// dispatched pawn; the top-level premise and response are the first refused assessment's, or the first one's when all pass.</summary>
 public abstract record InterventionJustification(InterventionPremise Premise, NativeResponse Response, DisplacedWork Displaced,
     string Stage, EquatableArray<string> Uncertainty)
 {
+    public EquatableArray<InterventionAssessment> Interventions { get; init; }
+
     public sealed record Justified(InterventionPremise Premise, NativeResponse Response, DisplacedWork Displaced,
         string Stage, EquatableArray<string> Uncertainty) : InterventionJustification(Premise, Response, Displaced, Stage, Uncertainty);
 
@@ -77,6 +98,9 @@ public abstract record InterventionJustification(InterventionPremise Premise, Na
     public const string PremiseUnassessedPrefix = "premise_unassessed:";
     /// <summary>The response state of a refusal decided before any premise needed a response.</summary>
     public const string NoPremiseToAnswer = "no_intervention_premise";
+    /// <summary>No other premise, and the observed calibration stall of the work's product has a cause exact orders cannot
+    /// answer (no bench, full bill slots, missing ingredients or exhausted benches): <c>stall_not_answered_by_orders:&lt;product&gt;:&lt;cause&gt;</c>.</summary>
+    public const string StallNotAnsweredByOrders = "stall_not_answered_by_orders";
 }
 
 /// <summary>Pure intervention justification inside the shared comparison (RG-LABOR-004). It adds no threshold of its own: premises
@@ -107,8 +131,10 @@ public static class InterventionRules
     }
 
     /// <summary>Whether the exact allocations <paramref name="dispatch"/> of the winning <paramref name="plan"/> are a meaningful
-    /// intervention against the native baseline. Order: ordinary service alone is refused; then the premise of the work dispatched
-    /// (practice: an assigned capability requirement; food work: an observed shortfall, else the food owner's credible risk); without
+    /// intervention against the native baseline. Order: ordinary service alone is refused; then, per dispatched pawn, the premise of
+    /// that pawn's exact work (practice: an assigned capability requirement; food work: an observed shortfall, else the food owner's
+    /// credible risk; bill work: the dispatcher's demonstrated stall), and the first pawn refused refuses the portfolio as
+    /// <c>&lt;reason&gt;:&lt;pawn&gt;</c>; without
     /// one, the refusal names why the forecast won; with one, a supported timely native response refuses it unless the premise is
     /// an observed harm. An unassessed response does not refuse a premise: it remains named uncertainty. Food work is classified
     /// by the catalog's nutrition of the resources it moves (<paramref name="items"/>), not by current food targets.</summary>
@@ -119,37 +145,65 @@ public static class InterventionRules
             ForecastCoupledSelection.StagedConsequences.Complete(baseline), out var stage);
         var displaced = DisplacedBy(dispatch, context);
         var uncertainty = new SortedSet<string>(displaced.Unread.Select(p => "displaced_work_unread:" + p), StringComparer.Ordinal);
-        var unanswered = new NativeResponse.Unassessed(InterventionJustification.NoPremiseToAnswer);
-        InterventionJustification Refuse(string reason, InterventionPremise premise, NativeResponse response) =>
-            new InterventionJustification.Refused(reason, premise, response, displaced, stage, EquatableArray.From(uncertainty));
         if (NativeNeedServices.RoutineOnly(plan, context))
-            return Refuse(InterventionJustification.RoutineResponse, new InterventionPremise.None(), unanswered);
-        var food = ServesFood(dispatch, context, items, out var unclassified);
-        var premise = PremiseOf(dispatch, food, unclassified, baseline, context, uncertainty);
-        if (premise is InterventionPremise.Unassessed(var missing))
-            return Refuse(InterventionJustification.PremiseUnassessedPrefix + missing, premise, unanswered);
-        if (premise is InterventionPremise.None)
-            return Refuse(food && FoodResponseUnprojected(context) ? InterventionJustification.NoModeledServiceRescue
-                : stage is ForecastCoupledSelection.UrgentZeroStage or ForecastCoupledSelection.DeathFloorStage or ForecastCoupledSelection.BreakRiskStage
-                    ? InterventionJustification.ForecastBenefitWithoutPremise : InterventionJustification.MarginalGainWithoutPremise,
-                premise, unanswered);
-        var response = premise is InterventionPremise.CapabilityOpportunity
-            ? new NativeResponse.Unassessed("capability_native_response_unprojected") : FoodResponse(context.NativeFood);
-        if (response is NativeResponse.Unassessed(var unprojected)) uncertainty.Add("native_response_unassessed:" + unprojected);
-        if (response is NativeResponse.Supported && premise is not InterventionPremise.ObservedShortfall)
-            return Refuse(InterventionJustification.SettingsResponseSupported, premise, response);
-        return new InterventionJustification.Justified(premise, response, displaced, stage, EquatableArray.From(uncertainty));
+            return new InterventionJustification.Refused(InterventionJustification.RoutineResponse, new InterventionPremise.None(),
+                new NativeResponse.Unassessed(InterventionJustification.NoPremiseToAnswer), displaced, stage, EquatableArray.From(uncertainty));
+        // Each dispatched pawn's exact orders answer their own premise; a portfolio is justified only when every one is.
+        var groups = dispatch.GroupBy(a => a.Pawn, StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => (Pawn: g.Key, Work: (IReadOnlyList<ForecastActivityAllocation>)g.ToArray())).ToList();
+        if (groups.Count == 0) groups.Add(("", []));
+        var assessed = groups.Select(g => Assess(g.Pawn, g.Work, stage, baseline, context, items, uncertainty)).ToArray();
+        var lead = assessed.FirstOrDefault(a => !a.Justified) ?? assessed[0];
+        var all = EquatableArray.From(assessed);
+        return lead.Justified
+            ? new InterventionJustification.Justified(lead.Premise, lead.Response, displaced, stage, EquatableArray.From(uncertainty)) { Interventions = all }
+            : new InterventionJustification.Refused(lead.Pawn.Length == 0 ? lead.Refusal : lead.Refusal + ":" + lead.Pawn, lead.Premise, lead.Response, displaced, stage,
+                EquatableArray.From(uncertainty)) { Interventions = all };
     }
 
-    private static InterventionPremise PremiseOf(IReadOnlyList<ForecastActivityAllocation> dispatch, bool food,
-        InterventionPremise.Unassessed? unclassified, ForecastConsequenceVector baseline, ForecastCoupledContext context, SortedSet<string> uncertainty)
+    /// <summary>One pawn's exact orders: their premise, the native response to it and, refused, why.</summary>
+    private static InterventionAssessment Assess(string pawn, IReadOnlyList<ForecastActivityAllocation> dispatch, string stage,
+        ForecastConsequenceVector baseline, ForecastCoupledContext context, ItemFacts items, SortedSet<string> uncertainty)
     {
+        var activities = EquatableArray.From(dispatch.Select(a => a.Activity).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
+        var tick = context.Needs.Tick.Value;
+        var unanswered = new NativeResponse.Unassessed(InterventionJustification.NoPremiseToAnswer);
+        var food = ServesFood(dispatch, context, items, out var unclassified);
+        var premise = PremiseOf(dispatch, food, unclassified, baseline, context, uncertainty, out var unansweredStall);
+        if (premise is InterventionPremise.Unassessed(var missing))
+            return new(pawn, activities, premise, unanswered, tick, InterventionJustification.PremiseUnassessedPrefix + missing);
+        if (premise is InterventionPremise.None)
+            return new(pawn, activities, premise, unanswered, tick, unansweredStall is { } stall
+                    ? InterventionJustification.StallNotAnsweredByOrders + ":" + stall.Product.Value + ":" + Wire.Name(stall.Reason)
+                : food && FoodResponseUnprojected(context) ? InterventionJustification.NoModeledServiceRescue
+                : stage is ForecastCoupledSelection.UrgentZeroStage or ForecastCoupledSelection.DeathFloorStage or ForecastCoupledSelection.BreakRiskStage
+                    ? InterventionJustification.ForecastBenefitWithoutPremise : InterventionJustification.MarginalGainWithoutPremise);
+        var response = premise is InterventionPremise.CapabilityOpportunity ? new NativeResponse.Unassessed("capability_native_response_unprojected")
+            : premise is InterventionPremise.DemonstratedStall ? new NativeResponse.Unassessed("stall_native_response_unprojected")
+            : FoodResponse(context.NativeFood);
+        if (response is NativeResponse.Unassessed(var unprojected)) uncertainty.Add("native_response_unassessed:" + unprojected);
+        var evidence = premise is InterventionPremise.DemonstratedStall(var demonstrated) ? demonstrated.ClosedTick : tick;
+        return new(pawn, activities, premise, response, evidence,
+            response is NativeResponse.Supported && premise is not InterventionPremise.ObservedShortfall ? InterventionJustification.SettingsResponseSupported : "");
+    }
+
+    /// <summary>The premise of one pawn's dispatched work. Order: practice against an assigned capability requirement; food work
+    /// against an observed shortfall, else the food owner's credible risk; then bill work against the dispatcher's observed
+    /// calibration stall of a product the work makes or feeds (its activities and every activity waiting on them). A stall whose
+    /// cause orders cannot answer is returned through <paramref name="unansweredStall"/> when no other premise stands.</summary>
+    private static InterventionPremise PremiseOf(IReadOnlyList<ForecastActivityAllocation> dispatch, bool food,
+        InterventionPremise.Unassessed? unclassified, ForecastConsequenceVector baseline, ForecastCoupledContext context, SortedSet<string> uncertainty,
+        out ProductionStall? unansweredStall)
+    {
+        unansweredStall = null;
         // Work moving a resource the catalog never read may be food work: no other premise found leaves it unassessed.
         var missing = unclassified;
         foreach (var allocation in dispatch)
         {
             if (!context.Bindings.TryGetValue((allocation.Activity, allocation.Pawn), out var binding) || binding.Practice is not { } practice) continue;
-            foreach (var requirement in context.MaintenanceRequirements.Where(r => r.Requirement.Pawn.Value == allocation.Pawn
+            // A sparring partner's practice answers its partner's requirement: the premise is the practicing pawn's.
+            foreach (var requirement in context.MaintenanceRequirements.Where(r => (r.Requirement.Pawn.Value == allocation.Pawn
+                    || practice.Partner.Length != 0 && r.Requirement.Pawn.Value == practice.Partner)
                 && r.Requirement.Alternatives.Any(s => s.Skill == practice.Skill)))
             {
                 // The baseline's projected gap applies the observed skill decay with no dispatched practice.
@@ -159,7 +213,7 @@ public static class InterventionRules
                         uncertainty.Add("native_skill_xp_unprojected:" + allocation.Pawn + ":" + practice.Skill);
                         var met = requirement.Requirement.Alternatives.Any(s => requirement.Skills.FirstOrDefault(k => k.DefName == s.Skill)
                             is { Disabled: false } skill && skill.Level >= s.MinLevel);
-                        return new InterventionPremise.CapabilityOpportunity(requirement.Requirement.Id, allocation.Pawn, practice.Skill,
+                        return new InterventionPremise.CapabilityOpportunity(requirement.Requirement.Id, requirement.Requirement.Pawn.Value, practice.Skill,
                             met ? CapabilityGap.LapsesWithinHorizon : CapabilityGap.UnmetNow);
                     case ForecastMaintenanceGap.Projected:
                         continue;
@@ -188,7 +242,42 @@ public static class InterventionRules
                     break;
             }
         }
+        if (StallOf(dispatch, context, ref missing, out unansweredStall) is { } stall) return new InterventionPremise.DemonstratedStall(stall);
         return missing ?? (InterventionPremise)new InterventionPremise.None();
+    }
+
+    /// <summary>The observed calibration stall the dispatched work answers: a standing closed short window of a product made
+    /// or fed by the chain of the dispatched activities and every activity waiting on them (by prerequisites). Bill work under
+    /// unobserved calibration is <see cref="ProductionCalibration.UnobservedReason"/>; a stall whose cause the dispatcher did
+    /// not assess is <c>stall_cause_unassessed:&lt;product&gt;</c>; one whose cause orders cannot answer is returned through
+    /// <paramref name="unanswered"/>.</summary>
+    private static ProductionStall? StallOf(IReadOnlyList<ForecastActivityAllocation> dispatch, ForecastCoupledContext context,
+        ref InterventionPremise.Unassessed? missing, out ProductionStall? unanswered)
+    {
+        unanswered = null;
+        var chain = dispatch.Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
+        for (var grew = chain.Count > 0; grew;)
+        {
+            grew = false;
+            foreach (var activity in context.Activities.Activities.Where(a => !chain.Contains(a.Id) && a.Prerequisites.Any(chain.Contains)))
+                grew |= chain.Add(activity.Id);
+        }
+        var recipes = context.Bindings.Where(b => chain.Contains(b.Key.Task) && b.Value.Recipe is not null).Select(b => b.Value.Recipe!).ToArray();
+        if (recipes.Length == 0) return null;
+        var products = context.Activities.Activities.Where(a => chain.Contains(a.Id)).SelectMany(a => a.Outputs.Select(o => o.Resource.Value))
+            .Concat(recipes.Select(r => r.Resource).Where(r => r.Length != 0)).ToHashSet(StringComparer.Ordinal);
+        if (context.ProductionCalibration is not ProductionCalibration.Observed(var stalls))
+        {
+            missing ??= new(((ProductionCalibration.Unobserved)context.ProductionCalibration).Reason);
+            return null;
+        }
+        foreach (var stall in stalls.Where(s => products.Contains(s.Product.Value)))
+        {
+            if (stall.AnsweredByOrders) return stall;
+            if (stall.Reason == UnmetReason.RecipeWorkUnassessed) missing ??= new("stall_cause_unassessed:" + stall.Product.Value);
+            else unanswered ??= stall;
+        }
+        return null;
     }
 
     /// <summary>The food owner's conditional recovery leads against usable runway: the timing of the settings/work-creation response.</summary>

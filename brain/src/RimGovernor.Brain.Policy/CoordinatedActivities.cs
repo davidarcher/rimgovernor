@@ -5,13 +5,15 @@ namespace RimGovernor.Brain.Policy;
 
 public static class CoordinatedActivitiesRules
 {
-    /// <summary>Continue the selected attempt. No family names or independent assignment/valuation loop.</summary>
-    public static PawnActivities? ContinueCoordinatedActivity(PawnActivities batch, ActivityNeed needed, ActivityTaskRead read)
+    /// <summary>Continue the selected attempt. No family names or independent assignment/valuation loop. When the binding
+    /// knows why it released the attempt (a stale prerequisite), <paramref name="released"/> receives that reason.</summary>
+    public static PawnActivities? ContinueCoordinatedActivity(PawnActivities batch, ActivityNeed needed, ActivityTaskRead read,
+        Action<string>? released = null)
     {
         if (batch.Tasks.Count == 0) return null;
         var tick = read.Context.Tick;
         var observed = read.Pawns.Select(p => p.Execution is { } e
-            ? new ActivityOwnership(p.Pawn, e.Assignment, e.Method, e.Revision, e.State)
+            ? new ActivityOwnership(p.Pawn, e.Assignment, e.Method, e.Revision, e.State) { Reason = e.Reason }
             : new ActivityOwnership(p.Pawn, "", "", 0, "unowned")).ToArray();
         if (batch.Orders.Any(o => !read.Pawns.Any(p => p.Pawn == o.Pawn))) return null;
         var rows = observed.ToDictionary(p => p.Pawn, StringComparer.Ordinal);
@@ -25,6 +27,7 @@ public static class CoordinatedActivitiesRules
 
         var transition = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.Continue(batch, read, rows, tick,
             startWork: needed == ActivityNeed.Owed);
+        if (transition.Release && transition.Reason.Length != 0) released?.Invoke(transition.Reason);
         return transition.Release ? ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Ended, tick, observed).Release : transition.Batch;
     }
 }

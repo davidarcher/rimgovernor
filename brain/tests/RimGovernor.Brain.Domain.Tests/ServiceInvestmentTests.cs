@@ -79,7 +79,7 @@ public sealed class ServiceInvestmentTests
         var facts = ForecastThermalPortfolioTests.Review(-10);
         var selection = ForecastThermalPortfolioTests.Select(facts);
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "ordinary-construction", 100));
-        var batch = CoordinatedActivityBinding.Start(selection.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings, 1, "coupled-hypothetical-construction", 100);
+        var batch = TestNeed.Purposed(CoordinatedActivityBinding.Start(selection.Selected.Plan, facts.CoupledAlternatives!.Context.Bindings, 1, "coupled-hypothetical-construction", 100));
         Assert.All(batch.Orders.Where(o => o.Task.Length != 0), o => Assert.Equal(PawnActivityKind.Supply, batch.Tasks.Single(t => t.Id == o.Task).Step.Kind));
         if (finished)
         {
@@ -128,7 +128,7 @@ public sealed class ServiceInvestmentTests
             new(PawnActivityKind.Supply, "stack", "", "", 100, 500) { Container = "frame0" }, new(1, 1), 100)
             { Resource = "Rice", SiteDefinition = "TestWall", Source = new(1, 1),
                 Inputs = [new("Rice", "stack", 100, new(1, 1), "observed") { Observed = true }] };
-        var batch = new PawnActivities(1, [new("pawn", "assignment", "coupled-method", 0, 1, false, [task.Step]) { Task = task.Id }]) { Tasks = [task] };
+        var batch = new PawnActivities(1, [new("pawn", "assignment", "coupled-method", 0, 1, false, [task.Step]) { Task = task.Id, Purpose = TestNeed.Purpose }]) { Tasks = [task] };
         var action = DomainAction.NewPawnActivitiesAction(new("supply-action"), batch);
         var row = new WorkAction(new("plan"), action, new() { Action = action.Id, Stage = Stage.Pending });
         var view = WorkRules.WorkResourcesOf(evidence, new ProductionBatchCensus.Read([]), [row, row]);

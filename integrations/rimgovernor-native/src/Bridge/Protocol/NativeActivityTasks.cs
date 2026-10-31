@@ -183,7 +183,9 @@ internal static class NativeActivityTasks
         }
         return new() { Context = context, Truncated = truncated,
             // Every continuation reads its participants' needs: the boundary between tasks hands no work to a pawn at its rest or food threshold.
-            Needs = NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.Where(p => request.Batch.Orders.Any(o => o.Pawn == p.GetUniqueLoadID())).ToList()),
+            // It also reads the subject pawn of each order's intervention purpose, whose need decides whether that purpose still stands.
+            Needs = NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.Where(p => request.Batch.Orders.Any(o => o.Pawn == p.GetUniqueLoadID()
+                || o.Purpose is { SubjectPawn.Length: > 0 } purpose && purpose.SubjectPawn == p.GetUniqueLoadID())).ToList()),
             Pawns = EquatableArray.From(participants), Bindings = EquatableArray.From(bindings), SatisfiedTasks = EquatableArray.From(satisfied) };
     }
 }

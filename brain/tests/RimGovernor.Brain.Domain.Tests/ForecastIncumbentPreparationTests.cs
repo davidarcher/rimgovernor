@@ -274,12 +274,12 @@ public sealed class ForecastIncumbentPreparationTests
         var task = new SelectedActivityTask("cook-task", "pawn", [], new(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000) { Recipe = recipe }, new(2, 1), 400);
         var order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 0, 1, false,
             [new PawnActivityStep(PawnActivityKind.Approach, "", "", "", 0, 2000) { NotBefore = 400 }.At(task.Location), new(PawnActivityKind.Hold, "", "", "", 0, 2000)])
-            { Task = task.Id, Preparing = true };
+            { Task = task.Id, Preparing = true, Purpose = TestNeed.Purpose };
         List<SelectedActivityTask> tasks = [task];
         if (finished)
         {
             // pawn's order is the recipe it just finished; its next recipe waits for the review.
-            order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 0, 1, false, [task.Step]) { Task = task.Id };
+            order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 0, 1, false, [task.Step]) { Task = task.Id, Purpose = TestNeed.Purpose };
             tasks = [task, task with { Id = "cook-task-2", DepartTick = 900 }];
         }
         List<PawnActivityOrder> orders = [order];
@@ -289,7 +289,7 @@ public sealed class ForecastIncumbentPreparationTests
             var work = new SelectedActivityTask("busy-task", "busy", busy == "depends" ? ["cook-task-2"] : [],
                 new(PawnActivityKind.Recipe, "bench-2", "Cook", "", 0, 2000) { Recipe = other }, new(4, 1), 100);
             tasks.Add(work);
-            orders.Add(new PawnActivityOrder("busy", "busy-assignment", "coupled-cook", 0, 1, false, [work.Step]) { Task = work.Id });
+            orders.Add(new PawnActivityOrder("busy", "busy-assignment", "coupled-cook", 0, 1, false, [work.Step]) { Task = work.Id, Purpose = TestNeed.Purpose });
         }
         var action = DomainAction.NewPawnActivitiesAction(
             new("cook-action"),

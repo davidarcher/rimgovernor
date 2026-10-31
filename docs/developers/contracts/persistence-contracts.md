@@ -98,6 +98,23 @@ conditional construction-haul tasks retain their existing `SiteDefinition`;
 continuation hands them back at a boundary. Native storage and construction
 own physical hauling; no private item-removal record remains in `GuardState`.
 
+Version 67 retains each exact intervention order's bounded purpose (kind,
+subject, subject pawn and evidence tick) in its `PawnActivities` order payload,
+and adds `plans.retired_tick`: the observation tick that ended a retired plan,
+required of every retired plan (`CHECK(retired=0 OR retired_tick IS NOT NULL)`).
+Every retirement path writes it through `Store.RetirePlanIn`: activity
+continuation and resolution and the review's settled-plan retirement record
+their observation tick; combat batch, restoration and load (`RebuildOwners`)
+retirement record the newest tick the plan's own progress observed (0 for a
+plan that observed nothing). Together they are the retired-purpose record
+admission reads to refuse a stale justification
+(`stale_justification:<pawn>:<aim>`, evidence no newer than the purpose's end).
+The review row's frozen `WorkAdmissionEvidence` native ownership rows
+(`WorkResourcePawn`) also carry the installed execution's `Method` and stop
+`Reason`, so the review classifies observed outcomes as continuation does.
+Older journals are replaced; nothing is added to the save, and no forecast or
+justification is stored.
+
 | Home | Holds | On reload |
 |---|---|---|
 | Native game-process memory, `NativePawnActivities` | Transient installed assignment and actual running job reference plus load ID. Only an actually installed matching offer acquires the running handle; a different installed job detaches it. SQLite retains the attempted Method and reconciles remaining exact participants from fresh observations. No durable takeover or queue ledger. | Discarded on world/load or authority change; never restored as exclusive native selection permission. |
@@ -346,6 +363,16 @@ Running participants retain their identical installed order across revisions.
 Fresh resource/site observations bind dependent work; predicted quantities never
 become inventory. A consuming operation is never replayed after uncertain or failed
 execution. World/load changes discard the disposable execution context.
+
+An exact intervention's purpose is part of its selected intent: each non-release order of a
+`coupled-` Method carries the `InterventionPurpose` its own justified premise gave it, unchanged
+across continuation revisions. A purpose is retired when the plan carrying it retires by any path;
+`plans.retired_tick` records that observation tick, and the chain back through
+`superseded_by` from the world's `need_methods` rows is the bounded history admission reads. A
+candidate whose evidence tick is not newer than a retired purpose of the same pawn and aim is refused;
+one whose aim an open plan of the same pawn already carries is `intervention_already_open`. Input
+debits are not recorded separately: a candidate's inputs are claimed through the existing lot claims
+against open Methods, so a retired or open purpose never debits stock twice.
 
 A Method binds one Plan to one owner in `need_methods`, keyed by world, NeedId, MethodId and
 `attempt`. `plan_owner(plan_id PRIMARY KEY, kind)` holds one row per bound plan (kind `need`), and
