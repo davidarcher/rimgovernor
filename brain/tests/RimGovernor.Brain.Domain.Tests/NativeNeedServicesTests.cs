@@ -160,4 +160,58 @@ public sealed class NativeNeedServicesTests
         Assert.Equal(metric, Assert.Single(omitted.Needs["pawn"].Needs));
         Assert.Equal(1, Assert.Single(conditional.Needs["pawn"].Needs).FinalLevel.Number());
     }
+
+    /// <summary>Task 5.1/5.2: a need at its zero floor beside a legal target that the pawn's current native job does not serve is
+    /// unanswered, so the comparison keeps its conditional forecast and the pawn's own modeled service is re-admitted under the
+    /// NeedShortfall of that need. The same pawn walking to or using its native service (ServedNeed), or above zero, is answered:
+    /// nothing is re-admitted and the plan stays ordinary service.</summary>
+    [Theory]
+    [InlineData("food")]
+    [InlineData("rest")]
+    [InlineData("joy")]
+    public void AnUnansweredNeedAtZeroReadmitsOnlyItsOwnServiceUnderItsShortfall(string kind)
+    {
+        const double horizon = 300;
+        var facts = ForecastCoupledSelectionTests.Review(sourceCount: 0);
+        var target = (kind == "food" ? NeedsFixtures.Food("service", "Rice", 20, 0, 10, .5)
+            : NeedsFixtures.Service("service", kind, 0, .01)) with { Location = new(1, 1) };
+        var pawn = facts.ForecastObserved.Needs!.Pawns[0] with { Location = new(1, 1), Needs = [NeedsFixtures.Rate(kind, 0, .003, .3)], Targets = [target] };
+        if (kind == "food") facts = facts with { Census = facts.Census with { Resources = [new Quantity { DefName = "Rice", Units = 20 }] } };
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { Needs = NeedsFixtures.Read(100, pawn),
+            Coupled = facts.ForecastObserved.Coupled! with { Routes = [new("pawn", pawn.Location, pawn.Location,
+                new RouteTicks.Reachable(0)) { FromStart = true }] } } };
+        // The catalog's rice nutrition classifies the meal as food work, as every read catalog does.
+        facts = WorkRules.ReviewWorkResources(facts with { Items = InterventionJustificationTests.Catalog }, new ProductionBatchCensus.Read([]), new([]));
+        var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!.Priced();
+        // The food owner's reviewed runway (no demonstrated shortfall): a food premise is read only beside it.
+        var runway = NativeFoodAssessmentTests.Facts(10, 9);
+        candidates = candidates with { Context = candidates.Context with { NativeFood = NativeFoodAssessment.Of(runway.FoodDays, runway.FoodPlan, runway.FoodReserve) } };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), horizon / GameTime.TicksPerDay, facts with { CoupledAlternatives = candidates },
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        var context = candidates.Context;
+        Assert.Equal(NativeNeedService.Unanswered, NativeNeedServices.Observe(context.Needs, "pawn", kind));
+        Assert.True(NativeNeedServices.ConditionalKept(NativeNeedService.Unanswered));
+        Assert.DoesNotContain(ForecastCoupledSelection.NativeResponseUnprojectedPrefix + "pawn:" + kind, selection.Selection.Findings);
+        var service = context.Bindings.Values.First(b => b.Pawn == "pawn" && b.Prerequisites.Count == 0 && NativeNeedServices.Routine(b.Kind));
+        Assert.Equal(kind, NativeNeedServices.NeedOf(service.Kind));
+        var plan = new ForecastActivityPlan([new(service.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+        var justified = Assert.IsType<InterventionJustification.Justified>(InterventionRules.Gate([service.Id], plan,
+            selection.BaselineVector, selection.BaselineVector, context, facts.Items));
+        Assert.Equal(new InterventionPremise.ObservedShortfall(kind, "pawn", InterventionJustification.UnansweredAtZero), justified.Premise);
+        Assert.Equal([service.Id], justified.Readmitted);
+        var purpose = Assert.Single(justified.Interventions).Purpose!;
+        Assert.Equal((InterventionPurposeKind.NeedShortfall, kind, "pawn"), (purpose.Kind, purpose.Subject, purpose.SubjectPawn));
+
+        // Useful native service: the same pawn already served by its native job, or above its zero floor, is answered.
+        foreach (var answered in new[] { pawn with { ServedNeed = kind }, pawn with { Needs = [NeedsFixtures.Rate(kind, .1, .003, .3)] } })
+        {
+            var served = context with { Needs = NeedsFixtures.Read(100, answered) };
+            Assert.Equal(NativeNeedService.Available, NativeNeedServices.Observe(served.Needs, "pawn", kind));
+            Assert.Empty(InterventionRules.Readmitted(plan, selection.BaselineVector, selection.BaselineVector, served, facts.Items));
+            Assert.Empty(CoordinatedActivityBinding.ForDispatch(plan, served).Allocations);
+            Assert.Equal(InterventionJustification.RoutineResponse, Assert.IsType<InterventionJustification.Refused>(InterventionRules.Gate(
+                [service.Id], plan, selection.BaselineVector, selection.BaselineVector, served, facts.Items)).Reason);
+        }
+    }
 }

@@ -9,7 +9,6 @@ public static class NeedsCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(NeedsFreeze.Case());
         registry.Register(NeedsRecreationGain.Case());
-        registry.Register(NeedsRecreationSharedSeat.Case());
         registry.Register(NeedsFarMealStandby.Case());
     }
 }

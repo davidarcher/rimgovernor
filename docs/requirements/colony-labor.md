@@ -808,12 +808,79 @@ check, one retirement write and ten regressions / removed the per-portfolio
 premise, five `coupled-` string literals and nine ad hoc retirement updates /
 orphans left: none.
 
+Task 5.1 makes the justified food exception reachable and leaves routine food
+execution native. The premise is now assessed per pawn before dispatch
+filtering: `InterventionRules.Readmitted` takes the withheld allocations that
+wait on no prerequisite and carry a binding, and keeps one only when that
+pawn's assessment is Justified for the activity's purpose kind. A meal answers
+a NeedShortfall of food or a FoodRisk; harvest and other food work answer
+FoodRisk. `CoordinatedActivityBinding.ForDispatch` and `StartSelected` dispatch
+only those re-admitted activities beside unchanged non-routine ones; nothing
+else re-admits, so Supported still refuses and the RoutineOnly refusal stands
+when nothing is re-admitted. The generator's routine food bindings stay as
+comparison readers (social mode, composition, bill service and the outside
+cost), so none was deleted. `food/ordinary-cooking` stages a fueled stove with
+no bills, raw rice, a meal zone and a cook. It asserts that the bot creates a
+target-count cooking bill and that meal units rise in the colony resources.
+Verification: `InterventionHandsTests.ACredibleFoodRiskReachesHandsAsAJustifiedHarvestFromTheGenerator`
+(a non-credible risk dispatches nothing and a credible one reaches Hands as a
+Work order carrying its FoodRisk purpose),
+`NativeBaselineComparisonTests.AModeledMealAloneIsNeitherACrisisNorADispatch`
+and `NativeFoodAssessmentTests.ModeledNativeFoodProductionAloneForcesNoDispatch`,
+3 regressions; `InterventionHandsTests` (a) and (e) stay green. The acceptance
+case executed on 2026-10-31 (`RimGovernor.cmd acceptance run food/ordinary-cooking`
+against the worktree's fixture build from `27f8c15c` with the 5.1/5.2 edits,
+pinned save `5c4cf06d…`, fixture hash `60eca9a3c6e03991`): PASS in 38.0 s wall,
+meals 0 → 4 with no exact pawn order; provenance in
+`.rimgovernor/ordinary-cooking-0224/food/ordinary-cooking/result.json`. Rules 7–9: policy stays pure; re-admission has one pure owner;
+Hands and persistence are unchanged. Known limits: the food premise needs a
+native food assessment and catalog nutrition; formation hunting stays in its
+own planners outside the comparison. Complexity: added one re-admission rule and its
+purpose-kind reader, one dispatch parameter, one acceptance case and three
+regressions / removed nothing in food execution / orphans left: none.
+
+Task 5.2 leaves routine meals, sleep and recreation to native needs, schedules
+and policies, and keeps the justified bounded exception. A pawn's need is
+unanswered (`NativeNeedServices.Unanswered`) when a legal target exists, its
+level is at zero and native operation is not serving it: the new observed
+`ServedNeed` field reads the pawn's current ingestion, sleep or joy job. An
+unanswered need keeps its conditional forecast and is the only premise
+(`at_zero_without_native_service`) that re-admits that pawn's own service.
+Under a ConditionalScenario selection `StartCoupledActivity` starts nothing.
+Continuation hands back a pawn whose next task is a meal, sleep or recreation,
+so the native rebind of those tasks in `NativeActivityTasks` is deleted. Its
+only native case, `needs/recreation-shared-seat`, and fixture
+`RecreationSeatFixture` are deleted with it. `InterventionPurposes.Ended`
+cancels a batch holding an old-shape self-service order: one whose purpose is
+not its own pawn's NeedShortfall of that need, including a preparation holding
+ahead of one. Hands then releases it and never continues it. Verification:
+`InterventionHandsTests.AnUnansweredHungerReachesHandsAsAJustifiedEatFromTheGenerator`
+(an unanswered hunger reaches Hands as a justified Eat carrying its
+NeedShortfall purpose; a served one re-admits nothing; a ConditionalScenario
+selection starts nothing);
+`NativeNeedServicesTests.AnUnansweredNeedAtZeroReadmitsOnlyItsOwnServiceUnderItsShortfall`
+×3; and `NativeServiceContinuationTests.AJustifiedSelfServiceEndsOnItsNeedAndAnOldShapeOneIsReleased`
+×3. The continuation theory shows that a running service stays open and owed
+with no continuation, an answered need completes and releases, a native job
+takeover releases, and old shapes (another pawn, another need, FoodRisk, a
+preparing hold) are cancelled and released. That is 7 regressions. Domain
+tests: 4334 passed, 0 failed. Rules 7–9: policy stays pure; the observed field
+is added rather than assumed; no persisted state, scheduler or holding is
+added. Known limits: joy at zero during work hours can justify recreation;
+a re-admitted self-service that is not the pawn's first task is handed back
+at continuation; the search's unbound check does not see re-admission, which
+dispatch filtering covers. Complexity: added one observed field and its native
+read, one unanswered reader, one conditional-kept outcome, one old-shape
+guard and seven regressions / removed the native Eat/Sleep/Recreation rebind
+branch, one native acceptance case, its fixture and its build switch /
+orphans left: none.
+
 The inventory follows `ForecastCoupledCandidates.GenerateCoupledActivities`, `ForecastCoupledSelection.StartCoupledActivity` and `ColonyReview.AdmitCoupledSelection`. The families feed the shared comparison; their execution migration status is recorded per row. A forecast can remain useful after its routine exact dispatch is removed. Each row must be closed with source and verification evidence; a planned target is not an implemented path.
 
 | Current producer / dispatch responsibility | Target execution | Owning contract / verification required | Status |
 | --- | --- | --- | --- |
-| `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; formation hunting, intervention and native usable-output evidence remain |
-| `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Ordinary binding and continuation stay native regardless of missing access; general justified exception admission remains in tasks 4.1–4.2 |
+| `FoodMethodCandidates.GenerateCoupled`: harvest/hunt, preparation and food transport | Native designations, bills, storage and priorities; direct work only for justified meaningful intervention | [Support work](../developers/contracts/support-work.md), [forecast](../developers/contracts/forecast-contracts.md), food evidence; provider/admission tests and short native usable-output claim | Partial: routine plant harvest, raw delivery and cooking chain stay native; justified meal and FoodRisk work re-admitted per pawn (task 5.1); `food/ordinary-cooking` executed PASS 2026-10-31 (meals 0 → 4 under bot-created bill and work settings); formation hunting stays in its own planners outside the comparison |
+| `ForecastNeeds.GenerateNeedsAlternatives`: eating, rest and recreation | Native needs, timetable and policies; preserve comparison of adequacy/cost and bounded justified exceptions | [Pawn activities](../developers/contracts/pawn-activities.md), forecast; needs/continuation tests without future exclusive holding | Closed (task 5.2): ordinary binding, continuation and rebinding stay native; only an unanswered need at zero re-admits its own pawn's service; old-shape orders are released |
 | `ClothingMethodCandidates.Generate`, effect-source composition | Native production bills and work settings; explicit inputs and conditional yields | [Equipment](../developers/contracts/equipment-upkeep.md), forecast; stock/ingredient/partial-output regressions | Partial: ordinary clothing creates native finite bills; other production and meaningful interventions remain |
 | `ConstructionMethodCandidates.Generate`: supply and build; `CoupledShelterCandidates.Generate`: roofing | Native blueprints, roof areas, material availability and construction/hauling priorities; justified direct exceptions | [Facilities](../developers/architecture/facilities.md), [continuation](../developers/contracts/method-continuation.md); material, quality, skill and dependency tests | Partial: ordinary supply/frame completion, roofing, standing removals and planned clearance stay conditional and install no pawn orders; previous commitments hand back at boundaries; native hauling is migrated; general intervention audit remains |
 | `CoupledShelterCandidates.Generate`, `PlannedRoomCandidates.Generate` | Retain room/investment selection; realize selected work through native sites and ordinary work settings | Facilities, forecast; room prerequisites and actual build/output evidence | Pending |

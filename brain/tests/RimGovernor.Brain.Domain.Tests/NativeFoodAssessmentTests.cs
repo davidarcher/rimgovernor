@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods.Binding;
 using RimGovernor.Brain.GameFacts.Observations;
 using Xunit;
 using FoodRunway = RimGovernor.Brain.Policy.FoodRunway;
@@ -142,5 +143,32 @@ public sealed class NativeFoodAssessmentTests
         Assert.IsType<ForecastTerm.Unassessed>(selection.BaselineVector.Urgent[0]);
         Assert.Empty(selection.Selection.Selected);
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "no-false-rescue", 100));
+    }
+
+    /// <summary>Task 5.1: the generator's native food production (cooking, harvest) is a comparison template. Omitted or selected
+    /// alone, without a food premise, it re-admits nothing and dispatches nothing; the stock, reserve and plan stay retained.</summary>
+    [Fact]
+    public void ModeledNativeFoodProductionAloneForcesNoDispatch()
+    {
+        // ForecastCoupledSelectionTests' harvest colony, fed, with the catalog's rice nutrition and a timely native recovery.
+        var facts = ForecastCoupledSelectionTests.Review(level: .9) with { Items = InterventionJustificationTests.Catalog };
+        var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!.Priced();
+        candidates = candidates with { Context = candidates.Context with { NativeFood = Assess(Facts(10, 9)) } };
+        facts = facts with { CoupledAlternatives = candidates };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        Assert.Equal(NativeFoodRisk.NoDemonstratedShortfall, Assert.IsType<NativeFoodAssessment.Reviewed>(selection.BaselineVector.NativeFood).Risk);
+        var native = candidates.Context.Activities.Activities.Where(t => t.NativeExecution && t.Prerequisites.Length == 0)
+            .SelectMany(t => candidates.Context.Bindings.Values.Where(b => b.Id == t.Id)).ToArray();
+        Assert.NotEmpty(native);
+        foreach (var binding in native)
+        {
+            var plan = new ForecastActivityPlan([new(binding.Id, binding.Pawn, 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+            Assert.Empty(InterventionRules.Readmitted(plan, selection.BaselineVector, selection.BaselineVector, candidates.Context, facts.Items));
+            Assert.Empty(CoordinatedActivityBinding.ForDispatch(plan, candidates.Context).Allocations);
+            Assert.Null(InterventionRules.Gate([binding.Id], plan, selection.BaselineVector, selection.BaselineVector, candidates.Context, facts.Items));
+        }
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "no-forced-production", 100));
     }
 }

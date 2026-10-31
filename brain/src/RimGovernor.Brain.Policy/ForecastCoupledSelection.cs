@@ -1012,8 +1012,9 @@ public sealed partial record ForecastCoupledSelection
             var metrics = result.Needs.Select(metric =>
             {
                 var response = NativeNeedServices.Observe(context.Needs, pawn, metric.Kind);
-                // Ineligible pawns (downed, babies, sleep-blocked rest) keep the conditional metric: their own owners govern them.
-                if (metric.Kind is not ("food" or "rest" or "joy") || response == NativeNeedService.Ineligible) return metric;
+                // Ineligible pawns (downed, babies, sleep-blocked rest) keep the conditional metric: their own owners govern them. An
+                // unanswered need (at zero beside a legal target, no native job serving it) has no native response to defer to.
+                if (metric.Kind is not ("food" or "rest" or "joy") || NativeNeedServices.ConditionalKept(response)) return metric;
                 // A pawn missing from the needs read has no common bound; its future response is unassessed, not decayed.
                 ForecastNeedMetric? bound = response == NativeNeedService.Unobserved ? null
                     : unserved.TryGetValue((pawn, metric.Kind), out var found) ? found
@@ -1272,8 +1273,10 @@ public sealed partial record ForecastCoupledSelection
         if (selection.Basis == ForecastComparisonBasis.ConditionalScenario) return null;
         if (selection.Selection.Selected.Any(id => candidates.Incumbents.Any(c => c.Id == id)))
             throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
+        // A justified verdict's re-admitted native or self-service work is started with the rest of its dispatch.
+        var readmitted = (selection.Justification as InterventionJustification.Justified)?.Readmitted.ToHashSet(StringComparer.Ordinal);
         var batch = Methods.Binding.CoordinatedActivityBinding.StartSelected(selection.Selection,
-            candidates.Context.Bindings, authority, method, tick, candidates.Context, candidates.Context.PlannedSites);
+            candidates.Context.Bindings, authority, method, tick, candidates.Context, candidates.Context.PlannedSites, readmitted);
         if (batch is null) return null;
         if (selection.Justification is not InterventionJustification.Justified justified)
             throw new DomainException("exact pawn orders need this review's justified intervention premise");

@@ -204,7 +204,7 @@ public sealed class ForecastIncumbentPreparationTests
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, [row]);
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
-            CurrentService = null, SleepThreshold = .9, WakeThreshold = 1d,
+            CurrentService = null, ServedNeed = "", SleepThreshold = .9, WakeThreshold = 1d,
             SleepBlockedUntilTicks = 0d, SleepWhileStarving = false,
             Needs = [NeedsFixtures.Rate("food", .2, .001, .3),
                 NeedsFixtures.Rate("rest", .8, .0001, .3)],

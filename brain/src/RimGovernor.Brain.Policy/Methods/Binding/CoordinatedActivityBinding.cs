@@ -17,13 +17,13 @@ internal static class CoordinatedActivityBinding
          new(PawnActivityKind.Hold, "", "", "", 0, task.Step.Deadline)];
     internal static PawnActivities? StartSelected(ForecastActivityOutcomeComparison selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
-        ForecastCoupledContext context, IEnumerable<ForecastPlannedSite>? planned = null)
+        ForecastCoupledContext context, IEnumerable<ForecastPlannedSite>? planned = null, IReadOnlySet<string>? readmitted = null)
     {
         // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278). A
         // planned Deconstruct clearing is bound to its standing building and is not among them (#3557).
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         if (selection.Plan is not { } plan) return null;
-        plan = ForDispatch(plan, context);
+        plan = ForDispatch(plan, context, readmitted);
         var ordered = OrderedAtStart(selection.Selected, plan.Allocations, bindings, unplaced);
         if (ordered.Count == 0) return null;
         var active = Start(plan, bindings, authority, method, tick, unplaced);
@@ -34,17 +34,18 @@ internal static class CoordinatedActivityBinding
 
     /// <summary>Only work before the participant's native boundary is installed in PawnActivities. Routine native work
     /// is a conditional forecast, not an order. External comms/formation has its own executor. Neither can hold later
-    /// work through unobserved progress; a fresh review must establish that work's prerequisites again.</summary>
-    internal static ForecastActivityPlan ForDispatch(ForecastActivityPlan plan, ForecastCoupledContext context)
+    /// work through unobserved progress; a fresh review must establish that work's prerequisites again. A
+    /// <paramref name="readmitted"/> activity (<see cref="InterventionRules.Readmitted"/>, a justified verdict's
+    /// <see cref="InterventionJustification.Readmitted"/>) is not withheld; its dependents and later work still stop at the boundary.</summary>
+    internal static ForecastActivityPlan ForDispatch(ForecastActivityPlan plan, ForecastCoupledContext context, IReadOnlySet<string>? readmitted = null)
     {
-
         var external = context.TradeWork.Select(w => (w.Task, w.Pawn)).ToHashSet();
-        var native = context.Activities.Activities.Where(a => a.NativeExecution).Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
         var services = plan.Allocations.Where(a => NativeNeedServices.RoutineTask(a.Activity, a.Pawn, context))
             .Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
         var servicing = context.Needs.Pawns.Where(p => p.CurrentService is not null).Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal);
-        var dropped = plan.Allocations.Where(a => native.Contains(a.Activity) || external.Contains((a.Activity, a.Pawn))
-                || services.Contains(a.Activity))
+        var withheld = Withheld(plan, context);
+        var dropped = plan.Allocations.Where(a => withheld.Contains(a.Activity) && readmitted?.Contains(a.Activity) != true
+                || external.Contains((a.Activity, a.Pawn)))
             .Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
         for (var grew = true; grew;)
         {
@@ -61,6 +62,18 @@ internal static class CoordinatedActivityBinding
                 if (task.Prerequisites.Any(dropped.Contains)) grew |= dropped.Add(task.Id);
         }
         return plan with { Allocations = plan.Allocations.Where(a => !dropped.Contains(a.Activity)).ToArray() };
+    }
+
+    /// <summary>The plan's activities shared binding withholds from dispatch because native operation runs them: native-execution
+    /// work and ordinary self-service (<see cref="NativeNeedServices.RoutineTask"/>). External work is not among them: its own
+    /// executor runs it.</summary>
+    internal static IReadOnlySet<string> Withheld(ForecastActivityPlan plan, ForecastCoupledContext context)
+    {
+        var external = context.TradeWork.Select(w => (w.Task, w.Pawn)).ToHashSet();
+        var native = context.Activities.Activities.Where(a => a.NativeExecution).Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
+        return plan.Allocations.Where(a => !external.Contains((a.Activity, a.Pawn))
+                && (native.Contains(a.Activity) || NativeNeedServices.RoutineTask(a.Activity, a.Pawn, context)))
+            .Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
     }
 
     /// <summary>

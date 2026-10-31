@@ -38,7 +38,10 @@ Policy reads. Native records the physical stock facts once; no thing-table or
 catalog join reconstructs them in the brain. The forecast view retains references
 to those rows and classifies barred stocks and reserve IDs. Reserve selections
 remain derived policy state under the existing food-reserve owner; protecting a
-stock in a forecast does not change its observed forbidden flag.
+stock in a forecast does not change its observed forbidden flag. Native-led food
+execution keeps these reads, reserves and restrictions. Native work eats, cooks
+and stores ordinary food. A modeled meal or cooking is a comparison template and
+installs no order without a justified food premise ([forecast](forecast-contracts.md)).
 The canonical building fuel service owns auto-refuel control: NoSwitch or
 Switch(Allowed). Bill stacks do not duplicate this physical state. Temperature
 control reads the building service, including heaters with no cooking recipes.

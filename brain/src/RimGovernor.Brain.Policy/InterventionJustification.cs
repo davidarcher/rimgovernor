@@ -9,8 +9,10 @@ public abstract record InterventionPremise
 {
     private InterventionPremise() { }
 
-    /// <summary>A current observed deficit the dispatched work serves: the pawn's need at or below its native threshold while no
-    /// native service is captured for it.</summary>
+    /// <summary>A current observed deficit the dispatched work serves: the pawn's food at or below its native threshold while no
+    /// native service is captured for it (<c>at_or_below_threshold_without_observed_service</c>), or its food, rest or joy at the
+    /// zero floor beside a legal target while no native job serves it (<see cref="NativeNeedService.Unanswered"/>,
+    /// <c>at_zero_without_native_service</c>).</summary>
     public sealed record ObservedShortfall(string Need, string Pawn, string Evidence) : InterventionPremise;
 
     /// <summary>The food owner's observed supply, reserve and recovery evidence (<see cref="NativeFoodAssessment.Reviewed"/>) shows a
@@ -77,6 +79,10 @@ public abstract record InterventionJustification(InterventionPremise Premise, Na
     string Stage, EquatableArray<string> Uncertainty)
 {
     public EquatableArray<InterventionAssessment> Interventions { get; init; }
+    /// <summary>The dispatched activities <see cref="InterventionRules.Readmitted"/> kept although shared binding withholds them
+    /// (native or ordinary self-service work): set by <see cref="InterventionRules.Gate"/> on a justified verdict only, and passed
+    /// to <see cref="CoordinatedActivityBinding.ForDispatch"/> by every caller that starts or counts this verdict's dispatch.</summary>
+    public EquatableArray<string> Readmitted { get; init; }
 
     public sealed record Justified(InterventionPremise Premise, NativeResponse Response, DisplacedWork Displaced,
         string Stage, EquatableArray<string> Uncertainty) : InterventionJustification(Premise, Response, Displaced, Stage, Uncertainty);
@@ -101,6 +107,8 @@ public abstract record InterventionJustification(InterventionPremise Premise, Na
     /// <summary>No other premise, and the observed calibration stall of the work's product has a cause exact orders cannot
     /// answer (no bench, full bill slots, missing ingredients or exhausted benches): <c>stall_not_answered_by_orders:&lt;product&gt;:&lt;cause&gt;</c>.</summary>
     public const string StallNotAnsweredByOrders = "stall_not_answered_by_orders";
+    /// <summary>The evidence of an <see cref="InterventionPremise.ObservedShortfall"/> read from <see cref="NativeNeedService.Unanswered"/>.</summary>
+    public const string UnansweredAtZero = "at_zero_without_native_service";
 }
 
 /// <summary>Pure intervention justification inside the shared comparison (RG-LABOR-004). It adds no threshold of its own: premises
@@ -112,26 +120,72 @@ public static class InterventionRules
     internal static InterventionJustification? Gate(IReadOnlyCollection<string> selected, ForecastActivityPlan plan,
         ForecastConsequenceVector baseline, ForecastConsequenceVector winner, ForecastCoupledContext context, ItemFacts items)
     {
-        var dispatch = Dispatched(selected, plan, context);
+        var readmitted = Readmitted(plan, baseline, winner, context, items);
+        var dispatch = Dispatched(selected, plan, context, readmitted);
         if (dispatch.Length == 0 && !NativeNeedServices.RoutineOnly(plan, context)) return null;
-        return Justify(plan, dispatch, baseline, winner, context, items);
+        var verdict = Justify(plan, dispatch, baseline, winner, context, items);
+        return verdict is InterventionJustification.Justified ? verdict with { Readmitted = EquatableArray.From(dispatch.Select(a => a.Activity)
+            .Where(readmitted.Contains).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)) } : verdict;
+    }
+
+    /// <summary>
+    /// The one pure place an activity shared binding withholds (<see cref="CoordinatedActivityBinding.Withheld"/>: native work or
+    /// ordinary self-service) is re-admitted to dispatch. Each pawn's withheld activities that wait on nothing (no prerequisite,
+    /// so no later job depends on an unobserved product) and have a binding are assessed together, before any dispatch filtering,
+    /// exactly as <see cref="Justify"/> assesses dispatched work; an activity is re-admitted only when that assessment is justified
+    /// with a purpose that answers it (<see cref="Answers"/>). The search's own dispatch evaluation re-admits nothing.
+    /// </summary>
+    internal static IReadOnlySet<string> Readmitted(ForecastActivityPlan plan, ForecastConsequenceVector baseline, ForecastConsequenceVector winner,
+        ForecastCoupledContext context, ItemFacts items)
+    {
+        var admitted = new HashSet<string>(StringComparer.Ordinal);
+        var withheld = CoordinatedActivityBinding.Withheld(plan, context);
+        var tasks = context.Activities.Activities.ToDictionary(a => a.Id, StringComparer.Ordinal);
+        var unplaced = context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
+        var candidates = plan.Allocations.Where(a => withheld.Contains(a.Activity) && !unplaced.Contains(a.Activity)
+            && tasks.TryGetValue(a.Activity, out var task) && task.Prerequisites.Length == 0 && context.Bindings.ContainsKey((a.Activity, a.Pawn))).ToArray();
+        if (candidates.Length == 0) return admitted;
+        ForecastCoupledSelection.CompareConsequences(ForecastCoupledSelection.StagedConsequences.Complete(winner),
+            ForecastCoupledSelection.StagedConsequences.Complete(baseline), out var stage);
+        foreach (var group in candidates.GroupBy(a => a.Pawn, StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal))
+        {
+            var work = group.ToArray();
+            if (Assess(group.Key, work, stage, baseline, context, items, new SortedSet<string>(StringComparer.Ordinal)).Purpose is not { } purpose) continue;
+            foreach (var allocation in work.Where(a => Answers(purpose, a, context, items))) admitted.Add(allocation.Activity);
+        }
+        return admitted;
+    }
+
+    /// <summary>Whether a justified <paramref name="purpose"/> answers one withheld activity: the pawn's own eat, sleep or
+    /// recreation answers only its own <see cref="InterventionPurposeKind.NeedShortfall"/> of food, rest or joy; other food work
+    /// (<see cref="ServesFood"/>) answers a <see cref="InterventionPurposeKind.FoodRisk"/> or any food shortfall. Nothing else is
+    /// re-admitted.</summary>
+    private static bool Answers(InterventionPurpose purpose, ForecastActivityAllocation allocation, ForecastCoupledContext context, ItemFacts items)
+    {
+        var kind = context.Bindings[(allocation.Activity, allocation.Pawn)].Kind;
+        if (NativeNeedServices.Routine(kind))
+            return purpose.Kind == InterventionPurposeKind.NeedShortfall && purpose.Subject == NativeNeedServices.NeedOf(kind) && purpose.SubjectPawn == allocation.Pawn;
+        return ServesFood([allocation], context, items, out _)
+            && (purpose.Kind == InterventionPurposeKind.FoodRisk || purpose is { Kind: InterventionPurposeKind.NeedShortfall, Subject: "food" });
     }
 
     /// <summary>The exact allocations a fresh start of <paramref name="selected"/> installs now: the ordinary-service-filtered
     /// dispatch (<see cref="CoordinatedActivityBinding.ForDispatch"/>) without the incumbents' work
     /// (<see cref="ForecastIncumbentHold.Dispatched"/>) and the unplaced planned sites, for the pawns
-    /// <see cref="CoordinatedActivityBinding.OrderedAtStart"/> orders: the work the premise must justify.</summary>
-    internal static ForecastActivityAllocation[] Dispatched(IReadOnlyCollection<string> selected, ForecastActivityPlan plan, ForecastCoupledContext context)
+    /// <see cref="CoordinatedActivityBinding.OrderedAtStart"/> orders: the work the premise must justify. <paramref name="readmitted"/>
+    /// is <see cref="Readmitted"/>'s set.</summary>
+    internal static ForecastActivityAllocation[] Dispatched(IReadOnlyCollection<string> selected, ForecastActivityPlan plan, ForecastCoupledContext context,
+        IReadOnlySet<string>? readmitted = null)
     {
         var unplaced = context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
-        var (ids, allocations) = context.IncumbentHold.Dispatched(selected, CoordinatedActivityBinding.ForDispatch(plan, context).Allocations,
+        var (ids, allocations) = context.IncumbentHold.Dispatched(selected, CoordinatedActivityBinding.ForDispatch(plan, context, readmitted).Allocations,
             context.Activities.Activities.ToDictionary(a => a.Id, StringComparer.Ordinal));
         var ordered = CoordinatedActivityBinding.OrderedAtStart(ids, allocations, context.Bindings, unplaced);
         return allocations.Where(a => !unplaced.Contains(a.Activity) && ordered.Contains(a.Pawn)).ToArray();
     }
 
     /// <summary>Whether the exact allocations <paramref name="dispatch"/> of the winning <paramref name="plan"/> are a meaningful
-    /// intervention against the native baseline. Order: ordinary service alone is refused; then, per dispatched pawn, the premise of
+    /// intervention against the native baseline. Order: ordinary service alone, with nothing re-admitted, is refused; then, per dispatched pawn, the premise of
     /// that pawn's exact work (practice: an assigned capability requirement; food work: an observed shortfall, else the food owner's
     /// credible risk; bill work: the dispatcher's demonstrated stall), and the first pawn refused refuses the portfolio as
     /// <c>&lt;reason&gt;:&lt;pawn&gt;</c>; without
@@ -145,7 +199,7 @@ public static class InterventionRules
             ForecastCoupledSelection.StagedConsequences.Complete(baseline), out var stage);
         var displaced = DisplacedBy(dispatch, context);
         var uncertainty = new SortedSet<string>(displaced.Unread.Select(p => "displaced_work_unread:" + p), StringComparer.Ordinal);
-        if (NativeNeedServices.RoutineOnly(plan, context))
+        if (dispatch.Count == 0 && NativeNeedServices.RoutineOnly(plan, context))
             return new InterventionJustification.Refused(InterventionJustification.RoutineResponse, new InterventionPremise.None(),
                 new NativeResponse.Unassessed(InterventionJustification.NoPremiseToAnswer), displaced, stage, EquatableArray.From(uncertainty));
         // Each dispatched pawn's exact orders answer their own premise; a portfolio is justified only when every one is.
@@ -180,6 +234,8 @@ public static class InterventionRules
                     ? InterventionJustification.ForecastBenefitWithoutPremise : InterventionJustification.MarginalGainWithoutPremise);
         var response = premise is InterventionPremise.CapabilityOpportunity ? new NativeResponse.Unassessed("capability_native_response_unprojected")
             : premise is InterventionPremise.DemonstratedStall ? new NativeResponse.Unassessed("stall_native_response_unprojected")
+            : premise is InterventionPremise.ObservedShortfall { Need: not "food" } shortfall
+                ? new NativeResponse.Unassessed(shortfall.Need + "_native_response_unprojected")
             : FoodResponse(context.NativeFood);
         if (response is NativeResponse.Unassessed(var unprojected)) uncertainty.Add("native_response_unassessed:" + unprojected);
         var evidence = premise is InterventionPremise.DemonstratedStall(var demonstrated) ? demonstrated.ClosedTick : tick;
@@ -188,7 +244,8 @@ public static class InterventionRules
     }
 
     /// <summary>The premise of one pawn's dispatched work. Order: practice against an assigned capability requirement; food work
-    /// against an observed shortfall, else the food owner's credible risk; then bill work against the dispatcher's observed
+    /// against an observed shortfall, else the food owner's credible risk; the pawn's own sleep or recreation against its own
+    /// unanswered rest or joy (<see cref="NativeNeedService.Unanswered"/>); then bill work against the dispatcher's observed
     /// calibration stall of a product the work makes or feeds (its activities and every activity waiting on them). A stall whose
     /// cause orders cannot answer is returned through <paramref name="unansweredStall"/> when no other premise stands.</summary>
     private static InterventionPremise PremiseOf(IReadOnlyList<ForecastActivityAllocation> dispatch, bool food,
@@ -229,9 +286,14 @@ public static class InterventionRules
         if (food)
         {
             foreach (var pawn in context.Needs.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal))
-                if (pawn.Needs.FirstOrDefault(n => n.Kind == "food") is { } need && need.Level <= need.Threshold
-                    && NativeNeedServices.Observe(context.Needs, pawn.Pawn, "food") == NativeNeedService.NoObservedService)
-                    return new InterventionPremise.ObservedShortfall("food", pawn.Pawn, "at_or_below_threshold_without_observed_service");
+                if (pawn.Needs.FirstOrDefault(n => n.Kind == "food") is { } need && need.Level <= need.Threshold)
+                    switch (NativeNeedServices.Observe(context.Needs, pawn.Pawn, "food"))
+                    {
+                        case NativeNeedService.NoObservedService:
+                            return new InterventionPremise.ObservedShortfall("food", pawn.Pawn, "at_or_below_threshold_without_observed_service");
+                        case NativeNeedService.Unanswered:
+                            return new InterventionPremise.ObservedShortfall("food", pawn.Pawn, InterventionJustification.UnansweredAtZero);
+                    }
             switch (context.NativeFood)
             {
                 case NativeFoodAssessment.Reviewed { NeedsResponse: true } reviewed:
@@ -242,6 +304,12 @@ public static class InterventionRules
                     break;
             }
         }
+        foreach (var allocation in dispatch)
+            if (context.Bindings.TryGetValue((allocation.Activity, allocation.Pawn), out var service)
+                && service.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation
+                && NativeNeedServices.NeedOf(service.Kind) is var need
+                && NativeNeedServices.Observe(context.Needs, allocation.Pawn, need) == NativeNeedService.Unanswered)
+                return new InterventionPremise.ObservedShortfall(need, allocation.Pawn, InterventionJustification.UnansweredAtZero);
         if (StallOf(dispatch, context, ref missing, out unansweredStall) is { } stall) return new InterventionPremise.DemonstratedStall(stall);
         return missing ?? (InterventionPremise)new InterventionPremise.None();
     }
@@ -319,9 +387,10 @@ public static class InterventionRules
         return food;
     }
 
-    /// <summary>A pawn whose future food response the native comparison leaves unprojected (every food pawn but an ineligible one).</summary>
+    /// <summary>A pawn whose future food response the native comparison leaves unprojected (every food pawn but an ineligible or
+    /// unanswered one, <see cref="NativeNeedServices.ConditionalKept"/>).</summary>
     private static bool FoodResponseUnprojected(ForecastCoupledContext context) => context.Needs.Pawns.Any(p => p.Needs.Any(n => n.Kind == "food")
-        && NativeNeedServices.Observe(context.Needs, p.Pawn, "food") != NativeNeedService.Ineligible);
+        && !NativeNeedServices.ConditionalKept(NativeNeedServices.Observe(context.Needs, p.Pawn, "food")));
 
     private static DisplacedWork DisplacedBy(IReadOnlyList<ForecastActivityAllocation> dispatch, ForecastCoupledContext context)
     {

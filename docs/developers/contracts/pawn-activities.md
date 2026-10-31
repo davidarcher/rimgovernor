@@ -393,6 +393,22 @@ combat or load retirement is as stale as one continuation or resolution ended. C
 task's target no longer binds as `stale_prerequisite:target_gone:<task>`. Inputs
 are claimed once through the existing lot claims, so an open purpose never
 debits stock twice.
+
+**Self-service orders.** Ordinary meals, sleep and recreation are native: the
+shared binding withholds them, and no routine Eat, Sleep or Recreation order is
+installed. The one exception is a pawn's own service re-admitted under its own
+`need_shortfall` of food, rest or joy (`InterventionRules.Readmitted`, from the
+need observed unanswered at zero, [forecast](forecast-contracts.md)): it is bound
+to its observed target at start, waits on nothing, and its deadline bounds it.
+Continuation hands a pawn whose next task is a meal, sleep or recreation back to
+native operation, so no self-service task is rebound later and none holds future
+work exclusively. The order ends on its purpose (the need above threshold), a
+native job takeover replaces and releases it, and the pawn returns to routine
+native work holding nothing. `InterventionPurposes.Ended` cancels a batch holding
+any other self-service shape (one whose purpose is not its own pawn's shortfall
+of the need that service serves, including a preparation holding for one): a
+routine order persisted before those were deleted is released, never continued
+(`NativeServiceContinuationTests.AJustifiedSelfServiceEndsOnItsNeedAndAnOldShapeOneIsReleased`).
 ## Exact activity execution
 
 The existing executor journals the domain action and dispatches its typed intent

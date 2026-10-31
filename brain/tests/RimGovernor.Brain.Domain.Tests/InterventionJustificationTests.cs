@@ -17,7 +17,7 @@ public sealed class InterventionJustificationTests
     private const string Delivery = "deliver/rice";
 
     /// <summary>The catalog numbers the food rules read: rice shows Nutrition; wood is a read def without it.</summary>
-    private static readonly ItemFacts Catalog = new()
+    internal static readonly ItemFacts Catalog = new()
     {
         Nutrition = new Dictionary<Resource, double> { [new("Rice")] = .05 },
         Market = new Dictionary<Resource, double> { [new("Rice")] = 1.1, [new("WoodLog")] = 1.2 },
@@ -26,11 +26,11 @@ public sealed class InterventionJustificationTests
     private static ColonyForecastRequest RequestOf(ReviewFacts facts) => ForecastCoupled.CoupledForecastRequestOf(new(100),
         Horizon / GameTime.TicksPerDay, facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
 
-    private static NativeFoodAssessment Assess(ReviewFacts f) => NativeFoodAssessment.Of(f.FoodDays, f.FoodPlan, f.FoodReserve);
+    internal static NativeFoodAssessment Assess(ReviewFacts f) => NativeFoodAssessment.Of(f.FoodDays, f.FoodPlan, f.FoodReserve);
 
     /// <summary>An eligible pawn at <paramref name="level"/> food (threshold .3) beside <paramref name="stock"/> units of stored rice (no food target at all when none), with the food
     /// owner's assessment, compared under native operation.</summary>
-    private static (ForecastCoupledSelection Selection, ForecastCoupledCandidates Candidates) FoodColony(double level, int stock, NativeFoodAssessment food)
+    internal static (ForecastCoupledSelection Selection, ForecastCoupledCandidates Candidates) FoodColony(double level, int stock, NativeFoodAssessment food)
     {
         var facts = ForecastCoupledSelectionTests.Review(sourceCount: 0);
         var original = facts.ForecastObserved.Needs!.Pawns[0];

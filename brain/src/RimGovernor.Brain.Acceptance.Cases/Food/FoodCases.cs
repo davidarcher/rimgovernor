@@ -15,6 +15,7 @@ public static class FoodCases
         registry.Register(FoodLedgerHunt.Case());
         registry.Register(FoodHuntRoster.Case());
         registry.Register(FoodReserve.Case());
+        registry.Register(FoodOrdinaryCooking.Case());
         registry.Register(FoodStarvingRecovery.Case());
     }
 }

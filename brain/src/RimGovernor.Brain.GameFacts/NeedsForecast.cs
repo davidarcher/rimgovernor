@@ -864,6 +864,10 @@ public sealed record NeedsForecastPawn
     public required Cell Location { get; init; }
     /// <summary>Null means no supported observed continuous incumbent, not a free pawn.</summary>
     public required NeedCurrentService? CurrentService { get; init; }
+    /// <summary>The need the pawn's current native job serves: <c>food</c> (an ingest of a nutrition-giving thing), <c>rest</c> (a
+    /// lie-down, or laying asleep), <c>joy</c> (a job whose def has a joy kind), or "" for any other job or none. Unlike
+    /// <see cref="CurrentService"/> it is read for every job, the walk to the service included; it names native service, not its outcome.</summary>
+    public required string ServedNeed { get; init; }
     /// <summary>Observed requirements outside supported voluntary control. Empty means none observed;
     /// a missing need census has an explicit blocker. Passive consequence uncertainty stays in Unsupported.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]

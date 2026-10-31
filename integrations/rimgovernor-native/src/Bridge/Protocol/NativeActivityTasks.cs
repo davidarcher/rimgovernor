@@ -97,33 +97,9 @@ internal static class NativeActivityTasks
                             ? new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Supply(task.Id, bound, current.ThingCountNeeded(item.def)) : new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, bound));
                     }
                 }
-                else if (step.Kind is PawnActivityKind.Eat or PawnActivityKind.Sleep or PawnActivityKind.Recreation)
-                {
-                    // Future output IDs are not Things. Rebind only the selected resource at
-                    // its selected use location; observed inputs retain their exact identity.
-                    var targets = (step.Kind == PawnActivityKind.Eat
-                            ? map.listerThings.AllThings.Where(t => t.Spawned
-                                && t.def.defName == task.Resource && t.Position.DistanceToSquared(new(task.Location.X, 0, task.Location.Z)) <= 4
-                                && (!task.Inputs.Any(i => i.Observed) || task.Inputs.Any(i => i.Observed && i.Lot == t.GetUniqueLoadID())))
-                            : RefIndex.Thing(map, step.Target) is { } bound ? new[] { bound } : Enumerable.Empty<Thing>())
-                        .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
-                    if (targets.Length > 16) truncated = true;
-                    foreach (var target in targets.Take(16))
-                    {
-                        if (--budget < 0) { truncated = true; break; }
-                        // Reserve with the claim the start-time job makes (#3570): a multi-seat building, bed or stack
-                        // another pawn holds under the same maxPawns stays bindable while its capacity lasts.
-                        var (maxPawns, stackCount) = NativeNeedsForecast.ServiceReservation(step.Kind, target, step.Count);
-                        if (target.IsForbidden(pawn) || target.IsBurning()
-                            || !pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None, maxPawns, stackCount)) continue;
-                        if (step.Kind == PawnActivityKind.Eat && (pawn.needs.food == null || !target.IngestibleNow
-                            || target.stackCount < step.Count || !pawn.WillEat(target) || !FoodSupplyFacts.PolicyAllows(pawn, target))) continue;
-                        if (step.Kind == PawnActivityKind.Sleep && (pawn.needs.rest == null || !RestUtility.CanUseBedNow(target, pawn, true))) continue;
-                        if (step.Kind == PawnActivityKind.Recreation && (NativeRecreation.GiverFor(target) is not { } joyGiver
-                            || !NativeRecreation.Usable(pawn, target, joyGiver))) continue;
-                        bindings.Add(new RimGovernor.Brain.GameFacts.Observations.ActivityTaskBinding.Bound(task.Id, step with { Target = target.GetUniqueLoadID() }));
-                    }
-                }
+                // A meal, sleep or recreation task is never rebound: continuation hands a pawn whose next task is one back to
+                // native operation (CoordinatedActivityBinding.Continue), so only a justified self-service order the batch
+                // starts with is ever installed, bound to its observed target at start.
                 else if (step.Practice != null)
                 {
                     var target = RefIndex.Thing(map, step.Target);

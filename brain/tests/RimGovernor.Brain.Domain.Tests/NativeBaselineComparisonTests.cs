@@ -63,6 +63,24 @@ public sealed class NativeBaselineComparisonTests
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "available-food", 100));
     }
 
+    /// <summary>Task 5.1/5.2: the generator's modeled meal for a hungry pawn whose native eating is available is a comparison
+    /// template only. That plan alone re-admits nothing, dispatches nothing and is refused as ordinary service.</summary>
+    [Fact]
+    public void AModeledMealAloneIsNeitherACrisisNorADispatch()
+    {
+        var (facts, candidates) = FoodColony(target: true, Assess(NativeFoodAssessmentTests.Facts(10, 9)));
+        var selection = ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts), candidates);
+        var eat = candidates.Context.Bindings.Values.First(b => b.Kind == PawnActivityKind.Eat && b.Pawn == Pawn && b.Prerequisites.Count == 0);
+        var plan = new ForecastActivityPlan([new(eat.Id, Pawn, 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+        Assert.True(NativeNeedServices.RoutineOnly(plan, candidates.Context));
+        Assert.Empty(InterventionRules.Readmitted(plan, selection.BaselineVector, selection.BaselineVector, candidates.Context, facts.Items));
+        Assert.Empty(CoordinatedActivityBinding.ForDispatch(plan, candidates.Context).Allocations);
+        var refused = Assert.IsType<InterventionJustification.Refused>(InterventionRules.Gate([eat.Id], plan, selection.BaselineVector,
+            selection.BaselineVector, candidates.Context, facts.Items));
+        Assert.Equal(InterventionJustification.RoutineResponse, refused.Reason);
+        Assert.Empty(selection.Selection.Selected);
+    }
+
     [Fact]
     public void AnUnobservedPawnsFutureNeedResponseIsUnassessedNotDecayed()
     {

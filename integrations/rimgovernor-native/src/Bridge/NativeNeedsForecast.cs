@@ -106,7 +106,7 @@ internal static class NativeNeedsForecast
             var moodRead = NativeConditionalMood.ReadMood(pawn, EquatableArray.From(memories), unsupported);
             var health = pawn.health ?? throw new InvalidOperationException("colonist without a health tracker: " + pawn.GetUniqueLoadID());
             rows.Add(new() { Pawn = pawn.GetUniqueLoadID(), State = state, ViolenceCapable = !pawn.WorkTagIsDisabled(WorkTags.Violent), Location = new(pawn.Position.x, pawn.Position.z),
-                CurrentService = voluntary ? CurrentService(pawn) : null,
+                CurrentService = voluntary ? CurrentService(pawn) : null, ServedNeed = ServedNeedOf(pawn),
                 RoomUses = new(pawn.Spawned ? DiningSeats(pawn, map) : [], pawn.Spawned ? NativeRecreation.Definitions(pawn) : []),
                 LocalHour = F(GenLocalDate.HourFloat(pawn), "local hour"), Awake = pawn.Awake(), BedThoughts = BedThoughtsOf(pawn),
                 SleepThreshold = sleep.SleepThreshold, WakeThreshold = sleep.WakeThreshold, SleepBlocked = sleep.Blocked,
@@ -441,6 +441,20 @@ internal static class NativeNeedsForecast
                 if (Closest(def, false, pass < 2 ? Danger.None : Danger.Deadly, pass == 0) is { } bed)
                     return SleepAt(pawn, map, bed, SleepingCell(pawn, bed));
         return SleepAt(pawn, map, null, pawn.PositionHeld);
+    }
+    /// <summary>
+    /// The need <paramref name="pawn"/>'s current native job serves (NeedsForecastPawn.ServedNeed), PawnActivityTracker's
+    /// needs classification by need: an ingest of a nutrition-giving thing is food, a lie-down (or laying asleep) rest, and a
+    /// job whose def has a joy kind joy; "" otherwise.
+    /// </summary>
+    internal static string ServedNeedOf(Pawn pawn)
+    {
+        var asleep = pawn.needs?.rest != null && pawn.Spawned && pawn.GetPosture().Laying() && !pawn.Awake();
+        var job = pawn.CurJob;
+        if (job == null) return asleep ? "rest" : "";
+        if (job.def == JobDefOf.Ingest && job.targetA.Thing?.def.IsNutritionGivingIngestible == true) return "food";
+        if (asleep || pawn.needs?.rest != null && job.def == JobDefOf.LayDown) return "rest";
+        return job.def.joyKind != null ? "joy" : "";
     }
     /// <summary>
     /// The lie-down <paramref name="pawn"/> is in now (#3882, RimGovernor.Brain.GameFacts.Observations.NeedLyingIn): its CurrentBed, else the ground, at its own cell,

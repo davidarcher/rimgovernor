@@ -2,6 +2,7 @@ using RimGovernor.Brain.Executor;
 using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods.Binding;
 using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Store;
 using Xunit;
@@ -248,9 +249,16 @@ public sealed class InterventionHandsTests
         Assert.Throws<DomainException>(() => DomainAction.NewPawnActivitiesAction(new("bare-0"),
             batch with { Orders = [.. batch.Orders.Select(o => o with { Purpose = null })] }));
 
+        var written = await Deliver(batch, "coupled-practice");
+        Assert.All(written.Orders.Where(o => !o.Release), o => Assert.Equal(assessed.Purpose, o.Purpose));
+    }
+
+    /// <summary>Commits <paramref name="batch"/> as <paramref name="method"/>'s claimed plan and runs it through real Hands.</summary>
+    private static async Task<PawnActivities> Deliver(PawnActivities batch, string method)
+    {
         using var journal = Open(WorkResourceTestFacts.Create("pawn"));
-        var plan = new PlanSpec(new("coupled-practice-plan"), new(1), [DomainAction.NewPawnActivitiesAction(new("coupled-practice-plan-0"), batch)]);
-        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new("coupled-practice"), "", plan, Ct).Outcome);
+        var plan = new PlanSpec(new(method + "-plan"), new(1), [DomainAction.NewPawnActivitiesAction(new(method + "-plan-0"), batch)]);
+        Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new(method), "", plan, Ct).Outcome);
         var native = new Native();
         using var hands = new Hands(new ExecutorJournal(journal), native, new Clock(), new Limits
         {
@@ -258,6 +266,74 @@ public sealed class InterventionHandsTests
         }, new PlanAuthorizer(journal, true));
         hands.UpdateAuthority(new() { Snapshot = World, Enabled = true });
         Assert.Null(Assert.Single(await hands.RunBatchAsync(plan.Id, [plan.Actions[0].Id], Ct)).Error);
-        Assert.All(Assert.Single(native.Written).Orders.Where(o => !o.Release), o => Assert.Equal(assessed.Purpose, o.Purpose));
+        return Assert.Single(native.Written);
+    }
+
+    /// <summary>(f) Task 5.1/5.2: a pawn at zero food beside legal rice that no native job is serving is an observed shortfall. The
+    /// generator's own eat binding, otherwise left to native operation, is re-admitted for that pawn and reaches Hands as a bounded
+    /// self-service order carrying the NeedShortfall(food) purpose; under a conditional scenario nothing starts.</summary>
+    [Fact]
+    public async Task AnUnansweredHungerReachesHandsAsAJustifiedEatFromTheGenerator()
+    {
+        var (selection, candidates) = InterventionJustificationTests.FoodColony(0, stock: 20,
+            InterventionJustificationTests.Assess(NativeFoodAssessmentTests.Facts(10, 9)));
+        Assert.Equal(NativeNeedService.Unanswered, NativeNeedServices.Observe(candidates.Context.Needs, "pawn", "food"));
+        var justified = Assert.IsType<InterventionJustification.Justified>(selection.Justification);
+        Assert.Equal(new InterventionPremise.ObservedShortfall("food", "pawn", InterventionJustification.UnansweredAtZero), justified.Premise);
+        var readmitted = Assert.Single(justified.Readmitted);
+        Assert.Equal(PawnActivityKind.Eat, candidates.Context.Bindings[(readmitted, "pawn")].Kind);
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(selection with { Basis = ForecastComparisonBasis.ConditionalScenario },
+            candidates, 1, "coupled-hunger", 100));
+        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "coupled-hunger", 100));
+        var order = Assert.Single(batch.Orders, o => !o.Release);
+        Assert.Contains(order.Steps, s => s.Kind == PawnActivityKind.Eat);
+        var purpose = Assert.IsType<InterventionPurpose>(order.Purpose);
+        Assert.Equal((InterventionPurposeKind.NeedShortfall, "food", "pawn"), (purpose.Kind, purpose.Subject, purpose.SubjectPawn));
+        Assert.Equal(purpose, Assert.Single((await Deliver(batch, "coupled-hunger")).Orders, o => !o.Release).Purpose);
+
+        // The same hungry pawn already walking to its native meal is answered: no premise, nothing re-admitted, nothing started.
+        var served = candidates with { Context = candidates.Context with { Needs = candidates.Context.Needs with
+            { Pawns = [.. candidates.Context.Needs.Pawns.Select(p => p with { ServedNeed = "food" })] } } };
+        Assert.Equal(NativeNeedService.Available, NativeNeedServices.Observe(served.Context.Needs, "pawn", "food"));
+        Assert.Empty(InterventionRules.Readmitted(selection.Selected.Plan, selection.BaselineVector, selection.SelectedVector, served.Context,
+            InterventionJustificationTests.Catalog));
+    }
+
+    /// <summary>(g) Task 5.1: the generator's native harvest, otherwise left to native operation, is re-admitted for a pawn only under
+    /// a credible food risk native settings answer too late, and reaches Hands as a bounded Work order carrying the FoodRisk purpose.
+    /// Under a recovery that arrives in time the same harvest is withheld and nothing is dispatched.</summary>
+    [Fact]
+    public async Task ACredibleFoodRiskReachesHandsAsAJustifiedHarvestFromTheGenerator()
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: .9) with { Items = InterventionJustificationTests.Catalog };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!.Priced();
+        (ForecastCoupledSelection, ForecastCoupledCandidates) Compared(NativeFoodAssessment food)
+        {
+            var candidates = generated with { Context = generated.Context with { NativeFood = food } };
+            var request = ForecastCoupled.CoupledForecastRequestOf(new(100), 300d / GameTime.TicksPerDay, facts with { CoupledAlternatives = candidates },
+                new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []);
+            return (ForecastCoupledSelection.CompareActivityOutcomes(request, candidates), candidates);
+        }
+        var harvest = generated.Context.Activities.Activities.First(t => t.NativeExecution && t.Prerequisites.Length == 0
+            && generated.Context.Bindings.ContainsKey((t.Id, "pawn")));
+        Assert.Equal(PawnActivityKind.Work, generated.Context.Bindings[(harvest.Id, "pawn")].Kind);
+        var plan = new ForecastActivityPlan([new(harvest.Id, "pawn", 0, 0, 0, 100, 0, 100, 0, 0)], 100, 100);
+
+        var (timely, recovering) = Compared(InterventionJustificationTests.Assess(NativeFoodAssessmentTests.Facts(10, 9)));
+        Assert.Empty(CoordinatedActivityBinding.ForDispatch(plan, recovering.Context).Allocations);
+        Assert.Null(InterventionRules.Gate([harvest.Id], plan, timely.BaselineVector, timely.BaselineVector, recovering.Context,
+            InterventionJustificationTests.Catalog));
+
+        var (risky, candidates) = Compared(InterventionJustificationTests.Assess(NativeFoodAssessmentTests.Facts(10, 12)));
+        var justified = Assert.IsType<InterventionJustification.Justified>(InterventionRules.Gate([harvest.Id], plan, risky.BaselineVector,
+            risky.BaselineVector, candidates.Context, InterventionJustificationTests.Catalog));
+        Assert.IsType<InterventionPremise.CredibleRisk>(justified.Premise);
+        Assert.Equal([harvest.Id], justified.Readmitted);
+        var selection = risky with { Selection = risky.Selection with { Selected = [harvest.Id], Plan = plan }, Justification = justified };
+        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selection, candidates, 1, "coupled-harvest", 100));
+        var order = Assert.Single(batch.Orders, o => !o.Release);
+        Assert.Contains(order.Steps, s => s.Kind == PawnActivityKind.Work);
+        Assert.Equal(InterventionPurposeKind.FoodRisk, order.Purpose!.Kind);
+        Assert.Equal(order.Purpose, Assert.Single((await Deliver(batch, "coupled-harvest")).Orders, o => !o.Release).Purpose);
     }
 }

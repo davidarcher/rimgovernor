@@ -227,6 +227,28 @@ sustained colony feeding nor the remaining patient, prisoner and animal portions
 of RG-FOOD-008. Historical run 40193999645's first-child failure remains historical
 evidence, without an inferred cause or attribution to this gap.
 
+### Native-led food execution (labor change task 5.1)
+
+Ordinary harvest, cooking, delivery and eating are native work. The shared
+comparison still models them, and the food plan, restrictions, reserve and
+intake reads are unchanged, but a modeled meal, cooking or harvest alone
+dispatches nothing and creates no food crisis
+(`NativeBaselineComparisonTests.AModeledMealAloneIsNeitherACrisisNorADispatch`,
+`NativeFoodAssessmentTests.ModeledNativeFoodProductionAloneForcesNoDispatch`).
+A pawn's own meal is ordered only when its food is observed unanswered at zero
+(`InterventionHandsTests.AnUnansweredHungerReachesHandsAsAJustifiedEatFromTheGenerator`).
+Native harvest or cooking is ordered only under a food risk native settings
+answer too late
+(`InterventionHandsTests.ACredibleFoodRiskReachesHandsAsAJustifiedHarvestFromTheGenerator`).
+Both cases run through Hands with a bounded purpose.
+
+| Native case | Claim | Execution evidence |
+| --- | --- | --- |
+| `food/ordinary-cooking` | The served bill, cooking and work families create a Target-mode (FoodTarget) cooking bill and leave Cooking enabled. Native pawns cook from them without any exact order, and the colony stock gains usable meals. | PASS, 38.0 s, 2026-10-31; meals 0 → 4; `.rimgovernor/ordinary-cooking-0224/food/ordinary-cooking/result.json` (fixture build from `27f8c15c` plus the 5.1/5.2 edits, save `5c4cf06d…`, fixture `60eca9a3c6e03991`). |
+
+These are domain tests and a registration. They do not establish sustained
+colony feeding or any RG-FOOD outcome in game.
+
 ## Additional confirmed requirements awaiting implementation assessment
 
 The following entries have confirmed intent in the same decision record. Existing

@@ -168,14 +168,28 @@ public static class InterventionPurposes
     }
 
     /// <summary>A batch whose purposes have all ended is completed when every one completed, otherwise cancelled; open while
-    /// any stands and when no order carries a purpose.</summary>
+    /// any stands and when no order carries a purpose. A meal, sleep or recreation order is cancelled unless it carries the
+    /// NeedShortfall of the need it serves for its own pawn (the one exception <see cref="InterventionRules.Readmitted"/> admits):
+    /// any other such shape, a routine self-service order persisted before those were deleted, is released, never continued.</summary>
     public static PurposeCondition Ended(PawnActivities batch, Func<InterventionPurpose, PurposeCondition> condition)
     {
+        if (batch.Orders.Any(o => RoutineSelfService(batch, o))) return PurposeCondition.Cancelled;
         var purposes = Purposes(batch);
         if (purposes.Length == 0) return PurposeCondition.Open;
         var conditions = purposes.Select(condition).ToArray();
         return conditions.Any(c => c == PurposeCondition.Open) ? PurposeCondition.Open
             : conditions.All(c => c == PurposeCondition.Completed) ? PurposeCondition.Completed : PurposeCondition.Cancelled;
+    }
+
+    private static bool RoutineSelfService(PawnActivities batch, PawnActivityOrder order)
+    {
+        if (order.Release) return false;
+        // The order's own steps, and for a preparation holding ahead of its task, that task's.
+        var kinds = order.Steps.Select(s => s.Kind)
+            .Concat(batch.Tasks.Where(t => order.Preparing && t.Id == order.Task).Select(t => t.Step.Kind));
+        return kinds.Where(NativeNeedServices.Routine).Select(k => (PawnActivityKind?)k).FirstOrDefault() is { } kind
+            && !(order.Purpose is { Kind: InterventionPurposeKind.NeedShortfall } purpose
+                && purpose.Subject == NativeNeedServices.NeedOf(kind) && purpose.SubjectPawn == order.Pawn);
     }
 
     private static PurposeCondition NeedShortfall(InterventionPurpose purpose, PawnActivities batch, NeedsForecastRead needs)

@@ -23,7 +23,8 @@ public static partial class Rules
         // A selected conditional native forecast does not itself owe a pawn assignment.
         var selectedWork = coupled is { Selection.Selected.Length: > 0 }
             && (f.CoupledAlternatives is not { } candidates
-                || Methods.Binding.CoordinatedActivityBinding.ForDispatch(coupled.Selected.Plan, candidates.Context).Allocations.Length > 0);
+                || Methods.Binding.CoordinatedActivityBinding.ForDispatch(coupled.Selected.Plan, candidates.Context,
+                    (coupled.Justification as InterventionJustification.Justified)?.Readmitted.ToHashSet(StringComparer.Ordinal)).Allocations.Length > 0);
         var owed = f.CoupledWorkActive || selectedWork
             || coupled is { Deferred.Count: > 0 }
             || f.HostilityOwed

@@ -26,8 +26,12 @@ release incumbents through coupled execution or supply production bills. A bette
 conditional scenario is evidence about its assumptions, never dispatch authority.
 
 `Methods.Binding.NativeNeedServices` distinguishes a missing pawn observation,
-an ineligible pawn, no captured service, a currently legal target and an observed
-service in progress. Legal targets already passed native diet, reservation and
+an ineligible pawn, no captured service, a currently legal target, an unanswered
+need and an observed service in progress. A need is `Unanswered` when a legal
+target exists, its level is at the zero floor and the pawn's current native job
+serves another need or none (`NeedsForecastPawn.ServedNeed`: `food` for an ingest
+of a nutrition-giving thing, `rest` for a lie-down or sleeping in place, `joy` for
+a job with a joy kind, read for the whole job including its walk). Legal targets already passed native diet, reservation and
 reachability checks. Their detailed-forecast `Unsupported` markers do not revoke
 that current legality. Conversely, no captured target does not predict future
 food production, ingestion, ground rest or spontaneous recreation. Neither access nor a running
@@ -41,10 +45,12 @@ ownership; tags are retained only for the exact matching governor job and step.
 The remainder is a current-rate projection with explicit uncertainty. It cannot
 finance guaranteed labor, completed recovery or a release of unrelated work.
 
-A portfolio consisting solely of ordinary food/rest/recreation services
-is rejected by shared comparison with
+A portfolio consisting solely of ordinary food/rest/recreation services,
+with nothing re-admitted, is rejected by shared comparison with
 `native_service_response_without_intervention_premise`. Shared binding also
-removes those service allocations inside productive portfolios. It stops the
+withholds those service allocations, and native-execution work, inside
+productive portfolios (`CoordinatedActivityBinding.Withheld`), except what
+`InterventionRules.Readmitted` re-admits (below). It stops the
 participant's later work and transitive dependents at that native boundary,
 preserving independent work. If service is already in progress, that boundary
 is now; a later what-if allocation cannot authorize earlier work that interrupts
@@ -64,7 +70,10 @@ observations and never stored on the Method. Forecast benefit is not a premise.
 The justification names:
 
 - the premise. `ObservedShortfall` is a food pawn at or below its threshold with
-  no observed service. `CredibleRisk` is a `NativeFoodAssessment` that needs a
+  no observed service (`at_or_below_threshold_without_observed_service`), or with
+  its food unanswered at zero (`at_zero_without_native_service`); for the pawn's
+  own dispatched sleep or recreation it is that pawn's rest or joy unanswered at
+  zero. `CredibleRisk` is a `NativeFoodAssessment` that needs a
   response (supply below minimum, or a recovery gap) with its runway and
   recovery timing. `CapabilityOpportunity` is a held assigned requirement whose
   baseline XP gap is projected: `UnmetNow`, or `LapsesWithinHorizon` while an
@@ -81,7 +90,8 @@ The justification names:
   premise applies.
 - the native response: `Supported`, `KnownTooLate` or `Unassessed(reason)`.
   Food recovery before runway is supported; recovery at or after runway is
-  known too late. Unconfirmed or uncaptured recovery, and the training work
+  known too late. A rest or joy shortfall's response is
+  `Unassessed(<need>_native_response_unprojected)`. Unconfirmed or uncaptured recovery, and the training work
   type's unprojected XP, stay unassessed and are named in its uncertainty.
 - the displaced work: dispatched pawns in native service, in native work, or
   unread.
@@ -96,7 +106,7 @@ resource the catalog never read leaves the premise
 Refusal reasons:
 
 - `native_service_response_without_intervention_premise`: a routine-only
-  portfolio.
+  portfolio that dispatches nothing.
 - `premise_unassessed:<reason>`.
 - `no_modeled_service_rescue`: food work whose benefit rests on the native food
   response the comparison left unprojected.
@@ -108,6 +118,27 @@ Refusal reasons:
 - `stall_not_answered_by_orders:<product>:<cause>`: no other premise, and the
   product's observed stall has a cause orders cannot answer (`no_bench`,
   `bench_slots_full`, `ingredient_bound`, `benches_exhausted`).
+
+**Re-admission.** `InterventionRules.Readmitted` is the one pure place withheld
+work is re-admitted to dispatch. Before dispatch filtering, each pawn's
+withheld allocations that wait on nothing (no prerequisite) and have a binding
+are assessed together exactly as dispatched work is. An allocation is
+re-admitted only when that assessment is justified with a purpose answering it:
+the pawn's own eat, sleep or recreation answers only its own
+`NeedShortfall` of food, rest or joy; other food work (harvest, cooking,
+delivery of nutrition) answers a `FoodRisk` or a food `NeedShortfall`. The
+response check stands: a `Supported` settings response refuses, so it
+re-admits nothing. `InterventionRules.Gate` dispatches the re-admitted work
+with the rest and records the justified verdict's `Readmitted` set, which
+`StartCoupledActivity` and the work-assignment Need pass to
+`CoordinatedActivityBinding.ForDispatch`; the re-admitted activity's dependents
+and the pawn's later work still stop at the native boundary. A modeled meal,
+cooking or harvest alone, under adequate conditions, re-admits and dispatches
+nothing. The search's own dispatch check (an unbound placed allocation refuses
+an outcome) re-admits nothing; re-admission requires a binding, so it misses no
+refusal. An unanswered
+need keeps its conditional forecast (`NativeNeedServices.ConditionalKept`), so
+the comparison can rank its service against the native baseline.
 
 There is no universal materiality threshold: a premise justifies the order and
 the comparator ranks it. A refused winner yields to the native baseline.
@@ -131,12 +162,13 @@ native trajectory nor a new model run. Future food, rest and joy response is
 unprojected for a pawn whose service is available, in progress or not observed,
 and for a pawn missing from the needs read (no bound exists for it, so every term
 is unassessed rather than decayed). An ineligible pawn (downed, a baby, sleep-blocked
-rest) keeps its conditional metric: its own owners govern it. For an eligible pawn,
+rest) keeps its conditional metric: its own owners govern it, and so does an
+unanswered need: native operation is observed not answering it. For an eligible pawn,
 an empty target census also leaves future response unprojected.
 `NativeBaselineComparisonTests` pin that an empty modeled schedule is a
 no-modeled-service counterfactual: unassessed starvation never prunes, omitted
-native production claims no stall, and an unrelated supported decision is still
-selected. Missing food access is a current
+native production claims no stall, an unrelated supported decision is still
+selected, and a modeled meal alone re-admits and dispatches nothing. Missing food access is a current
 blocker; it establishes no future production rate or exact starvation trajectory.
 Native ground rest and spontaneous recreation need no captured service object.
 Current need levels and access observations remain intact. Supply/runway and
@@ -707,6 +739,11 @@ unknown. What the game does not have is a case, never an unknown:
   check whose celestial glow, darkened by the active game conditions' sky targets over
   their known ends, passes 0.1 (`Sunlit(InTicks)`), or `Unlit(ThroughTicks)` when none
   does within a year.
+- `NeedsForecastPawn.ServedNeed` (`NativeNeedsForecast.ServedNeedOf`): the need the
+  pawn's current native job serves, for the whole job including its walk: `food` for
+  `Ingest` of a nutrition-giving thing, `rest` for `LayDown` or asleep laying in
+  place, `joy` for a job def with a `joyKind`, else `""`. `NativeNeedServices` reads it
+  to tell an unanswered need from one native operation is already serving.
 - `NeedsForecastPawn.RivalRooms`: the Impressiveness of each room another spawned
   player-faction pawn without a host faction owns (`OwnedRoom`), each once, ascending:
   what `ThoughtWorker_BedroomJealous` compares the pawn's own room against (#3826).
@@ -2095,8 +2132,10 @@ job, `NativePawnActivities.OfferJob` checks `CanReserveAndReach(target, Touch, .
 `NativeNeedsForecast.ServiceReservation`: Eat reserves (stack, 10, `step.Count`) as
 `JobDriver_Ingest` does, Sleep (bed, `SleepingSlotsCount`, 0) as `JobDriver_LayDown`, and
 Recreation (building, `joyMaxParticipants`, 0) as the giver's play driver; any other step
-keeps vanilla's default. The activity-task bind read (`NativeActivityTasks`) checks Eat,
-Sleep and Recreation targets with the same claim (#3570). `ReservationManager.CanReserve` refuses a claim whose `maxPawns`
+keeps vanilla's default. The activity-task bind read (`NativeActivityTasks`) rebinds no
+Eat, Sleep or Recreation task: continuation hands a pawn whose next task is one back to
+native operation, so only a justified self-service order a batch starts with is installed,
+bound to its observed target at start. `ReservationManager.CanReserve` refuses a claim whose `maxPawns`
 differs from an existing one's, which is why the default of 1 refused a stack another pawn
 already held with 10, and it sums stack counts, so two pawns bind one stack while their
 counts fit and the next is refused. The observation-time legality filter in
@@ -2106,8 +2145,7 @@ ingest job asks for, `FoodUtility.WillIngestStackCountOf` (the pawn's wanted nut
 capped by `maxNumToIngestAtOnce`) clamped to the stack. Tests:
 `WorkTargetCapacityClaimsTests` (stack within and beyond quantity, a one-slot bed, observed
 capacity, unknown as 1, a whole-taken target). There is no native unit-test harness for the
-bind-time path; it is verified by compile and the decompiled vanilla drivers, and natively by the `needs/target-capacity` nightly case (#3213) and, for a held multi-seat
-recreation building at bind, `needs/recreation-shared-seat` (#3570).
+bind-time path; it is verified by compile and the decompiled vanilla drivers, and natively by the `needs/target-capacity` nightly case (#3213).
 
 Exclusivity is still real for a one-slot bed and for recreation objects with a single
 participant (pawn-owned for the whole service); it is now a capacity of 1 rather than a

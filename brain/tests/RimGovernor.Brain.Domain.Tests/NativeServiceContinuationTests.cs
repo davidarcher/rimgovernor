@@ -263,4 +263,66 @@ public sealed class NativeServiceContinuationTests
         Assert.Empty(next.Tasks);
         Assert.Empty(read.SatisfiedTasks);
     }
+
+    /// <summary>Task 5.2: a justified self-service order (the NeedShortfall exception) continues while it is the pawn's useful native
+    /// service, ends on its own need, and a native job taking the pawn over is a replacement that releases it; either way the pawn
+    /// returns to routine native work with nothing held. A meal, sleep or recreation order persisted before purposes (the deleted
+    /// routine shape) answers nothing and is released, never continued.</summary>
+    [Theory]
+    [InlineData("food")]
+    [InlineData("rest")]
+    [InlineData("joy")]
+    public void AJustifiedSelfServiceEndsOnItsNeedAndAnOldShapeOneIsReleased(string kind)
+    {
+        var service = new PawnActivityStep(kind == "food" ? PawnActivityKind.Eat
+            : kind == "rest" ? PawnActivityKind.Sleep : PawnActivityKind.Recreation, "service", "", "", 1, 2000);
+        var purpose = new InterventionPurpose(InterventionPurposeKind.NeedShortfall, kind, "pawn", 100);
+        var order = new PawnActivityOrder("pawn", "coupled-self/pawn", "coupled-self", 0, 1, false, [service]) { Task = "service", Purpose = purpose };
+        var batch = new PawnActivities(1, [order]) { Tasks = [new("service", "pawn", [], service, new(0, 0), 100)] };
+        var target = kind == "food" ? NeedsFixtures.Food("service", "Rice", 10, 0, 10, .5) : NeedsFixtures.Service("service", kind, 0, .01);
+        ActivityTaskRead Read(double level, string state) => ConstructionFixtures.NoTasks() with
+        {
+            Context = ConstructionFixtures.NoTasks().Context with { Tick = 300 },
+            Needs = NeedsFixtures.Read(300, NeedsFixtures.Pawn("pawn") with { Needs = [NeedsFixtures.Rate(kind, level, .003, .3)], Targets = [target] }),
+            Pawns = [new("pawn", new(order.Assignment, order.Method, order.Revision, 0, state, "", 300))],
+        };
+        PurposeCondition Condition(PawnActivities b, ActivityTaskRead read) => InterventionPurposes.Ended(b, p => InterventionPurposes.AtContinuation(p, b, read.Needs));
+        static void Released(PawnActivities? next)
+        {
+            var release = Assert.Single(Assert.IsType<PawnActivities>(next).Orders);
+            Assert.True(release.Release);
+            Assert.Empty(release.Steps);
+            Assert.Empty(next!.Tasks);
+        }
+
+        // Useful native service: the ordered service is running while the need stands, so the Method continues.
+        var running = Read(0, "started");
+        Assert.Equal(PurposeCondition.Open, Condition(batch, running));
+        Assert.Equal(ActivityNeed.Owed, ForecastServiceInvestments.ReviewServiceActivityNeed(batch, ActivityNeed.Owed, running));
+        Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Owed, running));
+        // The need answered ends the purpose; the pawn is released to routine work, holding nothing.
+        var answered = Read(.9, "completed");
+        Assert.Equal(PurposeCondition.Completed, Condition(batch, answered));
+        Assert.Equal(ActivityNeed.Ended, ForecastServiceInvestments.ReviewServiceActivityNeed(batch, ActivityNeed.Owed, answered));
+        Released(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, ActivityNeed.Ended, answered));
+        // Interruption: a native job taking the pawn over replaces the order, and the review releases it.
+        Released(ActivityContinuationRules.ReviewActivityOwnership(batch, ActivityNeed.Owed, 300,
+            [new ActivityOwnership("pawn", order.Assignment, order.Method, order.Revision, "failed") { Reason = InterventionPurposes.NativeJobTakeover }]).Release);
+
+        // The old routine shape: a valid persisted self-service order whose purpose is not its own need's shortfall (another
+        // pawn's, another need's, or a food risk) answers nothing; it is cancelled and released even while running, and a
+        // preparing order holding for such a service task is released alike.
+        foreach (var carried in new[] { purpose with { SubjectPawn = "other" }, purpose with { Subject = kind == "food" ? "rest" : "food" },
+            new InterventionPurpose(InterventionPurposeKind.FoodRisk, "food", "", 100) })
+        {
+            var old = batch with { Orders = [order with { Purpose = carried }] };
+            old.Validate();
+            Assert.Equal(PurposeCondition.Cancelled, Condition(old, running));
+            Assert.Equal(ActivityNeed.Ended, ForecastServiceInvestments.ReviewServiceActivityNeed(old, ActivityNeed.Owed, running));
+            Released(CoordinatedActivitiesRules.ContinueCoordinatedActivity(old, ActivityNeed.Ended, running));
+        }
+        var holding = batch with { Orders = [order with { Purpose = new InterventionPurpose(InterventionPurposeKind.FoodRisk, "food", "", 100),
+            Steps = [new(PawnActivityKind.Hold, "", "", "", 0, 2000)], Preparing = true }] };
+        Assert.Equal(PurposeCondition.Cancelled, Condition(holding, Read(0, "holding")));
+    }
 }

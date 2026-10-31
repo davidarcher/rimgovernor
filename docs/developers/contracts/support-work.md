@@ -77,7 +77,13 @@ Coupled harvest, cooking and delivery scenarios
 remain conditional planning evidence. A missing modeled recipe or delivery is not
 by itself a native production failure, and a forecast product is not actual stock.
 The food plan and work ledger retain bill ownership; no support-work scheduler
-assigns the routine cook.
+assigns the routine cook. The generator's harvest, cooking and delivery
+bindings are comparison templates. One is dispatched only when
+`InterventionRules.Readmitted` re-admits it under a justified `food_risk`, or a
+food `need_shortfall`, for its pawn
+([forecast](forecast-contracts.md)). The `food/ordinary-cooking` case is
+registered to check that a served FoodTarget bill and work settings make native
+pawns cook usable meals. It has not been executed.
 
 Native room mechanics bound the supported consequences, read at the room's current
 cleanliness. Food production samples
