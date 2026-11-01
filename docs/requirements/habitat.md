@@ -552,8 +552,8 @@ Known limits, stated rather than priced:
 - the supply legs assume the nearest reservable stack serves every load (`servicing_supply_nearest_stack_legs`);
 - deconstruction needs a designation, worked by native labor, so a replacement depends on both giver work types
   being active;
-- the servicing read lists at most 32 targets; a larger set is cut with `servicing_targets_truncated` and the absent
-  targets are unassessed, not unread;
+- the servicing read lists every target that needs servicing, its legs searched together on the path job workers
+  (`NativePathLegs.Batched`); a review before 2026-11-01 cut the list at 32 targets, since removed;
 - the private driver constants (1.7 work per speed, 80 and 20 repair work, 1000 fix ticks, 240 refuel ticks, the
   industrial component) are copied from the decompiled drivers.
 
@@ -810,8 +810,8 @@ Known limits, stated rather than priced:
   in owned rooms are never proposed;
 - Relocate exists only on planned ground: clearance, a host's spare and a spare bed have no slot (`no_destination`), and the
   haul to a slot is a lower bound because no path to a cell not yet built is read;
-- the transition read is cut at 96 equipment buildings (`transition_targets_truncated`), and a building past the cut is
-  unassessed;
+- the transition read lists every standing equipment building; a fence segment is a pen's boundary and is not listed; a
+  review before 2026-11-01 cut the list at 96 buildings, since removed;
 - the `layout_edit` rows for the four transition reasons have no automated reader;
 - the native reinstall, the uninstall designation, the storage read, `PenGrazing.Boundary` and `Animals`, and the per-worker
   transition legs have not been run in a game: no live-game verification of milestone 8 exists.
@@ -931,8 +931,7 @@ building's use other than a bed's medical, prisoner and slave settings, which th
   counts are held by the policy ledger and are count-based; fuel acquisition is harvest-only (`fuel acquisition:<def>`) and no
   component acquisition exists (`component acquisition:<def>`); non-power service value is `service:<def>` and a per-use fuel
   rate is `fuel use rate:<def>`; supply legs assume the nearest stack (`servicing_supply_nearest_stack_legs`); a replacement
-  needs both the deconstruct and construct work types active; the servicing read stops at 32 targets
-  (`servicing_targets_truncated`); the driver constants are mirrored from decompiled code.
+  needs both the deconstruct and construct work types active; the driver constants are mirrored from decompiled code.
 - *Utility:* unvalued consumers (lamps, turrets, a patient's immunity gain, tend quality) make the priced interruption a lower
   bound; the rain short-circuit constants are mirrored; a wind turbine's clear path, breakdown rate, shared dependence on one
   producer and material delivery time are unpriced; a switch is confirmed only by a later building read.
@@ -946,8 +945,8 @@ building's use other than a bed's medical, prisoner and slave settings, which th
   the routing cut is logged advice.
 - *Redevelopment:* Repurpose is excluded (above); the defense bridging read checks standing pieces, not observed coverage;
   conduits and structure are not transition targets, and other lanes' definitions in owned rooms are never proposed;
-  Relocate exists only on planned ground (`no_destination`), and its haul is a lower bound; the transition read stops at 96
-  buildings (`transition_targets_truncated`); the four transition `layout_edit` rows have no automated reader.
+  Relocate exists only on planned ground (`no_destination`), and its haul is a lower bound; the four transition `layout_edit`
+  rows have no automated reader.
 - *Native and live evidence:* none of `bed/built-for-guest`, `production/spot-bridge`, `medical/field-treatment`,
   `upkeep/restore-service`, `power/configure-and-route`, `defense/temporary-cover` or `redevelopment/replace-before-remove`
   has run, nor the `StagePawn.Dead` and `StagePawn.Cut` staging; the changed Nightly `custody/population` has no cited run;

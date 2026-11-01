@@ -155,9 +155,6 @@ public sealed class ServicingWorkTests
         Assert.Throws<DomainException>(() => ServicingRules.Join(read with { Targets = [Target(), Target()] }, Row()));
         Assert.Equal("servicing target:Thing_Other", Assert.Throws<RequiredFactException>(() => ServicingRules.Join(read, Row("Thing_Other"))).Fact);
         Assert.Equal("servicing read", Assert.Throws<RequiredFactException>(() => ServicingRules.Join(null, Row())).Fact);
-        var truncated = read with { Findings = [ServicingRules.Truncated] };
-        Assert.Null(ServicingRules.Join(truncated, Row("Thing_Other")));
-        Assert.Equal(ServicingRules.Truncated, Unassessed(truncated, Row("Thing_Other")));
     }
 
     [Fact]

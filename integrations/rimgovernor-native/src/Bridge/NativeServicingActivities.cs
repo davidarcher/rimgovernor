@@ -12,16 +12,11 @@ namespace RimGovernor.Native;
 
 // One native census of the colony's buildings that need servicing (repair, breakdown fix, refuel, door-to-wall swap) and
 // every free colonist's measured servicing of each (task 5.1 of redefine-habitat-requirements). Conditional mechanics and
-// current condition only, never new demand: the brain joins each target to its canonical building row by id.
+// current condition only, never new demand: the brain joins each target to its canonical building row by id. Every
+// target and every standing equipment building is read, none cut: the read's legs are searched together on the path
+// job workers (NativePathLegs.Batched) and kept across reads, so the colony's size costs it no game-thread searches.
 internal static class NativeServicingActivities
 {
-    // The bound on targets one read measures: every free colonist is priced against each, by up to four legs.
-    private const int TargetBound = 32;
-
-    // The bound on standing equipment one read measures for transitions: one worker leg and one store leg each.
-    // An authored cap, recorded under "Mirrored game literals: transitions" in docs/developers/contracts/kept-constants.md.
-    private const int TransitionBound = 96;
-
     // JobDriver_Repair's private WarmupTicks and TicksBetweenRepairs, JobDriver_FixBrokenDownBuilding's private TicksDuration
     // and the 1.7 the construction drivers multiply ConstructionSpeed by (a literal in their tick actions): no typed route
     // exists to a private const or an inline literal, so the values are copied here from the decompiled drivers
@@ -30,13 +25,16 @@ internal static class NativeServicingActivities
 
     internal static Obs.ServicingActivityRead Read(Map map, NativePathLegs? legs = null)
     {
-        legs ??= new(map);
+        var shared = legs ?? new(map);
+        return shared.Batched(() => ReadOnce(map, shared));
+    }
+
+    // The read itself, run twice by Batched: once collecting the legs it asks, once against the searched legs.
+    private static Obs.ServicingActivityRead ReadOnce(Map map, NativePathLegs legs)
+    {
         var findings = new SortedSet<string>(StringComparer.Ordinal) { "servicing_routes_are_conditional_duration_estimates", "servicing_supply_nearest_stack_legs" };
-        // Lost service first (broken down or out of fuel), then short of fuel, then damaged, then a door only a swap names.
-        var needing = map.listerBuildings.allBuildingsColonist.Where(b => b.Spawned && Needs(b))
-            .OrderBy(Rank).ThenBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        if (needing.Length > TargetBound) findings.Add("servicing_targets_truncated");
-        var targets = needing.Take(TargetBound).ToArray();
+        var targets = map.listerBuildings.allBuildingsColonist.Where(b => b.Spawned && Needs(b))
+            .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var roster = map.mapPawns.FreeColonistsSpawned.Where(Available).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var repair = Giver(def => typeof(WorkGiver_Repair).IsAssignableFrom(def.giverClass));
         var fix = Giver(def => typeof(WorkGiver_FixBrokenDownBuilding).IsAssignableFrom(def.giverClass));
@@ -102,17 +100,16 @@ internal static class NativeServicingActivities
 
     private static Cell At(IntVec3 c) => new(c.x, c.z);
 
-    // Each standing player building a plan may transition (no wall, door, conduit or frame), bounded: its uninstall and
+    // Each standing player building a plan may transition (no wall, door, fence, conduit or frame): its uninstall and
     // deconstruct mechanics, the storage that would take it minified, and the nearest capable builder's legs.
     private static List<Obs.TransitionMechanics> Transitions(Map map, NativePathLegs legs, Pawn[] roster, WorkGiverDef? deconstruct, SortedSet<string> findings)
     {
         var standing = map.listerBuildings.allBuildingsColonist.Where(b => b.Spawned && Transitionable(b))
             .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        if (standing.Length > TransitionBound) findings.Add("transition_targets_truncated");
         var uninstall = Giver(def => typeof(WorkGiver_Uninstall).IsAssignableFrom(def.giverClass));
         var builders = deconstruct == null ? Array.Empty<Pawn>() : Capable(roster, deconstruct.workType).ToArray();
         var output = new List<Obs.TransitionMechanics>();
-        foreach (var building in standing.Take(TransitionBound))
+        foreach (var building in standing)
         {
             var minifiable = building.def.Minifiable && building.Faction == Faction.OfPlayer;
             var storage = minifiable ? Storage(map, building) : new Obs.TransitionStorage.None("not_minifiable");
@@ -136,8 +133,9 @@ internal static class NativeServicingActivities
         return output;
     }
 
-    // Equipment, not structure: a wall, a door, a power conduit or a frame is the room's or the build side's.
-    private static bool Transitionable(Building b) => b.def.building != null && !b.def.IsFrame && !b.def.IsDoor && !b.def.IsSmoothed
+    // Equipment, not structure: a wall, a door, a power conduit or a frame is the room's or the build side's, and a fence
+    // segment (BuildingProperties.isFence) is a pen's boundary, the herd arrangement's.
+    private static bool Transitionable(Building b) => b.def.building != null && !b.def.IsFrame && !b.def.IsDoor && !b.def.IsSmoothed && !b.def.building.isFence
         && !(b.def.passability == Traversability.Impassable && !b.def.Minifiable && !b.def.hasInteractionCell)
         && !(b.TryGetComp<CompPowerTransmitter>() != null && !b.def.hasInteractionCell && !b.def.Minifiable);
 
@@ -173,9 +171,6 @@ internal static class NativeServicingActivities
             StoreLeg = store,
         };
     }
-
-    private static int Rank(Building b) => b.IsBrokenDown() || b.TryGetComp<CompRefuelable>() is { HasFuel: false } ? 0
-        : b.TryGetComp<CompRefuelable>() is { IsFull: false } ? 1 : Repairs(b) ? 2 : 3;
 
     // A colony building needs servicing when it is damaged and repairable, broken down, short of its target fuel, or a door
     // the native swap could replace with a wall.

@@ -118,25 +118,21 @@ public sealed record ServicingTargetJoin(ServicingTarget Target, BuildingRow Bui
 
 public static class ServicingRules
 {
-    /// <summary>The read's finding when its target bound cut targets: an absent target is then unassessed, not unread.</summary>
-    public const string Truncated = "servicing_targets_truncated";
-
     /// <summary>The excluded reasons.</summary>
     public const string NoWorker = "no_worker", NoSupply = "no_supply", NoStock = "no_stock", CannotCarry = "cannot_carry",
         ZeroRate = "zero_rate", NotRepairable = "not_repairable", RefuelNotEmpty = "refuel_not_empty";
 
     /// <summary>
     /// The building's servicing target in the read, joined by id: a building the read does not list is a required fact
-    /// unread (<c>servicing target:&lt;id&gt;</c>) unless the read's bound cut it (null); a listed target whose def or cell is not
-    /// the row's is a contract violation.
+    /// unread (<c>servicing target:&lt;id&gt;</c>); a listed target whose def or cell is not the row's is a contract violation.
     /// </summary>
-    public static ServicingTargetJoin? Join(ServicingActivityRead? read, BuildingRow building)
+    public static ServicingTargetJoin Join(ServicingActivityRead? read, BuildingRow building)
     {
         if (read is null) throw new RequiredFactException("servicing read");
         var id = building.Building.Id;
         var listed = read.Targets.Where(t => t.Id == id).ToArray();
         if (listed.Length > 1) throw new DomainException($"servicing target {id} is listed {listed.Length} times");
-        if (listed.Length == 0) return read.Findings.Contains(Truncated) ? null : throw new RequiredFactException("servicing target:" + id);
+        if (listed.Length == 0) throw new RequiredFactException("servicing target:" + id);
         var target = listed[0];
         var cell = building.Building.Place is EntityPlace.OnMap onMap ? onMap.Cell : (Cell?)null;
         if (target.Definition != building.Building.DefName || target.Cell != cell)
@@ -147,12 +143,11 @@ public static class ServicingRules
     /// <summary>
     /// Every way to service the building now: one option per worker row of each kind it needs (a repair for missing hit
     /// points, a fix when broken down, a refuel when not full) or offers (a replacement where one is read), and an
-    /// <see cref="NoWorker"/> exclusion for a kind with no worker row. A target the read's bound cut is one unassessed option.
+    /// <see cref="NoWorker"/> exclusion for a kind with no worker row.
     /// </summary>
     public static IReadOnlyList<ServicingOption> OptionsOf(ServicingActivityRead? read, BuildingRow building)
     {
-        if (Join(read, building) is not { } join)
-            return [new ServicingOption.Unassessed(building.Building.Id, ServicingKind.Repair, "", Truncated)];
+        var join = Join(read, building);
         var options = new List<ServicingOption>();
         foreach (var kind in KindsOf(join))
         {

@@ -26,7 +26,6 @@ partial class HomeUpkeepReader
         {
             Components = read.Stock.SingleOrDefault(s => s.Resource == component) is { } stock
                 ? new ServicingComponents.Counted(stock.Count) : new ServicingComponents.Unread("component stock:" + component),
-            Truncated = read.Findings.Contains(ServicingRules.Truncated),
             Component = component,
             Stock = read.Stock.ToDictionary(s => s.Resource, s => s.Count, StringComparer.Ordinal),
         };

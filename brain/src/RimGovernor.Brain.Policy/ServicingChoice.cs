@@ -111,13 +111,11 @@ public abstract record ServicingComponents
 
 /// <summary>
 /// The measured servicing options of one native servicing read, joined to the canonical rows (<see cref="ServicingRules.Survey"/>);
-/// <see cref="Components"/> is the stock of the component a fix consumes and <see cref="Truncated"/> whether the read's target
-/// bound cut targets.
+/// <see cref="Components"/> is the stock of the component a fix consumes.
 /// </summary>
 public sealed record ServicingCensus(EquatableArray<ServicingOption> Options)
 {
     public required ServicingComponents Components { get; init; }
-    public bool Truncated { get; init; }
 
     /// <summary>The def a breakdown fix consumes (ServicingMechanics.Component), naming its acquisition state.</summary>
     public string Component { get; init; } = "";
@@ -346,7 +344,7 @@ public static partial class ServicingChoiceRules
         var options = census.Options.Where(o => o.Target == id && o.Kind == kind).ToArray();
         if (options.Length == 0)
         {
-            yield return new(choice, "", new ServicingStanding.Unassessed(census.Truncated ? ServicingRules.Truncated : "servicing target:" + id));
+            yield return new(choice, "", new ServicingStanding.Unassessed("servicing target:" + id));
             yield break;
         }
         foreach (var option in options)

@@ -803,11 +803,11 @@ alternative wins, Retain on a tie. Relocate needs a minifiable building and a de
 storage that accepts it (`StorageSettings.AllowedToAccept`), Remove a deconstructible one; the refusals are named
 `not_minifiable`, `no_destination`, `no_accepting_storage` and `not_deconstructible`. Repurpose is always
 `Excluded("no_typed_op")`: no typed repurposing operation exists. The mechanics come from
-`ServicingActivityRead.Transitions` ([forecast contracts](forecast-contracts.md#servicing-activity-read)): at most 96
-standing equipment buildings a read (`transition_targets_truncated`), each with its minifiability, `uninstallWork`,
+`ServicingActivityRead.Transitions` ([forecast contracts](forecast-contracts.md#servicing-activity-read)): every
+standing equipment building (no wall, door, fence, conduit or frame), each with its minifiability, `uninstallWork`,
 deconstructibility, cost list, fraction and deconstruct work, accepting storage cell, nearest worker (approach, `TicksPerCell`,
 store leg as a `TransitionLeg` `Walked` or `Unread`), beauty, wealth and room. An unread fact makes only the alternatives that
-need it `Unassessed`, naming it: `transition read`, `transition_targets_truncated`, `transition target:<id>`,
+need it `Unassessed`, naming it: `transition read`, `transition target:<id>`,
 `store leg:<id>:<fact>`, `relocation leg:<id>:<fact>`, `build price:<def>`, `material values`, `material value:<resource>`.
 With the service unassessed, an alternative losing more service days than the least-losing measured one is unassessed too,
 so an unassessed service is never beaten by Remove.

@@ -149,7 +149,7 @@ public static partial class ServicingChoiceRules
     /// <summary>The excluded reasons and unread facts the transition choice names.</summary>
     public const string NotMinifiable = "not_minifiable", NoAcceptingStorage = "no_accepting_storage", NoDestination = "no_destination",
         NoTypedOp = "no_typed_op", NotDeconstructible = "not_deconstructible",
-        TransitionRead = "transition read", TransitionTruncated = "transition_targets_truncated", MaterialValues = "material values";
+        TransitionRead = "transition read", MaterialValues = "material values";
 
     /// <summary>The dependency states a transition row names: its replacement observed serving, or the gate's prefix before the unserved dependant.</summary>
     public const string ReplacementServing = "replacement serving", ReplacementNotServing = "replacement not serving:";
@@ -202,8 +202,7 @@ public static partial class ServicingChoiceRules
         var horizon = f?.HorizonDays ?? ColonyModelPolicy.DefaultHorizonDays;
         var mechanics = f?.Read?.Transitions.FirstOrDefault(t => t.Id == c.Target);
         var missing = f?.Read is not { } read ? TransitionRead
-            : mechanics is not null ? null
-            : read.Findings.Contains(TransitionTruncated) ? TransitionTruncated : "transition target:" + c.Target;
+            : mechanics is not null ? null : "transition target:" + c.Target;
         // Retain: the building stays as it stands; a breakdown leaves its service lost over the horizon.
         if (c.RetainExcluded is { } kept) Excluded(ServicingChoiceKind.Retain, kept);
         else if (mechanics is null) Unread(ServicingChoiceKind.Retain, missing!);

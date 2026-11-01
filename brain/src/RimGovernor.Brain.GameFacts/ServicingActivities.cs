@@ -30,8 +30,9 @@ public sealed record ServicingActivityRead
     [JsonConverter(typeof(EquatableArrayJsonConverter<TransitionMechanics>))]
     public required EquatableArray<TransitionMechanics> Transitions { get; init; }
     /// <summary>
-    /// The read's standing limits: <c>servicing_targets_truncated</c> when the target bound cut targets,
-    /// <c>transition_targets_truncated</c> when the transition bound cut standing equipment.
+    /// The read's standing limits (<c>servicing_routes_are_conditional_duration_estimates</c>,
+    /// <c>servicing_supply_nearest_stack_legs</c>, <c>transition_nearest_worker_legs</c>). Every target and every standing
+    /// equipment building is listed; the read has no size bound.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> Findings { get; init; }
