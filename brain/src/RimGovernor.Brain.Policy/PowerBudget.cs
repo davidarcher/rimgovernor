@@ -25,12 +25,20 @@ public readonly record struct PowerSourceProfile(double Daily, double Night, boo
     public bool Steam { get; init; }
 }
 
-/// <summary>One producer's nominal wattage and delivery profile as the budget sees it.</summary>
+/// <summary>
+/// One producer's nominal wattage and delivery profile as the budget sees it, and the fuel it burns: Fuel is the stock it draws
+/// on (empty for a fuel-free producer) and FuelPerDay the items it burns a day running. Producers that name the same fuel
+/// draw on one stock (UtilityChoiceRules.Choose), so they run out together.
+/// </summary>
 public sealed record PowerProducer
 {
     public double NominalW { get; init; }
 
     public PowerSourceProfile Profile { get; init; }
+
+    public Resource Fuel { get; init; }
+
+    public double FuelPerDay { get; init; }
 }
 
 /// <summary>One network's demand and producers over the coming day. Eclipse zeroes every solar producer for the day.</summary>

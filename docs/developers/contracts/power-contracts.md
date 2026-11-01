@@ -98,9 +98,8 @@ band). Each is `Assessed`, `Excluded` by a named constraint or `Unassessed` nami
 
 Each is priced in capability-days over the horizon (`ColonyModelPolicy.DefaultHorizonDays`) by the interruption the
 consumers suffer: its cost, then its lead time charged as interruption while it is built, then the share of demand
-it still leaves unserved (the consumers it switches off lose their whole day) while its producers run, and the base
-share after their runway. A finite fuel's runway (`GeneratorRow.FuelItemsPerDay`, the stock over the items burnt a
-day) ends the producers' share. The share unserved is the net's own shedding: `PowerNet.PowerNetTick` sheds and
+it still leaves unserved (the consumers it switches off lose their whole day) while its producers run. A finite fuel ends the
+producers burning it together (see Shared exposure below). The share unserved is the net's own shedding: `PowerNet.PowerNetTick` sheds and
 restores a random consumer at a time while the net is short, so each is off that share of the day in expectation.
 A network's common-cause outage ([rain short circuit](#rain-short-circuit)) charges every alternative that does
 not clear it, deferring included. Deferring is the baseline and wins ties; an unpriced deferral is chosen,
@@ -137,8 +136,33 @@ short-circuits; a battery holding over 500 Wd then loses 400 Wd with 5 % chance.
 stored energy it burns, as a share of a day's demand. `Exposure` is `None` without an exposed member and unassessed
 while the rain rate is unread. Sheltering is one alternative in `Choose`, priced against the exposure it clears.
 Known limits: the wind turbine's clear path is checked only at placement (`wind_blocked_cells` on the preview), there
-is no breakdown rate, a network's dependence on a single producer is not priced, and material delivery time is not
-read.
+is no breakdown rate, and material delivery time is not read.
+
+### Shared exposure
+
+A reserve is not credited as if it were independent of the primary it backs (RG-HABITAT-008). `Choose` prices each
+cause the reserve shares, not a nominal capacity:
+
+- **Fuel.** Every producer burning one fuel draws on the colony's one stock of it: `PowerProducer.Fuel` and `FuelPerDay`
+  (the building's own difficulty-adjusted `Burn` over its fuel units per item, `BurnerOf`) against `UtilityNetwork.Fuels`
+  (`PowerPlanning.Fuels`: the colony stock of every fuel a producer on the map burns, plus the network's tanks). The
+  existing burners alone draw the stock down until the alternative is ready, then they and the alternative's burners draw
+  it together; when it is gone both stop. Deferring therefore already pays the primary's own runway, a second generator
+  on the same fuel avoids none of it (it costs more than deferring by its build cost), and a generator on another fuel,
+  or a fuel the colony can grow, keeps running. A `Route` joins the other network's producers to the same stock
+  (`UtilityEffect.FuelSupplies`). A burning producer whose fuel has no stock entry is unpriced,
+  `shared_exposure:fuel_unread:<fuel>`.
+- **Rain.** A reserve that joins the network keeps the exposure the network carries; only `Shelter` clears it. A
+  rain-vulnerable generator (`GeneratorRow.RainVulnerable`, from `CompProperties_Power.shortCircuitInRain`) joins the
+  roll's pool and the exposure is repriced with it (`UtilityEffect.Exposure`): a solar generator stands unroofed; any
+  other rain-vulnerable candidate's site is chosen at placement, so it is unpriced,
+  `shared_exposure:rain_site_unread:<def>`. A `Store` battery is placed roofed and adds none. A `Route` merges the two
+  networks' exposed members into one exposure at the merged demand.
+- **Distribution.** Joining a network shares its conduit failures. Exposed conduits are replaced before any comparison,
+  so a network under comparison has no distribution cause at the planner; a `Route` brings the other network's.
+
+No wire field was added. A network is compared only while its 24 h balance leaves energy unserved or its rain exposure is
+live, so a fuel stock that runs out later in the horizon is priced once the comparison runs.
 
 ## Configuration
 
@@ -220,8 +244,8 @@ is a deficit whatever the balance predicted.
     Steam plants never enter free-placement pricing without a free geyser. Observed mechanics, rather than a
     geothermal definition name, identify fixed placement.
   - Every installed player-buildable ordinary generator whose native mechanics have a delivery model, natively
-    unavailable ones skipped, is priced by its build cost and lead, the fuel runway of its stocked tank
-    (`GeneratorRow.FuelItemsPerDay`) and the unserved share it leaves; no tier, watts-per-market-value ranking or
+    unavailable ones skipped, is priced by its build cost and lead, the fuel runway it shares with the producers already burning that stock
+    (`GeneratorRow.FuelItemsPerDay`, see Shared exposure) and the unserved share it leaves; no tier, watts-per-market-value ranking or
     grown-fuel preference orders them. A multi-fuel plant burns a stocked full-tank fuel first, then a
     growable one (`policy.ResourceGrowable`: a crop that harvests the fuel is sowable now, so a tree plantation
     counts and wild trees or chemfuel do not), then the greater stock, ordinal identity breaking ties. A

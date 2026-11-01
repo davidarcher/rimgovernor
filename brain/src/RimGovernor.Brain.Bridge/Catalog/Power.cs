@@ -79,7 +79,7 @@ public sealed partial class DefinitionCatalog
         if (row.MadeFromStuff && stuff.Length == 0) throw new CatalogException($"generator {name} has no allowed stuff");
         var generator = new P.GeneratorRow
         {
-            NominalW = -watts, Stuff = stuff,
+            NominalW = -watts, Stuff = stuff, RainVulnerable = row.GetCompProperties<CompProperties_Power>()?.shortCircuitInRain ?? false,
         };
         if (row.GetCompProperties<CompProperties_Refuelable>() is not { } fuel)
             return generator;

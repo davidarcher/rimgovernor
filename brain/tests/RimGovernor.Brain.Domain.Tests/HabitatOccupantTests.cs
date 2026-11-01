@@ -231,6 +231,65 @@ public sealed class HabitatOccupantTests
     }
 
     [Fact]
+    public void AnOwnedBedTheOccupantCannotReachOrLegallyUseMeetsNoSleepingNeedHoweverGoodItsRoom()
+    {
+        // The bed is the colonist's by ownership and in the comfortable range, yet its owner cannot reach it: the colonist stays a
+        // target with no slot.
+        SleepingObservation Colony(SleepingBed bed) => new() { Colonists = 1, People = [Person(A, "bed")], Beds = [bed], BedBuildable = true };
+        var tick = new Tick(600);
+
+        var unreachable = Colony(Bed("bed", owners: [A], reach: []));
+        var review = SleepingRules.ReviewSleeping(unreachable, new SleepingHistory(), tick);
+        var target = Assert.Single(review.Targets);
+        Assert.Equal(A, target.Pawn);
+        Assert.False(review.Recovered());
+        Assert.Equal((1, 0), SleepingRules.SlotShortfall(unreachable));
+
+        // The same bed reachable and in observed use by its owner is provision: the need is met only by the function.
+        var reachable = Colony(Bed("bed", owners: [A], users: [A]));
+        Assert.True(SleepingRules.ReviewSleeping(reachable, new SleepingHistory(), tick).Recovered());
+        Assert.Equal((0, 0), SleepingRules.SlotShortfall(reachable));
+
+        // A bed the colonist may not legally use (set for slaves or prisoners, or a crib) is no provision either, owned or not.
+        foreach (var illegal in new[] { Bed("bed", owners: [A], users: [A], slaves: true), Bed("bed", owners: [A], users: [A], prisoners: true), Bed("bed", owners: [A], users: [A], crib: true) })
+        {
+            var colony = Colony(illegal);
+            Assert.False(SleepingRules.ReviewSleeping(colony, new SleepingHistory(), tick).Recovered());
+            Assert.Equal((1, 0), SleepingRules.SlotShortfall(colony));
+        }
+    }
+
+    [Fact]
+    public void ABetterBedroomTheJealousColonistCannotReachIsNeverItsSwapTarget()
+    {
+        // The comfort ranking wants the better room for a jealous colonist, but only a bed it can reach is a place to sleep.
+        var (dull, grand) = (new PawnId("dull-owner"), new PawnId("grand-owner"));
+        SleepingBed Solo(string id, string room, PawnId owner, EquatableArray<PawnId> reach) => new()
+        {
+            Native = SleepingNativeFixtures.Bed(id, temperature: 21, owners: [owner], users: [owner], accessibleTo: reach, room: room),
+            Building = SleepingNativeFixtures.Building(id, roofed: true), Humanlike = true, RestEffectiveness = 1,
+        };
+        UpkeepRoom Quality(string id, double impressiveness, string bed) => new()
+        {
+            StatKeys = SleepingNativeFixtures.StatKeys, Native = SleepingNativeFixtures.Room(id, RoomRole.Bedroom, new RoomQuality(30, 0, 0, 0, impressiveness), 20), Beds = [bed],
+        };
+        SleepingObservation Colony(EquatableArray<PawnId> grandReach) => new()
+        {
+            Colonists = 2, People = [Person(dull, "dull-bed"), Person(grand, "grand-bed")],
+            Beds = [Solo("dull-bed", "dull-room", dull, [dull]), Solo("grand-bed", "grand-room", grand, grandReach)],
+            Rooms = [Quality("dull-room", 5, "dull-bed"), Quality("grand-room", 90, "grand-bed")],
+        };
+        var traits = new Dictionary<PawnId, TraitEffects> { [dull] = new TraitEffects { Jealous = true }, [grand] = new TraitEffects() };
+        var suites = new HashSet<string>();
+
+        var (swap, reachable) = RoomQualityRules.NextBedroomSwap(Colony([dull, grand]), traits, suites);
+        Assert.True(reachable);
+        Assert.Equal(("grand-bed", "dull-bed", dull), (swap.Bed, swap.PreviousBed, swap.Pawn));
+        // The grander room does not substitute for a bed the colonist cannot use: no swap is made to it.
+        Assert.False(RoomQualityRules.NextBedroomSwap(Colony([grand]), traits, suites).Ok);
+    }
+
+    [Fact]
     public void APatientHeldInAMedicalBedIsNoFreeSlotAndWantsNoSecondOne()
     {
         var B = new PawnId("b");

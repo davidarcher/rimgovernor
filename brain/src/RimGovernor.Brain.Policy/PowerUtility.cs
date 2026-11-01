@@ -88,22 +88,37 @@ public abstract record UtilityExposure
 }
 
 /// <summary>
+/// A routed constant supply backed by a burner: W watts of the surplus network's output, delivered while its producers burn
+/// ItemsPerDay of Fuel from the colony's one stock of it (TankItems are the items already in their tanks, which join the stock).
+/// </summary>
+public sealed record FuelBackedSupply(Resource Fuel, double ItemsPerDay, double W, double TankItems);
+
+/// <summary>
+/// The colony's stock of one fuel as the comparison sees it: the items on hand that every producer burning it draws on together
+/// (colony stock and the network's tanks), or a fuel the colony can grow, which never runs out.
+/// </summary>
+public readonly record struct FuelSupply(double Items, bool Renewable);
+
+/// <summary>
 /// What an alternative changes once ready: producers, storage and a routed constant supply it adds, the consumers it switches
-/// off or takes over, its cost in capability-days, the days until it is ready (charged as interruption while it is built), how long
-/// after ready the added producers keep running (a finite fuel stock's runway) and whether it clears the network's exposure.
+/// off or takes over, its cost in capability-days, the days until it is ready (charged as interruption while it is built) and
+/// whether it clears the network's exposure. Producers and routed supplies that burn a finite fuel run only while the fuel's
+/// one stock lasts, shared with every producer already burning it. Exposure is the network's exposure once the alternative's
+/// own equipment stands (a rain-vulnerable producer under the same open sky, a joined network's); null leaves it as it is.
 /// </summary>
 public sealed record UtilityEffect
 {
     public IReadOnlyList<PowerProducer> Producers { get; init; } = [];
     public double StorageWD { get; init; }
     public double SupplyW { get; init; }
+    public IReadOnlyList<FuelBackedSupply> FuelSupplies { get; init; } = [];
+    public UtilityExposure? Exposure { get; init; }
     public IReadOnlySet<string> SwitchedOff { get; init; } = new HashSet<string>(StringComparer.Ordinal);
 
     /// <summary>The powered consumers an unpowered provision takes over: their draw leaves the network and their service goes on.</summary>
     public IReadOnlySet<string> Replaced { get; init; } = new HashSet<string>(StringComparer.Ordinal);
     public double CostDays { get; init; }
     public double LeadDays { get; init; }
-    public double RunwayDays { get; init; } = double.PositiveInfinity;
     public bool ClearsExposure { get; init; }
 }
 
@@ -132,6 +147,9 @@ public sealed record UtilityNetwork
     public double ChargeEfficiency { get; init; }
     public bool Eclipse { get; init; }
     public UtilityExposure Exposure { get; init; } = new UtilityExposure.None();
+
+    /// <summary>The stock of every fuel a producer on the network (or an alternative) burns; a fuel it lacks is unread.</summary>
+    public IReadOnlyDictionary<Resource, FuelSupply> Fuels { get; init; } = new Dictionary<Resource, FuelSupply>();
     public double HorizonDays { get; init; } = ColonyModelPolicy.DefaultHorizonDays;
 }
 
@@ -210,10 +228,19 @@ public static class UtilityChoiceRules
     /// Prices every alternative over the network's horizon and picks the cheapest priced one; deferring is the baseline and keeps
     /// ties. Deferring costs the unserved share of the consumers' assessed loss for the whole horizon. An alternative costs its
     /// price, the same interruption until it is ready, then the share it still leaves unserved (the consumers it switches off losing
-    /// their whole day) while its producers run and the base share after their runway. The network's expected common-cause
-    /// outages charge every alternative that does not clear them, deferring included; an unassessed exposure leaves those
-    /// unpriced, and an unpriced deferral is chosen, naming the fact, because nothing can be compared against it. A consumer's
-    /// pending work (InterruptionLoss.PerDay.OnceDays) is charged once, at the share unserved when it is done.
+    /// their whole day) while its producers run. The network's expected common-cause outages charge every alternative that does
+    /// not clear them, deferring included; an unassessed exposure leaves those unpriced, and an unpriced deferral is chosen,
+    /// naming the fact, because nothing can be compared against it. A consumer's pending work (InterruptionLoss.PerDay.OnceDays)
+    /// is charged once, at the share unserved when it is done.
+    /// <para>
+    /// A reserve shares the primary's vulnerability, so it is not credited as if it were independent (RG-HABITAT-008). Fuel: every
+    /// producer burning one fuel draws on that fuel's one stock (<see cref="UtilityNetwork.Fuels"/>), so the stock runs out for the
+    /// existing producers and for the reserve together, sooner than either alone: the deferral already pays the primary's own
+    /// runway, and a reserve on the same fuel avoids none of it. Rain and distribution: a reserve that joins the network keeps the
+    /// exposure the network carries (only an alternative that clears it avoids it), and carries the exposure its own equipment
+    /// adds or the network it joins brings (<see cref="UtilityEffect.Exposure"/>). A shared dependence whose fact is unread (a fuel
+    /// stock, a rain rate, a site's roof) leaves the alternative unpriced naming it, never assumed independent.
+    /// </para>
     /// </summary>
     public static UtilityDecision Choose(UtilityNetwork n, IReadOnlyList<UtilityAlternative> alternatives)
     {
@@ -241,14 +268,13 @@ public static class UtilityChoiceRules
             }
         }
         var total = loss.Values.Sum();
-        var baseShare = UnservedShare(n.Producers, 0, n.StorageWD, demand, n.ChargeEfficiency, n.Eclipse);
-        var defer = Priced(n, new UtilityAlternative(UtilityChoiceKind.Defer, "", new UtilityStanding.Assessed(new UtilityEffect())), loss, once, demand, baseShare, total);
+        var defer = Priced(n, new UtilityAlternative(UtilityChoiceKind.Defer, "", new UtilityStanding.Assessed(new UtilityEffect())), loss, once, demand, total);
         var priced = new List<PricedUtility> { defer };
         var best = defer;
         foreach (var a in alternatives)
         {
             if (a.Kind == UtilityChoiceKind.Defer) throw new DomainException("deferring is the comparison's own baseline");
-            var row = Priced(n, a, loss, once, demand, baseShare, total);
+            var row = Priced(n, a, loss, once, demand, total);
             priced.Add(row);
             if (defer.Price is UtilityPrice.Days { Value: var floor } && row.Price is UtilityPrice.Days { Value: var p } && best.Price is UtilityPrice.Days { Value: var current }
                 && p < Math.Min(floor, current) - Tolerance) best = row;
@@ -256,19 +282,45 @@ public static class UtilityChoiceRules
         return new UtilityDecision([.. priced], best, [.. unassessed]);
     }
 
-    private static PricedUtility Priced(UtilityNetwork n, UtilityAlternative a, IReadOnlyDictionary<string, double> loss, IReadOnlyDictionary<string, double> once, double demand, double baseShare, double total)
+    /// <summary>The fact an unread fuel stock names: the shared dependence the price needs and the wire lacks.</summary>
+    public const string FuelUnreadFact = "shared_exposure:fuel_unread:";
+
+    private static double Outage(UtilityExposure exposure) => exposure is UtilityExposure.Expected { EventsPerDay: var rate, OutageDays: var span } ? rate * span : 0;
+
+    /// <summary>
+    /// When the stock of a finite fuel runs out for the producers already burning it and for the ones the alternative adds: the
+    /// existing burners alone draw it down until the alternative is ready, then both draw it together, so the added burners'
+    /// runway is the stock they share and the existing ones' ends sooner. Infinite for a fuel nobody burns.
+    /// </summary>
+    private static (double Existing, double Effect) Exhaustion(double items, double existingBurn, double effectBurn, double lead)
+    {
+        if (existingBurn <= 0 && effectBurn <= 0) return (double.PositiveInfinity, double.PositiveInfinity);
+        var solo = existingBurn > 0 ? Math.Max(0, items) / existingBurn : double.PositiveInfinity;
+        if (solo <= lead) return (solo, lead);
+        var joint = lead + ((items - (existingBurn * lead)) / (existingBurn + effectBurn));
+        return (joint, joint);
+    }
+
+    private static PricedUtility Priced(UtilityNetwork n, UtilityAlternative a, IReadOnlyDictionary<string, double> loss, IReadOnlyDictionary<string, double> once, double demand, double total)
     {
         if (a.Standing is UtilityStanding.Excluded { Reason: var reason }) return new(a, new UtilityPrice.Unpriced(reason));
         if (a.Standing is UtilityStanding.Unassessed { Fact: var fact }) return new(a, new UtilityPrice.Unpriced(fact));
         var e = ((UtilityStanding.Assessed)a.Standing).Effect;
-        if (!double.IsFinite(e.CostDays) || e.CostDays < 0 || !double.IsFinite(e.LeadDays) || e.LeadDays < 0 || double.IsNaN(e.RunwayDays) || e.RunwayDays < 0
+        if (!double.IsFinite(e.CostDays) || e.CostDays < 0 || !double.IsFinite(e.LeadDays) || e.LeadDays < 0
             || !double.IsFinite(e.StorageWD) || e.StorageWD < 0 || !double.IsFinite(e.SupplyW) || e.SupplyW < 0)
-            throw new DomainException("utility alternative has no finite cost, lead, runway, storage or supply");
+            throw new DomainException("utility alternative has no finite cost, lead, storage or supply");
+        if (n.Producers.Concat(e.Producers).Any(p => !p.Fuel.IsEmpty && !(double.IsFinite(p.FuelPerDay) && p.FuelPerDay >= 0))
+            || e.FuelSupplies.Any(s => !(double.IsFinite(s.ItemsPerDay) && s.ItemsPerDay >= 0 && double.IsFinite(s.W) && s.W >= 0 && double.IsFinite(s.TankItems) && s.TankItems >= 0)))
+            throw new DomainException("utility alternative burns fuel at no finite rate");
         if (!e.ClearsExposure && n.Exposure is UtilityExposure.Unassessed { Fact: var exposed }) return new(a, new UtilityPrice.Unpriced(exposed));
+        // The exposure the network carries once the alternative is ready: cleared, or as its own equipment leaves it.
+        UtilityExposure later = e.ClearsExposure ? new UtilityExposure.None() : e.Exposure ?? n.Exposure;
+        if (later is UtilityExposure.Unassessed { Fact: var shared }) return new(a, new UtilityPrice.Unpriced(shared));
+        if (later is UtilityExposure.Expected { EventsPerDay: var laterRate, OutageDays: var laterSpan } && !(double.IsFinite(laterRate) && laterRate >= 0 && double.IsFinite(laterSpan) && laterSpan >= 0))
+            throw new DomainException("utility exposure has no finite rate or outage");
         var horizon = n.HorizonDays;
         var lead = Math.Min(e.LeadDays, horizon);
         var after = horizon - lead;
-        var runway = Math.Min(after, e.RunwayDays);
         double offLoss = 0, offDraw = 0, replacedLoss = 0;
         foreach (var c in n.Consumers.Where(c => e.Replaced.Contains(c.Building)))
         {
@@ -283,19 +335,39 @@ public static class UtilityChoiceRules
             offOnce += once.GetValueOrDefault(c.Building);
         }
         var remaining = total - offLoss - replacedLoss;
-        var producers = n.Producers.Concat(e.Producers).ToArray();
-        var storage = n.StorageWD + e.StorageWD;
-        var running = UnservedShare(producers, e.SupplyW, storage, demand - offDraw, n.ChargeEfficiency, n.Eclipse);
-        var spent = UnservedShare(n.Producers, e.SupplyW, storage, demand - offDraw, n.ChargeEfficiency, n.Eclipse);
+        // Every producer that burns one fuel draws on its one stock (the existing ones and the alternative's alike), so a reserve
+        // on the primary's fuel adds no runway once the stock is gone and takes the primary's with it.
+        var deaths = new Dictionary<Resource, (double Existing, double Effect)>();
+        foreach (var fuel in n.Producers.Concat(e.Producers).Select(p => p.Fuel).Concat(e.FuelSupplies.Select(s => s.Fuel)).Where(f => !f.IsEmpty).Distinct())
+        {
+            if (!n.Fuels.TryGetValue(fuel, out var supply)) return new(a, new UtilityPrice.Unpriced(FuelUnreadFact + fuel.Value));
+            if (supply.Renewable) continue;
+            if (!double.IsFinite(supply.Items) || supply.Items < 0) throw new DomainException("fuel stock is not finite: " + fuel.Value);
+            deaths[fuel] = Exhaustion(supply.Items + e.FuelSupplies.Where(s => s.Fuel == fuel).Sum(s => s.TankItems),
+                n.Producers.Where(p => p.Fuel == fuel).Sum(p => p.FuelPerDay),
+                e.Producers.Where(p => p.Fuel == fuel).Sum(p => p.FuelPerDay) + e.FuelSupplies.Where(s => s.Fuel == fuel).Sum(s => s.ItemsPerDay), lead);
+        }
+        bool Burning(Resource fuel, bool added, double t) => fuel.IsEmpty || !deaths.TryGetValue(fuel, out var d) || (added ? d.Effect : d.Existing) > t;
+        // The share of the day's demand left unserved at day t of the horizon: before the alternative is ready the network as it
+        // stands, then with its producers, storage and supply, each burner running only while its fuel lasts.
+        double Share(double t) => t < lead
+            ? UnservedShare([.. n.Producers.Where(p => Burning(p.Fuel, false, t))], 0, n.StorageWD, demand, n.ChargeEfficiency, n.Eclipse)
+            : UnservedShare([.. n.Producers.Where(p => Burning(p.Fuel, false, t)).Concat(e.Producers.Where(p => Burning(p.Fuel, true, t)))],
+                e.SupplyW + e.FuelSupplies.Where(s => Burning(s.Fuel, true, t)).Sum(s => s.W), n.StorageWD + e.StorageWD, demand - offDraw, n.ChargeEfficiency, n.Eclipse);
+        double[] edges = [.. new[] { 0, lead, horizon }.Concat(deaths.Values.SelectMany(d => new[] { d.Existing, d.Effect }).Where(t => t > 0 && t < horizon)).Order().Distinct()];
+        double served = 0;
+        for (var i = 0; i + 1 < edges.Length; i++)
+        {
+            var mid = (edges[i] + edges[i + 1]) / 2;
+            served += (edges[i + 1] - edges[i]) * Share(mid) * (mid < lead ? total : remaining);
+        }
         // An outage blacks the whole network out: while it is being built the full loss, after it the consumers still on.
-        var outage = n.Exposure is UtilityExposure.Expected { EventsPerDay: var rate, OutageDays: var span } ? rate * span : 0;
-        var exposure = e.ClearsExposure ? outage * total * lead : outage * ((total * lead) + (remaining * after));
+        var exposure = (Outage(n.Exposure) * total * lead) + (Outage(later) * remaining * after);
         // Pending work is done now, at the start of the window: before a lead it meets the network as it stands, a consumer
         // switched off loses it whole, and the rest meet the alternative's own unserved share.
         var single = once.Values.Sum();
-        var pending = offOnce + ((lead > 0 ? baseShare : running) * (single - offOnce));
-        return new(a, new UtilityPrice.Days(e.CostDays + (baseShare * total * lead) + (offLoss * after) + (running * remaining * runway) + (spent * remaining * (after - runway))
-            + exposure + pending));
+        var pending = offOnce + (Share(0) * (single - offOnce));
+        return new(a, new UtilityPrice.Days(e.CostDays + served + (offLoss * after) + exposure + pending));
     }
 
     /// <summary>

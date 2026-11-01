@@ -335,6 +335,35 @@ public sealed class PowerRestorationTests
         Assert.Equal(starts, work.NativeStarts);
     }
 
+    // (h) A consumer off the network stays unserved after the conduit order: only its observed network membership closes the Need.
+    [Fact]
+    public void AConsumerOffTheNetworkStaysUnservedAfterTheConduitOrderUntilItsMembershipIsObserved()
+    {
+        static PowerFacts Observed(IReadOnlyList<PowerSite> buildings)
+        {
+            var coverage = PowerRules.PowerCoverageOf(buildings);
+            return PowerFacts.From(new ReviewFacts
+            {
+                PowerRequired = coverage.Required, PowerHeadroom = coverage.HeadroomW, DisabledConsumers = coverage.Disabled, PowerWeatherSafe = true,
+            });
+        }
+        Need Basic(PowerFacts facts) => Assert.Single(new PowerFamily().Derive(facts));
+        var generator = PowerBuildingFixtures.Trader("gen", "WoodFiredGenerator", new(2, 3), 1000, 1000, true);
+        // Powered and with spare generation on the net, but joined to no network: the stove cannot draw from it.
+        var apart = PowerBuildingFixtures.Trader("stove", "ElectricStove", new(8, 2), -350, 0, true, network: "");
+        var joined = PowerBuildingFixtures.Trader("stove", "ElectricStove", new(8, 2), -350, 0, true);
+
+        var before = Basic(Observed([generator, apart]));
+        Assert.Equal(PowerFamily.Basic, before.Id);
+        Assert.Equal(Satisfaction.Unmet, before.Satisfaction);
+        // The conduit is ordered (no conduit fact enters the standing), yet the read still shows the stove off the net: unmet,
+        // and the generation on the other network does not cover it.
+        Assert.Equal(Satisfaction.Unmet, Basic(Observed([generator, apart])).Satisfaction);
+        Assert.True(PowerRules.PowerCoverageOf([generator, apart]).HeadroomW < 0);
+        // Only the fresh read that shows the stove on the generator's network closes it.
+        Assert.Equal(Satisfaction.Met, Basic(Observed([generator, joined])).Satisfaction);
+    }
+
     // (g) A refused refuel spends the order's budget: the next review re-derives the refusal from the journal and re-selects.
     [Fact]
     public void ARefusedRefuelSpendsTheBudgetAndTheNextReviewReselects()

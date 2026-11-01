@@ -4,7 +4,10 @@ using RimGovernor.Brain.Store.Codec;
 using Xunit;
 using ActivityAccess = RimGovernor.Brain.GameFacts.Observations.ActivityAccess;
 using ActivityRoom = RimGovernor.Brain.GameFacts.Observations.ActivityRoom;
+using ComfortHost = RimGovernor.Brain.GameFacts.Observations.ComfortHost;
+using DiningSeat = RimGovernor.Brain.GameFacts.Observations.DiningSeat;
 using Engagement = RimGovernor.Brain.GameFacts.Observations.Engagement;
+using RecreationSource = RimGovernor.Brain.GameFacts.Observations.RecreationSource;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -303,6 +306,120 @@ public sealed class ActivitySiteTests
             Benches = [new HostBench("smithy", "Smithy", true, ["MakeKnife"], []), new HostBench("spot", "TestPartySpot", true, [], [])],
         };
         Assert.Empty(PlannedRules.HostRetirementsOf(plan, view, ["MakeKnife"], _ => false, null));
+    }
+
+    private static readonly PlannedActivitySite RitualInHall = new() { Kind = ActivityKind.Ritual, Definition = "TestRitualSpot", NativeRoom = "hall", Anchor = new Cell(1, 1) };
+
+    private static ActivityDemand RitualDemand(params PawnId[] believers) => new()
+    {
+        Kind = ActivityKind.Ritual, Participants = EquatableArray.From(believers), Minimum = 1, Accepted = ["TestRitualSpot"], Place = "TestRitualSpot", Rituals = [Ritual],
+    };
+
+    private static UpkeepRoom HallQuality(double impressiveness) => new()
+    {
+        StatKeys = SleepingNativeFixtures.StatKeys, Native = SleepingNativeFixtures.Room("hall", RoomRole.Room, new RoomQuality(30, 0, 0, 0, impressiveness), 12), Beds = [],
+    };
+
+    private static ForecastCoupledContext RitualContext(double impressiveness) =>
+        ForecastValueTests.Context(ForecastValueTests.Pawn()) with
+        {
+            InvestmentHorizonDays = 10,
+            ActivitySites = new ActivitySiteContext
+            {
+                Demands = [RitualDemand(new PawnId("pawn"))], Sites = [RitualInHall],
+                Access = [new ActivityRoom("hall", 10, [new PawnId("pawn")])], Qualities = [HallQuality(impressiveness)],
+            },
+        };
+
+    [Fact]
+    public void ASitesValueFollowsWhatStandsAroundItItsRoofItsCapacityItsReachAndTheRoomsImpressiveness()
+    {
+        // The roof and the room's use: only an enclosed, roofed, proper room that is no one's rest or prison is offered a spot.
+        var den = Room("den", 5);
+        var open = (Room: RoomFixtures.State("open", roofed: false), Cells: new[] { new Cell(9, 1), new Cell(10, 1) });
+        var bedroom = Room("bedroom", 13, RoomRole.Bedroom);
+        var ask = Ask(Party(), [den, open, bedroom], [new("den", 10, Four), new("open", 10, Four), new("bedroom", 10, Four)]);
+        Assert.Equal(["den"], Assert.Single(ask.Kinds).Rooms.Cast<ActivityPlacement.InRoom>().Select(r => r.Room));
+
+        // Capacity and reach: the same spot earns the attendee in a room with space and reach, nothing where there is no
+        // standing room or the participant cannot reach it.
+        var pawn = new PawnId("pawn");
+        Assert.Single(SiteRows(SiteContext(InHall, new ActivityRoom("hall", 10, [pawn]))));
+        Assert.Empty(SiteRows(SiteContext(InHall, new ActivityRoom("hall", 0, [pawn]))));
+        Assert.Empty(SiteRows(SiteContext(InHall, new ActivityRoom("hall", 10, []))));
+
+        // A ritual's surroundings: the same believer at the same spot expects more from a more impressive room.
+        var plain = Assert.Single(ForecastActivitySites.Gains(RitualContext(0))).Delta;
+        var grand = Assert.Single(ForecastActivitySites.Gains(RitualContext(100))).Delta;
+        Assert.True(grand > plain, $"{grand} should exceed {plain}");
+        // A room whose quality was never read leaves the ritual unassessed naming the room.
+        var unread = RitualContext(100) with { ActivitySites = RitualContext(100).ActivitySites with { Qualities = [] } };
+        Assert.Equal("activity_room_quality:hall", Assert.Throws<RequiredFactException>(() => ForecastActivitySites.Gains(unread)).Fact);
+    }
+
+    [Fact]
+    public void AnActivityInARoomOthersUseCostsThoseUsersTheGatheringAndAnIdleRoomCostsNobody()
+    {
+        var (a, b, c) = (new PawnId("a"), new PawnId("b"), new PawnId("c"));
+        // The room's other uses: each distinct user of a dining seat or recreation source in it, plus one for a work room.
+        var comfort = ComfortTests.NoComfort with
+        {
+            Dining = [new DiningSeat("chair", "hall", [a, b, c], [a, b])],
+            Recreation = [new RecreationSource("chess", "Gaming_Cerebral", new ComfortHost.Indoors("hall"), [b, c], [b, c])],
+        };
+        var uses = ActivitySiteRules.CompetingUses(comfort, Census([Room("hall", 1, RoomRole.Workshop), Room("den", 5)]));
+        var only = Assert.Single(uses);
+        Assert.Equal(("hall", 3 + 1), (only.Key, only.Value));
+
+        // The loss is priced to the room the spot stands in and to no idle one.
+        var pawn = new PawnId("pawn");
+        var reach = new ActivityRoom("hall", 10, [pawn]);
+        var quiet = SiteContext(InHall, reach);
+        var contested = quiet with { ActivitySites = quiet.ActivitySites with { Uses = uses } };
+        var loss = Assert.Single(ForecastActivitySites.Gains(contested), g => g.Loss != 0);
+        Assert.Equal(("hall/uses", 4 * ForecastActivitySites.GatheringDays / ForecastActivitySites.PartyIntervalDays), (loss.Site, loss.Loss));
+        Assert.DoesNotContain(ForecastActivitySites.Gains(quiet), g => g.Loss != 0);
+        var idle = SiteContext(InHall with { NativeRoom = "den" }, new ActivityRoom("den", 10, [pawn]));
+        Assert.DoesNotContain(ForecastActivitySites.Gains(idle with { ActivitySites = idle.ActivitySites with { Uses = uses } }), g => g.Loss != 0);
+
+        // The ledger carries it as a positive row beside the attendee's gain, so a busy room is a worse place for the same party.
+        var rows = SiteRows(contested);
+        Assert.Contains(rows, r => r.Key.Contains("/hall/uses", StringComparison.Ordinal) && r.Value > 0);
+        Assert.Contains(rows, r => r.Pawn == "pawn" && r.Value < 0);
+        Assert.DoesNotContain(SiteRows(quiet), r => r.Value > 0);
+    }
+
+    [Fact]
+    public async Task AnActivityNobodyCanAttendEarnsNothingAndIsNotBuiltWhileAnUnreadReachIsUnassessedNotZero()
+    {
+        var nobody = OnePawn with { Participants = [] };
+        // A colony too small for a party has no demand, so no site is offered or owed.
+        Assert.Empty(ActivitySiteRules.Demands(Access([A, B, C]), Defs, new WorshipFacts()));
+        Assert.Empty(ActivitySiteRules.Demands(Access([A]), Defs, new WorshipFacts()));
+        Assert.Empty(ActivitySiteRules.States([], Construction(), Census([Room("hall", 1)]), new LayoutPlan(), _ => new HashSet<string>()));
+
+        // A site whose demand names no participant earns nothing at an existing room or a new one: a known zero, no exception.
+        ForecastCoupledContext Context(PlannedActivitySite site, ActivityRoom access)
+        {
+            var context = SiteContext(site, access);
+            return context with { ActivitySites = context.ActivitySites with { Demands = [nobody] } };
+        }
+        var hall = new ActivityRoom("hall", 10, [new PawnId("pawn")]);
+        Assert.Empty(ForecastActivitySites.Gains(Context(InHall, hall)));
+        Assert.Empty(SiteRows(Context(InHall, hall)));
+        Assert.Empty(SiteRows(Context(InNewRoom, hall)));
+
+        // So the comparator values a spot exactly as no spot, they tie, and the baseline keeps no site.
+        var tied = await Compare(Inputs(), sites => sites.Sum(s => SiteRows(Context(s is ActivityPlacement.NewRoom ? InNewRoom : InHall, hall)).Sum(r => r.Value)));
+        Assert.Empty(tied.Sites);
+
+        // An unread reach, memory or site list is not a known zero: the same site is unassessed naming the missing fact.
+        Assert.Equal("activity_room_reach:hall", Assert.Throws<RequiredFactException>(() => SiteRows(SiteContext(InHall, hall with { Room = "den" }))).Fact);
+        Assert.Equal(ForecastActivitySites.PartyThought,
+            Assert.Throws<RequiredFactException>(() => SiteRows(SiteContext(InNewRoom, hall, new AttendedThought.Unread(ForecastActivitySites.PartyThought)))).Fact);
+        var unreadDemand = Assert.Single(ActivitySiteRules.Demands(Access(Four), Defs with { PartySpots = new SiteDefsRead.Unread("gathering_def:Party") }, new WorshipFacts()));
+        Assert.Equal(new ActivitySiteState.Unplanned(ActivityKind.Party, "gathering_def:Party"),
+            Assert.Single(ActivitySiteRules.States([unreadDemand], Construction(), Census([Room("hall", 1)]), new LayoutPlan(), _ => new HashSet<string>())));
     }
 
     [Fact]

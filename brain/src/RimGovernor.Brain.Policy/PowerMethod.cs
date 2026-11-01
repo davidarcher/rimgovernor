@@ -106,6 +106,9 @@ public sealed record GeneratorOption
 
     /// <summary>The producer's catalog wattage.</summary>
     public double NominalW { get; init; }
+
+    /// <summary>Whether the def short-circuits in rain (CompProperties_Power.shortCircuitInRain): placed unroofed, it joins the rain exposure.</summary>
+    public bool RainVulnerable { get; init; }
 }
 
 /// <summary>
@@ -123,6 +126,9 @@ public sealed record GeneratorRow
     public long FuelCapacity { get; init; }
 
     public double FuelItemsPerDay { get; init; }
+
+    /// <summary>Whether the def short-circuits in rain (CompProperties_Power.shortCircuitInRain).</summary>
+    public bool RainVulnerable { get; init; }
 }
 
 /// <summary>
@@ -179,6 +185,13 @@ public sealed record PowerPlanning
     /// shows (PowerValuationRules.Valuation).
     /// </summary>
     public PowerValuation Valuation { get; init; } = new();
+
+    /// <summary>
+    /// The colony stock (and whether the colony can grow it) of each fuel a refuelable producer on the map burns: the one stock
+    /// every producer burning it draws on together. A producer's fuel it lacks is unread, naming it (shared_exposure:fuel_unread).
+    /// A generator option's own fuel joins it where this does not list the fuel.
+    /// </summary>
+    public IReadOnlyDictionary<Resource, FuelSupply> Fuels { get; init; } = new Dictionary<Resource, FuelSupply>();
 
     /// <summary>The map's rain rate now, held over the horizon: what an exposed network's rain short circuits scale with (RainShortCircuitRules).</summary>
     public PowerRain Rain { get; init; } = new PowerRain.Unread("rain rate");
@@ -272,7 +285,7 @@ public static partial class PowerRules
                 throw new DomainException($"generator {name} has no catalog power source profile");
             }
             RequirePowerProfile(profile);
-            var option = new GeneratorOption { Definition = name, Available = available(name), Profile = profile, NominalW = row.NominalW };
+            var option = new GeneratorOption { Definition = name, Available = available(name), Profile = profile, NominalW = row.NominalW, RainVulnerable = row.RainVulnerable };
             if (row.Fuels.Count != 0)
             {
                 var fuel = row.Fuels.Select(fuel => new { Fuel = fuel, Stock = stock(fuel), Renewable = renewable(fuel) })
@@ -467,6 +480,7 @@ public static partial class PowerRules
             var connectedProducers = 0;
             bool restoringProducer = false, flicking = false;
             var live = new List<PowerProducer>();
+            var tanks = new Dictionary<Resource, double>();
             var consumers = new List<PowerSite>();
             var idleProducers = new List<string>();
             foreach (var b in v.Buildings)
@@ -499,7 +513,9 @@ public static partial class PowerRules
                         throw new DomainException($"power producer {b.Definition} has no catalog power source profile");
                     }
                     RequirePowerProfile(profile);
-                    live.Add(new PowerProducer { NominalW = w, Profile = profile });
+                    var (burner, tank) = BurnerOf(b, planning);
+                    live.Add(new PowerProducer { NominalW = w, Profile = profile, Fuel = burner.Fuel, FuelPerDay = burner.FuelPerDay });
+                    if (!burner.Fuel.IsEmpty) tanks[burner.Fuel] = tanks.GetValueOrDefault(burner.Fuel) + tank;
                     restoringProducer = restoringProducer || b.Unfueled || b.BrokenDown;
                 }
             }
@@ -512,11 +528,11 @@ public static partial class PowerRules
             }
             var geyser = ReachableGeyser(target.Cell, v.Geysers, route, existing);
             var generate = planning.Generators.Select(o => GenerateAlternative(o, planning, openSky, geyser)).ToList();
-            var n = UtilityNetworkOf(name, consumers, live, storage, v.Eclipse, planning, generate, Switchable);
+            var n = UtilityNetworkOf(name, consumers, live, storage, v.Eclipse, planning, generate, Switchable) with { Fuels = FuelStocks(planning, tanks) };
             var exposed = v.Buildings.Where(b => Same(b) && b.RainVulnerable && !b.Roofed).OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
             n = n with
             {
-                Exposure = RainShortCircuitRules.Exposure([.. exposed.Select(b => (b.Service.Power is RimGovernor.Brain.GameFacts.Observations.BuildingPower.Battery, b.StorageWD, b.Powered))],
+                Exposure = RainShortCircuitRules.Exposure([.. RainMembers(exposed)],
                     vulnerable, planning.Rain, n.Consumers.Sum(c => c.DrawW)),
             };
             var unserved = UtilityChoiceRules.UnservedWD(live, 0, storage, n.Consumers.Sum(c => c.DrawW), planning.Battery.Efficiency, v.Eclipse);
@@ -788,7 +804,8 @@ public static partial class PowerRules
     /// One generator as an alternative: excluded when unavailable (research, content or builder), a solar generator with no
     /// unroofed routeable cell or no daylight this twelfth, a geothermal generator with no free geyser a conduit path reaches,
     /// or a finite fuel the colony holds none of; unassessed while its piece is unpriced or a finite fuel's burn rate is unread.
-    /// A finite fuel runs for its stock over its burn rate; a geothermal generator's price and lead carry its path's conduits.
+    /// A finite fuel runs out with the colony's one stock of it, shared with every producer already burning it (UtilityChoiceRules.Choose);
+    /// a geothermal generator's price and lead carry its path's conduits.
     /// </summary>
     private static UtilityAlternative GenerateAlternative(GeneratorOption o, PowerPlanning planning, bool openSky, (PowerGeyser Geyser, int Conduits)? geyser)
     {
@@ -800,12 +817,10 @@ public static partial class PowerRules
         if (o.Profile.Solar && !openSky) return Of(new UtilityStanding.Excluded("no_open_sky"));
         if (o.Profile.Solar && planning.DaylightHours <= 0) return Of(new UtilityStanding.Excluded("no_daylight"));
         if (o.Profile.Steam && geyser is null) return Of(new UtilityStanding.Excluded("no_free_geyser"));
-        var runway = double.PositiveInfinity;
         if (!o.Fuel.IsEmpty && !o.FuelRenewable)
         {
             if (o.FuelStock <= 0) return Of(new UtilityStanding.Excluded("no_fuel:" + o.Fuel.Value));
             if (!double.IsFinite(o.FuelPerDay) || o.FuelPerDay <= 0) return Of(new UtilityStanding.Unassessed("fuel burn rate:" + def));
-            runway = o.FuelStock / o.FuelPerDay;
         }
         if (!planning.Valuation.Pieces.TryGetValue(def, out var piece)) return Of(new UtilityStanding.Unassessed(BuildPriceFact + def));
         double cost = piece.CostDays, lead = piece.LeadDays;
@@ -818,8 +833,65 @@ public static partial class PowerRules
         }
         return Of(new UtilityStanding.Assessed(new UtilityEffect
         {
-            Producers = [new PowerProducer { NominalW = o.NominalW, Profile = o.Profile }], CostDays = cost, LeadDays = lead, RunwayDays = runway,
+            Producers = [new PowerProducer { NominalW = o.NominalW, Profile = o.Profile, Fuel = o.Fuel, FuelPerDay = o.FuelPerDay }], CostDays = cost, LeadDays = lead,
         }));
+    }
+
+    /// <summary>The rain-exposed members the short-circuit roll prices: each one's stored energy (a battery) and whether it can short now.</summary>
+    private static IEnumerable<(bool Battery, double StoredWD, bool On)> RainMembers(IEnumerable<PowerSite> members) =>
+        members.OrderBy(b => b.Id, StringComparer.Ordinal).Select(b => (b.Service.Power is RimGovernor.Brain.GameFacts.Observations.BuildingPower.Battery, b.StorageWD, b.Powered));
+
+    /// <summary>
+    /// A generator that short-circuits in rain joins the network's rain exposure as a reserve under the same sky: the exposure
+    /// with it standing. A solar generator stands on an unroofed cell, so its member is exposed; any other rain-vulnerable
+    /// candidate's site is chosen at placement, so its roof is unread and the alternative is unpriced naming it. A def that does
+    /// not short in rain leaves the exposure as it is.
+    /// </summary>
+    private static UtilityAlternative WithRain(UtilityAlternative alternative, List<PowerSite> exposed, int vulnerable, double demandW, PowerPlanning planning)
+    {
+        if (alternative.Standing is not UtilityStanding.Assessed { Effect: var effect }) return alternative;
+        var option = planning.Generators.Single(o => o.Definition == alternative.Subject);
+        if (!option.RainVulnerable) return alternative;
+        UtilityExposure exposure = option.Profile.Solar
+            ? RainShortCircuitRules.Exposure([.. RainMembers(exposed), (false, 0, true)], vulnerable + 1, planning.Rain, demandW)
+            : new UtilityExposure.Unassessed(RainSiteUnreadFact + option.Definition);
+        return alternative with { Standing = new UtilityStanding.Assessed(effect with { Exposure = exposure }) };
+    }
+
+    /// <summary>The fact an unroofed-or-not candidate site names: where the generator will stand is chosen at placement.</summary>
+    public const string RainSiteUnreadFact = "shared_exposure:rain_site_unread:";
+
+    /// <summary>
+    /// A refuelable producer's burner: the fuel it draws on (the accepted fuel the colony holds, else the first it accepts, as the
+    /// refuel work picks it) and the items it burns a day running (the building's own difficulty-adjusted burn over its fuel
+    /// units per item), with the items already in its tank. A fuel-free producer burns nothing.
+    /// </summary>
+    private static (PowerProducer Burner, double TankItems) BurnerOf(PowerSite b, PowerPlanning planning)
+    {
+        if (b.Fuel is not RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable tank || b.FuelDefinitions.Count == 0) return (new PowerProducer(), 0);
+        var burn = tank.Burn;
+        if (!double.IsFinite(burn.UnitsPerItem) || burn.UnitsPerItem <= 0 || !double.IsFinite(burn.PerDay) || burn.PerDay < 0 || !double.IsFinite(tank.Fuel) || tank.Fuel < 0)
+            throw new DomainException($"invalid fuel burn of power producer {b.Id}");
+        var fuel = b.FuelDefinitions.Select(d => new Resource(d)).FirstOrDefault(f => planning.Fuels.TryGetValue(f, out var supply) && supply.Items > 0);
+        if (fuel.IsEmpty) fuel = new Resource(b.FuelDefinitions[0]);
+        return (new PowerProducer { Fuel = fuel, FuelPerDay = burn.PerDay / burn.UnitsPerItem }, tank.Fuel / burn.UnitsPerItem);
+    }
+
+    /// <summary>
+    /// The one stock of each fuel the network's producers and the candidate generators burn: the colony stock the plan reads
+    /// (the planning's, else the generator option's own) plus the items in the network's tanks, which the producers burn first.
+    /// A fuel the plan does not read is absent, so any price that needs it is unread.
+    /// </summary>
+    private static Dictionary<Resource, FuelSupply> FuelStocks(PowerPlanning planning, IReadOnlyDictionary<Resource, double> tanks)
+    {
+        var stocks = new Dictionary<Resource, FuelSupply>();
+        foreach (var o in planning.Generators.Where(o => !o.Fuel.IsEmpty)) stocks[o.Fuel] = new(o.FuelStock, o.FuelRenewable);
+        foreach (var (fuel, supply) in planning.Fuels) stocks[fuel] = supply;
+        foreach (var (fuel, items) in tanks)
+        {
+            if (stocks.TryGetValue(fuel, out var supply)) stocks[fuel] = supply with { Items = supply.Items + items };
+        }
+        return stocks;
     }
 
     /// <summary>
@@ -832,6 +904,8 @@ public static partial class PowerRules
         IReadOnlyList<SiteCell> cells, HashSet<Cell> blocked, Bounds bounds)
     {
         var alternatives = new List<UtilityAlternative> { UtilityChoiceRules.Configuration(n) };
+        var vulnerable = v.Buildings.Count(b => b.RainVulnerable);
+        var demand = n.Consumers.Sum(c => c.DrawW);
         var routes = new Dictionary<string, List<Cell>>(StringComparer.Ordinal);
         var conduitName = Wire.Name(PowerMethod.Connect);
         foreach (var other in v.Networks.Where(net => net.Id != n.Network && net.GenerationW - net.ConsumptionW > 0).OrderBy(net => net.Id, StringComparer.Ordinal))
@@ -845,14 +919,24 @@ public static partial class PowerRules
             }
             var connect = path.Where(c => !existing.Contains(c) && !destinations.Contains(c)).ToList();
             routes[other.Id] = connect;
+            // The route joins the two networks: the merged network carries both's rain exposure, and the surplus is delivered by
+            // the other network's producers, which burn the colony's one stock of their fuel beside this network's.
+            var surplus = other.GenerationW - other.ConsumptionW;
+            var joined = RainShortCircuitRules.Exposure([.. RainMembers(exposed), .. RainMembers(v.Buildings.Where(b => b.Connected && b.Network == other.Id && b.RainVulnerable && !b.Roofed))],
+                vulnerable, planning.Rain, demand + other.ConsumptionW);
+            var fed = producers.Where(b => b.Connected && b.Network == other.Id).Select(b => (Nominal: b.BaseW, Burner: BurnerOf(b, planning))).ToArray();
+            var fedW = fed.Sum(f => f.Nominal);
+            var backed = fed.Where(f => !f.Burner.Burner.Fuel.IsEmpty).GroupBy(f => f.Burner.Burner.Fuel)
+                .Select(g => new FuelBackedSupply(g.Key, g.Sum(f => f.Burner.Burner.FuelPerDay), surplus * g.Sum(f => f.Nominal) / fedW, g.Sum(f => f.Burner.TankItems))).ToArray();
             alternatives.Add(new(UtilityChoiceKind.Route, other.Id, !planning.Valuation.Pieces.TryGetValue(conduitName, out var conduit)
                 ? new UtilityStanding.Unassessed(BuildPriceFact + conduitName)
                 : new UtilityStanding.Assessed(new UtilityEffect
                 {
-                    SupplyW = other.GenerationW - other.ConsumptionW, CostDays = conduit.CostDays * connect.Count, LeadDays = conduit.LeadDays * connect.Count,
+                    SupplyW = surplus - backed.Sum(s => s.W), FuelSupplies = backed, Exposure = joined,
+                    CostDays = conduit.CostDays * connect.Count, LeadDays = conduit.LeadDays * connect.Count,
                 })));
         }
-        alternatives.AddRange(generate);
+        alternatives.AddRange(generate.Select(g => WithRain(g, exposed, vulnerable, demand, planning)));
         alternatives.Add(new(UtilityChoiceKind.Store, PowerRules.BatteryDefinition, !planning.BatteryAvailable
             ? new UtilityStanding.Excluded("unavailable:" + PowerRules.BatteryDefinition)
             : !planning.Valuation.Pieces.TryGetValue(PowerRules.BatteryDefinition, out var battery)

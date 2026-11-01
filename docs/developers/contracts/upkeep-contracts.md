@@ -321,8 +321,8 @@ or second demand owner is introduced. See [roof preparation](pawn-activities.md#
   census stops measuring its option.
 - No concern owns fire. A home fire neither raises a need nor pauses development work;
   native firefighting answers it.
-- Methods inspect at most eight targets and eight enabled, available workers per
-  review; stable IDs break ties. Medicine and rot deadlines rank hauling; native medical
+- Methods consider every target and every enabled, available worker in a review;
+  stable IDs break ties. Medicine and rot deadlines rank hauling; native medical
   beds, temperature controls and generators lead repairs, then roof holders, beds and
   worktables; relative damage ranks within a category before cosmetic repairs.
 - No concern owns cleaning. Vanilla cleans the home area under each colonist's Cleaning

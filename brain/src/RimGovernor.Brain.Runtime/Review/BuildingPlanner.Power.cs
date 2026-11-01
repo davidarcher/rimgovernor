@@ -29,9 +29,14 @@ public sealed partial class BuildingPlanner
         var crops = FieldPlanner.CropChoices(facts);
         var biome = facts.Facts.CropClimate.Biome;
         var skill = TreePlantationRules.GrowerSkill(facts.Facts.ForecastObserved.WorkPawns);
-        var generators = ColonyPlanningRules.GeneratorOptions(facts.Facts, ResourceStockRules.Count(facts.Snapshot.Resources), fuel => TreePlantationRules.ResourceGrowable(crops, fuel, biome, skill));
+        var stock = ResourceStockRules.Count(facts.Snapshot.Resources);
+        bool Growable(Resource fuel) => TreePlantationRules.ResourceGrowable(crops, fuel, biome, skill);
+        var generators = ColonyPlanningRules.GeneratorOptions(facts.Facts, stock, Growable);
         planning = planning with
         {
+            // Every fuel a refuelable producer on the map burns: the one stock the producers burning it draw on together.
+            Fuels = facts.Facts.EssentialInputs.Power.Buildings.SelectMany(b => b.FuelDefinitions).Select(d => new Resource(d)).Distinct()
+                .ToDictionary(fuel => fuel, fuel => new FuelSupply(stock.GetValueOrDefault(fuel), Growable(fuel))),
             Generators = generators.Select(option => option with { Available = option.Available && ComfortBuilderAvailable(facts, option.Definition) }).ToList(),
             DaylightHours = facts.Facts.Gear.Climate.DaylightHoursIn(facts.Facts.Gear.Climate.CurrentTwelfth),
             Sources = facts.Facts.PowerSources,

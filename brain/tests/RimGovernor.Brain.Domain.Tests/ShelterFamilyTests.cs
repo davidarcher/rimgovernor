@@ -72,6 +72,38 @@ public sealed class ShelterFamilyTests
     }
 
     [Fact]
+    public void ASleepingRoomOutOfBandStaysDeficientAfterTheHeatingOrderUntilTheThermalReadShowsItInBand()
+    {
+        static ShelterFacts Read(ReviewFacts facts) => ShelterFacts.From(facts, Rules.DefaultPlannerSettings()) with { SafeAreaOwed = SafeAreaStatus.Clear };
+        ReviewFacts Reviewed(double coldest, double warmest, bool owed)
+        {
+            var facts = WorkResourceTestFacts.Create("pawn");
+            return facts with
+            {
+                Census = facts.Census with { SleepingTemperature = new RimGovernor.Brain.GameFacts.Observations.SleepingTemperature.Indoor(coldest, warmest), OutdoorTemperatureC = 15 },
+                TemperatureOwed = owed,
+            };
+        }
+        var bars = Read(Reviewed(20, 22, false));
+        var (cold, hot) = (bars.ColdExit, bars.HotExit);
+        Assert.True(cold < 20 && hot > 22, "the fixture's in-band read must sit inside the season's band");
+
+        // Before the order the room is below the band and the heating is owed; the Need is unmet.
+        Assert.Equal(Satisfaction.Unmet, Of(Read(Reviewed(cold - 5, 22, true)), ShelterFamily.Temperature).Satisfaction);
+        // The order is placed: nothing is owed any more (the work is in flight), yet the read still shows the room cold, so the
+        // Need stays unmet with its whole deficit; an accepted order restores no temperature.
+        var ordered = Of(Read(Reviewed(cold - 5, 22, false)), ShelterFamily.Temperature);
+        Assert.Equal((Satisfaction.Unmet, 1.0), (ordered.Satisfaction, ordered.Deficit));
+        // The same for a cooling order on the hot side.
+        Assert.Equal(Satisfaction.Unmet, Of(Read(Reviewed(20, hot + 5, false)), ShelterFamily.Temperature).Satisfaction);
+        // Only the fresh thermal read inside the band closes it.
+        Assert.Equal(Satisfaction.Met, Of(Read(Reviewed(cold, hot, false)), ShelterFamily.Temperature).Satisfaction);
+        // A colony with no measured sleeping room reads the outdoor temperature, which does not stand for a warmed room.
+        var unmeasured = Reviewed(20, 22, false) with { Census = Reviewed(20, 22, false).Census with { SleepingTemperature = new RimGovernor.Brain.GameFacts.Observations.SleepingTemperature.NoIndoorBed(), OutdoorTemperatureC = cold - 5 } };
+        Assert.Equal(Satisfaction.Unmet, Of(Read(unmeasured), ShelterFamily.Temperature).Satisfaction);
+    }
+
+    [Fact]
     public void SafeAreaIsSeriousHarmAndRunsInTheImmediatePass()
     {
         var need = Of(Housed with { SafeAreaOwed = SafeAreaStatus.Edits }, ShelterFamily.SafeArea);

@@ -341,12 +341,9 @@ public sealed class PowerUtilityTests
         Assert.Equal(share * ((3 + 0.04) * ColonyModelPolicy.DefaultHorizonDays + lost), deferred, 9);
     }
 
-    // (g) The passive provision is filled from the colony's own thermal read: a summer bedroom held at 21 by a wall cooler, with
-    // a passive cooler available, gets the passive cooler's steady temperature where the cooler's cold side stands (the room's
-    // balance without the powered cooler, with the burner's push added), its sleeper's band and its piece plus a horizon of fuel;
-    // on the short network it beats the generator.
-    [Fact]
-    public void APassiveCoolerIsFilledFromTheThermalReadAndBeatsAGenerator()
+    // A summer bedroom held at 21 by a wall cooler in a 3x3 room, with a passive cooler (the burner pushing `push` heat a second,
+    // none below 17) available: the review's facts, the powered cooler and the burner's fuel.
+    private static (ReviewFacts Facts, PowerSite Cooler, Resource Wood) CoolerRoom(double push)
     {
         var wood = new Resource("WoodLog");
         var interior = Enumerable.Range(1, 3).SelectMany(x => Enumerable.Range(1, 3).Select(z => new Cell(x, z))).ToArray();
@@ -362,7 +359,7 @@ public sealed class PowerUtilityTests
         };
         var passive = new TemperatureDefinition
         {
-            Name = "PassiveCooler", HeatPerSecond = -11, PowerW = 0, MinimumC = 17, MaximumC = 100, Wall = false, Controlled = false, BuildValue = 0,
+            Name = "PassiveCooler", HeatPerSecond = push, PowerW = 0, MinimumC = 17, MaximumC = 100, Wall = false, Controlled = false, BuildValue = 0,
             Fuels = [wood], FuelItemsPerDay = 10,
         };
         var powered = new TemperatureDefinition
@@ -385,6 +382,17 @@ public sealed class PowerUtilityTests
                 WorkPawns = new WorkPawnsRead(EquatableArray.From<WorkPawn>([PawnFixtures.Worker("pawn") with { Work = PawnFixtures.WorkTable(true, [new() { Observed = new() { DefName = "Construction", Priority = 1, Disabled = false } }]) }])),
             },
         };
+        return (facts, cooler, wood);
+    }
+
+    // (g) The passive provision is filled from the colony's own thermal read: a summer bedroom held at 21 by a wall cooler, with
+    // a passive cooler available, gets the passive cooler's steady temperature where the cooler's cold side stands (the room's
+    // balance without the powered cooler, with the burner's push added), its sleeper's band and its piece plus a horizon of fuel;
+    // on the short network it beats the generator.
+    [Fact]
+    public void APassiveCoolerIsFilledFromTheThermalReadAndBeatsAGenerator()
+    {
+        var (facts, cooler, wood) = CoolerRoom(-11);
         Assert.Equal(1, LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns));
         var values = new Dictionary<Resource, ConstructionMaterialValue> { [wood] = new(MaterialValueBasis.Labor, 0.001) };
 
@@ -407,5 +415,201 @@ public sealed class PowerUtilityTests
         };
         var chosen = Select(v, Row(0, 14), planning);
         Assert.Equal((PowerMethod.Passive, "PassiveCooler", new Cell(2, 4)), (chosen.Method, chosen.Definition, chosen.Center));
+    }
+
+    // The in-band decision is the thermal read's, not a constant: the same room with a strong burner settles at the burner's
+    // 17 inside the sleeper's 10-26 band and the passive cooler replaces the powered one; with a weak burner the same room's
+    // balance settles near the outdoors, the provision is excluded out of band and the network builds or defers instead.
+    [Fact]
+    public void ThePassiveCoolersInBandDecisionFollowsTheSteadyTemperatureTheThermalReadGives()
+    {
+        PowerProposal Decide(double push, out PassiveSteady steady)
+        {
+            var (facts, cooler, wood) = CoolerRoom(push);
+            var valuation = PowerValuationRules.Valuation(facts, [], new Dictionary<Resource, ConstructionMaterialValue> { [wood] = new(MaterialValueBasis.Labor, 0.001) });
+            steady = Assert.Single(valuation.Passive).Steady;
+            var v = new PowerTopology { Buildings = [Site("gen", Wood, new(10, 2), 500), cooler, Site("bench", "TableSculpting", new(12, 2), -400)] };
+            return Select(v, Row(0, 14), Base with
+            {
+                Generators = [WoodOption()],
+                Valuation = Valuation([("cooler", UtilityService.Sleep, 20), ("bench", UtilityService.Workshop, 5)], Piece(Wood, 10, 1)) with { Passive = valuation.Passive },
+            });
+        }
+
+        var strong = Decide(-11, out var inBand);
+        Assert.Equal(17, Assert.IsType<PassiveSteady.Read>(inBand).TemperatureC, 6);
+        Assert.Equal(PowerMethod.Passive, strong.Method);
+        var passive = Assert.Single(strong.Decision!.Alternatives, a => a.Alternative.Kind == UtilityChoiceKind.Passive).Alternative;
+        Assert.Equal(new HashSet<string> { "cooler" }, Assert.IsType<UtilityStanding.Assessed>(passive.Standing).Effect.Replaced);
+
+        var weak = Decide(-0.05, out var outOfBand);
+        Assert.True(Assert.IsType<PassiveSteady.Read>(outOfBand).TemperatureC > 26);
+        Assert.NotEqual(PowerMethod.Passive, weak.Method);
+        Assert.Equal(new UtilityStanding.Excluded("passive_out_of_band"), Assert.Single(weak.Decision!.Alternatives, a => a.Alternative.Kind == UtilityChoiceKind.Passive).Alternative.Standing);
+    }
+
+    private static readonly Resource WoodLog = new("WoodLog");
+    private static readonly Resource Chemfuel = new("Chemfuel");
+
+    private static PowerProducer Burner(Resource fuel) => new() { NominalW = 1000, Profile = PowerRules.ConstantPowerProfile, Fuel = fuel, FuelPerDay = 20 };
+
+    private static UtilityAlternative Reserve(string subject, Resource fuel) =>
+        new(UtilityChoiceKind.Generate, subject, new UtilityStanding.Assessed(new UtilityEffect { Producers = [Burner(fuel)], CostDays = 1 }));
+
+    // A 2000 W stove worth 10 capability-days a day on a 1000 W wood generator: half its day goes unserved while the wood lasts.
+    private static UtilityNetwork FuelNetwork(double woodItems, bool renewable = false) => new()
+    {
+        Network = "net", Producers = [Burner(WoodLog)], ChargeEfficiency = 0.5,
+        Consumers = [new("stove", 2000, UtilityService.Workshop, new InterruptionLoss.PerDay(10))],
+        Fuels = new Dictionary<Resource, FuelSupply> { [WoodLog] = new(woodItems, renewable), [Chemfuel] = new(400, false) },
+    };
+
+    // A second wood generator draws on the stock the first burns: together they burn it in half the days, then both are gone, so
+    // the reserve avoids none of the primary's interruption (it costs more than deferring by exactly its build cost). A generator
+    // on another fuel keeps running after the wood is gone and wins; a fuel the colony can grow never runs out.
+    [Fact]
+    public void ASecondGeneratorOnTheSameFuelStockIsNotCreditedTheFuelRunwayItShares()
+    {
+        const double H = ColonyModelPolicy.DefaultHorizonDays;
+        var n = FuelNetwork(200);
+
+        var decision = UtilityChoiceRules.Choose(n, [Reserve("WoodTwo", WoodLog), Reserve("ChemOne", Chemfuel)]);
+
+        // Deferring: half unserved for the 10 days the stock lasts, all of it after.
+        var defer = Days(decision.Alternatives.Single(a => a.Alternative.Kind == UtilityChoiceKind.Defer));
+        Assert.Equal((0.5 * 10 * 10) + ((H - 10) * 10), defer, 6);
+        // The same-fuel reserve serves everything for the 5 days the stock lasts for both, then nothing.
+        var same = Days(decision.Alternatives.Single(a => a.Alternative.Subject == "WoodTwo"));
+        Assert.Equal(1 + ((H - 5) * 10), same, 6);
+        Assert.Equal(defer + 1, same, 6);
+        // The other fuel serves everything for the 10 days the wood lasts, half until its 20 days end, then nothing.
+        var other = Days(decision.Alternatives.Single(a => a.Alternative.Subject == "ChemOne"));
+        Assert.Equal(1 + (0.5 * 10 * 10) + ((H - 20) * 10), other, 6);
+        Assert.Equal((UtilityChoiceKind.Generate, "ChemOne"), (decision.Kind, decision.Chosen.Alternative.Subject));
+
+        var deferred = UtilityChoiceRules.Choose(n, [Reserve("WoodTwo", WoodLog)]);
+        Assert.Equal(UtilityChoiceKind.Defer, deferred.Kind);
+
+        var grown = UtilityChoiceRules.Choose(FuelNetwork(200, renewable: true), [Reserve("WoodTwo", WoodLog)]);
+        Assert.Equal((UtilityChoiceKind.Generate, 1d), (grown.Kind, Days(grown.Chosen)));
+    }
+
+    // A producer's fuel whose colony stock the plan does not read leaves every price that depends on the shared stock unpriced,
+    // naming it: the network defers rather than assume the reserve independent of the primary.
+    [Fact]
+    public void AReserveWhoseSharedFuelStockIsUnreadIsUnpricedNamingTheSharedExposure()
+    {
+        var unread = FuelNetwork(200) with { Fuels = new Dictionary<Resource, FuelSupply>() };
+
+        var decision = UtilityChoiceRules.Choose(unread, [Reserve("WoodTwo", WoodLog)]);
+
+        Assert.Equal(UtilityChoiceKind.Defer, decision.Kind);
+        Assert.Equal("shared_exposure:fuel_unread:WoodLog", decision.Reason);
+        Assert.All(decision.Alternatives, a => Assert.Equal(new UtilityPrice.Unpriced("shared_exposure:fuel_unread:WoodLog"), a.Price));
+    }
+
+    private static PowerSite BurnerSite(string id, Cell cell, double watts, string network, double perDay)
+    {
+        var site = Site(id, Wood, cell, watts, network);
+        return site with
+        {
+            FuelDefinitions = [WoodLog.Value],
+            Service = site.Service with
+            {
+                Fuel = new BuildingFuel.Refuelable
+                {
+                    AutoRefuel = new AutoRefuelControl.NoSwitch(), Burn = new FuelBurn { PerDay = perDay, UnitsPerItem = 1, UseDriven = false, InRain = false, WhenPowered = false },
+                    Fuel = 0, TargetFuel = 50, AutoRefuelPercent = 0.3, OutOfFuel = false,
+                },
+            },
+        };
+    }
+
+    // The planner reads the burners off the buildings: a short network of one wood generator, and a wood-fired surplus network a
+    // conduit away, share the colony's one wood stock, so the route does not buy the independent surplus its constant supply
+    // suggests: its price is higher than with growable wood, it carries the other network's rain exposure, and an unread stock
+    // names itself.
+    [Fact]
+    public void ARouteToANetworkBurningTheSameFuelStockSharesItsRunwayAndTheRain()
+    {
+        var bank = PowerBuildingFixtures.Trader("bank", PowerRules.BatteryDefinition, new(7, 4), 0, 0, true, "b") with
+        {
+            Service = BuildingServiceWire.NoService with { Power = new BuildingPower.Battery { Network = "b", StorageWD = 600 } },
+            RainVulnerable = true, Roofed = false,
+        };
+        var v = new PowerTopology
+        {
+            Buildings = [BurnerSite("small", new(1, 2), 100, "a", 20), Site("stove", "ElectricStove", new(2, 2), -400, "a"), BurnerSite("big", new(6, 2), 1000, "b", 20), bank],
+            Networks =
+            [
+                new PowerNetworkFact { Id = "a", GenerationW = 100, ConsumptionW = 400, StoredWD = 0 },
+                new PowerNetworkFact { Id = "b", GenerationW = 1000, ConsumptionW = 0, StoredWD = 600 },
+            ],
+        };
+        PowerPlanning Plan(long stock, bool renewable) => Base with
+        {
+            Generators = [WoodOption(stock: stock, renewable: renewable)],
+            Rain = new PowerRain.Read(0.5),
+            Valuation = Valuation([("stove", UtilityService.Workshop, 10)], Piece(Wood, 5, 1), Piece(Conduit, 0.1, 0.05)),
+        };
+        PricedUtility RouteOf(PowerProposal p) => p.Decision!.Alternatives.Single(a => a.Alternative.Kind == UtilityChoiceKind.Route);
+
+        var finite = RouteOf(Select(v, Row(0, 8), Plan(100, false)));
+        var grown = RouteOf(Select(v, Row(0, 8), Plan(100, true)));
+
+        var effect = Assert.IsType<UtilityStanding.Assessed>(finite.Alternative.Standing).Effect;
+        var supply = Assert.Single(effect.FuelSupplies);
+        Assert.Equal((WoodLog, 20d, 1000d), (supply.Fuel, supply.ItemsPerDay, supply.W));
+        // The merged network carries the other network's unroofed bank: its rain exposure is the route's too.
+        Assert.IsType<UtilityExposure.Expected>(effect.Exposure);
+        Assert.True(Days(finite) > Days(grown));
+
+        var unread = Select(v, Row(0, 8), Plan(100, false) with { Generators = [] });
+        Assert.Equal("shared_exposure:fuel_unread:WoodLog", unread.Decision!.Reason);
+    }
+
+    // A second producer under the same open sky joins the rain pool the exposed bank is in: the pool the short circuit picks from
+    // grows, and the reserve's own site is part of the exposure it is priced with. Roofing the bank clears the exposure for the
+    // bank and the reserve alike and wins; a reserve whose site is unread, or whose rain rate is unread, is unpriced naming it.
+    [Fact]
+    public void AReserveUnderTheSameOpenSkySharesTheRainExposureSoRoofingWins()
+    {
+        var cells = Enumerable.Range(0, 20).SelectMany(z => Enumerable.Range(0, 20).Select(x => SiteCellFixtures.At(new Cell(x, z)))).ToArray();
+        var bank = PowerBuildingFixtures.Trader("bank", PowerRules.BatteryDefinition, new(8, 8), 0, 0, true) with
+        {
+            Service = BuildingServiceWire.NoService with { Power = new BuildingPower.Battery { Network = "net", StorageWD = 600 } },
+            Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = new() { X = 8, Z = 8 }, Maximum = new() { X = 8, Z = 9 } },
+            RainVulnerable = true, Roofed = false,
+        };
+        var v = new PowerTopology { Buildings = [bank, Site("gen", Wood, new(2, 2), 500), Site("freezer", "Cooler", new(4, 2), -200)] };
+        var planning = Base with
+        {
+            BatteryAvailable = true, Rain = new PowerRain.Read(0.5),
+            Generators = [SolarOption() with { RainVulnerable = true }, WoodOption() with { Definition = "TorchGenerator", RainVulnerable = true }],
+            Valuation = Valuation([("freezer", UtilityService.Refrigeration, 20)], Piece(ContainmentCellRules.ShellWallDefinition, 0.01, 0.01), Piece(ContainmentCellRules.ShellDoorDefinition, 0.02, 0.01),
+                Piece(PowerRules.RoofPiece, 0.005, 0.01), Piece(PowerRules.BatteryDefinition, 1, 0.01), Piece(Solar, 1, 1), Piece("TorchGenerator", 1, 1)),
+            Sources = new Dictionary<string, PowerSourceProfile>(Base.Sources) { ["TorchGenerator"] = PowerRules.ConstantPowerProfile },
+        };
+
+        var proposal = Select(v, cells, planning);
+
+        Assert.Equal(PowerMethod.Shelter, proposal.Method);
+        var alone = Assert.IsType<UtilityExposure.Expected>(RainShortCircuitRules.Exposure([(true, 600, true)], 1, planning.Rain, 200));
+        var reserve = proposal.Decision!.Alternatives.Single(a => a.Alternative.Subject == Solar);
+        var shared = Assert.IsType<UtilityExposure.Expected>(Assert.IsType<UtilityStanding.Assessed>(reserve.Alternative.Standing).Effect.Exposure);
+        // Two members in the pool of two: the roll hits one of the pair twice as often, and the bank's burn is shared across the pair.
+        Assert.Equal(2 * alone.EventsPerDay, shared.EventsPerDay, 9);
+        Assert.Equal(alone.OutageDays / 2, shared.OutageDays, 9);
+        Assert.True(Days(reserve) > Days(proposal.Decision.Chosen));
+        Assert.Equal(new UtilityPrice.Unpriced("shared_exposure:rain_site_unread:TorchGenerator"), proposal.Decision.Alternatives.Single(a => a.Alternative.Subject == "TorchGenerator").Price);
+
+        // With the rain rate unread the exposure is unassessed, and so is the shared pool the reserve joins: the short network (an
+        // oven the generator cannot carry) is answered by the roofing that clears it, never by the reserve.
+        var dry = Select(new PowerTopology { Buildings = [.. v.Buildings, Site("oven", "ElectricStove", new(6, 2), -1000)] }, cells, planning with
+        {
+            Rain = new PowerRain.Unread("rain rate"),
+            Valuation = planning.Valuation with { Consumers = new Dictionary<string, ConsumerValue>(planning.Valuation.Consumers) { ["oven"] = new(UtilityService.Workshop, new InterruptionLoss.PerDay(5)) } },
+        });
+        Assert.Equal(new UtilityPrice.Unpriced("rain rate"), dry.Decision!.Alternatives.Single(a => a.Alternative.Subject == Solar).Price);
     }
 }
