@@ -41,10 +41,12 @@ public enum PowerMethod
     Restore,
     [WireName("solar_flare")]
     WaitBlackout,
-    [WireName("player_disabled_power")]
-    WaitPlayer,
+    /// <summary>A switch on the network wants a state it does not hold yet: the flick designation waits for a pawn (Unconfirmed).</summary>
+    [WireName("waiting_for_flick")]
+    WaitSwitch,
     [WireName("no_observed_route")]
     RouteBlocked,
+    /// <summary>Every alternative to deferring is excluded (no generator researched or buildable, no battery, no route).</summary>
     [WireName("no_affordable_generator")]
     NoGenerator,
     [WireName("HiddenConduit")]
@@ -57,13 +59,31 @@ public enum PowerMethod
     WaitCharge,
     [WireName("store")]
     Store,
+    /// <summary>
+    /// The network's switches need orders (<see cref="PowerProposal.Configuration"/>): the comparison switches low-value
+    /// consumers off, a short network switches its idle producers on, and a served network switches its idle consumers back on.
+    /// The power planner binds it to PowerSwitch orders (task 6.5).
+    /// </summary>
+    [WireName("configure_consumers")]
+    Configure,
+    /// <summary>The comparison's configuration holds: the consumers it switches off are off, and the rest are powered.</summary>
+    [WireName("configuration_holds")]
+    Configured,
+    /// <summary>An unpowered thermal provision replaces a powered temperature control: the power planner builds it (task 6.5).</summary>
+    [WireName("passive_thermal")]
+    Passive,
+    /// <summary>
+    /// The interruption costs less than every alternative, or its price lacks a fact (<see cref="PowerProposal.Decision"/>
+    /// names it): the network stays as it is.
+    /// </summary>
+    [WireName("interruption_deferred")]
+    Defer,
 }
 
 /// <summary>
-/// One generator definition the planner may compile, in preference order. Fuel names the resource a
-/// refuelable generator burns and FuelStock the observed colony stock of it; a fuel-free generator leaves both
-/// empty. Availability comes from native planning definitions (research and content), never from an
-/// assumption about the installed game.
+/// One generator definition the planner may compile. Fuel names the resource a refuelable generator burns and FuelStock the
+/// observed colony stock of it; a fuel-free generator leaves both empty. Availability comes from native planning definitions
+/// (research and content), never from an assumption about the installed game.
 /// </summary>
 public sealed record GeneratorOption
 {
@@ -75,46 +95,40 @@ public sealed record GeneratorOption
 
     public long FuelStock { get; init; }
 
-    public long MinimumFuel { get; init; }
-
     /// <summary>Whether the colony can grow its fuel here (a sowable crop harvests it); false is a finite stock that runs out.</summary>
     public bool FuelRenewable { get; init; }
+
+    /// <summary>The fuel items it burns a day running (CompProperties_Refuelable.fuelConsumptionRate over the item's fuel units); 0 for a fuel-free generator.</summary>
+    public double FuelPerDay { get; init; }
 
     /// <summary>How the generator delivers its nominal watts over a day (DefinitionCatalog.PowerSources).</summary>
     public PowerSourceProfile Profile { get; init; }
 
     /// <summary>The producer's catalog wattage.</summary>
     public double NominalW { get; init; }
-
-    /// <summary>The generator's build cost.</summary>
-    public required double BuildValue { get; init; }
-
-
 }
 
 /// <summary>
-/// The catalog's description of one generator definition: nominal watts, build cost and, for a refuelable
-    /// one, the accepted fuels and the tank a full load takes (the stock floor below which the planner will not
-/// commit to that fuel).
+/// The catalog's description of one generator definition: nominal watts, the cheapest stuff and, for a refuelable one, the accepted
+/// fuels, the tank a full load takes (a fuel whose stock fills it is burnt first) and the items it burns a day.
 /// </summary>
 public sealed record GeneratorRow
 {
     public double NominalW { get; init; }
-
-    public required double BuildValue { get; init; }
 
     public required string Stuff { get; init; }
 
     public IReadOnlyList<Resource> Fuels { get; init; } = [];
 
     public long FuelCapacity { get; init; }
+
+    public double FuelItemsPerDay { get; init; }
 }
 
 /// <summary>
-/// The planner-side choices SelectPowerMethod needs beyond the observed topology: which generators are
-/// compilable, whether a battery is (and its storage, from the catalog), how many days of stored reserve a
-/// draining network must keep before the budget is consulted even though every consumer is currently powered,
-/// and the margin the storage target carries over the night deficit.
+/// The planner-side choices SelectPowerMethod needs beyond the observed topology: which generators are compilable, whether a
+/// battery is (and its storage, from the catalog), what each consumer's interruption costs and what each piece costs to build
+/// (<see cref="Valuation"/>), and the passive thermal provisions the thermal model shows meeting a band.
 /// </summary>
 public sealed record PowerPlanning
 {
@@ -127,18 +141,23 @@ public sealed record PowerPlanning
     /// <summary>The delivery profile of every producer definition the catalog has (DefinitionCatalog.PowerSources); a producer on the map that it lacks is an error.</summary>
     public IReadOnlyDictionary<string, PowerSourceProfile> Sources { get; init; } = new Dictionary<string, PowerSourceProfile>();
 
-    /// <summary>The current twelfth's daylight hours at the map's latitude (GearClimate.DaylightHoursIn); RankGenerators ranks solar last at none.</summary>
+    /// <summary>The current twelfth's daylight hours at the map's latitude (GearClimate.DaylightHoursIn): none leaves a solar generator nothing to deliver.</summary>
     public double DaylightHours { get; init; }
 
-    public double ReserveMinDays { get; init; }
-
-    public double StorageMargin { get; init; }
-
     /// <summary>
-    /// The wattage of consumers other goals' admitted plans are about to build, counted in the budget's demand
-    /// so generation and storage are sized for the colony being built, not only the one standing.
+    /// The wattage of consumers other goals' admitted plans are about to build, counted in the network's demand (their service
+    /// unassessed) so generation and storage are sized for the colony being built, not only the one standing.
     /// </summary>
     public double PendingDemandW { get; init; }
+
+    /// <summary>
+    /// The dated power changes the plan expects (ProspectiveCapacityRules.ChainPower: a selected chain's later host's draw), with
+    /// the tick they are read at: a change joins the demand once the prospective comparison prepares generation for it and its
+    /// start has come.
+    /// </summary>
+    public IReadOnlyList<ExpectedChange> Expected { get; init; } = [];
+
+    public Tick Now { get; init; }
 
     /// <summary>The terrain defs that afford Light: where the power route and a shelter may run (SiteCell.SupportsLight).</summary>
     public LightTerrains Light { get; init; } = new();
@@ -154,22 +173,31 @@ public sealed record PowerPlanning
     /// (<see cref="PowerRestoration.Restorable"/>): only these of the lost producers count toward a network's capacity.
     /// </summary>
     public IReadOnlySet<string> Restorable { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// What each consumer's interruption costs, each piece costs to build and the passive thermal provisions the thermal model
+    /// shows (PowerValuationRules.Valuation).
+    /// </summary>
+    public PowerValuation Valuation { get; init; } = new();
+
+    /// <summary>The map's rain rate now, held over the horizon: what an exposed network's rain short circuits scale with (RainShortCircuitRules).</summary>
+    public PowerRain Rain { get; init; } = new PowerRain.Unread("rain rate");
+
+    /// <summary>
+    /// The things the player's preferences leave alone (Preferences.ProtectedThings): their switches are never ordered, and one
+    /// switched off draws nothing the network must serve.
+    /// </summary>
+    public IReadOnlySet<string> Protected { get; init; } = new HashSet<string>(StringComparer.Ordinal);
 }
 
 /// <summary>
-/// What RankGenerators knows about the colony beyond the options: whether a battery can be built (a renewable
-/// is free to run but needs storage to carry the night), whether the shortfall being closed is night-only,
-/// which a solar generator cannot touch. Each option carries its complete native construction value.
-/// DaylightHours is the current twelfth's daylight
-/// at the map's latitude: none (polar night) leaves a solar generator nothing to deliver; unknown keeps the nominal profile.
+/// An unpowered thermal provision for a powered temperature control: the room's steady temperature with it (or unread naming
+/// the fact), the control's band and the provision's price and lead.
 /// </summary>
-public sealed record GeneratorRanking
+public sealed record PassiveProvision(string Control, PassiveSteady Steady, double BandMin, double BandMax, double CostDays, double LeadDays)
 {
-    public bool BatteryAvailable { get; init; }
-
-    public bool NightOnly { get; init; }
-
-    public double DaylightHours { get; init; }
+    /// <summary>The unpowered burner's definition that would stand where the control acts.</summary>
+    public string Definition { get; init; } = "";
 }
 
 public sealed record PowerProposal
@@ -188,13 +216,16 @@ public sealed record PowerProposal
     public Rectangle Room { get; init; }
 
     /// <summary>
-    /// The generators ranked after Definition for a generate method, so a definition no site accepts (a wind
+    /// The priced generators after Definition, cheapest first, for a generate method, so a definition no site accepts (a wind
     /// turbine with every catch zone obstructed) yields to the next one under the same key.
     /// </summary>
     public IReadOnlyList<string> Alternatives { get; init; } = [];
 
-    /// <summary>The target network's 24 h balance behind a generate, store or charge decision; zero for the connect and hold methods.</summary>
-    public PowerBudget Budget { get; init; } = new();
+    /// <summary>The comparison behind a deficit's method: every alternative with its price and the pick; null for the connect, protect and hold methods.</summary>
+    public UtilityDecision? Decision { get; init; }
+
+    /// <summary>The switch orders a configure method places (and, for a holding configuration, the consumers it keeps off).</summary>
+    public PowerConfiguration? Configuration { get; init; }
 
     /// <summary>
     /// Reports whether the proposal names its exact placement: a geothermal generator is anchored on its
@@ -206,32 +237,25 @@ public sealed record PowerProposal
 public static partial class PowerRules
 {
     /// <summary>
-    /// The ranked generator whose placement preview must report a clear catch zone.
+    /// The generator whose placement preview must report a clear catch zone.
     /// </summary>
     public const string WindTurbineDefinition = "WindTurbine";
 
     /// <summary>
-    /// The generator a free steam geyser hosts. It is not ranked: SelectPowerMethod proposes it ahead of every
-    /// other generator when a free geyser is in reach of the draining consumer.
+    /// The generator a free steam geyser hosts: SelectPowerMethod prices it on the nearest free geyser a measured conduit path
+    /// reaches, the path's conduits in its price and lead.
     /// </summary>
     public const string GeothermalDefinition = "GeothermalGenerator";
-
-    /// <summary>Bounds the conduit route from a draining consumer to a geyser the family will build on: longer routes are left to a nearer generator.</summary>
-    public const int GeothermalReachCells = 48;
 
     /// <summary>Every definition the power family compiles: the conduit, each generator, the geothermal generator and the battery.</summary>
     public static IReadOnlyList<string> PowerFamilyDefinitions(IEnumerable<string> generators) =>
         [Wire.Name(PowerMethod.Connect), .. generators, PowerRules.GeothermalDefinition, PowerRules.BatteryDefinition];
 
-    /// <summary>The margin the storage target carries over the night deficit.</summary>
-    public const double DefaultStorageMargin = 0.25;
-
-    public static PowerPlanning DefaultPowerPlanning() => new() { ReserveMinDays = 1, StorageMargin = DefaultStorageMargin };
-
     /// <summary>
-    /// Pairs each generator definition with its catalog row (cost, nominal watts, fuel and tank), the observed
+    /// Pairs each generator definition with its catalog row (nominal watts, fuel, tank and burn rate), the observed
     /// stock of its fuel, whether renewable says the fuel can be grown here, and its delivery profile from
-    /// sources; a generator with no profile or row is an error (DomainException).
+    /// sources; a generator with no profile or row is an error (DomainException). Of several accepted fuels it burns
+    /// one that fills its tank, a growable one before a finite one, then the largest stock.
     /// </summary>
     public static IReadOnlyList<GeneratorOption> DefaultGeneratorOptions(
         Func<string, bool> available,
@@ -248,102 +272,38 @@ public static partial class PowerRules
                 throw new DomainException($"generator {name} has no catalog power source profile");
             }
             RequirePowerProfile(profile);
-            var option = new GeneratorOption { Definition = name, Available = available(name), Profile = profile, NominalW = row.NominalW, BuildValue = row.BuildValue };
+            var option = new GeneratorOption { Definition = name, Available = available(name), Profile = profile, NominalW = row.NominalW };
             if (row.Fuels.Count != 0)
             {
                 var fuel = row.Fuels.Select(fuel => new { Fuel = fuel, Stock = stock(fuel), Renewable = renewable(fuel) })
                     .OrderByDescending(fuel => fuel.Stock >= row.FuelCapacity)
                     .ThenByDescending(fuel => fuel.Renewable).ThenByDescending(fuel => fuel.Stock)
                     .ThenBy(fuel => fuel.Fuel.Value, StringComparer.Ordinal).First();
-                option = option with { Fuel = fuel.Fuel, MinimumFuel = row.FuelCapacity, FuelStock = fuel.Stock, FuelRenewable = fuel.Renewable };
+                option = option with { Fuel = fuel.Fuel, FuelStock = fuel.Stock, FuelRenewable = fuel.Renewable, FuelPerDay = row.FuelItemsPerDay };
             }
             options.Add(option);
         }
         return options;
     }
 
-    /// <summary>Average delivered watts per native market value of the complete selected construction cost.</summary>
-    internal static double GeneratorYield(GeneratorOption option)
-    {
-        if (!double.IsFinite(option.BuildValue) || option.BuildValue < 0 || !double.IsFinite(option.NominalW) || option.NominalW <= 0)
-            throw new RequiredFactException("generator build value or output:" + option.Definition);
-        return option.BuildValue == 0 ? double.PositiveInfinity : option.NominalW * option.Profile.Daily / option.BuildValue;
-    }
-    private readonly record struct RankedGenerator(string Definition, int Tier, int Order, double Yield);
-
     /// <summary>
-    /// Orders the known-available options: a fuel-free generator first once a battery can bank its surplus,
-    /// then a generator that runs around the clock on a fuel the colony can grow (or none), a stocked finite
-    /// fuel next, fuel-short ones after, and a renewable that cannot serve the deficit (no battery, a
-    /// night-only shortfall, or a solar generator in a twelfth with no daylight) last, still chosen when
-    /// nothing else is available. Within a tier the generator
-    /// delivering the most watts per native construction value goes first; list order breaks ties.
-    /// </summary>
-    public static IReadOnlyList<string> RankGenerators(IReadOnlyList<GeneratorOption> options, GeneratorRanking ranking)
-    {
-        var rows = new List<RankedGenerator>();
-        var battery = ranking.BatteryAvailable;
-        var daylight = ranking.DaylightHours;
-        var polarNight = daylight == 0;
-        for (var i = 0; i < options.Count; i++)
-        {
-            var o = options[i];
-            var available = o.Available;
-            if (!available)
-            {
-                continue;
-            }
-            int tier;
-            var profile = o.Profile;
-            RequirePowerProfile(profile);
-            if ((polarNight && profile.Solar) || (profile.Night < 1 && (!battery || (ranking.NightOnly && profile.Night == 0))))
-            {
-                tier = 4;
-            }
-            else if (profile.Night < 1)
-            {
-                tier = 0;
-            }
-            else if (o.Fuel.IsEmpty)
-            {
-                tier = 1;
-            }
-            else
-            {
-                tier = 1;
-                if (o.FuelStock < o.MinimumFuel)
-                {
-                    tier = 3;
-                }
-                else if (!o.FuelRenewable)
-                {
-                    tier = 2;
-                }
-            }
-            rows.Add(new RankedGenerator(o.Definition, tier, i, GeneratorYield(o)));
-        }
-        return [.. rows
-            .OrderBy(r => r.Tier)
-            .ThenByDescending(r => r.Yield)
-            .ThenBy(r => r.Order)
-            .Select(r => r.Definition)];
-    }
-
-    /// <summary>
-    /// Ports the network-local capacity and bounded route choices. Proposed geometry still requires native
-    /// placement previews and shared admission. Output and PowerOn, not installed capacity or a receipt,
-    /// establish recovery. A producer that is out of fuel or broken down counts toward its network's capacity only
-    /// while the power Need's restoration choice restores it (PowerPlanning.Restorable): a network such producers
-    /// cover proposes Restore, and one they cannot restore is short and is answered by new generation as if they
-    /// were not there. A powered network whose stored reserve runway
-    /// falls under ReserveMinDays is a deficit too, sized by its 24 h budget (ComputePowerBudget): a
-    /// generation shortfall adds a generator, a storage shortfall alone adds a battery, and a network the
-    /// budget already covers waits for its bank to charge. Throws DomainException on invalid input.
+    /// Ports the network-local power choices. Proposed geometry still requires native placement previews and shared admission.
+    /// Output and PowerOn, not installed capacity or a receipt, establish recovery. Rain-exposed equipment is sheltered and
+    /// unsafe conduits upgraded first. A producer that is out of fuel or broken down counts toward its network's capacity only
+    /// while the power Need's restoration choice restores it (PowerPlanning.Restorable): a network such producers cover
+    /// proposes Restore. A network's demand is every consumer whose switch the colony may order, on or off, plus the pending and
+    /// due expected draws; a consumer the player's preferences protect counts only while it is on. Switches are the colony's to
+    /// order under Auto, whoever set them: a network whose switch wants a state it does not hold waits for the flick
+    /// (WaitSwitch, nothing re-ordered); a network the balance serves with every consumer on switches its idle consumers on; a
+    /// short one switches its idle producers on first. A network whose 24 h energy balance (UtilityChoiceRules.UnservedWD)
+    /// leaves energy unserved is short: its alternatives (configure, route, generate, store, passive) are compared against
+    /// deferring by UtilityChoiceRules.Choose, each priced by the consumers' interruption loss over the horizon; a chosen
+    /// configuration orders the switches it changes, or holds (Configured) once they hold. A powered network the balance covers
+    /// needs nothing; an unpowered one waits for its bank or native output. Throws DomainException on invalid input.
     /// </summary>
     public static PowerProposal SelectPowerMethod(PowerTopology v, Bounds bounds, IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> protectedCells, PowerPlanning planning)
     {
-        if (!FoodForecastRules.FoodNumber(planning.ReserveMinDays) || !FoodForecastRules.FoodNumber(planning.StorageMargin) || !FoodForecastRules.FoodNumber(planning.PendingDemandW)
-            || planning.StorageMargin > 10)
+        if (!FoodForecastRules.FoodNumber(planning.PendingDemandW))
         {
             throw new DomainException("invalid power planning");
         }
@@ -453,31 +413,9 @@ public static partial class PowerRules
         {
             return new PowerProposal { Method = PowerMethod.WaitBlackout };
         }
-        // Protect equipment before energizing or expanding the network. The native census discovers
-        // vulnerable definitions; weather need not already be wet.
-        foreach (var b in v.Buildings)
-        {
-            if (!b.RainVulnerable || b.Roofed)
-            {
-                continue;
-            }
-            if (b.Forbidden)
-            {
-                return new PowerProposal { Method = PowerMethod.WaitPlayer };
-            }
-            var (room, ok) = PowerShelter(b, cells, blocked, bounds, planning.Light);
-            if (!ok)
-            {
-                return new PowerProposal { Method = PowerMethod.RouteBlocked };
-            }
-            return new PowerProposal
-            {
-                Method = PowerMethod.Shelter,
-                Center = b.Cell,
-                Room = room,
-                Key = PowerMethodKey("shelter", b.Id + GoFormat(room)),
-            };
-        }
+        // Sheltering rain-exposed equipment is one alternative of a network's comparison, priced by the short circuits it
+        // prevents (RainShortCircuitRules); the zzztt incident strikes ordinary conduits, which the upgrade below replaces first.
+        var vulnerable = v.Buildings.Count(b => b.RainVulnerable);
         if (v.UnsafeConduits.Count > 0)
         {
             // An unpowered, unconnected consumer joins a live network first when every ordinary conduit its
@@ -493,16 +431,20 @@ public static partial class PowerRules
             return new PowerProposal { Method = PowerMethod.Connect, Cells = upgrade, Key = PowerMethodKey("upgrade", GoFormat(upgrade)) };
         }
         // A lost producer (empty or broken down) the restoration choice does not restore produces nothing a plan can count on.
-        bool Dead(PowerSite b) => b.BaseW > 0 && !b.Forbidden && b.SwitchedOn && (b.Unfueled || b.BrokenDown) && !planning.Restorable.Contains(b.Id);
+        bool Dead(PowerSite b) => b.BaseW > 0 && b.SwitchedOn && (b.Unfueled || b.BrokenDown) && !planning.Restorable.Contains(b.Id);
+        // A switch the colony may order: a flick switch on a thing the player's preferences do not protect.
+        bool Switchable(PowerSite b) => b.Flickable && !planning.Protected.Contains(b.Id);
+        // A route destination produces: a producer switched off is its network's switch order first, never a conduit's end.
         var producers = new List<PowerSite>();
         foreach (var b in v.Buildings)
         {
             var w = b.BaseW;
-            if (w > 0 && !Dead(b))
+            if (w > 0 && !Dead(b) && b.SwitchWanted)
             {
                 producers.Add(b);
             }
         }
+        var openSky = cells.Any(c => !c.Roofed && route.Contains(c.Cell));
         var result = new PowerProposal { Method = PowerMethod.NoMethod };
         foreach (var target in v.Buildings)
         {
@@ -511,20 +453,22 @@ public static partial class PowerRules
             {
                 continue;
             }
-            if (target.Forbidden || !target.SwitchedOn)
+            if (!target.SwitchWanted && !Switchable(target))
             {
-                result = result with { Method = PowerMethod.WaitPlayer };
+                // A protected consumer switched off draws nothing and is the player's to switch.
                 continue;
             }
             var connected = target.Connected;
             var powered = target.Powered;
             var network = target.Network;
-            bool Same(PowerSite b) => connected && b.Connected && b.Network == network;
-            double demand = 0, capacity = 0, output = 0;
+            // An unconnected consumer is a network of its own.
+            bool Same(PowerSite b) => connected ? b.Connected && b.Network == network : b.Id == target.Id;
+            double demand = 0, capacity = 0, output = 0, storage = 0;
             var connectedProducers = 0;
-            bool disabledProducer = false, restoringProducer = false;
-            var budgetProducers = new List<PowerProducer>();
-            double budgetCapacity = 0;
+            bool restoringProducer = false, flicking = false;
+            var live = new List<PowerProducer>();
+            var consumers = new List<PowerSite>();
+            var idleProducers = new List<string>();
             foreach (var b in v.Buildings)
             {
                 if (!Same(b))
@@ -533,10 +477,18 @@ public static partial class PowerRules
                 }
                 var w = b.BaseW;
                 output += b.OutputW;
-                budgetCapacity += b.StorageWD;
-                if (w < 0)
+                storage += b.StorageWD;
+                flicking = flicking || b.SwitchWanted != b.SwitchedOn;
+                if (w < 0 && (b.SwitchWanted || Switchable(b)))
                 {
                     demand -= w;
+                    consumers.Add(b);
+                }
+                if (w > 0 && !Dead(b) && !b.SwitchWanted)
+                {
+                    // A producer switched off produces nothing until it is switched on; a protected one stays the player's.
+                    if (Switchable(b)) idleProducers.Add(b.Id);
+                    continue;
                 }
                 if (w > 0 && !Dead(b))
                 {
@@ -547,88 +499,59 @@ public static partial class PowerRules
                         throw new DomainException($"power producer {b.Definition} has no catalog power source profile");
                     }
                     RequirePowerProfile(profile);
-                    budgetProducers.Add(new PowerProducer { NominalW = w, Profile = profile });
-                    disabledProducer = disabledProducer || b.Forbidden || !b.SwitchedOn;
+                    live.Add(new PowerProducer { NominalW = w, Profile = profile });
                     restoringProducer = restoringProducer || b.Unfueled || b.BrokenDown;
                 }
             }
-            var budget = new PowerBudgetInput
+            var name = connected ? network : target.Id;
+            if (flicking)
             {
-                Eclipse = v.Eclipse,
-                StorageMargin = planning.StorageMargin,
-                ChargeEfficiency = planning.Battery.Efficiency,
-                CapacityWD = budgetCapacity,
-                Producers = budgetProducers,
-                DemandW = demand + planning.PendingDemandW,
-            };
-            // Reserve runway only matters while the network is powered: a draining battery keeps consumers on
-            // until it does not, and a network whose producers cannot carry the coming night (solar by day,
-            // no bank) is short of reserve before the sun goes down.
-            var reserveShort = false;
-            if (connected && powered)
-            {
-                if (networks.TryGetValue(network, out var net))
-                {
-                    var night = ComputePowerBudget(budget).NightDeficitWD;
-                    reserveShort = net.ReserveDays() < planning.ReserveMinDays || (night > 0 && net.StoredWD < night);
-                }
+                // An ordered switch (whoever ordered it) waits for its flick: the network is re-derived once it holds.
+                if (result.Method == PowerMethod.NoMethod) result = new PowerProposal { Method = PowerMethod.WaitSwitch, Center = target.Cell };
+                continue;
             }
-            if (connected && powered && output >= 0 && !reserveShort)
+            var geyser = ReachableGeyser(target.Cell, v.Geysers, route, existing);
+            var generate = planning.Generators.Select(o => GenerateAlternative(o, planning, openSky, geyser)).ToList();
+            var n = UtilityNetworkOf(name, consumers, live, storage, v.Eclipse, planning, generate, Switchable);
+            var exposed = v.Buildings.Where(b => Same(b) && b.RainVulnerable && !b.Roofed).OrderBy(b => b.Id, StringComparer.Ordinal).ToList();
+            n = n with
+            {
+                Exposure = RainShortCircuitRules.Exposure([.. exposed.Select(b => (b.Service.Power is RimGovernor.Brain.GameFacts.Observations.BuildingPower.Battery, b.StorageWD, b.Powered))],
+                    vulnerable, planning.Rain, n.Consumers.Sum(c => c.DrawW)),
+            };
+            var unserved = UtilityChoiceRules.UnservedWD(live, 0, storage, n.Consumers.Sum(c => c.DrawW), planning.Battery.Efficiency, v.Eclipse);
+            var shortDay = unserved > UnservedTolerance;
+            var atRisk = n.Exposure is not UtilityExposure.None;
+            var p = new PowerProposal { Center = target.Cell };
+            var idle = consumers.Where(c => !c.SwitchWanted).Select(c => c.Id).ToList();
+            if (!shortDay && idle.Count > 0)
+            {
+                // The balance serves every consumer on: the idle ones are switched back on.
+                return Switches(p, name, [], idle, null);
+            }
+            if (connected && powered && output >= 0 && !shortDay && !atRisk)
             {
                 continue;
             }
-            var p = new PowerProposal { Center = target.Cell };
-            if (disabledProducer)
+            if (shortDay && idleProducers.Count > 0)
             {
-                return p with { Method = PowerMethod.WaitPlayer };
+                // A short network's idle producers are switched on before anything is compared: it costs nothing.
+                return Switches(p, name, [], idleProducers, null);
             }
-            if (connectedProducers > 0 && capacity >= demand)
+            if (connectedProducers > 0 && capacity >= demand && restoringProducer)
             {
-                if (restoringProducer)
-                {
-                    p = p with { Method = PowerMethod.Restore };
-                }
-                else if (!powered || reserveShort)
-                {
-                    // Installed capacity covers demand on paper but the network is draining its reserve or has
-                    // already lost the consumer (night-time solar, part-time generation): size it by the
-                    // budget of a day. A network the budget covers waits for its bank to charge, or for
-                    // native output to reach a consumer still off.
-                    p = p with { Budget = ComputePowerBudget(budget) };
-                    if (p.Budget.GenerationShortfallW > 0)
-                    {
-                        return ProposeGenerator(p, target, producers, planning, v.Geysers, route);
-                    }
-                    if (p.Budget.StorageShortfallWD > 0)
-                    {
-                        return Store(p, target, producers, planning, v.Geysers, route);
-                    }
-                    p = p with { Method = powered ? PowerMethod.WaitCharge : PowerMethod.WaitOutput };
-                }
-                else
-                {
-                    p = p with { Method = PowerMethod.WaitOutput };
-                }
-                return p;
+                return p with { Method = PowerMethod.Restore };
             }
             if (producers.Count > 0 && connectedProducers == 0)
             {
                 var destinations = new HashSet<Cell>();
                 foreach (var b in producers)
                 {
-                    if (b.Forbidden || !b.SwitchedOn)
-                    {
-                        continue;
-                    }
                     destinations.Add(b.Cell);
                     foreach (var c in b.OccupiedCells)
                     {
                         existing.Add(c);
                     }
-                }
-                if (destinations.Count == 0)
-                {
-                    return p with { Method = PowerMethod.WaitPlayer };
                 }
                 var path = PlannedRoute(planning.Net, target.Cell, destinations, route);
                 if (path is null || path.Count == 0)
@@ -642,15 +565,76 @@ public static partial class PowerRules
                 }
                 return p with { Method = PowerMethod.Connect, Cells = connect, Key = PowerMethodKey("connect", GoFormat(connect)) };
             }
-            p = p with { Budget = ComputePowerBudget(budget) };
-            return ProposeGenerator(p, target, producers, planning, v.Geysers, route);
+            if (!shortDay)
+            {
+                // Served all day: only its exposure is compared, and bearing it may be cheaper than sheltering.
+                if (atRisk && Compare(p, target, n, generate, geyser, producers, exposed, v, planning, route, existing, cells, blocked, bounds) is
+                    { Method: not (PowerMethod.Defer or PowerMethod.NoGenerator) } sheltered) return sheltered;
+                if (connected && powered && output >= 0) continue;
+                // The day's balance covers the network: a bank still charging, or native output not yet reaching a consumer.
+                return p with { Method = powered ? PowerMethod.WaitCharge : PowerMethod.WaitOutput };
+            }
+            var chosen = Compare(p, target, n, generate, geyser, producers, exposed, v, planning, route, existing, cells, blocked, bounds);
+            if (chosen.Decision is { } decision && UtilityChoiceRules.SwitchedOffBy(decision) is { } off)
+            {
+                // The configuration's orders: each consumer it switches off that still wants on, each other one switched off.
+                var orderOff = consumers.Where(c => off.Contains(c.Id) && c.SwitchWanted).Select(c => c.Id).ToList();
+                var orderOn = consumers.Where(c => !off.Contains(c.Id) && !c.SwitchWanted).Select(c => c.Id).ToList();
+                if (orderOff.Count + orderOn.Count > 0) return Switches(chosen, name, orderOff, orderOn, decision);
+                if (result.Method == PowerMethod.NoMethod)
+                {
+                    result = chosen with { Method = PowerMethod.Configured, Configuration = new PowerConfiguration([.. off.Order(StringComparer.Ordinal)], []) };
+                }
+                continue;
+            }
+            if (idle.Count > 0)
+            {
+                // Supply is still to come: an idle consumer the network serves now, most valued per watt first, is switched on.
+                var served = ServedIdle(n, idle);
+                if (served.Count > 0) return Switches(p, name, [], served, null);
+            }
+            return chosen;
         }
         return result;
     }
 
     /// <summary>
-    /// The connect proposal for the first switched-on, unforbidden, unconnected consumer whose route reaches a
-    /// producer already outputting power, provided no ordinary conduit on the route lies beyond the first new
+    /// The idle consumers the network serves now beside its consumers on, added most valued per watt first (an unassessed one
+    /// last, then id) while the 24 h balance leaves nothing unserved.
+    /// </summary>
+    private static List<string> ServedIdle(UtilityNetwork n, IReadOnlyList<string> idle)
+    {
+        var off = idle.ToHashSet(StringComparer.Ordinal);
+        var load = n.Consumers.Where(c => !off.Contains(c.Building)).Sum(c => c.DrawW);
+        var served = new List<string>();
+        foreach (var c in n.Consumers.Where(c => off.Contains(c.Building))
+            .OrderByDescending(c => c.Loss is InterruptionLoss.PerDay { CapabilityDays: var days } && c.DrawW > 0 ? days / c.DrawW : -1)
+            .ThenBy(c => c.Building, StringComparer.Ordinal))
+        {
+            if (UtilityChoiceRules.UnservedWD(n.Producers, 0, n.StorageWD, load + c.DrawW, n.ChargeEfficiency, n.Eclipse) > UnservedTolerance) continue;
+            load += c.DrawW;
+            served.Add(c.Building);
+        }
+        return served;
+    }
+
+    /// <summary>The switch orders of one network, keyed by the network and the orders so the same orders continue their Method.</summary>
+    private static PowerProposal Switches(PowerProposal p, string network, IReadOnlyList<string> off, IReadOnlyList<string> on, UtilityDecision? decision)
+    {
+        var configuration = new PowerConfiguration([.. off.Order(StringComparer.Ordinal)], [.. on.Order(StringComparer.Ordinal)]);
+        return p with
+        {
+            Method = PowerMethod.Configure, Configuration = configuration, Decision = decision,
+            Key = PowerMethodKey("configure", network + "/off:" + string.Join("/", configuration.SwitchOff) + "/on:" + string.Join("/", configuration.SwitchOn)),
+        };
+    }
+
+    // Energy below this many watt-days a day is the balance's rounding, not a shortfall.
+    private const double UnservedTolerance = 1e-6;
+
+
+    /// <summary>
+    /// The connect proposal for the first unconnected consumer whose route reaches a producer already outputting power, provided no ordinary conduit on the route lies beyond the first new
     /// cell (such a conduit would be newly energized). Null when there is none.
     /// </summary>
     private static PowerProposal? ConnectLiveBeforeUpgrade(PowerTopology v, HashSet<Cell> existing, HashSet<Cell> unsafeCells, HashSet<Cell> route, PlannedNet net)
@@ -660,7 +644,7 @@ public static partial class PowerRules
         foreach (var b in v.Buildings)
         {
             var w = b.BaseW;
-            if (w <= 0 || b.OutputW <= 0 || !b.Powered || b.Forbidden || !b.SwitchedOn)
+            if (w <= 0 || b.OutputW <= 0 || !b.Powered)
             {
                 continue;
             }
@@ -677,7 +661,7 @@ public static partial class PowerRules
         foreach (var target in v.Buildings)
         {
             var baseW = target.BaseW;
-            if (baseW >= 0 || target.Connected || target.Forbidden || !target.SwitchedOn)
+            if (baseW >= 0 || target.Connected)
             {
                 continue;
             }
@@ -757,58 +741,212 @@ public static partial class PowerRules
     }
 
     /// <summary>
-    /// Proposes one battery for target's network when the budget is short of storage but not generation. A
-    /// battery is never the answer to a generation shortfall; without a compilable battery the generation path
-    /// adds a generator instead, which the observed reserve still justifies.
+    /// The network as the comparison sees it: its consumers with their valued interruption (an unvalued one unassessed naming its
+    /// definition) and whether the colony may switch them, the pending consumers' draw (service unassessed), and each dated power change the prospective comparison
+    /// (ProspectiveCapacityRules.Choose, the change's whole loss over the cheapest assessed generator's lead and price) prepares
+    /// and whose start has come. A change whose loss is unassessed defers and adds nothing.
     /// </summary>
-    private static PowerProposal Store(PowerProposal p, PowerSite target, IReadOnlyList<PowerSite> producers, PowerPlanning planning, IReadOnlyList<PowerGeyser> geysers, HashSet<Cell> route)
+    private static UtilityNetwork UtilityNetworkOf(string network, IReadOnlyList<PowerSite> consumers, IReadOnlyList<PowerProducer> live, double storage, bool eclipse,
+        PowerPlanning planning, IReadOnlyList<UtilityAlternative> generate, Func<PowerSite, bool> switchable)
     {
-        var available = planning.BatteryAvailable;
-        if (!available)
+        var rows = new List<ConsumerInterruption>();
+        foreach (var c in consumers)
         {
-            return ProposeGenerator(p, target, producers, planning, geysers, route);
+            var (service, loss) = planning.Valuation.Consumers.TryGetValue(c.Id, out var value)
+                ? (value.Service, value.Loss) : (UtilityService.Unmodelled, new InterruptionLoss.Unassessed(ConsumerServiceFact + c.Definition));
+            rows.Add(new(c.Id, -c.BaseW, service, loss) { Switchable = switchable(c) });
         }
-        var ids = producers.Select(b => b.Id).ToList();
-        ids.Sort(StringComparer.Ordinal);
-        var identity = $"{target.Id}/{string.Join("/", ids)}/{(int)(p.Budget.StorageNeededWD - p.Budget.StorageShortfallWD)}";
-        return p with { Method = PowerMethod.Store, Definition = PowerRules.BatteryDefinition, Key = PowerMethodKey("store", identity) };
+        if (planning.PendingDemandW > 0)
+        {
+            rows.Add(new("pending", planning.PendingDemandW, UtilityService.Unmodelled, new InterruptionLoss.Unassessed("pending consumer service")) { Switchable = false });
+        }
+        ProvisionOption[] prepare = [.. generate.Where(a => a.Standing is UtilityStanding.Assessed)
+            .Select(a => (a.Subject, Effect: ((UtilityStanding.Assessed)a.Standing).Effect))
+            .Select(x => new ProvisionOption(x.Subject, false, x.Effect.LeadDays, x.Effect.CostDays))
+            .OrderBy(o => o.CostDays).ThenBy(o => o.Kind, StringComparer.Ordinal).Take(1)];
+        foreach (var change in planning.Expected.Where(c => c.Owner == ExpectedOwner.Power))
+        {
+            // The change's loss is the whole draw's: one provision serves it, so it is compared as one unit.
+            if (!ProspectiveCapacityRules.Choose(change with { Units = 1 }, planning.Now, prepare).Due(planning.Now)) continue;
+            var loss = ((ExpectedLoss.PerDay)change.Loss).CapabilityDays;
+            rows.Add(new(change.Source, change.Units, UtilityService.Workshop, new InterruptionLoss.PerDay(loss)) { Switchable = false });
+        }
+        return new UtilityNetwork
+        {
+            Network = network, Producers = live, StorageWD = storage, Consumers = rows,
+            ChargeEfficiency = planning.Battery.Efficiency, Eclipse = eclipse,
+        };
+    }
+
+    /// <summary>The fact an unvalued consumer's interruption names: its definition's service.</summary>
+    public const string ConsumerServiceFact = "consumer service:";
+
+    /// <summary>The fact an unpriced piece names.</summary>
+    public const string BuildPriceFact = "build price:";
+
+    /// <summary>
+    /// One generator as an alternative: excluded when unavailable (research, content or builder), a solar generator with no
+    /// unroofed routeable cell or no daylight this twelfth, a geothermal generator with no free geyser a conduit path reaches,
+    /// or a finite fuel the colony holds none of; unassessed while its piece is unpriced or a finite fuel's burn rate is unread.
+    /// A finite fuel runs for its stock over its burn rate; a geothermal generator's price and lead carry its path's conduits.
+    /// </summary>
+    private static UtilityAlternative GenerateAlternative(GeneratorOption o, PowerPlanning planning, bool openSky, (PowerGeyser Geyser, int Conduits)? geyser)
+    {
+        var def = o.Definition;
+        UtilityAlternative Of(UtilityStanding standing) => new(UtilityChoiceKind.Generate, def, standing);
+        if (!o.Available) return Of(new UtilityStanding.Excluded("unavailable:" + def));
+        RequirePowerProfile(o.Profile);
+        if (!double.IsFinite(o.NominalW) || o.NominalW <= 0) throw new RequiredFactException("generator output:" + def);
+        if (o.Profile.Solar && !openSky) return Of(new UtilityStanding.Excluded("no_open_sky"));
+        if (o.Profile.Solar && planning.DaylightHours <= 0) return Of(new UtilityStanding.Excluded("no_daylight"));
+        if (o.Profile.Steam && geyser is null) return Of(new UtilityStanding.Excluded("no_free_geyser"));
+        var runway = double.PositiveInfinity;
+        if (!o.Fuel.IsEmpty && !o.FuelRenewable)
+        {
+            if (o.FuelStock <= 0) return Of(new UtilityStanding.Excluded("no_fuel:" + o.Fuel.Value));
+            if (!double.IsFinite(o.FuelPerDay) || o.FuelPerDay <= 0) return Of(new UtilityStanding.Unassessed("fuel burn rate:" + def));
+            runway = o.FuelStock / o.FuelPerDay;
+        }
+        if (!planning.Valuation.Pieces.TryGetValue(def, out var piece)) return Of(new UtilityStanding.Unassessed(BuildPriceFact + def));
+        double cost = piece.CostDays, lead = piece.LeadDays;
+        if (o.Profile.Steam && geyser is { Conduits: > 0 and var conduits })
+        {
+            if (!planning.Valuation.Pieces.TryGetValue(Wire.Name(PowerMethod.Connect), out var conduit))
+                return Of(new UtilityStanding.Unassessed(BuildPriceFact + Wire.Name(PowerMethod.Connect)));
+            cost += conduit.CostDays * conduits;
+            lead += conduit.LeadDays * conduits;
+        }
+        return Of(new UtilityStanding.Assessed(new UtilityEffect
+        {
+            Producers = [new PowerProducer { NominalW = o.NominalW, Profile = o.Profile }], CostDays = cost, LeadDays = lead, RunwayDays = runway,
+        }));
     }
 
     /// <summary>
-    /// Proposes one more generator for the network of target. Native producer identity, rather than
-    /// fluctuating output, distinguishes an additional capacity proposal from replay of the same deficit. A
-    /// free steam geyser within GeothermalReachCells of the consumer over routeable cells hosts a geothermal
-    /// generator ahead of every ranked option: it runs around the clock on no fuel.
+    /// The short network's comparison (UtilityChoiceRules.Choose) over configuring its consumers, a conduit to each network with
+    /// a surplus (its current surplus held constant), each generator, a battery and each passive thermal provision for one of its
+    /// controls, and the method the pick binds.
     /// </summary>
-    private static PowerProposal ProposeGenerator(PowerProposal p, PowerSite target, IReadOnlyList<PowerSite> producers, PowerPlanning planning, IReadOnlyList<PowerGeyser> geysers, HashSet<Cell> route)
+    private static PowerProposal Compare(PowerProposal p, PowerSite target, UtilityNetwork n, IReadOnlyList<UtilityAlternative> generate, (PowerGeyser Geyser, int Conduits)? geyser,
+        IReadOnlyList<PowerSite> producers, List<PowerSite> exposed, PowerTopology v, PowerPlanning planning, HashSet<Cell> route, HashSet<Cell> existing,
+        IReadOnlyList<SiteCell> cells, HashSet<Cell> blocked, Bounds bounds)
     {
-        var ids = producers.Select(b => b.Id).ToList();
-        ids.Sort(StringComparer.Ordinal);
-        p = p with { Key = PowerMethodKey("generate", target.Id + "/" + string.Join("/", ids)) };
-        var geothermal = RankGenerators(planning.Generators.Where(option => option.Profile.Steam).ToList(),
-            new() { BatteryAvailable = planning.BatteryAvailable, DaylightHours = planning.DaylightHours });
-        var geyser = geothermal.Count > 0 ? ReachableGeyser(target.Cell, geysers, route) : null;
-        if (geyser is not null)
+        var alternatives = new List<UtilityAlternative> { UtilityChoiceRules.Configuration(n) };
+        var routes = new Dictionary<string, List<Cell>>(StringComparer.Ordinal);
+        var conduitName = Wire.Name(PowerMethod.Connect);
+        foreach (var other in v.Networks.Where(net => net.Id != n.Network && net.GenerationW - net.ConsumptionW > 0).OrderBy(net => net.Id, StringComparer.Ordinal))
         {
-            return p with { Method = PowerMethod.Generate, OnGeyser = true, Definition = geothermal[0], Alternatives = [.. geothermal.Skip(1)], Center = geyser.Cell, Cells = [.. geyser.Cells] };
+            var destinations = v.Buildings.Where(b => b.Connected && b.Network == other.Id).SelectMany(b => b.OccupiedCells).ToHashSet();
+            var path = destinations.Count == 0 ? null : PlannedRoute(planning.Net, target.Cell, destinations, route);
+            if (path is not { Count: > 0 })
+            {
+                alternatives.Add(new(UtilityChoiceKind.Route, other.Id, new UtilityStanding.Excluded("no_route")));
+                continue;
+            }
+            var connect = path.Where(c => !existing.Contains(c) && !destinations.Contains(c)).ToList();
+            routes[other.Id] = connect;
+            alternatives.Add(new(UtilityChoiceKind.Route, other.Id, !planning.Valuation.Pieces.TryGetValue(conduitName, out var conduit)
+                ? new UtilityStanding.Unassessed(BuildPriceFact + conduitName)
+                : new UtilityStanding.Assessed(new UtilityEffect
+                {
+                    SupplyW = other.GenerationW - other.ConsumptionW, CostDays = conduit.CostDays * connect.Count, LeadDays = conduit.LeadDays * connect.Count,
+                })));
         }
-        // A shortfall the day already covers is night-only: no solar answers it.
-        var ranking = new GeneratorRanking
+        alternatives.AddRange(generate);
+        alternatives.Add(new(UtilityChoiceKind.Store, PowerRules.BatteryDefinition, !planning.BatteryAvailable
+            ? new UtilityStanding.Excluded("unavailable:" + PowerRules.BatteryDefinition)
+            : !planning.Valuation.Pieces.TryGetValue(PowerRules.BatteryDefinition, out var battery)
+                ? new UtilityStanding.Unassessed(BuildPriceFact + PowerRules.BatteryDefinition)
+                : new UtilityStanding.Assessed(new UtilityEffect { StorageWD = planning.Battery.CapacityWD, CostDays = battery.CostDays, LeadDays = battery.LeadDays })));
+        var controls = n.Consumers.Select(c => c.Building).ToHashSet(StringComparer.Ordinal);
+        var passives = planning.Valuation.Passive.Where(x => controls.Contains(x.Control))
+            .OrderBy(x => x.Control, StringComparer.Ordinal).ThenBy(x => x.Definition, StringComparer.Ordinal).ToArray();
+        alternatives.AddRange(passives.Select(UtilityChoiceRules.Passive));
+        var (shelter, shelterRoom) = ShelterAlternative(exposed, cells, blocked, bounds, planning);
+        alternatives.Add(shelter);
+        var decision = UtilityChoiceRules.Choose(n, alternatives);
+        p = p with { Decision = decision };
+        var subject = decision.Chosen.Alternative.Subject;
+        var ids = producers.Select(b => b.Id).Order(StringComparer.Ordinal).ToList();
+        switch (decision.Kind)
         {
-            BatteryAvailable = planning.BatteryAvailable,
-            DaylightHours = planning.DaylightHours,
-            NightOnly = p.Budget.GenerationShortfallW > 0 && p.Budget.DaySurplusWD > 0,
-        };
-        var ranked = RankGenerators(planning.Generators.Where(option => !option.Profile.Steam).ToList(), ranking);
-        if (ranked.Count == 0)
-        {
-            return p with { Method = PowerMethod.NoGenerator };
+            case UtilityChoiceKind.Defer:
+                // No supply to add at all (no generator, battery or route stands) is NoGenerator, which the research gate explains.
+                return p with { Method = alternatives.Where(a => a.Kind is UtilityChoiceKind.Generate or UtilityChoiceKind.Store or UtilityChoiceKind.Route)
+                    .All(a => a.Standing is UtilityStanding.Excluded) ? PowerMethod.NoGenerator : PowerMethod.Defer };
+            case UtilityChoiceKind.Configure:
+                // SelectPowerMethod turns the switched-off set into the switch orders the observed switches need.
+                return p with { Method = PowerMethod.Configure };
+            case UtilityChoiceKind.Route:
+                var routed = routes[subject];
+                if (routed.Count == 0) return p with { Method = PowerMethod.WaitOutput };
+                return p with { Method = PowerMethod.Connect, Cells = routed, Key = PowerMethodKey("connect", GoFormat(routed)) };
+            case UtilityChoiceKind.Generate:
+                p = p with { Method = PowerMethod.Generate, Definition = subject, Key = PowerMethodKey("generate", target.Id + "/" + string.Join("/", ids)) };
+                bool Steam(string def) => planning.Generators.Single(o => o.Definition == def).Profile.Steam;
+                var steam = Steam(subject);
+                // The priced generators a placement may fall back to under the same key, cheapest first: on the same geyser for a
+                // geothermal pick, else every other ordinary one.
+                p = p with
+                {
+                    Alternatives = [.. decision.Alternatives.Where(a => a.Alternative.Kind == UtilityChoiceKind.Generate && a.Price is UtilityPrice.Days && a.Alternative.Subject != subject
+                            && Steam(a.Alternative.Subject) == steam)
+                        .OrderBy(a => ((UtilityPrice.Days)a.Price).Value).ThenBy(a => a.Alternative.Subject, StringComparer.Ordinal).Select(a => a.Alternative.Subject)],
+                };
+                return steam && geyser is { Geyser: var site } ? p with { OnGeyser = true, Center = site.Cell, Cells = [.. site.Cells] } : p;
+            case UtilityChoiceKind.Store:
+                return p with { Method = PowerMethod.Store, Definition = PowerRules.BatteryDefinition,
+                    Key = PowerMethodKey("store", $"{target.Id}/{string.Join("/", ids)}/{(int)n.StorageWD}") };
+            case UtilityChoiceKind.Passive:
+                var provision = passives.First(x => UtilityChoiceRules.PassiveSubject(x) == subject);
+                return p with
+                {
+                    Method = PowerMethod.Passive, Definition = provision.Definition, Center = v.Buildings.First(b => b.Id == provision.Control).Cell,
+                    Key = PowerMethodKey("passive", subject),
+                };
+            case UtilityChoiceKind.Shelter:
+                var sheltered = exposed[0];
+                return p with { Method = PowerMethod.Shelter, Center = sheltered.Cell, Room = shelterRoom, Key = PowerMethodKey("shelter", sheltered.Id + GoFormat(shelterRoom)) };
         }
-        return p with { Method = PowerMethod.Generate, Definition = ranked[0], Alternatives = [.. ranked.Skip(1)] };
+        throw new DomainException("no power method binds the utility choice " + decision.Kind);
     }
 
-    /// <summary>The nearest free geyser a conduit route of at most GeothermalReachCells can reach from start, when the geothermal generator is natively available. Null when none.</summary>
-    private static PowerGeyser? ReachableGeyser(Cell start, IReadOnlyList<PowerGeyser> geysers, HashSet<Cell> route)
+    /// <summary>
+    /// Sheltering the network's rain-exposed members as one alternative: a walled, roofed room around each (PowerShelter), priced
+    /// at its ring's walls less a door, the door and its interior's roof cells, and clearing the network's exposure; the method
+    /// binds the first member's room (the next round shelters the next). Excluded without an exposed member or for one whose
+    /// room has no site; unassessed while a piece is unpriced.
+    /// </summary>
+    private static (UtilityAlternative Alternative, Rectangle Room) ShelterAlternative(List<PowerSite> exposed, IReadOnlyList<SiteCell> cells, HashSet<Cell> blocked, Bounds bounds, PowerPlanning planning)
+    {
+        UtilityAlternative Of(UtilityStanding standing) => new(UtilityChoiceKind.Shelter, exposed.Count == 0 ? "" : exposed[0].Id, standing);
+        if (exposed.Count == 0) return (Of(new UtilityStanding.Excluded("no_exposure")), default);
+        double cost = 0, lead = 0;
+        Rectangle first = default;
+        foreach (var b in exposed)
+        {
+            var (room, ok) = PowerShelter(b, cells, blocked, bounds, planning.Light);
+            if (!ok) return (Of(new UtilityStanding.Excluded("no_shelter_site:" + b.Id)), default);
+            if (first.Width == 0) first = room;
+            var ring = (2 * (room.Width + room.Height)) - 4;
+            foreach (var (piece, count) in new[] { (ContainmentCellRules.ShellWallDefinition, ring - 1), (ContainmentCellRules.ShellDoorDefinition, 1), (RoofPiece, (room.Width - 2) * (room.Height - 2)) })
+            {
+                if (!planning.Valuation.Pieces.TryGetValue(piece, out var priced)) return (Of(new UtilityStanding.Unassessed(BuildPriceFact + piece)), default);
+                cost += priced.CostDays * count;
+                lead += priced.LeadDays * count;
+            }
+        }
+        return (Of(new UtilityStanding.Assessed(new UtilityEffect { CostDays = cost, LeadDays = lead, ClearsExposure = true })), first);
+    }
+
+    /// <summary>The piece a shelter's roof cells are priced by: one cell's roofing (PowerValuationRules.Valuation).</summary>
+    public const string RoofPiece = "roof";
+
+    /// <summary>
+    /// The nearest free geyser a conduit route reaches from start over routeable cells, with the new conduits the route lays
+    /// (its cells less the consumer, the geyser and the conduits already built). Null when none: no free geyser, or no route.
+    /// </summary>
+    private static (PowerGeyser Geyser, int Conduits)? ReachableGeyser(Cell start, IReadOnlyList<PowerGeyser> geysers, HashSet<Cell> route, HashSet<Cell> existing)
     {
         var destinations = new Dictionary<Cell, PowerGeyser>();
         var allowed = new HashSet<Cell>(route);
@@ -833,11 +971,11 @@ public static partial class PowerRules
         // it regardless.
         allowed.Add(start);
         var path = ConduitRouterRules.PowerRoute(start, targets, allowed);
-        if (path.Count == 0 || path.Count - 1 > PowerRules.GeothermalReachCells)
+        if (path.Count == 0)
         {
             return null;
         }
-        return destinations[path[0]];
+        return (destinations[path[0]], path.Count(c => c != start && !targets.Contains(c) && !existing.Contains(c)));
     }
 
     private static MethodId PowerMethodKey(string prefix, string identity)

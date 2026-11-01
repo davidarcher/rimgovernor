@@ -4,19 +4,13 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// The grid's coverage of its consumers: whether any consumer draws power, the lowest output on a consumer's own
-/// network (-1 for a consumer that is disconnected or unpowered, 0 with no consumer), and whether an enabled consumer
-/// is unpowered.
+/// network (-1 for a consumer that is disconnected or unpowered, 0 with no consumer), and whether any consumer is
+/// unpowered (switched off or forbidden included: who set a switch is no exemption).
 /// </summary>
 public readonly record struct PowerCoverage(bool Required, double HeadroomW, bool Disabled);
 
 public static partial class PowerRules
 {
-    public static double ReserveDays(this PowerNetworkFact network)
-    {
-        var drain = network.ConsumptionW - network.GenerationW;
-        return drain <= 0 ? double.PositiveInfinity : network.StoredWD / drain;
-    }
-
     /// <summary>Requires actual roof coverage of rain-sensitive equipment. Empty batteries still need shelter before the network charges them.</summary>
     public static bool PowerWeatherSafe(IReadOnlyList<PowerBuilding> buildings) =>
         buildings.All(b => !b.RainVulnerable || b.Roofed);
@@ -36,8 +30,8 @@ public static partial class PowerRules
         var disabled = false;
         foreach (var consumer in consumers)
         {
-            // An enabled, unpowered consumer is a recovery target.
-            disabled = disabled || (!consumer.Powered && !consumer.Forbidden && consumer.SwitchedOn);
+            // An unpowered consumer is a recovery target: the power Need closes only on its observed PowerOn.
+            disabled = disabled || !consumer.Powered;
             double value = -1;
             if (consumer.Connected && consumer.Powered)
             {

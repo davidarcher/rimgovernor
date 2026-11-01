@@ -36,6 +36,9 @@ public sealed record AnimalsFacts
 
     /// <summary>Whether the ward stands with a medical animal bed, and the hospital's allowed area.</summary>
     public AnimalWard WardRoom { get; init; } = new();
+
+    /// <summary>Each pen unit's arrangement (<see cref="HerdArrangementRules.Assess"/>): its feeding, shelter and containment deficits.</summary>
+    public EquatableArray<HerdArrangement> Arrangements { get; init; }
 }
 
 /// <summary>
@@ -47,9 +50,10 @@ public sealed record AnimalsFacts
 /// slaughter or a tame, or an animal is owed a master. Its Method is the one husbandry write the choice chain
 /// picks (removal, training and taming, the food plan's slaughter and tame, then mastering), named
 /// <c>&lt;method&gt;-&lt;animal&gt;[-&lt;trainable&gt;]</c>; the animal is its claim.</item>
-/// <item><c>animals/containment</c> (Wellbeing): every pen-bound animal is penned and every planned pen matches the
-/// plan. The pens are built by the family's work step through the shared building planner; once they stand the
-/// Need waits on native delivery.</item>
+/// <item><c>animals/containment</c> (Wellbeing): every pen-bound animal is penned, every planned pen matches the
+/// plan, and every herd arrangement is served as observed: fed over the season, sheltered from a lethal climate and
+/// enclosed (HerdArrangement). The pens are built by the family's work step through the shared building planner; the
+/// feed store, the hay field and the barn are bound by their own owners, and the Need waits on their observed service.</item>
 /// <item><c>animals/ward</c> (Wellbeing): the hospital holds the animal beds the herd needs, each flagged medical.
 /// Built by the work step.</item>
 /// <item><c>animals/sterilize</c> (Development, waits on <c>animals/ward</c>): no animal the herd plan wants
@@ -215,22 +219,25 @@ public static class AnimalsFamilyRules
     }
 
     /// <summary>
-    /// The containment Need, a plain threshold (no latch): unmet while a pen-bound animal is uncontained or a pen
-    /// step is owed; met otherwise (a colony with no planned pen or no animals has a no-op pen step).
-    /// Planning inputs are required before deriving the step. Its deficit is the uncontained animals,
-    /// plus one for an owed pen.
+    /// The containment Need, a plain threshold (no latch): unmet while a pen-bound animal is uncontained, a pen step is
+    /// owed or a herd arrangement is open (HerdArrangement.Open: a feeding, shelter or pen deficit observed, or a fact
+    /// one needs unread); met otherwise (a colony with no planned pen or no animals has a no-op pen step and no
+    /// arrangement). A standing marker or fence never meets it; only the observed service does. Its deficit is the
+    /// uncontained animals, plus one for an owed pen, plus each open arrangement's unserved pen, its fed deficit (one),
+    /// its unsheltered animals and one for unread facts.
     /// </summary>
     public static Need ContainmentNeedOf(AnimalsFacts f)
     {
         var penOwed = f.Pen.Owed();
         var count = f.Uncontained.Count;
-        var owed = count > 0 || penOwed || f.LayoutPlanPending;
+        var arranged = f.Arrangements.Sum(a => (a.PenUnserved ? 1 : 0) + (a.FeedingDeficit > 0 ? 1 : 0) + a.ShelterDeficit + (a.Unread.Count > 0 ? 1 : 0));
+        var owed = count > 0 || penOwed || f.LayoutPlanPending || f.Arrangements.Any(a => a.Open);
         return new Need
         {
             Id = AnimalsFamily.Containment,
             Tier = NeedTier.Wellbeing,
             Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = count + (penOwed || f.LayoutPlanPending ? 1.0 : 0.0),
+            Deficit = count + (penOwed || f.LayoutPlanPending ? 1.0 : 0.0) + arranged,
         };
     }
 

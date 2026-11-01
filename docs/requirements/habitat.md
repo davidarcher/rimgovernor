@@ -24,16 +24,18 @@ layout inputs. Repeated growth/loss recovery needs broader execution evidence.
 Milestone 2 extends accommodation beyond colonists: a hosted guest or slave without a
 suitable bed stays a sleeping target and is built a bed; every occupant needs a
 compatible reachable slot of its own (a prisoner a prison bed, a baby a crib, a slave
-a slave bed); accepted hosting quests' lodgers count before they arrive; shared,
+a slave a slave bed); accepted hosting quests' lodgers are dated expected changes, prepared only when a priced
+shortage exceeds the cost ([H13](#h13--fields-herds-prospective-capacity-and-utilities-compared-as-priced-consequences)); shared,
 private and held barracks are compared as layout alternatives; furnishing is built
 only when its owners' gain beats its cost; and each herd's open pen, barn and
 animal sleeping spot are compared by exposure deaths avoided
-([H9](#h9--hosted-occupants-bed-sharing-and-herd-shelter)). Barn execution (task 6.2),
-a human pregnancy fact, hosted babies in the nursery's sizing and the room-quality
+([H9](#h9--hosted-occupants-bed-sharing-and-herd-shelter)). Milestone 6 reads the human pregnancy fact,
+dates a birth, a baby's leaving the crib and a lodger's arrival and departure, and sizes the nursery with hosted
+babies (H13). Barn execution (the animal flap, owner step, spot assignment and heater) and the room-quality
 minimums remain gaps. Milestone 4 adds that a medical bed is no free sleeping slot, a
 patient held in one counts once, and a bed a care transport holds is its patient's
 ([H11](#h11--care-locations-compared-by-readiness-movement-delay-and-outcome)).
-Evidence H1–H2, H6, H9, H11.
+Evidence H1–H2, H6, H9, H11, H13.
 
 ## RG-HABITAT-002 — Keep essential facilities usable
 
@@ -55,9 +57,11 @@ acquisition and breakdown fix, and a damaged building's repair, fix, door-to-wal
 replacement, retirement or deferral, as measured servicing work; the Need stays unmet
 until fresh facts show restoration ([H12](#h12--servicing-and-power-restoration-compared-as-measured-work)).
 Turret and other non-power service value, chemfuel and trade fuel acquisition and a
-component source are not modelled. Resilience across repeated losses needs further
-evidence. A hosted guest's or slave's cold or hot sleeping room is temperature work like a
-colonist's (H9). Evidence H3–H6, H12.
+component source are not modelled. Milestone 6 compares generation, storage, roofing, routing, consumer
+configuration and passive thermal provision by the interruption each consumer's loss prices, and orders power
+switches and a forbidden producer's allow under Auto ([H13](#h13--fields-herds-prospective-capacity-and-utilities-compared-as-priced-consequences)).
+Resilience across repeated losses needs further evidence. A hosted guest's or slave's cold or hot sleeping room is
+temperature work like a colonist's (H9). Evidence H3–H6, H12, H13.
 
 ## RG-HABITAT-003 — Develop rooms for the benefit they provide
 
@@ -293,8 +297,9 @@ hosted guests and slaves size the sleep nodes but not the colonists' demand, and
 no bedroom step postpones a guest's or slave's bed build.
 [HabitatOccupantTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HabitatOccupantTests.cs)
 check the compatible reachable slot (no crib, medical or prison bed, slave setting
-matching, reach), babies as one crib each, accepted hosting quests' lodgers as known
-arrivals, the hospitality gate counting vacant compatible slots, and the jail never
+matching, reach), babies as one crib each, accepted hosting quests' lodgers as dated
+expected arrivals (formerly known arrivals; [H13](#h13--fields-herds-prospective-capacity-and-utilities-compared-as-priced-consequences)),
+the hospitality gate counting vacant compatible slots, and the jail never
 marking an owned bed.
 [PrisonCreditTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PrisonCreditTests.cs)
 check that a loyal or non-recruited prisoner is still credited its accommodation apart from
@@ -317,14 +322,13 @@ check stand-ins for hosted sleepers and that a stand-in leaves the bedroom owed.
 These are executed policy checks through the full gate (4,383 domain tests and 30 workflow tests, contract orphans none). The native case
 `bed/built-for-guest` (OnDemand) is registered and compiles but was not executed, nor
 was the `StageFixture` guest staging; no native evidence exists for this milestone.
-Known gaps, stated rather than priced: no human pregnancy fact is read, so an expected
-birth is not crib demand; a prisoner outside a cell is not fed by wardens and its hunger
-is not priced (`prisoner_unfed_outside_cell_not_modelled`); the nursery's sizing
-(`ChildRoomNeeds`) counts colonist babies only, hosted babies reaching crib demand only
-through the station graph; the room-quality minimums for bed replacement, beauty floors,
+Known gaps, stated rather than priced: a prisoner outside a cell is not fed by wardens and its hunger
+is not priced (`prisoner_unfed_outside_cell_not_modelled`); the room-quality minimums for bed replacement, beauty floors,
 sculptures and common rooms stay fixed and dining and recreation mood is unpriced; and
-the barn is planned and credited but not executed (owner step, animal flap at the pen
-link, spot assignment and heater are task 6.2 of `redefine-habitat-requirements`).
+the barn is planned and credited only where an animal entry exists, and is not executed (owner step, animal flap at
+the pen link, spot assignment and heater remain the deferred gap of
+[H13](#h13--fields-herds-prospective-capacity-and-utilities-compared-as-priced-consequences)). Milestone 6 has since
+read the pregnancy fact and sized the nursery with hosted babies.
 The [population](../developers/contracts/population-contracts.md#accommodation-of-hosted-people),
 [spatial](../developers/contracts/spatial-contracts.md#layout-planner),
 [husbandry](../developers/contracts/husbandry-contracts.md#herd-shelter-alternatives)
@@ -568,3 +572,91 @@ Known limits, stated rather than priced:
 
 Provision stays separate from outcome as RG-HABITAT-011 requires: an accepted order, a chosen option or a staged
 acquisition establishes nothing, and an unread fact is named rather than defaulted.
+
+### H13 — Fields, herds, prospective capacity and utilities compared as priced consequences
+
+Milestone 6 (RG-HABITAT-006, -007, -008) replaces the field and crop placement ladders, the herd's separately planned
+feeding, shelter and containment, the fixed spare-capacity quotas and the generator ranking with comparisons priced in
+capability-days. The [spatial](../developers/contracts/spatial-contracts.md#field-placement-comparison-rg-habitat-006),
+[husbandry](../developers/contracts/husbandry-contracts.md#herd-arrangement-needs),
+[forecast](../developers/contracts/forecast-contracts.md#prospective-capacity),
+[power](../developers/contracts/power-contracts.md#comparison),
+[population](../developers/contracts/population-contracts.md),
+[action](../developers/contracts/action-contracts.md) and
+[persistence](../developers/contracts/persistence-contracts.md) (schema 75) contracts own the behavior.
+
+- **Fields and crops (RG-HABITAT-006).** [FieldPlacementTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/FieldPlacementTests.cs)
+  check that the comparison refuses without a plan or an owed need, that a more fertile later patch beats the first
+  feasible one, that food and textile crops compete for one patch without sharing a cell, that a half roofed, half
+  infertile patch is credited only its usable cells (a nominal zone area establishes nothing), that an out-of-season crop is
+  excluded by name, that a covered bound zone is retained and an owed one grows in place deterministically, that ground
+  a building site holds is never taken, and that an in-flight zone create holds its ground on the ledger until observed and
+  a refusal releases it. [LayoutFieldPlanningTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/LayoutFieldPlanningTests.cs)
+  carry the ledger through the layout plan.
+- **Herd arrangement (RG-HABITAT-006).** [HerdArrangementTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HerdArrangementTests.cs)
+  check that a marker or a complete fence over bare ground leaves feeding open (placing a pen marker establishes no
+  accommodation), that hay feeds back as runway and feeding closes only when observed nutrition covers consumption,
+  that an unread growing season is named and keeps the arrangement open, that a cold species closes shelter only on an
+  observed reachable roofed room in its band and a hardy one has no shelter deficit or barn, that an unenclosed pen is a
+  containment deficit repaired over the retain baseline by the roaming loss it stops, that adequate summer pasture asks
+  no hay field, and that two pens cannot claim the same feed twice.
+  [HerdShelterTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HerdShelterTests.cs) check that a barn earns only
+  where an animal entry exists.
+- **Prospective capacity (RG-HABITAT-007).** [ProspectiveCapacityTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ProspectiveCapacityTests.cs)
+  check that a full colony with no expected change builds no spare bed (no quota), that an arrival past the bed's lead
+  starts at its lead and one inside it starts now, that two lodgers due in three days prepare their beds at the review the
+  lead requires and a cancellation retires them, that an unassessed loss defers naming the fact, that a bed share covers a
+  short visit and a bedroom a recruit, that a pregnancy dates the birth, its crib and the mother's bed rest, that a baby
+  leaving its crib is priced by its own rest and admitted only once its bed is due, that the season's end dates the hay
+  demand and a field is sized only when ready by then, and that a chain's later step raises dated power demand once its
+  bridge stands. [HabitatOccupantTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HabitatOccupantTests.cs) and
+  [QuestStateTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/QuestStateTests.cs) check the dated arrival and
+  departure reads that replace `KnownArrivals`.
+- **Utility choice (RG-HABITAT-008).** [PowerUtilityTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PowerUtilityTests.cs)
+  check that switching an idle bench off beats a new generator while a freezer spoils, that solar wins in open sky and
+  wood in a cave, that roofing an exposed bank beats a second battery only while the rain rate is read, that a passive
+  cooler in band beats the powered one when power is short and is filled from the thermal read, that a dated chain draw
+  prepares generation with lead and defers when its loss is unassessed, that storage is sized by the priced
+  interruption, that routing to a surplus network beats a new generator, and that a short winter network of a bench, a
+  patient monitor and a bedroom heater builds. Every consumer's loss is its own valuation (spoilage avoided, recipe run
+  value, surgery loss, sleep-temperature mood), not a power-only price.
+  [PowerSwitchTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PowerSwitchTests.cs) check that an idle bench is
+  switched off, held and switched back on in surplus, that a switch the player set is ordered under Auto unless
+  protected, that a non-flickable consumer is never switched, that switches are ordered off first, that an accepted
+  switch that still reads unchanged is unconfirmed and not re-issued, and that a refusal spends the budget.
+  [PowerRestorationTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PowerRestorationTests.cs) and
+  [PowerMethodTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PowerMethodTests.cs) carry the restoration choice
+  of H12 into the comparison.
+- **Native cases.** OnDemand `upkeep/restore-service` (H12) and OnDemand
+  [power/configure-and-route](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Power/PowerConfigureAndRoute.cs)
+  (a fuelled wood-fired generator wired to a cooler and three idle electric stoves, and a lamp out of the conduit's
+  reach) are registered and compile, and neither was executed. `power/configure-and-route` expects a `configure-`
+  Method's switches to turn an idle stove off, a colonist to flick it, the building read to observe its switch off, the
+  cooler to stay powered and a conduit to reach the lamp. Only the game proves the native power gizmo, the flick and the
+  switch readback, so no native evidence exists for this milestone and no executed pass is claimed.
+
+These are executed policy and boundary checks through the full gate (4,518 domain tests and 30 workflow tests at the
+milestone 6.5 commit, contract orphans none).
+
+Known limits, stated rather than priced:
+
+- the deferred animal-flap gap: a barn shelters animals only if roamers can enter it, and no animal flap at the pen
+  link, barn owner step, animal spot assignment or heater is built, so a barn's credit is zero until an animal entry
+  exists (`HerdShelterRules.AnimalEntry`);
+- the native tick formulas that date a birth, a baby's leaving the crib, an arrival and a departure are not checked
+  against live saves, and a quest structure other than a delay-to-leave or delay-to-quest-end reads `Unread` and
+  defers; prisoner recruitment and animal pregnancies are not dated;
+- an arrival's and a birth's loss beyond a bed's rest is unassessed (the arrival's rest loss is a lower bound with the
+  mood term omitted), so only a bed ahead of a dated arrival or a leaving baby can win; a birth's crib and maternal bed
+  rest defer naming the fact;
+- the prospective bed's lead is optimistic (its work over builders, no material delivery);
+- an unvalued consumer (lamps and other consumers, turrets, the immunity gain a patient loses, tend quality) is
+  unassessed naming the service, so a priced interruption is a lower bound;
+- the rain short-circuit roll (every 97 ticks, 2 %, `0.2 * N * RainRate`, a battery over 500 Wd losing 400 Wd with 5 %
+  chance) is copied from the decompiled game ([kept constants](../developers/contracts/kept-constants.md#mirrored-game-literals-rain-short-circuit-habitat-64)),
+  and a wind turbine's clear path, breakdown rate, shared dependence on one producer and material delivery time are not
+  priced;
+- an ordered switch is confirmed only by a later building read, and the native gizmo toggle, flick and readback are
+  untested in game;
+- the field ledger's fertility, season and roofing reads and the herd's feeding runway are policy checks, not native
+  results, and no field or pen was built under the new comparison in a game.

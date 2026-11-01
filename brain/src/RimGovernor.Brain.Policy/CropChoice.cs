@@ -213,9 +213,6 @@ public sealed record FieldBlockOption(CropChoice Crop, int Needed);
 
 public static class CropChoiceRules
 {
-    /// <summary>How near (cells) a growing zone must be to a new block for its crop to count as a neighbour.</summary>
-    public const int FieldBlockNeighbourRadius = 11;
-
     /// <summary>A RimWorld year: an indoor field's reserve spreads over it.</summary>
     internal const double FieldYearDays = GameTime.DaysPerYear;
 
@@ -425,19 +422,6 @@ public static class CropChoiceRules
     {
         var soil = cell.Fertility;
         return (soil, (blocked is null || !blocked.Contains(cell.Cell)) && cell.Walkable && !cell.Occupied() && !cell.Zone && FoodForecastRules.FoodNumber(soil) && soil >= minimum);
-    }
-
-    /// <summary>
-    /// Orders the viable crops for a new field block: options keep their preference order, so urgency's
-    /// fastest crop still leads the first block, but a crop growing in a neighbouring zone moves behind every
-    /// other crop. A sole viable crop is still allowed.
-    /// </summary>
-    public static IReadOnlyList<FieldBlockOption> BlockCropOrder(IReadOnlyList<FieldBlockOption> options, IReadOnlySet<string> neighbours)
-    {
-        var result = new List<FieldBlockOption>(options.Count);
-        result.AddRange(options.Where(o => !neighbours.Contains(o.Crop.Name)));
-        result.AddRange(options.Where(o => neighbours.Contains(o.Crop.Name)));
-        return result;
     }
 
     /// <summary>

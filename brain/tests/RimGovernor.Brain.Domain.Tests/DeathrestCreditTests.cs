@@ -153,7 +153,7 @@ public sealed class DeathrestCreditTests
         new() { Observed = new RimGovernor.Brain.GameFacts.Observations.PawnBiotech { DevelopmentalStage = stage, Genes = [], Mechanitor = null, Mech = null, Deathrest = deathrest } };
 
     private static EquatableArray<DeathrestPiece> Staged(DeathrestDefsRead? defs, params WorkPawn[] pawns) =>
-        ChildRoomsRules.DeathrestFurniture(ChildRoomsRules.ChildRoomNeeds(pawns, defs), Catalog);
+        ChildRoomsRules.DeathrestFurniture(ChildRoomsRules.ChildRoomNeeds(pawns, 0, defs), Catalog);
 
     [Fact]
     public void AFreshColonysDefaultDeathresterIsStagedACasketAndOneAcceleratorAndCreditedThem()
@@ -199,7 +199,7 @@ public sealed class DeathrestCreditTests
         var needs = ChildRoomsRules.ChildRoomNeeds([
             Child("baby", RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Baby),
             Child("child", RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Child),
-            PawnFixtures.Worker("plain")], Defs);
+            PawnFixtures.Worker("plain")], 0, Defs);
         Assert.Equal([RoomRole.Nursery, RoomRole.Classroom], needs.Select(n => n.Role));
     }
 

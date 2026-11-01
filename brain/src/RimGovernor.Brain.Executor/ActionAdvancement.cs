@@ -41,7 +41,7 @@ public sealed partial class ActionAdvancement(ActionAdvancementConfig config)
         ActionKind.ProductionBill, ActionKind.Tend, ActionKind.Rescue, ActionKind.BedRest, ActionKind.Capture, ActionKind.UseItem, ActionKind.Haul, ActionKind.Equip, ActionKind.DropEquipment,
         ActionKind.GearReplace, ActionKind.ApparelPolicy, ActionKind.RecoveryService, ActionKind.Movement, ActionKind.Husbandry,
         ActionKind.PrisonerInteraction, ActionKind.Repair, ActionKind.MineAcquisition,
-        ActionKind.BuildingTemperature, ActionKind.BedUse, ActionKind.GrowerCrop, ActionKind.ClaimBuilding, ActionKind.AutoRefuel, ActionKind.Surgery, ActionKind.AutoHomeArea, ActionKind.PawnSettings, ActionKind.Area,
+        ActionKind.BuildingTemperature, ActionKind.BedUse, ActionKind.GrowerCrop, ActionKind.ClaimBuilding, ActionKind.AutoRefuel, ActionKind.PowerSwitch, ActionKind.BuildingAllow, ActionKind.Surgery, ActionKind.AutoHomeArea, ActionKind.PawnSettings, ActionKind.Area,
         ActionKind.PolicyPrune, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy, ActionKind.ZoneDelete, ActionKind.ZoneCellEdit, ActionKind.StockpilePatch, ActionKind.Assign,
         ActionKind.Conversion, ActionKind.Excavation, ActionKind.DialogAnswer, ActionKind.ResearchSelect, ActionKind.Trade, ActionKind.CommsTradeRequest, ActionKind.Deconstruction,
         ActionKind.RemoveRoof, ActionKind.BuildRoof, ActionKind.AreaPlantCut, ActionKind.CutPlant, ActionKind.Strip, ActionKind.MoveBuilding, ActionKind.UninstallBuilding, ActionKind.CoverClearance,

@@ -186,7 +186,11 @@ no pending work. Existing log readers consume these rows.
 A repair, breakdown fix or refuel is one exact Method of its owning Need, not a stored plan
 ([upkeep](upkeep-contracts.md#repairs-cleaning), [power](power-contracts.md#restoration), habitat 5.2 to 5.3):
 `repair-<target>-<pawn>` and `fix-<target>-<pawn>` of `home-upkeep/repairs`, `refuel-<target>-<pawn>` and the
-fuel acquisition `fuel-<def>-<sha8>` of `power/basic`. The state is not stored: each review re-derives it
+fuel acquisition `fuel-<def>-<sha8>` of `power/basic`. The same Need's `allow-<producer>` (a `BuildingAllow` ahead of a
+restoration of a forbidden lost producer) and `configure-<key>` (one `PowerSwitch` per building, claiming
+`switch/<thing>`) follow the same rule ([power](power-contracts.md#configuration)): a flick still pending reads
+`waiting_for_flick`, a configuration whose switches all read as chosen holds as `configuration_holds`, and a restoration
+under way waits as `restoring_producers`. The state is not stored: each review re-derives it
 from the journal and the pawns' census (`HomeUpkeepReader.ServicingHistory`). An action still open is
 underway and continues its Method; a pawn's running native job on the target (`Repair`,
 `FixBrokenDownBuilding`, `Refuel`) is underway work to continue, not to reorder; a refused one is read from the

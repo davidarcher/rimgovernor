@@ -15,6 +15,12 @@ public sealed record FoodChannelPlanning
 
     public EquatableArray<PenGrazing> Grazing { get; init; }
 
+    /// <summary>The pasture-edible feed lying outside every enclosed pen, by def (PenFeedStock).</summary>
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.PenFeedStock> PenFeed { get; init; }
+
+    /// <summary>The door defs a fence-blocked roamer can open (FoodChannelsFacts.AnimalDoors).</summary>
+    public EquatableArray<string> AnimalDoors { get; init; }
+
     public PastureTable Pasture { get; init; } = new(new Dictionary<string, double>());
 
     public IReadOnlyList<SlaughterFoodAnimal> Slaughter { get; init; } = [];

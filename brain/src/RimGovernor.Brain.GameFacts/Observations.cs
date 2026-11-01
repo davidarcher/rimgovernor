@@ -2179,18 +2179,42 @@ public abstract record BuildingHitPoints
     }
 }
 
-/// <summary>A building's power, switch, breakdown, fuel and wind state. A building without a flick switch is switched on.</summary>
+/// <summary>A building's power, switch, breakdown, fuel and wind state.</summary>
 public sealed record BuildingServiceState
 {
     public required BuildingPower Power { get; init; }
 
-    public required bool SwitchedOn { get; init; }
+    public required BuildingSwitch Switch { get; init; }
 
     public required BuildingFuel Fuel { get; init; }
 
     public required bool BrokenDown { get; init; }
 
     public required BuildingWind Wind { get; init; }
+}
+
+/// <summary>
+/// A building's flick switch: <see cref="Fixed"/> without CompFlickable (always on, nothing to switch). A
+/// <see cref="Flick"/> reads the switch's state and the state its gizmo has ordered; they differ while the flick
+/// designation waits for a pawn.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BuildingSwitch.Fixed), "fixed")]
+[JsonDerivedType(typeof(BuildingSwitch.Flick), "flick")]
+public abstract record BuildingSwitch
+{
+    private protected BuildingSwitch() { }
+
+    /// <summary>The building has no flick switch: it is on.</summary>
+    public sealed record Fixed : BuildingSwitch;
+
+    /// <summary>A CompFlickable: whether it is on and the state its gizmo wants (CompFlickable.WantsFlick while they differ).</summary>
+    public sealed record Flick : BuildingSwitch
+    {
+        public required bool On { get; init; }
+
+        public required bool Wanted { get; init; }
+    }
 }
 
 /// <summary>
@@ -3486,6 +3510,20 @@ public sealed record QuestObjective
     public QuestGiftRequest? GiftRequest { get; init; }
 
     public QuestHackRisk? HackRisk { get; init; }
+
+    /// <summary>
+    /// A HostLodgers objective's arrival (QuestPart_PawnsArrive): dated at the end of the enabled QuestPart_Delay whose completion
+    /// signals the arrival, now when the accepted quest's initiate signal brings them, unread as "arrival tick:&lt;quest&gt;" otherwise
+    /// (a delay not enabled yet, or another signal); none for lodgers the quest hosts with no arrival part. Null for other kinds.
+    /// </summary>
+    public ExpectedTiming? Arrival { get; init; }
+
+    /// <summary>
+    /// A HostLodgers objective's departure: the end of the QuestPart_Delay whose completion signals the QuestPart_Leave of a lodger or
+    /// the QuestPart_QuestEnd (a leave on cleanup), dated now + TicksLeft when enabled, the arrival + delayTicks when the arrival's
+    /// signal enables it; unread as "departure tick:&lt;quest&gt;" otherwise. Null for other kinds.
+    /// </summary>
+    public ExpectedTiming? Departure { get; init; }
 }
 
 /// <summary>
@@ -5088,6 +5126,36 @@ public sealed record UpkeepPerson
     public required bool BedSharingAllowed { get; init; }
 
     public required RoyalStanding Title { get; init; }
+
+    /// <summary>
+    /// When a human pregnancy (Hediff_Pregnant) gives birth: the tick its gestation completes at the mother's current growth speed,
+    /// now while in labor (PregnancyLabor), none when not pregnant; unread as "birth tick:&lt;pawn&gt;" when the growth speed is not positive.
+    /// </summary>
+    public required ExpectedTiming Labor { get; init; }
+
+    /// <summary>
+    /// When a newborn or baby reaches its first later life stage that is no baby stage (it leaves the crib for a bed): none for a
+    /// pawn past the baby stages; unread as "crib to bed tick:&lt;pawn&gt;" when it does not age.
+    /// </summary>
+    public required ExpectedTiming LeavesCrib { get; init; }
+}
+
+/// <summary>
+/// When an expected change takes effect: at a dated tick, never (none expected), or unread, naming the native fact that would date it.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ExpectedTiming.Dated), "dated")]
+[JsonDerivedType(typeof(ExpectedTiming.None), "none")]
+[JsonDerivedType(typeof(ExpectedTiming.Unread), "unread")]
+public abstract record ExpectedTiming
+{
+    private protected ExpectedTiming() { }
+
+    public sealed record Dated(long Tick) : ExpectedTiming;
+
+    public sealed record None : ExpectedTiming;
+
+    public sealed record Unread(string Fact) : ExpectedTiming;
 }
 
 /// <summary>
@@ -6470,14 +6538,62 @@ public sealed record ForagePlant
     public required string DefName { get; init; }
 }
 
-/// <summary>One player pen's PenFoodCalculator: its daily demand, the worst quadrum's pasture per day and the stockpiled nutrition.</summary>
+/// <summary>
+/// One player pen marker (listerBuildings.allBuildingsAnimalPenMarkers) and its own PenFoodCalculator
+/// (ResetAndProcessPen): the marker's load id and cell, whether PenMarkerState reads it enclosed, the cells its
+/// connected districts hold (0 unenclosed), the pasture animals inside it eat a day (SumNutritionConsumptionPerDay),
+/// the pasture its ground grows a day today (NutritionPerDayToday) and in the worst quadrum, the pasture-edible
+/// nutrition stockpiled inside it, and the roofed rooms its enclosure reaches (Shelters). An unenclosed pen has no
+/// districts, so every figure is 0 and it has no shelter.
+/// </summary>
 public sealed record PenGrazing
 {
+    public required string Marker { get; init; }
+
+    public required Cell Cell { get; init; }
+
+    public required bool Enclosed { get; init; }
+
+    public required int Cells { get; init; }
+
     public required double DemandPerDay { get; init; }
+
+    public required double PastureTodayPerDay { get; init; }
 
     public required double PasturePerDay { get; init; }
 
     public required double StoredNutrition { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PenShelterRoom>))]
+    public required EquatableArray<PenShelterRoom> Shelters { get; init; }
+}
+
+/// <summary>
+/// A room a pen's enclosure reaches (a region of PenMarkerState.ConnectedRegions) that does not use the outdoor
+/// temperature: walled and roofed, joined to the pen through a door its roamers pass (the enclosure flood crosses only
+/// those). Room is the native room id, Cells its CellCount, TemperatureC its temperature now.
+/// </summary>
+public sealed record PenShelterRoom
+{
+    public required int Room { get; init; }
+
+    public required int Cells { get; init; }
+
+    public required double TemperatureC { get; init; }
+}
+
+/// <summary>
+/// Pasture-edible feed (MapPlantGrowthRateCalculator.IsEdibleByPastureAnimals, not human food) lying spawned,
+/// unforbidden and outside every enclosed player pen, by def: its total nutrition and the nutrition a full stack holds
+/// (stackLimit times the def's Nutrition), the cell a store of it fills.
+/// </summary>
+public sealed record PenFeedStock
+{
+    public required string Def { get; init; }
+
+    public required double Nutrition { get; init; }
+
+    public required double NutritionPerCell { get; init; }
 }
 
 /// <summary>
@@ -6523,6 +6639,13 @@ public sealed record FoodChannelsFacts
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PenGrazing>))]
     public required EquatableArray<PenGrazing> Grazing { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PenFeedStock>))]
+    public required EquatableArray<PenFeedStock> PenFeed { get; init; }
+
+    /// <summary>The door defs a fence-blocked roamer can open (BuildingProperties.roamerCanOpen, the animal flap): the entries a pen's animals pass into a barn by.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> AnimalDoors { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodSlaughterAnimal>))]
     public required EquatableArray<FoodSlaughterAnimal> Slaughter { get; init; }

@@ -15,7 +15,8 @@ internal static class Hay
 
     internal static (string Crop, int Needed, bool Found) HayTarget(ColonyReading p)
     {
-        var need = AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions));
+        // The herd arrangements' feeding remainder the pen feed stock does not haul (HerdArrangementRules.HayDemand).
+        var need = HerdArrangementRules.HayDemand(p.Facts.HerdArrangements());
         if (need <= 0)
         {
             return ("", 0, false);
@@ -27,13 +28,14 @@ internal static class Hay
             return ("", 0, false);
         }
 
-        var planned = AnimalFoodRules.PlanHayField(need, crop, p.Facts.CropClimate, out var plan);
+        var planned = AnimalFoodRules.PlanHayField(need, crop, p.Facts.CropClimate, p.Facts.Tick, out var plan);
         return (crop.Name, plan.Needed, planned && plan.Needed > 0);
     }
 
     internal static (FieldBlockOption Option, bool Found) HayShortfall(ColonyReading p)
     {
-        var need = AnimalFoodRules.HayNutritionNeed(p.Facts.PenGrazing, CalendarRules.HarvestGapDays(p.Facts.Calendar, p.Facts.DisasterConditions));
+        // The herd arrangements' feeding remainder the pen feed stock does not haul (HerdArrangementRules.HayDemand).
+        var need = HerdArrangementRules.HayDemand(p.Facts.HerdArrangements());
         if (need <= 0)
         {
             return (default!, false);
@@ -52,7 +54,7 @@ internal static class Hay
             return (default!, false);
         }
 
-        var planned = AnimalFoodRules.PlanHayField(need, crop, p.Facts.CropClimate, out var plan);
+        var planned = AnimalFoodRules.PlanHayField(need, crop, p.Facts.CropClimate, p.Facts.Tick, out var plan);
         if (!planned || plan.Needed <= 0)
         {
             return (default!, false);

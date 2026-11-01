@@ -175,8 +175,8 @@ public sealed class PowerReview
     /// <summary>The family's scheduler entry, woken by its building outcomes.</summary>
     public FamilyRunner Runner() => new FamilyRunner<PowerFacts>(new PowerFamily(), ReadAsync, Schedule, WorkAsync);
 
-    /// <summary>An optional entry woken by its buildings', refuels' and fuel acquisitions' outcomes.</summary>
-    public static FamilySchedule Schedule { get; } = new() { Class = PlannerClass.Optional, Kinds = [ActionKind.Building, ActionKind.RecoveryService, ActionKind.Acquisition] };
+    /// <summary>An optional entry woken by its buildings', refuels', fuel acquisitions', switch orders' and allows' outcomes.</summary>
+    public static FamilySchedule Schedule { get; } = new() { Class = PlannerClass.Optional, Kinds = [ActionKind.Building, ActionKind.RecoveryService, ActionKind.Acquisition, ActionKind.PowerSwitch, ActionKind.BuildingAllow] };
 
     /// <summary>
     /// Reads the owned census in <paramref name="scope"/>'s world and the restoration choice's facts: the servicing census of the

@@ -25,36 +25,45 @@ public sealed record PowerRestorationRequest
     public IReadOnlyDictionary<string, bool> Held { get; init; } = new Dictionary<string, bool>(StringComparer.Ordinal);
 }
 
-/// <summary>The decided restoration of each lost producer, most rated watts first.</summary>
+/// <summary>
+/// The decided restoration of each lost producer, most rated watts first, and the lost producers that are forbidden: pawns
+/// never refuel or repair a forbidden building, so a restoration of one is allowed first.
+/// </summary>
 public sealed record PowerRestoration(EquatableArray<ServicingDecision> Decisions)
 {
+    public EquatableArray<string> Forbidden { get; init; }
+
     /// <summary>The producers whose function the decisions restore (<see cref="ServicingChoiceRules.Restores"/>).</summary>
     public IReadOnlySet<string> Restorable => Decisions.Where(ServicingChoiceRules.Restores).Select(d => d.Target).ToHashSet(StringComparer.Ordinal);
 }
 
 public static class PowerRestorationRules
 {
-    /// <summary>The MethodId prefixes of a refuel (<c>refuel-&lt;producer&gt;-&lt;pawn&gt;</c>) and a fuel acquisition (<c>fuel-&lt;def&gt;-&lt;sources&gt;</c>).</summary>
-    public const string RefuelMethod = "refuel-", FuelMethod = "fuel-";
+    /// <summary>
+    /// The MethodId prefixes of a refuel (<c>refuel-&lt;producer&gt;-&lt;pawn&gt;</c>), a fuel acquisition
+    /// (<c>fuel-&lt;def&gt;-&lt;sources&gt;</c>) and a forbidden producer's allow (<c>allow-&lt;producer&gt;</c>).
+    /// </summary>
+    public const string RefuelMethod = "refuel-", FuelMethod = "fuel-", AllowMethod = "allow-";
 
     /// <summary>The deficits restoration answers: a damaged producer still produces, so its condition stays home upkeep's.</summary>
     public static readonly IReadOnlySet<ServicingDeficit> Considered = new HashSet<ServicingDeficit> { ServicingDeficit.Breakdown, ServicingDeficit.Fuel };
 
     /// <summary>
-    /// The connected, switched-on, unforbidden producers that are out of fuel or broken down on a network one of whose switched-on,
-    /// unforbidden consumers is unpowered or whose output is negative; most rated watts first, then id.
+    /// The connected, switched-on producers that are out of fuel or broken down on a network one of whose consumers is unpowered or
+    /// whose output is negative; most rated watts first, then id. A forbidden one is lost like any other (who forbade it is no
+    /// exemption); a switched-off one is the power planner's switch order first.
     /// </summary>
     public static IReadOnlyList<BuildingRow> LostProducers(PowerTopology v)
     {
         var deficit = new HashSet<string>(StringComparer.Ordinal);
         foreach (var consumer in v.Buildings)
         {
-            if (consumer.BaseW >= 0 || !consumer.Connected || consumer.Forbidden || !consumer.SwitchedOn) continue;
+            if (consumer.BaseW >= 0 || !consumer.Connected) continue;
             var output = v.Buildings.Where(b => b.Connected && b.Network == consumer.Network).Sum(b => b.OutputW);
             if (!consumer.Powered || output < 0) deficit.Add(consumer.Network);
         }
         return [.. v.Buildings
-            .Where(b => b.BaseW > 0 && b.Connected && deficit.Contains(b.Network) && !b.Forbidden && b.SwitchedOn && (b.Unfueled || b.BrokenDown))
+            .Where(b => b.BaseW > 0 && b.Connected && deficit.Contains(b.Network) && b.SwitchedOn && (b.Unfueled || b.BrokenDown))
             .OrderByDescending(b => b.BaseW).ThenBy(b => b.Id, StringComparer.Ordinal)];
     }
 
@@ -72,7 +81,7 @@ public static class PowerRestorationRules
             Unneeded = new HashSet<string>(StringComparer.Ordinal),
             Underway = r.Underway,
             Refused = r.Refused,
-        })]);
+        })]) { Forbidden = [.. lost.Where(b => b.Forbidden).Select(b => b.Id)] };
     }
 
     /// <summary>
@@ -121,17 +130,27 @@ public static class PowerRestorationRules
     }
 
     /// <summary>
-    /// The power Need's restoration Methods: each chosen refuel as an exact RecoveryService refuel claiming its producer and pawn
-    /// (an issued one continues its open Method; a running native refuel is observed, not reordered), and one acquisition per
-    /// chain fuel that has sources to designate, claiming each source. A chosen breakdown fix is the home-upkeep repairs Need's
-    /// Method (one owner): it only counts toward the restorable capacity here.
+    /// The power Need's restoration Methods: a forbidden producer whose function the choice restores is first allowed (an exact
+    /// BuildingAllow claiming its forbid flag; its refuel or fix is re-derived once the building reads allowed); each chosen
+    /// refuel as an exact RecoveryService refuel claiming its producer and pawn (an issued one continues its open Method; a
+    /// running native refuel is observed, not reordered), and one acquisition per chain fuel that has sources to designate,
+    /// claiming each source. A chosen breakdown fix is the home-upkeep repairs Need's Method (one owner): it only counts toward
+    /// the restorable capacity here.
     /// </summary>
     public static IReadOnlyList<NeedMethod> Methods(NeedId need, PowerRestoration restoration)
     {
         var output = new List<NeedMethod>();
         var chains = new SortedDictionary<string, (ServicingAcquisition.Path Path, List<string> Targets)>(StringComparer.Ordinal);
+        var forbidden = restoration.Forbidden.ToHashSet(StringComparer.Ordinal);
         foreach (var d in restoration.Decisions)
         {
+            if (forbidden.Contains(d.Target) && ServicingChoiceRules.Restores(d))
+            {
+                var target = d.Target;
+                output.Add(new NeedMethod(need, new MethodId(AllowMethod + target), "allow forbidden " + target + " before its restoration: " + ServicingChoiceRules.Describe(d),
+                    id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewBuildingAllowAction(new ActionId(id.Value + "-0"), new BuildingAllow(target))])));
+                continue;
+            }
             if (d.Underway is { Issued: false }) continue;
             if (d.Chosen.Kind == ServicingChoiceKind.Refuel)
             {

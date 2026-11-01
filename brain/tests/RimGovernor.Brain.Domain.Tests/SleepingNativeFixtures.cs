@@ -7,9 +7,11 @@ namespace RimGovernor.Brain.Domain.Tests;
 internal static class SleepingNativeFixtures
 {
     internal static RoomQualityStatKeys StatKeys => SleepingUpkeepReads.QualityStatKeys;
-    internal static RimGovernor.Brain.GameFacts.Observations.UpkeepPerson Person(PawnId id, EquatableArray<PawnId> partners = default, bool bedSharingAllowed = false) => new()
+    internal static RimGovernor.Brain.GameFacts.Observations.UpkeepPerson Person(PawnId id, EquatableArray<PawnId> partners = default, bool bedSharingAllowed = false,
+        RimGovernor.Brain.GameFacts.Observations.ExpectedTiming? labor = null, RimGovernor.Brain.GameFacts.Observations.ExpectedTiming? leavesCrib = null) => new()
     {
         Pawn = id, Partners = partners, BedSharingAllowed = bedSharingAllowed, Title = new RimGovernor.Brain.GameFacts.Observations.RoyalStanding.Untitled(),
+        Labor = labor ?? new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.None(), LeavesCrib = leavesCrib ?? new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.None(),
     };
 
     internal static RimGovernor.Brain.GameFacts.Observations.PawnState Pawn(PawnId id, string? ownedBed = null, double comfortableMin = 0, double comfortableMax = 0) =>

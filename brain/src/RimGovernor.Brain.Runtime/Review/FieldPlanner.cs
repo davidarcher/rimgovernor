@@ -78,25 +78,21 @@ public sealed partial class FieldPlanner
         var projection = read.Reading;
         PlannerSnapshot.RecordStepRead("field", food is null ? EconomyFamily.Resource.FilingKey : FoodRules.FoodSupplyNeed.FilingKey, state.Snapshot, projection);
         var protectedCells = _reviewer.FieldProtected(state, review, projection, claims, call);
-        var others = food is null ? await OtherFieldShortfallsAsync(state, review, projection, owner, call).ConfigureAwait(false) : [];
         if (LayoutProtected.FieldAnchor(projection) is not { } anchor)
         {
             return new ReviewFieldResult { Verdict = BuildingReasonNoLayoutPlan };
         }
-
-        async Task<ReviewFieldResult> PlaceOthersAsync(Verdict reason)
-        {
-            var (result0, tried0) = await PlaceLedgerAsync(state, projection, read, others, anchor, protectedCells, call, epoch).ConfigureAwait(false);
-            if (tried0)
-            {
-                return result0;
-            }
-            return new ReviewFieldResult { Verdict = reason };
-        }
-
         if (food is not { } goal)
         {
-            return await PlaceOthersAsync(BuildingReasonNoDeficit).ConfigureAwait(false);
+            // The resource Need's fields compete with the food Need's outdoor field for the same ground (FieldPlacementRules).
+            var demands = new List<FieldDemand>();
+            if (FoodFieldDemand(projection, protectedCells) is { } fed)
+            {
+                demands.Add(fed);
+            }
+            demands.AddRange(await OtherFieldDemandsAsync(state, review, projection, owner, call).ConfigureAwait(false));
+            var (placed, tried0) = await PlaceLedgerAsync(state, projection, read, demands, owner, anchor, protectedCells, call, epoch).ConfigureAwait(false);
+            return tried0 ? placed : new ReviewFieldResult { Verdict = BuildingReasonNoDeficit };
         }
         var (fished, handled) = await FishingAsync(state, goal, read, call, epoch).ConfigureAwait(false);
         if (handled)
@@ -125,14 +121,15 @@ public sealed partial class FieldPlanner
         }
         if (!(projection.Facts.FoodPlan is { } foodPlan && ColonyReview.FoodPlanOpensField(foodPlan)))
         {
-            return await PlaceOthersAsync(AwaitingFoodPlan("new-field")).ConfigureAwait(false);
+            return new ReviewFieldResult { Verdict = AwaitingFoodPlan("new-field") };
         }
         if (!known)
         {
-            return await PlaceOthersAsync(FieldUnavailable("field_plan")).ConfigureAwait(false);
+            return new ReviewFieldResult { Verdict = FieldUnavailable("field_plan") };
         }
         Tel.Decide(FieldsSelectLog.FieldsSelectDecision(selection));
         var attempts = 0;
+        var outdoor = false;
         foreach (var candidate in selection.Candidates)
         {
             if (candidate.Cells == 0 || attempts >= FieldCandidateAttempts)
@@ -144,8 +141,19 @@ public sealed partial class FieldPlanner
             bool tried;
             if (candidate.Kind == SiteKind.Outdoor && candidate.Buildings.Count == 0)
             {
-                var shortfall = new FieldShortfall(goal, LayoutFieldPlanning.FieldBlockOptions(candidate, selection.Candidates));
-                (result, tried) = await PlaceLedgerAsync(state, projection, read, [shortfall], request.Field.Site.Anchor, protectedCells, call, epoch).ConfigureAwait(false);
+                // Every outdoor candidate is one option of the one food demand, compared at its first appearance.
+                if (outdoor)
+                {
+                    continue;
+                }
+                outdoor = true;
+                var demands = new List<FieldDemand>();
+                if (FoodDemandOf(selection) is { } fed)
+                {
+                    demands.Add(fed);
+                }
+                demands.AddRange(await ResourceFieldDemandsAsync(state, review, projection, goal.Snapshot, call).ConfigureAwait(false));
+                (result, tried) = await PlaceLedgerAsync(state, projection, read, demands, goal, anchor, protectedCells, call, epoch).ConfigureAwait(false);
             }
             else
             {
@@ -157,7 +165,56 @@ public sealed partial class FieldPlanner
             }
             FieldEdit("refused", "candidate_refused", candidate.Crop.Name, new Dictionary<string, object?> { ["kind"] = candidate.Kind, ["cells"] = candidate.Cells, ["refusal"] = result.Verdict }, call);
         }
-        return await PlaceOthersAsync(NoSpace("field_candidates")).ConfigureAwait(false);
+        return new ReviewFieldResult { Verdict = NoSpace("field_candidates") };
+    }
+
+    /// <summary>
+    /// The food Need's outdoor field demand in a selection: the first outdoor soil candidate within the attempted candidates,
+    /// with every other outdoor soil candidate as its alternative crops; null when the attempted candidates hold none.
+    /// </summary>
+    internal static FieldDemand? FoodDemandOf(SiteTypePlan selection)
+    {
+        var attempts = 0;
+        foreach (var candidate in selection.Candidates)
+        {
+            if (candidate.Cells == 0 || attempts >= FieldCandidateAttempts)
+            {
+                break;
+            }
+            attempts++;
+            if (candidate.Kind == SiteKind.Outdoor && candidate.Buildings.Count == 0)
+            {
+                return new FieldDemand(FoodRules.FoodSupplyNeed, EquatableArray.From(LayoutFieldPlanning.FieldBlockOptions(candidate, selection.Candidates)));
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The food Need's outdoor field demand as the resource Need's step sees it: what the food step compares once its food plan
+    /// opens a field, from the same reading; null while the food Need is not composed, its plan opens no field or the site
+    /// plan is unread.
+    /// </summary>
+    internal FieldDemand? FoodFieldDemand(ColonyReading projection, IReadOnlyList<Cell> protectedCells)
+    {
+        if (!_reviewer.Needs.Contains(FoodRules.FoodSupplyNeed) || !(projection.Facts.FoodPlan is { } plan && ColonyReview.FoodPlanOpensField(plan)))
+        {
+            return null;
+        }
+        var (request, _) = FieldSiteRequest(projection, protectedCells, _reviewer.Seasonal(projection.Facts).FoodTargetDays);
+        var (selection, known) = SiteRules.PlanSiteType(request);
+        return known ? FoodDemandOf(selection) : null;
+    }
+
+    /// <summary>The resource Need's field demands as the food Need's step sees them, read under that Need's own owner; none while it is not composed.</summary>
+    internal async Task<List<FieldDemand>> ResourceFieldDemandsAsync(ControlState state, ReviewStep review, ColonyReading projection, GenerationSnapshot world, CancellationToken call)
+    {
+        if (!_reviewer.Needs.Contains(EconomyFamily.Resource))
+        {
+            return [];
+        }
+        var owner = _reviewer.Player.Journal.LoadNeed(EconomyFamily.Resource, world, call);
+        return await OtherFieldDemandsAsync(state, review, projection, owner, call).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -165,10 +222,10 @@ public sealed partial class FieldPlanner
     /// the Need's field Methods is still open the next waits for it, as the field's growth is what the next shortfall
     /// reads; the Need's other work (mines, chops, bills) runs beside it.
     /// </summary>
-    internal async Task<List<FieldShortfall>> OtherFieldShortfallsAsync(ControlState state, ReviewStep review, ColonyReading projection, NeedOwner rgoal, CancellationToken call)
+    internal async Task<List<FieldDemand>> OtherFieldDemandsAsync(ControlState state, ReviewStep review, ColonyReading projection, NeedOwner rgoal, CancellationToken call)
     {
         var p = _reviewer.Player;
-        var output = new List<FieldShortfall>();
+        var output = new List<FieldDemand>();
         foreach (var method in rgoal.OpenMethods)
         {
             if (method.Method.Value.StartsWith("fields-", StringComparison.Ordinal) && StorePackage.PlanOpen(p.Journal.LoadPlan(method.Plan, call)))
@@ -179,7 +236,7 @@ public sealed partial class FieldPlanner
         var (hay, hayOk) = Hay.HayShortfall(projection);
         if (hayOk)
         {
-            output.Add(new FieldShortfall(rgoal, [hay]));
+            output.Add(new FieldDemand(rgoal.Need, [hay]));
         }
         if (review.BrewingFinished && SocialCropsRules.BrewingFinished(projection.Facts.Research))
         {
@@ -188,37 +245,126 @@ public sealed partial class FieldPlanner
             {
                 foreach (var opt in opts)
                 {
-                    output.Add(new FieldShortfall(rgoal, [opt]));
+                    output.Add(new FieldDemand(rgoal.Need, [opt]));
                 }
             }
         }
         var supply = await _reviewer.ResourceSupplyAsync(state, review, rgoal, call).ConfigureAwait(false);
         foreach (var plan in supply.OpenedFields())
         {
-            output.Add(new FieldShortfall(rgoal, [new FieldBlockOption(plan.Crop, plan.Needed)]));
+            output.Add(new FieldDemand(rgoal.Need, [new FieldBlockOption(plan.Crop, plan.Needed)]));
         }
         return output;
     }
 
-    internal async Task<(ReviewFieldResult Result, bool Tried)> PlaceLedgerAsync(ControlState state, ColonyReading projection, ReviewReading read, IReadOnlyList<FieldShortfall> ledger, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// Compares every selected field demand's placements on one ground ledger (FieldPlacementRules) and binds the winners of
+    /// <paramref name="owner"/>'s demands in demand order until one is tried; the other Need's winners are its own step's to
+    /// bind, and their ground is off the ledger here. A demand none of whose placements beat deferring logs its standing.
+    /// </summary>
+    internal async Task<(ReviewFieldResult Result, bool Tried)> PlaceLedgerAsync(ControlState state, ColonyReading projection, ReviewReading read, IReadOnlyList<FieldDemand> demands, NeedOwner owner, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
     {
         var result = new ReviewFieldResult { Verdict = BuildingReasonNoDeficit };
-        foreach (var index in LayoutFieldPlanning.RankFieldShortfalls([.. ledger.Select(s => s.Options)]))
+        if (!demands.Any(d => d.Need == owner.Need))
         {
-            var s = ledger[index];
-            if (s.Options.Count == 0)
+            return (result, false);
+        }
+        var choice = FieldPlacementRules.Choose(new FieldPlacementRequest
+        {
+            Facts = projection.Facts,
+            Cells = projection.Window is { } window ? window.Value.Cells : null,
+            Zones = projection.Tables.Zones,
+            Anchor = anchor,
+            Demands = demands,
+            Protected = protectedCells,
+            Climate = projection.Facts.CropClimate,
+            GrowerSkill = TreePlantationRules.GrowerSkill(projection.Facts.ForecastObserved.WorkPawns),
+            Crops = CropChoices(projection),
+            Pending = PendingFieldHoldsOf(owner.Snapshot, call),
+        });
+        if (choice.Reason != "")
+        {
+            ClockEvents.Event("layout", "fields", "outdoor field refused: " + choice.Reason, ("need", owner.Need.Value));
+            return (new ReviewFieldResult { Verdict = NoSpace("field_block") }, false);
+        }
+        foreach (var decision in choice.Decisions)
+        {
+            if (decision.Demand.Need != owner.Need)
             {
                 continue;
             }
-            var lead = s.Options[0];
+            if (decision.Awaiting)
+            {
+                // Its own growing-zone order is still in flight: binding again would open a second zone for one demand.
+                ClockEvents.Event("layout", "fields", "outdoor field awaiting: " + decision.Reason, ("need", owner.Need.Value));
+                return (new ReviewFieldResult { Verdict = WaitFor(Cause.MethodUsed, "field_block_pending") }, true);
+            }
+            if (decision.Chosen is not { Edit: { } edit } chosen)
+            {
+                ClockEvents.Event("layout", "fields", "outdoor field refused: " + decision.Reason, ("need", owner.Need.Value));
+                result = new ReviewFieldResult { Verdict = NoSpace("field_block") };
+                continue;
+            }
+            ClockEvents.Event("layout", "fields", "outdoor field chosen: " + edit.Crop, ("need", owner.Need.Value), ("block", chosen.Block), ("alternatives", decision.Alternatives.Count));
             bool tried;
-            (result, tried) = await EnactBlockAsync(state, s.Owner, projection, read, new SiteTypeCandidate { Kind = SiteKind.Outdoor, Crop = lead.Crop, Needed = lead.Needed }, s.Options, anchor, protectedCells, call, epoch).ConfigureAwait(false);
+            (result, tried) = await EnactBlockAsync(state, owner, projection, read, edit, call, epoch).ConfigureAwait(false);
             if (tried)
             {
-                return (result, tried);
+                return (result, true);
             }
         }
         return (result, false);
+    }
+
+    /// <summary>
+    /// The growing-zone orders the field Needs still have in flight, read from their bound plans each review (no store of its
+    /// own): see <see cref="PendingFieldHolds"/>.
+    /// </summary>
+    internal List<FieldPendingHold> PendingFieldHoldsOf(GenerationSnapshot world, CancellationToken call)
+    {
+        var p = _reviewer.Player;
+        var output = new List<FieldPendingHold>();
+        foreach (var need in new[] { FoodRules.FoodSupplyNeed, EconomyFamily.Resource })
+        {
+            if (!_reviewer.Needs.Contains(need))
+            {
+                continue;
+            }
+            var plans = p.Journal.LoadNeed(need, world, call).Methods.Select(m => p.Journal.LoadPlan(m.Plan, call));
+            output.AddRange(PendingFieldHolds(need, plans));
+        }
+        return output;
+    }
+
+    /// <summary>
+    /// A Need's growing-zone creates and add-cell edits that still hold their ground: on a plan not retired, dispatched or
+    /// awaiting its receipt (an unconfirmed outcome is resent), or accepted (completed) while the zone may not be observed yet;
+    /// a refused or cancelled order releases its cells. The observed zone replaces the hold in the comparison.
+    /// </summary>
+    internal static IEnumerable<FieldPendingHold> PendingFieldHolds(NeedId need, IEnumerable<PlanState> plans)
+    {
+        foreach (var plan in plans)
+        {
+            if (plan.Retired)
+            {
+                continue;
+            }
+            foreach (var progress in plan.Progress)
+            {
+                if (progress.View.Stage is Stage.Unsuccessful or Stage.Cancelled && !progress.View.Unresolved)
+                {
+                    continue;
+                }
+                if (progress.Action.ZoneCreate is { Kind: Domain.ZoneKind.Growing } create)
+                {
+                    yield return new FieldPendingHold(need, "", create.Crop, create.Cells);
+                }
+                else if (progress.Action.ZoneCellEdit is { Mode: CellEditMode.Add } edit)
+                {
+                    yield return new FieldPendingHold(need, edit.Zone, "", edit.Cells);
+                }
+            }
+        }
     }
 
     internal async Task<(ReviewFieldResult Result, bool Tried)> EnactAsync(ControlState state, NeedOwner goal, ColonyReading projection, ReviewReading read, SiteTypeCandidate candidate, CancellationToken call, CancellationToken epoch)
@@ -368,15 +514,10 @@ public sealed partial class FieldPlanner
         return (new ReviewFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 
-    internal async Task<(ReviewFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, NeedOwner goal, ColonyReading projection, ReviewReading read, SiteTypeCandidate candidate, IReadOnlyList<FieldBlockOption> options, Cell anchor, IReadOnlyList<Cell> protectedCells, CancellationToken call, CancellationToken epoch)
+    /// <summary>Binds a compared placement under <paramref name="goal"/>: grows its zone by add-cells, or previews and admits a new growing zone of its crop.</summary>
+    internal async Task<(ReviewFieldResult Result, bool Tried)> EnactBlockAsync(ControlState state, NeedOwner goal, ColonyReading projection, ReviewReading read, FieldBlockEdit edit, CancellationToken call, CancellationToken epoch)
     {
         var p = _reviewer.Player;
-        var (planned, reason) = LayoutFieldPlanning.PlanFieldBlock(projection.Facts, projection.Window is { } window ? window.Value.Cells : null, projection.Tables.Zones, anchor, options, protectedCells);
-        if (planned is not { } edit)
-        {
-            ClockEvents.Event("layout", "fields", "outdoor field refused: " + reason, ("crop", candidate.Crop.Name));
-            return (new ReviewFieldResult { Verdict = NoSpace("field_block") }, false);
-        }
         var text = string.Create(CultureInfo.InvariantCulture, $"block/{edit.Zone}/{edit.Crop}/{string.Join(";", edit.Cells)}");
         var method = new MethodId("fields-" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)).AsSpan(0, 16)));
         if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)

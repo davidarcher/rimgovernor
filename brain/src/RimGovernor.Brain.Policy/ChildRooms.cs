@@ -233,12 +233,12 @@ public static class ChildRoomsRules
     /// does not count toward its deathrest capacity, and the buildings that raise its deathrest efficiency (a factor above 1,
     /// the accelerator) as many as it binds (<see cref="ForecastDeathrest.Binds"/>, the credit's rule: each def's stackLimit
     /// and the capacity, #3842). A pawn without Biotech owes nothing, and one whose developmental stage is unknown owes no child
-    /// room. A pawn whose deathrest section is unread (a failed native read), or a deathrester whose capacity or whose
+    /// room. The hosted slaves' and guests' babies (<paramref name="hostedBabies"/>) each add a crib slot. A pawn whose deathrest section is unread (a failed native read), or a deathrester whose capacity or whose
     /// <paramref name="deathrest"/> defs are unread, raises <see cref="RequiredFactException"/> (#3835).
     /// </summary>
-    public static List<ChildRoomNeed> ChildRoomNeeds(IEnumerable<WorkPawn> pawns, DeathrestDefsRead? deathrest)
+    public static List<ChildRoomNeed> ChildRoomNeeds(IEnumerable<WorkPawn> pawns, int hostedBabies, DeathrestDefsRead? deathrest)
     {
-        int babies = 0, children = 0, caskets = 0;
+        int babies = hostedBabies, children = 0, caskets = 0;
         var bound = new SortedDictionary<string, int>(StringComparer.Ordinal);
         foreach (var p in pawns)
         {

@@ -113,6 +113,51 @@ public sealed partial class ColonyReview
         return new(false, LayoutClusterRules.PiecePrice(piece, values));
     }
 
+    /// <summary>Writes a prospective_capacity row per expected sleeping change: what the comparison picked (defer, temporary or prepare), why (the deferral's named fact or the provision's kind) and at what price.</summary>
+    internal static void LogProspectiveCapacity(ReviewFacts facts)
+    {
+        foreach (var (change, choice) in ProspectiveCapacityRules.SleepingChoices(facts))
+        {
+            Tel.Decide(new Decision
+            {
+                Kind = "prospective_capacity",
+                Component = "sleeping",
+                Target = change.Source,
+                Verdict = choice.Verdict,
+                Reason = choice.Why,
+                Attrs = new Dictionary<string, object?> { ["owner"] = change.Owner.ToString(), ["units"] = change.Units, ["price"] = choice.Price },
+            });
+        }
+    }
+
+    /// <summary>
+    /// The primary bed as an expected sleeper's permanent provision (ProspectiveCapacityRules.BedOption): its work and cost list
+    /// priced in its cheapest common stuff (LayoutClusterRules.PiecePrice) and its work over the colony's builders. Null while
+    /// the catalog shows the bed no work or cost list.
+    /// </summary>
+    internal async Task<ProvisionOption?> ProspectiveBedAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
+    {
+        if (ColonyPlanningRules.HostPiece(projection.Facts, projection.Facts.Shapes.Furniture.PrimaryBed()) is not { } piece)
+        {
+            return null;
+        }
+        var values = await MaterialValuesAsync(snapshot, piece.Costs.Select(a => a.Resource), projection.Facts.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
+        return ProspectiveCapacityRules.BedOption(piece.Work, LayoutClusterRules.PiecePrice(piece, values), LayoutClusterRules.BuildersOf(projection.Facts.ForecastObserved.WorkPawns));
+    }
+
+    /// <summary>
+    /// The power comparison's prices from the power step's reading (PowerValuationRules.Valuation): every powered consumer's
+    /// interruption, the pieces its alternatives build (each catalog generator, the battery, the conduit a route lays and a
+    /// shelter's wall and door) and the passive thermal provisions, their materials read and priced as the charged materials are.
+    /// </summary>
+    internal async Task<PowerValuation> PowerValuationAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
+    {
+        string[] pieces = [.. projection.Facts.GeneratorRows.Keys, PowerRules.BatteryDefinition, Wire.Name(PowerMethod.Connect),
+            ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition];
+        var values = await MaterialValuesAsync(snapshot, PowerValuationRules.Materials(projection.Facts, pieces), projection.Facts.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
+        return PowerValuationRules.Valuation(projection.Facts, pieces, values);
+    }
+
 }
 
 internal static class StationAdviceLog
@@ -414,6 +459,7 @@ internal static class StationFactsBuilder
     /// </summary>
     public static StationFacts GraphFactsOf(ColonyReading projection, LayoutPlan plan, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
     {
+        var prospective = ProspectiveCapacityRules.Admitted(projection.Facts);
         var f = new StationFacts
         {
             FinishedResearch = projection.Tables.FinishedResearch.ToHashSet(StringComparer.Ordinal),
@@ -424,13 +470,14 @@ internal static class StationFactsBuilder
             Furniture = projection.Facts.Shapes.Furniture,
             Items = projection.Facts.Items,
             Colonists = projection.Facts.Census.ColonistCount,
-            // Known arrivals (an accepted hosting quest's lodgers not on the map yet) are sleeper demand now.
-            Hosted = projection.Facts.Sleeping.HostedSleepers + QuestHospitality.KnownArrivals(projection.Facts).Where(a => !a.Prisoners).Sum(a => a.Count),
+            // An expected sleeper (a lodger not here yet, a baby leaving its crib) sizes a bed only once its prepared provision is due.
+            Hosted = projection.Facts.Sleeping.HostedSleepers + prospective.Sleepers,
             HostedBabies = projection.Facts.Sleeping.HostedBabies,
+            CribLeavers = prospective.CribLeavers,
             Patients = projection.Facts.MedicalPawns,
             Surgical = SurgeryRules.SurgeryBedShortPatients(projection.Facts.MedicalPawns),
             GoalBuild = projection.Facts.GoalBuild,
-            Prisoners = PrisonersReview.HeldPrisoners(projection.Facts.Population.Prisoners) + QuestHospitality.KnownArrivals(projection.Facts).Where(a => a.Prisoners).Sum(a => a.Count),
+            Prisoners = PrisonersReview.HeldPrisoners(projection.Facts.Population.Prisoners) + prospective.PrisonSleepers,
             Herds = projection.Facts.PenHerds(),
             Races = projection.Facts.AnimalUpkeep.AnimalRaces,
             Pasture = projection.Facts.Pasture,

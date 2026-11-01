@@ -58,7 +58,7 @@ public static partial class PenFoodRules
 
     /// <summary>
     /// Bounds a pen's cells where the worst quadrum grows (almost) nothing: grass cannot carry the herd then,
-    /// and the hay fields (HayNutritionNeed) cover the gap, so a pen is never sized past what the plan can
+    /// and the hay fields (HerdArrangementRules.HayDemand) cover the gap, so a pen is never sized past what the plan can
     /// wall.
     /// </summary>
     internal const int PenCellsCap = 900;

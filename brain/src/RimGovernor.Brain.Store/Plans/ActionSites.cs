@@ -59,6 +59,8 @@ internal static class ActionSites
             Ability p => Site(p.Pawn, AbilityTarget(p.Target), p.Target.Kind == AbilityTargetKind.Cell ? p.Target.Cell : null),
             BuildingTemperature p => Site(default, p.Thing, null),
             AutoRefuel p => Site(default, p.Thing, null),
+            PowerSwitch p => Site(default, p.Thing, null),
+            BuildingAllow p => Site(default, p.Thing, null),
             ClaimBuilding p => Site(default, p.Thing, null),
             GrowerCrop p => Site(default, p.Thing, null),
             BedUse p => Site(default, p.Thing, null),

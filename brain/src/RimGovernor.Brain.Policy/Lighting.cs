@@ -82,7 +82,7 @@ public sealed record Lamp
     /// <summary>Native's own "currently emits light" flag, false while the fixture is unpowered, out of fuel, switched off or broken down.</summary>
     public bool Lit => Observed.Lit;
 
-    public bool SwitchedOn => Building.Service.SwitchedOn;
+    public bool SwitchedOn => Building.SwitchedOn;
     public bool BrokenDown => Building.Service.BrokenDown;
     public LampFuel Fuel => Building.Service.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable fuel
         ? (fuel.OutOfFuel ? LampFuel.Empty : LampFuel.Fueled) : LampFuel.Unfueled;

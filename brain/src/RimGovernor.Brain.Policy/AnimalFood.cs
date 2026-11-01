@@ -70,40 +70,18 @@ public static class AnimalFoodRules
         return need;
     }
 
-    public static double HayNutritionNeed(EquatableArray<PenGrazing> rows, double gap)
-    {
-        var days = gap;
-        if (!FoodForecastRules.FoodNumber(days))
-        {
-            throw new RequiredFactException("hay nutrition inputs");
-        }
-
-        var need = 0.0;
-        foreach (var p in rows)
-        {
-            if (!FoodForecastRules.FoodNumber(p.DemandPerDay) || !FoodForecastRules.FoodNumber(p.PasturePerDay) || !FoodForecastRules.FoodNumber(p.StoredNutrition))
-            {
-                throw new RequiredFactException("hay nutrition inputs");
-            }
-
-            need += Math.Max(0, (days * (p.DemandPerDay - p.PasturePerDay)) - p.StoredNutrition);
-        }
-
-        return need;
-    }
-
     /// <summary>
     /// Sizes a hay field without declaring hay human-edible; the caller sites it in the layout plan's field
     /// blocks. Existing hay capacity is subtracted by the caller; unknown or nonnegative grazing balance never
-    /// opens a field.
+    /// opens a field. The need is a dated change at the growing season's end (ProspectiveCapacityRules.HayChange): a field is
+    /// sized only when it is ready by then, its lead the crop's grow days over the field budget's cycles (CalendarRules.FieldCycles).
     /// </summary>
-    public static bool PlanHayField(double need, CropChoice crop, CropClimate climate, out FieldPlan plan)
+    public static bool PlanHayField(double need, CropChoice crop, CropClimate climate, Tick now, out FieldPlan plan)
     {
         var n = need;
         var yield = crop.HarvestNutrition;
         var days = crop.GrowDays;
         var sowing = climate.SowingOutdoors();
-        var season = climate.DaysRemaining;
         var available = crop.Available;
         if (
             !FoodForecastRules.FoodNumber(n)
@@ -112,7 +90,8 @@ public static class AnimalFoodRules
             || !FieldCapacityRules.FieldPositive(yield)
             || !FieldCapacityRules.FieldPositive(days)
             || !sowing
-            || season < days * CalendarRules.FieldCycles
+            || ProspectiveCapacityRules.HayChange(n, climate, now).At is not RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated { Tick: var seasonEnd }
+            || now.Value + (long)Math.Ceiling(days * CalendarRules.FieldCycles * GameTime.TicksPerDay) > seasonEnd
             || !available
         )
         {

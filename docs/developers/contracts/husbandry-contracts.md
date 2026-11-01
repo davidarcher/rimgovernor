@@ -319,21 +319,62 @@ a target cancels its uncompleted brain steps; cancellation leaves
 previously issued game orders in place, following the shared concern cancellation
 contract.
 
+### Herd arrangement needs
+
+Each pen unit is one *herd arrangement* (`HerdArrangementRules.Assess`, RG-HABITAT-006) with three deficits read off
+observed service, never off a placed marker or fence: a marker over bare ground or a complete fence alone closes
+nothing.
+
+| Deficit | Open while | Facts (all existing reads) |
+|---|---|---|
+| Feeding | the nutrition the animals inside the unit's enclosed pens eat over the horizon (the harvest gap, at least a day) less the pasture those pens grow over it (today's when no gap is coming, else the worse of today's and the worst quadrum's) and less the feed stockpiled inside them (`horizon * (demand - pasture) - stored feed`) is above zero | each player pen marker's `CompAnimalPenMarker.PenState` through `PenFoodCalculator` (cells, demand, today's and worst-quadrum pasture, stockpiled feed), the calendar's harvest gap |
+| Shelter | an animal the seasonal outdoor climate would kill (`HerdShelterRules.DaysToDeath`) has no roofed, walled room the pen's enclosure reaches (an in-band room, now, at the barn's cells per animal, 2) | the pen's shelter rooms (a region of the marker's connected regions that does not use the outdoor temperature, joined through a door roamers pass) and their temperature |
+| Containment | pen-bound animals stand outside an enclosed pen, plus one while the unit has no planned pen, no observed marker in it, or the marker reads unenclosed | the native enclosed-pen lookup, the layout plan's pens |
+
+Missing facts are named states that keep the arrangement open and never default: `growing season` (the harvest gap),
+`pen nutrition:<unit>` (a marker stands unenclosed, so its grazing is unobservable), `species comfort:<def>`, the
+climate and thermal tables, `construction census` (ring repair) and `animal value:<def>` (a roaming loss). The
+containment Need (`animals/containment`) stays unmet while any arrangement is open.
+
+Remedies are compared, never chosen by kind, and `retain` (valued at the zero of the loss it keeps) is every
+deficit's baseline and wins ties; an excluded or unassessed remedy never wins.
+
+- **Feeding.** *Haul feed*: the colony's pasture-edible feed lying outside every enclosed pen
+  (`FoodChannelsFacts.PenFeed`) goes into a feed store inside the pen through a ledger in unit order, so no stock
+  feeds two pens (`no_pen_feed_outside_pens` when there is none). The `HerdOwner` store registry creates the
+  `penfeed:<herd>` stockpile, sized by the gross feed need over the smallest feed stack's nutrition per cell (at most
+  16 cells) and retired once the pasture suffices. *Hay field*: the remainder is the hay demand
+  (`HerdArrangementRules.HayDemand`) the shared [field ledger](spatial-contracts.md#field-placement-comparison-rg-habitat-006)
+  places. *Expand pen* is excluded (the layout's pen growth, `layout_pen_growth_owed` or `pen_at_pasture_size`) and
+  *cull* is excluded (`cull_derived_by_animals_herd`: the herd plan's feed ratio owns it).
+- **Containment.** *Repair pen*: the planned pen's ring cells the ground stands no fence, wall or gate on
+  (`repair_ring_gaps`), which restores the enclosure. *New pen* only when repair cannot (no planned pen, or no ring gap
+  left to close while the pen reads unenclosed; else `repair_restores_enclosure`). Each is valued by the roaming loss it
+  stops: each at-risk animal's market value over its mean days to leave the map (`HerdShelterRules.LossPerDay`,
+  `RoamingLoss`, the pen credit's price).
+- **Shelter.** The open, barn and animal-spot alternatives of the [herd shelter](#herd-shelter-alternatives)
+  below; the barn is a layout regroup deviation (`LayoutHerdBarnRules`), not a pre-selected node.
+
+The feed ledger is policy state re-derived each review. No `MethodClaim` holds the animals, the hay stock or the pen
+ground yet, and the native `AnimalDoors` read has not run in game.
+
 ### Herd shelter alternatives
 
-Each pen unit (a herd's race; the misc unit is `""`) is offered three resting arrangements by `HerdShelterRules.Assess`, each valued in capability-days a day by the consequence it avoids. `HerdShelter.Chosen` is the assessed arrangement with the largest gain, open on a tie; an unassessed or excluded one never wins.
+Each pen unit (a herd's race; the misc unit is `""`) is offered three resting arrangements by `HerdShelterRules.Assess`, each valued in capability-days a day by the consequence it avoids. No arrangement is preselected: the arrangement's shelter remedy compares them, `retain` (open pen ground) keeping ties, and the barn is adopted only through the layout's regroup comparison.
 
 | Arrangement | Value | Reasons |
 |---|---|---|
 | Open pen ground | known-zero baseline | `open_baseline` |
-| Barn beside the pen | the exposure deaths it avoids: for each penned animal, the hypothermia and heatstroke givers (the shared `ForecastValue.ThermalGainPerTick`) are walked over the map's twelve seasonal means from the current twelfth for two years; an animal whose severity reaches the def's lethal value counts its market value over its days to death (`LossPerDay`) | `barn_avoids_exposure`; a comfort range covering the climate is Assessed(0), `comfort_covers_climate`; exposure short of death is not priced, `nonlethal_exposure_unpriced`; excluded without a pen of the herd, `barn_without_pen` |
+| Barn beside the pen | the exposure deaths it avoids: for each penned animal, the hypothermia and heatstroke givers (the shared `ForecastValue.ThermalGainPerTick`) are walked over the map's twelve seasonal means from the current twelfth for two years; an animal whose severity reaches the def's lethal value counts its market value over its days to death (`LossPerDay`) | `barn_avoids_exposure`; a comfort range covering the climate is Assessed(0), `comfort_covers_climate`; exposure short of death is not priced, `nonlethal_exposure_unpriced`; excluded without a pen of the herd, `barn_without_pen`; Unassessed `animal access:<unit>` while no animal entry exists |
 | Animal sleeping spot | known zero: it fits every body size and changes no temperature | `animal_bed_no_thermal_effect`; excluded `no_animal_sleeping_spot` when the catalog has none |
 
-An unread fact (the gear census, the climate twelfth, the thermal penalty tables, an animal's comfort range or market value) makes only the barn `Unassessed`, naming the fact (`unassessed:<fact>`); the other arrangements are still compared. A barn is a graph node (`LayoutHerdRules.HerdRoomNodes`, `BarnWant`: `HerdShelterRules.BarnCellsPerAnimal` = 2 cells per penned animal) only when it wins, and only `Beside` the unit's first pen node; a standing barn keeps its node. The barn is a `PlannedRole.Barn` room carrying its herd, with its own tier and overlay.
+An unread fact (the gear census, the climate twelfth, the thermal penalty tables, an animal's comfort range or market value) makes only the barn `Unassessed`, naming the fact (`unassessed:<fact>`); the other arrangements are still compared. A barn is a graph node (`LayoutHerdRules.HerdRoomNodes`: `HerdShelterRules.BarnCellsPerAnimal` = 2 cells per penned animal) only where the layout's canonical ledger applies its deviation against the no-barn baseline (`LayoutHerdBarnRules`), and only `Beside` the unit's first pen node; a standing barn keeps its node. The barn is a `PlannedRole.Barn` room carrying its herd, with its own tier and overlay.
 
-The coupled ledger credits a planned barn (`ForecastHerdShelter.BarnCredit`) per penned animal it saves: the animal dies outside at the climate's means but lives at the barn's own steady temperature each twelfth (the shared shelter model with its shell work complete and only supplied heat sources counted). The barn earns only through a plan link into a pen of its herd, and with several barns of a herd the lowest id takes the rows; an unheated barn settles at the outdoor temperature and earns nothing, a real state. A served barn's findings name `barn_nonlethal_exposure_unpriced`, `barn_rest_comfort_unpriced` and every arrangement's state as `herd_shelter:<unit>:<kind>:<reason|excluded:...|unassessed:fact>`.
+**Animal entry (deferred gap).** A barn shelters penned animals only if roamers can enter it: the door the layout raises in a barn's ring (`PlannedRoom.RingDefs`, the shell door) must be one a fence-blocked roamer can open (`BuildingProperties.roamerCanOpen`, read natively as `FoodChannelsFacts.AnimalDoors`; `HerdShelterRules.AnimalEntry`). The vanilla shell door is not one, so a barn that would stop exposure deaths is Unassessed `animal access:<unit>`, no barn deviation is offered and the open baseline holds. The animal-flap entry is not planned yet, so the barn deviation and credit work only where a test declares the ring door passable.
 
-Execution is not built: a barn owner step, an animal flap at the pen link, assigning animal spots and furnishing a heater are task 6.2 of `redefine-habitat-requirements`, so a barn's credit is a known zero until it is furnished with a heater.
+The coupled ledger credits a planned barn (`ForecastHerdShelter.BarnCredit`) per penned animal it saves, and only when an animal entry exists: the animal dies outside at the climate's means but lives at the barn's own steady temperature each twelfth (the shared shelter model with its shell work complete and only supplied heat sources counted). The barn earns only through a plan link into a pen of its herd, and with several barns of a herd the lowest id takes the rows; an unheated barn settles at the outdoor temperature and earns nothing, a real state. A served barn's findings name `barn_nonlethal_exposure_unpriced`, `barn_rest_comfort_unpriced` and every arrangement's state as `herd_shelter:<unit>:<kind>:<reason|excluded:...|unassessed:fact>`.
+
+Execution is not built: a barn owner step, an animal flap at the pen link, assigning animal spots and furnishing a heater (no heater is chosen for the barn) remain open, so a barn's credit is a known zero until it is furnished with a heater.
 
 ## Training and products
 
@@ -413,8 +454,8 @@ review and dispatch use the plan's policy, including the existing feed gate
 before taming.
 
 `economy/resource` compares the seasonal harvest gap with each enclosed pen's
-native worst-quadrum pasture rate and stored feed. A negative balance can add a
-`Plant_Haygrass` field through the existing soil planner, zone preview and Hands
+native worst-quadrum pasture rate and stored feed. A negative balance is the hay demand of the herd arrangements ([above](#herd-arrangement-needs)) and
+can add a `Plant_Haygrass` field through the shared field ledger, zone preview and Hands
 admission. Existing hay-field capacity offsets new planting; a short season or
 unknown capacity refuses that method. Hay stays human-inedible and out of human
 food channels and human runway.

@@ -49,7 +49,7 @@ public sealed class ServicingWorkTests
         Assert.IsType<ServicingOption.Excluded>(Assert.Single(ServicingRules.OptionsOf(read, row))).Reason;
 
     private static FuelBurn Burn(double perDay, bool useDriven = false) =>
-        new() { PerDay = perDay, UnitsPerItem = 1, UseDriven = useDriven, InRain = false, WhenPowered = false, Flickable = false };
+        new() { PerDay = perDay, UnitsPerItem = 1, UseDriven = useDriven, InRain = false, WhenPowered = false };
 
     private static readonly BuildingHitPoints Whole = new BuildingHitPoints.Tracked { Current = 100, Maximum = 100 };
 

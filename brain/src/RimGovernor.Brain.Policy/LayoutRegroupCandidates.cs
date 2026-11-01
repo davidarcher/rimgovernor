@@ -111,11 +111,13 @@ public static partial class LayoutRegroupRules
                 ? new RegroupProposal(LayoutBedShareRules.BedShareMove, LayoutBedShareRules.FreeBeds, shared.ToString(System.Globalization.CultureInfo.InvariantCulture), [])
                 : alternative.HospitalBeds is { } medical
                 ? new RegroupProposal(LayoutHospitalBedRules.HospitalBedMove, LayoutHospitalBedRules.MedicalBeds, LayoutHospitalBedRules.NameOf(medical), [])
+                : alternative.Barn is { } barn
+                ? new RegroupProposal(LayoutHerdBarnRules.BarnMove, LayoutHerdBarnRules.Barns, LayoutHerdBarnRules.NameOf(barn), [])
                 : alternative.Site is SiteDeviation.Move site
                     ? new RegroupProposal(ActivitySiteRules.SiteMove, ActivitySiteRules.ActivityKey(site.Kind), ActivitySiteRules.NameOf(site), [])
                     : alternative.Host.Change is { } change
                         ? new RegroupProposal(LayoutHostRules.HostMove, change.Recipe, LayoutHostRules.NameOf(change.Host), [])
-                        : throw new ArgumentException("an alternative names neither a host change, a bed-sharing size, medical beds nor an activity site", nameof(hosts));
+                        : throw new ArgumentException("an alternative names neither a host change, a bed-sharing size, medical beds, a barn nor an activity site", nameof(hosts));
             decisions.Add(i == chosen ? Decision(proposal, seeds[0], seeds[i], true) : Decision(proposal, seeds[chosen], seeds[i], false));
         }
         decisions.AddRange(hosts.Omitted.Select(o => new RegroupDecision

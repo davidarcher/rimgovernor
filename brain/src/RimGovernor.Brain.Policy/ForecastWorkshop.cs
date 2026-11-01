@@ -170,13 +170,20 @@ internal static class ForecastWorkshop
     /// butchering's meat (<see cref="ForecastCoupledContext.ButcheryRunValue"/>, whose recipe lists no product).
     /// </summary>
     internal static double RunValue(ForecastCoupledContext context, PlannedProduction load)
+        => RunValueOf(context.ProductionRecipes.TryGetValue(load.Recipe, out var recipe) ? recipe : throw new RequiredFactException("workshop recipe:" + load.Recipe),
+            context.MaterialValues, context.ButcheryRunValue);
+
+    /// <summary>
+    /// What one run of <paramref name="recipe"/> yields in capability-days: its products at <paramref name="values"/>, or a
+    /// butchering's <paramref name="butchery"/> run value (<see cref="ButcheryRunValueOf"/>). An unread value throws naming it.
+    /// </summary>
+    internal static double RunValueOf(RecipeFlow recipe, IReadOnlyDictionary<Resource, ConstructionMaterialValue> values, double butchery)
     {
-        var products = Products(context, load);
-        if (context.ProductionRecipes[load.Recipe].Butchery) return double.IsFinite(context.ButcheryRunValue) ? context.ButcheryRunValue : throw new RequiredFactException("butchery_run_value");
+        if (recipe.Butchery) return double.IsFinite(butchery) ? butchery : throw new RequiredFactException("butchery_run_value");
         double value = 0;
-        foreach (var product in products)
+        foreach (var product in recipe.Products)
         {
-            if (!context.MaterialValues.TryGetValue(product.Resource, out var price)) throw new RequiredFactException("workshop product value:" + product.Resource);
+            if (!values.TryGetValue(product.Resource, out var price)) throw new RequiredFactException("workshop product value:" + product.Resource);
             value += product.Count * price.PerUnit;
         }
         return value;

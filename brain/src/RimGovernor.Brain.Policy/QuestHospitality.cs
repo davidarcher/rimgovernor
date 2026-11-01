@@ -15,49 +15,8 @@ public sealed record HospitalityWork
     public bool Waiting { get; init; }
 }
 
-/// <summary>
-/// The lodgers one accepted hosting quest's objective names who are not on the map yet: they arrive on acceptance, so
-/// they are sleeper demand now, <paramref name="Count"/> of them, held in prison beds when <paramref name="Prisoners"/>,
-/// else in regular beds.
-/// </summary>
-public sealed record KnownArrival(int Count, bool Prisoners);
-
 public static class QuestHospitality
 {
-    /// <summary>
-    /// The known arrivals (<see cref="KnownArrival"/>): for every accepted (Ongoing) hosting quest of a classified
-    /// people family, each active HostLodgers objective's named lodgers (QuestObjective.PawnIds) the sleeping and prisoner
-    /// censuses do not hold yet, joined by pawn id. An offer not yet accepted brings nobody; no arrival is inferred
-    /// beyond the lodgers the quest names, and none is timed later than now.
-    /// </summary>
-    public static IReadOnlyList<KnownArrival> KnownArrivals(ReviewFacts f)
-    {
-        var present = f.Sleeping.People.Concat(f.Sleeping.Slaves).Concat(f.Sleeping.Guests).Select(p => p.Id)
-            .Concat(f.Population.Prisoners.Select(p => p.Pawn)).ToHashSet();
-        var output = new List<KnownArrival>();
-        foreach (var offer in f.QuestOffers)
-        {
-            if (offer.State != RimGovernor.Brain.GameFacts.Receipts.QuestStatus.Ongoing
-                || f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || !HospitalityFamily(profile.Family) || profile.Family == QuestFamily.HospitalityAnimals)
-            {
-                continue;
-            }
-            foreach (var objective in offer.Objectives)
-            {
-                if (objective.Kind != RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.HostLodgers || !objective.Active)
-                {
-                    continue;
-                }
-                var count = objective.PawnIds.Count(id => !present.Contains(id));
-                if (count > 0)
-                {
-                    output.Add(new KnownArrival(count, profile.Family == QuestFamily.HospitalityPrisoners));
-                }
-            }
-        }
-        return output;
-    }
-
     public static bool HospitalityFamily(QuestFamily f) =>
         f is QuestFamily.HospitalityAnimals or QuestFamily.HospitalityJoiners or QuestFamily.HospitalityPrisoners or QuestFamily.HospitalityRefugee or QuestFamily.Laborers;
 

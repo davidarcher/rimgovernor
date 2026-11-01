@@ -86,10 +86,7 @@ internal static class CoupledShelterCandidates
             var interior = room.Interior; var bounds = room.Bounds;
             if (room.Outdoor || bounds.Width * bounds.Height != interior.Count || interior.Count == 0)
                 notes.Add("unsupported_shelter_geometry");
-            var ring = new List<Cell>();
-            for (var x = bounds.X - 1; x <= bounds.X + bounds.Width; x++)
-                for (var z = bounds.Z - 1; z <= bounds.Z + bounds.Height; z++)
-                    if (x < bounds.X || x >= bounds.X + bounds.Width || z < bounds.Z || z >= bounds.Z + bounds.Height) ring.Add(new(x, z));
+            var ring = Ring(bounds);
             bool RequireSite(string site)
             {
                 if (!finishes.TryGetValue(site, out var ids) || ids.Length == 0) return false;
@@ -191,24 +188,41 @@ internal static class CoupledShelterCandidates
                     else notes.Add("unmodeled_heat_source_work");
                 }
             var valid = notes.All(n => n == "roof_per_cell_labor_conservative_native_jobs_may_cover_neighbors");
-            var cells = interior.Where(observed.ContainsKey).Select(c => observed[c]).ToArray();
-            ForecastShelterThermal thermal = new ForecastShelterThermal.Unestimated();
-            if (valid && read is not null && cells.Length != 0)
-            {
-                var walls = (ring.Count * read.WallExchangePerTick + ring.Where(observed.ContainsKey).Sum(c => observed[c].DoorExchangePerTick * .5)) / interior.Count;
-                // The room as it stands (#3534) holds only behind a closed ring; its roof terms are RoomTempTracker's coverage
-                // terms, each open cell at the no-roof rate and the rest at the thin-roof rate.
-                var open = cells.Count(c => c.Roof == "none");
-                ForecastShelterStanding standing = ring.All(c => observed.TryGetValue(c, out var row) && row.Solid && !row.DoorHeldOpen)
-                    ? new ForecastShelterStanding.Enclosed((read.ThinRoofExchangePerTick * (interior.Count - open) + read.NoRoofExchangePerTick * open) / interior.Count + walls)
-                    : new ForecastShelterStanding.Open();
-                thermal = new ForecastShelterThermal.Estimated(cells.Average(c => c.Temperature), read.Outdoors, read.ThinRoofExchangePerTick + walls, standing);
-            }
+            var thermal = valid && read is not null ? Estimate(interior, ring, observed, read) : new ForecastShelterThermal.Unestimated();
             plans.Add(new(room.Id, interior, [], thermal, EquatableArray.From(sources), EquatableArray.From(notes.Distinct()))
                 { AlternativePrerequisites = EquatableArray.From(groups), PlannedRoom = roofRoom,
                     RoofCells = roofRoom == 0 ? [] : EquatableArray.From(roofCells) });
             if (demands.Count != 0) roots.Add("shelter/" + room.Id, EquatableArray.From(demands));
         }
         return new(options.ToArray(), routes.Values.ToArray(), bindings, operations.Values.ToArray(), [], roots, plans.ToArray(), geometry.Findings, geometry.Truncated);
+    }
+
+    /// <summary>The cells just outside <paramref name="bounds"/>: a rectangular room's wall ring.</summary>
+    internal static List<Cell> Ring(Rectangle bounds)
+    {
+        var ring = new List<Cell>();
+        for (var x = bounds.X - 1; x <= bounds.X + bounds.Width; x++)
+            for (var z = bounds.Z - 1; z <= bounds.Z + bounds.Height; z++)
+                if (x < bounds.X || x >= bounds.X + bounds.Width || z < bounds.Z || z >= bounds.Z + bounds.Height) ring.Add(new(x, z));
+        return ring;
+    }
+
+    /// <summary>
+    /// A room's thermal estimate from the sampled cells: its mean read temperature, the map's outdoors, the completed shell's
+    /// exchange (the thin-roof rate plus its ring's wall and door terms a cell) and the room as it stands. Unestimated when no
+    /// interior cell is sampled.
+    /// </summary>
+    internal static ForecastShelterThermal Estimate(IReadOnlyCollection<Cell> interior, IReadOnlyList<Cell> ring, IReadOnlyDictionary<Cell, ThermalCell> observed, CoupledThermalRead read)
+    {
+        var cells = interior.Where(observed.ContainsKey).Select(c => observed[c]).ToArray();
+        if (cells.Length == 0) return new ForecastShelterThermal.Unestimated();
+        var walls = (ring.Count * read.WallExchangePerTick + ring.Where(observed.ContainsKey).Sum(c => observed[c].DoorExchangePerTick * .5)) / interior.Count;
+        // The room as it stands (#3534) holds only behind a closed ring; its roof terms are RoomTempTracker's coverage
+        // terms, each open cell at the no-roof rate and the rest at the thin-roof rate.
+        var open = cells.Count(c => c.Roof == "none");
+        ForecastShelterStanding standing = ring.All(c => observed.TryGetValue(c, out var row) && row.Solid && !row.DoorHeldOpen)
+            ? new ForecastShelterStanding.Enclosed((read.ThinRoofExchangePerTick * (interior.Count - open) + read.NoRoofExchangePerTick * open) / interior.Count + walls)
+            : new ForecastShelterStanding.Open();
+        return new ForecastShelterThermal.Estimated(cells.Average(c => c.Temperature), read.Outdoors, read.ThinRoofExchangePerTick + walls, standing);
     }
 }

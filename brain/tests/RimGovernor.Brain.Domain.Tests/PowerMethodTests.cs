@@ -58,17 +58,6 @@ public sealed class PowerMethodTests
         Assert.NotEqual(PowerMethod.Restore, dead.Method);
     }
 
-    [Fact]
-    public void GeneratorRankingRequiresTheCompleteNativeConstructionValue()
-    {
-        var option = new GeneratorOption { Definition = "InstalledGenerator", NominalW = 1700,
-            Profile = PowerRules.ConstantPowerProfile, BuildValue = 136 };
-        Assert.Equal(1700 * PowerRules.ConstantPowerProfile.Daily / 136, PowerRules.GeneratorYield(option), 6);
-        Assert.Equal(double.PositiveInfinity, PowerRules.GeneratorYield(option with { BuildValue = 0 }));
-        Assert.Throws<RequiredFactException>(() => PowerRules.GeneratorYield(option with { BuildValue = double.NaN }));
-        Assert.Throws<RequiredFactException>(() => PowerRules.GeneratorYield(option with { BuildValue = -1 }));
-        Assert.Throws<RequiredFactException>(() => PowerRules.GeneratorYield(option with { NominalW = 0 }));
-    }
     // #3877: the fuel state is named: a not-refuelable building is never unfueled, a refuelable one is when out of fuel.
     [Fact]
     public void OnlyARefuelableBuildingOutOfFuelIsUnfueled()
@@ -93,20 +82,4 @@ public sealed class PowerMethodTests
         Assert.True(covered.HeadroomW > 0);
     }
 
-    // #2799: a polar-night twelfth gives a solar generator nothing to deliver, so the wind turbine outranks it; an unread
-    // daylight curve keeps the list order, and a lit twelfth leaves solar first.
-    [Fact]
-    public void WindOutranksSolarAtZeroDaylight()
-    {
-        GeneratorOption[] options =
-        [
-            new() { Definition = "SolarGenerator", Available = true, Profile = PowerRules.SolarPowerProfile, NominalW = 1700, BuildValue = 10 },
-            new() { Definition = PowerRules.WindTurbineDefinition, Available = true, Profile = PowerRules.WindProfile(0.04, 2, 1), NominalW = 2300, BuildValue = 100 },
-        ];
-        var ranking = new GeneratorRanking { BatteryAvailable = true, DaylightHours = 12 };
-
-        Assert.Equal(["SolarGenerator", PowerRules.WindTurbineDefinition], PowerRules.RankGenerators(options, ranking));
-        Assert.Equal(["SolarGenerator", PowerRules.WindTurbineDefinition], PowerRules.RankGenerators(options, ranking with { DaylightHours = 12.0}));
-        Assert.Equal([PowerRules.WindTurbineDefinition, "SolarGenerator"], PowerRules.RankGenerators(options, ranking with { DaylightHours = 0.0}));
-    }
 }

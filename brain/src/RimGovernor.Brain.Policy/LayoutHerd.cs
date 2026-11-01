@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 // Herd rooms. The pen is the herd's grazing room: a room node of the station graph (HerdRoomNodes) the tiler sites with
 // the others, an outdoor ring of fence and gate round grazing ground with one PenMarker inside. Where the herd rests is
 // compared, not ruled (HerdShelterRules): open pen ground, an animal sleeping spot on it, or a barn beside the pen and
-// joined to it. A barn is a node only for a unit whose barn alternative wins (BarnWant), and it stands beside its unit's
+// joined to it. A barn is a node only for a unit whose barn deviation the regroup applies (LayoutHerdBarnRules), and it stands beside its unit's
 // pen, so the animals stay contained with their grazing. A herd room is matched to its herd by key: every pen and barn
 // of a herd, a top-up included, carries PlannedRoom.Herd, the herd's race; the misc unit's carry none.
 
@@ -91,7 +91,7 @@ partial record LayoutPlan
     /// <summary>
     /// The pens and barns the plan holds and the herds still lack, as graph nodes. A standing pen or barn is a node of the
     /// floor it has, keyed to its herd (RoomNode.Herd), so the tiler pins it; a herd short of the cells its pen wants
-    /// (pens) gets one more pen node holding the shortfall, and a herd whose barn alternative won (barns) and is short of
+    /// (pens) gets one more pen node holding the shortfall, and a herd whose barn deviation is applied (barns) and is short of
     /// the barn's cells gets one more barn node beside its first pen node. A herd with no pen node gets no barn: a barn
     /// apart from the pen would hold its animals away from their grazing. The ground a pen stands on is not constrained:
     /// a pen may stand on rock, at the price of the hay its herd is then hauled (PenNode.HandFed), a choice the forecast

@@ -451,6 +451,10 @@ public sealed partial class ColonyReview
             reading = reading.WithFacts(f => f with { Isolation = CreepJoiner.CreepJoinerIsolation(reading.Reading, reading.Frame, reading.Catalog, creepRecord) });
         }
         reading = ReviewChildRooms(reading);
+        // The bed an expected sleeper's preparation is priced against (ProspectiveCapacityRules.Admitted), read before the layout sizes beds.
+        var prospectiveBed = await ProspectiveBedAsync(state.Snapshot, reading.Reading, ct).ConfigureAwait(false);
+        reading = reading.WithFacts(rf => rf with { ProspectiveBed = prospectiveBed });
+        LogProspectiveCapacity(reading.Reading.Facts);
         reading = reading.WithReading(await ReviewLayoutPlanAsync(state.Snapshot, reading.Reading, ct).ConfigureAwait(false));
         Lap("layout");
         reading = reading.WithColonySection(c => c with { Facts = c.Facts with { LayoutPlan = reading.Reading.Facts.LayoutPlan } });

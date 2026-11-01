@@ -163,6 +163,18 @@ public static class BuildingsRules
         return BuildingPatch(v.Thing, new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AutoRefuelCase(v.Allow));
     }
 
+    internal static RimGovernor.Brain.GameOrders.Operations.Action PowerSwitchAction(DomainAction action)
+    {
+        var v = action.PowerSwitch ?? throw BridgeContractException.Contract("not a power switch action");
+        return BuildingPatch(v.Thing, new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.PowerSwitchCase(v.On));
+    }
+
+    internal static RimGovernor.Brain.GameOrders.Operations.Action BuildingAllowAction(DomainAction action)
+    {
+        var v = action.BuildingAllow ?? throw BridgeContractException.Contract("not a building allow action");
+        return BuildingPatch(v.Thing, new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AllowCase());
+    }
+
     internal static RimGovernor.Brain.GameOrders.Operations.Action ClaimBuildingAction(DomainAction action)
     {
         var v = action.ClaimBuilding ?? throw BridgeContractException.Contract("not a claim building action");

@@ -18,7 +18,7 @@ public sealed class ResourceCensusTests
                 Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable
                 {
                     AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(), Fuel = empty ? 0 : 2, TargetFuel = 10, AutoRefuelPercent = 0.3, OutOfFuel = empty,
-                    Burn = new RimGovernor.Brain.GameFacts.Observations.FuelBurn { PerDay = 2, UnitsPerItem = 2, UseDriven = useDriven, InRain = rain, WhenPowered = false, Flickable = false },
+                    Burn = new RimGovernor.Brain.GameFacts.Observations.FuelBurn { PerDay = 2, UnitsPerItem = 2, UseDriven = useDriven, InRain = rain, WhenPowered = false },
                 },
             },
         };
@@ -40,7 +40,7 @@ public sealed class ResourceCensusTests
     public void ASwitchedOffConsumerHasNoContinuousDemand()
     {
         var consumer = Consumer();
-        consumer = consumer with { Service = consumer.Service with { Fuel = consumer.Refuelable with { Burn = consumer.Burn with { Flickable = true } }, SwitchedOn = false } };
+        consumer = consumer with { Service = consumer.Service with { Switch = BuildingServiceWire.Flick(false) } };
         var runway = Plan(consumer);
         Assert.Empty(runway.Needs);
     }

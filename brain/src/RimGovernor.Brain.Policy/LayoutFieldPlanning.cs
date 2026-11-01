@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
-// Outdoor food fields fill the layout plan's field blocks at every tier. A plan field zone is a block the station
-// chain placed for a crop, sized by FieldCapacityTarget; inside it each crop takes its own adjacent crop block,
-// sized by its demand, and grows in place with add-cells.
+// Outdoor fields fill the layout plan's field blocks at every tier. A plan field zone is a block the station chain
+// placed for a crop, sized by FieldCapacityTarget; inside it each crop takes its own adjacent crop block, sized by its
+// demand, and grows in place with add-cells. FieldPlacementRules compares where; these are the block geometry helpers.
 
 /// <summary>The next outdoor field step: an empty <see cref="Zone"/> creates a growing zone of <see cref="Crop"/> on <see cref="Cells"/>; otherwise Cells are added to Zone, which grows Crop.</summary>
 public sealed record FieldBlockEdit(string Zone, string Crop, IReadOnlyList<Cell> Cells);
@@ -28,176 +28,6 @@ public static class LayoutFieldPlanning
     private static bool Touches(HashSet<Cell> set, Cell c) =>
         set.Contains(new Cell(c.X, c.Z - 1)) || set.Contains(new Cell(c.X - 1, c.Z)) || set.Contains(new Cell(c.X + 1, c.Z)) || set.Contains(new Cell(c.X, c.Z + 1));
 
-    /// <summary>
-    /// Walks the plan's field patches (FieldBlocks order) and returns the first patch's step that still has free
-    /// soil: grow the growing zone in the patch that options[0] adopts by its need, or create a new crop block
-    /// against the patch's standing zones. A new block takes the first option, in BlockCropOrder, not growing
-    /// within FieldBlockNeighbourRadius of that block. <paramref name="options"/> are the viable crops in
-    /// preference order. The reason explains a refusal: no field blocks, or every block full.
-    /// </summary>
-    public static (FieldBlockEdit? Edit, string Reason) PlanFieldBlock(ReviewFacts facts, IReadOnlyList<SiteCell>? observedCells, RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot? zones, Cell anchor, IReadOnlyList<FieldBlockOption> options, IReadOnlyList<Cell> protectedCells)
-    {
-        if (facts.LayoutPlan is not { } plan)
-        {
-            return (null, "no layout plan");
-        }
-        var blocks = plan.FieldBlocks(anchor);
-        if (blocks.Count == 0)
-        {
-            return (null, "layout plan has no field blocks");
-        }
-        if (options.Count == 0 || options[0].Needed <= 0)
-        {
-            return (null, "no field cells needed");
-        }
-        var heldCells = observedCells ?? throw new RequiredFactException("planning window");
-        var blocked = new HashSet<Cell>(protectedCells);
-        var census = new Dictionary<Cell, SiteCell>(heldCells.Count);
-        var rich = new HashSet<Cell>();
-        foreach (var c in heldCells)
-        {
-            census[c.Cell] = c;
-            if (c.Fertility > FieldRichFertility)
-            {
-                rich.Add(c.Cell);
-            }
-        }
-        var growing = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var f in (zones ?? throw new RequiredFactException("zone census")).Zones.OfType<RimGovernor.Brain.GameFacts.Observations.ZoneState.Growing>())
-        {
-            growing[f.Id] = f.Crop;
-        }
-        var inedible = new HashSet<string>(StringComparer.Ordinal);
-        var trees = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var d in facts.Definitions)
-        {
-            // The catalog includes buildings and plants with no harvest product.
-            // Only actual harvests classify a growing crop as edible or as a tree.
-            if (d.Harvest is not { } harvest)
-            {
-                continue;
-            }
-            if (!harvest.Edible)
-            {
-                inedible.Add(d.Name);
-            }
-            var blocksSow = (d.Plant ?? throw new RequiredFactException("planning Plant")).BlockAdjacentSow;
-            var destroys = harvest.HarvestDestroysPlant;
-            if (blocksSow && destroys)
-            {
-                trees.Add(d.Name);
-            }
-        }
-        // The native sower leaves a crop beside a sown tree and a tree beside a sown crop unsown, so a zone keeps
-        // one cell clear of every zone of the other kind; tree zones never grow by adoption either (AdoptsZone).
-        var treeZone = new HashSet<Cell>();
-        var cropZone = new HashSet<Cell>();
-        foreach (var c in heldCells)
-        {
-            if (c.ZoneId is { } id && growing.TryGetValue(id, out var crop))
-            {
-                (trees.Contains(crop) ? treeZone : cropZone).Add(c.Cell);
-            }
-        }
-        static bool NearZone(HashSet<Cell> zone, Cell cell)
-        {
-            for (var dx = -1; dx <= 1; dx++)
-            {
-                for (var dz = -1; dz <= 1; dz++)
-                {
-                    if (zone.Contains(new Cell(cell.X + dx, cell.Z + dz)))
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-        HashSet<Cell> FreeFor(HashSet<Cell> block, CropChoice crop)
-        {
-            var floor = crop.FertilityMin;
-            var other = TreePlantationRules.IsTreeCrop(crop) ? cropZone : treeZone;
-            var free = new HashSet<Cell>();
-            foreach (var cell in block)
-            {
-                if (census.TryGetValue(cell, out var c) && !blocked.Contains(cell) && FreeFieldSoil(c, floor) && !NearZone(other, cell))
-                {
-                    free.Add(cell);
-                }
-            }
-            return free;
-        }
-        foreach (var blockCells in blocks)
-        {
-            var block = blockCells;
-            var zoneCells = new Dictionary<string, HashSet<Cell>>(StringComparer.Ordinal);
-            foreach (var cell in block)
-            {
-                if (!census.TryGetValue(cell, out var c))
-                {
-                    continue;
-                }
-                if (c.ZoneId is { Length: > 0 } id && growing.ContainsKey(id))
-                {
-                    if (!zoneCells.TryGetValue(id, out var set))
-                    {
-                        zoneCells[id] = set = [];
-                    }
-                    set.Add(cell);
-                }
-            }
-            // A patch holds adjacent crop blocks, one growing zone each: options[0] grows the largest zone it
-            // adopts in place, a ring of free cells around it; hay and social crops never share a food zone. Zones
-            // never move.
-            var zone = "";
-            var occupied = new HashSet<Cell>();
-            foreach (var (id, cells) in zoneCells)
-            {
-                occupied.UnionWith(cells);
-                if (!AdoptsZone(options[0].Crop, growing[id], inedible))
-                {
-                    continue;
-                }
-                if (zone == "" || cells.Count > zoneCells[zone].Count || cells.Count == zoneCells[zone].Count && string.CompareOrdinal(id, zone) < 0)
-                {
-                    zone = id;
-                }
-            }
-            if (zone != "")
-            {
-                var adds = ConnectedAdds(zoneCells[zone], FreeFor(block, options[0].Crop), options[0].Needed);
-                if (adds.Count > 0)
-                {
-                    return (new FieldBlockEdit(zone, growing[zone], adds), "");
-                }
-            }
-            // A new crop block sits against the patch's standing blocks, with no gap; its crop avoids one growing
-            // within FieldBlockNeighbourRadius of the block itself, not of the whole patch.
-            var first = ConnectedPick(FreeFor(block, options[0].Crop), occupied, rich, anchor, options[0].Needed);
-            if (first.Count > 0)
-            {
-                var neighbours = FieldBlockNeighbours(heldCells, new HashSet<Cell>(first), growing);
-                foreach (var o in CropChoiceRules.BlockCropOrder(options, neighbours))
-                {
-                    if (o.Needed <= 0)
-                    {
-                        continue;
-                    }
-                    var cells = ConnectedPick(FreeFor(block, o.Crop), occupied, rich, anchor, o.Needed);
-                    if (cells.Count > 0)
-                    {
-                        return (new FieldBlockEdit("", o.Crop.Name, cells), "");
-                    }
-                }
-            }
-        }
-        return (null, "every field block is full");
-    }
-
-    /// <summary>Indices in stable, heaviest-demand-first order; Runtime retains each Need owner.</summary>
-    public static IReadOnlyList<int> RankFieldShortfalls(IReadOnlyList<IReadOnlyList<FieldBlockOption>> ledger) =>
-        Enumerable.Range(0, ledger.Count).OrderByDescending(i => ledger[i].Count == 0 ? 0 : ledger[i][0].Needed).ToList();
-
     /// <summary>The crops a new field block may take: the candidate first, then every other plantable outdoor soil candidate in score order.</summary>
     public static List<FieldBlockOption> FieldBlockOptions(SiteTypeCandidate candidate, IEnumerable<SiteTypeCandidate> all)
     {
@@ -211,38 +41,6 @@ public static class LayoutFieldPlanning
             }
         }
         return options;
-    }
-
-    /// <summary>The set of crops growing in a zone with a cell within FieldBlockNeighbourRadius (Chebyshev) of the block's bounding box.</summary>
-    public static HashSet<string> FieldBlockNeighbours(IEnumerable<SiteCell> cells, HashSet<Cell> block, IReadOnlyDictionary<string, string> growing)
-    {
-        var first = true;
-        var lo = new Cell(0, 0);
-        var hi = new Cell(0, 0);
-        foreach (var c in block)
-        {
-            if (first)
-            {
-                lo = c;
-                hi = c;
-                first = false;
-                continue;
-            }
-            lo = new Cell(Math.Min(lo.X, c.X), Math.Min(lo.Z, c.Z));
-            hi = new Cell(Math.Max(hi.X, c.X), Math.Max(hi.Z, c.Z));
-        }
-        var r = CropChoiceRules.FieldBlockNeighbourRadius;
-        var output = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var c in cells)
-        {
-            if (c.ZoneId is not { } id || !growing.TryGetValue(id, out var crop)
-                || c.Cell.X < lo.X - r || c.Cell.X > hi.X + r || c.Cell.Z < lo.Z - r || c.Cell.Z > hi.Z + r)
-            {
-                continue;
-            }
-            output.Add(crop);
-        }
-        return output;
     }
 
     /// <summary>Reports whether a field of <paramref name="crop"/> grows a zone of <paramref name="zoneCrop"/>: its own crop always; a food field also adopts any food zone, keeping the zone's crop, but never a hay or social crop's zone.</summary>

@@ -71,6 +71,8 @@ public static class IntentActionRules
         [ActionKind.GrowerCrop] = BuildingsRules.GrowerCropAction,
         [ActionKind.ClaimBuilding] = BuildingsRules.ClaimBuildingAction,
         [ActionKind.AutoRefuel] = BuildingsRules.AutoRefuelAction,
+        [ActionKind.PowerSwitch] = BuildingsRules.PowerSwitchAction,
+        [ActionKind.BuildingAllow] = BuildingsRules.BuildingAllowAction,
         [ActionKind.Surgery] = Production.SurgeryAction,
         [ActionKind.Area] = Zones.AreaAction,
         [ActionKind.PolicyPrune] = Zones.PolicyPruneAction,

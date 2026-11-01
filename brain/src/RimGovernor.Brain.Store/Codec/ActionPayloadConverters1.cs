@@ -183,6 +183,24 @@ public sealed class AutoRefuelConverter : ObjectCodec<AutoRefuel>
     }
 }
 
+public sealed class PowerSwitchConverter : ObjectCodec<PowerSwitch>
+{
+    protected override PowerSwitch Read(JsonElement e, Codecs o) => new(e.Str("Thing"), e.Bool("On"));
+
+    protected override void WriteFields(Utf8JsonWriter w, PowerSwitch v, Codecs o)
+    {
+        w.WriteString("Thing", v.Thing);
+        w.WriteBoolean("On", v.On);
+    }
+}
+
+public sealed class BuildingAllowConverter : ObjectCodec<BuildingAllow>
+{
+    protected override BuildingAllow Read(JsonElement e, Codecs o) => new(e.Str("Thing"));
+
+    protected override void WriteFields(Utf8JsonWriter w, BuildingAllow v, Codecs o) => w.WriteString("Thing", v.Thing);
+}
+
 public sealed class BedUseConverter : ObjectCodec<BedUse>
 {
     protected override BedUse Read(JsonElement e, Codecs o) =>

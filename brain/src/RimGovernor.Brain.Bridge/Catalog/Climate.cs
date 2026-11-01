@@ -31,7 +31,8 @@ public sealed partial class DefinitionCatalog
             var burner = push is { heatPerSecond: not 0 } && push.compClass == typeof(CompHeatPusherPowered)
                 && fuel is { compClass: var fuelClass, showAllowAutoRefuelToggle: true } && fuelClass == typeof(CompRefuelable)
                 && power is null && (row.thingClass == typeof(Verse.Building) || row.thingClass == typeof(Building_WorkTable));
-            if (!thermostat && !burner) continue;
+            // A burn that scales with the difficulty's maintenance factor is not read here: the def is left out.
+            if (!thermostat && !burner || burner && fuel!.factorByDifficulty) continue;
             var definition = new P.TemperatureDefinition
             {
                 Name = row.defName, HeatPerSecond = thermostat ? control!.energyPerSecond : push!.heatPerSecond,
@@ -40,6 +41,8 @@ public sealed partial class DefinitionCatalog
                 MaximumC = thermostat ? float.MaxValue : push!.heatPushMaxTemperature,
                 Wall = thermostat && row.thingClass == typeof(Building_Cooler), Controlled = thermostat,
                 BuildValue = CheapestCostValue(row.defName), Fuels = [.. RefuelFuels(row.defName).Select(name => new P.Resource(name))],
+                // CompRefuelable burns fuelConsumptionRate fuel units a day, an item worth FuelMultiplier units.
+                FuelItemsPerDay = fuel is null ? 0 : fuel.fuelConsumptionRate / GameMembers.FuelMultiplier(fuel),
             };
             definition.Validate();
             if (burner && definition.Fuels.Count == 0) throw new CatalogException("thermal fuel:" + row.defName);

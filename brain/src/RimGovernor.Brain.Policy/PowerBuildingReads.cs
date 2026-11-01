@@ -44,7 +44,12 @@ public static class PowerBuildingReads
             var invalid => throw new DomainException($"Building {building.Building.Id} is not a power member."),
         };
         public bool Forbidden => building.Settings.Forbidden;
-        public bool SwitchedOn => building.Service.SwitchedOn;
+        /// <summary>The switch is on: a building without a flick switch is always on.</summary>
+        public bool SwitchedOn => building.Service.Switch is not RimGovernor.Brain.GameFacts.Observations.BuildingSwitch.Flick { On: false };
+        /// <summary>The building has a flick switch the colony can order.</summary>
+        public bool Flickable => building.Service.Switch is RimGovernor.Brain.GameFacts.Observations.BuildingSwitch.Flick;
+        /// <summary>The state the switch's gizmo has ordered; the switch's own state while no flick is pending.</summary>
+        public bool SwitchWanted => building.Service.Switch is RimGovernor.Brain.GameFacts.Observations.BuildingSwitch.Flick flick ? flick.Wanted : true;
         public RimGovernor.Brain.GameFacts.Observations.BuildingFuel Fuel => building.Service.Fuel;
         public bool BrokenDown => building.Service.BrokenDown;
         public RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable Refuelable => building.Service.Fuel as RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable

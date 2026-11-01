@@ -98,6 +98,8 @@ public sealed class OperationArgumentTests
             new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.TargetTemperatureCase(0),
             new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.MedicalCase(false),
             new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AutoRefuelCase(false),
+            new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.PowerSwitchCase(false),
+            new RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AllowCase(),
         ];
         foreach (var setting in buildingSettings)
             Assert.Equal(setting, OrdersJson.Deserialize<RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange>(OrdersJson.Serialize(setting)));

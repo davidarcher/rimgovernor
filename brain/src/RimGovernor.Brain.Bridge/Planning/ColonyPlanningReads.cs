@@ -154,7 +154,7 @@ public static partial class ColonyPlanningReads
             IsolationArea = AllowedAreaID(v.Policies, IsolationRoomRules.IsolationAreaLabel),
             Census = v,
         };
-        f = f with { PenGrazing = f.FoodChannels.Grazing, Pasture = f.FoodChannels.Pasture };
+        f = f with { PenGrazing = f.FoodChannels.Grazing, PenFeed = f.FoodChannels.PenFeed, AnimalDoors = f.FoodChannels.AnimalDoors, Pasture = f.FoodChannels.Pasture };
         {
             var power = buildings.Table.Sorted().Where(row => row.Status == RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built && row.Service.Power is not RimGovernor.Brain.GameFacts.Observations.BuildingPower.NoPower).ToList();
             var topology = new PowerTopology

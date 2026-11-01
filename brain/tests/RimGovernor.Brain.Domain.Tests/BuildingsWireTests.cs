@@ -97,7 +97,7 @@ public sealed class BuildingsWireTests
             },
             BuildingServiceWire.NoService with { Power = new RimGovernor.Brain.GameFacts.Observations.BuildingPower.Trader { RatedW = -100, PowerOn = false, OutputW = 0, Network = null } },
             BuildingServiceWire.NoService with { Power = new RimGovernor.Brain.GameFacts.Observations.BuildingPower.Battery { StorageWD = 600, Network = "net-2" }, BrokenDown = true },
-            BuildingServiceWire.NoService with { Wind = new RimGovernor.Brain.GameFacts.Observations.BuildingWind.WindTurbine { BlockedCells = 4 }, SwitchedOn = false },
+            BuildingServiceWire.NoService with { Wind = new RimGovernor.Brain.GameFacts.Observations.BuildingWind.WindTurbine { BlockedCells = 4 }, Switch = BuildingServiceWire.Flick(false) },
         ];
 
         var json = services.Select(s => OrdersJson.Serialize(s)).ToList();
@@ -109,6 +109,7 @@ public sealed class BuildingsWireTests
     [InlineData("power")]
     [InlineData("fuel")]
     [InlineData("wind")]
+    [InlineData("switch")]
     public void AServiceRowMissingAStateDoesNotDecode(string member)
     {
         var node = JsonNode.Parse(OrdersJson.Serialize(BuildingServiceWire.NoService))!.AsObject();

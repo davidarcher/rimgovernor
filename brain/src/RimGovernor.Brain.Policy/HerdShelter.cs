@@ -12,8 +12,9 @@ namespace RimGovernor.Brain.Policy;
 // The barn's exposure is the mirrored hypothermia and heatstroke givers (ForecastValue.ThermalGainPerTick) walked over the
 // map's twelve seasonal means from the current twelfth; an animal whose severity reaches the def's lethal value is lost at
 // its market value over the days until it does. A comfort range that covers the climate is a known zero, not an exclusion. A
-// fact the barn needs unread makes only the barn Unassessed, naming the fact. The barn is a graph node only when it wins
-// (BarnWants); the coupled ledger then prices the planned barn with its own shelter model (ForecastHerdShelter).
+// fact the barn needs unread makes only the barn Unassessed, naming the fact. A barn whose ring door no roamer can open (the shell door,
+// HerdShelterRules.AnimalEntry) is Unassessed under "animal access:<unit>": it would earn nothing. No arrangement is chosen here: the barn is a layout regroup deviation
+// (LayoutHerdBarnRules) the coupled ledger prices with its own shelter model (ForecastHerdShelter) against the baseline.
 
 /// <summary>A pen unit's resting arrangements.</summary>
 public enum HerdShelterKind
@@ -50,15 +51,9 @@ public abstract record HerdShelterValue
 public sealed record HerdShelterAlternative(HerdShelterKind Kind, HerdShelterValue Value);
 
 /// <summary>One pen unit's alternatives, in kind order; Animals is the count of its penned animals.</summary>
-public sealed record HerdShelter(string Herd, int Animals, EquatableArray<HerdShelterAlternative> Alternatives)
-{
-    /// <summary>The assessed alternative with the largest gain, open on a tie: an unassessed or excluded one never wins.</summary>
-    public HerdShelterKind Chosen => Alternatives
-        .Select(a => (a.Kind, Gain: a.Value is HerdShelterValue.Assessed { GainPerDay: var g } ? g : double.NegativeInfinity))
-        .OrderByDescending(a => a.Gain).ThenBy(a => a.Kind).First().Kind;
-}
+public sealed record HerdShelter(string Herd, int Animals, EquatableArray<HerdShelterAlternative> Alternatives);
 
-/// <summary>The barn a pen unit's chosen arrangement asks for: Race is the unit's key, Cells the interior its animals sleep on.</summary>
+/// <summary>The barn a pen unit's barn alternative adds (LayoutHerdBarnRules): Race is the unit's key, Cells the interior its animals sleep on.</summary>
 public sealed record BarnWant(string Race, int Cells);
 
 /// <summary>The facts the herd shelter reads: the animals, the herd plan's races with a unit of their own, the pen wants, the map's climate (null unread), the thermal hediff tables and the catalog's animal sleeping spot ("" none).</summary>
@@ -75,6 +70,9 @@ public sealed record HerdShelterInput
     public CapacityPenaltyTables Penalties { get; init; } = new();
 
     public string AnimalSpot { get; init; } = "";
+
+    /// <summary>The door defs a fence-blocked roamer can open (FoodChannelsFacts.AnimalDoors); a barn entered by any other door serves no penned animal.</summary>
+    public IReadOnlyList<string> AnimalDoors { get; init; } = [];
 }
 
 public static class HerdShelterRules
@@ -90,6 +88,9 @@ public static class HerdShelterRules
     /// <summary>Why the graph holds a barn: its unit's barn alternative won, or the plan already holds the barn.</summary>
     public const string ReasonHerdShelter = "herd_shelter_owed";
 
+    /// <summary>The fact a barn's gain waits on while its entry is no door a penned animal can pass: "animal access:&lt;unit&gt;".</summary>
+    public const string FactAnimalAccess = "animal access:";
+
     /// <summary>A barn's floor per animal: its sleeping spot and the free cell it is tended from.</summary>
     internal const int BarnCellsPerAnimal = 2;
 
@@ -104,6 +105,13 @@ public static class HerdShelterRules
     /// <summary>The penned animals (RequiresPen) of unit <paramref name="herd"/>, by id.</summary>
     internal static IReadOnlyList<UpkeepAnimal> UnitAnimals(HerdShelterInput input, string herd) =>
         [.. input.Animals.Where(a => a.RequiresPen && UnitOf(a, input.Herds) == herd).OrderBy(a => a.Id.Value, StringComparer.Ordinal)];
+
+    /// <summary>
+    /// Whether the door the layout raises in a barn's ring (PlannedRoom.RingDefs) is one a fence-blocked roamer can open
+    /// (RG-HABITAT-006: no credit for an unusable barn). The ring door is the shell door, which roamers cannot open, so a
+    /// barn earns nothing until its entry is an animal flap.
+    /// </summary>
+    internal static bool AnimalEntry(HerdShelterInput input) => input.AnimalDoors.Contains(new PlannedRoom { Role = PlannedRole.Barn }.RingDefs().Door);
 
     /// <summary>Each pen unit's alternatives, in unit key order.</summary>
     public static IReadOnlyList<HerdShelter> Assess(HerdShelterInput input)
@@ -127,10 +135,6 @@ public static class HerdShelterRules
     /// <summary>The finding naming an arrangement's state: "herd_shelter:&lt;unit&gt;:&lt;kind&gt;:" then <see cref="HerdShelterValue.State"/>.</summary>
     public static string StateOf(string herd, HerdShelterAlternative alternative) =>
         $"herd_shelter:{herd}:{Wire.Name(alternative.Kind)}:{alternative.Value.State}";
-
-    /// <summary>The barns the chosen arrangements ask for: one per unit whose barn wins, sized BarnCellsPerAnimal per penned animal.</summary>
-    public static IReadOnlyList<BarnWant> BarnWants(IReadOnlyList<HerdShelter> shelters) =>
-        [.. shelters.Where(s => s.Chosen == HerdShelterKind.Barn).Select(s => new BarnWant(s.Herd, s.Animals * BarnCellsPerAnimal))];
 
     private static HerdShelterValue Value(Func<HerdShelterValue> value)
     {
@@ -163,6 +167,10 @@ public static class HerdShelterRules
             {
                 gain += LossPerDay(MarketValueOf(animal), days);
             }
+        }
+        if (gain > 0 && !AnimalEntry(input))
+        {
+            return new HerdShelterValue.Unassessed(FactAnimalAccess + (herd.Length == 0 ? "misc" : herd));
         }
         var reason = gain > 0 ? ReasonBarnAvoidsExposure : exposed ? ReasonNonlethalExposure : ReasonComfortCoversClimate;
         return new HerdShelterValue.Assessed(gain, reason);
@@ -266,8 +274,6 @@ public static class FactsHerdShelterExtensions
         Climate = f.ClimateRead,
         Penalties = f.CapacityPenalties,
         AnimalSpot = f.Shapes.Furniture.AnimalSpot,
+        AnimalDoors = f.AnimalDoors,
     };
-
-    /// <summary>The barns the layout gives the herd, from the routine reading.</summary>
-    public static IReadOnlyList<BarnWant> BarnWants(this ReviewFacts f) => HerdShelterRules.BarnWants(HerdShelterRules.Assess(f.HerdShelterInput()));
 }

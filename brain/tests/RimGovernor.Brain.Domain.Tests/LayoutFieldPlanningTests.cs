@@ -6,15 +6,6 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class LayoutFieldPlanningTests
 {
     [Fact]
-    public void DeficitOrderIsStableAndOnlyLeadOptionDeterminesWeight()
-    {
-        var crop = new CropChoice { Name = "rice" };
-        IReadOnlyList<IReadOnlyList<FieldBlockOption>> ledger =
-            [[new(crop, 2), new(crop, 99)], [new(crop, 5)], [new(crop, 5)], []];
-        Assert.Equal([1, 2, 0, 3], LayoutFieldPlanning.RankFieldShortfalls(ledger));
-    }
-
-    [Fact]
     public void CropOptionsKeepSelectedFirstAndExcludeDuplicateIndoorAndBuildingCandidates()
     {
         SiteTypeCandidate Candidate(string name, SiteKind kind = SiteKind.Outdoor, int cells = 4) =>
@@ -42,18 +33,6 @@ public sealed class LayoutFieldPlanningTests
     }
 
     [Fact]
-    public void FieldPlacementDoesNotRequireWindowBeforeAFieldBlockIsOwed()
-    {
-        var facts = ColonyFactsCoreTests.Reading().Facts;
-        Assert.Equal("no layout plan", LayoutFieldPlanning.PlanFieldBlock(facts, null, null, default, [], []).Reason);
-        facts = facts with { LayoutPlan = new() };
-        Assert.Equal("layout plan has no field blocks", LayoutFieldPlanning.PlanFieldBlock(facts, null, null, default, [], []).Reason);
-        facts = facts with { LayoutPlan = new() { Zones = [new() { Kind = LayoutZoneKind.Field, Runs = [new(0, 0, 4)] }] } };
-        Assert.Equal("no field cells needed", LayoutFieldPlanning.PlanFieldBlock(facts, null, null, default, [], []).Reason);
-        Assert.Throws<RequiredFactException>(() => LayoutFieldPlanning.PlanFieldBlock(facts, null, null, default, [new(new() { Name = "rice" }, 1)], []));
-    }
-
-    [Fact]
     public void ShrinkSkipsBridgeCellsAndNeverDropsTheLastCell()
     {
         HashSet<Cell> zone = [new(0, 0), new(1, 0), new(2, 0)];
@@ -61,31 +40,6 @@ public sealed class LayoutFieldPlanningTests
         Assert.Equal([new Cell(0, 0), new Cell(2, 0)], LayoutFieldShrink.ShrinkCells(shrink, zone));
         Assert.Empty(LayoutFieldShrink.ShrinkCells(shrink, []));
     }
-    [Fact]
-    public void FieldPlacementBuildsAProtectedCellFreeConnectedBlockAndAdoptsExistingFoodInPlace()
-    {
-        var facts = ColonyFactsCoreTests.Reading().Facts with
-        {
-            LayoutPlan = new() { Zones = [new() { Kind = LayoutZoneKind.Field, Runs = [new(0, 0, 4)] }] },
-            Definitions = [new() { Name = "Wall" }, new() { Name = "Grass", Plant = new() }],
-        };
-        var cells = Enumerable.Range(0, 4).Select(x => SiteCellFixtures.At(new(x, 0), fertility: 1)).ToArray();
-        var census = new RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot
-            { Context = facts.Census.Context!, Zones = [] };
-        FieldBlockOption option = new(new() { Name = "rice", Edible = true, FertilityMin = .5 }, 2);
-        var fresh = LayoutFieldPlanning.PlanFieldBlock(facts, cells, census, new(0, 0), [option], [new(0, 0)]).Edit;
-        Assert.NotNull(fresh);
-        Assert.Equal("rice", fresh.Crop);
-        Assert.Equal("", fresh.Zone);
-        Assert.Equal([new Cell(1, 0), new Cell(2, 0)], fresh.Cells);
-        cells[0] = SiteCellFixtures.At(new(0, 0), fertility: 1, zoneId: "existing");
-        census = census with { Zones = [ZoneFixtures.Growing("existing", "corn", 1, edible: true)] };
-        var grow = LayoutFieldPlanning.PlanFieldBlock(facts, cells, census, new(0, 0), [option], []).Edit;
-        Assert.NotNull(grow);
-        Assert.Equal(("existing", "corn"), (grow.Zone, grow.Crop));
-        Assert.Equal([new Cell(1, 0), new Cell(2, 0)], grow.Cells);
-    }
-
     [Fact]
     public void ShrinkUsesHysteresisAndLargestZoneNameTieWithoutAssumingMissingFacts()
     {

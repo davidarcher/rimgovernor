@@ -26,7 +26,7 @@ public sealed class PowerRestorationTests
         Sources = new Dictionary<string, PowerSourceProfile> { ["WoodFiredGenerator"] = PowerRules.ConstantPowerProfile },
     };
 
-    private static FuelBurn Burn => new() { PerDay = 2.2, UnitsPerItem = 1, UseDriven = false, InRain = false, WhenPowered = false, Flickable = false };
+    private static FuelBurn Burn => new() { PerDay = 2.2, UnitsPerItem = 1, UseDriven = false, InRain = false, WhenPowered = false };
 
     private static BuildingFuel.Refuelable Tank(double fuel, double percent = 0.3) => new()
     {

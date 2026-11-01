@@ -379,7 +379,7 @@ public static class SleepingPlanningRules
         var needs = new List<ChildRoomNeed>();
         var pawns = facts.ForecastObserved.WorkPawns.Pawns;
         {
-            needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns, facts.ForecastObserved.Needs?.Deathrest));
+            needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns, facts.Sleeping.HostedBabies, facts.ForecastObserved.Needs?.Deathrest));
         }
         if (facts.Worship.Need is { } worship)
         {

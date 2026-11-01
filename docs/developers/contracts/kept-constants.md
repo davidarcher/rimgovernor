@@ -364,6 +364,21 @@ duration and the component def are typed members and are read. The refuel thresh
 | Deconstruct work | the building's `WorkToBuild` clamped to 20..3000 | `JobDriver_Deconstruct` |
 | Target bound | 32 targets a read (`servicing_targets_truncated`) | an authored cap: every free colonist is priced against each target by up to four legs |
 
+## Mirrored game literals: rain short circuit (habitat 6.4)
+
+`RainShortCircuitRules` (`Policy/PowerUtility.cs`) prices the rain short circuit the power comparison ([power
+contracts](power-contracts.md#rain-short-circuit)) puts on an unroofed rain-vulnerable member. The game's roll has no
+typed route, so its literals are copied from the decompiled 1.6 code (ilspycmd); the rain rate itself is read
+(`WeatherManager.RainRate`).
+
+| Literal | Value | 1.6 member |
+| --- | --- | --- |
+| Roll interval and chance | every 97 ticks a 2 % roll | `SteadyEnvironmentEffects` rain-fire roll |
+| Pick chance a building | `0.2 * N * RainRate` over the colony's N rain-vulnerable buildings | `RollForRainFire` |
+| Trader or battery minimum | a powered trader, or a battery holding over 100 Wd, short circuits | `ShortCircuitUtility.TryShortCircuitInRain` |
+| Battery wick | a battery over 500 Wd lights 5 % of the time and its explosion draws 400 Wd | `Building_Battery.PostApplyDamage` |
+
+
 ## Mirrored game rules: trader stock (#3869)
 
 `TradeArrivalRules` and the trade records (`brain/src/RimGovernor.Brain.Policy/TradeArrival.cs`), the catalog's `TraderStock`

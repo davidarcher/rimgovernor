@@ -1733,6 +1733,8 @@ public sealed record BuildingPatchIntent
 [JsonDerivedType(typeof(BuildingPatchIntentChange.ClaimCase), "claim")]
 [JsonDerivedType(typeof(BuildingPatchIntentChange.ForSlavesCase), "forSlaves")]
 [JsonDerivedType(typeof(BuildingPatchIntentChange.AutoRefuelCase), "autoRefuel")]
+[JsonDerivedType(typeof(BuildingPatchIntentChange.PowerSwitchCase), "powerSwitch")]
+[JsonDerivedType(typeof(BuildingPatchIntentChange.AllowCase), "allow")]
 public abstract record BuildingPatchIntentChange
 {
     private protected BuildingPatchIntentChange() { }
@@ -1754,6 +1756,12 @@ public abstract record BuildingPatchIntentChange
     public sealed record ForSlavesCase : BuildingPatchIntentChange;
 
     public sealed record AutoRefuelCase([property: JsonRequired] bool Value) : BuildingPatchIntentChange;
+
+    /// <summary>The flick switch's wanted state, set as the power gizmo sets it; a pawn flicks the switch.</summary>
+    public sealed record PowerSwitchCase([property: JsonRequired] bool Value) : BuildingPatchIntentChange;
+
+    /// <summary>Unforbid the building, as its forbid gizmo does.</summary>
+    public sealed record AllowCase : BuildingPatchIntentChange;
 }
 
 /// <summary>

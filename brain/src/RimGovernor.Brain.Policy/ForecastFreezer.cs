@@ -53,14 +53,23 @@ public static class ForecastFreezer
         return lower == upper ? a : a + (b - a) * (temperature - lower);
     }
 
-    private static double Gain(FoodStock stock, double freezerRate, ForecastCoupledContext context)
+    private static double Gain(FoodStock stock, double freezerRate, ForecastCoupledContext context) =>
+        SpoilageAvoided(stock, stock.RotRate, freezerRate, context.MaterialValues);
+
+    /// <summary>
+    /// The value a day that cooling a stock from <paramref name="warmRate"/> to <paramref name="coolRate"/> (native rot-rate
+    /// multipliers) keeps from rotting: its count at the material value over its rot life at the warm rate. Zero for a stock
+    /// that does not rot, a cooling that slows nothing, or an unpriced material. The power comparison prices a cooler's
+    /// interruption with it: the stock warms to the outdoor rate.
+    /// </summary>
+    public static double SpoilageAvoided(FoodStock stock, double warmRate, double coolRate, IReadOnlyDictionary<Resource, ConstructionMaterialValue> values)
     {
-        if (!double.IsFinite(stock.RotRate) || stock.RotRate < 0) throw new RequiredFactException("stock rot rate:" + stock.Id);
-        if (stock.Rot is not FoodRot.Rots { Ticks: > 0 } rot || stock.RotRate == 0 || stock.RotRate <= freezerRate) return 0;
+        if (!double.IsFinite(warmRate) || warmRate < 0 || !double.IsFinite(coolRate) || coolRate < 0) throw new RequiredFactException("stock rot rate:" + stock.Id);
+        if (stock.Rot is not FoodRot.Rots { Ticks: > 0 } rot || warmRate == 0 || warmRate <= coolRate) return 0;
         var resource = new Resource(stock.DefName);
-        if (!context.MaterialValues.TryGetValue(resource, out var value)) throw new RequiredFactException("material value " + stock.DefName);
+        if (!values.TryGetValue(resource, out var value)) throw new RequiredFactException("material value " + stock.DefName);
         return value.Basis == MaterialValueBasis.Unpriced ? 0
-            : stock.Count * value.PerUnit * (stock.RotRate - freezerRate) / (stock.RotRate * rot.Ticks / GameTime.TicksPerDay);
+            : stock.Count * value.PerUnit * (warmRate - coolRate) / (warmRate * rot.Ticks / GameTime.TicksPerDay);
     }
 }
 

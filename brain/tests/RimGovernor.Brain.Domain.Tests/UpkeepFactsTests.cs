@@ -79,17 +79,17 @@ public sealed class UpkeepFactsTests
             new()
             {
                 Pawn = new PawnId("Human1"), Partners = [new PawnId("Human2")],
-                BedSharingAllowed = true, Title = new RoyalStanding.Titled("Knight", true, ["Ascetic"]),
+                BedSharingAllowed = true, Title = new RoyalStanding.Titled("Knight", true, ["Ascetic"]), Labor = new ExpectedTiming.Dated(120), LeavesCrib = new ExpectedTiming.None(),
             },
             new()
             {
                 Pawn = new PawnId("Human3"), Partners = [],
-                BedSharingAllowed = false, Title = new RoyalStanding.Untitled(),
+                BedSharingAllowed = false, Title = new RoyalStanding.Untitled(), Labor = new ExpectedTiming.Unread("birth tick:Human3"), LeavesCrib = new ExpectedTiming.Dated(7),
             },
         ];
 
         Assert.Equal(
-            """[{"pawn":"Human1","partners":["Human2"],"bedSharingAllowed":true,"title":{"type":"titled","title":"Knight","ascetic":true,"precepts":["Ascetic"]}},{"pawn":"Human3","partners":[],"bedSharingAllowed":false,"title":{"type":"untitled"}}]""",
+            """[{"pawn":"Human1","partners":["Human2"],"bedSharingAllowed":true,"title":{"type":"titled","title":"Knight","ascetic":true,"precepts":["Ascetic"]},"labor":{"type":"dated","tick":120},"leavesCrib":{"type":"none"}},{"pawn":"Human3","partners":[],"bedSharingAllowed":false,"title":{"type":"untitled"},"labor":{"type":"unread","fact":"birth tick:Human3"},"leavesCrib":{"type":"dated","tick":7}}]""",
             OrdersJson.Serialize(rows));
         Assert.All(rows, row => Assert.Equal(row, OrdersJson.Deserialize<UpkeepPerson>(OrdersJson.Serialize(row))));
     }

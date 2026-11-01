@@ -19,9 +19,13 @@ public sealed partial class BuildingPlanner
     }
 
     /// <summary>The planner resolved to the power method the policy picked, or the verdict that says why none applies.</summary>
-    internal (BuildingPlanner? Planner, Verdict Verdict) SelectPower(ColonyReading facts, IReadOnlyList<string> pendingConsumers)
+    internal (BuildingPlanner? Planner, Verdict Verdict) SelectPower(ColonyReading facts, IReadOnlyList<string> pendingConsumers, PowerValuation valuation)
     {
-        var planning = PowerRules.DefaultPowerPlanning() with { Restorable = PowerRestorable };
+        var planning = new PowerPlanning
+        {
+            Restorable = PowerRestorable, Valuation = valuation,
+            Protected = facts.Facts.Preferences.ProtectedThings.ToHashSet(StringComparer.Ordinal),
+        };
         var crops = FieldPlanner.CropChoices(facts);
         var biome = facts.Facts.CropClimate.Biome;
         var skill = TreePlantationRules.GrowerSkill(facts.Facts.ForecastObserved.WorkPawns);
@@ -35,6 +39,10 @@ public sealed partial class BuildingPlanner
             Light = facts.Facts.LightTerrains,
             BatteryAvailable = ColonyPlanningRules.DefinitionAvailable(facts.Facts, PowerRules.BatteryDefinition),
             PendingDemandW = BuildingPlanner.PendingDemand(facts, pendingConsumers),
+            Expected = ProspectiveCapacityRules.ChainPower(facts.Facts.LayoutPlan, facts.Facts.BuiltBuildings.Where(b => b.Count > 0).Select(b => b.Resource.Value).ToHashSet(StringComparer.Ordinal),
+                pendingConsumers, def => BuildingPlanner.PendingDemand(facts, [def]), facts.Facts.WorkBenchSpeeds, facts.Facts.ProductionRecipes, facts.Facts.Tick),
+            Now = facts.Facts.Tick,
+            Rain = facts.Facts.ForecastObserved.Needs is { } needs ? new PowerRain.Read(needs.RainRate) : new PowerRain.Unread("rain rate"),
         };
         if (facts.Facts.LayoutPlan is { } plan)
         {
@@ -62,9 +70,16 @@ public sealed partial class BuildingPlanner
             case PowerMethod.WaitOutput:
             case PowerMethod.Restore:
             case PowerMethod.WaitBlackout:
-            case PowerMethod.WaitPlayer:
             case PowerMethod.WaitCharge:
                 return (null, AwaitingMethod(proposal.Method));
+            // An ordered switch waits for its flick; a configuration that holds keeps its consumers off. Neither orders anything.
+            case PowerMethod.WaitSwitch:
+                return (null, WaitFor(Cause.ExistingWork, Wire.Name(proposal.Method)));
+            case PowerMethod.Configured:
+                return (null, WaitFor(Cause.MethodUsed, Wire.Name(proposal.Method)));
+            // A deferral waits on its named fact: its pick and the consumers whose unassessed interruption the prices leave out.
+            case PowerMethod.Defer:
+                return (null, AwaitingPlan(Wire.Name(proposal.Method), UtilityDetail(proposal)));
         }
 
         var resolved = Copy();
@@ -81,6 +96,11 @@ public sealed partial class BuildingPlanner
                 resolved.Definition = proposal.Definition;
                 resolved.Environment = PlacementEnvironment.Indoors;
                 break;
+            case PowerMethod.Passive:
+                // The unpowered burner stands beside the control it replaces, in its room.
+                resolved.Definition = proposal.Definition;
+                resolved.Environment = PlacementEnvironment.Indoors;
+                break;
         }
 
         if (proposal.Method == PowerMethod.Shelter)
@@ -89,6 +109,71 @@ public sealed partial class BuildingPlanner
         }
 
         return (resolved, default);
+    }
+
+    // The comparison a deferral reports: the pick's reason, then each unassessed consumer's service and fact.
+    private static string UtilityDetail(PowerProposal proposal)
+    {
+        var decision = proposal.Decision ?? throw new DomainException("power method " + proposal.Method + " carries no utility decision");
+        return string.Join(";", [decision.Reason, .. decision.Unassessed.Select(u => Wire.Name(u.Service) + ":" + u.Fact)]);
+    }
+
+    /// <summary>The MethodId prefix of a power switch configuration (PowerRules.SelectPowerMethod's configure key).</summary>
+    internal const string PowerSwitchMethod = "configure-";
+
+    /// <summary>
+    /// Commits a configure proposal's switch orders as one owner Method (<see cref="PowerSwitchPlan"/>) unless
+    /// <see cref="PowerSwitchHold"/> holds it.
+    /// </summary>
+    internal BuildingResult CommitPowerSwitch(NeedOwner goal, GenerationSnapshot world, Action check, CancellationToken call)
+    {
+        var p = Reviewer.Player;
+        var proposal = Power ?? throw new ControlException("commitPowerSwitch: no power proposal");
+        var configuration = proposal.Configuration ?? throw new ControlException("commitPowerSwitch: not a configure proposal");
+        if (proposal.Method != PowerMethod.Configure || configuration.SwitchOff.Count + configuration.SwitchOn.Count == 0)
+        {
+            throw new ControlException("commitPowerSwitch: a configure proposal orders at least one switch");
+        }
+        if (PowerSwitchHold(p.Journal, goal, proposal.Key, world, call) is { } held)
+        {
+            return new BuildingResult { Verdict = held };
+        }
+        var spec = PowerSwitchPlan(PlanIds.MintPlanId(), configuration);
+        check();
+        return new BuildingResult { Verdict = OwnerCommitVerdict(p.Journal.CommitOwnerWork(goal, proposal.Key, "", spec, call)) };
+    }
+
+    /// <summary>
+    /// Why the switch orders under <paramref name="key"/> are not committed now, or null to commit them: an open attempt continues
+    /// (power_switch_method); a refused one is admitted again only while the refusal budget allows it; an accepted one whose
+    /// switches still do not want the ordered state, with no other configuration bound since, is Unconfirmed
+    /// (power_switch_unconfirmed): the facts are re-derived next review and the same orders are never re-issued blindly.
+    /// </summary>
+    internal static Verdict? PowerSwitchHold(StoreJournal journal, NeedOwner goal, MethodId key, GenerationSnapshot world, CancellationToken call)
+    {
+        if (journal.OwnerMethodPlan(goal, key, call) is not { } latest)
+        {
+            return null;
+        }
+        var plan = journal.LoadPlan(latest, call);
+        if (!plan.Retired && WorkProgress.Open(plan.Progress))
+        {
+            return WaitFor(Cause.MethodUsed, "power_switch_method");
+        }
+        if (plan.Progress.Any(x => x.View.Stage == Stage.Unsuccessful))
+        {
+            var (verdict, admitted) = ReviewRefusalBudget.AdmitLatestAttempt(journal, goal, key, world, call);
+            return admitted ? null : verdict;
+        }
+        var newest = journal.OwnerMethodHistory(goal, call).LastOrDefault(m => m.Method.Value.StartsWith(PowerSwitchMethod, StringComparison.Ordinal));
+        return newest is not null && newest.Method == key ? WaitFor(Cause.MethodUsed, "power_switch_unconfirmed") : null;
+    }
+
+    /// <summary>One PowerSwitch per ordered building: the switches off first, then on, each in id order.</summary>
+    internal static PlanSpec PowerSwitchPlan(PlanId id, PowerConfiguration configuration)
+    {
+        var orders = configuration.SwitchOff.Select(t => new PowerSwitch(t, false)).Concat(configuration.SwitchOn.Select(t => new PowerSwitch(t, true)));
+        return new PlanSpec(id, new PlanRevision(1), [.. orders.Select((o, i) => DomainAction.NewPowerSwitchAction(new ActionId($"{id}-{i}"), o))]);
     }
 
     internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerShelterAsync(GenerationSnapshot snapshot, ColonyReading facts, IReadOnlyList<Cell> protectedCells, Action check, CancellationToken ct)

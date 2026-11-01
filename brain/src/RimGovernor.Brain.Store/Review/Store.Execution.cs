@@ -44,6 +44,8 @@ public sealed partial class Store
         ActionKind.GrowerCrop,
         ActionKind.ClaimBuilding,
         ActionKind.AutoRefuel,
+        ActionKind.PowerSwitch,
+        ActionKind.BuildingAllow,
         ActionKind.Surgery,
         ActionKind.AutoHomeArea,
         ActionKind.PawnSettings,

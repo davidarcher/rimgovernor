@@ -20,7 +20,6 @@ namespace RimGovernor.Native
         // produced throws and fails the colony read.
         internal static RimGovernor.Brain.GameFacts.Observations.FoodChannelsFacts Read(Map map, IntVec3 center, List<Pawn> workers, Func<ThingDef, bool> humanFood)
         {
-            var pens = new HashSet<CompAnimalPenMarker>();
             var slaughterRows = new List<RimGovernor.Brain.GameFacts.Observations.FoodSlaughterAnimal>();
             var gatherRows = new List<RimGovernor.Brain.GameFacts.Observations.GatherableAnimal>();
             var eggRows = new List<RimGovernor.Brain.GameFacts.Observations.EggLayerAnimal>();
@@ -32,8 +31,6 @@ namespace RimGovernor.Native
                 var reachable = handlers.Any(p => (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[animal.Position])
                     && !animal.IsForbidden(p) && p.CanReach(animal, PathEndMode.Touch, Danger.None));
                 var comps = animal.AllComps.OfType<CompHasGatherableBodyResource>().ToList();
-                var pen = AnimalPenUtility.GetCurrentPenOf(animal, false);
-                if (pen != null) pens.Add(pen);
                 // The game's computed MeatAmount of an animal whose meat the colony
                 // eats; the brain derives nutrition, feed and reproduction.
                 if (animal.RaceProps.meatDef != null && humanFood(animal.RaceProps.meatDef))
@@ -73,16 +70,39 @@ namespace RimGovernor.Native
                     eggRows.Add(new RimGovernor.Brain.GameFacts.Observations.EggLayerAnimal { PawnId = id, Race = race, Yield = yield });
                 }
             }
+            // Every player pen marker, enclosed or not: an unenclosed marker reads Enclosed false with no districts.
             var grazing = new List<RimGovernor.Brain.GameFacts.Observations.PenGrazing>();
-            foreach (var pen in pens.OrderBy(p => p.parent.thingIDNumber))
+            var penned = new HashSet<Region>();
+            foreach (var building in map.listerBuildings.allBuildingsAnimalPenMarkers.Where(b => b.Spawned && b.Faction == Faction.OfPlayerSilentFail).OrderBy(b => b.thingIDNumber))
             {
+                var pen = building.GetComp<CompAnimalPenMarker>() ?? throw new InvalidOperationException("pen marker " + building.GetUniqueLoadID() + " has no CompAnimalPenMarker");
+                var state = pen.PenState ?? throw new InvalidOperationException("pen marker " + building.GetUniqueLoadID() + " has no pen state");
                 // A private calculator avoids modifying the marker's cached UI state.
                 var food = new PenFoodCalculator();
                 food.ResetAndProcessPen(pen);
                 var pasture = Enumerable.Range(0, 4).Min(q => food.nutritionPerDayPerQuadrum.ForQuadrum((Quadrum)q));
-                grazing.Add(new RimGovernor.Brain.GameFacts.Observations.PenGrazing { DemandPerDay = Finite(food.SumNutritionConsumptionPerDay),
-                    PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow) });
+                var shelters = new List<RimGovernor.Brain.GameFacts.Observations.PenShelterRoom>();
+                if (state.Enclosed)
+                {
+                    penned.UnionWith(state.ConnectedRegions);
+                    // The roofed, walled rooms the enclosure flood reaches: it crosses only doors the pen's roamers pass.
+                    foreach (var room in state.ConnectedRegions.Select(r => r.Room).Where(r => r != null && !r.UsesOutdoorTemperature).Distinct().OrderBy(r => r.ID))
+                        shelters.Add(new RimGovernor.Brain.GameFacts.Observations.PenShelterRoom { Room = room.ID, Cells = room.CellCount, TemperatureC = Finite(room.Temperature) });
+                }
+                grazing.Add(new RimGovernor.Brain.GameFacts.Observations.PenGrazing { Marker = building.GetUniqueLoadID(), Cell = new RimGovernor.Brain.Domain.Cell(building.Position.x, building.Position.z),
+                    Enclosed = state.Enclosed, Cells = food.numCells, DemandPerDay = Finite(food.SumNutritionConsumptionPerDay), PastureTodayPerDay = Finite(food.NutritionPerDayToday),
+                    PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow), Shelters = [.. shelters] });
             }
+            // Pen feed outside every enclosed pen: the stock a pen's feed store would be hauled from.
+            var feed = new Dictionary<ThingDef, double>();
+            foreach (var thing in map.listerThings.ThingsInGroup(ThingRequestGroup.FoodSourceNotPlantOrTree))
+            {
+                if (!thing.Spawned || thing.def.category != ThingCategory.Item || !thing.IngestibleNow || !MapPlantGrowthRateCalculator.IsEdibleByPastureAnimals(thing.def) || humanFood(thing.def)
+                    || thing.IsForbidden(Faction.OfPlayer) || penned.Contains(thing.GetRegion())) continue;
+                feed[thing.def] = feed.TryGetValue(thing.def, out var have) ? have + thing.stackCount * thing.GetStatValue(StatDefOf.Nutrition) : thing.stackCount * thing.GetStatValue(StatDefOf.Nutrition);
+            }
+            var penFeed = feed.OrderBy(f => f.Key.defName, StringComparer.Ordinal).Select(f => new RimGovernor.Brain.GameFacts.Observations.PenFeedStock { Def = f.Key.defName,
+                Nutrition = Finite(f.Value), NutritionPerCell = Finite(f.Key.stackLimit * f.Key.GetStatValueAbstract(StatDefOf.Nutrition)) }).ToList();
             // The pasture a cell of each terrain grows in the worst quadrum: the
             // per-cell term PenFoodCalculator sums over a pen, so the brain can size a
             // pen before it exists.
@@ -121,6 +141,8 @@ namespace RimGovernor.Native
                 PasteDispenser = [.. paste],
                 Forage = [.. forage],
                 Grazing = [.. grazing],
+                PenFeed = [.. penFeed],
+                AnimalDoors = [.. DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsDoor && d.building is { roamerCanOpen: true }).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal)],
                 Slaughter = [.. slaughterRows],
                 PastureTerrain = [.. pastureTerrain],
             };

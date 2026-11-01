@@ -76,6 +76,7 @@ public sealed class AnimalsReader
             Pen = pen,
             Ward = ward,
             WardRoom = f.AnimalWard with { Ready = !pending && HerdRooms.WardReadyOf(projection) },
+            Arrangements = pending ? [] : EquatableArray.From(f.HerdArrangements()),
         };
     }
 
@@ -124,7 +125,15 @@ public sealed class AnimalsReader
         var workPawns = projection.Facts.ForecastObserved.WorkPawns.Pawns;
         var handler = AnimalContainment.AnimalHandlerAvailable(workPawns);
         var choice = AnimalUpkeepRules.SelectAnimalContainmentMethod(projection.Facts.AnimalUpkeep.Animals, handler, AnimalContainment.PensStand(projection));
-        return choice.Reason == AnimalContainmentReason.NoDeficit ? Verdict.AwaitingPlan(work.Need.Id.Value, "no_method") : AnimalContainment.ContainmentWait(choice.Reason);
+        if (choice.Reason != AnimalContainmentReason.NoDeficit)
+        {
+            return AnimalContainment.ContainmentWait(choice.Reason);
+        }
+        // The feed store, the hay field and the barn are bound by the stockpile, field and layout owners: the Need waits
+        // on the first open arrangement's observed service, naming it.
+        return facts.Arrangements.FirstOrDefault(a => a.Open) is { } open
+            ? Verdict.AwaitingPlan(work.Need.Id.Value, open.State)
+            : Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
     }
 
     private async Task<Verdict> WardAsync(NeedWork work, AnimalsFacts facts, CancellationToken call)

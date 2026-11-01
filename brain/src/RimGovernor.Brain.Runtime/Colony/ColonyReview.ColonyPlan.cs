@@ -437,7 +437,7 @@ public sealed partial class ColonyReview
     {
         // The stores' demand, plus the burial's: a tomb or morgue joins the plan only once the dead ask for it.
         var burial = BurialFacts.BurialDemand(projection, plan);
-        var growth = new RoomGrowth { Pens = projection.Facts.PenWants(), Barns = projection.Facts.BarnWants(), Demand = demand with { Tomb = burial.Tomb, Morgue = burial.Morgue } };
+        var growth = new RoomGrowth { Pens = projection.Facts.PenWants(), HerdShelters = HerdShelterRules.Assess(projection.Facts.HerdShelterInput()), Demand = demand with { Tomb = burial.Tomb, Morgue = burial.Morgue } };
         var (need, owed) = SleepingUpkeepPlanner.ThroneNeed(projection);
         growth = growth with { ThroneArea = ThroneRules.ThroneAreaOwed(plan, need, owed) };
         // A room whose need has ended and that is in use stays.

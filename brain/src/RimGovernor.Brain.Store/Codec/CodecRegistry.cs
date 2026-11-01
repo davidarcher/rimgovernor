@@ -41,6 +41,8 @@ internal static class CodecRegistry
         codecs.Register(new AttemptIdConverter());
         codecs.Register(new AutoHomeAreaOrderConverter());
         codecs.Register(new AutoRefuelConverter());
+        codecs.Register(new PowerSwitchConverter());
+        codecs.Register(new BuildingAllowConverter());
         codecs.Register(new BedUseConverter());
         codecs.Register(new BlockedReasonConverter());
         codecs.Register(new BuildRoofConverter());

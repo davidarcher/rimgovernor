@@ -386,8 +386,43 @@ namespace RimGovernor.Native
                 Pawn = PawnIdOf(p),
                 Partners = Ids(Partners(p)),
                 BedSharingAllowed = BedSharingAllowed(p),
-                Title = Title(p)
+                Title = Title(p),
+                Labor = Labor(p),
+                LeavesCrib = LeavesCrib(p)
             })];
+
+        // A human pregnancy's birth: Hediff_Pregnant.TickInterval's own rate, BodyResourceGrowthSpeed over
+        // gestationPeriodDays * 60000 per tick, to a GestationProgress of 1 (StartLabor); now while the labor hediffs run.
+        private static RimGovernor.Brain.GameFacts.Observations.ExpectedTiming Labor(Pawn p)
+        {
+            var now = (long)Find.TickManager.TicksGame;
+            var hediffs = p.health.hediffSet;
+            if (hediffs.HasHediff(HediffDefOf.PregnancyLabor) || hediffs.HasHediff(HediffDefOf.PregnancyLaborPushing))
+                return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated(now);
+            var pregnancy = hediffs.hediffs.OfType<Hediff_Pregnant>().FirstOrDefault();
+            if (pregnancy == null) return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.None();
+            var speed = p.Dead ? 0f : PawnUtility.BodyResourceGrowthSpeed(p);
+            if (speed <= 0f) return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Unread("birth tick:" + p.GetUniqueLoadID());
+            return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated(now + Math.Max(0L,
+                (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * p.RaceProps.gestationPeriodDays * 60000.0 / speed)));
+        }
+
+        // A baby's move from crib to bed: the first later life stage whose developmental stage is no baby stage, reached at
+        // its minAge (years of 3600000 biological ticks) at the age tracker's BiologicalTicksPerTick.
+        private static RimGovernor.Brain.GameFacts.Observations.ExpectedTiming LeavesCrib(Pawn p)
+        {
+            if (!p.DevelopmentalStage.Baby()) return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.None();
+            var tracker = p.ageTracker;
+            var stages = p.RaceProps.lifeStageAges;
+            var next = -1;
+            for (var i = tracker.CurLifeStageIndex + 1; stages != null && i < stages.Count; i++)
+            {
+                if (!stages[i].def.developmentalStage.Baby()) { next = i; break; }
+            }
+            if (next < 0 || tracker.BiologicalTicksPerTick <= 0f) return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Unread("crib to bed tick:" + p.GetUniqueLoadID());
+            return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated((long)Find.TickManager.TicksGame + Math.Max(0L,
+                (long)Math.Ceiling((stages![next].minAge * 3600000.0 - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick)));
+        }
 
         private static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.UpkeepBed> Beds(ThingSets sets, List<Pawn> people) =>
             [.. sets.PlayerBuildings.OfType<Building_Bed>().OrderBy(b => b.thingIDNumber).Select(b => new RimGovernor.Brain.GameFacts.Observations.UpkeepBed {

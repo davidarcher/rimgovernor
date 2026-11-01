@@ -64,7 +64,7 @@ public sealed class LightingTests
         };
         var building = PowerBuildingFixtures.Trader("torch", "TorchLamp", new(2, 3), 0, 0, false) with
         {
-            Service = BuildingServiceWire.NoService with { SwitchedOn = true, Fuel = fuel },
+            Service = BuildingServiceWire.NoService with { Switch = new RimGovernor.Brain.GameFacts.Observations.BuildingSwitch.Fixed(), Fuel = fuel },
         };
         var lamp = new Lamp { Observed = native, Building = building, Radius = 5 };
         var census = NoLighting with

@@ -74,6 +74,7 @@ public static partial class StoreRules
         new BurialOwner(),
         new FoodOwner(),
         new MedicalOwner(),
+        new HerdOwner(),
     ];
 
     /// <summary>Counts safe, reached, unforbidden stacks with no storage headroom that this store accepts.</summary>

@@ -33,45 +33,17 @@ public sealed record PowerProducer
     public PowerSourceProfile Profile { get; init; }
 }
 
-/// <summary>One network's demand, producers and installed storage over the coming day. Eclipse zeroes every solar producer for the day.</summary>
+/// <summary>One network's demand and producers over the coming day. Eclipse zeroes every solar producer for the day.</summary>
 public sealed record PowerBudgetInput
 {
     public double DemandW { get; init; }
 
     public IReadOnlyList<PowerProducer> Producers { get; init; } = [];
 
-    public double CapacityWD { get; init; }
-
     /// <summary>The battery's PowerBattery.Efficiency.</summary>
     public double ChargeEfficiency { get; init; }
 
     public bool Eclipse { get; init; }
-
-    /// <summary>The share of the night deficit added to the storage target so the bank does not run flat at dawn.</summary>
-    public double StorageMargin { get; init; }
-}
-
-/// <summary>
-/// A network's 24 h energy balance. Generation and storage shortfalls are independent: a solar colony draining
-/// at night with spare daytime surplus is short of storage only; a colony whose producers cannot cover its
-/// consumers over a day is short of generation, and no bank fixes that.
-/// </summary>
-public sealed record PowerBudget
-{
-    /// <summary>The energy consumers draw during the solar night beyond what still generates then.</summary>
-    public double NightDeficitWD { get; init; }
-
-    /// <summary>The spare daytime generation available to charge a bank.</summary>
-    public double DaySurplusWD { get; init; }
-
-    /// <summary>The bank the budget wants: the night deficit the day surplus can refill, plus margin.</summary>
-    public double StorageNeededWD { get; init; }
-
-    /// <summary>The constant generation to add so the bank the surplus can fill covers the night.</summary>
-    public double GenerationShortfallW { get; init; }
-
-    /// <summary>The storage to add beyond the installed capacity.</summary>
-    public double StorageShortfallWD { get; init; }
 }
 
 public static partial class PowerRules
@@ -138,12 +110,12 @@ public static partial class PowerRules
     }
 
     /// <summary>
-    /// Sizes a network against a 24 h day. A constant source added at g watts cuts the night deficit by g x
+    /// The constant generation a network lacks over a 24 h day. A constant source added at g watts cuts the night deficit by g x
     /// night share and raises the day surplus by g x day share; the generation shortfall is the smallest g for
     /// which the surplus, at battery charge efficiency, refills the night. Inputs must be finite and
     /// non-negative.
     /// </summary>
-    public static PowerBudget ComputePowerBudget(PowerBudgetInput input)
+    public static double GenerationShortfallW(PowerBudgetInput input)
     {
         const double night = PowerRules.SolarNightFraction;
         const double day = 1 - PowerRules.SolarNightFraction;
@@ -160,7 +132,6 @@ public static partial class PowerRules
             // Daytime output is whatever the daily average leaves after the night.
             dayW += p.NominalW * (profile.Daily - (profile.Night * night)) / day;
         }
-        var nightDeficit = Math.Max(0, (input.DemandW - nightW) * night);
         var daySurplus = Math.Max(0, (dayW - input.DemandW) * day);
         double generationShortfall = 0;
         // A daytime deficit needs constant generation outright; only then can the remaining night deficit be
@@ -176,19 +147,6 @@ public static partial class PowerRules
         {
             generationShortfall += (remaining - fillable) / (night + (input.ChargeEfficiency * day));
         }
-        var covered = Math.Min(nightDeficit, fillable);
-        double storageNeeded = 0;
-        if (covered > 0)
-        {
-            storageNeeded = covered * (1 + Math.Max(0, input.StorageMargin));
-        }
-        return new PowerBudget
-        {
-            NightDeficitWD = nightDeficit,
-            DaySurplusWD = daySurplus,
-            StorageNeededWD = storageNeeded,
-            GenerationShortfallW = generationShortfall,
-            StorageShortfallWD = Math.Max(0, storageNeeded - input.CapacityWD),
-        };
+        return generationShortfall;
     }
 }

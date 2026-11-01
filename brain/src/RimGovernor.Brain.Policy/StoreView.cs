@@ -65,6 +65,9 @@ public sealed partial record StoreView
 
     /// <summary>The markers the sparring ring should hold (see TrainingRings); asked while two fighters are below the melee ceiling.</summary>
     public int TrainingRings { get; init; }
+
+    /// <summary>The herd arrangements' pen feed stores (HerdArrangementRules.FeedAsks); none while the layout plan or the herd facts are unread.</summary>
+    public IReadOnlyList<PenFeedAsk> PenFeed { get; init; } = [];
 }
 
 /// <summary>

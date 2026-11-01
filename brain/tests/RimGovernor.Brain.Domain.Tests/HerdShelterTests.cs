@@ -37,6 +37,8 @@ public sealed class HerdShelterTests
     {
         Animals = animals, Herds = [new Resource("Cow")], Pens = [new PenWant("Cow", 30)], Climate = climate,
         Penalties = ForecastValueTests.Tables(), AnimalSpot = "AnimalSleepingSpot",
+        // The barn's ring door passes roamers: the barn alternative is priced (a plain shell door is ABarnEnteredByAPlainDoorIsNotCredited).
+        AnimalDoors = [new PlannedRoom { Role = PlannedRole.Barn }.RingDefs().Door],
     };
 
     private static HerdShelterValue ValueOf(HerdShelter shelter, HerdShelterKind kind) => shelter.Alternatives.Single(a => a.Kind == kind).Value;
@@ -46,15 +48,17 @@ public sealed class HerdShelterTests
         Zones = [new LayoutZone { Kind = LayoutZoningRules.ZoneCore, Runs = [.. Enumerable.Range(0, 80).Select(z => new RowRun(z, 0, 80))] }],
     };
 
+    /// <summary>The barns the layout regroup compares against its no-barn baseline for these shelters on the plan.</summary>
+    private static IReadOnlyList<BarnWant> Offered(LayoutPlan plan, params HerdShelter[] shelters) => LayoutHerdBarnRules.DeviationsOf(new StationFacts { Plan = plan, HerdShelters = shelters });
+
     [Fact]
-    public void AColdExposedSusceptibleHerdGeneratesABarnBesideItsPenThatWins()
+    public void AColdExposedSusceptibleHerdIsOfferedABarnBesideItsPenAsADeviation()
     {
         var shelter = Assert.Single(HerdShelterRules.Assess(Input(Climate(Year(-30)), Cow("cow1"), Cow("cow2"))));
         var barn = Assert.IsType<HerdShelterValue.Assessed>(ValueOf(shelter, HerdShelterKind.Barn));
         Assert.Equal(HerdShelterRules.ReasonBarnAvoidsExposure, barn.Reason);
         Assert.True(barn.GainPerDay > 0);
-        Assert.Equal(HerdShelterKind.Barn, shelter.Chosen);
-        var wants = HerdShelterRules.BarnWants([shelter]);
+        var wants = Offered(Plan(), shelter);
         Assert.Equal([new BarnWant("Cow", 2 * HerdShelterRules.BarnCellsPerAnimal)], wants);
         var nodes = LayoutPlan.HerdRoomNodes(Plan(), [new PenWant("Cow", 30)], wants);
         var pen = Assert.Single(nodes, n => n.Role == PlannedRole.Pen);
@@ -63,19 +67,68 @@ public sealed class HerdShelterTests
     }
 
     [Fact]
+    public void AStandingBarnOfTheUnitsCellsLeavesNoBarnToOffer()
+    {
+        var shelter = Assert.Single(HerdShelterRules.Assess(Input(Climate(Year(-30)), Cow("cow1"), Cow("cow2"))));
+        var barn = new PlannedRoom { Id = 7, Role = PlannedRole.Barn, Herd = "Cow", Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 10, Z = 10, Width = 2, Height = 2 }) };
+        Assert.Empty(Offered(Plan() with { Rooms = [barn] }, shelter));
+        // A third cow outgrows it: the barn the deviation adds holds the whole unit, which the layout tops up past the standing one.
+        var grown = Assert.Single(HerdShelterRules.Assess(Input(Climate(Year(-30)), Cow("cow1"), Cow("cow2"), Cow("cow3"))));
+        Assert.Equal([new BarnWant("Cow", 3 * HerdShelterRules.BarnCellsPerAnimal)], Offered(Plan() with { Rooms = [barn] }, grown));
+    }
+
+    [Fact]
+    public async Task TheBarnIsALayoutAlternativeTheSharedComparatorDecides()
+    {
+        // Bug: the barn must not be preselected by its own gain; the layout plans it only when the shared comparator picks it, whatever building it costs.
+        var shelter = Assert.Single(HerdShelterRules.Assess(Input(Climate(Year(-30)), Cow("cow1"), Cow("cow2"))));
+        var prepared = LayoutDeriveRules.FirstPlanFacts(FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild").Survey, FirstRoomPlanTests.Facts(BedMergePriceTests.Temperate, "mild"), []);
+        var facts = prepared with { Pens = [new PenWant("Cow", 30)], HerdShelters = [shelter] };
+        Assert.Empty(facts.Barns);
+        var inputs = LayoutStationPlanRules.HostedRegroupInputsOf(facts);
+        inputs = inputs with { Alternatives = [.. inputs.Alternatives.Select(h => h with { Input = h.Input with { Price = new() { Work = new(8000, LayoutRegroupRules.CellWalkDays(60)) } } })] };
+        var want = new BarnWant("Cow", 2 * HerdShelterRules.BarnCellsPerAnimal);
+        var offered = Assert.Single(inputs.Alternatives, a => a.Barn == want);
+        Assert.Equal(LayoutHerdBarnRules.IdOf(want), offered.Host.Id);
+        static int Barns(Regrouping layout) => layout.Graph.Rooms.Count(r => r.Role == PlannedRole.Barn);
+
+        // Valued like the bed test's costs: the barn applies when it is the cheaper outcome and is rejected when it is dearer.
+        foreach (var (cost, applied) in new[] { (-10.0, true), (10.0, false) })
+        {
+            var result = await LayoutRegroupRules.RegroupAsync(inputs, (candidates, _) => Task.FromResult<IReadOnlyList<RegroupValuation>>([.. candidates.Select(candidate =>
+                new RegroupValuation.Evaluated(candidate.Id, CareCapacityTests.Vector(Barns(candidate.Layout) * cost), []))]), TestContext.Current.CancellationToken);
+            var decision = Assert.Single(result.Decisions, d => d.Kind == LayoutHerdBarnRules.BarnMove && d.B == LayoutHerdBarnRules.NameOf(want));
+            Assert.Equal(LayoutHerdBarnRules.Barns, decision.A);
+            Assert.Equal(applied, decision.Verdict == LayoutRegroupRules.RegroupApplied);
+            Assert.Equal(applied ? 1 : 0, Barns(result));
+        }
+    }
+
+    [Fact]
+    public void ABarnEnteredByAPlainDoorIsNotCredited()
+    {
+        // Bug: the barn was credited with the deaths it stops while its ring door, the shell door, keeps roamers out.
+        var plain = Input(Climate(Year(-30)), Cow("cow1"), Cow("cow2")) with { AnimalDoors = ["AnimalFlap"] };
+        var shelter = Assert.Single(HerdShelterRules.Assess(plain));
+        Assert.Equal(new HerdShelterValue.Unassessed(HerdShelterRules.FactAnimalAccess + "Cow"), ValueOf(shelter, HerdShelterKind.Barn));
+        Assert.Empty(Offered(Plan(), shelter));
+        Assert.Empty(ForecastHerdShelter.BarnCredit(new(1, "", 0), default!, [], Context() with { HerdShelter = plain }, 0));
+    }
+
+    [Fact]
     public void AComfortRangeThatCoversTheClimateIsAKnownZeroAndPlansNoBarn()
     {
         var shelter = Assert.Single(HerdShelterRules.Assess(Input(Climate(Year(15)), Cow("cow1"))));
         Assert.Equal(new HerdShelterValue.Assessed(0, HerdShelterRules.ReasonComfortCoversClimate), ValueOf(shelter, HerdShelterKind.Barn));
-        Assert.Equal(HerdShelterKind.Open, shelter.Chosen);
-        Assert.Empty(HerdShelterRules.BarnWants([shelter]));
-        Assert.DoesNotContain(LayoutPlan.HerdRoomNodes(Plan(), [new PenWant("Cow", 30)], HerdShelterRules.BarnWants([shelter])), n => n.Role == PlannedRole.Barn);
+        // A hardy herd: no barn is offered, so the baseline plans none.
+        Assert.Empty(Offered(Plan(), shelter));
+        Assert.DoesNotContain(LayoutPlan.HerdRoomNodes(Plan(), [new PenWant("Cow", 30)], Offered(Plan(), shelter)), n => n.Role == PlannedRole.Barn);
         // Exposure no def makes lethal is named, not priced: still no barn, under its own reason.
         var harmless = Input(Climate(Year(-30)), Cow("cow1"));
         harmless = harmless with { Penalties = harmless.Penalties with { Hypothermia = harmless.Penalties.Hypothermia with { Lethality = new Lethality.Harmless() } } };
         var mild = Assert.Single(HerdShelterRules.Assess(harmless));
         Assert.Equal(new HerdShelterValue.Assessed(0, HerdShelterRules.ReasonNonlethalExposure), ValueOf(mild, HerdShelterKind.Barn));
-        Assert.Equal(HerdShelterKind.Open, mild.Chosen);
+        Assert.Empty(Offered(Plan(), mild));
     }
 
     [Fact]
@@ -95,7 +148,7 @@ public sealed class HerdShelterTests
     {
         var shelter = Assert.Single(HerdShelterRules.Assess(Input(Climate(Year(-30)), Cow("cow1")) with { Pens = [] }));
         Assert.Equal(new HerdShelterValue.Excluded(HerdShelterRules.ReasonBarnWithoutPen), ValueOf(shelter, HerdShelterKind.Barn));
-        Assert.Equal(HerdShelterKind.Open, shelter.Chosen);
+        Assert.Empty(Offered(Plan(), shelter));
         // A barn want with no pen node of its herd plans no barn: it would part the animals from their grazing.
         Assert.Empty(LayoutPlan.HerdRoomNodes(Plan(), [], [new BarnWant("Cow", 4)]));
     }
@@ -108,7 +161,7 @@ public sealed class HerdShelterTests
         Assert.Equal(new HerdShelterValue.Unassessed("animal comfort range:cow2"), ValueOf(shelter, HerdShelterKind.Barn));
         Assert.IsType<HerdShelterValue.Assessed>(ValueOf(shelter, HerdShelterKind.Open));
         Assert.IsType<HerdShelterValue.Assessed>(ValueOf(shelter, HerdShelterKind.Bed));
-        Assert.Equal(HerdShelterKind.Open, shelter.Chosen);
+        Assert.Empty(Offered(Plan(), shelter));
         Assert.Equal("herd_shelter:Cow:barn:unassessed:animal comfort range:cow2", HerdShelterRules.StateOf(shelter.Herd, shelter.Alternatives[1]));
         Assert.Equal("herd_shelter:Cow:bed:excluded:no_animal_sleeping_spot",
             HerdShelterRules.StateOf("Cow", new(HerdShelterKind.Bed, new HerdShelterValue.Excluded(HerdShelterRules.ReasonNoAnimalSpot))));

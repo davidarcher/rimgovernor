@@ -90,7 +90,7 @@ public sealed class GeneratorCandidatePipelineTests(ITestOutputHelper output)
         Assert.DoesNotContain(unfamiliar.defName, names);
         var unsupported = catalog.PowerSources()[unfamiliar.defName];
         Assert.Contains(nameof(CompPowerPlantGravcore), unsupported.UnsupportedReason, StringComparison.Ordinal);
-        Assert.Throws<DomainException>(() => PowerRules.ComputePowerBudget(new() { Producers = [new() { NominalW = 1000, Profile = unsupported }] }));
+        Assert.Throws<DomainException>(() => PowerRules.GenerationShortfallW(new() { Producers = [new() { NominalW = 1000, Profile = unsupported }] }));
 
         var definitions = new DefinitionFacts { Catalog = catalog, Finished = new HashSet<string>(),
             Crops = new Dictionary<string, RimGovernor.Brain.GameFacts.Observations.EdibleCrop>() }.AppendDefinitions([], names);
@@ -98,12 +98,21 @@ public sealed class GeneratorCandidatePipelineTests(ITestOutputHelper output)
             PowerSources = catalog.PowerSources(), GeneratorRows = names.ToDictionary(name => name, name => catalog.GeneratorRow(name, 1), StringComparer.Ordinal) };
         var options = ColonyPlanningRules.GeneratorOptions(facts, new Dictionary<Resource, long>(), _ => false);
         var consumer = PowerBuildingFixtures.Trader("consumer", "InstalledConsumer", new(2, 3), -100, 0, false);
-        var planning = new PowerPlanning { Battery = new(600, .5), Generators = options, Sources = facts.PowerSources };
+        // The consumer's interruption is assessed and each generator piece priced: the cheapest generator wins the comparison,
+        // the next cheapest is the first fallback.
+        var pieces = names.ToDictionary(name => name, name => new ProvisionOption(name, false, 1, name == generators[^1].defName ? 1 : name == generators[^2].defName ? 2 : 10), StringComparer.Ordinal);
+        var valuation = new PowerValuation
+        {
+            Consumers = new Dictionary<string, ConsumerValue>(StringComparer.Ordinal) { ["consumer"] = new(UtilityService.Workshop, new InterruptionLoss.PerDay(1000)) },
+            Pieces = pieces,
+        };
+        var planning = new PowerPlanning { Battery = new(600, .5), Generators = options, Sources = facts.PowerSources, Valuation = valuation };
         var topology = new PowerTopology { Buildings = [consumer], Geysers = steam ? [new() { Id = "geyser", Cell = new(3, 3), Cells = [new(3, 3)], Occupied = false }] : [] };
         var proposal = PowerRules.SelectPowerMethod(topology, new(20, 20), [], [], planning);
         Assert.Equal(PowerMethod.Generate, proposal.Method);
         Assert.Equal(generators[^1].defName, proposal.Definition);
-        Assert.Equal(1, options.Single(option => option.Definition == proposal.Definition).BuildValue);
+        Assert.Equal(1, pieces[proposal.Definition].CostDays);
+        Assert.Equal(generators[^2].defName, proposal.Alternatives[0]);
         Assert.Equal(count - 1, proposal.Alternatives.Count);
         Assert.Equal(steam, proposal.FixedSite());
         if (steam)
@@ -134,7 +143,7 @@ public sealed class GeneratorCandidatePipelineTests(ITestOutputHelper output)
         Assert.Equal(selected, intent.Placement!.DefName);
         Assert.Equal(stuffed ? (steam ? steel.defName : exotic.defName) : "", intent.Placement.Stuff);
         Assert.True(ReconcileRules.CarriedOver([], ComfortTests.NoComfortObservation, new ItemFacts(), facts.GeneratorRows.Keys, [])(selected));
-        output.WriteLine($"Supported generator candidates: {names.Count}; planning rows: {definitions.Count}; ranked available: {proposal.Alternatives.Count + 1}");
+        output.WriteLine($"Supported generator candidates: {names.Count}; planning rows: {definitions.Count}; priced available: {proposal.Alternatives.Count + 1}");
     }
 
     [Fact]
@@ -166,7 +175,7 @@ public sealed class GeneratorCandidatePipelineTests(ITestOutputHelper output)
         Resource scarce = new("ScarceFuel"), renewable = new("RenewableFuel");
         var options = PowerRules.DefaultGeneratorOptions(_ => true, fuel => fuel == renewable ? 100 : 0, fuel => fuel == renewable,
             new Dictionary<string, PowerSourceProfile> { ["InstalledGenerator"] = PowerRules.ConstantPowerProfile },
-            new Dictionary<string, GeneratorRow> { ["InstalledGenerator"] = new() { NominalW = 1000, BuildValue = 10, Stuff = "", Fuels = [scarce, renewable], FuelCapacity = 20 } });
+            new Dictionary<string, GeneratorRow> { ["InstalledGenerator"] = new() { NominalW = 1000, Stuff = "", Fuels = [scarce, renewable], FuelCapacity = 20 } });
         var option = Assert.Single(options);
         Assert.Equal(renewable, option.Fuel);
         Assert.Equal(100, option.FuelStock);

@@ -51,6 +51,9 @@ public sealed record BedroomGainFacts
     /// <summary>The <see cref="ForecastHousing.BedroomGain"/> of moving <paramref name="pawn"/> into a bedroom (or, with <paramref name="barracks"/>, a barracks) at <paramref name="stage"/>; null when unread or unstaged.</summary>
     public double? Gain(string pawn, RoomStage stage, bool barracks = false) => stage is RoomStage.Staged { Stage: var index } ? Gain(pawn, index, barracks) : null;
 
+    /// <summary>The <see cref="ForecastHousing.FlatMoodGain"/> of shifting <paramref name="pawn"/>'s mood by <paramref name="delta"/>; null when unread.</summary>
+    public double? MoodGain(string pawn, double delta) => Pawns.TryGetValue(pawn, out var row) ? ForecastHousing.FlatMoodGain(row, delta, Breaks, WellbeingWeight) : null;
+
     /// <inheritdoc cref="Gain(string, RoomStage, bool)"/>
     public double? Gain(string pawn, int stage, bool barracks = false) => Pawns.TryGetValue(pawn, out var row)
         ? ForecastHousing.BedroomGain(row, stage, Thoughts, Breaks, WellbeingWeight, barracks) : null;
@@ -258,9 +261,17 @@ public static class ForecastHousing
     /// </summary>
     internal static double SleepTemperatureThought(NeedsForecastPawn pawn, double temperature)
     {
-        var role = temperature < pawn.SleepComfortableMin ? "slept_in_cold" : temperature > pawn.SleepComfortableMax ? "slept_in_heat" : "";
+        var role = SleepTemperatureRole(pawn, temperature);
         return role.Length == 0 ? 0 : (Memory(pawn, role) ?? throw new RequiredFactException(role + " thought stage")).Offset;
     }
+
+    /// <summary>The sleep temperature memory's role at <paramref name="temperature"/>: slept_in_cold, slept_in_heat or none ("").</summary>
+    internal static string SleepTemperatureRole(NeedsForecastPawn pawn, double temperature) =>
+        temperature < pawn.SleepComfortableMin ? "slept_in_cold" : temperature > pawn.SleepComfortableMax ? "slept_in_heat" : "";
+
+    /// <summary>Whether <see cref="SleepTemperatureThought"/> is read at <paramref name="temperature"/>: no memory, or its stage row.</summary>
+    internal static bool SleepTemperatureRead(NeedsForecastPawn pawn, double temperature) =>
+        SleepTemperatureRole(pawn, temperature) is var role && (role.Length == 0 || Memory(pawn, role) is not null);
 
     /// <summary>
     /// Per planned room, the sleeping facts of its planned beds (#3840, <see cref="ForecastCoupledContext.PlannedBeds"/>): each
@@ -325,8 +336,17 @@ public static class ForecastHousing
     /// </summary>
     public static double? BedroomGain(NeedsForecastPawn pawn, int stage, IReadOnlyDictionary<string, EquatableArray<MoodThought>> observed, MoodBreakModel breaks, double wellbeingWeight, bool barracks = false)
     {
-        if (BedroomMoodDelta(pawn, stage, observed, barracks) is not RoomMoodDelta.Priced { Delta: var delta }
-            || pawn.Mood is not { UnclampedTarget: var target, BreakThreshold: var threshold } || !double.IsFinite(target)
+        return BedroomMoodDelta(pawn, stage, observed, barracks) is RoomMoodDelta.Priced { Delta: var delta } ? FlatMoodGain(pawn, delta, breaks, wellbeingWeight) : null;
+    }
+
+    /// <summary>
+    /// The priced gain a day of shifting <paramref name="pawn"/>'s mood by <paramref name="delta"/> (#3656) through
+    /// <see cref="GainPerDay"/>, over a flat mood that holds the observed unclamped target and break threshold constant across
+    /// tier 1's horizon: a negative delta's is the loss a day. Null when the target, the threshold or the break curve is unread.
+    /// </summary>
+    public static double? FlatMoodGain(NeedsForecastPawn pawn, double delta, MoodBreakModel breaks, double wellbeingWeight)
+    {
+        if (pawn.Mood is not { UnclampedTarget: var target, BreakThreshold: var threshold } || !double.IsFinite(target)
             || !QuestCapacityForecast.FinitePositive(threshold) || !breaks.Valid()) return null;
         var model = new MoodBreakModel { Threshold = threshold };
         var horizon = ForecastCoupled.TierOneHorizonDays * GameTime.TicksPerDay;

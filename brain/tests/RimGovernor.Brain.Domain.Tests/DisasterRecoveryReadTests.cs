@@ -25,7 +25,7 @@ public sealed class DisasterRecoveryReadTests
     private static RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable Fuel(double amount, double target) => new()
     {
         AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(), Fuel = amount, TargetFuel = target, AutoRefuelPercent = 0.3, OutOfFuel = amount == 0,
-        Burn = BuildingServiceWire.IdleBurn with { PerDay = 2, UnitsPerItem = 3, UseDriven = true, InRain = true, WhenPowered = true, Flickable = true },
+        Burn = BuildingServiceWire.IdleBurn with { PerDay = 2, UnitsPerItem = 3, UseDriven = true, InRain = true, WhenPowered = true },
     };
 
     private static DisasterCondition Flare(ConditionDuration duration) =>

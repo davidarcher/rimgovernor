@@ -38,6 +38,8 @@ public static class FoodChannelsReads
         return new FoodChannelPlanning
         {
             Grazing = v.Grazing,
+            PenFeed = v.PenFeed,
+            AnimalDoors = v.AnimalDoors,
             Pasture = new PastureTable(pasture),
             Slaughter = slaughter,
             Products = products,

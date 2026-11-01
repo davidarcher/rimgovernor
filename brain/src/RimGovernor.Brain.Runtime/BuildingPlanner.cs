@@ -350,7 +350,7 @@ public sealed partial class BuildingPlanner
             }
             else if (r.Concern == PowerFamily.Basic.FilingKey)
             {
-                (resolved, reason) = r.SelectPower(facts, pendingConsumers);
+                (resolved, reason) = r.SelectPower(facts, pendingConsumers, await r.Reviewer.PowerValuationAsync(state.Snapshot, facts, call).ConfigureAwait(false));
             }
             else if (r.Concern == RoomsFamily.Lighting.FilingKey)
             {
@@ -398,6 +398,17 @@ public sealed partial class BuildingPlanner
             }
             r = resolved!;
             definitions = [r.Definition];
+        }
+        if (r.Power is { Method: Pol.PowerMethod.Configure })
+        {
+            return r.CommitPowerSwitch(goal, state.Snapshot, () =>
+            {
+                p.Current(call, epoch);
+                if (p.Session.State() != state)
+                {
+                    throw new ControlException("step: p.session.State() != state");
+                }
+            }, call);
         }
         if (r.Temperature is not null && r.Temperature.Thing != "")
         {
@@ -499,7 +510,8 @@ public sealed partial class BuildingPlanner
                             return true;
                         }
                     }
-                    return PendingFacility(progress, "PowerConduit") || PendingFacility(progress, "HiddenConduit") || PendingFacility(progress, "WaterproofConduit");
+                    return PendingFacility(progress, "PowerConduit") || PendingFacility(progress, "HiddenConduit") || PendingFacility(progress, "WaterproofConduit")
+                        || (pendingPlanner.Power is { Method: Pol.PowerMethod.Passive } && PendingFacility(progress, pendingPlanner.Definition));
                 }
                 if (pendingPlanner.Concern == MedicalRules.MedicalCareNeed.FilingKey || pendingPlanner.Phase == Pol.Phase.HousingSleeping)
                 {

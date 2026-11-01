@@ -131,12 +131,41 @@ public sealed class BatteryPlacementTests
             Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = new() { X = 8, Z = 8 }, Maximum = new() { X = 8, Z = 9 } },
             RainVulnerable = true, Roofed = false,
         };
-        var topology = new PowerTopology { Buildings = [battery], Blackout = false, Eclipse = false };
-        var planning = new PowerPlanning { Battery = new PowerBattery(600, 0.5), Light = light };
+        // The battery feeds a freezer whose interruption is priced, beside a generator that covers its draw.
+        var generator = PowerBuildingFixtures.Trader("gen", "WoodFiredGenerator", new(2, 2), 500, 500, true);
+        var freezer = PowerBuildingFixtures.Trader("freezer", "Cooler", new(4, 2), -200, 0, true);
+        var topology = new PowerTopology { Buildings = [battery, generator, freezer], Blackout = false, Eclipse = false };
+        static ProvisionOption Piece(string name, double cost) => new(name, false, 0.01, cost);
+        var planning = new PowerPlanning
+        {
+            Battery = new PowerBattery(600, 0.5), BatteryAvailable = true, Light = light, Now = new(600_000),
+            Sources = new Dictionary<string, PowerSourceProfile> { ["WoodFiredGenerator"] = PowerRules.ConstantPowerProfile },
+            Valuation = new PowerValuation
+            {
+                Consumers = new Dictionary<string, ConsumerValue>(StringComparer.Ordinal) { ["freezer"] = new(UtilityService.Refrigeration, new InterruptionLoss.PerDay(20)) },
+                Pieces = new[] { Piece(ContainmentCellRules.ShellWallDefinition, 0.01), Piece(ContainmentCellRules.ShellDoorDefinition, 0.02), Piece(PowerRules.RoofPiece, 0.005),
+                    Piece(PowerRules.BatteryDefinition, 1) }.ToDictionary(p => p.Kind, StringComparer.Ordinal),
+            },
+            Rain = new PowerRain.Read(0.5),
+        };
 
         var proposal = PowerRules.SelectPowerMethod(topology, new Bounds(20, 20), cells, [], planning);
 
+        // Roofing and a second battery are compared inside the one choice under the read rain rate: the battery keeps the
+        // short-circuit exposure, the shelter clears it and costs less than the exposed burn over the horizon.
         Assert.Equal(PowerMethod.Shelter, proposal.Method);
+        var exposure = RainShortCircuitRules.Exposure([(true, 600, true)], 1, planning.Rain, 200);
+        // 60000/97 rolls a day at 2%, each picking the lone vulnerable building at 0.2 x 1 x 0.5; a stored 600 Wd wicks at 5% for 400 Wd.
+        var expected = Assert.IsType<UtilityExposure.Expected>(exposure);
+        Assert.Equal(GameTime.TicksPerDay / 97d * 0.02 * 0.1, expected.EventsPerDay, 9);
+        Assert.Equal(0.05 * 400 / 200, expected.OutageDays, 9);
+        var decision = proposal.Decision!;
+        Assert.Equal(UtilityChoiceKind.Shelter, decision.Kind);
+        var store = decision.Alternatives.Single(a => a.Alternative.Kind == UtilityChoiceKind.Store);
+        var shelter = decision.Alternatives.Single(a => a.Alternative.Kind == UtilityChoiceKind.Shelter);
+        Assert.True(Assert.IsType<UtilityPrice.Days>(store.Price).Value > Assert.IsType<UtilityPrice.Days>(shelter.Price).Value);
+        // Without the rain rate the exposure is unassessed: only the shelter stays priced, so the choice defers and nothing is built.
+        Assert.NotEqual(PowerMethod.Shelter, PowerRules.SelectPowerMethod(topology, new Bounds(20, 20), cells, [], planning with { Rain = new PowerRain.Unread("rain rate") }).Method);
         Assert.Equal(battery.Cell, proposal.Center);
         Assert.All(battery.OccupiedCells, c => Assert.True(c.X > proposal.Room.X && c.X < proposal.Room.X + proposal.Room.Width - 1
             && c.Z > proposal.Room.Z && c.Z < proposal.Room.Z + proposal.Room.Height - 1, $"battery cell {c} is not inside the shelter"));

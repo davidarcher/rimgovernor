@@ -31,6 +31,8 @@ public static partial class MethodClaimsRules
     /// <item>area plant cuts: each cut cell (<c>cut/x/z</c>);</item>
     /// <item>wall removal: the cell and the thing (a backup wall's removal has no thing yet);</item>
     /// <item>assignments (a bed, a throne), bed use and building claims: the thing;</item>
+    /// <item>power switches: the building's switch (<c>switch/&lt;thing&gt;</c>); building allows: its forbid flag
+    /// (<c>forbid/&lt;thing&gt;</c>), so neither contends with the refuel or repair of the same building;</item>
     /// <item>supply allow and forbid: the stack;</item>
     /// <item>husbandry (train, tame, slaughter, release, master, sterilize): the animal; an animal's allowed-area
     /// move its <c>allowed-area/&lt;animal&gt;</c>;</item>
@@ -160,6 +162,8 @@ public static partial class MethodClaimsRules
         else if (a.Assign is { } assign) yield return assign.Thing;
         else if (a.BedUse is { } bed) yield return bed.Thing;
         else if (a.ClaimBuilding is { } claimed) yield return claimed.Thing;
+        else if (a.PowerSwitch is { } flick) yield return "switch/" + flick.Thing;
+        else if (a.BuildingAllow is { } allowed) yield return "forbid/" + allowed.Thing;
         else if (a.SupplyAllow is { } supply) yield return supply.Thing;
         else if (a.Husbandry is { Method: HusbandryMethod.AllowedArea } fenced) yield return "allowed-area/" + fenced.Animal.Value;
         else if (a.Husbandry is { } husbandry) yield return husbandry.Animal.Value;

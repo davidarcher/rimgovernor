@@ -178,7 +178,7 @@ public sealed class CareCapacityTests
         Assert.Equal([new CareBedOrder("b", true, CareCapacityRules.FloorReason)], CareCapacityRules.Plan(request).Orders);
     }
 
-    private static ForecastConsequenceVector Vector(double investment)
+    internal static ForecastConsequenceVector Vector(double investment)
     {
         var ledger = new ForecastValueResult(new LedgerTerm.Priced(investment), [])
         {

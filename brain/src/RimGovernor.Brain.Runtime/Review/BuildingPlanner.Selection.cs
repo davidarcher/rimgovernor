@@ -95,7 +95,7 @@ public sealed partial class BuildingPlanner
             {
                 return (Power.Cells.Count, Power.Key, default);
             }
-            if (Power.Method == PowerMethod.Generate || Power.Method == PowerMethod.Store)
+            if (Power.Method == PowerMethod.Generate || Power.Method == PowerMethod.Store || Power.Method == PowerMethod.Passive)
             {
                 return (1, Power.Key, default);
             }

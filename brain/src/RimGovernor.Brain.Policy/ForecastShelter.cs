@@ -248,7 +248,7 @@ public static class ForecastShelterPolicy
         source.TargetTemperature, source.HotSideTemperature, source.Supply is HeatSupply.Burning or HeatSupply.UnsteadyBurn);
 
     private static double[] Breaks(SourceHeat[] heats) => heats.Select(h => h.Target)
-        .Concat(heats.Where(h => h.Heat < 0).Select(h => h.Hot - 130)).Concat([20d, 40d, 120d]).Distinct().Order().ToArray();
+        .Concat(heats.Where(h => h.Heat < 0 && !h.Fueled).Select(h => h.Hot - 130)).Concat([20d, 40d, 120d]).Distinct().Order().ToArray();
 
     // The room's mean temperature every equalization interval (120 ticks) from start to horizon.
     private static List<ForecastTemperaturePoint> Project(double temperature, double start, double horizon, double outside, double loss,
@@ -282,7 +282,9 @@ public static class ForecastShelterPolicy
             {
                 var cooling = h.Heat < 0;
                 if (cooling ? t < h.Target || t == h.Target && !above : t > h.Target || t == h.Target && above) continue;
-                if (cooling)
+                // A fueled heat pusher that cools (a passive cooler, CompHeatPusher) pushes its heat whole above its target.
+                if (cooling && h.Fueled) constant += h.Heat;
+                else if (cooling)
                 {
                     // Building_Cooler: gap=max(hot-cold,hot-40), efficiency=max(0,1-gap/130).
                     if (h.Hot - Math.Min(t, 40) >= 130) continue;

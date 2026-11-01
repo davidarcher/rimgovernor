@@ -972,7 +972,9 @@ also names `prisoner_unfed_outside_cell_not_modelled`: wardens feed only a priso
 A planned barn's credit (`ForecastHerdShelter.BarnCredit`) pays each penned animal of its herd the market value over its
 days to death (`HerdShelterRules.LossPerDay`) that the barn's own steady temperature, from the shared shelter model, saves
 it from over the twelve seasonal means. It pays only through a plan link into a pen of the herd, and rows are
-keyed by the animal id. See [herd shelter](husbandry-contracts.md#herd-shelter-alternatives).
+keyed by the animal id. The barn pays only where an animal entry exists (the ring door is one a fence-blocked roamer can
+open, `HerdShelterRules.AnimalEntry`); with none its credit is zero and its alternative is unassessed. See
+[herd shelter](husbandry-contracts.md#herd-shelter-alternatives).
 
 ### Capacity penalty tables and per-pawn capacities
 
@@ -1901,6 +1903,82 @@ required fact raises `RequiredFactException` naming it and is never defaulted: `
 Known limits: the use-driven fuel burn of a turret or other per-use comp has no rate and is named, not priced; a
 turret's and other non-power buildings' service value is `Unmodelled`; the supply legs assume the nearest stack
 serves every load; deconstruction needs a designation the native work then takes.
+
+### Prospective capacity
+
+Expected changes to the facility demand are dated facts priced through one comparison against deferring
+(`ProspectiveCapacityRules`, `Policy/ProspectiveCapacity.cs`, RG-HABITAT-007). A change that is not expected adds
+nothing: no empty-bed or spare-station quota sizes any facility.
+
+**Timing facts (`ExpectedTiming`).** `Dated(tick)`, `None` (nothing is expected) or `Unread(fact)` (the native fact that
+would date it), in the observation and order JSON (`type` `dated`, `none` or `unread`). The native reads:
+
+| Fact | Where | Dated by | Unread as |
+| --- | --- | --- | --- |
+| `UpkeepPerson.Labor` | each human pregnancy | now plus `(1 - GestationProgress) * gestationPeriodDays * 60000 / BodyResourceGrowthSpeed` (now while in labor); `None` when not pregnant | `birth tick:<pawn>` when the growth speed is not positive |
+| `UpkeepPerson.LeavesCrib` | each baby | the tick it reaches its first later life stage that is no baby stage, from `AgeBiologicalTicks` and `BiologicalTicksPerTick` | `crib to bed tick:<pawn>` when it does not age; `None` past the baby stages |
+| `QuestObjective.Arrival` | a `HostLodgers` objective | now when the accepted quest's initiate signal brings the lodgers, else the enabled `QuestPart_Delay`'s `TicksLeft` that signals the arrival | `arrival tick:<quest>` (a delay not enabled, or another signal); `None` for lodgers hosted with no arrival part |
+| `QuestObjective.Departure` | a `HostLodgers` objective | the earliest `QuestPart_Delay` whose completion signals a lodger's `QuestPart_Leave` or a `QuestPart_QuestEnd`: now plus `TicksLeft` when enabled, or the arrival plus `delayTicks` when the arrival's signal enables it | `departure tick:<quest>` (any other quest structure) |
+
+**The comparison.** `ExpectedChange` carries the units of an `ExpectedOwner` demand (`Sleeper`, `PrisonSleeper`, `Crib`,
+`CareBed`, `CribLeaver`, `HayField`, `Power`), its timing, its stay (`Permanent`, `Until(tick)` or `Undated(fact)`) and the
+shortage loss a day (`PerDay` capability-days or `Unassessed(fact)`). `Choose` prices each `ProvisionOption`
+(permanent or temporary, with its lead days and cost in capability-days per unit of the change, and for a temporary one
+the residual shortfall a day) as its cost plus the shortage loss over `[effect, ready]`, a temporary one also its
+residual over the rest of the stay; deferring is priced as the shortage over the stay (a permanent stay over
+`ColonyModelPolicy.DefaultHorizonDays`). Cost and lead scale with the units (two lodgers take two beds' work and price).
+A provision starts no earlier than it must to be ready at the change and never before now. Deferring wins ties, so
+preparation wins only for an assessed loss above its cost. An unread date, an unassessed loss or an undated stay
+defers and names the fact; so does a change beyond the horizon (`beyond horizon`) or a loss below every provision
+(`shortage below every provision`).
+
+**What it prices.**
+
+- *Lodgers and prisoners.* An accepted (Ongoing) hosting quest's `HostLodgers` lodgers not yet in the census
+  are `Sleeper` (regular bed) or `PrisonSleeper` changes, a joiners' quest staying for good and another until its dated
+  departure. Their loss is the rest a present unbedded sleeper's sleep would free in the primary bed over the ground
+  (`SleeperRestLoss` through `ForecastHousing.RestDaysFreed`, `BedRestLoss`); an arrival has no needs row, so the least
+  such loss over the present non-baby sleepers is used, a lower bound with the mood term omitted. A cancelled or
+  unaccepted quest adds nothing.
+- *Babies.* `CribLeaver`: a baby's own bed at the tick it leaves the crib, priced by its own rest loss. A birth's
+  `Crib` (`crib catalog row`) and `CareBed` (`maternal bed rest valuation`, undated stay `bed rest end:<pawn>`) are
+  unassessed, so a birth defers, naming the fact; nothing prepares a crib or a maternal bed ahead.
+- *Hay.* The season's end is the dated `HayChange` (the growing season's remaining days from now; unread `growing
+  season` when the climate does not sow outdoors now) read by `AnimalFoodRules.PlanHayField`: a field is sized only when
+  its crop can be ready by then (grow days over `CalendarRules.FieldCycles`), replacing the fixed season comparison.
+- *Power.* `ChainPower`: a selected spot-to-table chain's later host draws watts once built, dated now when its bridge
+  stands (unread `bridge stands:<bench>` before); a host already standing or pending adds nothing. The power Need reads
+  it consume-only, and `ChainStepLoss` prices a day of the host unpowered by the recipe runs left at the bridge's base
+  speed ([power](power-contracts.md#comparison)).
+
+**Consumers.** `Admitted(facts)` returns, by owner, the changes whose provision is due now (a deferral never is):
+`Sleepers` join the station graph's `Hosted`, `PrisonSleepers` its prisoners and `CribLeavers`
+(`StationFacts.CribLeavers`) the sleepers beside their crib; a crib's or bed rest's provision is not sized by the
+station graph. The primary bed is `ReviewFacts.ProspectiveBed`, its work and cost list priced by `PiecePrice` and its
+work spread over the colony's builders as the lead (`ProspectiveBedAsync`, null while no builder exists or the price is
+unread). Hosted babies feed `ChildRoomNeeds(hostedBabies)`. Each expected sleeping change is logged as a
+`prospective_capacity` decision row ([otel signals](otel-signals.md)): the verdict `defer`, `temporary` or `prepare`,
+the reason (the deferral's named fact or the provision's kind) and the price.
+
+Known limits: the native tick formulas are not checked against live saves, and quest structures other than a
+delay-to-leave or delay-to-quest-end read `Unread`; prisoner recruitment and animal pregnancies are not dated; arrival and
+birth losses beyond a bed's rest are unassessed, so only a bed ahead of a dated arrival or a leaving baby can win; the
+bed's lead is optimistic (its work over builders, no material delivery).
+
+### Power interruption valuation
+
+The power comparison ([power contracts](power-contracts.md#comparison)) prices a network's consumers with valuations
+the forecast already owns, so no power-only price exists: a cooler's day unpowered is
+`ForecastFreezer.SpoilageAvoided`, a bench's the recipe-flow run value (`ForecastWorkshop.RunValueOf`) of its active
+bills less labor, a medical facility's the queued surgeries' loss at the bed's factor
+(`CareCapacityRules.SurgeryLossOf`, charged once per pending surgery), a bedroom heater's or cooler's the sleepers'
+sleep-temperature mood through the flat mood gain (`BedroomGainFacts.MoodGain`, `ForecastHousing.FlatMoodGain`) at the
+room's steady temperature without it (`ForecastShelterPolicy.SteadyTemperature` over the observed thermal read), and a
+dated chain draw's the chain step's throughput (`ProspectiveCapacityRules.ChainStepLoss`). An unpowered thermal
+provision's steady temperature uses the same shelter model with the burner in place of the control; a room the read does
+not sample as a rectangle is `Unread`. The rain rate is read from `WeatherManager.RainRate`. Every consumer without a
+valuation (lamps and other consumers, turrets, the immunity gain a patient loses, tend quality) is unassessed naming the
+service; the priced loss is then a lower bound.
 
 ### Planned shelter thermal read
 

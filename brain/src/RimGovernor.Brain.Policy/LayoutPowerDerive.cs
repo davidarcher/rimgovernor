@@ -159,7 +159,7 @@ public static partial class LayoutPowerDeriveRules
         int turbines = 0, plots = 0;
         while (true)
         {
-            if (f.SiteBudget(run, nodes, demand).GenerationShortfallW <= 0)
+            if (f.SiteShortfallW(run, nodes, demand) <= 0)
             {
                 return nodes;
             }
@@ -198,8 +198,8 @@ public static partial class LayoutPowerDeriveRules
         }
     }
 
-    /// <summary>The power budget of the demand against the sites placed so far: each turbine at the output its lane leaves, each solar plot by the day curve. The count reads only its generation shortfall, which no bank size changes; the store method adds the batteries the storage needs.</summary>
-    private static PowerBudget SiteBudget(this StationFacts f, SiteRun run, IReadOnlyList<SiteNode> nodes, double demand)
+    /// <summary>The generation shortfall of the demand against the sites placed so far: each turbine at the output its lane leaves, each solar plot by the day curve. No bank size changes it; the power comparison prices storage.</summary>
+    private static double SiteShortfallW(this StationFacts f, SiteRun run, IReadOnlyList<SiteNode> nodes, double demand)
     {
         var p = f.Catalog.Power;
         var placed = run.Result();
@@ -221,7 +221,7 @@ public static partial class LayoutPowerDeriveRules
                 producers.Add(new PowerProducer { NominalW = p.Solar.NominalW, Profile = p.Solar.Profile });
             }
         }
-        var input = new PowerBudgetInput { DemandW = demand, ChargeEfficiency = p.Battery.Efficiency, StorageMargin = PowerRules.DefaultStorageMargin, Producers = producers };
-        return PowerRules.ComputePowerBudget(input);
+        var input = new PowerBudgetInput { DemandW = demand, ChargeEfficiency = p.Battery.Efficiency, Producers = producers };
+        return PowerRules.GenerationShortfallW(input);
     }
 }

@@ -16,6 +16,9 @@ public static class StockpileRolesConstants
     public const string TombRolePrefix = "tomb:";
     public const string MorgueRolePrefix = "morgue:";
 
+    /// <summary>A pen unit's feed store inside its pen, keyed by the unit ("" the misc unit).</summary>
+    public const string PenFeedRolePrefix = "penfeed:";
+
     /// <summary>The materials yard: unroofed, Low priority.</summary>
     public const string YardRole = "yard";
     public const string MedicineRolePrefix = "medicine:";

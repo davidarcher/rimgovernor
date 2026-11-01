@@ -41,6 +41,9 @@ public sealed record StationFacts
     /// <summary>The hosted slaves' and guests' babies (SleepingObservation.HostedBabies): each a crib slot, never a regular bed.</summary>
     public int HostedBabies { get; init; }
 
+    /// <summary>The babies whose own bed the prospective comparison prepares now (ProspectiveAdmission.CribLeavers): each sizes a regular bed beside its crib.</summary>
+    public int CribLeavers { get; init; }
+
     /// <summary>Patients and Surgical size the hospital ward the medical bed alternatives compare (LayoutHospitalBedRules.Demand).</summary>
     public EquatableArray<CarePawn> Patients { get; init; }
 
@@ -161,8 +164,12 @@ public sealed record StationFacts
     /// <summary>The pens the herd asks for (HerdPlan.PenWants): each unit short of its cells gets a pen node. Empty while the animal census or the pasture table is unread, which asks for none.</summary>
     public IReadOnlyList<PenWant> Pens { get; init; } = [];
 
-    /// <summary>The barns the herd shelter chose (HerdShelterRules.BarnWants): each unit short of its barn cells gets a barn node beside its pen. Empty when no unit's barn wins.</summary>
+    /// <summary>The barns a barn alternative adds (LayoutHerdBarnRules): each unit short of its barn cells gets a barn node beside its pen. Empty for the baseline, which plans no new barn.</summary>
     public IReadOnlyList<BarnWant> Barns { get; init; } = [];
+
+    /// <summary>Each pen unit's resting alternatives (HerdShelterRules.Assess), which the barn deviations are offered from; empty while unread.</summary>
+    public IReadOnlyList<HerdShelter> HerdShelters { get; init; } = [];
+
     /// <summary>The activity sites the layout compares (habitat 3.3, ActivitySiteRules.Ask): each kind's standing, held and candidate sites. Its default asks none.</summary>
     public ActivitySiteAsk ActivitySites { get; init; } = new();
 
@@ -303,7 +310,7 @@ public sealed record StationFacts
             new("throne_area", KeyText.Of(ThroneArea)),
             new("demand", KeyText.Of(Demand)),
             new("pens", KeyText.Of(Pens)),
-            new("barns", KeyText.Of(Barns)),
+            new("barns", KeyText.Of(Barns, LayoutHerdBarnRules.DeviationsOf(this))),
             new("child", KeyText.Of(Child)),
             new("activity_sites", KeyText.Of(ActivitySites)),
             new("plan", KeyText.Of(Plan)),
@@ -514,7 +521,7 @@ public static partial class LayoutStationPlanRules
         var prisoners = f.Prisoners;
         var pawns = f.WorkPawns.Pawns;
         var babies = BabyCount(pawns);
-        return new StationPopulation { Colonists = Math.Max((int)colonists - babies, 0), Hosted = f.Hosted, Injured = f.HospitalBeds?.Count ?? LayoutHospitalBedRules.Demand(f), Prisoners = prisoners, Babies = Math.Max(babies + f.HostedBabies, NurseryFloor(f)), Herds = f.Herds };
+        return new StationPopulation { Colonists = Math.Max((int)colonists - babies + Math.Min(f.CribLeavers, babies), 0), Hosted = f.Hosted, Injured = f.HospitalBeds?.Count ?? LayoutHospitalBedRules.Demand(f), Prisoners = prisoners, Babies = Math.Max(babies + f.HostedBabies, NurseryFloor(f)), Herds = f.Herds };
     }
 
     /// <summary>The pawns still in a crib: the newborn and baby stages ChildRoomNeeds gives a nursery bed. A pawn whose stage is unknown owes nothing, as there.</summary>
@@ -600,7 +607,7 @@ public static partial class LayoutStationPlanRules
         var sites = ActivitySiteRules.Deviations(f.ActivitySites).Select(d => new HostedRegroupInput(
             baseline.Host with { Id = ActivitySiteRules.IdOf(d.Deviation) }, RegroupInputOf(f with { ActivitySites = d.Ask }, baseline.Host)) { Site = d.Deviation });
         // The free-bed pool's shared, private and held provision are compared as alternatives of the baseline hosts.
-        return new([baseline, .. LayoutBedShareRules.AlternativesOf(baseline).Skip(1), .. LayoutHospitalBedRules.AlternativesOf(f, baseline), .. sites, .. inputs.Skip(1)], hosts.Omitted)
+        return new([baseline, .. LayoutBedShareRules.AlternativesOf(baseline).Skip(1), .. LayoutHospitalBedRules.AlternativesOf(f, baseline), .. LayoutHerdBarnRules.AlternativesOf(f, baseline), .. sites, .. inputs.Skip(1)], hosts.Omitted)
         {
             SitesOmitted = EquatableArray.From(ActivitySiteRules.Truncations(f.ActivitySites)),
             MedicalBedsOmitted = EquatableArray.From(LayoutHospitalBedRules.DeviationsOf(f).Omitted),

@@ -64,6 +64,10 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
                 return DomainAction.NewAutoHomeAreaAction(id, Payload<AutoHomeAreaOrder>().Enabled);
             case ActionKind.AutoRefuel:
                 return DomainAction.NewAutoRefuelAction(id, Payload<AutoRefuel>());
+            case ActionKind.PowerSwitch:
+                return DomainAction.NewPowerSwitchAction(id, Payload<PowerSwitch>());
+            case ActionKind.BuildingAllow:
+                return DomainAction.NewBuildingAllowAction(id, Payload<BuildingAllow>());
             case ActionKind.BedUse:
                 return DomainAction.NewBedUseAction(id, Payload<BedUse>());
             case ActionKind.Building:

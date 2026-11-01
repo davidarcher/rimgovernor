@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// RG-HABITAT-001 occupants (task 2.2): each occupant kind needs a compatible, reachable slot of its own. A colonist never
 /// sleeps in a slave, prison, medical bed or crib; a slave only in a bed set for slaves (a vacant regular bed is marked for
 /// it, else one is built); a baby is crib demand, never a sleeping target; an accepted hosting quest's lodgers not on the
-/// map yet are known arrivals while an unaccepted offer brings nobody; the hospitality gate counts compatible reachable
+/// map yet are a dated expectation (task 6.3) while an unaccepted offer brings nobody; the hospitality gate counts compatible reachable
 /// slots.
 /// </summary>
 public sealed class HabitatOccupantTests
@@ -153,7 +153,7 @@ public sealed class HabitatOccupantTests
         {
             DevelopmentalStage = RimGovernor.Brain.GameFacts.Defs.DevelopmentalStage.Baby, Genes = [], Mechanitor = null, Mech = null, Deathrest = null,
         } }) };
-        var nursery = Assert.Single(ChildRoomsRules.ChildRoomNeeds([baby], null));
+        var nursery = Assert.Single(ChildRoomsRules.ChildRoomNeeds([baby], 0, null));
         Assert.Equal(1, nursery.Furniture.Single(f => f.Role == FurnitureRole.BabyBed).Count);
     }
 
@@ -174,16 +174,29 @@ public sealed class HabitatOccupantTests
         new ReviewFacts { Census = ColonyFactsCoreTests.Snapshot(), Sleeping = sleeping }, [quest], QuestStateTests.Root("Hospitality_Refugee", Refugees));
 
     [Fact]
-    public void AnAcceptedLodgerQuestAddsItsLodgersNotYetHereAsKnownArrivalsAndAnOfferAddsNobody()
+    public void AnAcceptedLodgerQuestsLodgersNotYetHereAreADatedExpectationNotSleeperDemandNowAndAnOfferAddsNobody()
     {
         var here = new PawnId("l1");
         var sleeping = new SleepingObservation { Colonists = 1, People = [Person(A)], Guests = [Person(here)] };
-        var accepted = Hosting(Lodgers(QuestStatus.Ongoing, here, new PawnId("l2")), sleeping);
-        var arrival = Assert.Single(QuestHospitality.KnownArrivals(accepted));
-        Assert.Equal(new KnownArrival(1, false), arrival);
+        var bed = new SleepingBedFacts("Bed", "WoodLog", false, 1, 0.75);
+        var accepted = Hosting(Lodgers(QuestStatus.Ongoing, here, new PawnId("l2")), sleeping) with
+        {
+            ForecastObserved = new ColonyForecastObserved { Needs = NeedsFixtures.Read(0, NeedsFixtures.Pawn("a") with
+            {
+                Needs = [NeedsFixtures.Rate("rest", 0.8, 0.0001, 0.28) with { UnservedGainPerTick = 0.0001, GainPerTickPerEffectiveness = 0.0004 }],
+            }) },
+        };
+        var arrival = Assert.Single(ProspectiveCapacityRules.SleepingChanges(accepted, bed));
+        // The objective carries no arrival or departure tick here, so the expectation names both.
+        Assert.Equal((ExpectedOwner.Sleeper, 1d, (ExpectedTiming)new ExpectedTiming.Unread("arrival tick:lodgers")), (arrival.Owner, arrival.Units, arrival.At));
+        Assert.Equal(new ExpectedStay.Undated("departure tick:lodgers"), arrival.Stay);
+        // The lodger's shortage is the present sleeper's unbedded rest loss, not an unassessed fact.
+        Assert.True(arrival.Loss is ExpectedLoss.PerDay { CapabilityDays: > 0 });
+        // An undated arrival prepares nothing: the lodger is no sleeper demand until its tick is read.
+        Assert.Equal(ProspectiveAdmission.None, ProspectiveCapacityRules.Admitted(accepted));
 
         // Offered, not accepted: nobody is coming yet.
-        Assert.Empty(QuestHospitality.KnownArrivals(Hosting(Lodgers(QuestStatus.NotYetAccepted, here, new PawnId("l2")), sleeping)));
+        Assert.Empty(ProspectiveCapacityRules.SleepingChanges(Hosting(Lodgers(QuestStatus.NotYetAccepted, here, new PawnId("l2")), sleeping), bed));
     }
 
     [Fact]

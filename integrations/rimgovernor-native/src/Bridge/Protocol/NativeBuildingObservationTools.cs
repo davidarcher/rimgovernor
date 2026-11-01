@@ -157,11 +157,14 @@ namespace RimGovernor.Native
         // state, read whole: power is a trader (network, output, whether it
         // produces), a battery (network) or none; fuel is refuelable or not;
         // the wind path is a turbine's blocked cells or none; the flick
-        // switch is on without one.
+        // switch is fixed (on) without CompFlickable, else its state and
+        // the state its gizmo wants (they differ while a flick is pending).
         private static RimGovernor.Brain.GameFacts.Observations.BuildingServiceState Service(Thing thing) => new()
         {
             Power = Power(thing),
-            SwitchedOn = thing.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true,
+            Switch = thing.TryGetComp<CompFlickable>() is { } flick
+                ? new RimGovernor.Brain.GameFacts.Observations.BuildingSwitch.Flick { On = flick.SwitchIsOn, Wanted = flick.SwitchIsOn != flick.WantsFlick() }
+                : new RimGovernor.Brain.GameFacts.Observations.BuildingSwitch.Fixed(),
             Fuel = thing.TryGetComp<CompRefuelable>() is { } fuel
                 ? new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable {
                     AutoRefuel = NativeAutoRefuel.Comp(thing) is CompRefuelable controlled
@@ -171,7 +174,7 @@ namespace RimGovernor.Native
                     PerDay = Nonnegative(fuel.Props.fuelConsumptionRate), UnitsPerItem = Nonnegative(fuel.Props.FuelMultiplierCurrentDifficulty),
                     UseDriven = fuel.Props.consumeFuelOnlyWhenUsed || fuel.Props.externalTicking,
                     InRain = fuel.Props.fuelConsumptionPerTickInRain > 0,
-                    WhenPowered = fuel.Props.consumeFuelOnlyWhenPowered, Flickable = thing.TryGetComp<CompFlickable>() != null }, Fuel = Nonnegative(fuel.Fuel), TargetFuel = Nonnegative(fuel.TargetFuelLevel), AutoRefuelPercent = Nonnegative(fuel.Props.autoRefuelPercent), OutOfFuel = !fuel.HasFuel }
+                    WhenPowered = fuel.Props.consumeFuelOnlyWhenPowered }, Fuel = Nonnegative(fuel.Fuel), TargetFuel = Nonnegative(fuel.TargetFuelLevel), AutoRefuelPercent = Nonnegative(fuel.Props.autoRefuelPercent), OutOfFuel = !fuel.HasFuel }
                 : new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.NotRefuelable(),
             BrokenDown = thing.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false,
             Wind = thing.TryGetComp<CompPowerPlantWind>() != null

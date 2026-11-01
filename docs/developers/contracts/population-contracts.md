@@ -46,12 +46,18 @@ sleep in. The habitat requirement (RG-HABITAT-001) is met per occupant, not by a
   only in animal beds, so none of those can be moved into a colony hospital bed.
 - **Babies** are crib demand, not sleeping targets: the nursery sizes one crib per baby (a goal-named nursery with
   no baby yet still holds `MinNurseryBeds`), and the hosted slaves' and guests' babies join the station's crib demand
-  (`StationFacts.HostedBabies`).
-- **Known arrivals.** `QuestHospitality.KnownArrivals` counts, per accepted (Ongoing) hosting quest of a classified
-  people family, the lodgers its active `HostLodgers` objective names that no census holds yet (joined by pawn id).
-  They are sleeper demand now: regular-bed lodgers join the station's hosted count, held prisoners its prisoner
-  count. An offer not yet accepted brings nobody. The hospitality gate admits a quest only while vacant compatible
-  reachable slots (`VacantArrivalSlots`, a colonist's reach standing for the arrival's) cover every lodger.
+  (`StationFacts.HostedBabies`, through `ChildRoomNeeds(hostedBabies)`). A baby's own bed once it leaves the crib is
+  a dated expected change (`UpkeepPerson.LeavesCrib`); when the comparison prepares it, the baby sizes a regular bed
+  beside its crib (`StationFacts.CribLeavers`). A birth's crib and maternal bed rest stay unassessed.
+- **Dated arrivals.** The lodgers an accepted (Ongoing) hosting quest of a classified people family names in its
+  active `HostLodgers` objective that no census holds yet (joined by pawn id) are expected changes with a dated
+  `QuestObjective.Arrival` and, for a stay that is not for good, a dated `Departure`; an undated arrival or departure is
+  the named `Unread` fact (`arrival tick:<quest>`, `departure tick:<quest>`) and defers. The
+  [prospective comparison](forecast-contracts.md#prospective-capacity) prepares a bed for them only when an assessed
+  shortage loss exceeds its cost, and only a prepared change whose start is due joins the station's sizing: regular-bed
+  lodgers its hosted count, prisoners its prisoner count. A quest not yet accepted, cancelled or finished brings
+  nobody. The hospitality gate admits a quest only while vacant compatible reachable slots (`VacantArrivalSlots`, a
+  colonist's reach standing for the arrival's) cover every lodger.
 - **Prisoners.** `prisoners/recruit` is unmet while a living held prisoner owns no bed (`PrisonersFamily.Unbedded`),
   whatever its recruitment value, so the jail is staged for it; a prisoner can own only a bed set for prisoners.
   The jail marking never takes a bed its occupant owns (`JailRules.NextJailStep`). The Prison room credit prices the

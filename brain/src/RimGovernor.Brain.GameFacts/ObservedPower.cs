@@ -22,5 +22,4 @@ public sealed record FuelBurn
     public required bool UseDriven { get; init; }
     public required bool InRain { get; init; }
     public required bool WhenPowered { get; init; }
-    public required bool Flickable { get; init; }
 }

@@ -5,7 +5,8 @@ namespace RimGovernor.Brain.Policy;
 /// (HerdShelterRules.UnitAnimals) that the map's seasonal climate kills outside its comfort range (HerdShelterRules.DaysToDeath
 /// over the outdoor means) and that survives at the barn's own steady temperature each twelfth (the shared shelter model with its
 /// owed work complete, its supplied heat sources only) gains its market value over its days to death, as the pen credit prices a
-/// roamer. The barn earns only through a link into a pen of its herd: a barn apart from the pen holds no penned animal and would
+/// roamer. The barn earns only through a link into a pen of its herd, and only when its ring door is one a
+/// fence-blocked roamer can open (HerdShelterRules.AnimalEntry): a barn apart from the pen holds no penned animal and would
 /// part it from its grazing. With several barns of a herd the lowest id takes the rows. An unheated barn settles at the outdoor
 /// temperature, so it stops no death: a real state that earns nothing.
 /// </summary>
@@ -30,7 +31,7 @@ internal static class ForecastHerdShelter
         }
         var input = context.HerdShelter;
         var animals = HerdShelterRules.UnitAnimals(input, herd);
-        if (animals.Count == 0)
+        if (animals.Count == 0 || !HerdShelterRules.AnimalEntry(input))
         {
             return [];
         }

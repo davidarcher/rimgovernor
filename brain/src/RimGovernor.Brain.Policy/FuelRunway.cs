@@ -62,7 +62,7 @@ public static class FuelRunwayRules
                 throw new DomainException($"invalid fuel consumer {c.Id}");
             }
             var continuous = !burn.UseDriven && !burn.InRain;
-            var rate = (burn.Flickable && !c.SwitchedOn) || (burn.WhenPowered && !c.Powered) ? 0 : burn.PerDay;
+            var rate = !c.SwitchedOn || (burn.WhenPowered && !c.Powered) ? 0 : burn.PerDay;
             double need;
             if (continuous)
             {

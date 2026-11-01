@@ -72,12 +72,12 @@ public sealed class FoodPlanningTotalTests
     }
 
     [Fact]
-    public void HayDemandUsesTheObservedSeasonalGapAndRejectsMalformedPasture()
+    public void FeedingDeficitUsesTheObservedSeasonalGapLessStoredFeed()
     {
-        Assert.Equal(5, AnimalFoodRules.HayNutritionNeed([new PenGrazing
-            { DemandPerDay = 2, PasturePerDay = 1, StoredNutrition = 5 }], 10));
-        Assert.Throws<RequiredFactException>(() => AnimalFoodRules.HayNutritionNeed([new PenGrazing
-            { DemandPerDay = double.NaN, PasturePerDay = 0, StoredNutrition = 0 }], 10));
+        // Ten gap days of 2 eaten against 1 grown, less the 5 stored in the pen.
+        Assert.Equal((5, 10), HerdArrangementRules.Feeding(2, 1, 1, 5, 10));
+        // No gap coming: one day at today's pasture.
+        Assert.Equal((0, 0), HerdArrangementRules.Feeding(2, 3, 0, 0, 0));
     }
     [Fact]
     public void FoodChecksRequireRunway()

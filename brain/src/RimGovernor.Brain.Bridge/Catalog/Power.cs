@@ -63,8 +63,8 @@ public sealed partial class DefinitionCatalog
     }
 
     /// <summary>
-    /// The named generator def's nominal watts (its power comp's negative draw), build cost and, for a refuelable one,
-    /// every fuel its filter accepts and the tank a full load takes.
+    /// The named generator def's nominal watts (its power comp's negative draw), cheapest stuff and, for a refuelable one,
+    /// every fuel its filter accepts, the tank a full load takes and the items it burns a day.
     /// </summary>
     public P.GeneratorRow GeneratorRow(string name, double maintenanceCostFactor)
     {
@@ -79,8 +79,7 @@ public sealed partial class DefinitionCatalog
         if (row.MadeFromStuff && stuff.Length == 0) throw new CatalogException($"generator {name} has no allowed stuff");
         var generator = new P.GeneratorRow
         {
-            NominalW = -watts,
-            BuildValue = CostValue(name, stuff), Stuff = stuff,
+            NominalW = -watts, Stuff = stuff,
         };
         if (row.GetCompProperties<CompProperties_Refuelable>() is not { } fuel)
             return generator;
@@ -93,7 +92,10 @@ public sealed partial class DefinitionCatalog
         var multiplier = GameMembers.FuelMultiplier(fuel) / (fuel.factorByDifficulty ? maintenanceCostFactor : 1);
         if (!double.IsFinite(multiplier) || multiplier <= 0)
             throw new CatalogException($"generator {name} has no valid item-to-fuel multiplier");
-        return generator with { Fuels = [.. fuels.Select(name => new P.Resource(name))], FuelCapacity = checked((long)Math.Ceiling(fuel.fuelCapacity / multiplier)) };
+        // CompRefuelable burns fuelConsumptionRate fuel units a day (ConsumptionRatePerTick = rate / 60000), an item worth multiplier units.
+        if (!float.IsFinite(fuel.fuelConsumptionRate) || fuel.fuelConsumptionRate < 0)
+            throw new CatalogException($"generator {name} has no valid fuel consumption rate");
+        return generator with { Fuels = [.. fuels.Select(name => new P.Resource(name))], FuelCapacity = checked((long)Math.Ceiling(fuel.fuelCapacity / multiplier)), FuelItemsPerDay = fuel.fuelConsumptionRate / multiplier };
     }
 
     /// <summary>

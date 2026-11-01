@@ -168,12 +168,49 @@ namespace RimGovernor.Native
         private static readonly RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal Uncounted = new RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal.Uncounted();
         private static readonly RimGovernor.Brain.GameFacts.Observations.QuestObjectiveTiming Untimed = new RimGovernor.Brain.GameFacts.Observations.QuestObjectiveTiming.Untimed();
 
-        // A hosted-lodgers objective: the lodgers, their mood floor and the moods the game tracks.
-        private static RimGovernor.Brain.GameFacts.Observations.QuestObjective HostLodgers(Quest quest, Pawn[] lodgers)
+        // A hosted-lodgers objective: the lodgers, their mood floor, the moods the game tracks and when they arrive.
+        private static RimGovernor.Brain.GameFacts.Observations.QuestObjective HostLodgers(Quest quest, Pawn[] lodgers, RimGovernor.Brain.GameFacts.Observations.ExpectedTiming arrival, string? arrivalSignal)
         {
             var (floor, moods) = NativeQuestShuttles.LodgerMood(quest, lodgers);
             return new RimGovernor.Brain.GameFacts.Observations.QuestObjective { Kind = RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.HostLodgers, Goal = new RimGovernor.Brain.GameFacts.Observations.QuestObjectiveGoal.Pawns(lodgers.Length), Timing = Untimed,
-                PawnIds = [.. lodgers.Select(pawn => new PawnId(pawn.GetUniqueLoadID()))], Active = true, MinimumMood = floor, LodgerMoods = moods };
+                PawnIds = [.. lodgers.Select(pawn => new PawnId(pawn.GetUniqueLoadID()))], Active = true, MinimumMood = floor, LodgerMoods = moods, Arrival = arrival, Departure = Departure(quest, lodgers, arrival, arrivalSignal) };
+        }
+
+        // When the lodgers leave: the earliest end of a QuestPart_Delay whose completion signals a QuestPart_Leave of a lodger or a
+        // QuestPart_QuestEnd (the lodgers leave on cleanup): now + TicksLeft when enabled, the arrival + delayTicks when the arrival's
+        // own signal enables it (<paramref name="arrivalSignal"/>, null without an arrival part); otherwise the tick is unread.
+        private static RimGovernor.Brain.GameFacts.Observations.ExpectedTiming Departure(Quest quest, Pawn[] lodgers, RimGovernor.Brain.GameFacts.Observations.ExpectedTiming arrival, string? arrivalSignal)
+        {
+            var now = (long)Find.TickManager.TicksGame;
+            var leaves = new HashSet<string>(quest.PartsListForReading.OfType<QuestPart_Leave>().Where(l => l.pawns.Any(lodgers.Contains)).Select(l => l.inSignal)
+                .Concat(quest.PartsListForReading.OfType<QuestPart_QuestEnd>().Select(e => e.inSignal)).Where(s => !string.IsNullOrEmpty(s)));
+            long? end = null;
+            foreach (var delay in quest.PartsListForReading.OfType<QuestPart_Delay>())
+            {
+                if (!delay.outSignalsCompleted.Any(leaves.Contains)) continue;
+                long? at = null;
+                if (delay.State == QuestPartState.Enabled) at = now + Math.Max(0, delay.TicksLeft);
+                else if (delay.State == QuestPartState.NeverEnabled && arrivalSignal != null && delay.inSignalEnable == arrivalSignal
+                    && arrival is RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated dated) at = dated.Tick + Math.Max(0, delay.delayTicks);
+                if (at.HasValue && (!end.HasValue || at.Value < end.Value)) end = at;
+            }
+            return end.HasValue
+                ? new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated(end.Value)
+                : new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Unread("departure tick:" + quest.id.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        // When the lodgers a QuestPart_PawnsArrive brings arrive: the end of the enabled QuestPart_Delay whose completion signal is the
+        // part's inSignal (TicksLeft: enableTick + delayTicks - TicksGame), now when the accepted quest's initiate signal brings them;
+        // otherwise (a delay not enabled yet, another signal) the tick is unread.
+        private static RimGovernor.Brain.GameFacts.Observations.ExpectedTiming Arrival(Quest quest, QuestPart_PawnsArrive part)
+        {
+            var now = (long)Find.TickManager.TicksGame;
+            if (part.inSignal == quest.InitiateSignal && quest.State == QuestState.Ongoing)
+                return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated(now);
+            var delay = quest.PartsListForReading.OfType<QuestPart_Delay>().FirstOrDefault(d => d.State == QuestPartState.Enabled && d.outSignalsCompleted.Contains(part.inSignal));
+            return delay != null
+                ? new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated(now + Math.Max(0, delay.TicksLeft))
+                : new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Unread("arrival tick:" + quest.id.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
 
         // An objective that counts things of one def; a decree's counted objectives are due at its bad delay.
@@ -222,7 +259,7 @@ namespace RimGovernor.Native
                     }
                     return row;
                 case QuestPart_PawnsArrive p when p.pawns.Any(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)):
-                    return HostLodgers(quest, p.pawns.Where(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)).ToArray());
+                    return HostLodgers(quest, p.pawns.Where(pawn => pawn.HasExtraHomeFaction(quest) || pawn.HasExtraMiniFaction(quest)).ToArray(), Arrival(quest, p), p.inSignal);
                 default:
                     return null;
             }
@@ -250,7 +287,7 @@ namespace RimGovernor.Native
                     ? quest.PartsListForReading.OfType<QuestPart_RequirementsToAcceptBedroom>().SelectMany(p => p.targetPawns)
                     : Enumerable.Empty<Pawn>()).Distinct().ToArray();
             if (hosted.Length > 0 && !rows.Any(r => r.Kind == RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.HostLodgers))
-                rows.Add(HostLodgers(quest, hosted));
+                rows.Add(HostLodgers(quest, hosted, new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.None(), null));
             if (quest.TicksUntilExpiry >= 0 && quest.State == QuestState.NotYetAccepted)
                 rows.Add(new RimGovernor.Brain.GameFacts.Observations.QuestObjective { Kind = RimGovernor.Brain.GameFacts.Observations.QuestObjectiveKind.Expiry, Goal = Uncounted,
                     Timing = new RimGovernor.Brain.GameFacts.Observations.QuestObjectiveTiming.Deadline((long)Find.TickManager.TicksGame + quest.TicksUntilExpiry),

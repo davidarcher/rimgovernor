@@ -85,6 +85,9 @@ public sealed record HostedRegroupInput(HostAlternative Host, RegroupInput Input
 
     /// <summary>The medical beds a medical bed alternative fixes (LayoutHospitalBedRules); null for every other alternative.</summary>
     public HospitalBedChoice? HospitalBeds { get; init; }
+
+    /// <summary>The barn a barn alternative adds (LayoutHerdBarnRules); null for every other alternative.</summary>
+    public BarnWant? Barn { get; init; }
 }
 
 /// <summary>

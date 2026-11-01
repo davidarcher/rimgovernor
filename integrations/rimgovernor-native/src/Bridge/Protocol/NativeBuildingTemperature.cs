@@ -79,6 +79,8 @@ namespace RimGovernor.Native
                 case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.PlantDefCase: return NativeGrowerCrop.Validate(intent, context);
                 case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.ClaimCase: return NativeClaimBuilding.Validate(intent, context);
                 case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AutoRefuelCase: return NativeAutoRefuel.Validate(intent, context);
+                case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.PowerSwitchCase: return NativePowerSwitch.Validate(intent, context);
+                case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AllowCase: return NativeBuildingAllow.Validate(intent, context);
                 default: return Missing();
             }
         }
@@ -96,6 +98,8 @@ namespace RimGovernor.Native
                 case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.PlantDefCase: return NativeGrowerCrop.Apply(intent, context);
                 case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.ClaimCase: return NativeClaimBuilding.Apply(intent, context);
                 case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AutoRefuelCase: return NativeAutoRefuel.Apply(intent, context);
+                case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.PowerSwitchCase: return NativePowerSwitch.Apply(intent, context);
+                case RimGovernor.Brain.GameOrders.Operations.BuildingPatchIntentChange.AllowCase: return NativeBuildingAllow.Apply(intent, context);
                 default: throw new InvalidOperationException(Missing().Detail);
             }
         }

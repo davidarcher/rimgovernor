@@ -67,6 +67,8 @@ public sealed partial class Executor
         ActionKind.GrowerCrop,
         ActionKind.ClaimBuilding,
         ActionKind.AutoRefuel,
+        ActionKind.PowerSwitch,
+        ActionKind.BuildingAllow,
         ActionKind.Surgery,
         ActionKind.Area,
         ActionKind.PolicyPrune,

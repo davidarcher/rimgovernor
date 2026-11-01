@@ -189,7 +189,9 @@ This is coordination within existing concerns, not an executor.
   network has spare watts for its nominal draw. A standing campfire does not hold the
   room against the Heater; a standing Heater does. The power family connects and
   budgets the Heater as any consumer (nominal draw, conservative against the 44-164 W
-  average of spike #2769).
+  average of spike #2769). Where a powered thermal control cannot be served, the power comparison weighs a passive
+  provision (an unpowered burner beside the control) against the powered alternatives by priced interruption
+  ([power contracts](power-contracts.md#comparison)).
 - The `disaster/services` Need binds no Method of its own. The services a disaster took down are
   restored by the families that compare them: `power/basic` refuels, acquires fuel for or lets
   a fix restore lost producers ([power contracts](power-contracts.md#restoration)), and

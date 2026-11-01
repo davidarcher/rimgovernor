@@ -361,10 +361,13 @@ Hot and NextRoomID.
   (`OutsideNode`, no station, ignored by clustering) carries the colonist day cycle: one
   edge from the bed per healthy colonist a day (wake out, sleep back). The ordinary sleep node beds `StationPopulation.Sleepers`: the
   colonists and the hosted slaves and guests (`Hosted`, from `SleepingObservation.HostedSleepers`, plus the lodgers of
-  accepted hosting quests not yet on the map, `QuestHospitality.KnownArrivals`), so a hosted guest's bed is planned with the
+  accepted hosting quests whose bed the [prospective comparison](forecast-contracts.md#prospective-capacity) prepares
+  once its start is due, `ProspectiveCapacityRules.Admitted`), so a hosted guest's bed is planned with the
   colonists'. Colonists alone still size eating, hauling, joy, suites and the day cycle; babies are one crib each
-  (the colony's babies plus `StationFacts.HostedBabies`, the goal-named nursery floor only while none lives), and held
-  prisoners are prison-bed demand. A population change changes the layout key, so an arrival replans. Clustering splits
+  (the colony's babies plus `StationFacts.HostedBabies`, the goal-named nursery floor only while none lives), the babies
+  whose own bed is prepared now join the sleepers beside their crib (`StationFacts.CribLeavers`), and held
+  prisoners, with the prisoners the comparison prepares a bed for, are prison-bed demand. No spare-bed quota sizes
+  anything: a lodger, prisoner or leaver that is not expected adds nothing. A population change changes the layout key, so an arrival replans. Clustering splits
   it onto `RoomGroup.Outside`, the tiler onto `LayoutPlan.OutsideTrips`, and each such trip
   is walked from its room to the nearest entrance. A herd's pen is an outdoor `PenNode`
   (`StationGraph.Pens`, one per race of `StationPopulation.Herds`, the plan's ceilings;
@@ -583,7 +586,7 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   sets `blockWind`; crops and bushes do not).
   **How many (#2999).** A first plan owes the sites its planned demand needs, not a number:
   `StationFacts.powerSites` adds turbines and solar plots one at a time, re-quoting each at its
-  cheapest site, until `ComputePowerBudget(...).GenerationShortfallW <= 0` against the demand
+  cheapest site, until `PowerRules.GenerationShortfallW(...) <= 0` against the demand
   (`Station.BaseW` over the groups, plus lamps from group area over the catalog lamp's reach); the
   bank size does not enter the generation shortfall. Turbines come first while their price per delivered watt is
   least; solar fills the rest. Every site is priced in sustained watts (`SitePrice`): the output its
@@ -683,8 +686,12 @@ proposes the baseline, so the comparison, not that price, decides a barracks.
 arrangements by `HerdShelterRules.Assess`, each valued by the consequence it avoids: open pen ground (a known-zero
 baseline, `open_baseline`); a barn beside the pen; an animal sleeping spot (a known zero, `animal_bed_no_thermal_effect`,
 excluded as `no_animal_sleeping_spot` when the catalog has none). The barn is a planned room (`PlannedRole.Barn`, matched
-by the unit's herd) the station graph places only `Beside` the unit's pen node, and only when its alternative wins
-(`HerdShelterRules.BarnWants`); a unit without a pen excludes it (`barn_without_pen`). See [husbandry](husbandry-contracts.md#herd-shelter-alternatives)
+by the unit's herd) the station graph places only `Beside` the unit's pen node. It is a regroup deviation the canonical
+layout ledger compares against a no-barn baseline (`LayoutHerdBarnRules`, offered only where the herd arrangement's
+shelter remedy is a barn), not a node a pre-selection creates; a unit without a pen excludes it (`barn_without_pen`).
+A barn is offered only when its ring door is one a fence-blocked roamer can open
+(`HerdShelterRules.AnimalEntry`); until an animal-flap entry is planned no barn is offered and the open baseline
+holds (deferred gap). See [husbandry](husbandry-contracts.md#herd-shelter-alternatives)
 for the valuation and the forecast credit; its execution (owner step, animal flap at the pen link, spot assignment,
 heater) is not built yet.
 Replan preparation retains the hourly survey and its pinned rooms. The completed review
@@ -1213,11 +1220,61 @@ move carries its destination together with its rotation; uninstall has neither.
 
 ## Field placement ownership
 
-Pure `LayoutFieldPlanning` owns crop-option order, stable demand priority,
-food-zone adoption, soil/adjacency eligibility and connected placement geometry.
+Pure `LayoutFieldPlanning` owns crop-option order, food-zone adoption, soil/adjacency
+eligibility and connected placement geometry; `FieldPlacementRules` (`FieldPlacement.cs`) owns the choice between
+placements (below). There is no first-feasible block return and no neighbour-radius crop order.
 `LayoutFieldShrink` owns the target hysteresis, surplus-zone choice and removal
 order; it skips removals that would disconnect the remaining zone or remove its
 last cell. Both use existing observed cells and zone rows. Runtime retains each
 Need's journal owner, obtains the required frame and submits the chosen edit;
 native previews and legality checks still guard the resulting order. Missing
 geometry or zone reads fail only when the selected planning path needs them.
+
+### Field placement comparison (RG-HABITAT-006)
+
+`FieldPlacementRules.Choose` compares every selected field demand on one shared ground ledger. The demands are the
+food supply Need's outdoor candidates (`SiteRules.PlanSiteType`), the hay field (`Hay.HayShortfall`, which includes
+the herd arrangements' feed remainder, see [husbandry](husbandry-contracts.md#herd-arrangement-needs)), the social
+crops (`SocialFields.SocialShortfalls`) and the resource fields the economy Need opens
+(`ResourceSupply.OpenedFields`). Per demand and per crop it generates, per plan field block, two alternatives: grow
+the largest standing zone the crop adopts by rings (the zone keeps its crop and is priced by that crop's row), or open
+a new connected crop block. Deferring (the current zones unchanged) is the baseline, and a placement that serves
+nothing never beats it.
+
+Each placement is priced from the observed ground by its usable cells only:
+
+- **Cells.** Free soil at the crop's fertility floor (`FreeFieldSoil`), unroofed and lit, compatible with the crop's
+  pollution and dark-room needs (`CropSoilCompatible`), reachable over observed walkable ground (a flood from the
+  walkable cells nearest the field anchor, not a path probe), off the ground other sites hold (held building
+  reservations, pending monuments, shells, the firebreak), clear of the other kind's zones (a crop and a tree zone are
+  kept apart as the native sower keeps them) and, for a crop a harvest ends, maturing before the season's remaining
+  growing days end (`GrowDays / fertility factor <= CropClimate.DaysRemaining`). A tree resumes growing next season,
+  so the season bounds no tree.
+- **Share.** The native fertility growth factor (`PlantUtility.GrowthRateFactorFor_Fertility`, `SiteRules.CropYieldRate`)
+  summed over the usable cells, over the cells the demand needs at normal soil, at most one.
+- **Work a day.** Each cell's sow and harvest work (`SowWork`, `HarvestWork`) and its walk from the anchor
+  (`WalkTicksPerCell`), once a grow cycle. No fence or lamp cost is charged outdoors, and the Need tier is not used.
+
+Two assessed placements are ordered by the larger share, then the less work a day per share, then a standing zone
+grown before a new block, then demand, crop, block and first cell, so equal placements settle the same way every
+review. Rounds settle the best placement across all demands and remove its cells from the ledger; the rest are
+generated again on what is left, so food and non-food crops compete for land and never share cells (a greedy
+settlement of one placement per round, not an optimum). Each Need's step binds only its own winners through the
+growing-zone create or add-cell orders; nothing in the comparison orders work.
+
+Named states keep a missing fact visible and exclude the crop instead of defaulting it: `crop growth:<crop>`,
+`crop work:<crop>`, `crop definition:<zoneCrop>` (a standing zone's crop the catalog lacks), `growing season:<crop>`
+(the outdoor temperature outside the crop's growth band now, or an unlit biome), `grower skill:<crop>`
+(`TreePlantationRules.GrowerSkill` under `SowMinSkill`), `land:<crop>` (the crop lost the contested ground), and the
+required planning window and zone census.
+
+**Pending holds.** A growing-zone order still in flight keeps its ground. `FieldPlanner.PendingFieldHolds` derives each
+field Need's in-flight `ZoneCreate(Growing)` and `ZoneCellEdit` add orders from its bound, unretired plans every
+review (no store), skipping refused and cancelled orders; `FieldPendingHold` takes their cells off the ledger before any
+round, except cells the census already zones, where the observed zone replaces the hold. The order's own demand settles
+as Awaiting (`pending:<crop>`) and the step waits (`field_block_pending`) instead of binding again, so another crop is
+not offered the same cells and the same demand is not re-issued. An accepted create stays held until its plan retires,
+even if the player deletes the zone before it is observed.
+
+Known limits: the walk distance is a flood over observed cells; settlement is greedy per round; another Need's pending
+orders are on the ledger only through the pending holds; trees are exempt from the season's maturity bound.

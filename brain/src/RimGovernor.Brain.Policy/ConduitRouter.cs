@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 public static class ConduitRouterRules
 {
     /// <summary>
-    /// Caps the cells one route search visits: enough to reach a geyser GeothermalReachCells away across open
+    /// Caps the cells one route search visits: enough to reach a distant geyser across open
     /// ground, or to cross a map-wide perimeter interior to a moisture pump.
     /// </summary>
     internal const int PowerRouteBound = 1 << 17;

@@ -144,6 +144,12 @@ public sealed partial record ReviewFacts
     /// <summary>The colonist beds no one owns (SleepingRules.VacantColonistBed) by id, which make a pawn's bed free (#3825, V6).</summary>
     public IReadOnlyList<string> VacantColonistBeds { get; init; } = [];
 
+    /// <summary>
+    /// The primary bed as a permanent provision for an expected sleeper (ProspectiveCapacityRules.BedOption: its price in
+    /// capability-days and its work over the builders), read before the layout; null while its price or a builder is unread.
+    /// </summary>
+    public ProvisionOption? ProspectiveBed { get; init; }
+
     /// <summary>Per research bench def, its ResearchSpeedFactor as the def data states it (DefinitionCatalog.ResearchBenchSpeeds, #3800); empty without a catalog.</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
     public IReadOnlyDictionary<string, BenchSpeedModel> WorkBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
@@ -196,7 +202,14 @@ public sealed partial record ReviewFacts
 
     public EquatableArray<FoodIngredientSlot> TradeMealIngredients { get; init; }
 
+    /// <summary>Every player pen marker's grazing row (PenGrazing), enclosed or not.</summary>
     public EquatableArray<PenGrazing> PenGrazing { get; init; }
+
+    /// <summary>The pasture-edible feed lying outside every enclosed pen, by def: the stock a pen's feed store is hauled from.</summary>
+    public EquatableArray<RimGovernor.Brain.GameFacts.Observations.PenFeedStock> PenFeed { get; init; }
+
+    /// <summary>The door defs a fence-blocked roamer can open (FoodChannelsFacts.AnimalDoors).</summary>
+    public EquatableArray<string> AnimalDoors { get; init; }
 
     /// <summary>What a cell of each terrain grows for grazing in the worst quadrum, the per-cell term of the game's pen food sum (PastureTable).</summary>
     public PastureTable Pasture { get; init; } = new(new Dictionary<string, double>());

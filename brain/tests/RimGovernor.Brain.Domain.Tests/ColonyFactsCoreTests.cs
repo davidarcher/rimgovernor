@@ -50,7 +50,7 @@ public sealed class ColonyFactsCoreTests
         PlayerTechLevel = RimGovernor.Brain.GameFacts.Defs.TechLevel.Neolithic,
         Threat = new() { Observed = QuietThreat },
         EventLoot = new(),
-        FoodChannels = new() { FishableWater = null, Gatherable = [], EggLayer = [], PasteDispenser = [], Forage = [], Grazing = [], Slaughter = [], PastureTerrain = [] },
+        FoodChannels = new() { FishableWater = null, Gatherable = [], EggLayer = [], PasteDispenser = [], Forage = [], Grazing = [], PenFeed = [], AnimalDoors = [], Slaughter = [], PastureTerrain = [] },
         DeepResources = DeepResourcesTests.NoDeepResources,
         FermentingBarrels = 0,
         Policies = PoliciesTests.NoPolicies,

@@ -9,5 +9,6 @@ public static class PowerCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(PowerFuel.Case());
         registry.Register(PowerWindPath.Case());
+        registry.Register(PowerConfigureAndRoute.Case());
     }
 }

@@ -109,8 +109,21 @@ internal static class StockpileSitedRoles
         var request = new Pol.StoreView { Bounds = projection.Facts.MapBounds, Cells = projection.PlanningWindow.Cells, Protected = protectedCells };
         if (BuildingPlanner.PlannedLayout(projection) is var (plan, rooms, known) && known)
         {
-            request = request with { Layout = plan, Rooms = rooms };
+            request = request with { Layout = plan, Rooms = rooms, PenFeed = PenFeedOf(projection, plan) };
         }
         return request with { Shapes = projection.Facts.Shapes, Meals = TableMeal(projection) };
+    }
+
+    /// <summary>The herd arrangements' pen feed stores over the plan; none while a herd fact they read is unread, which retires nothing.</summary>
+    private static IReadOnlyList<Pol.PenFeedAsk> PenFeedOf(ColonyReading projection, Pol.LayoutPlan plan)
+    {
+        try
+        {
+            return Pol.HerdArrangementRules.FeedAsks(Pol.FactsHerdArrangementExtensions.HerdArrangements(projection.Facts), plan, projection.Facts.PenFeed);
+        }
+        catch (Pol.RequiredFactException)
+        {
+            return [];
+        }
     }
 }
