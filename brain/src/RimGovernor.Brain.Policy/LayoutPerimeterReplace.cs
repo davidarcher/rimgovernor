@@ -2,28 +2,14 @@ using System.Text.RegularExpressions;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>
-/// What the defense record holds of the perimeter. Held are the ids of the site nodes a defense tier names: built,
-/// being built, or waiting to be demolished. Removing is set while a removal tier of the perimeter stands in the
-/// record: a rebuild is in flight.
-/// </summary>
+/// <summary>What the defense record holds of the plan's perimeter: the ids of the site nodes its tiers name and its killbox.</summary>
 public sealed record PerimeterHold
 {
     public IReadOnlySet<string> Held { get; init; } = new HashSet<string>(StringComparer.Ordinal);
-    public bool Removing { get; init; }
-
-    /// <summary>A retired node the record still names.</summary>
-    internal bool RetiredHeld(LayoutPlan p) => p.Sites.Any(s => p.ReplacedSiteNode(s.Node) && Held.Contains(s.Node));
-
-    /// <summary>A rebuild in flight: a retired node is still held, or the record has a removal tier standing.</summary>
-    internal bool Rebuilding(LayoutPlan p) => Removing || RetiredHeld(p);
 }
 
 public sealed partial record LayoutPlan
 {
-    /// <summary>Whether another node replaces the node with the id.</summary>
-    internal bool ReplacedSiteNode(string id) => ReplacedSite(id);
-
     /// <summary>The live ring's revision (0 without one).</summary>
     internal int RingRevision() => Ring() is { Ok: true } r ? r.Site.Ring!.Revision : 0;
 
@@ -89,49 +75,9 @@ public sealed partial record LayoutPlan
         }
         return this with { Sites = sites };
     }
-
-    /// <summary>Turns a ring traced over the held one into its replacement.</summary>
-    internal LayoutPlan Replacing(LayoutPlan prev, PerimeterHold hold)
-    {
-        var (old, hasOld) = prev.Ring();
-        if (!hasOld || !hold.Held.Contains(old.Node) || SameFamily(prev, this))
-        {
-            return this;
-        }
-        var p = WithRevision(old.Ring!.Revision + 1);
-        var retired = new List<PlannedSite>();
-        var ids = new List<string>();
-        foreach (var s in prev.Sites)
-        {
-            if (LayoutPerimeterReplaceRules.PerimeterFamily(s.Kind) && !prev.ReplacedSite(s.Node) && hold.Held.Contains(s.Node))
-            {
-                retired.Add(s);
-                ids.Add(s.Node);
-            }
-        }
-        var sites = new List<PlannedSite>(p.Sites);
-        for (var i = 0; i < sites.Count; i++)
-        {
-            if (sites[i].Kind == LayoutPerimeterSitesRules.NodeRing && sites[i].Ring is not null)
-            {
-                sites[i] = sites[i] with { ReplacesSites = ids, Reason = LayoutPerimeterSitesRules.ReasonRingReplaced };
-                break;
-            }
-        }
-        sites.AddRange(retired);
-        return p with { Sites = sites };
-    }
 }
 
-/// <summary>
-/// A ring traced again while the defense record still holds the old one is
-/// not edited in place: the planner stores the new ring, its gates, fence and pumps under revision-suffixed ids beside
-/// the old ones, which stay in the plan as retired nodes (replaced by the new ring: off the live ground, still on the
-/// reserved ground). The runtime builds the new generation while the old one defends, opens the old wall only once the
-/// new ring stands, and demolishes the old through removal tiers that name the retired nodes; the retired nodes leave
-/// the plan once the record no longer names them. One rebuild runs at a time: while the record holds a retired node or
-/// a removal tier the ring is not traced again.
-/// </summary>
+/// <summary>The ids of the ring's family carry its revision (a plan stored before task 7.1 may hold a revised generation).</summary>
 public static partial class LayoutPerimeterReplaceRules
 {
     /// <summary>The node kinds whose ids carry the ring's revision: the ring and what the defense record cuts from it.</summary>
@@ -149,36 +95,14 @@ public static partial class LayoutPerimeterReplaceRules
 
 partial record LayoutPlan
 {
-    /// <summary>Reports retired nodes in the plan that the record no longer names: a replan drops them.</summary>
-    public static bool PerimeterRetirable(LayoutPlan p, IReadOnlySet<string> held) => p.Sites.Any(s => p.ReplacedSiteNode(s.Node) && !held.Contains(s.Node));
-
-    /// <summary>Whether a and b hold the same ring, gates, fence and pumps: a ring traced again over the same ground replaces nothing. The ground inside the ring is no part of it: rooms added inside change that.</summary>
-    internal static bool SameFamily(LayoutPlan a, LayoutPlan b)
-    {
-        List<PlannedSite> Pick(LayoutPlan p) =>
-        [
-            .. p.Sites.Where(s => LayoutPerimeterReplaceRules.PerimeterFamily(s.Kind) && !p.ReplacedSiteNode(s.Node))
-                .Select(s => s.Ring is null ? s : s with { Ring = new RingFacts { Light = s.Ring.Light, Bridged = s.Ring.Bridged, Gaps = s.Ring.Gaps, Revision = s.Ring.Revision } }),
-        ];
-        var x = Pick(a);
-        var y = Pick(b);
-        return x.Count == y.Count && x.Zip(y).All(t => t.First.Node == t.Second.Node && t.First.Kind == t.Second.Kind && t.First.Footprint.Equal(t.Second.Footprint) && LayoutPerimeterSitesRules.SameRing(t.First.Ring, t.Second.Ring));
-    }
-
     /// <summary>
-    /// The perimeter step of ReplanLayout: lays the perimeter around next, the plan a replan grew from prev. While the
-    /// record holds a retired node or a removal tier the ring is not traced again (one rebuild at a time). A ring that
-    /// comes out other than prev's, with prev's held by the record, is laid as a replacement beside the old one.
+    /// The perimeter step of ReplanLayout, retain only (task 7.1): no defense is traced here. While the defense record
+    /// holds any of prev's defense nodes the replan keeps prev's perimeter family as it stands (the retired nodes the
+    /// record no longer names dropped); with nothing held it carries no perimeter, killbox or pockets at all. A new
+    /// defense is a candidate of DefenseCandidateRules, not a plan prescription.
     /// </summary>
-    public static LayoutPlan LayPerimeter(LayoutPlan prev, LayoutPlan next, MapSurvey s, PerimeterHold hold)
-    {
-        prev = prev.WithoutUnheldRetired(hold.Held);
-        next = next.WithoutUnheldRetired(hold.Held);
-        if (hold.Rebuilding(prev))
-        {
-            return next.WithPerimeterSitesOf(prev);
-        }
-        var laid = WithoutCore(PlanMountainPockets(PlanPerimeter(next, s), s));
-        return laid.Replacing(prev, hold);
-    }
+    public static LayoutPlan RetainPerimeter(LayoutPlan prev, LayoutPlan next, PerimeterHold hold) =>
+        hold.Held.Count == 0
+            ? next.WithoutPerimeterSites()
+            : next.WithPerimeterSitesOf(prev.WithoutUnheldRetired(hold.Held));
 }

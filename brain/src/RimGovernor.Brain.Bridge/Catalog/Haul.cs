@@ -100,48 +100,4 @@ public sealed partial class DefinitionCatalog
 
     private static Type ConditionClass(GameConditionDef condition) =>
         condition.conditionClass ?? throw new CatalogException($"game condition {condition.defName} names no class");
-
-    /// <summary>
-    /// The game's own work of removing a thing and what it leaves: a plant's harvestWork with its harvested yield, a
-    /// building's deconstruct work (its WorkToBuild clamped to the JobDriver_Deconstruct limits) with the fraction of its
-    /// cost the game refunds. Null for a def the catalog has no such row for.
-    /// </summary>
-    public P.ClearRow? ClearRow(string def, string stuff)
-    {
-        if (FindThing(def) is not { } thing)
-        {
-            return null;
-        }
-
-        if (thing.plant is { } plant)
-        {
-            double harvestWork = plant.harvestWork;
-            if (!double.IsFinite(harvestWork) || harvestWork < 0)
-            {
-                return null;
-            }
-
-            Domain.EquatableArray<P.Amount> yield = plant.harvestedThingDef is { } harvested && plant.harvestYield > 0
-                ? new([new P.Amount(new P.Resource(harvested.defName), (long)Math.Round((double)plant.harvestYield, MidpointRounding.AwayFromZero))])
-                : default;
-            return new P.ClearRow { Work = harvestWork, Yield = yield };
-        }
-
-        var (work, shown) = ShownStatValue(def, stuff, CatalogStats.WorkToBuild);
-        if (!shown)
-        {
-            return null;
-        }
-
-        var refund = (double)thing.resourcesFractionWhenDeconstructed;
-        var refunded = AdjustedCosts(def, stuff)
-            .Select(cost => new P.Amount(new P.Resource(cost.Def), (long)Math.Floor(cost.Units * refund)))
-            .Where(amount => amount.Count > 0)
-            .ToList();
-        return new P.ClearRow
-        {
-            Work = Math.Min(Math.Max((double)work, GameConstants.MinDeconstructWork), GameConstants.MaxDeconstructWork),
-            Yield = new([.. refunded]),
-        };
-    }
 }

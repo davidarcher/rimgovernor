@@ -132,6 +132,9 @@ public interface IGameApi
 
     Task<RimGovernor.Brain.GameFacts.Observations.LinesOfFireSnapshot> ReadLinesOfFireAsync(RimGovernor.Brain.GameOrders.Observations.LinesOfFireRequest request, CancellationToken cancellationToken);
 
+    /// <summary>The defense alternatives' batched probe (RG-HABITAT-009): lines of fire and cover per candidate, shooters, turrets and shells.</summary>
+    Task<RimGovernor.Brain.GameFacts.Observations.DefenseProbeSnapshot> ReadDefenseProbeAsync(RimGovernor.Brain.GameOrders.Observations.DefenseProbeRequest request, CancellationToken cancellationToken);
+
     Task<RimGovernor.Brain.GameFacts.Presentation.NotificationsSnapshot> ReadNotificationsAsync(RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest request, CancellationToken cancellationToken);
 
     Task<RimGovernor.Brain.GameFacts.Observations.PopulationSnapshot> ReadPopulationAsync(RimGovernor.Brain.GameOrders.Observations.PopulationRequest request, CancellationToken cancellationToken);

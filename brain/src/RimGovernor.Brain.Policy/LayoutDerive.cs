@@ -41,10 +41,7 @@ public sealed record RoomGrowth
     /// <summary>The superseded bedrooms a pawn still owns a bed in (SleptBedrooms): they stay in the plan after their successor stands.</summary>
     public HashSet<int> Slept { get; init; } = [];
 
-    /// <summary>
-    /// What the defense record holds of the ring's nodes: a ring traced again over a held one is laid as a
-    /// Replacement beside it, and not at all while a rebuild is in flight.
-    /// </summary>
+    /// <summary>What the defense record holds of the plan's defense nodes: a replan keeps them while it holds any (RetainPerimeter).</summary>
     public PerimeterHold Perimeter { get; init; } = new();
 }
 
@@ -99,7 +96,7 @@ public static partial class LayoutDeriveRules
         }
         // The survey's zones less its field patches, then the fields the tiler placed.
         plan = plan with { Zones = [.. LayoutFieldReplanRules.WithFieldZones(zones, null), .. plan.Zones.Skip(f.Plan.Zones.Count)], Cold = s.Cold, Hot = s.Hot };
-        plan = LayoutPlan.PlanMountainPockets(LayoutPlan.PlanPerimeter(plan, s), s);
+        // No defense is laid here: the perimeter, killbox and pockets are candidates the defense step generates (DefenseCandidateRules).
         return (LayoutPlan.WithoutCore(plan).WithRoomIDs().WithActivitySites(advice.ActivitySites), advice);
     }
 
@@ -269,7 +266,8 @@ partial record LayoutPlan
     /// the rest again. A standing room with no node in the new embedding leaves the plan and its ground is
     /// retired (RetiredGround) for clearance; the embedder's switching price (#2877) decides what moves. The
     /// rooms the tiler does not plan are laid over its plan as DeriveLayoutPlan lays them: the
-    /// perimeter is traced around what the defense record holds of it (LayPerimeter). The failure is the
+    /// perimeter the defense record holds is kept as it stands (RetainPerimeter), and the bound defense choice stays
+    /// bound where it is (WithBoundDefenseOf). The failure is the
     /// chain's or the tiler's (RequiredFactException for a fact the colony has not read, TileException for a
     /// plan it cannot tile, ReplanEmptyException); the caller keeps the plan it has and journals the failure.
     /// </summary>
@@ -313,7 +311,7 @@ partial record LayoutPlan
         plan = plan with { Conduits = EquatableArray.From(conduits) };
         advice.Tiled!.ConduitDecisions.AddRange(joined);
         plan = plan with { RetiredGround = LayoutDeriveRules.RetiredGround(prev, plan, growth.Fixed ?? f!.Built!) };
-        return (LayPerimeter(prev, plan, s, growth.Perimeter).WithDefenseTiersOf(prev).WithRoomIDs().WithActivitySites(advice.ActivitySites), advice);
+        return (LayoutPlan.WithoutCore(RetainPerimeter(prev, plan, growth.Perimeter)).WithDefenseTiersOf(prev).WithBoundDefenseOf(prev).WithRoomIDs().WithActivitySites(advice.ActivitySites), advice);
     }
 
     /// <summary>

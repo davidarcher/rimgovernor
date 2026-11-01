@@ -17,7 +17,6 @@ Runtime/Review/DefenseLayoutPlanner.cs|DefenseLayoutPlanner.DefenseDefinitionNam
 Runtime/Review/DefenseLayoutPlanner.cs|DefenseLayoutPlanner.DefenseDefinitionNames|"WoodLog"
 Runtime/Review/DefenseLayoutPlanner.cs|DefenseLayoutPlanner.DefenseDefinitionNames|"WoodPlankFloor"
 Runtime/Review/DefenseLayoutPlanner.cs|DefenseLayoutPlanner.DefenseMortarDefinition|"Turret_Mortar"
-Runtime/Review/DefenseLayoutPlanner.DefensePerimeter.cs|DefenseLayoutPlanner.DefenseRoomLamp|"StandingLamp"
 Runtime/Review/FieldPlanner.cs|FieldPlanner.FieldSiteRequest|"Heater"
 Runtime/Review/FieldPlanner.cs|FieldPlanner.FieldSiteRequest|"HydroponicsBasin"
 Runtime/Review/FieldPlanner.cs|FieldPlanner.StepAsync|"Heater"

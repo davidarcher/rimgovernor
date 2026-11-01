@@ -55,6 +55,13 @@ public sealed partial class ColonyReview
     /// <summary>The game day the tier-2 model completes each unmet goal in the latest review, by goal need id (#3505; derived display state, never stored, none until the first review after a restart); the goals read puts it on the goal's status.</summary>
     internal ReviewMemory<IReadOnlyDictionary<string, int>> GoalEta = new(new Dictionary<string, int>());
 
+    /// <summary>
+    /// The raid harm a day the latest review derived on its completed coupled context (DefenseChoiceRules.HarmOf; derived state,
+    /// unread until the first review after a restart and while the defense Need is unavailable): the layout/defense step's
+    /// comparison prices protection lost and owed at it, as the power step prices interruption at the review's valuation.
+    /// </summary>
+    internal ReviewMemory<DefenseHarm> RaidHarm = new(new DefenseHarm.Unread(DefenseChoiceRules.HarmUnread));
+
     /// <summary>The per-pawn outfit filter and insulation floor the latest review with a coupled selection chose (GearChoices; derived state, none until the first such review after a restart).</summary>
     internal ReviewMemory<EquatableArray<GearChoice>> GearChoices = new([]);
 
@@ -774,6 +781,7 @@ public sealed partial class ColonyReview
         if (result.Needs.CoupledSelection is { Selection.Selected.Length: > 0 } chosen) CoupledMemory.Set(result.Review.Snapshot, (EquatableArray.From(chosen.Selection.Selected), reading.Reading.Facts.PlannedShelters));
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Reading, result.Needs.CoupledSelection));
         GoalEta.Set(result.Review.Snapshot, goalEtas);
+        if (reading.Reading.Facts.AvailableNeeds.Contains(LayoutFamily.Defense)) RaidHarm.Set(result.Review.Snapshot, DefenseChoiceRules.HarmOf(reading.Reading.Facts));
         if (result.Needs.CoupledSelection is { } compared) GoalInfeasible.Set(result.Review.Snapshot, GoalRules.InfeasibleOf(compared));
         // The first plan reads the ledger and the demand this review derived (#3652).
         await ReviewFirstPlanAsync(state.Snapshot, result.Review.Snapshot, reading.Reading, result.Needs.Latches, goalFacts, stockpileRequest, batches, workActions, ct).ConfigureAwait(false);

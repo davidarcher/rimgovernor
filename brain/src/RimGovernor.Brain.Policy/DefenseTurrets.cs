@@ -57,9 +57,6 @@ public sealed record DefenseGeometry
     public EquatableArray<Cell> Walls { get; init; }
 }
 
-/// <summary>One tier turret the census found standing, with the cells it occupies.</summary>
-public sealed record StandingTurret(Building Building, EquatableArray<Cell> Cells);
-
 public static class DefenseTurretsPolicy
 {
     // The turret ladder: the rung is the armory tier (AssessArmory), Machining allowing the autocannon and
@@ -279,59 +276,6 @@ public static class DefenseTurretsPolicy
             }
         }
         return last < 0 ? [] : buildings.GetRange(0, last);
-    }
-
-    /// <summary>
-    /// Picks the one standing turret to replace in place with the request's higher rung: the first below the
-    /// rung whose new footprint, anchored on the same cell, covers only its own cells or free ground off the
-    /// lanes and reservations, keeps turret spacing from the shooters and every other turret, and whose gates
-    /// are open. Null replaces nothing.
-    /// </summary>
-    public static (Building Old, Building Replacement)? TurretReplacement(DefenseRequest r, DefenseGeometry g, IReadOnlyList<StandingTurret> standing)
-    {
-        var q = r.Turret;
-        var rank = TurretRank(q.Definition);
-        if (rank <= 0 || TurretGate(r, 1) == 0)
-        {
-            return null;
-        }
-        var s = DefenseSite.Create(r);
-        var taken = new HashSet<Cell>(g.Lanes);
-        taken.UnionWith(g.Reserved);
-        for (var i = 0; i < standing.Count; i++)
-        {
-            var t = standing[i];
-            var have = TurretRank(t.Building.Definition);
-            if (have < 0 || have >= rank)
-            {
-                continue;
-            }
-            var own = new HashSet<Cell> { t.Building.Cell };
-            own.UnionWith(t.Cells);
-            var fp = TurretFootprint(t.Building.Cell, q.Size);
-            var fits = FootprintGap(fp, g.Firing) >= TurretSpacing;
-            foreach (var c in fp)
-            {
-                fits = fits && (own.Contains(c) || (s.Free(c) && !taken.Contains(c)));
-            }
-            for (var j = 0; j < standing.Count; j++)
-            {
-                if (j != i && fits)
-                {
-                    var other = standing[j];
-                    var cells = new List<Cell> { other.Building.Cell };
-                    cells.AddRange(other.Cells);
-                    fits = FootprintGap(fp, cells) >= TurretSpacing;
-                }
-            }
-            if (!fits)
-            {
-                continue;
-            }
-            var b = new Building(q.Definition, t.Building.Cell, Rotation.North, q.Stuff);
-            return (t.Building, b);
-        }
-        return null;
     }
 }
 

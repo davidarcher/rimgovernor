@@ -4,195 +4,6 @@ namespace RimGovernor.Brain.Runtime;
 
 public sealed partial class DefenseLayoutPlanner
 {
-    internal const long DefenseWallStone = 5;
-    internal const long DefenseDoorStone = 25;
-
-    internal async Task<DefenseLayoutResult> AdmitAsync(NeedOwner goal, ControlState state, ReviewReading read, DefenseLayoutRecord record, DefenseTierRecord tier, List<Building> buildings, MethodId key, DefensePipeline pipe, CancellationToken call, CancellationToken epoch)
-    {
-        var p = _reviewer.Player;
-        var projection = read.Reading;
-        var id = PlanIds.MintPlanId();
-        var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
-        var actions = new List<DomainAction>();
-        var previews = new List<Preview>();
-        var stock = new StockObservation { Snapshot = snapshot, Tick = projection.Identity.Tick };
-        var unfloorable = new HashSet<Cell>();
-        var placed = 0;
-        var candidates = new List<DomainAction>(buildings.Count);
-        var promoted = DefensePromoted(read.Reading);
-        var roamer = DefenseRoamerOwned(read.Reading);
-        for (var i = 0; i < buildings.Count; i++)
-        {
-            candidates.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), buildings[i], DefenseTier.DefenseBuildTier(promoted, LayoutPerimeterSitesRules.IsCorePerimeterTier(tier.Name), roamer)));
-        }
-        IReadOnlyList<BridgeBuildingPreview> evaluated = [];
-        if (candidates.Count > 0)
-        {
-            evaluated = await _native.PreviewBuildingsAsync(candidates, snapshot, call).ConfigureAwait(false);
-        }
-        for (var i = 0; i < buildings.Count; i++)
-        {
-            var building = buildings[i];
-            var action = candidates[i];
-            var (preview, ok) = ClassifyDefensePreview(evaluated[i], building.Cell);
-            if (!ok && preview.NativeWorkPending)
-            {
-                if (LayoutDefenseRules.IsPerimeterTier(tier.Name))
-                {
-                    placed++;
-                    continue;
-                }
-                return new DefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value };
-            }
-            if (!ok && ((tier.Name == DefenseLayout.TierFiringLine && building.Definition == DefenseDefinitionNames.Floor) || LayoutDefenseRules.IsPerimeterTier(tier.Name) || tier.Name == DefenseIEDs.TierIEDs))
-            {
-                unfloorable.Add(building.Cell);
-                continue;
-            }
-            if (!ok)
-            {
-                var cell = building.Cell;
-                DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Warn, "refused", "placement_preview_refused", tier.Name.Value, new Dictionary<string, object?> { ["definition"] = building.Definition, ["x"] = cell.X, ["z"] = cell.Z, ["native_reason"] = evaluated[i].Reason }, call);
-                return new DefenseLayoutResult { Verdict = FieldUnavailable("placement_preview"), Tier = tier.Name.Value };
-            }
-            actions.Add(action);
-            previews.Add(preview.Preview);
-            BuildingPlanner.MergeReviewStock(stock, preview.Stock);
-        }
-        if (actions.Count == 0 && placed > 0 && unfloorable.Count == 0)
-        {
-            return new DefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier.Name.Value };
-        }
-        if (unfloorable.Count > 0)
-        {
-            tier.Buildings = DefenseWithoutFloors(tier.Buildings, unfloorable, LayoutDefenseRules.IsPerimeterTier(tier.Name) || tier.Name == DefenseIEDs.TierIEDs);
-            record.SetTier(tier);
-            DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "placement_refused_natively", tier.Name.Value, new Dictionary<string, object?> { ["cells"] = unfloorable.Count }, call);
-            p.Journal.SaveDefenseLayout(record, call);
-            if (actions.Count == 0)
-            {
-                return new DefenseLayoutResult { Verdict = NoSpace("defense_tier"), Tier = tier.Name.Value };
-            }
-        }
-        var blocked = new HashSet<Cell>();
-        var blockedCells = new List<Cell>();
-        foreach (var t in record.Tiers)
-        {
-            foreach (var b in t.Buildings)
-            {
-                if (!DefenseAuditBlocks(b.Definition))
-                {
-                    continue;
-                }
-                if (blocked.Add(b.Cell))
-                {
-                    blockedCells.Add(b.Cell);
-                }
-            }
-        }
-        if (!LayoutDefenseRules.IsPerimeterTier(tier.Name))
-        {
-            var (killbox, _, _, kok) = DefenseKillbox(projection);
-            if (!kok)
-            {
-                return new DefenseLayoutResult { Verdict = AwaitingPlan("layout_plan", "killbox"), Tier = tier.Name.Value };
-            }
-            var targets = new List<Cell> { killbox.Entry };
-            targets.AddRange(record.Entrances);
-            RimGovernor.Brain.GameFacts.Observations.SpatialAccessSnapshot access;
-            try
-            {
-                access = await _native.ReadSpatialAccessAsync(Boundary.Identity(state.Snapshot), blockedCells, targets, [], call).ConfigureAwait(false);
-            }
-            catch (NativeUnavailableException)
-            {
-                return new DefenseLayoutResult { Verdict = FieldUnavailable("spatial_access"), Tier = tier.Name.Value };
-            }
-            SameTick(access.Context, state, projection.Identity.Tick);
-            var (skippedId, skipped) = access.Skipped();
-            if (skipped)
-            {
-                DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "unavailable", "access_audit", tier.Name.Value, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["skipped_pawn"] = skippedId }, call);
-                return new DefenseLayoutResult { Verdict = FieldUnavailable("spatial_access_skipped"), Tier = tier.Name.Value };
-            }
-            var refusal = access.Refusal();
-            if (refusal != "")
-            {
-                DefensePipeline.DefenseAction("defense-layout", TelemetryLevel.Info, "refused", "access_audit", tier.Name.Value, new Dictionary<string, object?> { ["blocked_cells"] = blockedCells.Count, ["detail"] = refusal }, call);
-                return new DefenseLayoutResult { Verdict = NoSpace("walkable_layout"), Tier = tier.Name.Value };
-            }
-        }
-        var plan = new PlanSpec(id, new PlanRevision(1), actions);
-        p.Current(call, epoch);
-        if (p.Session.State() != state)
-        {
-            throw DefenseControlErr(358);
-        }
-        if (pipe.Scope is null)
-        {
-            try
-            {
-                pipe.Scope = await StepScope.StepScopeAsync(_reviewer.Native, call).ConfigureAwait(false);
-            }
-            catch (ControlException)
-            {
-                throw DefenseControlErr(366);
-            }
-        }
-        var actual = pipe.Scope ?? throw DefenseControlErr(366);
-        if (!BuildingPlanner.BuildingBoundary(actual, state.Snapshot, projection.Identity.Tick))
-        {
-            throw DefenseControlErr(366);
-        }
-        var now = _reviewer.Clock.Now();
-        if (now < read.StartedAt || now - read.StartedAt > _reviewer.MaxAge)
-        {
-            throw new RimGovernor.Brain.GameAccess.ObservationStaleException();
-        }
-        var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new BuildingMethodRequest
-        {
-            Owner = goal,
-            Method = key,
-            Plan = plan,
-            Current = snapshot,
-            Tick = projection.Identity.Tick,
-            Bounds = projection.Facts.MapBounds,
-            Stock = stock,
-            Previews = previews,
-            Purpose = Pol.Purpose.Defense,
-        }, call).ConfigureAwait(false);
-        var reason = AdmissionLog.AdmissionRefused(decision);
-        if (decision.Admitted)
-        {
-            reason = BuildingReasonAdmitted;
-            tier.Attempts++;
-            record.SetTier(tier);
-            pipe.Admitted++;
-            foreach (var action in actions)
-            {
-                if (action.Building is { } b)
-                {
-                    pipe.Cells.Add(b.Cell);
-                }
-            }
-            p.Journal.SaveDefenseLayout(record, call);
-        }
-        return new DefenseLayoutResult { Verdict = reason, Plan = id, Tier = tier.Name.Value };
-    }
-
-    internal static List<DefenseBuilding> DefenseWithoutFloors(IReadOnlyList<DefenseBuilding> buildings, ISet<Cell> cells, bool perimeter)
-    {
-        var kept = new List<DefenseBuilding>(buildings.Count);
-        foreach (var b in buildings)
-        {
-            if ((b.Definition != DefenseDefinitionNames.Floor && !perimeter) || !cells.Contains(b.Cell))
-            {
-                kept.Add(b);
-            }
-        }
-        return kept;
-    }
-
     internal static ControlException DefenseControlErr(int line) =>
         new(string.Create(CultureInfo.InvariantCulture, $"control error (defense-layout:{line})"));
 
@@ -212,16 +23,34 @@ public sealed partial class DefenseLayoutPlanner
         }
     }
 
-    internal async Task<(BridgeBuildingPreview Preview, bool Ok)> PreviewAsync(DomainAction action, GenerationSnapshot snapshot, Tick _, Cell cell, CancellationToken ct)
+    internal async Task<(BridgeBuildingPreview Preview, bool Ok)> PreviewAsync(DomainAction action, GenerationSnapshot snapshot, Bounds size, CancellationToken ct)
     {
         var previews = await _native.PreviewBuildingsAsync([action], snapshot, ct).ConfigureAwait(false);
-        return ClassifyDefensePreview(previews[0], cell);
+        return ClassifyDefensePreview(previews[0], action.Building!, size);
     }
 
-    internal static (BridgeBuildingPreview Preview, bool Ok) ClassifyDefensePreview(BridgeBuildingPreview preview, Cell cell)
+    /// <summary>The North size of <paramref name="definition"/> as read; an unread size is its anchor cell alone, so a larger native footprint refuses.</summary>
+    internal static Bounds DefenseSize(ColonyReading projection, string definition) =>
+        projection.Facts.Definitions.FirstOrDefault(d => d.Name == definition) is { } d && d.Size.Width > 0 && d.Size.Height > 0 ? d.Size : new Bounds(1, 1);
+
+    /// <summary>
+    /// The preview places <paramref name="b"/>: native can and may place it, its claimed cells (occupied and interaction)
+    /// covering the whole footprint its definition's <paramref name="size"/> occupies at its cell and rotation
+    /// (GenAdj.OccupiedRect), so a multi-cell piece is told from a displaced or truncated one.
+    /// </summary>
+    internal static (BridgeBuildingPreview Preview, bool Ok) ClassifyDefensePreview(BridgeBuildingPreview preview, Building b, Bounds size)
     {
         var v = preview.Preview;
-        if (v.Footprint.Count != 1 || v.Footprint[0] != cell || !v.CanPlace || !v.SafeToPlace)
+        var rect = InteriorRules.OccupiedRect(b.Cell, new Cell(size.Width, size.Height), b.Rotation);
+        var want = new HashSet<Cell>();
+        for (var x = rect.X; x < rect.X + rect.Width; x++)
+        {
+            for (var z = rect.Z; z < rect.Z + rect.Height; z++)
+            {
+                want.Add(new Cell(x, z));
+            }
+        }
+        if (want.Count == 0 || !want.IsSubsetOf(v.Footprint) || !v.CanPlace || !v.SafeToPlace)
         {
             return (preview, false);
         }
@@ -237,58 +66,16 @@ public sealed partial class DefenseLayoutPlanner
         return LayoutDefenseRules.PerimeterBridge;
     }
 
-    internal static bool DefenseStoneBuilding(Building b) =>
-        b.Stuff == "" && (b.Definition == DefenseDefinitionNames.Wall || b.Definition == DefenseDefinitionNames.Door);
-
-    internal static bool DefenseNeedsStone(IReadOnlyList<Building> buildings) => buildings.Any(DefenseStoneBuilding);
-
-    internal static bool DefenseAuditBlocks(string definition)
-    {
-        if (definition == DefenseDefinitionNames.Trap || definition == DefenseDefinitionNames.Fence || definition == DefenseDefinitionNames.Sandbag
-            || definition == DefenseDefinitionNames.Door || definition == DefenseDefinitionNames.Bait || definition == DefenseConduitDefinition)
-        {
-            return false;
-        }
-        return !DefenseTerrain(definition);
-    }
-
     internal static bool DefenseTerrain(string definition) =>
         definition == DefenseDefinitionNames.Floor || definition == LayoutDefenseRules.PerimeterBridge || definition == LayoutDefenseRules.PerimeterHeavyBridge;
 
-    /// <summary>The stone block resource with the most stock, when it covers the stone the buildings need.</summary>
-    internal static (string Stuff, bool Ok) DefensePerimeterStone(ColonyReading projection, IReadOnlyList<Building> buildings)
-    {
-        var stock = ResourceStockRules.Count(projection.Snapshot.Resources);
-        long need = 0;
-        foreach (var b in buildings)
-        {
-            if (!DefenseStoneBuilding(b))
-            {
-                continue;
-            }
-            need += b.Definition == DefenseDefinitionNames.Door ? DefenseDoorStone : DefenseWallStone;
-        }
-        var best = "";
-        long most = 0;
-        foreach (var (resource, count) in stock)
-        {
-            var name = resource.Value;
-            if (projection.Facts.Items.IsStoneBlocks(resource) && (count > most || (count == most && string.CompareOrdinal(name, best) < 0)))
-            {
-                best = name;
-                most = count;
-            }
-        }
-        return (best, best != "" && most >= need);
-    }
+    internal static (DefenseKillbox Killbox, BridgeCellRect Region, Cell Home, bool Ok) DefenseKillbox(ColonyReading projection) =>
+        projection.Facts.LayoutPlan is { } plan ? DefenseKillboxOf(plan, projection.Facts.MapBounds) : (new DefenseKillbox(), new BridgeCellRect(), default, false);
 
-    internal static (DefenseKillbox Killbox, BridgeCellRect Region, Cell Home, bool Ok) DefenseKillbox(ColonyReading projection)
+    /// <summary>The killbox opening of plan (the stored plan, or a traced candidate's), its census region and the colony cell it leads to.</summary>
+    internal static (DefenseKillbox Killbox, BridgeCellRect Region, Cell Home, bool Ok) DefenseKillboxOf(LayoutPlan plan, Bounds bounds)
     {
-        if (projection.Facts.LayoutPlan is not { } plan)
-        {
-            return (new DefenseKillbox(), new BridgeCellRect(), default, false);
-        }
-        var (k, region, home, ok) = LayoutPlan.LayoutKillbox(plan, projection.Facts.MapBounds);
+        var (k, region, home, ok) = LayoutPlan.LayoutKillbox(plan, bounds);
         if (!ok)
         {
             return (new DefenseKillbox(), new BridgeCellRect(), default, false);
@@ -366,7 +153,6 @@ public sealed partial class DefenseLayoutPlanner
             Roofed = seen.Roofed,
             WallSupport = wallSupport,
             TrapSupport = trapSupport,
-            Cover = DefenseCover(seen),
         };
     }
 

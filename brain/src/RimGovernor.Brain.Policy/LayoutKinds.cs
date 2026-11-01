@@ -179,6 +179,9 @@ public enum NodeKind
 
     [WireName("defense_bait")]
     DefBait,
+
+    [WireName("defense_choice")]
+    DefChoice,
 }
 
 /// <summary>A zone's kind.</summary>
@@ -283,6 +286,9 @@ public enum ReservationKind
 
     [WireName("defense_bait")]
     DefBait,
+
+    [WireName("defense_choice")]
+    DefChoice,
 }
 
 public static partial class LayoutKindsRules

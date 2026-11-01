@@ -192,6 +192,49 @@ public sealed record LinesOfFireRequest
 }
 
 /// <summary>
+/// The defense alternatives' batched probe (RG-HABITAT-009, task 7.2): one row per candidate, its id the candidate's key,
+/// in the generator's order. Native answers each with its lines of fire and cover under the candidate's planned pieces,
+/// and once for the read the colonists who could shoot, the standing turrets, each planned turret (its id qualified by
+/// the candidate's) and the shells in stock. Bounded: at most <see cref="MaxCandidates"/> rows of at most
+/// <see cref="MaxFiring"/> firing cells, <see cref="MaxApproach"/> approach cells and <see cref="MaxPieces"/> pieces;
+/// native refuses a larger request.
+/// </summary>
+public sealed record DefenseProbeRequest
+{
+    public const int MaxCandidates = 16;
+    public const int MaxFiring = 8;
+    public const int MaxApproach = 24;
+    public const int MaxPieces = 4096;
+
+    public required ReadScope Scope { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DefenseCandidateProbe>))]
+    public required EquatableArray<DefenseCandidateProbe> Candidates { get; init; }
+}
+
+/// <summary>
+/// One candidate's probe: the cells its shooters stand on, the approach cells raiders walk after its walls, and its
+/// planned pieces, which the read counts as built (a full-fill piece blocks sight, any piece gives its def's cover)
+/// and of which a turret definition is probed as a planned turret.
+/// </summary>
+public sealed record DefenseCandidateProbe
+{
+    public required string Id { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> Firing { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RimGovernor.Brain.Domain.Cell>))]
+    public required EquatableArray<RimGovernor.Brain.Domain.Cell> Approach { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DefenseProbePiece>))]
+    public required EquatableArray<DefenseProbePiece> Pieces { get; init; }
+}
+
+/// <summary>One planned piece of a probed candidate: its cell and ThingDef.</summary>
+public sealed record DefenseProbePiece(RimGovernor.Brain.Domain.Cell Cell, string Definition);
+
+/// <summary>
 /// One or more unique nonnegative cells, at least one of them on the map, and the access cell a miner works from.
 /// </summary>
 public sealed record ExcavationSiteRequest

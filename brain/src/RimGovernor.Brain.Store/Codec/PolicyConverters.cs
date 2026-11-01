@@ -2470,6 +2470,7 @@ internal sealed class TierFactsConverter : ObjectCodec<TierFacts>
             Path = e.Get<EquatableArray<Cell>>("Path", o),
             Firing = e.Get<EquatableArray<FiringPosition>>("Firing", o),
             Pinned = e.Bool("Pinned"),
+            Owed = e.Dbl("Owed"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, TierFacts v, Codecs o)
@@ -2481,6 +2482,7 @@ internal sealed class TierFactsConverter : ObjectCodec<TierFacts>
         w.Put("Path", v.Path, o);
         w.Put("Firing", v.Firing, o);
         w.WriteBoolean("Pinned", v.Pinned);
+        w.WriteNum("Owed", v.Owed);
     }
 }
 

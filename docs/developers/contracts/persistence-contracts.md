@@ -164,6 +164,16 @@ mismatch); nothing is added to or removed from the save, and the layout plan rec
 `restoring_producers`; `player_disabled_power` is gone). `StoreSchemaPinTests` pins version 75 and the new codec
 shape hash.
 
+Version 76 keeps a bound defense choice's owed coverage (habitat 7.4, task 7.4 of `redefine-habitat-requirements`):
+`TierFacts.Owed` is written and read (`TierFactsConverter`), the protection of the defense the choice replaces that its
+removals wait for ([spatial contracts](spatial-contracts.md#binding-the-chosen-defense)). The layout plan blob
+(`family/layout_plan`) therefore carries the chosen alternative as one `defense_choice` planned site (`defense/<key>`, its pieces,
+firing cells and reserved cells in its `TierFacts`) and one `defense_choice` reservation holding its footprint; a
+replan keeps both (`WithBoundDefenseOf`). The choice's work Methods are session-journal Methods like any other, and
+nothing else is added to the save. `Owed` is required on read, so a plan blob written before it that holds tier facts does not decode and restores as no plan
+(the next review derives one); older session journals are replaced on load (schema mismatch). `StoreSchemaPinTests` pins version 76 and the new codec shape hash. The
+version 74 and 75 entries above stay: their changes are in force.
+
 | Home | Holds | On reload |
 |---|---|---|
 | Native game-process memory, `NativePawnActivities` | Transient installed assignment and actual running job reference plus load ID. Only an actually installed matching offer acquires the running handle; a different installed job detaches it. SQLite retains the attempted Method and reconciles remaining exact participants from fresh observations. No durable takeover or queue ledger. | Discarded on world/load or authority change; never restored as exclusive native selection permission. |
@@ -229,7 +239,7 @@ rejects an unknown field (Pieces is optional on read, so a plan saved before it 
 the save it is the blob `family/layout_plan` (`GovernorState.cs`,
 `GovernorLayoutPlanKey`), which follows the save's timeline; a blob that does not decode or is not `Valid()`
 restores as no plan the same way. The runtime records a plan only
-when it derives one, a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`; a replan keeps the defense tier nodes over the same killbox), the census finds retired ground cleared, or the defense round sites new defense tier nodes into it (`SiteTiersAsync`, #3583); a failed
+when it derives one, a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`; a replan keeps the defense tier nodes over the same killbox and the bound defense choice), the census finds retired ground cleared, or the defense round binds a chosen alternative into it (`DefenseBindingRules.Bind`, [spatial contracts](spatial-contracts.md#binding-the-chosen-defense)); a failed
 replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups, embedding,
 comfort and matched rooms) is not persisted: the ColonyReview holds it in memory and recomputes it
 at each layout review. The urgent builds waiting for a review (`UrgentBuilds`, #3537) are in memory only: a restart
@@ -387,9 +397,10 @@ journal; this schema change does not invalidate game saves.
   empties it, and every started room is open until its next reconcile.
 - **Defense verification (memory only).** The ColonyReview remembers, per world (colony, load, map), whether
   the `layout/defense` step verified the stored layout complete, at which tick and against which fight,
-  and when it last probed the turret siting (`ColonyReview.DefenseVerification`, #3008). It drives the Need's
-  Verified fact and the re-verify and siting cadence. It is not saved: a restart or a world change
-  empties it and the layout re-verifies. Combat does not read it.
+  and the comparison's deficit (`ColonyReview.DefenseVerification`, #3008; `DefenseVerified.Deficit`, habitat 7.3). It drives
+  the Need's Verified fact and the re-verify cadence. It is not saved: a restart or a world change
+  empties it and the layout re-verifies. The kept comparison (`DefenseLayoutPlanner.candidatesDecision`, keyed by
+  `DefenseBindingRules.ReviewKey`) is memory too. Combat does not read either.
 - **Sighting log (game save).** Native keeps each free colonist's observer passes of the last two days
   (`SightingLog`, the morgue and tomb credits' exposure record, #3806) and saves it with the map
   (`TrafficState.ExposeData`, a `sightings` list of ints, #3835). A save from before it loads an

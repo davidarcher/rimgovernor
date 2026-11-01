@@ -291,7 +291,7 @@ Required zone refreshes, station role facts, defense geometry and work coverage
 must succeed before a planning pass continues. A missing fact or broken invariant
 ends that pass and reaches the scheduler's existing refresh/replan owner; earlier
 coverage is never substituted. An open defense site has an empty rock list, while
-an invalid opening fails. Containment may select shared material for future
+an invalid opening fails. A bound defense choice's chain (`defense-choice-` builds, `defense-removal-` removals) waits by a named subject instead of issuing: `defense_removal_held` until the replacement's observed protection covers what it replaced, `turret_power`, `turret_shells`, `defense_staffing` and `turret_fuel` for the service its protection names, `defense_rebound` while a superseded choice's issued work retires ([spatial contracts](spatial-contracts.md#binding-the-chosen-defense)); each is re-derived from fresh facts at the next review. Containment may select shared material for future
 acquisition when no allowed material is stocked, but missing stuff facts fail.
 Unavailable optional clock status is absent in the returned step and is read
 again on the next step; other status failures propagate.

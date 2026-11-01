@@ -8,5 +8,6 @@ public static class DefenseCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(DefenseSiteStuff.Case());
         registry.Register(DefenseThreat.Case());
+        registry.Register(DefenseTemporaryCover.Case());
     }
 }

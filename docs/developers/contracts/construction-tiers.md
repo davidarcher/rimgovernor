@@ -122,7 +122,7 @@ Survive with the set-tier op (`DefenseLayoutPlanner.retier`, one
 `policy.DefensePromoted(Facts.RaidPoints, Facts.DefenseCapacity)` holds: raid
 points above the observed capacity. Unknown raid points or capacity never promote. It
 is re-evaluated each defense round; a site already at Survive is not selected,
-so the op is idempotent. While a roamer is owned, the core ring is placed Comfort
+so the op is idempotent. The pieces of a bound defense choice ([spatial contracts](spatial-contracts.md#binding-the-chosen-defense)) are placed at this tier too (`DefenseTier.DefenseBuildTier`; a perimeter or killbox choice is core, the others not); the set-tier op lifts a stored layout's tiers the comparison retains. While a roamer is owned, the core ring is placed Comfort
 so its materials arrive before other Secure builds (a promotion outranks that);
 the sequence reorder of #2230 stays.
 

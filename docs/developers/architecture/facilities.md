@@ -509,7 +509,7 @@ room with no node in the new embedding leaves the plan and its walled footprint
 goes to `RetiredGround` for planned-ground clearance (`retiredGround`); a started room with no node leaves the plan too; a held
 room with no node stays (`keepHeld`). The rooms the tiler does not plan are laid
 over its plan as `DeriveLayoutPlan` lays them: the perimeter is
-traced around what the defense record holds of it (`LayPerimeter`). The unbuilt
+kept as the defense record holds it (`RetainPerimeter`), with the bound defense choice ([spatial contracts](../contracts/spatial-contracts.md#binding-the-chosen-defense)). The unbuilt
 rooms of a seed-only plan re-tile at the first review with every fact read. A
 chain or tiler that cannot plan (`ErrStationFacts`, `ErrTile*`,
 `ErrReplanEmpty`) keeps the plan the colony has; the `layout_replan_tiled` row
@@ -545,9 +545,12 @@ the rest of the plan carries:
   `chooseVents` places vents; the `layout/climate-envelope` Need (`LayoutReview`) builds
   both.
 - **Lamps.** `LayoutPlan.Lamps` is what the lighting round builds.
-- **Perimeter.** `DeriveLayoutPlan` and `ReplanLayout` lay the ring and defense sites
-  around the tiled plan (`PlanPerimeter`, `LayPerimeter`, `LayoutPerimeter.cs`); the tier
-  nodes in them are re-sited from each census (`PlanDefenseTiers`). The routing cut is
+- **Perimeter.** `DeriveLayoutPlan` traces the ring and defense sites around the tiled plan
+  (`PlanPerimeter`, `LayoutPerimeter.cs`); a replan keeps what the defense record holds of them
+  (`RetainPerimeter`) and the bound defense choice (`DefChoice` site and `defense_choice` reservation,
+  [binding](../contracts/spatial-contracts.md#binding-the-chosen-defense)). The `layout/defense` step generates and compares
+  defense alternatives over the plan ([candidates](../contracts/spatial-contracts.md#defense-candidates-rg-habitat-009));
+  it no longer re-sites tier nodes from each census. The routing cut is
   advice that is logged only ([spatial contracts](../contracts/spatial-contracts.md#perimeter-routing-cut-2973)).
 - **Persistence.** The plan is stored whole; the advice is not
   ([persistence](../contracts/persistence-contracts.md)).

@@ -58,10 +58,10 @@ from executed passes in the existing habitat evidence page.
 
 ## 7. Threat-relevant defensive infrastructure (003, 008, 009, 010)
 
-- [ ] 7.1 Turn defense tier/killbox/perimeter builders into candidate generators and add retain, temporary cover and retreat alternatives. Verify one defensive style is not mandatory and candidates respect shared ground, civilian routes and ordinary access.
-- [ ] 7.2 Extend the existing threat/prediction boundary with native mechanics for geometry, staffing, ammunition/reload, power and civilian exposure. Verify focused recorded/native comparisons and required-fact refusal without guessed protection; do not run a broad combat sweep.
-- [ ] 7.3 Compare complete defense alternatives including construction, shared labor/resources, operating inputs and relocation downtime. Verify temporary positions/fewer structures can beat prescribed tiers, removal loses protective service and receipts alone establish no protection.
-- [ ] 7.4 Bind chosen sites/supporting work through Method/Hands and re-evaluate after losses, construction and threat changes. Extend tier-node, access and journal tests and register a narrow native claim where needed; update spatial/defense and encounter/forecast contracts plus habitat evidence, delete independent winner/admission and incomplete relocation branches, and pass the repository gate before committing and landing.
+- [x] 7.1 Turn defense tier/killbox/perimeter builders into candidate generators and add retain, temporary cover and retreat alternatives. Verify one defensive style is not mandatory and candidates respect shared ground, civilian routes and ordinary access.
+- [x] 7.2 Extend the existing threat/prediction boundary with native mechanics for geometry, staffing, ammunition/reload, power and civilian exposure. Verify focused recorded/native comparisons and required-fact refusal without guessed protection; do not run a broad combat sweep.
+- [x] 7.3 Compare complete defense alternatives including construction, shared labor/resources, operating inputs and relocation downtime. Verify temporary positions/fewer structures can beat prescribed tiers, removal loses protective service and receipts alone establish no protection.
+- [x] 7.4 Bind chosen sites/supporting work through Method/Hands and re-evaluate after losses, construction and threat changes. Extend tier-node, access and journal tests and register a narrow native claim where needed; update spatial/defense and encounter/forecast contracts plus habitat evidence, delete independent winner/admission and incomplete relocation branches, and pass the repository gate before committing and landing.
 
 ## 8. Executable redevelopment and retirement (001, 002, 003, 010, 011)
 

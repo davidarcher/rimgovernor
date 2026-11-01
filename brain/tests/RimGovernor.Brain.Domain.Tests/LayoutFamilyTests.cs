@@ -169,19 +169,20 @@ public sealed class LayoutFamilyTests
     public void TheDefenseNeedIsMetOnlyWhileTheLayoutIsVerifiedAndNoFightWaits()
     {
         var composed = new LayoutNeeds { Defense = true };
-        Need Of(bool standing, bool verified, bool waiting) =>
-            Single(composed, new() { Defense = new DefenseLayoutFacts { Standing = standing, Verified = verified, WaitingFight = waiting } });
+        Need Of(double deficit, bool verified, bool waiting) =>
+            Single(composed, new() { Defense = new DefenseLayoutFacts { Deficit = deficit, Verified = verified, WaitingFight = waiting } });
 
-        var met = Of(standing: true, verified: true, waiting: false);
+        var met = Of(deficit: 0, verified: true, waiting: false);
         Assert.Equal((LayoutFamily.Defense, NeedTier.Development, Satisfaction.Met, 0.0), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
 
-        // A fight waiting in rooms to harden, or a verification that is not current, is work; a tier owed is the deficit.
-        Assert.Equal((Satisfaction.Unmet, 0.0), (Of(true, true, true).Satisfaction, Of(true, true, true).Deficit));
-        Assert.Equal((Satisfaction.Unmet, 0.0), (Of(true, false, false).Satisfaction, Of(true, false, false).Deficit));
-        Assert.Equal((Satisfaction.Unmet, 1.0), (Of(false, false, false).Satisfaction, Of(false, false, false).Deficit));
+        // A fight waiting in rooms to harden, or a comparison that is not current, is work; the protection the chosen
+        // alternative owes is the deficit, and holds the Need unmet while it is owed.
+        Assert.Equal((Satisfaction.Unmet, 0.0), (Of(0, true, true).Satisfaction, Of(0, true, true).Deficit));
+        Assert.Equal((Satisfaction.Unmet, 0.0), (Of(0, false, false).Satisfaction, Of(0, false, false).Deficit));
+        Assert.Equal((Satisfaction.Unmet, 0.4), (Of(0.4, true, false).Satisfaction, Of(0.4, true, false).Deficit));
 
         // No hysteresis: the same facts give the same answer whatever came before.
-        Assert.Equal(Satisfaction.Met, Of(true, true, false).Satisfaction);
+        Assert.Equal(Satisfaction.Met, Of(0, true, false).Satisfaction);
 
         Assert.Equal("defense layout", Assert.Throws<RequiredFactException>(() => Single(composed, new())).Fact);
         Assert.DoesNotContain(new LayoutFamily(All).Derive(Settled), n => n.Id == LayoutFamily.Defense);
@@ -257,55 +258,25 @@ public sealed class LayoutFamilyTests
     }
 
     /// <summary>
-    /// #3586: a built tier that falls keeps its attempt count, so its reopened attempt gets a MethodId no earlier
-    /// attempt used, and its refusal budget reads only its latest attempt: a refusal of an attempt before the one that
-    /// built it no longer spends the reopened tier's budget.
+    /// A retained tier settles against the census: it is built while every placement stands and falls back to unbuilt
+    /// when one is gone, with its attempt count untouched; a legacy removal tier drops once its buildings are gone.
     /// </summary>
     [Fact]
-    public void AFallenTierReopensWithAFreshMethodIdAndAFreshRefusalBudget()
+    public void ARetainedTierSettlesAgainstTheCensus()
     {
-        var ct = TestContext.Current.CancellationToken;
-        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-defense-tier-" + Guid.NewGuid().ToString("N") + ".db"), ct);
-        IntentActionRules.RegisterIntentKinds();
-        _ = journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true,
-            Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("pawn-0", "pawn-1") }, ct);
         var barricade = new DefenseBuilding { Definition = "Barricade", Cell = new(1, 0), Rotation = Rotation.North, Stuff = "WoodLog" };
-        var tier = new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Buildings = [barricade] };
+        var tier = new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Buildings = [barricade], Attempts = 2 };
         var record = new DefenseLayoutRecord { Tiers = [tier] };
-        NeedOwner owner = default!;
-        var used = new List<MethodId>();
-        // Attempt 0 is refused permanently; attempt 1 is accepted and builds the tier.
-        foreach (var refused in new[] { true, false })
-        {
-            var method = DefenseLayoutPlanner.DefenseTierMethodId(tier);
-            used.Add(method);
-            var plan = new PlanSpec(new(method.Value), new(1), [DomainAction.NewPawnActivitiesAction(new(method.Value + "-action"), new PawnActivities(1,
-                [new($"pawn-{used.Count - 1}", "assignment", method.Value, 0, 1, false, [new(PawnActivityKind.Hold, "", "", "", 0, 500)])]))]);
-            owner = TestNeed.Commit(journal, World, method, plan, ct);
-            var action = plan.Actions[0].Id;
-            var scope = World with { Plan = plan.Id };
-            _ = journal.Prepare(plan.Id, action, scope, new(140), ct);
-            var dispatched = journal.Dispatch(plan.Id, action, scope, new(150), ct);
-            Assert.Null(Assert.Single(journal.RecordReceipts([new BatchReceipt(plan.Id, action, dispatched.View.Attempt, refused ? Receipt.Refused : Receipt.Accepted)
-                { Refusal = refused ? new("blocked", "cell/1/0", RefusalClass.Permanent) : null }], ct)).Error);
-            tier.Attempts++;
-            if (refused)
-            {
-                Assert.False(DefenseLayoutPlanner.AdmitDefenseTier(journal, owner, tier, World, ct).Admitted);
-            }
-        }
 
         var census = new DefenseCensus { Edifice = { [barricade.Cell] = "Barricade" } };
         Assert.True(DefenseLayoutPlanner.DefenseTierCensusUpdate(record, census));
-        Assert.True(tier.Built);
+        Assert.True(record.AllBuilt());
+        Assert.False(DefenseLayoutPlanner.DefenseTierCensusUpdate(record, census));
+
         census.Edifice.Clear();
         Assert.True(DefenseLayoutPlanner.DefenseTierCensusUpdate(record, census));
-
         Assert.Equal((false, 2), (tier.Built, tier.Attempts));
-        var reopened = DefenseLayoutPlanner.DefenseTierMethodId(tier);
-        Assert.Equal("defense-firing_line-2", reopened.Value);
-        Assert.DoesNotContain(reopened, used);
-        Assert.True(DefenseLayoutPlanner.AdmitDefenseTier(journal, owner, tier, World, ct).Admitted);
+        Assert.False(record.AllBuilt());
     }
 
     /// <summary>
@@ -393,8 +364,8 @@ public sealed class LayoutFamilyTests
         verification.Update(here, v => v with { Complete = true, Tick = new(10), Combat = "plan-fight" });
         Assert.True(verification.Get(here).Complete);
         Assert.Equal(new DefenseVerified(), verification.Get(reload));
-        verification.Update(reload, v => v with { TurretsProbed = new(20) });
-        Assert.Equal(new DefenseVerified { TurretsProbed = new(20) }, verification.Get(reload));
+        verification.Update(reload, v => v with { Tick = new(20) });
+        Assert.Equal(new DefenseVerified { Tick = new(20) }, verification.Get(reload));
         Assert.False(verification.Get(here).Complete);
     }
 

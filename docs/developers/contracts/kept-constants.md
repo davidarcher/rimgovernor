@@ -330,7 +330,7 @@ accumulating on a part, and the dependence of a part's loss on the raid's total 
 ## Mirrored game rules: stock arrival and work speed (#3868)
 
 `StockArrivalRules` (`brain/src/RimGovernor.Brain.Policy/StockArrival.cs`), the catalog's `StockRecipes`
-(`brain/src/RimGovernor.Brain.Bridge/Catalog/StockRecipes.cs`) and `WorkRules.ConstructionWorkPerTick` (for `DefenseBlock.ColonistWorkTicksPerDay`) mirror the work rules no
+(`brain/src/RimGovernor.Brain.Bridge/Catalog/StockRecipes.cs`) and `WorkRules.ConstructionWorkPerTick` mirror the work rules no
 def carries. Read with ilspycmd (1.7). The work amounts, speed stats, skill requirements, ingredients and benches come from the defs;
 each pawn's speed stats from the pawn (`PawnBiography.WorkSpeeds`), each bench's `WorkTableWorkSpeedFactor` from the bills census.
 
@@ -378,6 +378,35 @@ typed route, so its literals are copied from the decompiled 1.6 code (ilspycmd);
 | Trader or battery minimum | a powered trader, or a battery holding over 100 Wd, short circuits | `ShortCircuitUtility.TryShortCircuitInRain` |
 | Battery wick | a battery over 500 Wd lights 5 % of the time and its explosion draws 400 Wd | `Building_Battery.PostApplyDamage` |
 
+
+## Mirrored game rules: cover block chance (habitat 7.2)
+
+`NativeDefenseProbe.BlockChance` (`integrations/rimgovernor-native/src/Bridge/Protocol/NativeDefenseProbe.cs`) restates
+`CoverUtility.CalculateOverallBlockChance` with a candidate's planned pieces standing as cover, because
+`CoverUtility.TryFindAdjustedCoverInCell`, which carries the angle and distance factors, is private. The cover's base
+chance is read from the def (`BaseBlockChance`) and the real cover from the map (`GetCover`); only the factors below are
+copied, from the decompiled 1.7 code. The game's own result is not read back per candidate, so the mirror is a model of
+the shot geometry, not a measured block rate.
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Angle bands | the cover's chance times 1, 0.8, 0.6, 0.4, 0.2 under an angle off the shot of 15, 27, 40, 52, 65 degrees; none beyond | `TryFindAdjustedCoverInCell` |
+| Diagonal neighbour | the angle counts 1.75 times | `TryFindAdjustedCoverInCell` |
+| Distance to the shooter | the chance times 0.3333 under 1.9 cells and 0.66666 under 2.9 | `TryFindAdjustedCoverInCell` |
+| Combination | the eight neighbours' chances compound, `total += (1 - total) * chance` | `CalculateOverallBlockChance` |
+
+## Policy constants: defense candidates (habitat 7.1, 7.2)
+
+Authored choices of the defense candidates and their probe, not game rules ([spatial
+contracts](spatial-contracts.md#defense-candidates-rg-habitat-009)). Each is a bound on how much the comparison asks of the
+game or a size for a sandbag line, and none is a veto: the candidate it cuts down is still compared with what it holds.
+
+| Constant | Where | Value | Why it is a choice |
+| --- | --- | --- | --- |
+| Temporary cover line | `DefenseCandidateRules.CoverHalf`, `CoverOffset` | 5 bags (two each side of the entrance), 3 cells outside it | A sandbag line wide enough to shield a doorway's firing positions, standing clear of the core wall so a raider stopped at it is in range of the seats behind it. The game states no size. |
+| Probed raids | `DefenseProtectionRules.ProbedRaids` | 3 | The newest ground raids' walks stand for where raiders arrive; more walks cost probe cells without more edges. |
+| Approach stride | `DefenseProtectionRules.ApproachStride` | every 3rd walked cell | Samples a walk densely enough to see its last stretch inside the weapons' reach and sparsely enough to fit the 24-cell bound. |
+| Probe bounds | `DefenseProbeRequest.MaxCandidates`, `MaxFiring`, `MaxApproach`, `MaxPieces` | 16, 8, 24, 4096 | Input bounds on one batched main-thread read; native refuses a larger request. A candidate with more firing cells is probed on its first eight. |
 
 ## Mirrored game rules: trader stock (#3869)
 

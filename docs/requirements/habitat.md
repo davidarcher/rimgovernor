@@ -547,7 +547,8 @@ measured servicing work. The [forecast](../developers/contracts/forecast-contrac
   vanilla labor would pre-empt the brain). It asserts that no blueprint or frame appears, that `refuel-<generator>` and
   `repair-<wall>` are selected through the normal path, that each Need stays open while its order is in flight and closes
   only on the observed fuelled and powered generator, powered stove and full-health wall. It is registered and compiles
-  but was not executed; the nightly `-full` run or task 9.4 executes it. No run has read the native servicing census, so
+  only: it is OnDemand, and OnDemand native cases are executed by no automated run (not the normal gate, not
+  `RimGovernor.cmd test -full`, which only forces the normal gate, and not the nightly). No run has read the native servicing census, so
   no native evidence exists for this milestone, and no executed pass is claimed.
 
 Known limits, stated rather than priced:
@@ -560,8 +561,8 @@ Known limits, stated rather than priced:
 - only the harvest path of fuel acquisition is modelled (chemfuel production and trade are the named state
   `fuel acquisition:<def>`), and no component acquisition path exists (`component acquisition:<def>`);
 - a turret's and other non-power buildings' service value is unmodelled (`service:<def>`), and the use-driven fuel
-  rate of a per-use comp is named (`fuel use rate:<def>`), not priced, so a turret's refuel is still held
-  (`unsupported_forecast_turret_refuel`);
+  rate of a per-use comp is named (`fuel use rate:<def>`), not priced; a gun turret's refuel is nonetheless issued by the
+  defense step through this servicing choice ([H14](#h14--defense-alternatives-probed-compared-and-bound-as-a-planned-site));
 - the supply legs assume the nearest reservable stack serves every load (`servicing_supply_nearest_stack_legs`);
 - deconstruction needs a designation, worked by native labor, so a replacement depends on both giver work types
   being active;
@@ -630,7 +631,8 @@ capability-days. The [spatial](../developers/contracts/spatial-contracts.md#fiel
 - **Native cases.** OnDemand `upkeep/restore-service` (H12) and OnDemand
   [power/configure-and-route](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Power/PowerConfigureAndRoute.cs)
   (a fuelled wood-fired generator wired to a cooler and three idle electric stoves, and a lamp out of the conduit's
-  reach) are registered and compile, and neither was executed. `power/configure-and-route` expects a `configure-`
+  reach) are registered and compile only; OnDemand native cases are executed by no automated run (not the normal gate, not
+  `RimGovernor.cmd test -full` and not the nightly). `power/configure-and-route` expects a `configure-`
   Method's switches to turn an idle stove off, a colonist to flick it, the building read to observe its switch off, the
   cooler to stay powered and a conduit to reach the lamp. Only the game proves the native power gizmo, the flick and the
   switch readback, so no native evidence exists for this milestone and no executed pass is claimed.
@@ -660,3 +662,78 @@ Known limits, stated rather than priced:
   untested in game;
 - the field ledger's fertility, season and roofing reads and the herd's feeding runway are policy checks, not native
   results, and no field or pen was built under the new comparison in a game.
+
+### H14 — Defense alternatives probed, compared and bound as a planned site
+
+Milestone 7 (RG-HABITAT-009, with -003, -008 and -010 where noted) replaces the fixed killbox, the tier order, the
+perimeter ring and the turret proposals with generated alternatives, a game-geometry probe of what each protects, a
+comparison priced in capability-days, and one chosen alternative bound into the layout plan and worked as a chain. The
+[spatial](../developers/contracts/spatial-contracts.md#defense-candidates-rg-habitat-009),
+[forecast](../developers/contracts/forecast-contracts.md#raid-harm-and-protection-in-the-defense-comparison),
+[action](../developers/contracts/action-contracts.md#defense-chain-methods-habitat-74),
+[upkeep](../developers/contracts/upkeep-contracts.md#defensive-layout),
+[otel](../developers/contracts/otel-signals.md),
+[kept-constants](../developers/contracts/kept-constants.md#mirrored-game-rules-cover-block-chance-habitat-72) and
+[persistence](../developers/contracts/persistence-contracts.md) (schema 76) contracts own the behavior.
+
+- **Alternatives (RG-HABITAT-009, -003).** [DefenseCandidatesTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/DefenseCandidatesTests.cs)
+  check that with no threat read no killbox is laid and the other alternatives still stand, that ground a field or a
+  bedroom holds refuses the candidate naming the holder, that closing the only door excludes a candidate by its route
+  while a longer route is priced by the added cells, that Retreat uses the standing interior doors and claims no ground,
+  that sandbags need no research and turrets do (`research:<prereq>`), and that the order is by kind and cells, never a
+  tier index. [DefenseTierNodesTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/DefenseTierNodesTests.cs) carry the
+  killbox tiers the Killbox candidate lays.
+- **Probed protection (RG-HABITAT-009, -008).** [DefenseProtectionTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/DefenseProtectionTests.cs)
+  check that rows join the candidates by id and an unknown id is refused, that violence-incapable and downed colonists
+  are not staffing, that an unpowered turret protects nothing and is named `power:<turret>` while a powered one fires
+  its burst, that rifles need no ammunition and a mortar counts its shells, that a field on the approach counts before the
+  wall and not after, that a recorded native reply gives the cover and the doored perimeter different protection, that a
+  raider's weapon range sets the exposed positions, that the probe round-trips exactly, and that no observed arrival
+  edge leaves every term unassessed rather than zero. The probe is bounded at 16 candidates, 8 firing and 24 approach
+  cells each and 4096 pieces.
+- **Comparison (RG-HABITAT-009, -010).** [DefenseChoiceTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/DefenseChoiceTests.cs)
+  check that a sandbag line beats a doored perimeter at the same protection until its sight is fogged, that Retreat wins
+  when every firing line needs more shooters than the colony has, that replacing a killbox with a perimeter carries its
+  downtime and unread threat timing retains, that removing standing sandbags is charged their protection, that claimed
+  builders lengthen the lead and a short power network interrupts a turret, that an accepted build leaves the deficit
+  until the piece stands and draws, that ties go to Retain, and that a temporary line wins on a game-shaped reading and
+  retains while any of it is unread. An alternative with an unassessed term the baseline has assessed never wins.
+- **Binding and the chain (RG-HABITAT-009, -010).** [DefenseBindingTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/DefenseBindingTests.cs)
+  check that the chosen defense is a planned site whose ground other planners keep off, that ordinary doors are kept and
+  closing an access path is excluded, that a bound choice survives load without reselection, that a destroyed piece
+  reopens its build, that losing the replacement midway holds the removal, that a refused build spends the refusal budget
+  and that a multi-cell piece's preview is checked over its whole footprint. [DefenseNamedStatesTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/DefenseNamedStatesTests.cs)
+  check that a spent turret barrel is refuelled through the servicing choice and an unpowered or empty one is a service
+  deficit. [StoreSchemaPinTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/StoreSchemaPinTests.cs) pin schema 76.
+- **Native case.** OnDemand `defense/temporary-cover`
+  ([TemporaryCover](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Defense/TemporaryCover.cs), 30,000 ticks: a walled
+  hut with one door, a colonist with an assault rifle, no standing defense and one hostile gunner walking in from the map
+  edge) expects the comparison to bind the sandbag TemporaryCover and work a `defense-choice-temporary_cover-` Method,
+  every blueprint and frame to be sandbags, the Need to stay open while they are only ordered and to close only on the
+  observed built sandbags. It is registered and compiles only. OnDemand native cases are executed by no automated run:
+  not the normal gate, not `RimGovernor.cmd test -full` (which only forces the normal gate) and not the nightly. Only the
+  game proves the native raid track and its weapon range, the probe of standing cover and the closing facts, so no
+  native evidence exists for this milestone and no executed pass is claimed.
+
+These are executed policy and boundary checks through the full gate (4,542 domain tests and 30 workflow tests at the milestone 7.4 commit, contract orphans none).
+
+Known limits, stated rather than priced:
+
+- the chain does not claim builders per pawn (`BuildingAction` carries no pawn); free builders are netted only through the
+  work view, and the lead is optimistic accordingly;
+- the approximations of the comparison: a power shortfall scales the whole coverage instead of the turrets it starves,
+  and removing a defense charges its full baseline protection;
+- `Covered` is a probed-cell fraction, a stated stand-in for the share of the loss the defense stops, not a simulated
+  fight; the approach cells are the newest three observed ground raids' walks sampled every third cell (a policy choice),
+  so a colony that has seen no ground raid since load has every term unassessed (`arrival_edges:none_observed_since_load`)
+  and no term is compared as a number;
+- the cover block chance restates the private `CoverUtility.TryFindAdjustedCoverInCell` factors
+  ([kept constants](../developers/contracts/kept-constants.md#mirrored-game-rules-cover-block-chance-habitat-72));
+- raider weapon range comes from the native raid track and is memory, not saved: it is read live only, and the native
+  read has not been run in a game;
+- a killbox's mining is unpriced (`dig:mining_unpriced`), a turret or other unvalued consumer's loss is a lower bound,
+  and an unpriced piece is `piece:<def>`;
+- `RetainPerimeter`, `PerimeterHold` and the stored `DefenseLayoutRecord` are still read for a layout the comparison
+  retains; a stored layout's retier, turret power hold and cover clearance are the older tier-by-tier code;
+- the planned perimeter and killbox sites are still traced with `PlanPerimeter`, and the routing cut stays advice that is
+  logged only.

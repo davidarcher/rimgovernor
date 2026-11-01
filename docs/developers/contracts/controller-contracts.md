@@ -78,9 +78,9 @@ orders without reserving a builder for a Concern.
 Inspection-specific prerequisite checks determine useful work.
 There is no stage and no generic development admission queue. Every planner runs; none is held by name, and no
 Need holds the Construction labor (#3659 deleted the starter shelter's hold): the tier of each action orders the
-builders' work. The defense layout's killbox digs (#2818)
-also wait on a raid: no `military/combat` fight in the journal files `awaiting_plan:raid`, and
-the first raid releases them. An item on a ring cell is never an obstruction (the
+builders' work. The defense layout step (#2818) waits on a raid: no `military/combat` fight in the journal
+files `awaiting_plan:raid` before it generates or compares anything, and the first raid releases it (a killbox's digs are
+part of the Killbox candidate it then compares). An item on a ring cell is never an obstruction (the
 builder hauls it aside when the wall goes over it), so a ring cell waits on no haul. A ring is not
 placed in a stuff with no accessible stock while the start kit is still forbidden
 (`awaiting_plan:start_kit`); the admin/supply-safety Need releases the kit like any safe forbidden

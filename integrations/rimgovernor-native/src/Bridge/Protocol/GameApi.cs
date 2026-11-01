@@ -205,6 +205,9 @@ namespace RimGovernor.Native
         public Task<RimGovernor.Brain.GameFacts.Observations.LinesOfFireSnapshot> ReadLinesOfFireAsync(RimGovernor.Brain.GameOrders.Observations.LinesOfFireRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadLinesOfFire, request, () => NativeDefenseObservationTools.HandleReadLinesOfFire(request), cancellationToken);
 
+        public Task<RimGovernor.Brain.GameFacts.Observations.DefenseProbeSnapshot> ReadDefenseProbeAsync(RimGovernor.Brain.GameOrders.Observations.DefenseProbeRequest request, CancellationToken cancellationToken)
+            => Read(NativeOps.ReadDefenseProbe, request, () => NativeDefenseProbe.HandleRead(request), cancellationToken);
+
         public Task<RimGovernor.Brain.GameFacts.Presentation.NotificationsSnapshot> ReadNotificationsAsync(RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadNotifications, request, () => NativeNotificationReadTools.HandleNotifications(request), cancellationToken);
 

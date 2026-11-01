@@ -180,36 +180,40 @@ materials come back.
 
 ### Defensive layout
 
-`layout/defense` (opt-in, #3314; it replaced `EnsureDefensiveLayout`) commits one stored corridor layout per colony and builds
-it tier by tier; a tier is `Built` only while every building is observed in the defense-site
-census. Geometry is the `policy` layout planner's: a zigzag corridor kill zone with a single
-defenders' doorway, sized from defenders and turrets, no door on the raiders' route.
+`layout/defense` (opt-in, #3314; it replaced `EnsureDefensiveLayout`) compares generated defense alternatives against
+retaining the plan's defense, binds the chosen one into the layout plan and works it as a chain; the geometry, the probe,
+the comparison and the binding are in the [spatial contracts](spatial-contracts.md#defense-candidates-rg-habitat-009). A
+layout the comparison retains keeps the stored corridor layout's tiers (a tier is `Built` only while every building is
+observed in the defense-site census); its geometry is the `policy` layout planner's: a zigzag corridor kill zone with a
+single defenders' doorway, sized from defenders and turrets, no door on the raiders' route.
 
 - Traps sit on the raiders' cheapest line (a spike trap costs a faction pawn 800, raiders
   nothing) while the hallway keeps colonists a cheaper trap-free route
   (`policy.hallwayAvoidsTraps`, `policy.colonistRouteAvoidsTraps`). Shooter cell floors are
   terrain; a floor the native preview refuses is dropped from the tier.
-- A `Complete` record is re-verified after each combat epoch (the latest `engage-<map>` plan) and once per game hour:
-  a tier that lost a building re-opens under a new repair prefix, so earlier refusals do not bar it, as a new tier method while
-  `Complete` stays true. A missing building whose cell carries a blueprint or frame is not
-  placed again; the planner waits for the build. Defenders are undrafted once
+- A verified layout is re-verified after each combat epoch (the latest `engage-<map>` plan) and once per game hour, and
+  early when the comparison's inputs change (`DefenseBindingRules.ReviewKey`): a stored tier that lost a building
+  re-opens under a new repair prefix, so earlier refusals do not bar it. A missing building whose cell carries a
+  blueprint or frame is not placed again; the planner waits for the build. Defenders are undrafted once
   the `military/combat` standing stops authorizing the hold plan.
 - Combat holds the line only against an ordinary edge assault in front of the cover row
   (`policy.BehindFiringLine`). Sieges, sapper or breach toil, drops, engaged raiders and
   raiders past the cover row get squad defense. A raider at or behind the cover row or lord
   evidence turning to breach/sapper cancels the hold's orders (`hold_fallback`); unknown
   position or lord evidence never abandons a hold.
-- The `turrets` tier needs observed gates: turret definition researched in the census, a
-  generating network with spare watts for every draw, stock covering turrets and conduits.
-  Placement, spacing and conduit routing are the planner's; an unroutable turret is dropped.
-  A layout without turrets re-probes once per game hour. A standing unpowered turret is a
-  deficit (`unpowered`) owned by the `power/basic` Need's network; damage is
-  the `home-upkeep/repairs` Need's. While every tier stands the Need reports a known zero
-  deficit, and it is met while the verification is current and no fight waits.
-- An observed empty barrel (`unfuelled`) is a tier deficit. With fuel in stock the concern
-  waits (`unsupported_forecast_turret_refuel`): a routine refuel needs exact fuel, worker and
-  outcome alternatives. With none, the fuel runway (below) already demands the refill.
-  Unknown fuel state is neither deficit nor order.
+- Turrets are a candidate kind, not a tier with its own admission: whether a turret definition may stand is the catalog's
+  availability (`research:<prereq>`), and whether its emplacement protects is probed, so an unpowered turret is named
+  `power:<turret>` (the `power/basic` Need's network owns the power; the chain holds with `turret_power` until the probe
+  shows it powered), a mortar with no shell `shells:<turret>` (held as `turret_shells` for military equipment) and an
+  unmanned emplacement `staffing:<needed>/<available>` (`defense_staffing`). Damage is the `home-upkeep/repairs`
+  Need's. A known zero deficit means every piece stands and the probed protection covers what the defense it replaced
+  gave; the Need is met while the verification is current, no fight waits and the deficit is zero.
+- An observed empty barrel of a standing gun turret (`CompRefuelable` out of fuel; vanilla's "rearm") is refuelled through
+  the servicing choice, as the power family refuels a generator: the maintenance choice over the fuel deficit picks the
+  pawn and the order is the exact `refuel-<turret>-<pawn>` Method (`DefenseRearm.Refuels`, `Methods`), claiming the
+  turret and pawn; a running native refuel is observed rather than reordered, its refusals spend that order's budget, and
+  a barrel no alternative can refuel holds the step as `turret_fuel`. With none in stock the fuel runway (below) demands
+  the refill. Unknown fuel state is neither deficit nor order.
 
 ### Fuel runway
 
@@ -591,9 +595,9 @@ under it; it has no latch, and unknown temperature or room facts leave it unknow
   second bill of a recipe the bench already carries, but one claim per bench and recipe
   per load. Without the flare hold or with reserved targets covering the stock it
   proposes nothing.
-- During the flare the defensive layout treats its turret tier as absent rather than
+- During the flare the defensive layout treats its turrets as absent rather than
   unserviced (`DefenseRearmTurrets` reports no `unpowered` cell; empty barrels are still
-  rearmed).
+  refuelled).
 
 ### Lighting and flooring
 

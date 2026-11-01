@@ -253,7 +253,6 @@ committing orders. Their Concerns remain unmet:
 | Corpse storage delivery | unsupported_forecast_corpse_delivery |
 | Quest monument delivery | unsupported_forecast_monument_delivery |
 | Empty throne-room light | unsupported_forecast_throne_refuel |
-| Routine turret refuel | unsupported_forecast_turret_refuel |
 | Ideology ritual / bestowing | unsupported_forecast_ritual / unsupported_forecast_bestowing |
 | Monolith interaction | unsupported_forecast_monolith |
 | Quest grav inspection / site help | unsupported_forecast_grav_inspection / unsupported_forecast_site_help |
@@ -262,7 +261,8 @@ Essential structure repair, breakdown fix, producer refuel and the door-to-wall 
 table: the `home-upkeep/repairs` and `power/basic` Needs compare them as measured servicing work
 and issue the chosen repair, fix or refuel as an exact Need Method
 ([upkeep](upkeep-contracts.md#repairs-cleaning), [power](power-contracts.md#restoration)); the swap
-is a native designation the comparison permits. The turret and throne-light refuels remain held
+is a native designation the comparison permits. A gun turret's refuel left it too: the defense step issues it through
+the servicing refuel choice ([upkeep](upkeep-contracts.md#defensive-layout)). The throne-light refuel remains held
 above.
 
 Supporting these outcomes requires exact candidate alternatives, shared

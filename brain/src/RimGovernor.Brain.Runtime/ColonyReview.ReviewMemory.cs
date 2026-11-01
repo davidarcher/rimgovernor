@@ -85,10 +85,10 @@ internal sealed class TradeReviewMemory
     }
 }
 
-/// <summary>What the <c>layout/defense</c> Need's step last verified of the stored layout (#3008).</summary>
+/// <summary>What the <c>layout/defense</c> Need's step last verified of the defense (#3008): its comparison and the protection the chosen alternative owes.</summary>
 internal sealed record DefenseVerified
 {
-    /// <summary>The step found every tier admitted and none owed, at <see cref="Tick"/>.</summary>
+    /// <summary>The step compared the defense alternatives (and kept a stored layout's tiers standing), at <see cref="Tick"/>.</summary>
     public bool Complete { get; init; }
 
     /// <summary>When the step last verified the layout or spent a tier's refusal budget: the re-verify window starts here.</summary>
@@ -97,8 +97,8 @@ internal sealed record DefenseVerified
     /// <summary>The map's latest fight plan at <see cref="Tick"/>; a newer fight makes the layout re-verify.</summary>
     public string Combat { get; init; } = "";
 
-    /// <summary>When the step last probed the turret and mortar siting or a turret replacement; the default probes at once.</summary>
-    public Tick TurretsProbed { get; init; }
+    /// <summary>The coverage the latest comparison's chosen alternative owed beyond what of it stood (DefenseDecision.Deficit).</summary>
+    public double Deficit { get; init; }
 }
 
 /// <summary>

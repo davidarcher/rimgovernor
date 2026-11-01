@@ -145,6 +145,9 @@ public static partial class LayoutOverlayRules
             [NodeKind.DefMortars] = St(PlanViolet, "mortars"),
             [NodeKind.DefIEDs] = St(PlanBrown, "IEDs"),
             [NodeKind.DefBait] = St(PlanTan, "bait"),
+
+            // The defense alternative the comparison chose and bound (DefenseBindingRules).
+            [NodeKind.DefChoice] = St(PlanGreen, "chosen defense"),
         };
     }
 

@@ -55,7 +55,7 @@ public sealed partial class DefenseLayoutPlanner
         foreach (var b in buildings)
         {
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), b, DefenseTier.DefenseBuildTier(promoted, false, false));
-            var (preview, ok) = await PreviewAsync(action, snapshot, tick, b.Cell, call).ConfigureAwait(false);
+            var (preview, ok) = await PreviewAsync(action, snapshot, DefenseSize(read.Reading, b.Definition), call).ConfigureAwait(false);
             if (!ok)
             {
                 continue;

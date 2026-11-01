@@ -174,8 +174,8 @@ gives its subject up with `retry_budget_spent` carrying the real reason, a trans
 one stays allowed and visible (`refusal_unknown`). The tend, rescue, repair, equip,
 mood relief and cast, exhausted-drill removal, ash cleaning, clearance, husbandry,
 population (custody, containment, joiner, lance, monolith, prisoner interaction),
-quest, ideology, ritual, permit, defense layout (tier, rearm and cover), firebreak, mine, sleeping and throne assignment, trade open and psylink planners use it: they derive the ledger each step
-from the refusals journaled on their methods' plans (`refusalLedger`), keyed by the method-ID prefix (equip: by pawn; defense tier: tier and repair; rearm: turret; psylink: colonist; mine: rock; trade open: caravan; assignment: pawn and bed), judged against the session
+quest, ideology, ritual, permit, defense layout (the bound choice's builds and removals, stored tiers, turret refuel and cover), firebreak, mine, sleeping and throne assignment, trade open and psylink planners use it: they derive the ledger each step
+from the refusals journaled on their methods' plans (`refusalLedger`), keyed by the method-ID prefix (equip: by pawn; defense choice: `defense-choice-<kind>-` and `defense-removal-` prefixes; stored tier: tier and repair; turret refuel: turret; psylink: colonist; mine: rock; trade open: caravan; assignment: pawn and bed), judged against the session
 snapshot with its plan and revision dropped. A spent subject is a `retry_budget_spent` refusal
 whose detail is native's reason, a waiting one a `retry_budget_waiting` wait; accepted,
 interrupted and unclassified methods spend nothing, and method identity (`nextMethodID`) is
@@ -217,6 +217,23 @@ returns applied rather than refused.
 | Remove production bill (`RemoveProductionBillIntent`) | Bench not a loaded bill giver or bill not on the bench (NotFound); not an ordinary production bill (medical and mech bills stay). A bill already gone is refused, not applied again. |
 | Research selection (`ResearchIntent`) | Known project, not anomaly knowledge, unfinished and startable now (`CanStartNow`); the current project applies again. Applied is terminal, refused replans. |
 | Area (`AreaIntent`) | Operation required; exactly one of home, pollution_clear or a bot area key; home and pollution-clear areas are never created or deleted; delete takes no cells; cell edits need cells in bounds; the map cannot make another allowed area (`CanMakeNewAllowed()` false); bot area does not exist (NotFound). No snapshot token. |
+
+### Defense chain Methods (habitat 7.4)
+
+The `layout/defense` Need owns a bound defense choice's work as Methods of the chain
+([spatial contracts](spatial-contracts.md#binding-the-chosen-defense)):
+
+| Method | Actions | Notes |
+|---|---|---|
+| `defense-choice-<kind>-<sha8>` | one `Building` action per free unbuilt piece (the digest is of the pieces' `<def>@x,z`) | Placed at the defense build tier (`DefenseBuildTier`); each piece is previewed natively over its whole footprint and a refused preview refuses the admission (`placement_preview_refused`); a piece whose cell holds native work is left to it. Admitted through `ReviewRefusalBudget.AdmitOwnerSubject` under the kind's prefix. |
+| `defense-removal-<sha8>` | one `Deconstruction` action per standing building a remaining piece replaces (the digest is of the building ids) | Issued only once the replacement's observed protection covers the coverage owed; a protected building holds it (`protected_thing:<id>`). Its own budget prefix. |
+| `refuel-<turret>-<pawn>` | one `RecoveryService` refuel | A spent gun-turret barrel is a servicing refuel through the maintenance choice, the same exact order the power family issues; a running native refuel is observed, not reordered. |
+
+A rebind retires the superseded choice's Methods: their pending and prepared actions are cancelled so their claims
+release, and orders Hands already issued finish. A lost replacement piece reopens its build and cancels the removals not
+yet issued. Builders are not claimed per pawn: a `Building` action carries no pawn, so the chain nets free builders
+only through the work view. The chain's Methods are not counted as open defense work by the step's open-work check
+(`DefensePipeline.DefenseWorkOpen`): the step re-compares over them each review.
 
 ## Trades
 

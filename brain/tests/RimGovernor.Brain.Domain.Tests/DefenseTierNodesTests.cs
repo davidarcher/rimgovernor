@@ -53,23 +53,6 @@ public sealed class DefenseTierNodesTests
         Assert.IsType<CombatChoke.NoCorridor>(bare.Choke);
     }
 
-    [Fact]
-    public void ThePinsTakeTheirGeometryFromThePlan()
-    {
-        var record = new DefenseLayoutRecord
-        {
-            Tiers =
-            [
-                new DefenseTierRecord { Name = DefenseLayout.TierChokepoint },
-                new DefenseTierRecord { Name = DefenseLayout.TierFiringLine, Built = true },
-            ],
-        };
-        var pins = DefenseLayoutPlanner.DefenseTierPins(record, Staged(), null);
-        Assert.True(pins.Tiers.ContainsKey(DefenseLayout.TierFiringLine));
-        Assert.Equal(Firing, pins.Firing.ToArray());
-        Assert.Equal(Lane, pins.TrapLane.ToArray());
-    }
-
     private static readonly DefenseDefinitions Defs = DefenseLayoutPlanner.DefenseDefinitionNames;
 
     private static readonly Cell[] Walls = [new Cell(26, 30), new Cell(34, 30)];
@@ -108,15 +91,25 @@ public sealed class DefenseTierNodesTests
         var record = new DefenseLayoutRecord();
         foreach (var t in layout.Tiers)
         {
-            record.SetPolicyTier(t);
+            record.Tiers.Add(new DefenseTierRecord
+            {
+                Name = t.Name,
+                Buildings = [.. t.Buildings.Select(b => new DefenseBuilding { Definition = b.Definition, Cell = b.Cell, Rotation = b.Rotation, Stuff = b.Stuff })],
+            });
         }
         return record;
     }
 
-    private static LayoutPlan ProposedPlan() => LayoutPlan.OpeningPlan(Rotation.South).WithProposedTiers(Defs, Proposed());
+    /// <summary>The opening plan with the proposed layout cut into tier nodes under its killbox, nothing pinned.</summary>
+    private static LayoutPlan ProposedPlan()
+    {
+        var plan = LayoutPlan.OpeningPlan(Rotation.South);
+        var (under, _, _) = LayoutPlan.KillboxNode(plan);
+        return plan.WithDefenseTiers(DefenseTiersPolicy.TierNodes(under, Defs, Proposed(), []));
+    }
 
     [Fact]
-    public void AFreshlyProposedLayoutHasItsTierNodesInThePlan()
+    public void ALayoutCutIntoTierNodesRoundTripsInThePlan()
     {
         var layout = Proposed();
         var plan = ProposedPlan();
@@ -133,40 +126,23 @@ public sealed class DefenseTierNodesTests
     }
 
     [Fact]
-    public void AStartedTierStaysPinnedFromItsPlanNodesAcrossAReSite()
+    public void APinnedTierKeepsItsPlanNodesAcrossAReSite()
     {
-        var plan = ProposedPlan();
-        var record = RecordOf(Proposed());
-        // The firing line was admitted and every building of it is destroyed; one funnel wall stands with no attempt
-        // admitted; the turrets are unstarted.
-        record.Tiers.Single(t => t.Name == DefenseLayout.TierFiringLine).Attempts = 1;
-        var census = new DefenseCensus { Edifice = { [Walls[0]] = Defs.Wall } };
-        var pins = DefenseLayoutPlanner.DefenseTierPins(record, plan, census);
-        var planned = plan.PlannedDefenseTiers();
-
-        Assert.Equal(
-            new[] { DefenseLayout.TierChokepoint, DefenseLayout.TierFiringLine, DefenseLayout.TierFunnel }.Select(n => n.Value).Order(),
-            pins.Tiers.Keys.Select(n => n.Value).Order());
-        foreach (var (name, pin) in pins.Tiers)
+        var planned = ProposedPlan().PlannedDefenseTiers();
+        var pins = new DefenseTierPins
         {
-            // The whole tier is pinned as its nodes hold it, its destroyed placements included.
-            Assert.Equal(planned[name], pin);
-        }
-        Assert.Equal(Walls.Length, pins.Tiers[DefenseLayout.TierFunnel].Buildings.Count);
-        Assert.Equal(Firing.Length * 2, pins.Tiers[DefenseLayout.TierFiringLine].Buildings.Count);
+            Tiers = new Dictionary<DefenseTierName, DefenseTier> { [DefenseLayout.TierFunnel] = planned[DefenseLayout.TierFunnel] },
+        };
 
-        // A re-site that would move every tier keeps the pinned ones where the plan holds them and moves the unstarted turrets.
+        // A re-site that would move every tier keeps the pinned funnel where the plan holds it and moves the rest.
         var (resited, pinned) = DefenseTiersPolicy.ApplyPins(Proposed(shift: 3), pins);
         Assert.Equal(planned[DefenseLayout.TierFunnel].Buildings, resited.Tiers.Single(t => t.Name == DefenseLayout.TierFunnel).Buildings);
-        Assert.Equal(3, pinned.Count);
-        DefenseLayoutPlanner.SiteUnstartedTiers(record, new DefenseTiers { Layout = resited }, pins);
-        Assert.Equal(Walls, record.Tiers.Single(t => t.Name == DefenseLayout.TierFunnel).Buildings.Select(b => b.Cell));
-        Assert.Equal(1, record.Tiers.Single(t => t.Name == DefenseLayout.TierFiringLine).Attempts);
-        Assert.Equal(new Cell(MiniTurret.X + 3, MiniTurret.Z), record.Tiers.Single(t => t.Name == DefenseTurretsPolicy.TierTurrets).Buildings.Single().Cell);
+        Assert.Single(pinned);
+        Assert.Equal(new Cell(MiniTurret.X + 3, MiniTurret.Z), resited.Tiers.Single(t => t.Name == DefenseTurretsPolicy.TierTurrets).Buildings.Single().Cell);
     }
 
     [Fact]
-    public void CoverAndTurretReplacementReadThePlansReservedCells()
+    public void TheRecordLayoutReadsThePlansReservedCells()
     {
         var plan = ProposedPlan();
         var record = RecordOf(Proposed());
@@ -178,23 +154,6 @@ public sealed class DefenseTierNodesTests
         {
             Assert.Equal(planned[t.Name].Reserved, t.Reserved);
         }
-        var geometry = DefenseLayoutPlanner.DefenseRecordGeometry(record, plan, killbox);
-        var expected = planned.Where(kv => kv.Key != DefenseTurretsPolicy.TierTurrets).SelectMany(kv => kv.Value.Reserved).ToHashSet();
-        Assert.True(expected.SetEquals(geometry.Reserved));
-        Assert.DoesNotContain(MiniTurret, geometry.Reserved);
-
-        // The replacement anchors on the same cell; the turret node's reservation becomes the new footprint by its size.
-        var old = At(DefenseTurretsPolicy.TurretMini, MiniTurret, "Steel");
-        var replacement = At(DefenseTurretsPolicy.TurretAutocannon, MiniTurret, "Steel");
-        var size = new Bounds(2, 2);
-        var standing = new[] { new StandingTurret(old, [.. DefenseTurretsPolicy.TurretFootprint(MiniTurret, new Bounds(1, 1))]) };
-        var replaced = DefenseLayoutPlanner.ApplyTurretReplacement(record, plan, old, replacement, standing, size);
-        var turrets = replaced.PlannedDefenseTiers()[DefenseTurretsPolicy.TierTurrets];
-        Assert.Equal(replacement, turrets.Buildings.Single());
-        Assert.Equal(DefenseTurretsPolicy.TurretFootprint(MiniTurret, size).ToHashSet(), turrets.Reserved.ToHashSet());
-        Assert.Equal(replacement.Definition, record.Tiers.Single(t => t.Name == DefenseTurretsPolicy.TierTurrets).Buildings.Single().Definition);
-        var after = DefenseLayoutPlanner.DefenseRecordLayout(record, replaced, killbox);
-        Assert.Equal(turrets.Reserved, after.Tiers.Single(t => t.Name == DefenseTurretsPolicy.TierTurrets).Reserved);
     }
 
     [Fact]
@@ -206,18 +165,6 @@ public sealed class DefenseTierNodesTests
         var moved = LayoutPlan.OpeningPlan(Rotation.North).WithDefenseTiersOf(prev);
         Assert.Empty(moved.DefenseTierGeometry().Firing);
         Assert.Empty(moved.DefenseTierGeometry().TrapLane);
-    }
-
-    [Fact]
-    public void ASitingIsRecordedInThePlanOnlyWhenTheRecordTakesItAndTheNodesChanged()
-    {
-        var plan = LayoutPlan.OpeningPlan(Rotation.South);
-        var staged = Staged();
-        var nodes = staged.Sites.Where(s => DefenseTiersPolicy.IsDefenseTierNode(s.Kind)).ToList();
-        var sited = new DefenseTiers { Nodes = EquatableArray.From(nodes), Layout = new DefenseLayout { Firing = EquatableArray.From(Firing) } };
-        Assert.Equal(Firing, DefenseLayoutPlanner.DefenseTiersStored(plan, sited)!.DefenseTierGeometry().Firing.ToArray());
-        Assert.Null(DefenseLayoutPlanner.DefenseTiersStored(staged, sited));
-        Assert.Null(DefenseLayoutPlanner.DefenseTiersStored(plan, sited with { Refusal = "no corridor" }));
     }
 
     [Fact]

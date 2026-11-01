@@ -616,7 +616,7 @@ perimeter (`PlanMountainPockets(PlanPerimeter(...))`). `ReplanLayout` pins the s
 tiled plan wholesale, except that an unbuilt, unpinned room keeps its site and id unless the new embedding beats the held arrangement by `ReplanGain` (#3740), and a room tiled on the interior it had keeps its id either way. It then puts back the held rooms the tiler left out (`keepHeld`),
 retires the ground of a started room (`growth.Fixed`: built, or anything of ours on its walls) that has no node (`retiredGround`, #3742), carries the
 and traces the perimeter around
-what the defense record holds (`LayPerimeter`). What moves among built rooms is decided
+what the defense record holds as it stands (`RetainPerimeter`) and the bound defense choice (`WithBoundDefenseOf`). What moves among built rooms is decided
 inside the embedder by the switching price (`switchThreshold`, `LayoutBuilt.cs`:
 `ReplanGain` plus `BuiltSwitch` and `BuiltSwitchCell` per cell of the room's area). A failed replan
 (`ReplanEmptyException`, `RequiredFactException`) keeps the saved plan. The runtime derives when no
@@ -1003,7 +1003,10 @@ cells) are omitted on ambiguous geometry or fog; unknown never means heat-ready.
 ## Defense tier counts
 
 The turret, mortar and approach-IED tiers have no fixed ceiling. Each count is
-the smallest of four the brain gates, and the gate that stops a tier short is named:
+the smallest of four the brain gates, and the gate that stops a tier short is named. These gates size the tiers the
+Killbox candidate lays ([candidates](#defense-candidates-rg-habitat-009)); whether a Turrets candidate may stand is the
+catalog's availability (`research:<prereq>`) and whether its turrets are powered, shelled and staffed is its probed
+protection, not a tier gate:
 
 | Tier | Threat demand (raid points) | Power | Stock | Geometry |
 |---|---|---|---|---|
@@ -1044,12 +1047,11 @@ or an unknown cell on an otherwise clear walk, is unknown and the position is no
 placed. The rule is checked against the native answers recorded with the defense
 layout snapshots (`TestDefenseLineOfSightMatchesRecordedNativeAnswers`).
 
-A gate that cuts a tier journals `defense_action` / `refused` with the gate as
-`reason` (`turret_unavailable`, `turret_threat_budget`, `turret_power`,
-`turret_stock`, `turret_no_conduit_route`, `mortar_unavailable`,
-`mortar_threat_budget`, `mortar_stock`, `ied_threat_budget`, `ied_stock`) and the
-tier as `target`. `policy.DefenseTier.Gated` carries it; `DefenseLayout.Gated`
-also names an IED or turret tier a gate emptied.
+A gate that cuts a tier is named on the layout (`policy.DefenseTier.Gated`, `DefenseLayout.Gated`: `turret_unavailable`,
+`turret_threat_budget`, `turret_power`, `turret_stock`, `turret_no_conduit_route`, `mortar_unavailable`,
+`mortar_threat_budget`, `mortar_stock`, `ied_threat_budget`, `ied_stock`) and also names an IED or turret tier a gate
+emptied. No step journals it as a row of its own since the comparison replaced the tier-by-tier round; the Killbox
+candidate carries the tiers the gates left.
 
 ## Defense approach demand
 
@@ -1083,7 +1085,7 @@ it (`DefenseCover`: `thing_id`, `def_name`, `kind` plant/chunk/mineable/building
 state. `RaidArrivalState`, a map component, samples every hostile lord every 60 ticks:
 its first pawn position is the spawn (ground when within 14 cells of the map edge) and
 the pawn nearest the home area adds one trail cell per sample; a live lord's trail is
-never truncated, and a track not sampled for 60000 ticks (one game day) is evicted. The colony threat census's `raids` rows (`ThreatFacts.raids`) carry those tracks; the brain
+never truncated, and a track not sampled for 60000 ticks (one game day) is evicted. Each sample also keeps the longest primary-verb range any of the lord's sampled pawns carried (`RaidTrack.Range`, `range` on the wire, cells; 0 when every pawn fought melee); like the rest of the track it is memory, not saved. The colony threat census's `raids` rows (`ThreatFacts.raids`) carry those tracks; the brain
 takes the first trail cell inside its census region as the crossing, and the policy
 snaps it to the nearest sector edge cell within eight cells. Drop pods and tunnellers
 are not ground arrivals.
@@ -1105,9 +1107,9 @@ eight clearances per method once every tier stands; native refusals of the cover
 `policy.PlanPerimeterCut` (`PerimeterCut.cs`) advises the perimeter as a routing cut
 beside the ring `PlanPerimeter` traces. The review only logs it (`logPerimeterCut`,
 `ColonyPlanCut.cs`); nothing reads it, and the plan's ring is still `PlanPerimeter` on a
-derive and `LayPerimeter` on a replan. The wall is about routing: the cheapest set of wall cells such
+derive. The perimeter candidates trace it afresh for the comparison ([candidates](#defense-candidates-rg-habitat-009)). The wall is about routing: the cheapest set of wall cells such
 that every walk from a map edge, or from the opening's lane, to the core enclosure
-crosses a wall or passes the killbox opening. Only walls are barriers (not sandbags, not
+crosses a wall or passes the killbox opening (the Killbox candidate's funnel). Only walls are barriers (not sandbags, not
 traps). Terrain a pawn cannot cross (rock, hazard, unwalkable ground) is a free barrier,
 so the cut uses it before it spends a wall cell. The cut is a minimum vertex cut by
 maximum flow over the four-connected walkable grid (a diagonal chain of walls is sealed:
@@ -1138,59 +1140,160 @@ random. The decisions are `layout_plan` rows with target `perimeter_cut` (see
 
 ## Defense tier nodes (#2973)
 
-`policy.PlanDefenseTiers(plan, census, pins)` (`DefenseTiers.cs`) cuts the plan's killbox
-node into the tiers that stand in it, as `PlannedSite` nodes whose `Tier` facts name the
-killbox node they stand under, the defense-record tier they belong to and the placements
-they hold: corridor and trap lane (the raiders' snake, in order), funnel walls, fence
-bar, spike traps, firing line (cover, with the shooters and their retreat cells; a line
-with no cover to build stands on the shooters' cells) and shooter floor, turrets, mortars,
-IEDs and bait. They are stored in the layout plan (#3583) and show in its overlay.
+`policy.PlanDefenseTiers(plan, request, pins)` (`DefenseTiers.cs`) cuts a killbox node into the tiers that stand in it,
+as `PlannedSite` nodes whose `Tier` facts name the killbox node they stand under, the defense-record tier they belong to
+and the placements they hold: corridor and trap lane (the raiders' snake, in order), funnel walls, fence bar, spike
+traps, firing line (cover, with the shooters and their retreat cells; a line with no cover to build stands on the
+shooters' cells) and shooter floor, turrets, mortars, IEDs and bait. They show in the plan's overlay.
 
-Where a tier stands depends on live cover, trees and standing buildings, so the nodes are
-a function of the plan and a census, not of the survey: they are re-sited from the defense
-round's census and recorded in the plan (`LayoutPlan.WithDefenseTiers`). The plan's
-DefFiring and DefLane nodes are the one home of the firing line and the trap lane:
-combat (`DefensePlanner.CombatLayoutOf`: the firing cells, their retreat cells and
-the choke, the lane's last cell), the turret replacement, the cover census and the pins
-read them there (`LayoutPlan.DefenseTierGeometry`); the defense record keeps none. A
-replan keeps the saved plan's tier nodes while its killbox is the same node over the same
-ground (`WithDefenseTiersOf`); a killbox cut again drops them until the next siting. The
-census (`DefenseRequest`: the cell mirror
-window, defenders, definitions and the turret, mortar and IED gates) is an explicit input;
-its Killbox, Home and Region are the plan's. A started tier (built, an attempt admitted, a lost building re-opening it, or any placement of its plan nodes standing) is pinned, the way a replan holds a
-room that holds anything of ours (`keepHeld`): its pin is its plan nodes (`LayoutPlan.PlannedDefenseTiers`:
-every placement, a damaged tier's destroyed ones included, and the cells its nodes reserve; #3584), the whole tier
-where it stands (the pinned corridor and firing line keep the plan's lane and firing line), the census
-reads its standing buildings as the ground under them so the same census sites the same
-cells, and the tiers still to build are sited around it (a building of theirs on a pinned
-cell is dropped, `tier_displaced_by_built`). A census the layout planner refuses leaves the
-pinned tiers as the nodes (`tier_layout_failed`). The defense round reads the nodes:
-`DefenseLayoutPlanner.SiteTiersAsync` cuts them after each tier census, once per reverify
-interval, sets the record's unstarted killbox tiers to what the nodes site and, when the
-record takes the siting (a firing line sited, no refusal) and the nodes changed, records
-the plan with them; it journals them as `layout_plan` rows with target `defense_tiers`. The proposal records
-the proposed layout's tiers as the plan's tier nodes (`WithProposedTiers`), so every tier the record starts has its
-nodes. The cover census and the turret replacement read the tiers' reserved cells from the nodes too; a turret
-replacement rewrites the turret node's placement and its reservation, the turrets' footprints by definition size.
-The turret and mortar proposals are gone: a tier whose gates open later joins the record
-through the same siting.
+Where a tier stands depends on live cover, trees and standing buildings, so the nodes are a function of the plan and a
+census (`DefenseRequest`: the cell mirror window, defenders, definitions and the turret, mortar and IED gates), not of
+the survey. The comparison cuts them once per comparison over the traced plan, for the Killbox candidate to lay
+(`DefenseLayoutPlanner.DefenseTracedTiersAsync`); a census it cannot read leaves that candidate unassessed naming the
+fact (`defense_tiers:site_census`, `defense_tiers:ranged_defender`) and a census the layout planner refuses excludes it
+(`killbox:<refusal>`). Nothing sites tier nodes into the saved plan on its own cadence any more: a tier enters the plan
+only through a chosen candidate ([binding](#binding-the-chosen-defense)) or as part of the stored layout record below.
+The plan's DefFiring and DefLane nodes remain the one home of a stored layout's firing line and trap lane: combat
+(`DefensePlanner.CombatLayoutOf`: the firing cells, their retreat cells and the choke, the lane's last cell), the cover
+census and the pins read them there (`LayoutPlan.DefenseTierGeometry`); the defense record keeps none. A replan keeps
+the saved plan's tier nodes while its killbox is the same node over the same ground (`WithDefenseTiersOf`) and the bound
+choice always (`WithBoundDefenseOf`). A started tier of a stored layout (built, an attempt admitted, a lost building
+re-opening it, or any placement of its plan nodes standing) is pinned, the way a replan holds a room that holds anything
+of ours (`keepHeld`): its pin is its plan nodes (`LayoutPlan.PlannedDefenseTiers`), and the census reads its standing
+buildings as the ground under them. The cover census and a stored layout's retier read the tiers' reserved cells from the
+nodes. The priced block clearance (`PriceTierBlocks`), the turret and mortar proposals and the record-siting round
+(`SiteTiersAsync`) are gone: a pinned tier's blocker is cleared through the cover round or compared as an alternative.
 
-### A blocked tier
+## Defense candidates (RG-HABITAT-009)
 
-When a tree, a rock chunk or a new building stands on a cell a pinned tier needs
-(`DefenseCell.Seen.Cover`), `policy.PriceTierBlocks` (`DefenseBlock.cs`) prices both ways out
-in the layout's units and takes the cheaper; neither is a veto, and a tie keeps the tier.
-Clear is the work from the game's defs (a plant's `harvestWork`, a building's
-`WorkToBuild` clamped to `JobDriver_Deconstruct`'s limits; `DefinitionCatalog.ClearRow`)
-over the work ticks of a colonist's work-day (the available colonists' timetable work hours
-at their work speed, `ColonistWorkTicksPerDay`), charged at the #2945 work-day price
-(`StationWorkPrice`), net of the yield (a felled tree's wood, a deconstruction's refund). A
-hauled chunk costs the walk of one cell, the lower bound of a haul; rock needs mining,
-whose work the defs do not state, so it is unpriced. Move is the build cost of the tier at
-the place the census sites it with nothing pinned plus the deconstruct work of the old
-tier's standing buildings. The downtime, the days the old tier no longer covers the lane,
-is not priced, so a move's price is a lower bound and a move taken says so in its reason.
-Journaled as `layout_plan` rows with target `defense_tier_block`.
+The `layout/defense` Need's step ([control loop](../architecture/control-loop.md)) generates defense alternatives over the
+layout plan and compares them; it no longer admits a fixed killbox, a tier order or a perimeter. Habitat milestone 7
+(`redefine-habitat-requirements`, tasks 7.1 to 7.4) owns the behavior below; the executed checks are named in the
+[evidence](../../requirements/habitat.md#h14--defense-alternatives-probed-compared-and-bound-as-a-planned-site).
+
+### Generation
+
+`DefenseCandidateRules.Generate` (`DefenseCandidates.cs`) emits one candidate per kind, in the tie order of the enum, with a
+deterministic key (the kind's wire name and its first cell, `killbox@x,z`):
+
+| Kind | What it holds |
+|---|---|
+| `Retain` | The plan's defense sites as they are (the perimeter family, the defense tier nodes and the bound choice's node). Nothing new; the baseline every other candidate is compared with. Once a choice is bound its pieces and firing cells are the baseline's. |
+| `Retreat` | The standing interior doors of the built rooms: no new ground and nothing to build. Excluded `retreat:no_standing_interior_door`; unassessed `construction_census` while the built rooms are unread. |
+| `TemporaryCover` | A five-bag sandbag line three cells outside each entrance, parallel to the core side the entrance opens on, with an open firing position behind every bag. Sandbags need no research. Excluded `cover:no_entrance`; unassessed `survey:open_ground_beyond_entrances`. |
+| `PerimeterDoored`, `PerimeterOpen` | The core's wall ring traced around its rooms and mountain pockets (`PlanPerimeter` over the plan without its defense nodes), with door gates or open gates. Excluded `perimeter:no_ring_traced`. |
+| `Killbox` | The traced ring with its funnel opening, approach and cover band, plus the sited tiers but the turrets, and the rock its opening mines first (`Dig`). Excluded `killbox:no_opening_traced` or `killbox:<refusal>`; unassessed on the unread tier census. |
+| `Turrets` | Emplacements on the killbox's sited turret node, else on the cover's centre firing positions. Excluded `turrets:no_firing_position`. |
+
+Each candidate carries its `Sites`, exact `Cells`, `Structures` (each a `DefensePiece.Priced` from the catalog's work and
+costs, or `Unpriced("piece:<def>")`), `Dig`, the cells it `Closes` (impassable structures) and `Narrows` (doors, sandbags,
+traps, fences), its `Firing` seats and `Barriers`, its `Routes`, the `Threat` it answers and a `Standing`:
+`Generated`, `Excluded(reason)` or `Unassessed(fact)`, with every exclusion listed and the first named. Readiness comes
+from the catalog's `Availability`: ready stands, research-locked excludes naming the first unfinished prerequisite
+(`research:<prereq>`, every prerequisite while the research census is unread), an unread definition is `definition:<def>`.
+The generator admits nothing.
+
+**Shared ground (`DefenseGround.Of(plan)`).** One ledger holds the room walls and interiors, the plan's non-defense site
+nodes, its field zones and its reservations. A candidate over any of it is refused naming the holder:
+`ground:room:<id>:<Role>`, `ground:site:<node>`, `ground:field:<n>`, `ground:reservation:<kind>`. The bound choice's own
+`defense_choice` reservation is the one a defense candidate may take back.
+
+**Civilian routes.** The plan's trips (`LayoutRouteRules.RouteTrips`) are walked with the candidate's closed cells blocked
+(`RouteWalk`, `TripCells`): a trip with no path left excludes the candidate `route:<From>→<To>`; a longer one carries
+`Longer(addedCells)`, priced by the comparison. A candidate that changes ground the plan's walk does not hold is probed
+over the whole-map survey for the trips out of the entrances to the map edge and to the fields (`OutsideChange`:
+`route:Entrance→MapEdge`, `route:Entrance→Field`), and is named unprobed without a survey. An impassable structure on a
+plan door, link or entrance blocks ordinary access and excludes the candidate `access:<what>@x,z`.
+
+**Threat.** `ThreatOf` reads the colony census: the raid points against the capacity and their `RaidExposure` bin
+(`exposure_bin:*`; `threat:colony census` while it is unread), the spawn cells of the ground raids observed since load
+(`arrival_edges:none_observed_since_load` when none), each raid's sampled walk and the longest ground raider weapon
+range (`RaidTrack.Range`, 0 for melee).
+
+### The protection probe
+
+`DefenseProtectionRules.Probes` asks the game, in one batched read (`observations_read_defense_probe`,
+`IGameApi.ReadDefenseProbeAsync`, `NativeDefenseProbe.cs`), what each standing candidate would protect. Native answers from
+the game's own shooting geometry; nothing is placed or simulated and no raid is predicted. Request bounds, refused by
+native when exceeded: at most 16 candidates, 8 firing cells and 24 approach cells each, and 4096 planned pieces
+(`DefenseProbeRequest.MaxCandidates`, `MaxFiring`, `MaxApproach`, `MaxPieces`). A row is keyed by the candidate's key; a
+planned turret is `<candidate>/<def>@x,z`. Each candidate is asked twice, with its pieces placed and as it stands (the
+`~standing` shadow, `DefenseChoiceRules.Shadows`), so what a bound choice already protects is observed separately from
+what it would.
+
+The approach cells are the newest three ground raids' observed walks (`ProbedRaids`), cut at the candidate's barriers
+(a raid does not walk on unbroken past a wall or a door), every third cell back from each walk's end
+(`ApproachStride`), at most 24 and distinct. They are a sampling choice, not a game rule. Native reads, per candidate,
+`GenSight.LineOfSight` between each firing and approach cell with the candidate's full-fill pieces blocking, and the
+cover chance the pieces give; and once per read the free colonists who could shoot (`WorkTagIsDisabled(Violent)`,
+downed, Shooting skill and the primary verb's range, minimum range, warmup, burst count, cooldown and
+`requireLineOfSight`), the standing turrets (`Building_TurretGun` verb, mannable, gun, burst warmup and cooldown, loaded
+shell) and the shells in stock. The cover chance restates `CoverUtility.TryFindAdjustedCoverInCell` because that method is
+private ([kept constants](kept-constants.md#mirrored-game-rules-cover-block-chance-habitat-72)). The wire's raid tracks
+carry `range` (`RaidTrack.Range`, from the native `RaidArrivalState`): the longest weapon range of the raid's pawns.
+
+`DefenseProtection` (per candidate) holds `Covered` (the fraction of the probed approach cells a staffed firing cell or a
+ready turret reaches within its verb's band and, where the verb needs it, in sight), `Shots` (shots per second of those
+shooters), `Cover` (the mean block chance), `Staffing`, `Ammunition`, `Power`, `Exposure` and `Civilians` (the routine
+positions within the raiders' weapon range of the walk, uncut and cut at the candidate's barriers; melee exposes only the
+walk's own cells), `Draws` (the planned turrets' draws on their networks) and `States`. Every term is a
+`DefenseTerm.Assessed(value)` from read facts (a known zero included: ammunition is zero for small arms and gun turrets,
+which fire without it) or `Unassessed(fact)`; an unassessed term is never compared as a number. Named states:
+`staffing:<needed>/<available>`, `power:<turret>` (an unpowered turret protects nothing), `shells:<turret>` (a mortar
+with no shell loaded or stocked), `sight:fogged`, `verb_cycle:<pos>` (a cycle the read gives that is not positive),
+`defense_probe:unread` (asked, no read), `defense_probe:no_approach`, `defense_probe:unknown_candidate:<id>`. A reply row
+for a candidate nobody asked about is refused with a `RequiredFactException` naming it. `RaidExposure`'s bin is unchanged;
+this extends it.
+
+### Choosing among candidates
+
+`DefenseChoiceRules.Choose` (`DefenseChoice.cs`) prices every standing candidate in capability-days over the horizon
+(`ColonyModelPolicy.DefaultHorizonDays`, H). Loss per day L is `ForecastPractice.LossPerDay` through
+`ColonyReview.RaidHarm`, computed in memory on the coupled context; unread, it is named `raid_harm:*` or
+`threat_timing:<finding>`. The baseline, Retain, is `(1 - S_b) * L * H`, S_b its observed `Covered`. An alternative is
+`C + R + (1 - S_w) * L * T + (1 - S * (1 - u)) * L * (H - T)` where C is its construction (`LayoutClusterRules.PiecePrice`
+at the material values), T the lead before it stands (`ProspectiveCapacityRules.PieceOption` over the free builders), S_w
+what holds while it is built (the baseline as it stands; removal is never free, so S_w is 0 over the lead), S its probed
+coverage, u the unserved share of the turrets' network from `Draws` ([the power comparison's
+`UnservedShare`](power-contracts.md#comparison)) and R the added walk of its longer routes (`Longer` cells times
+`FieldPlacementRules.WalkTicksPerCell` times the trips a day, there and back, `DefenseChoiceRules.TripsOf`). The
+`dig:mining_unpriced` state names a Killbox whose mining the defs cannot price. The cheapest wins; ties go to Retain.
+
+An alternative cannot win when `Covered`, `Staffing` or `Ammunition` is unassessed where the baseline's is assessed, when
+it exposes more civilians than the baseline, when its materials are short, or when no builder is free
+(`builders:none_free`); a missing fact leaves its price `Unassessed(fact)`, and an exclusion keeps the generator's
+reason. The step is met only when the verification is current, no fight waits and the decision's deficit (the coverage
+the chosen alternative owes beyond what of it stands, `DefenseDecision.Deficit`) is zero. Each compared alternative
+writes one `defense_action` row ([otel signals](otel-signals.md)).
+
+Approximations stated, not hidden: a power shortfall scales the whole coverage rather than the turrets it starves;
+removal charges the full baseline protection; builders are netted only through the work view.
+
+### Binding the chosen defense
+
+A chosen candidate other than Retain enters the plan through `DefenseBindingRules.Bind` as one `DefChoice` planned site
+(`defense/<key>`, tier `defense_choice`) whose `TierFacts` carry its pieces (`Places`), reserved cells, firing cells and
+the coverage owed (`Owed`: what of the defense it replaces stood and covered, `DefenseBindingRules.Owed`), with one
+`defense_choice` reservation holding its footprint; the tiler and every other planner keep off it. A replan keeps both.
+From then on the bound choice is what Retain retains, priced like the alternative it was while any piece is unbuilt, so
+it is kept while it is still the cheapest and replaced only when fresh facts make another cheaper. Binding a new choice
+retires the old one's unissued builds and removals; orders Hands already issued finish.
+
+Its work is a chain (`DefenseBindingRules.Next`, re-derived each review): `Build` its pieces on free ground, then
+`Remove` the standing buildings its other pieces replace, then `Held` for the service its protection names, then
+`Ready`. A removal is held (`defense_removal_held`) while what stands of the choice is unprobed
+(`replacement_unprobed`), or while its observed coverage is below `Owed` (`replacement_deficit:<d>`); a protected building
+holds it (`protected_thing:<id>`); a lost replacement piece reopens its build first and cancels the removals not yet
+issued. The service hold names `power:<turret>` (the power family's), `shells:<turret>` (military equipment's) or
+`staffing:<needed>/<available>`. The builds are the Method `defense-choice-<kind>-<sha8>` and the removals
+`defense-removal-<sha8>`, each admitted through the refusal budget (`ReviewRefusalBudget.AdmitOwnerSubject`), previewed
+natively over each piece's whole footprint (`ClassifyDefensePreview` checks the occupied rectangle lies within the native
+footprint). The comparison is kept for the re-verify window and re-derived early when `DefenseBindingRules.ReviewKey`
+changes: the observed buildings, the construction site count, the powered buildings, the raid tracks (lord, spawn,
+ground, weapon range) and points, the able shooters and the bound node. A spent gun-turret barrel is refuelled through
+the servicing refuel choice, not a rearm path ([upkeep](upkeep-contracts.md#defensive-layout)). Limits: the chain does
+not claim builders per pawn (a `BuildingAction` carries none), and `RetainPerimeter`, `PerimeterHold` and the stored
+`DefenseLayoutRecord` are still read for a layout the comparison retains.
 
 ## Total room observations
 

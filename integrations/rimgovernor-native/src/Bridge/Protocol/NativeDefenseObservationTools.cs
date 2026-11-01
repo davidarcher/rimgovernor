@@ -124,7 +124,7 @@ namespace RimGovernor.Native
             if (raids == null) yield break;
             foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {
                 yield return new RimGovernor.Brain.GameFacts.Observations.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    SpawnTick = new RimGovernor.Brain.Domain.Tick(track.SpawnTick), Spawn = new RimGovernor.Brain.Domain.Cell(track.Spawn.x, track.Spawn.z), Ground = track.Ground,
+                    SpawnTick = new RimGovernor.Brain.Domain.Tick(track.SpawnTick), Spawn = new RimGovernor.Brain.Domain.Cell(track.Spawn.x, track.Spawn.z), Ground = track.Ground, Range = track.Range,
                     Trail = [.. track.Trail.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))] };
             }
         }

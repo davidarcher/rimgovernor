@@ -36,9 +36,6 @@ public sealed record DefenseCell
     public double CoverFill { get; init; }
 
     public string Edifice { get; init; } = "";
-
-    /// <summary>The thing the game's designators could remove that stands on the cell, when the census identified one.</summary>
-    public CoverThing Cover { get; init; } = new();
 }
 
 /// <summary>

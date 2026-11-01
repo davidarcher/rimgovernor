@@ -365,19 +365,21 @@ the stored layout (`family/defense_layout`) was verified complete in this
 process and world, at the map's latest fight and within the re-verify window
 (the verification and the siting probe's tick are the ColonyReview's in-memory
 `DefenseVerification`, never saved, #3008: a restart re-verifies), and no open fight
-waits in rooms to harden. Otherwise it is unmet; its deficit is 0 while every
-tier stands and 1 while a tier is owed. Unread journal facts
+waits in rooms to harden and the latest comparison owes no coverage. Otherwise it is unmet; its deficit
+is the coverage the chosen defense alternative owes beyond what of it stands (`DefenseVerified.Deficit`, 0 once
+every piece stands and covers). Unread journal facts
 raises `RequiredFactException`. The family reads combat as facts only (the military/combat Need's
 latest `engage-<map>` plan and the open fights); no combat Need is a
-precondition. The work step is the old planner run under the Need owner:
-fight-time room hardening, then the killbox proposal, re-verification and one
-tier at a time (`defense-<tier>-<attempt>`, `defense-cover-<tick>`,
-`defense-wait-<tick>`, `defense-retier-<digest>`, `plan-dig-killbox`), each
+precondition. The work step runs under the Need owner: fight-time room hardening, then the
+comparison of generated defense alternatives against retaining the plan's defense (habitat milestone 7;
+[spatial contracts](../contracts/spatial-contracts.md#defense-candidates-rg-habitat-009)), the chosen alternative bound into the
+layout plan as one planned site and worked as a chain (`defense-choice-<kind>-<digest>` builds,
+`defense-removal-<digest>` removals held until the replacement's observed protection covers what it replaced), then
+turret refuel through the servicing choice, and for a stored layout the comparison retains, its retier, turret power hold
+and cover clearance (`defense-cover-<tick>`, `defense-retier-<digest>`, `defense-wait-<tick>`), each
 admitted by claims (FoundationRemoval claims `foundation/x/z`, Excavation
-`dig/x/z`). Tier attempts stay in the record and restart for unbuilt tiers when
-the record is from another load or map, as the Need's per-load Method history
-does; a built tier that falls keeps counting, so its next attempt is a fresh
-MethodId, and a tier's refusal budget reads only its latest attempt. Combat
+`dig/x/z`). A built piece that falls reopens the chain's build; a stored tier's refusal budget reads only its latest
+attempt. Combat
 fights from the saved layout once its firing-line tier, and its
 trap corridor when it has one, stood in the last census; it reads no
 verification. An older save's `Standard` and `Episode` record fields are read and

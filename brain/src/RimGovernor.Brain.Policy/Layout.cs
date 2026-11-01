@@ -46,19 +46,19 @@ public sealed record LayoutFacts
 public sealed record RoutesStanding(RoutesReview Review, bool DoorOwed);
 
 /// <summary>
-/// What the defensive layout Need reads (#3314): the colony's stored layout for this map and load, and the combat
+/// What the defensive layout Need reads (#3314): the latest defense comparison of this map and load, and the combat
 /// facts it is verified against. Nothing here is a combat precondition: an open fight only adds work.
 /// </summary>
 public sealed record DefenseLayoutFacts
 {
-    /// <summary>Every tier of the stored layout stood at its latest census (the record's Standing).</summary>
-    public bool Standing { get; init; }
-
     /// <summary>
-    /// The stored layout was verified complete in this load, at the map's latest fight and within the re-verify
-    /// window; false before the map's first fight, which the step waits on (threat pending).
+    /// The defense alternatives were compared in this load, at the map's latest fight and within the re-verify window;
+    /// false before the map's first fight, which the step waits on (threat pending).
     /// </summary>
     public bool Verified { get; init; }
+
+    /// <summary>The approach coverage the chosen alternative owes beyond what of it stands, re-derived from the probe of the observed structures (DefenseDecision.Deficit).</summary>
+    public double Deficit { get; init; }
 
     /// <summary>An open fight in this world waits in rooms the layout hardens.</summary>
     public bool WaitingFight { get; init; }
@@ -269,8 +269,9 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     }
 
     /// <summary>
-    /// Unmet while the stored layout's verification is not current or an open fight waits in rooms to harden. The
-    /// deficit is zero while every tier stands (a re-verification or a fight only) and one while a tier is owed.
+    /// Unmet while the defense comparison is not current, the chosen alternative still owes protection, or an open fight
+    /// waits in rooms to harden. The deficit is the approach coverage the chosen alternative owes beyond what of it stands
+    /// (DefenseDecision.Deficit): zero for a re-verification or a fight only.
     /// </summary>
     public static Need DefenseNeed(DefenseLayoutFacts f)
     {
@@ -278,8 +279,8 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
         {
             Id = Defense,
             Tier = NeedTier.Development,
-            Satisfaction = f.Verified && !f.WaitingFight ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = f.Standing ? 0.0 : 1.0,
+            Satisfaction = f.Verified && !f.WaitingFight && f.Deficit <= 0 ? Satisfaction.Met : Satisfaction.Unmet,
+            Deficit = Math.Max(0, f.Deficit),
         };
     }
 

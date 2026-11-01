@@ -112,17 +112,19 @@ public sealed record DefenseLayoutRecord
         }
     }
 
-    /// <summary>What the record holds of the plan's ring nodes: every node a tier names, and whether a perimeter removal is under way.</summary>
+    /// <summary>What the record holds of the plan's defense nodes: every node a tier names, and the killbox it was proposed on.</summary>
     public PerimeterHold PerimeterHold()
     {
         var held = new HashSet<string>(StringComparer.Ordinal);
-        var removing = false;
         foreach (var t in Tiers)
         {
             held.UnionWith(t.Nodes);
-            removing = removing || (t.Remove && LayoutDefenseRules.IsPerimeterTier(t.Name));
         }
-        return new PerimeterHold { Held = held, Removing = removing };
+        if (Killbox != "")
+        {
+            held.Add(Killbox);
+        }
+        return new PerimeterHold { Held = held };
     }
 
     /// <summary>The record as it is persisted: a node-backed tier carries no buildings, the plan holds them.</summary>
@@ -151,28 +153,6 @@ public sealed record DefenseLayoutRecord
         return (new DefenseTierRecord(), [], false);
     }
 
-    private static DefenseTierRecord FromPolicy(DefenseTier tier) =>
-        new()
-        {
-            Name = tier.Name,
-            Buildings = [.. tier.Buildings.Select(b => new DefenseBuilding { Definition = b.Definition, Cell = b.Cell, Rotation = b.Rotation, Stuff = b.Stuff })],
-        };
-
-    /// <summary>Replaces the named tier (turrets, mortars) with a fresh pending record of the policy tier, appending it when the record lacks one.</summary>
-    public void SetPolicyTier(DefenseTier tier)
-    {
-        var fresh = FromPolicy(tier);
-        var i = Tiers.FindIndex(t => t.Name == tier.Name);
-        if (i >= 0)
-        {
-            Tiers[i] = fresh;
-        }
-        else
-        {
-            Tiers.Add(fresh);
-        }
-    }
-
     /// <summary>Whether every tier with placements stood in the last census; with the in-memory verification, the state in which the Need has no deficit.</summary>
     public bool AllBuilt() => Tiers.All(t => !Placed(t) || t.Built);
 
@@ -196,21 +176,6 @@ public sealed record DefenseLayoutRecord
                 Tiers[i] = tier;
             }
         }
-    }
-
-    /// <summary>Captures a policy layout in world <paramref name="w"/>, proposed on the plan's killbox node (its id and footprint digest).</summary>
-    public static DefenseLayoutRecord From(World w, DefenseLayout layout, IEnumerable<Cell> entrances, string killbox, string digest)
-    {
-        var record = new DefenseLayoutRecord
-        {
-            World = w,
-            Killbox = killbox,
-            KillboxDigest = digest,
-            Entrances = [.. entrances],
-            Tiers = [.. layout.Tiers.Select(FromPolicy)],
-        };
-        record.Validate();
-        return record;
     }
 }
 

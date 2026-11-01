@@ -81,9 +81,10 @@ public sealed record PlannedBenchSpeed(string Def, Cell Position, double WorkOff
 /// <summary>The cells from a bench's anchor to the nearest storage cell (a slot group's cell of HaulDestinationManager.AllGroupsListForReading, by straight-line distance, rounded up).</summary>
 public sealed record StorageReach(int Cells);
 /// <summary>
-/// A bench's power supply at the read (RG-HABITAT-005): the network a standing bench's CompPowerTrader is on, or the one a
-/// planned bench would connect to (PowerConnectionMaker.BestTransmitterForConnector at its anchor). Benches on one network
-/// share its surplus: the brain joins them by <see cref="Connected.Network"/>. Native reads every row whole or throws.
+/// A bench's or a defense turret's power supply at the read (RG-HABITAT-005, RG-HABITAT-009): the network a standing
+/// building's CompPowerTrader is on, or the one a planned one would connect to (PowerConnectionMaker.BestTransmitterForConnector
+/// at its anchor). Buildings on one network share its surplus: the brain joins them by <see cref="Connected.Network"/>.
+/// Native reads every row whole or throws.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(BenchPower.Unneeded), "unneeded")]

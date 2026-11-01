@@ -83,7 +83,7 @@ public static partial class LayoutReplanTiledRules
     /// The facts of a replan review (the saved plan, its Built and Pinned rooms), as the tiler reads them: the ground
     /// a fresh plan is tiled on, as DeriveLayoutPlan lays it, in place of the saved plan's core-free zones (the
     /// survey's zones with the core, less the geothermal enclosures' cells, and the geysers' enclosures reserved),
-    /// and no saved site: the power sites are placed again by the chain, and the perimeter, the herd and the yard
+    /// and no saved site but the bound defense: the power sites are placed again by the chain, and the perimeter, the herd and the yard
     /// sites are laid over the tiled plan after it. f is not changed.
     /// </summary>
     public static StationFacts ReplanTileFacts(StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers)
@@ -95,8 +95,9 @@ public static partial class LayoutReplanTiledRules
             Plan = f.Plan with
             {
                 Zones = LayoutDeriveRules.CoreWithout(zones, LayoutDeriveRules.GeothermalCells(footprints)),
-                Reservations = LayoutDeriveRules.GeothermalReservations(zones, footprints),
-                Sites = [],
+                // The bound defense (DefenseBindingRules) stays as its site and its reservation, so the tiler keeps off its ground.
+                Reservations = [.. LayoutDeriveRules.GeothermalReservations(zones, footprints), .. f.Plan.Reservations.Where(r => r.Kind == ReservationKind.DefChoice)],
+                Sites = [.. f.Plan.Sites.Where(x => x.Kind == DefenseBindingRules.NodeDefChoice)],
             },
             Survey = s,
         };

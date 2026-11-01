@@ -76,10 +76,31 @@ public sealed class DefenseNamedStatesTests
             PowerBuildingFixtures.Trader("t1", "Turret", new(1, 1), -100, 0, false) with { Turret = new TurretGun(5) },
             PowerBuildingFixtures.Trader("t2", "Turret", new(2, 2), -100, -100, true) with { Turret = new TurretGun(5), FuelDefinitions = [steel.Value], Service = BuildingServiceWire.NoService with { Power = new RimGovernor.Brain.GameFacts.Observations.BuildingPower.Trader { RatedW = -100, OutputW = -100, PowerOn = true, Network = "net" }, Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(), Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 10, AutoRefuelPercent = 0.3, OutOfFuel = true } } },
         };
-        var upkeep = DefenseRearm.DefenseRearmTurrets(turrets, [], new Dictionary<Resource, long>(), false);
+        var upkeep = DefenseRearm.DefenseRearmTurrets(turrets, false);
         Assert.Equal([new Cell(1, 1)], upkeep.Unpowered);
-        Assert.Equal([new Cell(2, 2)], upkeep.Empty);
-        Assert.False(upkeep.Rearm);
-        Assert.Empty(DefenseRearm.DefenseRearmTurrets(turrets, [], new Dictionary<Resource, long>(), true).Unpowered);
+        Assert.Empty(DefenseRearm.DefenseRearmTurrets(turrets, true).Unpowered);
+        Assert.Equal(["t2"], DefenseRearm.EmptyTurrets(turrets).Select(b => b.Id));
+    }
+
+    // Task 7.4: a spent barrel is rearmed through the maintenance choice's refuel (the 5.x servicing), not a fixed hold.
+    [Fact]
+    public void ASpentBarrelIsRefuelledThroughTheServicingChoice()
+    {
+        var steel = new Resource("Steel");
+        var spent = PowerBuildingFixtures.Trader("t2", "Turret", new(2, 2), -100, -100, true) with { Turret = new TurretGun(5), FuelDefinitions = [steel.Value], HitPoints = new RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Tracked { Current = 100, Maximum = 100 }, Service = BuildingServiceWire.NoService with { Power = new RimGovernor.Brain.GameFacts.Observations.BuildingPower.Trader { RatedW = -100, OutputW = -100, PowerOn = true, Network = "net" }, Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable { AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(), Burn = BuildingServiceWire.IdleBurn, Fuel = 0, TargetFuel = 10, AutoRefuelPercent = 0.3, OutOfFuel = true } } };
+        var census = new ServicingCensus([new ServicingOption.Assessed(new RefuelWork("t2", "a", true, true, steel, 10, 3, 100, 50, 40, 240, true) { ServiceLoss = new ServiceLoss.Unmodelled("turret service:Turret") })])
+        {
+            Components = new ServicingComponents.Counted(0), Stock = new Dictionary<string, int>(StringComparer.Ordinal) { [steel.Value] = 200 },
+        };
+        var empty = DefenseRearm.EmptyTurrets([spent]);
+        var decision = Assert.Single(DefenseRearm.Refuels(empty, census, [], []));
+        Assert.Equal((ServicingChoiceKind.Refuel, "a"), (decision.Chosen.Kind, decision.Chosen.Pawn));
+        var method = Assert.Single(DefenseRearm.Methods(new NeedId("layout/defense"), [decision]));
+        Assert.Equal("refuel-t2-a", method.Method.Value);
+        var service = Assert.Single(method.Plan(new PlanId("p")).Actions).RecoveryService!;
+        Assert.Equal(("a", "t2", RecoveryMethod.Refuel), (service.Pawn.Value, service.Thing, service.Method));
+        // A refuel already underway is observed, not reordered.
+        var running = Assert.Single(DefenseRearm.Refuels(empty, census, [new("t2", RimGovernor.Brain.GameFacts.Observations.ServicingKind.Refuel, "a", true)], []));
+        Assert.Empty(DefenseRearm.Methods(new NeedId("layout/defense"), [running]));
     }
 }

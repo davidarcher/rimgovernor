@@ -2923,6 +2923,157 @@ public sealed record RaidTrack
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
     public required EquatableArray<Cell> Trail { get; init; }
+
+    /// <summary>
+    /// The longest primary-verb range any of the lord's pawns carried while sampled (Pawn_EquipmentTracker.PrimaryEq's
+    /// PrimaryVerb verbProps.range), in cells; 0 when every pawn fought melee (no primary, or a melee verb).
+    /// </summary>
+    public required double Range { get; init; }
+}
+
+/// <summary>
+/// The answer to a defense probe (RG-HABITAT-009): per candidate its lines of fire, and for the read the colonists who
+/// could shoot, every turret (standing ones by load id, planned ones by the candidate-qualified id
+/// <c>&lt;candidate&gt;/&lt;def&gt;@x,z</c>) and the mortar shells in stock. Native reads every row whole or throws.
+/// </summary>
+public sealed record DefenseProbeSnapshot
+{
+    public required RimGovernor.Brain.GameFacts.Common.ObservationContext Context { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DefenseProbeAnswer>))]
+    public required EquatableArray<DefenseProbeAnswer> Candidates { get; init; }
+
+    /// <summary>The free spawned colonists in load-id order.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DefenseShooter>))]
+    public required EquatableArray<DefenseShooter> Shooters { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DefenseTurretProbe>))]
+    public required EquatableArray<DefenseTurretProbe> Turrets { get; init; }
+
+    /// <summary>The unforbidden spawned things a mortar loads (ThingDef.projectileWhenLoaded set), summed by stack count.</summary>
+    public required int Shells { get; init; }
+}
+
+/// <summary>One candidate's lines: from each of its firing cells and each turret it stands with to each approach cell, firing-major.</summary>
+public sealed record DefenseProbeAnswer
+{
+    public required string Id { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DefenseSightLine>))]
+    public required EquatableArray<DefenseSightLine> Lines { get; init; }
+}
+
+/// <summary>
+/// One (firing, approach) pair under the candidate's planned pieces: fogged at either end (distance only), or traced with
+/// GenSight.LineOfSight (skipping the firing cell, a planned full-fill piece blocking) and the block chance the firing cell's
+/// cover gives against a shot from the approach cell (CoverUtility.CalculateOverallBlockChance, planned pieces as cover).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(Fogged), "fogged")]
+[JsonDerivedType(typeof(Traced), "traced")]
+public abstract record DefenseSightLine
+{
+    private DefenseSightLine()
+    {
+    }
+
+    public required Cell From { get; init; }
+
+    public required Cell To { get; init; }
+
+    public required double Distance { get; init; }
+
+    public sealed record Fogged : DefenseSightLine;
+
+    public sealed record Traced : DefenseSightLine
+    {
+        public required bool LineOfSight { get; init; }
+
+        public required double Cover { get; init; }
+    }
+}
+
+/// <summary>
+/// A ranged verb as its holder fires it: VerbProperties range, minRange, warmupTime, burstShotCount and
+/// requireLineOfSight, the seconds a burst lasts ((burstShotCount - 1) * ticksBetweenBurstShots, TicksToSeconds), and the
+/// cooldown seconds between bursts (a pawn's AdjustedCooldown, a turret's turretBurstCooldownTime or else the verb's
+/// defaultCooldownTime).
+/// </summary>
+public sealed record DefenseVerb
+{
+    public required double Range { get; init; }
+
+    public required double MinRange { get; init; }
+
+    public required double Warmup { get; init; }
+
+    public required double Cooldown { get; init; }
+
+    public required int BurstShots { get; init; }
+
+    public required double BurstSeconds { get; init; }
+
+    public required bool LineOfSight { get; init; }
+}
+
+/// <summary>
+/// One free colonist as a shooter: the primary's ranged verb (null for no ranged primary), its Shooting skill level,
+/// whether WorkTags.Violent is disabled and whether it is downed. Small arms load no ammunition in the game.
+/// </summary>
+public sealed record DefenseShooter
+{
+    public required PawnId Pawn { get; init; }
+
+    public required DefenseVerb? Verb { get; init; }
+
+    public required int Shooting { get; init; }
+
+    public required bool ViolentDisabled { get; init; }
+
+    public required bool Downed { get; init; }
+}
+
+/// <summary>
+/// One turret (Building_TurretGun or a planned turret def): its gun's verb, its burst warmup (turretBurstWarmupTime's
+/// average), its power supply (CompPowerTrader, as a bench's), whether a colonist must man it (CompMannable) and its
+/// ammunition.
+/// </summary>
+public sealed record DefenseTurretProbe
+{
+    public required string Id { get; init; }
+
+    public required Cell Cell { get; init; }
+
+    public required bool Planned { get; init; }
+
+    public required DefenseVerb Verb { get; init; }
+
+    public required double BurstWarmup { get; init; }
+
+    public required BenchPower Power { get; init; }
+
+    public required bool Mannable { get; init; }
+
+    public required DefenseTurretAmmo Ammo { get; init; }
+}
+
+/// <summary>A turret's ammunition: none (a gun turret fires without it), or shells (CompChangeableProjectile on its gun) with the one loaded, if any.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(None), "none")]
+[JsonDerivedType(typeof(Shells), "shells")]
+public abstract record DefenseTurretAmmo
+{
+    private DefenseTurretAmmo()
+    {
+    }
+
+    public sealed record None : DefenseTurretAmmo;
+
+    public sealed record Shells : DefenseTurretAmmo
+    {
+        /// <summary>CompChangeableProjectile.LoadedShell's def; null while none is loaded (always for a planned mortar).</summary>
+        public required string? Loaded { get; init; }
+    }
 }
 
 public sealed record DefenseSiteSnapshot

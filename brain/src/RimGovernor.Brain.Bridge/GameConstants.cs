@@ -23,10 +23,6 @@ internal static class GameConstants
 
     internal static int DoorCloseDelayTicks => Read<int>(typeof(Building_Door), "CloseDelayTicks");
 
-    internal static float MinDeconstructWork => Read<float>(typeof(JobDriver_Deconstruct), "MinDeconstructWork");
-
-    internal static float MaxDeconstructWork => Read<float>(typeof(JobDriver_Deconstruct), "MaxDeconstructWork");
-
     // These members are private; neither DefOf nor a public typed field exposes them.
     internal static int WorshipRoomMinScore => Read<int>(typeof(RoomRoleWorker_WorshipRoom), "MinScore");
     internal static int MoodBreakRecoveryTicks => Read<int>(typeof(MentalBreaker), "MinTicksSinceRecoveryToBreak");

@@ -31,6 +31,7 @@ public sealed class NativeOpsTests
                 : ReferenceEquals(op, NativeOps.ReadCombatGeometry) ? """{"identity":{"colonyId":"","loadToken":"","mapId":0},"cells":[],"hostileIds":[]}"""
                 : ReferenceEquals(op, NativeOps.ReadDefenseSite) ? """{"scope":{},"region":{"minimum":{"x":0,"z":0},"maximum":{"x":0,"z":0}}}"""
                 : ReferenceEquals(op, NativeOps.ReadLinesOfFire) ? """{"scope":{},"firingCells":[],"approachCells":[],"budgetMs":0}"""
+                : ReferenceEquals(op, NativeOps.ReadDefenseProbe) ? """{"scope":{},"candidates":[]}"""
                 : ReferenceEquals(op, NativeOps.ReadSpatialAccess) ? """{"scope":{},"blockedCells":[],"targetCells":[],"pawnIds":[],"budgetMs":0}"""
                 : ReferenceEquals(op, NativeOps.ReadExcavationSite) ? """{"scope":{},"cells":[],"accessCell":{"x":0,"z":0}}"""
                 : ReferenceEquals(op, NativeOps.Apply) ? """{"deferSnapshot":false}"""

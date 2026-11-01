@@ -44,6 +44,12 @@ public sealed record TierFacts
 
     /// <summary>Marks a node kept where it stands because the tier is built.</summary>
     public bool Pinned { get; init; }
+
+    /// <summary>
+    /// The approach coverage the defense a bound choice (DefenseBindingRules) replaced gave when it was bound: the standing
+    /// buildings its pieces replace are not removed before its own observed coverage reaches it. 0 on the tier nodes.
+    /// </summary>
+    public double Owed { get; init; }
 }
 
 /// <summary>The tiers of the defense record that are started: kept where they stand while the tiers still to build are sited around them.</summary>
@@ -81,9 +87,6 @@ public sealed record DefenseTiers
     public string Refusal { get; init; } = "";
 
     public EquatableArray<SiteDecision> Decisions { get; init; }
-
-    /// <summary>The tiers the census sites with nothing pinned: the places a blocked tier could move to (PriceTierBlocks).</summary>
-    public EquatableArray<DefenseTier> Sited { get; init; }
 }
 
 public static class DefenseTiersPolicy
@@ -216,38 +219,6 @@ public static class DefenseTiersPolicy
     }
 
     /// <summary>
-    /// The plan with the proposed layout's tiers as its defense tier nodes under its killbox, nothing pinned: the
-    /// proposal records it, so every tier the record starts has its nodes (#3584). Throws when the plan has no killbox.
-    /// </summary>
-    public static LayoutPlan WithProposedTiers(this LayoutPlan p, DefenseDefinitions defs, DefenseLayout layout)
-    {
-        var (under, _, ok) = LayoutPlan.KillboxNode(p);
-        DomainException.Require(ok, "plan has no killbox");
-        return p.WithDefenseTiers(TierNodes(under, defs, layout, []));
-    }
-
-    /// <summary>
-    /// The plan with the turret node's placement of old replaced in place and its reservation set to reserved, the
-    /// turrets' footprints by definition size; unchanged without a turret node.
-    /// </summary>
-    public static LayoutPlan WithTurretReplaced(this LayoutPlan p, Building old, Building replacement, IReadOnlyList<Cell> reserved)
-    {
-        var sites = p.Sites.Select(s => s.Kind != NodeDefTurrets || s.Tier is not { } facts
-            ? s
-            : s with
-            {
-                Tier = facts with
-                {
-                    Places = EquatableArray.From(facts.Places.Select(x => x.Cell == old.Cell && x.Definition == old.Definition
-                        ? new TierPlacement(replacement.Definition, replacement.Cell, replacement.Rotation, replacement.Stuff)
-                        : x)),
-                    Reserved = EquatableArray.From(reserved),
-                },
-            });
-        return p with { Sites = EquatableArray.From(sites) };
-    }
-
-    /// <summary>
     /// The plan with a firing line and a trap lane as its only defense tier nodes, under its killbox: the geometry a
     /// combat fixture stages for combat to read. With no cover building to place, the firing node stands on the
     /// shooters' cells. Throws when the plan has no killbox.
@@ -311,12 +282,11 @@ public static class DefenseTiersPolicy
             refusal = e.Message;
             refused = true;
         }
-        var sited = layout.Tiers;
         var (pinnedLayout, pinned) = ApplyPins(layout, pins);
         layout = pinnedLayout;
         if (pinned.Count == 0 && refused)
         {
-            return new DefenseTiers { Layout = layout, Refusal = refusal, Decisions = EquatableArray.From(decisions), Sited = sited };
+            return new DefenseTiers { Layout = layout, Refusal = refusal, Decisions = EquatableArray.From(decisions) };
         }
         List<DefenseTierName> displaced;
         (layout, displaced) = DisplaceBuilt(layout, pinned);
@@ -356,7 +326,6 @@ public static class DefenseTiersPolicy
             Layout = layout,
             Refusal = refusal,
             Decisions = EquatableArray.From(decisions),
-            Sited = sited,
         };
     }
 

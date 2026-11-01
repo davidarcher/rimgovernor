@@ -70,5 +70,20 @@ public sealed partial class GameClient
         return Facade.ReadSpatialAccessAsync(request, cancellationToken);
     }
 
+    /// <summary>Probes the defense candidates in one batched read (task 7.2); native refuses an oversized or malformed request.</summary>
+    internal Task<RimGovernor.Brain.GameFacts.Observations.DefenseProbeSnapshot> ReadDefenseProbeAsync(
+        RimGovernor.Brain.GameFacts.Common.Identity identity,
+        IReadOnlyList<RimGovernor.Brain.GameOrders.Observations.DefenseCandidateProbe> candidates,
+        CancellationToken cancellationToken
+    )
+    {
+        var request = new RimGovernor.Brain.GameOrders.Observations.DefenseProbeRequest
+        {
+            Scope = new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = identity },
+            Candidates = EquatableArray.From(candidates),
+        };
+        return Facade.ReadDefenseProbeAsync(request, cancellationToken);
+    }
+
     private static RimGovernor.Brain.Domain.Cell DefenseWireCell(DomainCell cell) => new() { X = cell.X, Z = cell.Z };
 }

@@ -79,8 +79,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 73 gives a rescue its exact bed and adds the bed rest action (a walking patient's lay-down, habitat 4.3); older journals are replaced.
     /// Version 74 drops the review's retained disaster recovery selection (power and home upkeep compare and order restoration, habitat 5.3); older journals are replaced.
     /// Version 75 adds the power switch and building allow actions (the power family's consumer configuration and a forbidden producer's restoration, habitat 6.5); older journals are replaced.
+    /// Version 76 keeps a bound defense choice's owed coverage on its layout plan site (TierFacts.Owed, habitat 7.4); older journals are replaced.
     /// </summary>
-    public const int SchemaVersion = 75;
+    public const int SchemaVersion = 76;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

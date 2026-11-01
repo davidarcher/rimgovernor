@@ -23,7 +23,7 @@ public sealed class ThreatFactsTests
         [
             new RaidTrack
             {
-                LordId = "lord-1", SpawnTick = new Tick(60000), Spawn = new Cell(0, 40), Ground = true,
+                LordId = "lord-1", SpawnTick = new Tick(60000), Spawn = new Cell(0, 40), Ground = true, Range = 24.9,
                 Trail = [new Cell(0, 40), new Cell(3, 41)],
             },
         ],

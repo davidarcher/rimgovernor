@@ -94,7 +94,7 @@ internal static class ForecastPractice
     }
 
     /// <summary>The raids' loss a day at the observed defense capacity plus <paramref name="shift"/> raid points.</summary>
-    private static double LossPerDay(ForecastCoupledContext context, ForecastSupportConsequences support, double horizon, double shift)
+    internal static double LossPerDay(ForecastCoupledContext context, ForecastSupportConsequences support, double horizon, double shift)
     {
         var cache = Caches.GetValue(context, _ => new());
         return cache.Losses.GetOrAdd((support, horizon, shift), key =>

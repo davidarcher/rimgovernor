@@ -32,6 +32,8 @@ namespace RimGovernor.Native
             public IntVec3 Spawn;
             public bool Ground;
             public int LastTick;
+            // The longest primary-verb range any sampled pawn carried (verbProps.range); 0 for melee only.
+            public float Range;
             public readonly List<IntVec3> Trail = new List<IntVec3>();
         }
 
@@ -60,10 +62,18 @@ namespace RimGovernor.Native
                 }
                 var nearest = pawns.OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).First().Position;
                 track.LastTick = tick;
+                foreach (var p in pawns) track.Range = System.Math.Max(track.Range, WeaponRange(p));
                 if (track.Trail.Count == 0 || track.Trail[track.Trail.Count - 1] != nearest) track.Trail.Add(nearest);
             }
             var finished = Tracks.Values.Where(t => tick - t.LastTick > FinishedAge).Select(t => t.LordId).ToList();
             foreach (var id in finished) Tracks.Remove(id);
+        }
+
+        // A pawn's primary verb range (Pawn_EquipmentTracker.PrimaryEq.PrimaryVerb): 0 without one or for a melee verb.
+        private static float WeaponRange(Pawn p)
+        {
+            var verb = p.equipment?.PrimaryEq?.PrimaryVerb;
+            return verb == null || verb.IsMeleeAttack ? 0f : verb.verbProps.range;
         }
 
         private bool OnEdge(IntVec3 c) => c.x < EdgeMargin || c.z < EdgeMargin || c.x >= map.Size.x - EdgeMargin || c.z >= map.Size.z - EdgeMargin;

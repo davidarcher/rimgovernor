@@ -1980,6 +1980,23 @@ not sample as a rectangle is `Unread`. The rain rate is read from `WeatherManage
 valuation (lamps and other consumers, turrets, the immunity gain a patient loses, tend quality) is unassessed naming the
 service; the priced loss is then a lower bound.
 
+### Raid harm and protection in the defense comparison
+
+The defense comparison ([spatial contracts](spatial-contracts.md#choosing-among-candidates), RG-HABITAT-009) prices a raid's
+loss per day from the harm term above, not from a defense-only model. `ColonyReview.RaidHarm` computes
+`ForecastPractice.LossPerDay` in memory on the coupled context the review already builds (no saved copy): the threat
+schedule's raids ([threat schedule](#threat-schedule-3539)) at the observed raid points, composition and equipment. When the
+schedule or harm cannot be read the comparison names it (`threat_timing:<finding>` for a schedule finding,
+`raid_harm:unread`, `raid_harm:coupled_context`, `raid_harm:<fact>`) and no alternative is priced against it.
+
+What a defense covers comes from the probe's `DefenseProtection` terms ([protection probe](spatial-contracts.md#the-protection-probe)),
+beside `RaidExposure`'s points-to-capacity bin, never in place of it. The comparison's `Covered` is the fraction of probed
+approach cells a staffed firing cell or a ready turret reaches, a stated stand-in for the share of the loss the defense
+stops; it is not a simulated fight. The wire's raid tracks (`ThreatFacts.raids`, `RaidTrack`) carry `range`, the longest
+weapon range of the raid's pawns in cells (0 for melee), read natively from `RaidArrivalState`; the civilians a candidate
+exposes are the routine positions within that range of the observed walk (`DefenseProtection.InRange`), so a melee raid
+exposes only the cells it walks.
+
 ### Planned shelter thermal read
 
 The coupled capture samples `ThermalCell` rows only within six cells of placed sites
