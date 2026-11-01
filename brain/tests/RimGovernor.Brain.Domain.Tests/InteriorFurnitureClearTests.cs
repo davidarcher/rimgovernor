@@ -12,7 +12,7 @@ public sealed class InteriorFurnitureClearTests
     private static ClearanceTarget Row(string id, string def, Cell c, string cls = "") =>
         new() { EntityId = id, DefName = def, Minimum = c, Maximum = c, Class = cls, Player = true, Deconstructible = true };
 
-    private static GroundStep? Step(PlannedRole role, IReadOnlyList<ClearanceTarget> rows, RetiredGround? retired = null) =>
+    private static GroundStep? Step(PlannedRole role, IReadOnlyList<ClearanceTarget> rows, RetiredGround? retired = null, TransitionFacts? transitions = null) =>
         ClearanceReconcileRules.PlannedGroundStep(
             new LayoutPlan { Rooms = [new PlannedRoom { Id = 1, Role = role, Region = RegionRules.RectRegion(Rect(0, 0)) }] },
             new GroundCensus(),
@@ -20,7 +20,8 @@ public sealed class InteriorFurnitureClearTests
             [],
             RoomTestFacts.NoRooms,
             retired ?? new RetiredGround(),
-            null
+            null,
+            transitions ?? TransitionFixtures.Removing(rows)
         );
 
     public static TheoryData<PlannedRole> Roles => new() { PlannedRole.Hospital, PlannedRole.Bedroom, PlannedRole.Throne };
@@ -59,10 +60,12 @@ public sealed class InteriorFurnitureClearTests
     }
 
     [Fact]
-    public void RetiredGroundFurnitureStillClears()
+    public void RetiredGroundFurnitureIsComparedAndStaysWhileItsServiceIsUnassessed()
     {
         var retired = new RetiredGround { Ground = EquatableArray.From(new[] { RegionRules.RectRegion(Rect(10, 10)) }) };
-        var step = Step(PlannedRole.Bedroom, [Row("r", "Bed", new Cell(11, 11))], retired);
-        Assert.Equal(["r"], step!.Targets.Items.Select(t => t.EntityId));
+        // Retired ground is omitted by the plan, not needed by it: the idle bed is compared, and with its service unassessed it stays.
+        Assert.Null(Step(PlannedRole.Bedroom, [Row("r", "Bed", new Cell(11, 11))], retired));
+        // Without its native read nothing but staying is known: it stays too, never cleared by omission.
+        Assert.Null(Step(PlannedRole.Bedroom, [Row("r", "Bed", new Cell(11, 11))], retired, new TransitionFacts()));
     }
 }

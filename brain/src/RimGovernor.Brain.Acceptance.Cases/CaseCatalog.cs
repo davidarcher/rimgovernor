@@ -95,6 +95,7 @@ public static class CaseCatalog
         ProductionCases.Register(registry);
         QuestCases.Register(registry);
         RecoveryCases.Register(registry);
+        RedevelopmentCases.Register(registry);
         RefrigerationCases.Register(registry);
         ResearchCases.Register(registry);
         RoomsCases.Register(registry);

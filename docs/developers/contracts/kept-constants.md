@@ -364,6 +364,22 @@ duration and the component def are typed members and are read. The refuel thresh
 | Deconstruct work | the building's `WorkToBuild` clamped to 20..3000 | `JobDriver_Deconstruct` |
 | Target bound | 32 targets a read (`servicing_targets_truncated`) | an authored cap: every free colonist is priced against each target by up to four legs |
 
+## Mirrored game literals: transitions (habitat 8.1, 8.4)
+
+The transition choice ([spatial contracts](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and-011)) prices a
+standing building's removal, storage and relocation from the native read `ServicingActivityRead.Transitions` and a few
+literals that have no typed route. Each was checked in the decompiled 1.7 code (ilspycmd on `Assembly-CSharp.dll`). Typed
+reads are not constants and are not listed: `building.uninstallWork`, `Pawn.TicksPerMoveCardinal` (the worker's `TicksPerCell`),
+`CostListAdjusted` and `resourcesFractionWhenDeconstructed`.
+
+| Literal | Value | 1.7 member | Where |
+| --- | --- | --- | --- |
+| Removal work a tick | `ConstructionSpeed` x 1.7, for an uninstall (total `uninstallWork`) and a deconstruction alike; the same literal as the [servicing drivers](#mirrored-game-literals-servicing-drivers-habitat-51) | `JobDriver_RemoveBuilding` tick action | `WorkPerSpeed`, `integrations/rimgovernor-native/src/Bridge/NativeServicingActivities.cs:29` |
+| Deconstruct work | `WorkToBuild` clamped to 20..3000; the same literal as the servicing drivers | `JobDriver_Deconstruct.TotalNeededWork` | `integrations/rimgovernor-native/src/Bridge/NativeServicingActivities.cs:247` |
+| Diagonal step | 1.41421: a diagonal step's ticks over a cardinal one's, pricing the haul to a relocation slot as the octile distance (the same literal as [food hauling](#mirrored-game-rules-food-hauling-3849)) | `Pawn.TicksPerMove` | `brain/src/RimGovernor.Brain.Policy/Reconcile.cs:765` |
+| Reinstall install work | `Blueprint_Install.WorkTotal` is 150, named in a comment and not used: the install itself is the delivery, because the native installs a minified thing when it is carried onto its blueprint, so a relocation prices its haul and not 150 work | `Blueprint_Install.WorkTotal` | `brain/src/RimGovernor.Brain.Policy/ServicingTransition.cs:47` (comment) |
+| Transition target bound | 96 standing equipment buildings a read (`transition_targets_truncated`), one worker leg and one store leg each | an authored cap, not a game rule | `TransitionBound`, `integrations/rimgovernor-native/src/Bridge/NativeServicingActivities.cs:23` |
+
 ## Mirrored game literals: rain short circuit (habitat 6.4)
 
 `RainShortCircuitRules` (`Policy/PowerUtility.cs`) prices the rain short circuit the power comparison ([power

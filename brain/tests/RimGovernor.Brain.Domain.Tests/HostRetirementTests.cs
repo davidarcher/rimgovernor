@@ -22,13 +22,16 @@ public sealed class HostRetirementTests
 
     private static LedgerView View(OrderSpec[] orders, params HostBench[] benches) => WorkRules.NewLedgerView(WorkRules.LedgerViewReconciled) with { Orders = orders, Benches = benches };
 
-    private static IReadOnlyList<HostRetirement> Of(LayoutPlan plan, LedgerView view, Func<string, bool>? claimed = null) =>
-        PlannedRules.HostRetirementsOf(plan, view, [Knife], claimed ?? (_ => false));
+    /// <summary>The standing crafting spot as the native read finds it: deconstructible, never minified.</summary>
+    private static readonly TransitionFacts Facts = TransitionFixtures.Facts(TransitionFixtures.Mechanics("spot", Spot, new Cell(1, 1), minifiable: false));
+
+    private static IReadOnlyList<HostRetirement> Of(LayoutPlan plan, LedgerView view, Func<string, bool>? claimed = null, TransitionFacts? facts = null) =>
+        PlannedRules.HostRetirementsOf(plan, view, [Knife], claimed ?? (_ => false), facts ?? Facts);
 
     [Fact]
     public void ASpareRetiresOnlyOnceItsReplacementServes()
     {
-        Assert.Equal([new HostRetirement.Retire("spot", Spot)], Of(Replaced, View([KnifeOrder], SpotBench, SmithyBench)));
+        Assert.Equal([new HostRetirement.Retire("spot", Spot, false)], Of(Replaced, View([KnifeOrder], SpotBench, SmithyBench)));
 
         // Placed or unbuilt: no standing smithy. Unpowered or unreachable: it does not serve. Bill-less: it offers no knife, or no order asks one.
         Assert.Empty(Of(Replaced, View([KnifeOrder], SpotBench)));
@@ -36,6 +39,9 @@ public sealed class HostRetirementTests
         Assert.Empty(Of(Replaced, View([KnifeOrder], SpotBench, SmithyBench with { Recipes = [] })));
         Assert.Empty(Of(Replaced, View([], SpotBench, SmithyBench)));
         Assert.Empty(Of(Replaced, View([KnifeOrder with { Target = 0 }], SpotBench, SmithyBench)));
+        // The retirement is a compared removal: without the spot's native mechanics nothing could price it and it is held, named.
+        var held = Assert.IsType<HostRetirement.Held>(Assert.Single(Of(Replaced, View([KnifeOrder], SpotBench, SmithyBench), facts: new TransitionFacts())));
+        Assert.StartsWith("transition:spot " + Spot + " HostRetirement (Retain excluded " + PlannedRules.ReplacedHost, held.Fact);
     }
 
     [Fact]
@@ -43,7 +49,7 @@ public sealed class HostRetirementTests
     {
         var working = View([KnifeOrder], SpotBench with { Working = ["bill7"] }, SmithyBench);
         Assert.Equal([new HostRetirement.Held("spot", "bill in progress:bill7")], Of(Replaced, working));
-        Assert.Equal([new HostRetirement.Retire("spot", Spot)], Of(Replaced, working with { Benches = [SpotBench, SmithyBench] }));
+        Assert.Equal([new HostRetirement.Retire("spot", Spot, false)], Of(Replaced, working with { Benches = [SpotBench, SmithyBench] }));
     }
 
     [Fact]

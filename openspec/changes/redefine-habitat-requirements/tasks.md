@@ -65,10 +65,10 @@ from executed passes in the existing habitat evidence page.
 
 ## 8. Executable redevelopment and retirement (001, 002, 003, 010, 011)
 
-- [ ] 8.1 Extend planned-room/clearance alternatives to compare retain, repair, replace, relocate, repurpose, store and remove using actual native operations, recovered material, hauling, travel and service loss. Verify damage/idleness does not imply automatic restoration/demolition and non-uninstallable equipment cannot be packed hypothetically.
-- [ ] 8.2 Amend the existing LayoutPlan persistence-table entry before adding durable transition dependencies; keep attempts/claims in the existing journal and trial state derived. Verify round-trip/load/rewind tests preserve intent and reject stale execution evidence without a second restoration ledger.
-- [ ] 8.3 Replace omission-driven retirement and local removal with selected transitions gated on observed replacement service. Verify occupied beds, live power, usable pens and defense preserve required bridging provision; losing a replacement reopens the dependency before old-service removal.
-- [ ] 8.4 Extend native-safe clearance/uninstall/install/configuration and continuation through Hands; register a narrow autonomous replacement-before-removal case. Update spatial, persistence and action contracts plus habitat evidence; delete superseded helpers/boundary members/codecs/fixtures through every reader, regenerate fixtures without save shims and pass the repository gate before committing and landing.
+- [x] 8.1 Extend planned-room/clearance alternatives to compare retain, repair, replace, relocate, repurpose, store and remove using actual native operations, recovered material, hauling, travel and service loss. Verify damage/idleness does not imply automatic restoration/demolition and non-uninstallable equipment cannot be packed hypothetically.
+- [x] 8.2 Amend the existing LayoutPlan persistence-table entry before adding durable transition dependencies; keep attempts/claims in the existing journal and trial state derived. Verify round-trip/load/rewind tests preserve intent and reject stale execution evidence without a second restoration ledger.
+- [x] 8.3 Replace omission-driven retirement and local removal with selected transitions gated on observed replacement service. Verify occupied beds, live power, usable pens and defense preserve required bridging provision; losing a replacement reopens the dependency before old-service removal.
+- [x] 8.4 Extend native-safe clearance/uninstall/install/configuration and continuation through Hands; register a narrow autonomous replacement-before-removal case. Update spatial, persistence and action contracts plus habitat evidence; delete superseded helpers/boundary members/codecs/fixtures through every reader, regenerate fixtures without save shims and pass the repository gate before committing and landing.
 
 ## 9. Cross-capability verification and authority migration (001–011)
 

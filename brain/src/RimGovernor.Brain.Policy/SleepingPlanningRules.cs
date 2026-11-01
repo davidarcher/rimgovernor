@@ -163,7 +163,8 @@ public static class SleepingPlanningRules
                 }
             }
         }
-        return RoomQualityRules.NextBedReplacement(obs!, UpgradeTargetsOf(facts, finished, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, RequiredCells(cells)), def => ColonyPlanningRules.DefinitionAvailable(facts, def), materials, facts.Preferences);
+        return RoomQualityRules.NextBedReplacement(obs!, UpgradeTargetsOf(facts, finished, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, RequiredCells(cells)), def => ColonyPlanningRules.DefinitionAvailable(facts, def), materials, facts.Preferences,
+            ServicingChoiceRules.TransitionFactsOf(facts), ServicingChoiceRules.SpareBedService(ProspectiveCapacityRules.SleepingChanges(facts), facts.Tick.Value));
     }
 
     public static (RoomUpgrade Upgrade, bool Due) TitleFurniture(ReviewFacts facts, IReadOnlyList<SiteCell>? cells)

@@ -706,8 +706,9 @@ does not depend on unsaved station advice.
 
 There is no separate tidy pass. A PlannedRoom is worked toward the plan by the room's owner
 (build side) and by planned-ground clearance (clear side), both over one per-cell diff
-(`policy.Reconcile`, `ReconcileRoom`): furniture off its template slot is packed and the
-slot filled from packed stock or built on site, floors are replaced. Ring first (#3743): an
+(`policy.Reconcile`, `ReconcileRoom`): furniture off its template slot is a proposed
+[transition](#standing-building-transitions-rg-habitat-010-and-011) (retained, stored, relocated or
+removed, never removed by omission) and the slot filled from packed stock or built on site, floors are replaced. Ring first (#3743): an
 `Install` or `Build` is owed but not ready while the same diff owes a `WallIn` or `DoorIn`, in
 every role; a room with no ring (unfenced, a stand-in spot) has none to wait for, and `RoofIn`
 waits for the ring as before. Furniture already standing is matched and kept. A wall stands in the
@@ -774,10 +775,113 @@ job works one of its bills (`HostBench.Working`, read from native `BillState.Wor
 `PlannedRules.HostRetirementsOf` applies it to the owner's spares; it skips while a Bridge
 production is pending and leaves a heating campfire another owner claims (`ClaimedBy`).
 The room reconcile applies the same rule through `PlannedRules.AdmittedRemovals`, which
-takes held targets out of `FurnitureOut`, `Pack` and `PackInUse` ops while the room's
+takes held targets out of `FurnitureOut`, `Pack`, `PackInUse` and `Reinstall` ops while the room's
 other work proceeds. A held removal is `AwaitingPlan` `host_retire_held`. An admitted one
-is a `host-retire-*` deconstruction Method. `PlannedRules.HostRetireOwed` keeps the
+is a `host-retire-*` Method holding one deconstruction, or one uninstall when the transition choice stores the spare ([transitions](#standing-building-transitions-rg-habitat-010-and-011)). `PlannedRules.HostRetireOwed` keeps the
 owner's Need unmet until the removal lands. This replaces the automatic campfire retirement.
+
+#### Standing-building transitions (RG-HABITAT-010 and -011)
+
+A standing building a plan does not list where it stands, retires, replaces or finds spare is never taken down by
+omission. A proposing path names it and `ServicingChoiceRules.Transition` (`ServicingTransition.cs`) decides:
+
+| Path | Cause (wire) | Proposes |
+|---|---|---|
+| Planned-room reconcile (`ReconcileRules.Reconcile`) | `planned_ground`, or `stale_interior` for furniture inside the room | each player building on a planned room's ground the template does not list; it cannot stay where the plan builds (`footprint_planned`) or where the owner forbids it (`forbidden_in_room`) |
+| Planned-ground clearance (`ClearanceGroundRules`) | `retired_ground` | each player furniture row on a retired footprint (walls and roof holders go with the ring) |
+| Host retirement (`PlannedRules.HostTransitionsOf`) | `host_retirement` | a standing bench offering a recipe the plan hosts at another definition |
+| Bed replacement (`RoomQualityBed.cs`, `SleepingUpkeepPlanner`) | `spare_bed` | a solo bedroom's spare bed beside the owner's |
+
+**The comparison.** Retain, Repair, FixBreakdown, Replace, Relocate, Repurpose, Store and Remove are priced in
+capability-days over the horizon: labor (the nearest capable builder's approach plus the work at `ConstructionSpeed` x 1.7
+over a day's ticks, plus the carry leg of a Store or Relocate), material (Remove destroys the building's `CostListAdjusted` value and
+credits `resourcesFractionWhenDeconstructed` of it; Store and Relocate keep it whole) and the service the alternative loses
+over the days it leaves the function lost. Retain is the baseline and costs nothing unless the building is broken down;
+Repair restores hit points, which carry no function, so damage alone never beats Retain; Repair, FixBreakdown and Replace are
+the servicing read's own work ([forecast contracts](forecast-contracts.md#servicing-activity-read)). The cheapest priced
+alternative wins, Retain on a tie. Relocate needs a minifiable building and a destination, Store a minifiable one and
+storage that accepts it (`StorageSettings.AllowedToAccept`), Remove a deconstructible one; the refusals are named
+`not_minifiable`, `no_destination`, `no_accepting_storage` and `not_deconstructible`. Repurpose is always
+`Excluded("no_typed_op")`: no typed repurposing operation exists. The mechanics come from
+`ServicingActivityRead.Transitions` ([forecast contracts](forecast-contracts.md#servicing-activity-read)): at most 96
+standing equipment buildings a read (`transition_targets_truncated`), each with its minifiability, `uninstallWork`,
+deconstructibility, cost list, fraction and deconstruct work, accepting storage cell, nearest worker (approach, `TicksPerCell`,
+store leg as a `TransitionLeg` `Walked` or `Unread`), beauty, wealth and room. An unread fact makes only the alternatives that
+need it `Unassessed`, naming it: `transition read`, `transition_targets_truncated`, `transition target:<id>`,
+`store leg:<id>:<fact>`, `relocation leg:<id>:<fact>`, `build price:<def>`, `material values`, `material value:<resource>`.
+With the service unassessed, an alternative losing more service days than the least-losing measured one is unassessed too,
+so an unassessed service is never beaten by Remove.
+
+The service term (`ServicingChoiceRules.StandingServiceOf`) is the owning model's. A bed its owners sleep in serves each
+owner the rest it frees (`ProspectiveCapacityRules.RestLoss`); a bench with an active bill is in use (`bill in progress:<id>`,
+unassessed); any other piece is what its beauty and wealth give the room it stands in, priced by
+`RoomQualityRules.ImprovementValueOf` over its owners' bedroom gain, and named unpriced where no one sleeps (`environment
+beauty:`, `common room mood:`, `room contribution:`). A host spare's service is nothing once its replacement serves and
+`replacement not serving:<recipe>` before (`HostSpareService`); a spare bed's is the earliest dated sleeper's loss
+(`SpareBedService`).
+
+**Relocation slots.** `ReconcileRules.RelocationSlots` offers each unlisted minifiable piece, in id order, the nearest
+unfilled slot of its definition that no earlier piece took: this room's own unmatched template pieces first, then the other
+planned rooms' (`OpenSlotsOf`: a planned piece with no building of its definition standing in its footprint in the census,
+`HomeUpkeepReader.StandingCells`). The haul is the octile distance from the piece to the slot at the worker's `TicksPerCell`
+(a lower bound: no path to a cell not yet built is read) and the avoided cost is the slot's build price
+(`LayoutClusterRules.PiecePrice` over the ordinary build stuff). The slot's service is the same whether the piece is moved in
+or built new, so moving competes with building on the build price alone and the install adds nothing (the native installs a
+minified thing when it is carried onto its blueprint). Only planned ground proposes slots: clearance, a host's spare and a
+spare bed have none and read `no_destination`.
+
+**Binding.** A chosen Relocate, Store or Remove enters `LayoutPlan.Transitions` as one `PlannedTransition` (target,
+definition, cause, kind, the `RelocationSlot` of a Relocate, the `ReplacementDependency` of a host spare), intent only; the
+[persistence contract](persistence-contracts.md) owns the record. `ServicingChoiceRules.Choose` reads the bound transition
+back without comparing again while `TransitionBindingRules.Holds` (the same definition proposed for the same cause, the same
+replacement still serving, a Relocate's slot still the open slot proposed for it) and what the building provides is still
+served; otherwise it compares and binds the new choice, or drops the binding. `ColonyReview.BindTransitions` applies a
+committed step's decisions to the newest recorded plan, merged by target, and records nothing when the plan already says the
+same. `DropSettledTransitions` runs once a review over the construction and sleeping census. A transition leaves the plan when
+its target no longer stands, stands as another definition, a Relocate stands on its slot, or its cause is gone (the ground no
+longer retired or planned, the recipe no longer hosted at the dependency's host, the spare bed now owned). A receipt never
+settles one, an unread census settles nothing, and omission is never a cause. A removal whose transition an earlier load
+dropped is settled on the census alone (`TransitionBindingRules.SettledOpen`; a host spare's dependency is not recoverable, so
+its path governs every open retirement).
+
+**Stale work.** An open removal Method (a deconstruction, uninstall or reinstall) whose target the plan carries no transition
+for is stale evidence: a choice re-selected to stay, gated on a replacement no longer serving, settled, or never planned in this
+timeline (a rewind). On every path that issues transition work (host retirement, room reconcile, bed removal and the clearance
+step) `ColonyReview.CancelStaleTransitionWork` cancels its unissued (pending or prepared) actions and releases their claims.
+Orders Hands already issued finish, nothing they report closes a transition, and the cancelled removal is not issued again in
+the same load (each path's `MethodOnce`, latest-attempt or withdrawn-target gate holds it).
+
+**Bridging provision.** A removal the comparison chooses is admitted only while what the building provides is observed served
+by a replacement on fresh facts (`TransitionBridgingRules.UnservedOf`, `TransitionDecision.Admitted`). Otherwise the decision
+carries the gate `replacement not serving:<dependant>`, binds nothing, and the building stays. A replacement lost before the
+old service is removed drops the binding and reopens the dependency (`transition_reopened`); one lost afterwards is a plain
+deficit for its owning family. Nothing is remembered between reviews. Four provisions are read:
+
+| Dependant | Read | Unserved when |
+|---|---|---|
+| `rest:<pawn>` | `Sleeping.Beds` | an owner of the occupied bed has no other bed of the same use (crib or not, never medical) that `SleepingRules.LegalBed` gives the occupant class, the owner can reach, and the owner is assigned to or has a free slot in |
+| `power:<consumer>`, `power:network:<id>` | `EssentialInputs.Power` | a producer's net no longer meets its draw without the producer's output, or a battery's net's generation does not meet its draw, while the net powers a consumer; a net the per-net summary does not list names the net |
+| `pen:<herd>` | `PenGrazing.Boundary` and `Animals` through `HerdArrangement.Pieces` ([husbandry contracts](husbandry-contracts.md#herd-arrangement-needs)) | the building is a fence, gate, marker or animal door of a pen of a herd whose pen is unserved, that has animals uncontained or whose pen feed falls short; a piece that bounds no current herd's pen, or only served herds' pens, is not held |
+| `defense:<tier>`, `defense:<def>`, `defense:construction census` | the plan's `defense_choice` tier places and the construction census | the building is one of a planned tier's pieces (the chosen defense itself), or a turret while any planned tier's piece does not yet stand (`defense:<def>` while the plan places no tier); an unread census with a tier planned |
+
+**Executing a transition.** The admitted kind becomes work the room reconcile (or the path's own step) commits: Remove a
+`FurnitureOut` deconstruction, Store a `Pack` uninstall (`PackInUse` for an in-use piece, after the other removals),
+Relocate one `Reinstall`. A Reinstall pairs the standing building with its slot and is one `MoveBuilding`: the native places
+the game's reinstall blueprint (`GenConstruct.PlaceBlueprintForReinstall`) and ordinary construction work uninstalls, carries
+and installs it, so nobody using the piece is interrupted. An uninstall followed by an install is not an alternative, because
+the native move refuses a building under an Uninstall designation. The slot is matched while the Reinstall is owed, so it is
+neither built nor installed from stock. A Reinstall is ready when no removal, floor-out or floor-in work is owed over the
+slot's cells other than the building's own and, when the slot is this room's own, the room's ring is closed (no `WallIn` or
+`DoorIn` owed); a slot in another room waits only on work over its cells. The commit order is obstructions, `FurnitureOut`,
+`Pack`, `PackInUse`, `Reinstall`, `FloorOut`, then installs and builds, and a Reinstall is one Method per piece and slot
+([action contracts](action-contracts.md#standing-building-transitions-habitat-84)). A removal or reinstall of a host passes
+`HostRemovalHold` like any other. Configuration after a reinstalled piece stands (power switch, allow, bed assignment) is its
+owning family's ordinary configuration, not part of the move.
+
+Limits stated rather than priced: the defense read checks the standing pieces of the planned tiers, not observed coverage
+(`DefenseVerified` is runtime memory, not a fact the read can use); walls, doors, power conduits and frames are structure, not
+transition targets, and definitions other lanes carry in owned rooms (`CarriedOver`) are never proposed; Relocate exists only
+on planned ground; Repurpose has no typed operation; the haul to a slot is a lower bound.
 
 #### Activity sites
 

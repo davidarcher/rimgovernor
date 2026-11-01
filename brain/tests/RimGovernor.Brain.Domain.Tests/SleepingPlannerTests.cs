@@ -182,7 +182,7 @@ public sealed class SleepingPlannerTests
     {
         var rows = standing.Select(b => new ClearanceTarget
         {
-            EntityId = b.Id, DefName = b.Building!.Definition, Minimum = b.Cells[0], Maximum = b.Cells[^1], Player = true, Packable = true,
+            EntityId = b.Id, DefName = b.Building!.Definition, Minimum = b.Cells[0], Maximum = b.Cells[^1], Player = true,
         }).ToList();
         return ReconcileRules.Reconcile(new ReconcileInput
         {
@@ -192,6 +192,7 @@ public sealed class SleepingPlannerTests
             Ground = ground,
             Rows = ReconcileRules.OwnerRows(Ringed, rows, furnishing.Pieces, null, _ => false),
             Furniture = furnishing.Pieces,
+            Transitions = TransitionFixtures.Packing(rows),
         });
     }
 

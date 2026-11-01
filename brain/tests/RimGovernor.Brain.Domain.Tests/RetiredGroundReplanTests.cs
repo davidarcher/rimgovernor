@@ -6,7 +6,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// A built room a replan drops leaves its ground to clearance (#3681): the treeless temperate first plan stands, with a
 /// built hospital beside it that the colony (no patient) has no group for and does not hold. The replan drops the
-/// hospital and its ring and interior become the plan's RetiredGround, which planned-ground clearance then takes down.
+/// hospital and its ring and interior become the plan's RetiredGround. Retired is omitted, not unneeded (task 8.1): its idle
+/// bed is a compared transition, kept while its service is unassessed together with the walls around it, which come down
+/// only once nothing on the ground is retained.
 /// </summary>
 public sealed class RetiredGroundReplanTests
 {
@@ -37,6 +39,15 @@ public sealed class RetiredGroundReplanTests
         var ground = RegionRules.RectRegion(ClearanceGroundRules.RoomGround(hospital.Region.Bounds()));
         Assert.Contains(next.RetiredGround, g => g.Equal(ground));
         Assert.True(ClearanceGroundRules.RetiredGroundOf(next).Has(ground));
+
+        var bed = new ClearanceTarget { EntityId = "bed", DefName = "HospitalBed", Minimum = new Cell(east + 1, south + 1), Maximum = new Cell(east + 1, south + 1), Player = true, Deconstructible = true };
+        var wall = new ClearanceTarget { EntityId = "wall", DefName = "Wall", Minimum = new Cell(east + 1, south - 1), Maximum = new Cell(east + 1, south - 1), Player = true, Deconstructible = true, EnclosesRoom = true };
+        var facts = TransitionFixtures.Facts(TransitionFixtures.Mechanics("bed", "HospitalBed", bed.Minimum));
+        // The idle bed and its walls stay: nothing is owed, so the plan drops the entry without demolishing anything.
+        Assert.Contains(ClearanceGroundRules.RetiredGroundDone(next, [bed, wall], [], facts), g => g.Equal(ground));
+        Assert.Contains(ClearanceGroundRules.RetiredGroundDone(next, [bed, wall], [], new TransitionFacts()), g => g.Equal(ground));
+        // With no building retained, the walls are owed.
+        Assert.DoesNotContain(ClearanceGroundRules.RetiredGroundDone(next, [wall], [], facts), g => g.Equal(ground));
     }
 
     /// <summary>

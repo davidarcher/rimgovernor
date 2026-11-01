@@ -75,6 +75,12 @@ public sealed partial class SleepingUpkeepPlanner
         List<string> definitions = [nameof(RimWorld.ThingDefOf.Wall), nameof(RimWorld.ThingDefOf.Door), .. RoomQualityRules.RoomBeautyDefinitions(), .. Reviewer.RememberedThrones(), .. Reviewer.Census.RememberedWorship()];
         var reading = await Reviewer.ObserveOwnedAsync((IReviewSource)Native, expected, [.. definitions], call).ConfigureAwait(false);
         var facts = reading.Reading;
+        // A spare bed's open removal whose transition this review's census settles (a pawn owns it now) is stale (task 8.2), read
+        // from the census alone so a settlement an earlier load recorded still cancels it after a reload (task 8.3).
+        if (facts.Facts.LayoutPlan is { } bedPlan)
+        {
+            ColonyReview.CancelStaleTransitionWork(p.Journal, goal, bedPlan, BedRemoval, ColonyReview.SettledOf(facts, Pol.TransitionCause.SpareBed), "building", call);
+        }
         // The day-one floor's stand-in spots come before any bed change (#3659).
         if (await StandInSpotsAsync(state, review, goal, facts, call, epoch).ConfigureAwait(false) is { } standIn)
         {

@@ -45,11 +45,9 @@ public sealed record ClearanceTarget
     public bool Blueprint { get; init; }
 
     /// <summary>
-    /// Stamped by the clearance planner (#2103): the def packs into a minified item, and the piece is an
-    /// owned bed or a bench with an active bill.
+    /// Stamped by the clearance planner (#2103): the piece is an owned bed or a bench with an active bill, packed after every
+    /// other piece of its room when the transition choice (ServicingChoiceRules.Transition) stores it.
     /// </summary>
-    public bool Packable { get; init; }
-
     public bool InUse { get; init; }
 
     public SalvageEvidence? Salvage { get; init; }

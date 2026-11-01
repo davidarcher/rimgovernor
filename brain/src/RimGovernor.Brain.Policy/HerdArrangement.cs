@@ -50,7 +50,8 @@ public sealed record HerdRemedy(HerdDeficitKind Deficit, HerdRemedyKind Kind, He
 /// One pen unit's arrangement: the feeding deficit (nutrition over the horizon), the gross feed it eats over the horizon
 /// before the stock inside its pens (FeedNeed, which sizes its feed store), the part of the deficit left for a hay field
 /// once the feed ledger hauls outside stock (the haul is the HaulFeed remedy's value), the exposed animals no observed
-/// shelter serves, the uncontained animals, whether the pen itself is unserved, the unread facts and every remedy's value.
+/// shelter serves, the uncontained animals, whether the pen itself is unserved, the unread facts, every remedy's value and
+/// the standing pieces that pen the unit (Pieces).
 /// </summary>
 public sealed record HerdArrangement
 {
@@ -72,6 +73,13 @@ public sealed record HerdArrangement
     public EquatableArray<string> Unread { get; init; }
 
     public EquatableArray<HerdRemedy> Remedies { get; init; }
+
+    /// <summary>
+    /// The load ids of the standing pieces that pen the unit, in ordinal order: the marker and the observed boundary
+    /// (PenGrazing.Boundary: fences, gates, walls, animal doors) of every pen tied to it, one whose marker stands in the
+    /// unit's planned pens or whose enclosure holds one of its animals (PenGrazing.Animals).
+    /// </summary>
+    public EquatableArray<string> Pieces { get; init; }
 
     public int ContainmentDeficit => Uncontained + (PenUnserved ? 1 : 0);
 
@@ -169,6 +177,9 @@ public static class HerdArrangementRules
             var animals = HerdShelterRules.UnitAnimals(input.Shelter, herd);
             var pens = input.Plan?.HerdRooms(HerdRoomsRules.PlannedPen, herd) ?? [];
             var rows = input.Grazing.Where(g => pens.Any(p => p.Region.Contains(g.Cell))).OrderBy(g => g.Marker, StringComparer.Ordinal).ToList();
+            var ids = animals.Select(a => a.Id.Value).ToHashSet(StringComparer.Ordinal);
+            var pieces = input.Grazing.Where(g => rows.Contains(g) || g.Animals.Any(ids.Contains))
+                .SelectMany(g => g.Boundary.Prepend(g.Marker)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
             var enclosed = rows.Where(r => r.Enclosed).ToList();
             var unread = new List<string>();
             var remedies = new List<HerdRemedy>();
@@ -245,6 +256,7 @@ public static class HerdArrangementRules
                 PenUnserved = penUnserved,
                 Unread = EquatableArray.From(unread),
                 Remedies = EquatableArray.From(remedies),
+                Pieces = EquatableArray.From(pieces),
             });
         }
         return output;

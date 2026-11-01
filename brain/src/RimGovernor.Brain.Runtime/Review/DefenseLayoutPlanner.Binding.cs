@@ -31,7 +31,9 @@ public sealed partial class DefenseLayoutPlanner
         if (decision.Kind != DefenseCandidateKind.Retain)
         {
             owed = DefenseBindingRules.Owed(decision.Rows.First(r => r.Alternative.Candidate.Kind == DefenseCandidateKind.Retain));
+            // The transitions another planner bound since the cut was read stay on the plan (task 8.2).
             var plan = DefenseBindingRules.Bind(cut.Plan, chosen.Alternative.Candidate, owed);
+            plan = plan.WithTransitionsOf(p.Journal.LayoutPlan(state.Snapshot, tick, call)?.Plan ?? plan);
             p.Current(call, epoch);
             if (p.Session.State() != state)
             {

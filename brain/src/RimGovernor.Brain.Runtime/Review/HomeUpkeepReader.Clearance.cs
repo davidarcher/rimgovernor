@@ -32,7 +32,34 @@ public sealed partial class HomeUpkeepReader
     public static FamilyRunner<HomeUpkeepFacts> Runner(ColonyReview reviewer, GameClient native, bool repairs, bool clearance)
     {
         var reader = new HomeUpkeepReader(reviewer, native, repairs, clearance);
-        return new FamilyRunner<HomeUpkeepFacts>(new HomeUpkeepFamily(repairs, clearance), reader.ReadAsync, Schedule);
+        return new FamilyRunner<HomeUpkeepFacts>(new HomeUpkeepFamily(repairs, clearance), reader.ReadAsync, Schedule, reader.WorkAsync);
+    }
+
+    /// <summary>
+    /// The clearance Need's commit step (task 8.2): once the planned-ground step's Method is committed (admitted or continued), or
+    /// when the step has nothing left to commit, its transition decisions are bound into the plan, and the Need's open removals of
+    /// buildings the plan no longer takes off their cells (re-selected to stay, or settled) have their unissued actions cancelled.
+    /// It adds no Method: the Need's verdict stays what its proposal filed.
+    /// </summary>
+    internal Task<Verdict> WorkAsync(NeedWork work, HomeUpkeepFacts facts, CancellationToken call)
+    {
+        var none = Verdict.AwaitingPlan(work.Need.Id.Value, "no_method");
+        if (work.Need.Id != HomeUpkeepFamily.Clearance || facts.Transitions is not { } transitions)
+        {
+            return Task.FromResult(none);
+        }
+        var journal = _reviewer.Player.Journal;
+        if (facts.Candidate is { } candidate && !work.Owner.Methods.Any(m => m.Method == candidate.Method && WorkProgress.Open(journal.LoadPlan(m.Plan, call).Progress)))
+        {
+            return Task.FromResult(none);
+        }
+        if (_reviewer.BindTransitions(work.State.Snapshot, transitions.Tick, null, transitions.Decisions.Items, call) is { } plan)
+        {
+            var governed = transitions.Decisions.Select(d => d.Target).ToHashSet(StringComparer.Ordinal);
+            governed.UnionWith(transitions.Settled);
+            ColonyReview.CancelStaleTransitionWork(journal, work.Owner, plan, _ => true, governed.Contains, HomeUpkeepFamily.FamilyId, call);
+        }
+        return Task.FromResult(none);
     }
 
     /// <summary>An optional entry woken by the outcomes of repairs, breakdown fixes and every clearance step kind.</summary>
@@ -99,12 +126,23 @@ public sealed partial class HomeUpkeepReader
         }
         else
         {
-            var (planned, ok) = PlannedGroundStep(colony, StampPacking(player, colony), census.Floors, wants);
+            var (planned, ok) = PlannedGroundStep(colony, StampInUse(player, colony), census.Floors, wants);
             if (!ok)
             {
                 return facts;
             }
-            step = PendingClearanceStep(planned);
+            // The step's transition choices are bound when its Method is committed (WorkAsync, task 8.2), with the open removals
+            // this census settles (task 8.3); a removal a stale cancellation withdrew in this load is not proposed again.
+            var owner = _reviewer.Player.Journal.LoadNeed(HomeUpkeepFamily.Clearance, scope.World, call);
+            var settled = ColonyReview.SettledOf(colony, TransitionCause.RetiredGround, TransitionCause.PlannedGround);
+            facts = facts with
+            {
+                Transitions = new ClearanceTransitions(colony.Identity.Tick, planned.Transitions)
+                {
+                    Settled = [.. ColonyReview.OpenRemovalTargets(_reviewer.Player.Journal, owner, _ => true, call).Where(settled)],
+                },
+            };
+            step = UnwithdrawnStep(PendingClearanceStep(planned), ColonyReview.WithdrawnTargets(_reviewer.Player.Journal, owner, _ => true, call));
             if (step.Roof.Count + step.Targets.Count + step.Floors.Count == 0)
             {
                 return facts;
@@ -134,6 +172,13 @@ partial class HomeUpkeepReader
             Floors = [.. step.Floors.Where(f => !f.Designated)],
         };
 
+    /// <summary>The step less the targets the transition choice decided whose removal a stale cancellation withdrew (<paramref name="withdrawn"/>).</summary>
+    internal static GroundStep UnwithdrawnStep(GroundStep step, IReadOnlySet<string> withdrawn)
+    {
+        var decided = step.Transitions.Select(d => d.Target).ToHashSet(StringComparer.Ordinal);
+        return step with { Targets = [.. step.Targets.Where(t => !(withdrawn.Contains(t.EntityId) && decided.Contains(t.EntityId)))] };
+    }
+
     internal static (GroundStep Step, bool Ok) PlannedGroundStep(ColonyReading colony, IReadOnlyList<ClearanceTarget> player, IReadOnlyList<ClearanceFloor> floors, RoomFloors wants)
     {
         if (colony.Facts.LayoutPlan is not { } plan)
@@ -142,7 +187,7 @@ partial class HomeUpkeepReader
         }
         var ground = BuildingPlanner.ColonyGround(colony);
         var rooms = colony.Facts.Upkeep.Rooms;
-        var planned = ClearanceReconcileRules.PlannedGroundStep(plan, ground, player, floors, rooms, ColonyReview.RetiredGroundOfColony(colony), wants);
+        var planned = ClearanceReconcileRules.PlannedGroundStep(plan, ground, player, floors, rooms, ColonyReview.RetiredGroundOfColony(colony), wants, TransitionsOf(colony));
         return planned is null ? (new GroundStep(), false) : (planned, true);
     }
 
@@ -154,8 +199,16 @@ partial class HomeUpkeepReader
         }
         var ground = BuildingPlanner.ColonyGround(colony);
         var rooms = colony.Facts.Upkeep.Rooms;
-        return ClearanceReconcileRules.PlannedGroundWork(plan, ground, player, floors, rooms, ColonyReview.RetiredGroundOfColony(colony), wants);
+        return ClearanceReconcileRules.PlannedGroundWork(plan, ground, player, floors, rooms, ColonyReview.RetiredGroundOfColony(colony), wants, TransitionsOf(colony));
     }
+
+    /// <summary>The colony's transition facts (ServicingChoiceRules.TransitionFactsOf), its servicing options joined to its building rows.</summary>
+    internal static TransitionFacts TransitionsOf(ColonyReading colony) => ServicingChoiceRules.TransitionFactsOf(colony.Facts, colony.Tables.Buildings.Table.At);
+
+    /// <summary>The colony's standing buildings by def and map position, the census an open planned slot is read against (ReconcileRules.OpenSlotsOf).</summary>
+    internal static List<(string Def, Cell Cell)> StandingCells(ColonyReading colony) =>
+        [.. colony.Tables.Buildings.Table.Values().Where(b => b.Building.Place is RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)
+            .Select(b => (b.Building.DefName, ((RimGovernor.Brain.GameFacts.Observations.EntityPlace.OnMap)b.Building.Place).Cell))];
 
     /// <summary>
     /// The colony's player blueprints as clearance rows (#3742): the clearance census reports buildings only (a frame
@@ -187,8 +240,8 @@ partial class HomeUpkeepReader
         return output;
     }
 
-    /// <summary>Stamps the packable flag and the in-use flag (a bed with owners or a bench with an active bill) onto the rows.</summary>
-    internal static List<ClearanceTarget> StampPacking(IReadOnlyList<ClearanceTarget> rows, ColonyReading colony)
+    /// <summary>Stamps the in-use flag (a bed with owners or a bench with an active bill) onto the rows.</summary>
+    internal static List<ClearanceTarget> StampInUse(IReadOnlyList<ClearanceTarget> rows, ColonyReading colony)
     {
         var inUse = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var bed in colony.Facts.Sleeping.Beds)
@@ -210,7 +263,6 @@ partial class HomeUpkeepReader
         {
             output.Add(row with
             {
-                Packable = colony.Facts.Packable.Contains(row.DefName),
                 InUse = inUse.TryGetValue(row.EntityId, out var used) && used,
             });
         }

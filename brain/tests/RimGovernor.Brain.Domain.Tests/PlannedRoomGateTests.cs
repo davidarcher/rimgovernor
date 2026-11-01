@@ -179,8 +179,11 @@ public sealed class PlannedRoomGateTests
             .Select(p => p.Action.Building).OfType<Building>()];
     }
 
-    /// <summary>The rig; with <paramref name="owed"/> the step walks those rooms as the bedroom step does (FirstUnheldRoomAsync).</summary>
-    private static Colony Open(Func<ReviewFacts, ReviewFacts>? review = null, IReadOnlyList<PlannedRoom>? owed = null, LayoutPlan? plan = null)
+    /// <summary>
+    /// The rig; with <paramref name="owed"/> the step walks those rooms as the bedroom step does (FirstUnheldRoomAsync), and with
+    /// <paramref name="coupled"/> the reading carries that coupled forecast read (the native transition mechanics among it).
+    /// </summary>
+    private static Colony Open(Func<ReviewFacts, ReviewFacts>? review = null, IReadOnlyList<PlannedRoom>? owed = null, LayoutPlan? plan = null, RimGovernor.Brain.GameFacts.Observations.CoupledForecastRead? coupled = null)
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-planned-gate-" + Guid.NewGuid().ToString("N") + ".db"), ct);
@@ -242,7 +245,8 @@ public sealed class PlannedRoomGateTests
                 Upkeep = ColonyFactsCoreTests.Reading().Facts.Upkeep with
                 {
                     Rooms = RoomTestFacts.NoRooms
-                }
+                },
+                ForecastObserved = coupled is null ? ColonyFactsCoreTests.Reading().Facts.ForecastObserved : ColonyFactsCoreTests.Reading().Facts.ForecastObserved with { Coupled = coupled },
             }
         };
         Colony? colony = null;
@@ -936,8 +940,14 @@ public sealed class PlannedRoomGateTests
         Assert.True(Colony.Report(replaced).Outcome == Outcome.Admitted, "replacement: " + Colony.Report(replaced) + " " + colony.Reconciled);
         Assert.Equal(PlannedRoomSelectionTests.HostBench, Assert.Single(colony.Placed(replaced)).Definition);
 
-        // The comparison retains the bench alone. While the built bench does not serve, the spot is not removed.
-        using var retained = Open(WithBridge, plan: PlannedRoomSelectionTests.HostPlan);
+        // The comparison retains the bench alone. While the built bench does not serve, the spot is not removed: its retirement is a
+        // compared Remove (the native read: a deconstructible spot that cannot be minified, with no cost list) that loses to Retain.
+        var spotRead = TransitionFixtures.Mechanics(spotId, BridgeSpot, spotCell, minifiable: false) with
+        {
+            Removal = new RimGovernor.Brain.GameFacts.Observations.ServicingRemoval.Read([], 0, 200),
+        };
+        using var retained = Open(WithBridge, plan: PlannedRoomSelectionTests.HostPlan,
+            coupled: CoupledFixtures.Empty with { Servicing = CoupledFixtures.NoServicing with { Transitions = [spotRead] } });
         retained.Planner.Concern = FoodRules.FoodSupplyNeed.FilingKey;
         retained.PlannedStep = true;
         retained.Census = RingStanding(Built(BridgeSpot, spotCell), Built(PlannedRoomSelectionTests.HostBench, HostAnchor));

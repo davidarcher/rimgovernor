@@ -267,7 +267,7 @@ partial record LayoutPlan
     /// retired (RetiredGround) for clearance; the embedder's switching price (#2877) decides what moves. The
     /// rooms the tiler does not plan are laid over its plan as DeriveLayoutPlan lays them: the
     /// perimeter the defense record holds is kept as it stands (RetainPerimeter), and the bound defense choice stays
-    /// bound where it is (WithBoundDefenseOf). The failure is the
+    /// bound where it is (WithBoundDefenseOf), as do the planned transitions (WithTransitionsOf). The failure is the
     /// chain's or the tiler's (RequiredFactException for a fact the colony has not read, TileException for a
     /// plan it cannot tile, ReplanEmptyException); the caller keeps the plan it has and journals the failure.
     /// </summary>
@@ -311,7 +311,7 @@ partial record LayoutPlan
         plan = plan with { Conduits = EquatableArray.From(conduits) };
         advice.Tiled!.ConduitDecisions.AddRange(joined);
         plan = plan with { RetiredGround = LayoutDeriveRules.RetiredGround(prev, plan, growth.Fixed ?? f!.Built!) };
-        return (LayoutPlan.WithoutCore(RetainPerimeter(prev, plan, growth.Perimeter)).WithDefenseTiersOf(prev).WithBoundDefenseOf(prev).WithRoomIDs().WithActivitySites(advice.ActivitySites), advice);
+        return (LayoutPlan.WithoutCore(RetainPerimeter(prev, plan, growth.Perimeter)).WithDefenseTiersOf(prev).WithBoundDefenseOf(prev).WithTransitionsOf(prev).WithRoomIDs().WithActivitySites(advice.ActivitySites), advice);
     }
 
     /// <summary>

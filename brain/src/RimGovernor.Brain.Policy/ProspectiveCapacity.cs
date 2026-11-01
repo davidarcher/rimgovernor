@@ -251,12 +251,15 @@ public static class ProspectiveCapacityRules
     }
 
     // The capability-days a day a pawn's sleep frees in the bed over the ground (ForecastHousing.RestDaysFreed).
-    private static ExpectedLoss BedRestLoss(ReviewFacts f, string pawn, SleepingBedFacts? bed)
+    private static ExpectedLoss BedRestLoss(ReviewFacts f, string pawn, SleepingBedFacts? bed) =>
+        bed is null ? new ExpectedLoss.Unassessed("primary bed rest effectiveness") : RestLoss(f, pawn, bed.RestEffectiveness);
+
+    /// <summary>The capability-days a day <paramref name="pawn"/>'s sleep frees in a bed of rest effectiveness <paramref name="effectiveness"/> over the ground (ForecastHousing.RestDaysFreed); unassessed naming an unread rest row or rate.</summary>
+    internal static ExpectedLoss RestLoss(ReviewFacts f, string pawn, double effectiveness)
     {
-        if (bed is null) return new ExpectedLoss.Unassessed("primary bed rest effectiveness");
         var row = f.ForecastObserved.Needs?.Pawns.FirstOrDefault(p => p.Pawn == pawn);
         if (row?.Needs.FirstOrDefault(n => n.Kind == "rest") is not { } rest) return new ExpectedLoss.Unassessed("rest need:" + pawn);
-        var planned = rest.GainPerTickPerEffectiveness * bed.RestEffectiveness;
+        var planned = rest.GainPerTickPerEffectiveness * effectiveness;
         if (!double.IsFinite(rest.FallPerTick) || rest.FallPerTick < 0 || !double.IsFinite(rest.UnservedGainPerTick) || rest.UnservedGainPerTick <= 0
             || !double.IsFinite(planned) || planned <= 0)
             return new ExpectedLoss.Unassessed("rest rates:" + pawn);
@@ -288,9 +291,14 @@ public static class ProspectiveCapacityRules
     public static IReadOnlyList<(ExpectedChange Change, ProspectiveChoice Choice)> SleepingChoices(ReviewFacts f)
     {
         IReadOnlyList<ProvisionOption> beds = f.ProspectiveBed is { } option ? [option] : [];
+        return [.. SleepingChanges(f).Select(change => (change, Choose(change, f.Tick, change.Owner == ExpectedOwner.Crib ? [] : beds)))];
+    }
+
+    /// <summary>The colony's dated sleeping changes resting in the primary bed's least restful built row (<see cref="ReviewFacts.SleepingBeds"/>).</summary>
+    public static IReadOnlyList<ExpectedChange> SleepingChanges(ReviewFacts f)
+    {
         var primary = f.Shapes.Furniture.PrimaryBed();
-        var bed = f.SleepingBeds.Where(b => b.Def == primary && !b.Ground).OrderBy(b => b.RestEffectiveness).FirstOrDefault();
-        return [.. SleepingChanges(f, bed).Select(change => (change, Choose(change, f.Tick, change.Owner == ExpectedOwner.Crib ? [] : beds)))];
+        return SleepingChanges(f, f.SleepingBeds.Where(b => b.Def == primary && !b.Ground).OrderBy(b => b.RestEffectiveness).FirstOrDefault());
     }
 
     /// <summary>

@@ -51,25 +51,17 @@ public sealed class HerdRoomsArePlanRoomsTests
         Assert.Equal([(PlannedRole.Pen, "", 30), (PlannedRole.Barn, sheltered[0].Id, 4)], sheltered.Select(n => (n.Role, n.Beside, n.Area)));
     }
 
+    // Task 8.4: the legacy-site read is deleted, not shimmed. A plan saved with its pens and barns as reservations no longer
+    // decodes (no reservation kind names them), so a save restores it as no plan and the next survey derives a fresh one.
     [Fact]
-    public void APlanSavedWithReservationsLoadsThePenAndTheBarnAsRooms()
+    public void APlanSavedWithPenReservationsNoLongerDecodes()
     {
         var plan = Core(Home(1, 38, 38));
         var area = Json(RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 8, Height = 8 }));
-        var pen = Json(RegionRules.RectRegion(new Rectangle { X = 17, Z = 10, Width = 6, Height = 8 }));
-        var json = Json(plan).Replace("\"Reservations\":[]", $"\"Reservations\":[{{\"Kind\":\"barn\",\"Area\":{area},\"Herd\":\"Muffalo\"}},{{\"Kind\":\"pen\",\"Area\":{pen},\"Herd\":\"Muffalo\"}}]", StringComparison.Ordinal);
-        Assert.Contains("\"barn\"", json, StringComparison.Ordinal);
+        var json = Json(plan).Replace("\"Reservations\":[]", $"\"Reservations\":[{{\"Kind\":\"pen\",\"Area\":{area},\"Herd\":\"Muffalo\"}}]", StringComparison.Ordinal);
+        Assert.Contains("\"pen\"", json, StringComparison.Ordinal);
         using var doc = JsonDocument.Parse(json);
-        var back = Codecs.Default.Read<LayoutPlan>(doc.RootElement);
-        Assert.Empty(back.Reservations);
-        Assert.Equal([PlannedRole.Barn, PlannedRole.Pen], back.Rooms.Skip(1).Select(r => r.Role));
-        Assert.All(back.Rooms.Skip(1), room =>
-        {
-            Assert.Equal("Muffalo", room.Herd);
-            Assert.True(room.Id > 1);
-        });
-        Assert.False(back.Rooms[1].Outdoor);
-        Assert.True(back.Rooms[2].Outdoor);
+        Assert.ThrowsAny<Exception>(() => Codecs.Default.Read<LayoutPlan>(doc.RootElement));
     }
 
     [Fact]

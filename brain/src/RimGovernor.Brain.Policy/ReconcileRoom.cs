@@ -54,8 +54,8 @@ public static partial class ReconcileRules
     /// </summary>
     public static IReadOnlyList<Operation> ReconcileRoom(ReconcileInput input) => ReconcileRoomHolds(input).Operations;
 
-    /// <summary>ReconcileRoom with the foreign things the room leaves standing and everything it owes (Reconciliation.Owed, ready or not).</summary>
-    public static (IReadOnlyList<Operation> Operations, IReadOnlyList<ReconcileHold> Holds, IReadOnlyList<Operation> Owed) ReconcileRoomHolds(ReconcileInput input)
+    /// <summary>ReconcileRoom with the foreign things the room leaves standing, everything it owes (Reconciliation.Owed, ready or not) and its transition decisions.</summary>
+    public static (IReadOnlyList<Operation> Operations, IReadOnlyList<ReconcileHold> Holds, IReadOnlyList<Operation> Owed, IReadOnlyList<TransitionDecision> Transitions) ReconcileRoomHolds(ReconcileInput input)
     {
         var output = new List<Operation>();
         var rec = Reconcile(input);
@@ -67,15 +67,15 @@ public static partial class ReconcileRules
             }
             output.Add(op);
         }
-        return (output, rec.Holds, rec.Owed);
+        return (output, rec.Holds, rec.Owed, rec.Transitions);
     }
 
     /// <summary>
     /// The census rows an owner reconciles its room against, the full list: the ring, frames and stand-ins, the
     /// template's standing pieces, the buildings forbidden finds (packed or taken down by the reconcile) and
     /// every other player building wholly inside the interior that the template does not list and
-    /// <paramref name="carried"/> does not carry over: stale furniture, which the reconcile removes
-    /// (FurnitureOut, Pack, PackInUse). Anything else the room holds is left alone.
+    /// <paramref name="carried"/> does not carry over: stale furniture, which the reconcile proposes to the transition choice
+    /// (ServicingChoiceRules.Transition: kept, stored or removed). Anything else the room holds is left alone.
     /// </summary>
     public static IReadOnlyList<ClearanceTarget> OwnerRows(PlannedRoom room, IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<WantedPiece> template, Func<string, bool>? forbidden, Func<string, bool> carried)
     {
@@ -97,7 +97,7 @@ public static partial class ReconcileRules
     }
 
     /// <summary>
-    /// The interior furniture an owner reconciling against its whole list removes: each player building wholly
+    /// The interior furniture an owner reconciling against its whole list proposes for removal: each player building wholly
     /// inside the room's interior that no piece of <paramref name="template"/> lists (matched as Reconcile
     /// matches, one row per piece) and that is not carried over. Walls, doors, frames, stand-in beds and what
     /// the owner forbids are the ring's or already the owner's, not stale furniture.
@@ -138,7 +138,7 @@ public static partial class ReconcileRules
     /// <summary>
     /// Whether row is furniture standing wholly inside room's interior: a player building that is no ancient wall
     /// or door, no frame and no stand-in bed, with no cell on the ring. The clear side leaves such rows to the
-    /// owner (InteriorFurnitureLeft) and the owner removes the unlisted ones (StaleInterior).
+    /// owner (InteriorFurnitureLeft) and the owner proposes the unlisted ones (StaleInterior) to the transition choice.
     /// </summary>
     internal static bool InteriorFurniture(PlannedRoom room, ClearanceTarget row) =>
         row.Player

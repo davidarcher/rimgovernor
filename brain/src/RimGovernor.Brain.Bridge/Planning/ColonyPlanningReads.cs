@@ -125,7 +125,6 @@ public static partial class ColonyPlanningReads
             f = f with
             {
                 RoofSupport = Verse.RoofCollapseUtility.RoofMaxSupportDistance,
-                Packable = catalog.Packable(),
                 LightTerrains = new LightTerrains(catalog.LightTerrains().ToDictionary(terrain => terrain, _ => true)),
                 Impressiveness = catalog.ImpressivenessLevels(),
                 PowerSources = catalog.PowerSources(),

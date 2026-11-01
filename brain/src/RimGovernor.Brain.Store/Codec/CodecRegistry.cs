@@ -173,6 +173,8 @@ internal static class CodecRegistry
         codecs.Register(new PlannedProductionConverter());
         codecs.Register(new FilthRunsConverter());
         codecs.Register(new PlannedSiteConverter());
+        codecs.Register(new PlannedTransitionConverter());
+        codecs.Register(new ReplacementDependencyConverter());
         codecs.Register(new PodArrivalConverter());
         codecs.Register(new PodDoorConverter());
         codecs.Register(new PolicyPruneConverter());

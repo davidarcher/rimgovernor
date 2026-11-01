@@ -61,10 +61,23 @@ public enum BedReplacementStep
     Remove,
 }
 
-/// <summary>The next bed replacement step. Build places Def at Cell/Rot; Assign moves Pawn from PreviousBed to Bed; Remove deconstructs Bed (Def at Cell).</summary>
+/// <summary>
+/// The next bed replacement step. Build places Def at Cell/Rot; Assign moves Pawn from PreviousBed to Bed; Remove takes the spare Bed
+/// (Def at Cell) off its cell as the transition choice chose: uninstalled to storage (<see cref="Uninstall"/>) or deconstructed, or,
+/// while the choice could price nothing, waits naming <see cref="Hold"/>.
+/// </summary>
 public sealed record BedReplacement
 {
     public BedReplacementStep Step { get; init; }
+
+    /// <summary>A Remove step's chosen removal packs the bed (Store) rather than deconstructing it.</summary>
+    public bool Uninstall { get; init; }
+
+    /// <summary>A Remove step's named hold while the transition choice could price nothing; null when the removal is chosen.</summary>
+    public string? Hold { get; init; }
+
+    /// <summary>A Remove step's transition decision (bound or compared): what committing it binds into the plan.</summary>
+    public TransitionDecision? Transition { get; init; }
 
     public string Room { get; init; } = "";
 
@@ -98,6 +111,9 @@ public sealed record BedReplacement
 
 public static partial class RoomQualityRules
 {
+    /// <summary>The retain exclusion of a spare bed no expected sleeper needs, and the fact naming an unread spare-bed service.</summary>
+    public const string UnneededSpare = "unneeded_spare", SpareBedServiceFact = "spare bed service";
+
     /// <summary>The QualityCategory ordinal of Normal.</summary>
     private const int NormalQuality = 2;
 
@@ -152,8 +168,12 @@ public static partial class RoomQualityRules
         IReadOnlyList<FurnitureRoom> rooms,
         Func<string, bool> available,
         BedMaterials materials,
-        PreferencesRecord preferences)
+        PreferencesRecord preferences,
+        TransitionFacts? transitions = null,
+        TransitionService? spareService = null)
     {
+        // A spare bed's service is the dated sleepers it would host (SpareBedService); unread, it is unassessed and the bed stays.
+        var service = spareService ?? new TransitionService.Unassessed(SpareBedServiceFact);
         var census = obs.Rooms;
         var quality = new Dictionary<string, RoomQuality>(StringComparer.Ordinal);
         foreach (var r in census)
@@ -217,7 +237,19 @@ public static partial class RoomQualityRules
             {
                 if (!bedless && !BedBetter(materials.Items, b, owned, want))
                 {
-                    return (new BedReplacement { Step = BedReplacementStep.Remove, Room = s.Room, Bed = b.Id, Def = b.Definition.Value, Cell = b.Cell }, true);
+                    // The spare is compared, never removed by omission: no expected sleeper excludes keeping it unneeded, a dated
+                    // arrival prices the nights it would host, and an unread arrival keeps it.
+                    var decision = ServicingChoiceRules.Choose(new(b.Id, b.Definition.Value, TransitionCause.SpareBed)
+                    {
+                        RetainExcluded = service is TransitionService.Assessed { PerDay: <= 0 } ? UnneededSpare : null,
+                        Service = service,
+                    }, transitions);
+                    if (decision.Hold is null && !decision.Admitted) continue;
+                    return (new BedReplacement
+                    {
+                        Step = BedReplacementStep.Remove, Room = s.Room, Bed = b.Id, Def = b.Definition.Value, Cell = b.Cell,
+                        Uninstall = decision.Uninstalls, Hold = decision.Hold, Transition = decision,
+                    }, true);
                 }
             }
             var tk = targets.TryGetValue(s.Room, out var t);

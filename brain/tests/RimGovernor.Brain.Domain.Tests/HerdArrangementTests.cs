@@ -35,8 +35,10 @@ public sealed class HerdArrangementTests
         Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = x, Z = 10, Width = width, Height = height }),
     };
 
-    private static PenGrazing Row(PlannedRoom pen, bool enclosed = true, double demand = 2, double today = 0, double worst = 0, double stored = 0, params PenShelterRoom[] shelters) => new()
+    /// <summary>A marker's row; an enclosed one is bounded by fence "fence&lt;id&gt;" and gate "gate&lt;id&gt;" and holds <paramref name="inside"/>.</summary>
+    private static PenGrazing Row(PlannedRoom pen, bool enclosed = true, double demand = 2, double today = 0, double worst = 0, double stored = 0, string[]? inside = null, params PenShelterRoom[] shelters) => new()
     {
+        Boundary = enclosed ? ["fence" + pen.Id, "gate" + pen.Id] : [], Animals = enclosed ? EquatableArray.From(inside ?? []) : [],
         Marker = "marker" + pen.Id, Cell = pen.Region.Anchor(), Enclosed = enclosed, Cells = enclosed ? pen.Region.Bounds().Width * pen.Region.Bounds().Height : 0,
         DemandPerDay = enclosed ? demand : 0, PastureTodayPerDay = enclosed ? today : 0, PasturePerDay = enclosed ? worst : 0, StoredNutrition = enclosed ? stored : 0,
         Shelters = EquatableArray.From(shelters),
@@ -216,5 +218,25 @@ public sealed class HerdArrangementTests
         Assert.Equal([("Cow", 20.0, 0.0), ("Muffalo", 5.0, 15.0)], arrangements.Select(a => (a.Herd, Haul(a), a.HayNutrition)));
         Assert.Equal(25, arrangements.Sum(Haul));
         Assert.Equal(15, HerdArrangementRules.HayDemand(arrangements));
+    }
+
+    [Fact]
+    public void APenPieceIsHeldOnlyOnTheHerdWhosePenItBounds()
+    {
+        // The cows' pen is fed; the muffalo's is not. An old unplanned pen still holds a muffalo; a disused one holds nothing.
+        var muffaloPen = Pen(3, "Muffalo", 30);
+        var oldPen = Pen(4, "", 60);
+        var disused = Pen(5, "", 80);
+        var plan = new LayoutPlan { Rooms = [CowPen, muffaloPen] };
+        var arrangements = HerdArrangementRules.Assess(Input(15, plan,
+            [Row(CowPen, stored: 20), Row(muffaloPen), Row(oldPen, inside: ["muff1"]), Row(disused)], [Animal("cow1"), Animal("muff1", "Muffalo")]));
+        Assert.Equal([("Cow", 0.0), ("Muffalo", 20.0)], arrangements.Select(a => (a.Herd, a.FeedingDeficit)));
+        Assert.Equal(["fence2", "gate2", "marker2"], arrangements.Single(a => a.Herd == "Cow").Pieces);
+        Assert.Equal(["fence3", "fence4", "gate3", "gate4", "marker3", "marker4"], arrangements.Single(a => a.Herd == "Muffalo").Pieces);
+
+        // Only the unfed herd's pieces are held, its old pen's with them; the fed herd's and the disused pen's are not held on pens.
+        string[] held = ["fence3", "gate3", "marker3", "fence4", "gate4", "marker4"], free = ["fence2", "gate2", "marker2", "fence5", "gate5", "marker5"];
+        Assert.All(held, t => Assert.Equal("pen:Muffalo", TransitionBridgingRules.PenUnserved(arrangements, t)));
+        Assert.All(free, t => Assert.Null(TransitionBridgingRules.PenUnserved(arrangements, t)));
     }
 }

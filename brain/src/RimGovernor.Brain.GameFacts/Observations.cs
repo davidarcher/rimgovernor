@@ -6694,8 +6694,11 @@ public sealed record ForagePlant
 /// (ResetAndProcessPen): the marker's load id and cell, whether PenMarkerState reads it enclosed, the cells its
 /// connected districts hold (0 unenclosed), the pasture animals inside it eat a day (SumNutritionConsumptionPerDay),
 /// the pasture its ground grows a day today (NutritionPerDayToday) and in the worst quadrum, the pasture-edible
-/// nutrition stockpiled inside it, and the roofed rooms its enclosure reaches (Shelters). An unenclosed pen has no
-/// districts, so every figure is 0 and it has no shelter.
+/// nutrition stockpiled inside it, the roofed rooms its enclosure reaches (Shelters), the load ids of the buildings
+/// that bound the enclosure (Boundary: the edifice on every cell outside its connected regions that touches one, and
+/// the door of every connected doorway region: fences, gates, walls and animal doors) and the load ids of the player
+/// animals inside it (Animals). An unenclosed pen has no districts, so every figure is 0 and it has no shelter,
+/// boundary or animals.
 /// </summary>
 public sealed record PenGrazing
 {
@@ -6717,6 +6720,12 @@ public sealed record PenGrazing
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PenShelterRoom>))]
     public required EquatableArray<PenShelterRoom> Shelters { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> Boundary { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> Animals { get; init; }
 }
 
 /// <summary>

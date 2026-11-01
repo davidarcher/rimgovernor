@@ -18,6 +18,10 @@ internal static class NativeServicingActivities
     // The bound on targets one read measures: every free colonist is priced against each, by up to four legs.
     private const int TargetBound = 32;
 
+    // The bound on standing equipment one read measures for transitions: one worker leg and one store leg each.
+    // An authored cap, recorded under "Mirrored game literals: transitions" in docs/developers/contracts/kept-constants.md.
+    private const int TransitionBound = 96;
+
     // JobDriver_Repair's private WarmupTicks and TicksBetweenRepairs, JobDriver_FixBrokenDownBuilding's private TicksDuration
     // and the 1.7 the construction drivers multiply ConstructionSpeed by (a literal in their tick actions): no typed route
     // exists to a private const or an inline literal, so the values are copied here from the decompiled drivers
@@ -85,16 +89,90 @@ internal static class NativeServicingActivities
                             { WorkActive = Active(pawn, deconstruct) && Active(pawn, build) });
             }
         }
+        var transitions = Transitions(map, legs, roster, deconstruct, findings);
         var stock = consumed.OrderBy(def => def.defName, StringComparer.Ordinal)
             .Select(def => new Obs.ServicingStock(def.defName, map.listerThings.ThingsOfDef(def).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer)).Sum(t => t.stackCount)));
         return new()
         {
             Mechanics = new(WorkPerSpeed, RepairWarmupWork, RepairWorkPerHitPoint, FixTicks, JobDriver_Refuel.RefuelingDuration, ThingDefOf.ComponentIndustrial.defName),
-            Targets = EquatableArray.From(rows), Workers = EquatableArray.From(workers), Stock = EquatableArray.From(stock), Findings = EquatableArray.From(findings),
+            Targets = EquatableArray.From(rows), Workers = EquatableArray.From(workers), Stock = EquatableArray.From(stock), Transitions = EquatableArray.From(transitions),
+            Findings = EquatableArray.From(findings),
         };
     }
 
     private static Cell At(IntVec3 c) => new(c.x, c.z);
+
+    // Each standing player building a plan may transition (no wall, door, conduit or frame), bounded: its uninstall and
+    // deconstruct mechanics, the storage that would take it minified, and the nearest capable builder's legs.
+    private static List<Obs.TransitionMechanics> Transitions(Map map, NativePathLegs legs, Pawn[] roster, WorkGiverDef? deconstruct, SortedSet<string> findings)
+    {
+        var standing = map.listerBuildings.allBuildingsColonist.Where(b => b.Spawned && Transitionable(b))
+            .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        if (standing.Length > TransitionBound) findings.Add("transition_targets_truncated");
+        var uninstall = Giver(def => typeof(WorkGiver_Uninstall).IsAssignableFrom(def.giverClass));
+        var builders = deconstruct == null ? Array.Empty<Pawn>() : Capable(roster, deconstruct.workType).ToArray();
+        var output = new List<Obs.TransitionMechanics>();
+        foreach (var building in standing.Take(TransitionBound))
+        {
+            var minifiable = building.def.Minifiable && building.Faction == Faction.OfPlayer;
+            var storage = minifiable ? Storage(map, building) : new Obs.TransitionStorage.None("not_minifiable");
+            var room = building.GetRoom();
+            var outside = room == null || !room.ProperRoom || room.PsychologicallyOutdoors;
+            output.Add(new(building.GetUniqueLoadID(), building.def.defName, At(building.Position))
+            {
+                Beauty = building.GetBeauty(room == null || room.PsychologicallyOutdoors),
+                Wealth = building.MarketValue,
+                Room = outside ? new Obs.TransitionRoom.None("outdoors") : new Obs.TransitionRoom.Inside(room!.ID.ToString(System.Globalization.CultureInfo.InvariantCulture)),
+                Minifiable = minifiable,
+                UninstallWork = building.def.building.uninstallWork,
+                Deconstructible = building.DeconstructibleBy(Faction.OfPlayer).Accepted,
+                BrokenDown = building.IsBrokenDown(),
+                Removal = Removal(building),
+                Storage = storage,
+                Worker = TransitionWorker(map, legs, builders, building, storage, uninstall, deconstruct),
+            });
+        }
+        if (output.Count > 0) findings.Add("transition_nearest_worker_legs");
+        return output;
+    }
+
+    // Equipment, not structure: a wall, a door, a power conduit or a frame is the room's or the build side's.
+    private static bool Transitionable(Building b) => b.def.building != null && !b.def.IsFrame && !b.def.IsDoor && !b.def.IsSmoothed
+        && !(b.def.passability == Traversability.Impassable && !b.def.Minifiable && !b.def.hasInteractionCell)
+        && !(b.TryGetComp<CompPowerTransmitter>() != null && !b.def.hasInteractionCell && !b.def.Minifiable);
+
+    // The highest-priority player slot group that accepts the building (StorageSettings.AllowedToAccept; ThingFilter.Allows
+    // unwraps a minified thing to its inner building), at its cell nearest the building.
+    private static Obs.TransitionStorage Storage(Map map, Building building)
+    {
+        var groups = map.haulDestinationManager.AllGroupsListInPriorityOrder
+            .Where(g => (g.parent is not Thing parent || parent.Faction == Faction.OfPlayer) && g.parent.HaulDestinationEnabled && g.Settings.AllowedToAccept(building) && g.CellsList.Count > 0)
+            .ToList();
+        if (groups.Count == 0) return new Obs.TransitionStorage.None("no_accepting_storage");
+        var best = groups[0].Settings.Priority;
+        var cell = groups.Where(g => g.Settings.Priority == best).SelectMany(g => g.CellsList)
+            .OrderBy(c => c.DistanceToSquared(building.Position)).ThenBy(c => c.x).ThenBy(c => c.z).First();
+        return new Obs.TransitionStorage.Accepting(At(cell));
+    }
+
+    // The capable builder nearest the building in a straight line, its walk to it and its loaded carry from it to the store.
+    private static Obs.TransitionWorker? TransitionWorker(Map map, NativePathLegs legs, Pawn[] builders, Building building, Obs.TransitionStorage storage,
+        WorkGiverDef? uninstall, WorkGiverDef? deconstruct)
+    {
+        var pawn = builders.OrderBy(p => p.Position.DistanceToSquared(building.Position)).ThenBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).FirstOrDefault();
+        if (pawn == null || legs.Cost(pawn, pawn.Position, building, PathEndMode.Touch) is not { } approach) return null;
+        Obs.TransitionLeg store = storage is not Obs.TransitionStorage.Accepting { Cell: var cell } ? new Obs.TransitionLeg.Unread("no_accepting_storage")
+            : legs.Cost(pawn, building.Position, new IntVec3(cell.X, 0, cell.Z), PathEndMode.OnCell) is { } carry ? new Obs.TransitionLeg.Walked(carry)
+            : new Obs.TransitionLeg.Unread("no_path");
+        return new(pawn.GetUniqueLoadID(), approach)
+        {
+            Ability = Construction(pawn),
+            TicksPerCell = pawn.TicksPerMoveCardinal,
+            UninstallActive = uninstall != null && Active(pawn, uninstall),
+            DeconstructActive = deconstruct != null && Active(pawn, deconstruct),
+            StoreLeg = store,
+        };
+    }
 
     private static int Rank(Building b) => b.IsBrokenDown() || b.TryGetComp<CompRefuelable>() is { HasFuel: false } ? 0
         : b.TryGetComp<CompRefuelable>() is { IsFull: false } ? 1 : Repairs(b) ? 2 : 3;

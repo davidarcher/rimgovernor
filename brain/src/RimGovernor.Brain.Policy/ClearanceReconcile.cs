@@ -37,7 +37,8 @@ public static class ClearanceReconcileRules
         IReadOnlyList<ClearanceTarget> rows,
         IReadOnlyList<ClearanceFloor> floors,
         RoomObservation rooms,
-        RoomFloors? wants
+        RoomFloors? wants,
+        TransitionFacts? transitions
     )
     {
         var output = new List<Reconciliation>();
@@ -51,6 +52,7 @@ public static class ClearanceReconcileRules
                 Rows = EquatableArray.From(InteriorFurnitureLeft(r, rows)),
                 Floors = EquatableArray.From(floors),
                 Rooms = rooms,
+                Transitions = transitions,
             };
             if (wants is not null)
             {
@@ -90,10 +92,11 @@ public static class ClearanceReconcileRules
         IReadOnlyList<ClearanceFloor> floors,
         RoomObservation rooms,
         RetiredGround rg,
-        RoomFloors? wants
+        RoomFloors? wants,
+        TransitionFacts? transitions = null
     )
     {
-        var crs = ReconcileGround(plan, g, rows, floors, rooms, wants);
+        var crs = ReconcileGround(plan, g, rows, floors, rooms, wants, transitions);
         foreach (var kind in _clearKinds)
         {
             var targets = new List<ClearanceTarget>();
@@ -156,10 +159,13 @@ public static class ClearanceReconcileRules
                 Targets = EquatableArray.From(targets),
                 Floors = EquatableArray.From(groundFloors),
                 Roof = EquatableArray.From(roof),
+                Transitions = EquatableArray.From(crs.SelectMany(cr => cr.Transitions)),
             };
         }
 
-        return ClearanceGroundRules.RetiredGroundStep(rows, floors, rg.Ground, rooms, rg);
+        return ClearanceGroundRules.RetiredGroundStep(rows, floors, rg.Ground, rooms, rg, transitions) is { } retired
+            ? retired with { Transitions = EquatableArray.From(crs.SelectMany(cr => cr.Transitions).Concat(retired.Transitions.Items)) }
+            : null;
     }
 
     /// <summary>
@@ -173,11 +179,12 @@ public static class ClearanceReconcileRules
         IReadOnlyList<ClearanceFloor> floors,
         RoomObservation rooms,
         RetiredGround rg,
-        RoomFloors? wants
+        RoomFloors? wants,
+        TransitionFacts? transitions = null
     )
     {
-        var output = ClearanceGroundRules.RetiredGroundWork(rows, floors, rg.Ground, rg);
-        foreach (var cr in ReconcileGround(plan, g, rows, floors, rooms, wants))
+        var output = ClearanceGroundRules.RetiredGroundWork(rows, floors, rg.Ground, rg, transitions);
+        foreach (var cr in ReconcileGround(plan, g, rows, floors, rooms, wants, transitions))
         {
             foreach (var op in cr.Owed)
             {

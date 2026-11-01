@@ -180,6 +180,12 @@ public sealed partial record LayoutPlan
     /// <summary>The activity sites the layout comparator chose (ActivitySiteRules.Resolve): the standing ones it keeps and the spots the placement step binds. Only a tiled plan holds them.</summary>
     public IReadOnlyList<PlannedActivitySite> ActivitySites { get; init; } = [];
 
+    /// <summary>
+    /// The standing buildings the transition choice chose to take off their cells (task 8.2, TransitionBindingRules): intent
+    /// only, one per target, read back instead of compared again while its inputs hold. Attempts stay in the session journal.
+    /// </summary>
+    public IReadOnlyList<PlannedTransition> Transitions { get; init; } = [];
+
     /// <summary>Latches the map's climate when the plan is derived: the seasonal curve dips below ColdMapBelowC, so a replan reads the climate the plan was derived for.</summary>
     public bool Cold { get; init; }
 
@@ -405,7 +411,7 @@ public sealed partial record LayoutPlan
                 }
             }
         }
-        return true;
+        return TransitionBindingRules.ValidTransitions(Transitions);
     }
 
     /// <summary>A vent that stands in a room's wall: one cell of a fenced room's wall ring, a corner excluded, that no door, link or entrance holds.</summary>

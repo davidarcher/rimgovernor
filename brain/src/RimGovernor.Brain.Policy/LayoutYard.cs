@@ -1,12 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-public sealed partial record LayoutPlan
-{
-    /// <summary>The materials yard an outline holds: an Outdoor room on the outline less its one-cell margin.</summary>
-    internal static PlannedRoom YardRoom(Rectangle outline) =>
-        new() { Role = LayoutYardRules.PlannedYard, Region = RegionRules.RectRegion(LayoutPerimeterRules.Pad(outline, -1)), Outdoor = true };
-}
-
 /// <summary>The materials yard, a planned Outdoor room beside the core.</summary>
 public static partial class LayoutYardRules
 {

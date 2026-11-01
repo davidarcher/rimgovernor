@@ -35,7 +35,7 @@ babies (H13). Barn execution (the animal flap, owner step, spot assignment and h
 minimums remain gaps. Milestone 4 adds that a medical bed is no free sleeping slot, a
 patient held in one counts once, and a bed a care transport holds is its patient's
 ([H11](#h11--care-locations-compared-by-readiness-movement-delay-and-outcome)).
-Evidence H1–H2, H6, H9, H11, H13.
+Milestone 8 holds an occupied bed until its replacement is observed assignable and reachable, and relocates a minifiable bed onto its slot as one native reinstall ([H15](#h15--executable-redevelopment-and-retirement-milestone-8)). Evidence H1–H2, H6, H9, H11, H13, H15.
 
 ## RG-HABITAT-002 — Keep essential facilities usable
 
@@ -61,7 +61,7 @@ component source are not modelled. Milestone 6 compares generation, storage, roo
 configuration and passive thermal provision by the interruption each consumer's loss prices, and orders power
 switches and a forbidden producer's allow under Auto ([H13](#h13--fields-herds-prospective-capacity-and-utilities-compared-as-priced-consequences)).
 Resilience across repeated losses needs further evidence. A hosted guest's or slave's cold or hot sleeping room is
-temperature work like a colonist's (H9). Evidence H3–H6, H12, H13.
+temperature work like a colonist's (H9). Milestone 8 holds a generator until its replacement is observed powering the net ([H15](#h15--executable-redevelopment-and-retirement-milestone-8)). Evidence H3–H6, H12, H13, H15.
 
 ## RG-HABITAT-003 — Develop rooms for the benefit they provide
 
@@ -116,7 +116,7 @@ and competing uses, and a ritual a planned worship room already prices is not
 counted again.
 
 ([H10](#h10--spot-bridges-retirement-and-activity-sites-compared-as-layout-alternatives)).
-Evidence H7, H8 and H10 prove the policy path; they do not establish sustained native colony performance.
+Milestone 8 compares retaining, relocating, storing and removing each standing building with its transition cost, binds the choice on the plan and executes it only after the replacement is observed serving ([H15](#h15--executable-redevelopment-and-retirement-milestone-8)). Evidence H7, H8, H10 and H15 prove the policy path; they do not establish sustained native colony performance.
 
 ## RG-HABITAT-004 — Provide suitable places for treatment and recovery
 
@@ -737,3 +737,95 @@ Known limits, stated rather than priced:
   retains; a stored layout's retier, turret power hold and cover clearance are the older tier-by-tier code;
 - the planned perimeter and killbox sites are still traced with `PlanPerimeter`, and the routing cut stays advice that is
   logged only.
+
+### H15 — Executable redevelopment and retirement (milestone 8)
+
+Milestone 8 (RG-HABITAT-010 and -011, with -001, -002 and -003 where noted) replaces omission-driven removal of standing
+buildings with a comparison of retaining, repairing, replacing, relocating, repurposing, storing and removing each one,
+binds the chosen transition on the layout plan, admits a removal only while what the building provides is observed served
+by a replacement, and executes a chosen relocation as one native reinstall. The
+[spatial](../developers/contracts/spatial-contracts.md#standing-building-transitions-rg-habitat-010-and-011),
+[forecast](../developers/contracts/forecast-contracts.md),
+[action](../developers/contracts/action-contracts.md#standing-building-transitions-habitat-84),
+[husbandry](../developers/contracts/husbandry-contracts.md),
+[otel](../developers/contracts/otel-signals.md),
+[kept-constants](../developers/contracts/kept-constants.md#mirrored-game-literals-transitions-habitat-81-84) and
+[persistence](../developers/contracts/persistence-contracts.md) (schemas 77 and 78) contracts own the behavior.
+
+- **Comparison with transition cost (RG-HABITAT-010).** [TransitionChoiceTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/TransitionChoiceTests.cs)
+  check that a damaged idle bench is retained and only a breakdown under a bill queue buys the fix
+  (`ADamagedIdleBenchIsRetainedAndOnlyABreakdownUnderABillQueueBuysTheFix`), that a building the native cannot minify is never
+  packed and a minifiable bed relocates (`ABuildingThatCannotBeMinifiedIsNeverPackedAndAMinifiableBedRelocates`,
+  `TheNativeMinifiableReadNotACatalogSetDecidesPacking`), that Store is excluded with no storage that accepts the building
+  (`StoreIsExcludedWithNoStockpileThatAcceptsTheBuilding`), that Remove credits the recovered fraction, charges the service and
+  loses to Retain while the service is unassessed
+  (`RemoveCreditsTheRecoveredFractionChargesTheServiceAndLosesToRetainWhileTheServiceIsUnassessed`), that a spare bed loses its
+  removal while a dated arrival needs it (`ASpareBedLosesItsRemovalWhileADatedArrivalNeedsIt`) and that a host retirement is a
+  compared Remove that loses while the replacement does not serve (`AHostRetirementIsAComparedRemoveThatLosesWhileTheReplacementDoesNotServe`).
+  [TransitionServiceTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/TransitionServiceTests.cs) check the proposing
+  path: an unowned bed on a planned kitchen footprint is stored and an owned one stays
+  (`AnUnownedBedOnAPlannedKitchenFootprintIsStoredAndAnOwnedBedStays`), omission alone never removes and a gated removal is a
+  named hold with no order (`OmissionAloneNeverRemovesAndAGatedRemovalIsANamedHoldWithNoOrder`), a beautiful sculpture in an
+  owned bedroom stays on merit (`ABeautifulSculptureInAnOwnedBedroomStaysAndAPlainOneTheFurnishingOmitsStaysOnMerit`), a stale
+  piece on a listed piece's slot cannot stay and its read service prices its removal
+  (`AStalePieceOnAListedPiecesSlotCannotStayAndItsReadServicePricesItsRemoval`), and a minifiable bed relocates into an open bed
+  slot rather than the slot being built new (`AMinifiableBedRelocatesIntoAnOpenBedSlotRatherThanTheSlotBeingBuiltNew`).
+- **Binding and stale execution (RG-HABITAT-010, -011).** [TransitionBindingTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/TransitionBindingTests.cs)
+  check that bound transitions survive a load and are not compared again (`BoundTransitionsSurviveLoadAndAreNotComparedAgain`),
+  that a rewind to before planning leaves none, that a receipt for an absent transition is rejected and closes nothing, that a
+  replacement that stops serving reopens the dependency, that a filled slot re-selects a relocation, that an older plan blob
+  restores as no plan and the current one loads (`AnOlderPlanBlobRestoresAsNoPlanAndTheCurrentOneLoads`) and that no stored
+  type but the layout plan carries a transition (`NoStoredTypeButTheLayoutPlanCarriesATransition`, no second ledger).
+  [TransitionStaleWorkTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/TransitionStaleWorkTests.cs) check that an
+  unissued removal the plan no longer carries is cancelled and not issued again in the same load on each of the four paths:
+  host retirement (`AStaleHostRetirementIsCancelledAndNotIssuedAgain`), room reconcile
+  (`AStaleRoomRemovalIsCancelledAndMethodOnceHoldsIt`), bed removal (`AStaleBedRemovalIsCancelledAndNotIssuedAgain`) and
+  clearance (`AStaleClearanceRemovalIsCancelledAndWithdrawnFromTheNextStep`).
+- **Observed replacement before removal (RG-HABITAT-010, -011, -001, -002).** [TransitionBridgingTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/TransitionBridgingTests.cs)
+  check that an occupied bed is kept while its replacement is unassignable and removed once the sleeper is assigned
+  (`AnOccupiedBedIsKeptWhileItsReplacementIsUnassignableAndRemovedOnceTheSleeperIsAssigned`), that a generator is held until its
+  replacement powers the net and a replacement breakdown reopens the dependency and cancels the unissued removal
+  (`AGeneratorIsHeldUntilItsReplacementPowersTheNetAndAReplacementBreakdownReopensAndCancels`), that an old fence is held while
+  the new pen has a gap and goes once it is closed and fed
+  (`AnOldFenceIsHeldWhileTheNewPenHasAGapAndRemovedOnceItIsClosedAndFed`), that a retired turret is held until the planned
+  defense pieces stand and a lost piece reopens it
+  (`ARetiredTurretIsHeldUntilTheDefenseReplacingItStandsAndALostPieceReopens`), and that a settled transition's open removal is
+  cancelled on the first review after a load (`ASettledTransitionsOpenRemovalIsCancelledOnTheFirstReviewAfterLoad`).
+  [HerdArrangementTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HerdArrangementTests.cs) check that a pen piece is
+  held only on the herd whose pen it bounds (`APenPieceIsHeldOnlyOnTheHerdWhosePenItBounds`).
+- **Native-safe execution (RG-HABITAT-010, -003).** [TransitionHandsTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/TransitionHandsTests.cs)
+  check that a chosen Relocate is one `MoveBuilding` of the standing building onto its slot's anchor and rotation under the
+  `<room>-reinstall-<target>-<x>-<z>` Method (`TheReinstallIsOneMoveOfTheStandingBuildingOntoItsSlot`), that a Refused order
+  of each kind (Remove, Store, Relocate) ends the attempt, is held by `MethodOnce` and never settles the transition while the
+  census does (`ARefusedOrderIsConsumedNotReissuedAndNeverSettlesTheTransition`), that a reinstall whose slot another piece took
+  is cancelled and not issued again (`AReinstallWhoseSlotIsTakenMidChainIsCancelledAndNotIssuedAgain`), and that a reinstall onto
+  another room's slot waits only on work over the slot (`AReinstallOntoAnotherRoomsSlotWaitsOnlyOnWorkOverTheSlot`).
+  [StoreSchemaPinTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/StoreSchemaPinTests.cs) pin schema 78, which deleted
+  the plan's save shims.
+- **Native case.** OnDemand `redevelopment/replace-before-remove`
+  ([ReplaceBeforeRemove](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Redevelopment/ReplaceBeforeRemove.cs): four fresh
+  muffalo corpses, no butcher bench, food short and wood in stock, under the served bill and work families) expects the
+  comparison to adopt a butcher-spot-now, table-later chain, the plan to bind the spot's `host_retirement` transition with its
+  replacement dependency, the table to be built and observed serving with a butcher bill, only then the spot to be
+  deconstructed (no Deconstruct designation stands on it while the table is not serving), and the plan to drop the transition
+  once the spot is gone. It is registered and compiled only, and executed by no automated run: OnDemand cases are not in the
+  normal gate, `RimGovernor.cmd test -full` or the nightly. No native evidence exists for this milestone and no executed pass is
+  claimed. Its own limit: it polls once a round, so a run that never observes the binding before the spot is gone fails the
+  case rather than passing it.
+
+These are executed policy and boundary checks through the full gate, except the native case above.
+
+Known limits, stated rather than priced:
+
+- Repurpose has no typed operation (`no_typed_op`), so it is always excluded and no building is repurposed;
+- the defense bridging read checks that the planned tiers' pieces stand, not observed coverage (`DefenseVerified` is runtime
+  memory), so a standing piece that does not protect is not told from one that does;
+- power conduits and structure are not transition targets and none is proposed for removal, and definitions other lanes carry
+  in owned rooms are never proposed;
+- Relocate exists only on planned ground: clearance, a host's spare and a spare bed have no slot (`no_destination`), and the
+  haul to a slot is a lower bound because no path to a cell not yet built is read;
+- the transition read is cut at 96 equipment buildings (`transition_targets_truncated`), and a building past the cut is
+  unassessed;
+- the `layout_edit` rows for the four transition reasons have no automated reader;
+- the native reinstall, the uninstall designation, the storage read, `PenGrazing.Boundary` and `Animals`, and the per-worker
+  transition legs have not been run in a game: no live-game verification of milestone 8 exists.

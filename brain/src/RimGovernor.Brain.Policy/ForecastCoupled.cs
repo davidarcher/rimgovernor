@@ -236,6 +236,12 @@ public sealed record ForecastCoupledContext
     /// value per unit (#3653), priced once per review (ForecastValue.MaterialValueOf, over ForecastValue.ChargedMaterials). A
     /// material without a row is unpriced and charged nothing; a kept stack without one leaves its store's credit unassessed.</summary>
     public IReadOnlyDictionary<Resource, ConstructionMaterialValue> MaterialValues { get; init; } = new Dictionary<Resource, ConstructionMaterialValue>();
+
+    /// <summary>
+    /// The materials a standing building's transition prices (task 8.1): every resource the native transition read's cost lists
+    /// name and, when one is broken down, the component its fix consumes, so the review values them beside the planned rooms' (ChargedMaterials).
+    /// </summary>
+    public IReadOnlyList<Resource> TransitionMaterials { get; init; } = [];
     /// <summary>Per cookable ingredient, the nutrition a unit gives cooked over what it gives raw (#3626): the best observed
     /// conversion's product Nutrition stat times its count over the ingredient count, divided by the ingredient's own Nutrition
     /// stat. Only ratios above 1 are kept; an ingredient without one costs nothing eaten raw.</summary>

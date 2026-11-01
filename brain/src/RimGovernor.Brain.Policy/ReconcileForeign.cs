@@ -43,7 +43,7 @@ public static partial class ReconcileRules
         var index = new Dictionary<(ulong Id, string Def, Cell Cell), ReconcileItem>();
 
         // Place records t on c as an item of kind, widening the target of a thing that spans cells.
-        void Place(OpKind kind, Thing t, Cell c, bool packable)
+        void Place(OpKind kind, Thing t, Cell c)
         {
             var key = (t.Id, t.Def, t.Id == 0 ? c : default);
             w.Blocked.Add(c);
@@ -73,7 +73,6 @@ public static partial class ReconcileRules
                     Deconstructible = t.Has(ThingMarks.Deconstructible),
                     Count = t.Count,
                     Designated = t.Has(ThingMarks.Designated),
-                    Packable = packable,
                     AncientDanger = t.Has(ThingMarks.AncientDanger),
                 },
             };
@@ -101,7 +100,7 @@ public static partial class ReconcileRules
                 {
                     if (t.Has(ThingMarks.Impassable))
                     {
-                        Place(OpKind.Cut, t, c, false);
+                        Place(OpKind.Cut, t, c);
                     }
                 }
                 else if (t.Category == ThingCategory.Item)
@@ -126,7 +125,7 @@ public static partial class ReconcileRules
                         // A claimed ruin stands as wall: nothing to raise or clear.
                         var was = w.Blocked.Contains(c);
                         w.Claimed.Add(c);
-                        Place(OpKind.Claim, t, c, false);
+                        Place(OpKind.Claim, t, c);
                         if (!was)
                         {
                             w.Blocked.Remove(c);
@@ -134,11 +133,11 @@ public static partial class ReconcileRules
                     }
                     else if (t.Has(ThingMarks.Minifiable))
                     {
-                        Place(OpKind.Pack, t, c, true);
+                        Place(OpKind.Pack, t, c);
                     }
                     else if (t.Has(ThingMarks.Deconstructible))
                     {
-                        Place(OpKind.FurnitureOut, t, c, false);
+                        Place(OpKind.FurnitureOut, t, c);
                     }
                     else if (t.Has(ThingMarks.Edifice))
                     {

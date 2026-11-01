@@ -5,7 +5,11 @@ using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-/// <summary>Owners reconcile against the full furniture list: unlisted interior furniture is stale and removed (#3487).</summary>
+/// <summary>
+/// Owners reconcile against the full furniture list: unlisted interior furniture is stale (#3487) and proposed to the transition
+/// choice (task 8.1), which keeps it while its service is unassessed and stores or removes it only where it cannot stay: on a
+/// cell the plan builds, or a definition the room's owner forbids.
+/// </summary>
 public sealed class StaleFurnitureTests
 {
     private const string Stray = "Dresser";
@@ -28,7 +32,6 @@ public sealed class StaleFurnitureTests
         Minimum = cell,
         Maximum = max ?? cell,
         Player = true,
-        Packable = true,
         Deconstructible = true,
     };
 
@@ -48,17 +51,49 @@ public sealed class StaleFurnitureTests
             Ground = new GroundCensus(),
             Rows = ReconcileRules.OwnerRows(room, rows, template, forbidden, carried),
             Furniture = template,
+            Transitions = TransitionFixtures.Packing(rows),
+            Forbidden = forbidden,
         };
         return [.. ReconcileRules.Reconcile(input).Owed.Where(o => RemovalKinds.Contains(o.Kind)).SelectMany(o => o.Targets).Select(t => t.EntityId)];
     }
 
+    /// <summary>The ids the owner proposes as stale, by id.</summary>
+    private static List<string> Stale(PlannedRoom room, IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<WantedPiece> template, Func<string, bool> carried, Func<string, bool>? forbidden = null) =>
+        [.. ReconcileRules.StaleInterior(room, rows, template, forbidden, carried).Select(t => t.EntityId)];
+
     [Fact]
-    public void AnUnlistedInteriorPieceIsRemovedAndListedPiecesStay()
+    public void AStalePieceIsKeptWhileItsServiceIsUnassessedAndStoredOnlyWhereItCannotStay()
+    {
+        var room = Room();
+        var rows = new[] { Row("bed", "Bed", new Cell(11, 11)), Row("stale", Stray, new Cell(13, 13)) };
+        // Idle and unlisted is not unneeded: with its service unassessed Remove and Store cannot beat Retain.
+        Assert.Empty(OwnerRemovals(room, rows, [Listed("Bed", new Cell(11, 11))], NothingCarried));
+        // A wanted piece planned on its cell excludes keeping it: the minifiable dresser storage accepts is packed.
+        var over = ReconcileRules.Reconcile(new ReconcileInput
+        {
+            Rooms = RoomTestFacts.NoRooms, Plan = new LayoutPlan { Rooms = [room] }, Room = room, Ground = new GroundCensus(),
+            Rows = ReconcileRules.OwnerRows(room, rows, [Listed("Bed", new Cell(11, 11)), Listed("EndTable", new Cell(13, 13))], null, NothingCarried),
+            Furniture = [Listed("Bed", new Cell(11, 11)), Listed("EndTable", new Cell(13, 13))], Transitions = TransitionFixtures.Packing(rows),
+        }).Owed;
+        Assert.Equal(["stale"], over.Where(o => o.Kind == OpKind.Pack).SelectMany(o => o.Targets).Select(t => t.EntityId));
+        // Without the native read nothing could price it: the piece is held, named, and nothing is built over it.
+        var unread = ReconcileRules.Reconcile(new ReconcileInput
+        {
+            Rooms = RoomTestFacts.NoRooms, Plan = new LayoutPlan { Rooms = [room] }, Room = room, Ground = new GroundCensus(),
+            Rows = ReconcileRules.OwnerRows(room, rows, [Listed("Bed", new Cell(11, 11)), Listed("EndTable", new Cell(13, 13))], null, NothingCarried),
+            Furniture = [Listed("Bed", new Cell(11, 11)), Listed("EndTable", new Cell(13, 13))],
+        });
+        Assert.DoesNotContain(unread.Owed, o => RemovalKinds.Contains(o.Kind));
+        Assert.StartsWith("transition:stale " + Stray + " StaleInterior (Retain excluded " + ReconcileRules.FootprintPlanned, Assert.Single(unread.Holds).Reason);
+    }
+
+    [Fact]
+    public void AnUnlistedInteriorPieceIsStaleAndListedPiecesStay()
     {
         var room = Room();
         var template = new[] { Listed("Bed", new Cell(11, 11)) };
         var rows = new[] { Row("bed", "Bed", new Cell(11, 11)), Row("stale", Stray, new Cell(13, 13)) };
-        Assert.Equal(["stale"], OwnerRemovals(room, rows, template, NothingCarried));
+        Assert.Equal(["stale"], Stale(room, rows, template, NothingCarried));
     }
 
     [Fact]
@@ -67,7 +102,8 @@ public sealed class StaleFurnitureTests
         var room = Room();
         var template = new[] { Listed(Stray, new Cell(11, 11)) };
         var rows = new[] { Row("a", Stray, new Cell(11, 11)), Row("b", Stray, new Cell(12, 12)) };
-        Assert.Equal(["b"], OwnerRemovals(room, rows, template, NothingCarried));
+        Assert.Equal(["b"], Stale(room, rows, template, NothingCarried));
+        Assert.Empty(OwnerRemovals(room, rows, template, NothingCarried));
     }
 
     [Fact]
@@ -126,13 +162,14 @@ public sealed class StaleFurnitureTests
 
     [Theory]
     [MemberData(nameof(CarriedDefs))]
-    public void EveryCarriedOverClassStaysAndAnUnlistedStrayBesideItIsRemoved(string def)
+    public void EveryCarriedOverClassStaysAndAnUnlistedStrayBesideItIsStale(string def)
     {
         var room = Room();
         var rows = new[] { Row("carried", def, new Cell(11, 11)), Row("stray", Stray, new Cell(12, 12)) };
         Assert.True(Carried()(def));
-        Assert.Equal(["stray"], OwnerRemovals(room, rows, [], Carried()));
-        Assert.Equal(["carried", "stray"], OwnerRemovals(room, rows, [], NothingCarried).Order());
+        Assert.Equal(["stray"], Stale(room, rows, [], Carried()));
+        Assert.Equal(["carried", "stray"], Stale(room, rows, [], NothingCarried));
+        Assert.Empty(OwnerRemovals(room, rows, [], Carried()));
     }
 
     [Fact]
@@ -171,15 +208,15 @@ public sealed class StaleFurnitureTests
     }
 
     [Fact]
-    public void AMorguesInteriorFurnitureIsRemovedBecauseItsListIsEmpty()
+    public void AMorguesInteriorFurnitureIsStaleBecauseItsListIsEmpty()
     {
         var room = Room(PlannedRole.Morgue);
         var rows = new[] { Row("table", "Table2x2c", new Cell(11, 11), new Cell(12, 12)), Row("shelf", "Shelf", new Cell(14, 14)) };
-        Assert.Equal(["shelf", "table"], OwnerRemovals(room, rows, [], NothingCarried).Order());
+        Assert.Equal(["shelf", "table"], Stale(room, rows, [], NothingCarried));
     }
 
     [Fact]
-    public void ARangeTemplateKeepsItsListedPiecesAndRemovesAStrayInsideTheRange()
+    public void ARangeTemplateKeepsItsListedPiecesAndProposesAStrayInsideTheRange()
     {
         var range = PlannedRoom.RangeFromBlock(new Rectangle { X = 20, Z = 20, Width = 8, Height = 20 }, Rotation.North, 3);
         var template = PlannedRoom.RangeTemplate(range);
@@ -189,11 +226,11 @@ public sealed class StaleFurnitureTests
 
         var free = range.Region.Cells().First(c => template.All(p => p.Minimum != c));
         rows.Add(Row("stray", Stray, free));
-        Assert.Equal(["stray"], OwnerRemovals(range, rows, template, NothingCarried));
+        Assert.Equal(["stray"], Stale(range, rows, template, NothingCarried));
     }
 
     [Fact]
-    public void ARingTemplateKeepsItsMarkersAndRemovesAStrayInsideTheRing()
+    public void ARingTemplateKeepsItsMarkersAndProposesAStrayInsideTheRing()
     {
         var ring = PlannedRoom.RingFromBlock(new Rectangle { X = 20, Z = 20, Width = 11, Height = 11 }, 2);
         var template = PlannedRoom.RingTemplate(ring);
@@ -202,7 +239,7 @@ public sealed class StaleFurnitureTests
         Assert.Empty(OwnerRemovals(ring, rows, template, NothingCarried));
 
         rows.Add(Row("stray", Stray, ring.Region.Cells().First(c => template.All(p => p.Minimum != c))));
-        Assert.Equal(["stray"], OwnerRemovals(ring, rows, template, NothingCarried));
+        Assert.Equal(["stray"], Stale(ring, rows, template, NothingCarried));
     }
 
     [Fact]
@@ -213,7 +250,7 @@ public sealed class StaleFurnitureTests
         var (piece, ok) = HerdPenRules.PenMarkerPiece(pen, new InteriorPieceDef(HerdPenRules.PenMarkerDefinition, new Cell(1, 1), RoomRole.None, new InteractionCell.None()), [marker], new HashSet<Cell>());
         Assert.True(ok);
         var rows = new[] { Row("marker", HerdPenRules.PenMarkerDefinition, new Cell(12, 12)), Row("stray", Stray, new Cell(13, 13)) };
-        Assert.Equal(["stray"], OwnerRemovals(pen, rows, [piece], NothingCarried));
+        Assert.Equal(["stray"], Stale(pen, rows, [piece], NothingCarried));
     }
 
     [Fact]
@@ -227,9 +264,9 @@ public sealed class StaleFurnitureTests
             Assert.Empty(OwnerRemovals(room, rows, template, Carried()));
         }
 
-        // With the lamp unlisted it is still carried over, never removed; the end table, no longer listed, is stale.
+        // With the lamp unlisted it is still carried over, never stale; the end table, no longer listed, is.
         template.RemoveAt(1);
-        Assert.Equal(["p1"], OwnerRemovals(room, rows, template, Carried()));
+        Assert.Equal(["p1"], Stale(room, rows, template, Carried()));
     }
 
     private static CurrentBuilding Built(string def, int x, int z, int width = 1, int height = 1) => ConstructionObservationFixtures.Built(new Building(def, new Cell(x, z), Rotation.North, ""), id: $"{def}{x}_{z}", cells: [.. Enumerable.Range(0, width).SelectMany(dx => Enumerable.Range(0, height).Select(dz => new Cell(x + dx, z + dz)))]);
@@ -264,7 +301,7 @@ public sealed class StaleFurnitureTests
         var upgrade = SleepingRules.BedroomFurnishing(room, shapes, "", standing, null);
         Assert.Contains(upgrade.Pieces, p => p.DefName == "Bed");
         Assert.Contains(upgrade.Pieces, p => p.DefName == "Bedroll");
-        Assert.Equal([stale.Id], OwnerRemovals(room, RowsOf(standing), upgrade.Pieces, NothingCarried));
+        Assert.Equal([stale.Id], Stale(room, RowsOf(standing), upgrade.Pieces, NothingCarried));
 
         // The bedroom path asks for the chosen bed: the standing one is listed once and nothing is absent.
         var chosen = SleepingRules.BedroomFurnishing(room, shapes, "Bed", [bed], null);
@@ -362,9 +399,9 @@ public sealed class StaleFurnitureTests
         };
         // The ring is unfinished (an empty ground census): the clear side runs.
         var plan = new LayoutPlan { Rooms = [room] };
-        var clear = ClearanceReconcileRules.PlannedGroundStep(plan, new GroundCensus(), rows, [], RoomTestFacts.NoRooms, new RetiredGround(), null);
+        var clear = ClearanceReconcileRules.PlannedGroundStep(plan, new GroundCensus(), rows, [], RoomTestFacts.NoRooms, new RetiredGround(), null, TransitionFixtures.Removing(rows));
         var clearIds = clear?.Targets.Items.Select(t => t.EntityId).ToHashSet() ?? [];
-        var ownerIds = OwnerRemovals(room, rows, template, NothingCarried).ToHashSet();
+        var ownerIds = Stale(room, rows, template, NothingCarried).ToHashSet();
 
         Assert.Equal(["stale"], ownerIds);
         Assert.Equal(["onRing"], clearIds);

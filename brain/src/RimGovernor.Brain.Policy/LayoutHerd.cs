@@ -9,27 +9,6 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class LayoutHerdRules
 {
-    /// <summary>
-    /// A plan saved with its pens and yards as reservations: each outline becomes the room it was derived
-    /// as, in plan order, under the next ids. kind is the reservation's wire name ("barn", "pen" or "yard"), herd its unit key.
-    /// </summary>
-    public static LayoutPlan WithLegacySites(this LayoutPlan plan, IEnumerable<(string Kind, Region Area, string Herd)> legacy)
-    {
-        foreach (var (kind, area, herd) in legacy)
-        {
-            var outline = area.Bounds();
-            var room = kind switch
-            {
-                "pen" => LayoutPlan.HerdRoom(outline, HerdRoomsRules.PlannedPen, herd),
-                "barn" => LayoutPlan.HerdRoom(outline, PlannedRole.Barn, herd),
-                _ => LayoutPlan.YardRoom(outline),
-            };
-            var id = Math.Max(Math.Max(plan.NextRoomId, 1), plan.Rooms.Select(r => r.Id + 1).DefaultIfEmpty(1).Max());
-            plan = plan with { Rooms = [.. plan.Rooms, room with { Id = id }], NextRoomId = id + 1 };
-        }
-        return plan;
-    }
-
     /// <summary>Why the graph holds a pen: the herd's grazing outgrows its pens, or the plan already holds the pen.</summary>
     public const string ReasonHerdRoom = "herd_room_owed";
 

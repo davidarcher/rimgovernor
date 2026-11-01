@@ -950,24 +950,6 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
 {
     protected override LayoutPlan Read(JsonElement e, Codecs o)
     {
-        // A plan saved before barns, pens and yards were rooms holds them as reservations: they come in as rooms.
-        var reservations = new List<LayoutReservation>();
-        var legacy = new List<(string Kind, Region Area, string Herd)>();
-        if (e.TryGetProperty("Reservations", out var held) && held.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in held.EnumerateArray())
-            {
-                var kind = item.Str("Kind");
-                if (kind is "barn" or "pen" or "yard")
-                {
-                    legacy.Add((kind, item.Get<Region>("Area", o), item.Str("Herd")));
-                }
-                else
-                {
-                    reservations.Add(o.Read<LayoutReservation>(item));
-                }
-            }
-        }
         return new LayoutPlan
         {
             Entrances = e.Get<IReadOnlyList<Cell>>("Entrances", o),
@@ -978,17 +960,18 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
             OutsideTrips = e.Get<IReadOnlyList<OutsideTrip>>("OutsideTrips", o),
             Rooms = e.Get<IReadOnlyList<PlannedRoom>>("Rooms", o),
             Zones = e.Get<IReadOnlyList<LayoutZone>>("Zones", o),
-            Reservations = reservations,
+            Reservations = e.Get<IReadOnlyList<LayoutReservation>>("Reservations", o),
             Sites = e.Get<IReadOnlyList<PlannedSite>>("Sites", o),
             RetiredGround = e.Get<IReadOnlyList<Region>>("RetiredGround", o),
             Roofed = e.Get<Region>("Roofed", o),
             Lamps = e.Get<IReadOnlyDictionary<int, IReadOnlyList<PlannedLamp>>>("Lamps", o),
-            Pieces = e.GetOr<IReadOnlyDictionary<int, IReadOnlyList<InteriorPiece>>>("Pieces", new Dictionary<int, IReadOnlyList<InteriorPiece>>(), o),
-            ActivitySites = e.GetOr<IReadOnlyList<PlannedActivitySite>>("ActivitySites", [], o),
+            Pieces = e.Get<IReadOnlyDictionary<int, IReadOnlyList<InteriorPiece>>>("Pieces", o),
+            ActivitySites = e.Get<IReadOnlyList<PlannedActivitySite>>("ActivitySites", o),
+            Transitions = e.Get<IReadOnlyList<PlannedTransition>>("Transitions", o),
             Cold = e.Bool("Cold"),
             Hot = e.Bool("Hot"),
             NextRoomId = e.I32("NextRoomId"),
-        }.WithLegacySites(legacy);
+        };
     }
 
     protected override void WriteFields(Utf8JsonWriter w, LayoutPlan v, Codecs o)
@@ -1008,9 +991,47 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
         w.Put("Lamps", v.Lamps, o);
         w.Put("Pieces", v.Pieces, o);
         w.Put("ActivitySites", v.ActivitySites, o);
+        w.Put("Transitions", v.Transitions, o);
         w.WriteBoolean("Cold", v.Cold);
         w.WriteBoolean("Hot", v.Hot);
         w.WriteNum("NextRoomId", v.NextRoomId);
+    }
+}
+
+internal sealed class PlannedTransitionConverter : ObjectCodec<PlannedTransition>
+{
+    protected override PlannedTransition Read(JsonElement e, Codecs o) =>
+        new(e.Str("Target"), e.Str("Definition"), e.Get<TransitionCause>("Cause", o), e.Get<ServicingChoiceKind>("Kind", o))
+        {
+            Slot = e.Has("Slot") ? new RelocationSlot(e.Get<Cell>("Slot", o)) : null,
+            Dependency = e.GetOr<ReplacementDependency?>("Dependency", null, o),
+        };
+
+    protected override void WriteFields(Utf8JsonWriter w, PlannedTransition v, Codecs o)
+    {
+        w.WriteString("Target", v.Target);
+        w.WriteString("Definition", v.Definition);
+        w.Put("Cause", v.Cause, o);
+        w.Put("Kind", v.Kind, o);
+        if (v.Slot is { } slot)
+        {
+            w.Put("Slot", slot.Minimum, o);
+        }
+        if (v.Dependency is { } dependency)
+        {
+            w.Put("Dependency", dependency, o);
+        }
+    }
+}
+
+internal sealed class ReplacementDependencyConverter : ObjectCodec<ReplacementDependency>
+{
+    protected override ReplacementDependency Read(JsonElement e, Codecs o) => new(e.Str("Recipe"), e.Str("Host"));
+
+    protected override void WriteFields(Utf8JsonWriter w, ReplacementDependency v, Codecs o)
+    {
+        w.WriteString("Recipe", v.Recipe);
+        w.WriteString("Host", v.Host);
     }
 }
 

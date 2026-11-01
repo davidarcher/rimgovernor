@@ -226,10 +226,6 @@ public sealed partial class DefinitionCatalog
     public ThingDef ThingRow(string name) =>
         _thingDefs.GetValueOrDefault(name) ?? throw new CatalogException($"catalog has no def row for {name}");
 
-    /// <summary>The building defs that pack into a minified item: those with a minifiedDef, which vanilla uninstalls instead of destroying.</summary>
-    public IReadOnlySet<string> Packable() =>
-        _thingDefs.Values.Where(d => d.category == ThingCategory.Building && d.minifiedDef is not null).Select(d => d.defName).ToHashSet(StringComparer.Ordinal);
-
     /// <summary>The sowable plants that harvest a thing, sorted: the crops a resource deficit can be planted for, whatever they are eaten as.</summary>
     public IReadOnlyList<string> SowableCrops() =>
         [.. _thingDefs.Values.Where(d => d.plant is { sowTags.Count: > 0, harvestedThingDef: not null }).Select(d => d.defName).Order(StringComparer.Ordinal)];

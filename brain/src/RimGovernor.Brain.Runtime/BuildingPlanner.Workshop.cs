@@ -283,7 +283,13 @@ public sealed partial class BuildingPlanner
         {
             return null;
         }
-        foreach (var retirement in PlannedRules.HostRetirementsOf(plan, view, owned, PlannedRules.ClaimedBy(reading.Facts, Concern)))
+        var (retirements, decisions) = PlannedRules.HostTransitionsOf(plan, view, owned, PlannedRules.ClaimedBy(reading.Facts, Concern), HomeUpkeepReader.TransitionsOf(reading));
+        // The spares' transition choices enter the plan; a retire Method whose spare the plan no longer removes (its replacement
+        // stopped serving) is stale and its unissued actions are cancelled before anything else comes down (task 8.2).
+        reading = Reviewer.BindTransitions(state.Snapshot, reading, decisions, call);
+        ColonyReview.CancelStaleTransitionWork(Reviewer.Player.Journal, goal, reading.Facts.LayoutPlan ?? plan,
+            m => m.Value.StartsWith(HostRetirePrefix + "-", StringComparison.Ordinal), _ => true, "building", call);
+        foreach (var retirement in retirements)
         {
             if (retirement is HostRetirement.Held held)
             {
@@ -292,7 +298,7 @@ public sealed partial class BuildingPlanner
             var retire = (HostRetirement.Retire)retirement;
             var building = reading.Facts.CurrentConstruction.Buildings.FirstOrDefault(b => b.Id == retire.Bench && b.Cells.Count > 0)
                 ?? throw new RequiredFactException("host retire building:" + retire.Bench);
-            var retired = await RetireBuildingAsync(state, review, goal, reading, retire.Bench, retire.Def, building.Cells[0], HostRetirePrefix, "host_retire_method", call, epoch).ConfigureAwait(false);
+            var retired = await RetireBuildingAsync(state, review, goal, reading, retire.Bench, retire.Def, building.Cells[0], retire.Uninstall, HostRetirePrefix, "host_retire_method", call, epoch).ConfigureAwait(false);
             if (!retired.Verdict.Is(Pol.Cause.MethodUsed))
             {
                 return retired;

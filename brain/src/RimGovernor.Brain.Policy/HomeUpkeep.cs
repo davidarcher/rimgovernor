@@ -11,6 +11,16 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ClearanceCandidate(MethodId Method, EquatableArray<string> Swaps, Func<PlanId, IReadOnlyList<DomainAction>> Actions);
 
 /// <summary>
+/// The transition decisions (bound or compared, ServicingChoiceRules.Choose) the planned-ground clearance step made at the read of
+/// <paramref name="Tick"/>: the clearance work binds them into the plan once the step's Method is committed (task 8.2).
+/// </summary>
+public sealed record ClearanceTransitions(Tick Tick, EquatableArray<TransitionDecision> Decisions)
+{
+    /// <summary>The Need's open removal targets the same read's census shows settled (TransitionBindingRules.SettledOpen, task 8.3).</summary>
+    public EquatableArray<string> Settled { get; init; }
+}
+
+/// <summary>
 /// The clearance census one native read returned: the rows that are not the player's own buildings and the
 /// planned-ground clearance work of the same read (PlannedGroundWork): unplanned buildings and floors on the ground
 /// of planned rooms not yet standing. Ground is empty on a read that did not derive the planned-ground work.
@@ -35,6 +45,9 @@ public sealed record HomeUpkeepFacts
 
     /// <summary>The next clearance step, or null when none is supported or every target of it is already designated.</summary>
     public ClearanceCandidate? Candidate { get; init; }
+
+    /// <summary>The planned-ground step's transition decisions; null when the pass derived no planned-ground step.</summary>
+    public ClearanceTransitions? Transitions { get; init; }
 
     /// <summary>
     /// The measured servicing options of the same read's servicing census (task 5.1), joined to its canonical building rows; null

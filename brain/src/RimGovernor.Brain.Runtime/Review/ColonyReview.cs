@@ -681,6 +681,12 @@ public sealed partial class ColonyReview
             }
             reading = reading.WithColonySection(c => c with { Facts = c.Facts with { LayoutPlan = reading.Reading.Facts.LayoutPlan } });
         }
+        // A planned transition leaves the plan once fresh facts show it done or moot (task 8.2), never on a receipt.
+        if (reading.Reading.Facts.LayoutPlan is { Transitions.Count: > 0 })
+        {
+            reading = reading.WithReading(DropSettledTransitions(state.Snapshot, reading.Reading, ct));
+            reading = reading.WithColonySection(c => c with { Facts = c.Facts with { LayoutPlan = reading.Reading.Facts.LayoutPlan } });
+        }
         Lap("d_clear");
         fine.Mark();
         reading = reading.WithFacts(rf => rf with { AvailableNeeds = AvailableNeeds });
@@ -1128,6 +1134,7 @@ partial class ColonyReview
                 Cells = null,
                 Rows = rows,
                 Floors = floors,
+                Transitions = HomeUpkeepReader.TransitionsOf(colony),
                 Furniture = plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Select(p => p.Wanted())] : [],
                 WantedFloor = WantedFloorRules.WantedFloors(room, room.Role == PlannedRole.Worship ? colony.Facts.Worship.FloorTags : [], flooringFacts, flooring),
             };
@@ -1180,7 +1187,7 @@ public sealed partial class ColonyReview
         {
             return projection;
         }
-        var done = ClearanceGroundRules.RetiredGroundDone(plan, player, floors);
+        var done = ClearanceGroundRules.RetiredGroundDone(plan, player, floors, HomeUpkeepReader.TransitionsOf(projection));
         if (done.Count == 0)
         {
             return projection;

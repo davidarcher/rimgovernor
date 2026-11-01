@@ -80,8 +80,8 @@ proves demolition separately.
 | `recovery_service` (method `inspect_grav_engine`) | `GiveJobIntent` with job `InspectGravEngine`, one exact colonist and one exact spawned grav engine. Native requires an eligible undrafted mobile colonist and a visible, uninspected engine the pawn can reserve and reach. The ordinary job performs inspection; completion comes from `ResearchManager.gravEngineInspected` and the quest's `Inspected` signal. This method never changes gravlite-panel forbiddance. |
 | `Repair` and `recovery_service` (`Breakdown`, `Refuel`) | Exact player-forced jobs (`JobDefOf.Repair`, `FixBrokenDownBuilding`, `Refuel`) on one exact colonist and one exact building, given through the native work giver's ordered-job path (`TryTakeOrderedJobPrioritizedWork`), which refuses only a disabled work type; allowed area, reservations and forbidden supplies still apply. The `home-upkeep/repairs` Need issues repair (`Repair`) and fix (`RecoveryService` Breakdown) and the `power/basic` Need issues refuel (`RecoveryService` Refuel), each as the Method chosen by the shared [maintenance comparison](upkeep-contracts.md#repairs-cleaning); `disaster/services` dispatches none. An applied receipt is the order only: the Need closes on a later fresh hit-point, breakdown or fuel/power read. A refusal spends the Method's refusal budget and the next review reselects. |
 | `drop_equipment` (job token `DropWeapon`) | `GiveJobIntent` with one target, the weapon in the pawn's hands. `DropWeapon` is this protocol's token, not a JobDef name: native finds the JobDef whose driver is `JobDriver_DropEquipment` and fails with a plain-English error when the game has none or several. No draft gate; a pawn already dropping, or whose weapon already lies on the ground, applies again. Applied means ordered. Unverified in game. |
-| `move_building` (`RelocateIntent`) | Re-sites one exact installed, minifiable player building through Reinstall (`GenConstruct.PlaceBlueprintForReinstall`, no `WipeExistingThings`). Construction work carries the piece and needs `CanReserve`, so a sleeping or working pawn is never interrupted. A packed item (own id or inner building's id, `inner_id`/`inner_def_name` in `observations_list_supplies`) gets `PlaceBlueprintForInstall`. Applied (`QUEUED`, blueprint id) means ordered; a blueprint already standing for the same placement applies again. |
-| `uninstall_building` (`RelocateIntent` with `uninstall`) | Vanilla Uninstall designation (an existing one applies again); construction work minifies it, vanilla hauling stores it (native never hauls). Applied (`UNINSTALL_QUEUED`) means ordered. |
+| `move_building` (`RelocateIntent`) | Re-sites one exact installed, minifiable player building through Reinstall (`GenConstruct.PlaceBlueprintForReinstall`, no `WipeExistingThings`). Construction work carries the piece and needs `CanReserve`, so a sleeping or working pawn is never interrupted. A packed item (own id or inner building's id, `inner_id`/`inner_def_name` in `observations_list_supplies`) gets `PlaceBlueprintForInstall`. Applied (`QUEUED`, blueprint id) means ordered; a blueprint already standing for the same placement applies again. A chosen Relocate is its autonomous use: one move of a standing building onto its planned slot ([transitions](#standing-building-transitions-habitat-84)). |
+| `uninstall_building` (`RelocateIntent` with `uninstall`) | Vanilla Uninstall designation (an existing one applies again); construction work minifies it, vanilla hauling stores it (native never hauls). Applied (`UNINSTALL_QUEUED`) means ordered. A chosen Store is its autonomous use ([transitions](#standing-building-transitions-habitat-84)). |
 | `area` (`AreaIntent`) | Creates, edits or deletes one bot-owned `Area_Allowed` labelled with its key, or sets/clears home-area or pollution-clear-area cells (`create`, `set_cells`, `clear_cells`, `delete`). Player-made areas are never touched. Applied (`AreaEffect`) carries the area load id and cell count. Proven by `apply/area-intent`. |
 | `wastepack_haul` (`DesignateIntent` HAUL, `DESIGNATION_GUARD_WASTEPACK`) | Designates one exact wastepack for hauling: a spawned `CompDissolution` thing that is neither frozen nor inside an atomizer, not forbidden, with an accepting stockpile (allow a forbidden pack first through `supply_allow`). A standing designation applies again; evidence is a `DesignationEffect`. |
 | `policy_prune` (`PolicyPruneIntent`) | Deletes outfit, drug, food or reading policies, or allowed areas, by load id; the bot owns every one, player-made included. Every pawn still holding one first moves onto its own per-pawn policy (made from defaults when missing) or becomes unrestricted, since `TryDelete` refuses a policy in use. An id already gone applies again. Applied (`PolicyPruneEffect`) lists ids deleted and pawns moved. Proven by `apply/policy-prune`. |
@@ -110,6 +110,33 @@ Planned-host and activity-site work (RG-HABITAT-005, habitat 3.3) adds no verb.
 - **Host retire.** A replaced spare or bridge is removed by one `host-retire-<digest of the building id>` Method holding one `deconstruction` action on that building. It is filed only once `PlannedRules.HostRemovalHold` admits the removal, and its admission rereads the native identity first. A held removal files nothing and waits as `AwaitingPlan` `host_retire_held`.
 - **Activity site.** A site's spot is one building Method `{kind}-site-place-<room digest>` per kind and room. Its receipt, whether accepted, refused, unsent or unconfirmed, is final for that room: the room is read as spent and never retried.
 - **Receipts.** Building actions are intent-mode, so a placement closes at an accepted placement receipt, and no receipt satisfies the owning Need, whose predicate reads fresh facts.
+
+### Standing-building transitions (habitat 8.4)
+
+A standing building a plan takes off its cell is taken down by the transition the comparison chose
+([spatial contracts](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and-011)), as one Method of the
+path's Need and no other verb: Remove a `deconstruction` action, Store an `uninstall_building` (the game's Uninstall
+designation, vanilla hauling stores the packed item), Relocate one `move_building`.
+
+| Method | Actions | Notes |
+|---|---|---|
+| `<room>-reinstall-<target>-<x>-<z>` | one `move_building` of the standing building onto the planned slot's anchor and rotation | The native places the game's reinstall blueprint (`GenConstruct.PlaceBlueprintForReinstall`) and construction work uninstalls, carries and installs the piece, so one order replaces an uninstall-then-install chain. That chain is impossible: the native move refuses a building under an Uninstall designation. One Method per piece and slot, so an order Hands already issued is not issued again; the Method is `MethodOnce`, and a held attempt waits `MethodUsed` `<room>_reinstall`. |
+| the room reconcile's removal waves (`FurnitureOut`, `Pack`, `PackInUse`; a held attempt waits `MethodUsed` `<room>_removal`), `host-retire-<digest>`, `bedroom-replace-remove-<digest>` | `deconstruction` or `uninstall_building` | The existing removal Methods of the room reconcile, host retirement and bed replacement; each is issued only for an admitted transition. |
+
+- **Legality.** A removal is admitted only while the comparison chose it and what the building provides is observed served by a
+  replacement (`replacement not serving:<dependant>` holds it and files nothing); a host also passes `HostRemovalHold`
+  (`replacement not serving:<recipe>`, `bill in progress:<bills>`, named as `host_retire_held` or `spare_bed_transition`).
+  Apply-time refusals stay the native's: `move_building` is refused for a building not installed, not the player's, one that
+  cannot be uninstalled, one that already has a reinstall blueprint elsewhere or is designated for uninstall or
+  deconstruction, or a destination `GenConstruct.CanPlaceBlueprintAt` refuses ([refusal table](#apply-time-preconditions-and-refusal-reasons)).
+- **Receipts.** An accepted receipt means ordered, never done: the building is still standing and its transition stays bound.
+  A Refused receipt is final for the attempt (intent mode), the Method's attempt holds the same `MethodId` in this load
+  (`MethodOnce`), and nothing re-issues a refused order within it.
+- **Settling.** A transition closes only on fresh census facts: the target no longer stands, or a Relocate's building stands
+  on its slot (`TransitionBindingRules.Settled`). Unissued actions of a transition the plan no longer carries are cancelled
+  (`ColonyReview.CancelStaleTransitionWork`) and orders already issued finish.
+- **Configuration.** After a reinstalled piece stands, its power switch, allow and bed assignment are the owning family's
+  ordinary orders ([power configuration](power-contracts.md#configuration), `assign`), not part of the move.
 
 ### Ritual verbs
 

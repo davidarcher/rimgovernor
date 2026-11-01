@@ -302,7 +302,7 @@ public sealed class ActivitySiteTests
             Orders = [new OrderSpec { Recipe = "MakeKnife", Target = 1, Mode = BillMode.StockTarget }],
             Benches = [new HostBench("smithy", "Smithy", true, ["MakeKnife"], []), new HostBench("spot", "TestPartySpot", true, [], [])],
         };
-        Assert.Empty(PlannedRules.HostRetirementsOf(plan, view, ["MakeKnife"], _ => false));
+        Assert.Empty(PlannedRules.HostRetirementsOf(plan, view, ["MakeKnife"], _ => false, null));
     }
 
     [Fact]

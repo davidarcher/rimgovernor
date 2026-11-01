@@ -176,9 +176,8 @@ public sealed class RoomFurnishingTests
                 Minimum = b.Cells[0],
                 Maximum = b.Cells[^1],
                 Player = true,
-                Packable = true,
             }).ToList();
-            var input = new ReconcileInput { Rooms = RoomTestFacts.NoRooms, Plan = plan, Room = room, Ground = new GroundCensus(), Rows = ReconcileRules.OwnerRows(room, rows, furnishing.Pieces, null, _ => false), Furniture = furnishing.Pieces };
+            var input = new ReconcileInput { Rooms = RoomTestFacts.NoRooms, Plan = plan, Room = room, Ground = new GroundCensus(), Rows = ReconcileRules.OwnerRows(room, rows, furnishing.Pieces, null, _ => false), Furniture = furnishing.Pieces, Transitions = TransitionFixtures.Packing(rows) };
             return [.. ReconcileRules.Reconcile(input).Owed];
         }
 
@@ -237,7 +236,6 @@ public sealed class RoomFurnishingTests
             Minimum = b.Cells[0],
             Maximum = b.Cells[^1],
             Player = true,
-            Packable = true,
         }).ToList();
         var input = new ReconcileInput
         {
@@ -248,6 +246,7 @@ public sealed class RoomFurnishingTests
             Rows = ReconcileRules.OwnerRows(room, rows, furnishing.Pieces, null, def => def == Lever),
             Furniture = furnishing.Pieces,
             Stock = new Dictionary<string, int> { [Bed] = 1 },
+            Transitions = TransitionFixtures.Packing(rows),
         };
         var ops = ReconcileRules.Reconcile(input).Owed;
         Assert.DoesNotContain(ops, o => o.Kind is OpKind.Pack or OpKind.PackInUse or OpKind.FurnitureOut or OpKind.Install);

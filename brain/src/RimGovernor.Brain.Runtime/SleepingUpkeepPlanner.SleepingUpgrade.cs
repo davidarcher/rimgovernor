@@ -26,29 +26,42 @@ partial class SleepingUpkeepPlanner
 
 public sealed partial class SleepingUpkeepPlanner
 {
-    /// <summary>Deconstructs a replaced bed, once per bed per Episode.</summary>
+    /// <summary>The MethodId prefix of an old or spare bed's removal (<see cref="BuildingPlanner.RetireMethodId"/>).</summary>
+    internal const string BedRemovePrefix = "bedroom-replace-remove";
+
+    /// <summary>Whether <paramref name="method"/> removes an old or spare bed.</summary>
+    internal static bool BedRemoval(MethodId method) => method.Value.StartsWith(BedRemovePrefix + "-", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Takes a replaced or spare bed down, once per bed per Episode, as the transition choice decided: uninstalled to storage
+    /// when it stores the bed, deconstructed when it removes it; a spare whose choice could price nothing waits on its hold.
+    /// </summary>
     internal async Task<BuildingResult> RemoveOldBedAsync(ControlState state, Sto.ReviewState review, Sto.NeedOwner goal, ReviewReading reading, Pol.BedReplacement rep, CancellationToken call, CancellationToken epoch)
     {
         if (reading.Reading.Facts.Preferences.Protects(rep.Bed))
         {
             return new BuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "protected_thing") };
         }
+        if (rep.Transition is { } transition)
+        {
+            // The spare's transition choice enters the plan before its removal is committed, and an open removal of it the plan no
+            // longer carries (the choice could price nothing and holds) is stale and cancelled (task 8.2).
+            if (Reviewer.BindTransitions(state.Snapshot, reading.Reading, [transition], call).Facts.LayoutPlan is { } plan)
+            {
+                ColonyReview.CancelStaleTransitionWork(Reviewer.Player.Journal, goal, plan, BedRemoval, t => t == transition.Target, "building", call);
+            }
+        }
+        if (rep.Hold is { } hold)
+        {
+            return new BuildingResult { Verdict = AwaitingPlan("spare_bed_transition", hold) };
+        }
         var p = Reviewer.Player;
-        var method = new MethodId("bedroom-replace-remove-" + BuildingPlanner.DigestHex(rep.Bed, 8));
+        var method = new MethodId(BedRemovePrefix + "-" + BuildingPlanner.DigestHex(rep.Bed, 8));
         if (p.Journal.OwnerMethodPlan(goal, method, call) is not null)
         {
             return new BuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "old_bed_removal") };
         }
-        // Native packability decides whether the replaced bed can furnish another room from stock.
-        if (reading.Reading.Facts.Packable.Contains(rep.Def))
-        {
-            var value = new MoveBuilding(rep.Bed, rep.Def, rep.Cell, Rotation.South);
-            var id = PlanIds.MintPlanId();
-            var action = DomainAction.NewUninstallBuildingAction(new ActionId($"{id}-0"), value);
-            var (result, _) = CommitSleepingPlan(state, goal, method, id, [action], call, epoch);
-            return result;
-        }
-        return await Building.RetireBuildingAsync(state, review, goal, reading.Reading, rep.Bed, rep.Def, rep.Cell, "bedroom-replace-remove", "old_bed_removal", call, epoch).ConfigureAwait(false);
+        return await Building.RetireBuildingAsync(state, review, goal, reading.Reading, rep.Bed, rep.Def, rep.Cell, rep.Uninstall, BedRemovePrefix, "old_bed_removal", call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>The colony's standing buildings, as the room furnishing counts them; none while the census is unknown.</summary>

@@ -397,6 +397,9 @@ public sealed partial record ForecastCoupledCandidates
             StoreStock = facts.PlannedStoreStock,
             Connectors = PlannedRoomCredits.ConnectorsOf(facts.PlannedShelters, facts.PlannedLinks),
             RoomPrerequisites = facts.RoomPrerequisites,
+            TransitionMaterials = [.. read.Servicing.Transitions.Select(t => t.Removal).OfType<RimGovernor.Brain.GameFacts.Observations.ServicingRemoval.Read>()
+                .SelectMany(r => r.Costs).Select(c => new Resource(c.Resource))
+                .Concat(read.Servicing.Transitions.Any(t => t.BrokenDown) ? [new Resource(read.Servicing.Mechanics.Component)] : Array.Empty<Resource>()).Distinct()],
             FreezerStock = roomFunctions.Values.Any(roles => roles.Contains(PlannedRole.Freezer)) ? facts.CombinedFoodSupply.Stocks.Concat(facts.CombinedFoodSupply.Barred).ToArray() : [],
             RotRates = facts.RotRates,
             Closures = closures,

@@ -468,8 +468,8 @@ public sealed partial class BuildingPlanner
             }
             var census = await source.ReadClearanceAsync(facts.Identity, false, [rr.Room.RoomGround()], call).ConfigureAwait(false);
             var (_, player) = ClearanceGroundRules.SplitGroundRows(ClearanceReads.Targets(census), facts.Facts.Preferences);
-            var stamped = HomeUpkeepReader.StampPacking(player, facts);
-            input = input with { Rows = ReconcileRules.OwnerRows(rr.Room, stamped, rr.Template, rr.Forbidden, CarriedOver(facts)), Floors = census.Floors, Furniture = rr.Template };
+            var stamped = HomeUpkeepReader.StampInUse(player, facts);
+            input = input with { Rows = ReconcileRules.OwnerRows(rr.Room, stamped, rr.Template, rr.Forbidden, CarriedOver(facts)), Floors = census.Floors, Furniture = rr.Template, Transitions = HomeUpkeepReader.TransitionsOf(facts), Forbidden = rr.Forbidden, OpenSlots = ReconcileRules.OpenSlotsOf(plan, rr.Room.Id, HomeUpkeepReader.StandingCells(facts)) };
             // A wall stands in the stuff it was built in; it is swapped only to a priced upgrade the comparison selected (#3657).
             if (PlannedRules.SelectedWallUpgrade(Reviewer.RoomSelection.Get(review.Snapshot), rr.Room.Id) is { Length: > 0 } upgrade && !rr.Room.Outdoor)
             {
@@ -494,7 +494,7 @@ public sealed partial class BuildingPlanner
             }
             input = input with { Stock = left };
         }
-        var (ops, holds, owed) = ReconcileRules.ReconcileRoomHolds(input);
+        var (ops, holds, owed, transitions) = ReconcileRules.ReconcileRoomHolds(input);
         if (!rr.ClimateOnly)
         {
             // Done when the diff owes nothing a builder can do now (#3754); the climate envelope's call sees only vents and roofs.
@@ -524,19 +524,26 @@ public sealed partial class BuildingPlanner
         var obstructed = RoomStall.RoomObstructions(ops);
         Reviewer.NoteStall(rr.Name, facts.Identity.Tick, standing, obstructed);
         var w = new RoomWork { Rr = rr, Ops = ops, Holds = holds, Awaiting = RoomStall.AwaitingKey(standing), Obstructed = obstructed };
+        // The unlisted pieces' transition choices enter the plan before their removals are committed, and the room's open removals
+        // of pieces the plan no longer takes off their cells (re-selected to stay, or settled) are cancelled (task 8.2).
+        var bound = input.Transitions is not null ? Reviewer.BindTransitions(state.Snapshot, facts, transitions, call).Facts.LayoutPlan ?? plan : plan;
+        var settled = ColonyReview.SettledOf(facts, Pol.TransitionCause.PlannedGround);
+        var decided = transitions.Select(t => t.Target).ToHashSet(StringComparer.Ordinal);
+        ColonyReview.CancelStaleTransitionWork(Reviewer.Player.Journal, goal, bound, m => m.Value.StartsWith(rr.Name + "-", StringComparison.Ordinal),
+            t => decided.Contains(t) || settled(t), "building", call);
         // Foreign obstructions first (claim, cut, haul), then removals, then installs from stock, then what is built on site.
         var (obstruction, done) = CommitObstructions(state, goal, w, call, epoch);
         if (done)
         {
             return obstruction;
         }
-        foreach (var kind in new[] { Pol.OpKind.FurnitureOut, Pol.OpKind.Pack, Pol.OpKind.PackInUse, Pol.OpKind.FloorOut })
+        foreach (var kind in new[] { Pol.OpKind.FurnitureOut, Pol.OpKind.Pack, Pol.OpKind.PackInUse, Pol.OpKind.Reinstall, Pol.OpKind.FloorOut })
         {
             foreach (var op in ops)
             {
                 if (op.Kind == kind)
                 {
-                    return CommitRemoval(state, goal, rr, op, call, epoch);
+                    return kind == Pol.OpKind.Reinstall ? CommitReinstall(state, goal, rr, op, call, epoch) : CommitRemoval(state, goal, rr, op, call, epoch);
                 }
             }
         }
@@ -661,6 +668,33 @@ public sealed partial class BuildingPlanner
             return new BuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, rr.Name + "_removal") };
         }
         return CommitOwnerActions(state, goal, method, id, actions, call, epoch);
+    }
+
+    /// <summary>
+    /// Commits a chosen Relocate (task 8.4): the first piece of the Reinstall op as one native reinstall order (MoveBuilding of the
+    /// standing building onto its planned slot's anchor and rotation, the game's Reinstall blueprint), one Method per piece and
+    /// slot, so an order Hands already issued is not issued again. The native refuses, never throws, when the building cannot be
+    /// uninstalled, is designated, or the slot refuses the blueprint; the refused attempt holds the MethodId (MethodOnce) and the
+    /// transition stays bound until the census shows the piece standing on its slot or the choice re-selected.
+    /// </summary>
+    internal BuildingResult CommitReinstall(ControlState state, Sto.NeedOwner goal, RoomReconcile rr, Pol.Operation op, CancellationToken call, CancellationToken epoch)
+    {
+        var (method, id, action) = ReinstallMethod(rr.Name, op.Targets[0], op.Pieces[0]);
+        if (!MethodOnce(goal, method, call))
+        {
+            return new BuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, rr.Name + "_reinstall") };
+        }
+        return CommitOwnerActions(state, goal, method, id, [action], call, epoch);
+    }
+
+    /// <summary>The reinstall Method of <paramref name="target"/> onto <paramref name="slot"/>: <c>&lt;room&gt;-reinstall-&lt;target&gt;-&lt;x&gt;-&lt;z&gt;</c> and its one MoveBuilding.</summary>
+    internal static (MethodId Method, PlanId Id, DomainAction Action) ReinstallMethod(string room, Pol.ClearanceTarget target, Pol.WantedPiece slot)
+    {
+        var id = PlanIds.MintPlanId();
+        var anchor = slot.Anchor();
+        var move = new MoveBuilding(target.EntityId, target.DefName, anchor, slot.Rot);
+        var method = new MethodId(string.Create(CultureInfo.InvariantCulture, $"{room}-reinstall-{target.EntityId}-{anchor.X}-{anchor.Z}"));
+        return (method, id, DomainAction.NewMoveBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-0")), move));
     }
 
     /// <summary>

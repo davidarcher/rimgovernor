@@ -18,9 +18,11 @@ public enum ServicingDeficit { Condition, Breakdown, Swap, Fuel }
 /// <summary>
 /// One way to answer a target's deficits. Refuel carries stocked fuel to it; Acquire is the chain that first acquires the fuel the
 /// colony holds none of (its first step) and then refuels; Retire leaves its removal to clearance; Defer is the baseline that does
-/// nothing.
+/// nothing. A standing building a plan considers transitioning (task 8.1, <see cref="ServicingChoiceRules.Transition"/>) is
+/// compared over Retain (the baseline: it stays as it stands), Repair, FixBreakdown, Replace, Relocate (uninstall and reinstall
+/// elsewhere), Repurpose (a typed operation that changes its use), Store (uninstall to storage) and Remove (deconstruct).
 /// </summary>
-public enum ServicingChoiceKind { Repair, FixBreakdown, Replace, Refuel, Acquire, Retire, Defer }
+public enum ServicingChoiceKind { Repair, FixBreakdown, Replace, Refuel, Acquire, Retire, Defer, Retain, Relocate, Repurpose, Store, Remove }
 
 /// <summary>
 /// What an alternative leaves: whether the building's function is still lost (an unfixed breakdown or an empty tank), how many
@@ -40,6 +42,15 @@ public abstract record ServicingStanding
 
     /// <summary>A fact it needs is unread (rule 9): it is never chosen and names the fact.</summary>
     public sealed record Unassessed(string Fact) : ServicingStanding;
+
+    /// <summary>The transition the plan already committed to (LayoutPlan.Transitions), read back instead of compared again.</summary>
+    public sealed record Bound : ServicingStanding;
+
+    /// <summary>
+    /// A transition alternative priced in capability-days over the horizon (<see cref="ServicingChoiceRules.Transition"/>): its labor,
+    /// material and service terms, and the days within the horizon it leaves the building's service lost.
+    /// </summary>
+    public sealed record Priced(TransitionPrice Price) : ServicingStanding;
 }
 
 /// <summary>
@@ -140,7 +151,7 @@ public sealed record ServicingRequest
     public IReadOnlyList<RefusedServicing> Refused { get; init; } = [];
 }
 
-public static class ServicingChoiceRules
+public static partial class ServicingChoiceRules
 {
     private const double Tolerance = 1e-9;
 

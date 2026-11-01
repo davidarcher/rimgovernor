@@ -6,7 +6,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// #3592: a barracks holding one owned bed reads as its owner's solo bedroom, so the vacant spot or bunk staged beside
 /// it for a bedless colonist was removed as the owner's spare, and the bedless colonist never got a bed. A spare bed
-/// stands while a colonist owns none; with everyone housed it is removed as before.
+/// stands while a colonist owns none; with everyone housed it is a compared removal (task 8.1): removed once no expected
+/// sleeper needs it, kept while its service is unread.
 /// </summary>
 public sealed class BedReplacementBedlessTests
 {
@@ -30,8 +31,10 @@ public sealed class BedReplacementBedlessTests
         ],
     };
 
-    private static (BedReplacement Step, bool Ok) Next(SleepingObservation obs) =>
-        RoomQualityRules.NextBedReplacement(obs, new Dictionary<string, RoomTarget>(), [], _ => true, new BedMaterials(), new PreferencesRecord());
+    private static (BedReplacement Step, bool Ok) Next(SleepingObservation obs, TransitionService? service = null) =>
+        RoomQualityRules.NextBedReplacement(obs, new Dictionary<string, RoomTarget>(), [], _ => true, new BedMaterials(), new PreferencesRecord(),
+            TransitionFixtures.Facts(TransitionFixtures.Mechanics("spot", SleepingRules.SleepingSpotDefinition, default, minifiable: false)),
+            service ?? new TransitionService.Assessed(0, 0));
 
     [Fact]
     public void SpareBedStandsWhileAColonistOwnsNone()
@@ -49,5 +52,10 @@ public sealed class BedReplacementBedlessTests
         Assert.True(ok);
         Assert.Equal(BedReplacementStep.Remove, step.Step);
         Assert.Equal("spot", step.Bed);
+        // A sleeping spot cannot be minified: the compared removal deconstructs it.
+        Assert.False(step.Uninstall);
+        Assert.Null(step.Hold);
+        // With no expected sleeper read, the spare's service is unassessed and it stays.
+        Assert.False(Next(Barracks(otherBed: "bed-other"), new TransitionService.Unassessed("arrival tick:q1")) is ({ Step: BedReplacementStep.Remove }, true));
     }
 }

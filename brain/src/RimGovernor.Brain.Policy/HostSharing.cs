@@ -13,7 +13,8 @@ public sealed record BenchShare(string Recipe, string Kind);
 /// </summary>
 public abstract record HostRetirement(string Bench)
 {
-    public sealed record Retire(string Bench, string Def) : HostRetirement(Bench);
+    /// <summary>The transition choice's removal of the spare: uninstalled to storage (<paramref name="Uninstall"/>) or deconstructed.</summary>
+    public sealed record Retire(string Bench, string Def, bool Uninstall) : HostRetirement(Bench);
 
     public sealed record Held(string Bench, string Fact) : HostRetirement(Bench);
 }
@@ -75,40 +76,65 @@ public static partial class WorkRules
 public static partial class PlannedRules
 {
     /// <summary>
-    /// The standing spares an owner's loads retire once their replacement serves (RG-HABITAT-005), replacing the automatic
-    /// campfire retirement. For each of <paramref name="recipes"/> the plan hosts at a definition (its Host production, no
-    /// chain bridge pending) that serves it (<see cref="LayoutHostRules.Serving"/>: built, usable, reachable, offering the
-    /// recipe, with an order of it declared), every other standing bench offering the recipe is retired when the plan hosts
-    /// nothing at its definition (a kept spare is a Share production), no declared order of a recipe the plan does not move
-    /// off it names its kind, and no other owner claims it (<paramref name="claimed"/>, <see cref="ClaimedBy"/>: a heating campfire). A spare a pawn
-    /// is working a bill at is Held naming the bills in progress, so the replacement's service is never bought by
-    /// interrupting work.
+    /// The standing spares an owner's loads retire (RG-HABITAT-005), replacing the automatic campfire retirement. For each of
+    /// <paramref name="recipes"/> the plan hosts at a definition (its Host production, no chain bridge pending), every other
+    /// standing bench offering the recipe is proposed when the plan hosts nothing at its definition (a kept spare is a Share
+    /// production), no declared order of a recipe the plan does not move off it names its kind, and no other owner claims it
+    /// (<paramref name="claimed"/>, <see cref="ClaimedBy"/>: a heating campfire). The transition choice
+    /// (<see cref="ServicingChoiceRules.Transition"/>) decides each: while the replacement does not serve
+    /// (<see cref="LayoutHostRules.Serving"/>) the spare's service is unassessed ("replacement not serving:{recipe}") and Retain
+    /// wins; once it serves the host comparison has replaced the spare (Retain excluded, its service nothing) and Store or
+    /// Remove is compared. A chosen removal still passes <see cref="HostRemovalHold"/>: a spare a pawn is working a bill at is
+    /// Held naming the bills in progress, so the replacement's service is never bought by interrupting work. A choice that could
+    /// price nothing is Held naming its hold.
     /// </summary>
-    public static IReadOnlyList<HostRetirement> HostRetirementsOf(LayoutPlan plan, LedgerView view, IReadOnlyCollection<string> recipes, Func<string, bool> claimed)
+    public static IReadOnlyList<HostRetirement> HostRetirementsOf(LayoutPlan plan, LedgerView view, IReadOnlyCollection<string> recipes, Func<string, bool> claimed, TransitionFacts? transitions) =>
+        HostTransitionsOf(plan, view, recipes, claimed, transitions).Retirements;
+
+    /// <summary>
+    /// <see cref="HostRetirementsOf"/> with the transition decision of each spare it proposed (bound or compared,
+    /// ServicingChoiceRules.Choose), the first removing recipe's in ordinal order: a spare's removal depends on its replacement serving
+    /// (ReplacementDependency, named only while it serves), so a lost replacement re-selects it and drops the binding.
+    /// </summary>
+    public static (IReadOnlyList<HostRetirement> Retirements, IReadOnlyList<TransitionDecision> Decisions) HostTransitionsOf(LayoutPlan plan, LedgerView view, IReadOnlyCollection<string> recipes, Func<string, bool> claimed, TransitionFacts? transitions)
     {
         var made = plan.Rooms.SelectMany(r => r.Production).ToArray();
         var hosted = made.Select(p => p.Bench).ToHashSet(StringComparer.Ordinal);
         var output = new List<HostRetirement>();
+        var decisions = new Dictionary<string, TransitionDecision>(StringComparer.Ordinal);
         foreach (var recipe in recipes.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
         {
             if (made.Where(p => p.Recipe == recipe && p.Step == HostStep.Host).Select(p => p.Bench).Order(StringComparer.Ordinal).FirstOrDefault() is not { } host
-                || made.Any(p => p.Recipe == recipe && p.Step == HostStep.Bridge && p.Bench != host)
-                || !LayoutHostRules.Serving(view, host, recipe))
+                || made.Any(p => p.Recipe == recipe && p.Step == HostStep.Bridge && p.Bench != host))
             {
                 continue;
             }
+            var unserved = LayoutHostRules.Serving(view, host, recipe) ? null : recipe;
             foreach (var spare in view.Benches.Where(b => b.Def != host && b.Recipes.Contains(recipe) && !hosted.Contains(b.Def) && !claimed(b.Id)))
             {
                 // An order the plan does not move to another host still runs on this kind: the spare serves it.
                 if (view.Orders.Any(o => o.Target > 0 && o.BenchKind == spare.Def && !made.Any(p => p.Recipe == o.Recipe && p.Step == HostStep.Host && p.Bench != spare.Def))) continue;
-                output.Add(HostRemovalHold(plan, view, spare.Id) is { } hold
-                    ? new HostRetirement.Held(spare.Id, hold)
-                    : new HostRetirement.Retire(spare.Id, spare.Def));
+                // A spare two recipes propose is removed once, by the first recipe whose choice removes it.
+                if (decisions.GetValueOrDefault(spare.Id) is { Admitted: true }) continue;
+                var decision = ServicingChoiceRules.Choose(new(spare.Id, spare.Def, TransitionCause.HostRetirement)
+                {
+                    RetainExcluded = unserved is null ? ReplacedHost : null,
+                    Service = ServicingChoiceRules.HostSpareService(unserved),
+                    Dependency = unserved is null ? new ReplacementDependency(recipe, host) : null,
+                }, transitions);
+                decisions[spare.Id] = decision;
+                if (decision.Hold is { } held) output.Add(new HostRetirement.Held(spare.Id, held));
+                else if (decision.Admitted)
+                    output.Add(HostRemovalHold(plan, view, spare.Id) is { } hold
+                        ? new HostRetirement.Held(spare.Id, hold)
+                        : new HostRetirement.Retire(spare.Id, spare.Def, decision.Uninstalls));
             }
         }
-        // A spare two recipes retire is removed once.
-        return [.. output.Distinct()];
+        return ([.. output.Distinct()], [.. decisions.Values]);
     }
+
+    /// <summary>The retain exclusion of a spare whose serving replacement the host comparison chose.</summary>
+    public const string ReplacedHost = "replaced_host";
 
     /// <summary>
     /// The one rule every removal of a standing host the plan replaces passes (RG-HABITAT-005): a chain's bridge or a spare,
@@ -140,19 +166,26 @@ public static partial class PlannedRules
         var output = new List<Operation>();
         foreach (var op in ops)
         {
-            if (op.Kind is not (OpKind.FurnitureOut or OpKind.Pack or OpKind.PackInUse) || op.Targets.Count == 0)
+            if (op.Kind is not (OpKind.FurnitureOut or OpKind.Pack or OpKind.PackInUse or OpKind.Reinstall) || op.Targets.Count == 0)
             {
                 output.Add(op);
                 continue;
             }
             var admitted = new List<ClearanceTarget>();
-            foreach (var target in op.Targets)
+            var pieces = new List<WantedPiece>();
+            for (var i = 0; i < op.Targets.Count; i++)
             {
+                var target = op.Targets[i];
                 if (HostRemovalHold(plan, view, target.EntityId) is { } hold) held ??= target.EntityId + ":" + hold;
-                else admitted.Add(target);
+                else
+                {
+                    admitted.Add(target);
+                    // A reinstall moves Targets[i] onto Pieces[i]: the pair stays together.
+                    if (op.Kind == OpKind.Reinstall) pieces.Add(op.Pieces[i]);
+                }
             }
             if (admitted.Count == op.Targets.Count) output.Add(op);
-            else if (admitted.Count > 0) output.Add(op with { Targets = admitted });
+            else if (admitted.Count > 0) output.Add(op with { Targets = admitted, Pieces = op.Kind == OpKind.Reinstall ? pieces : op.Pieces });
         }
         return (output, held);
     }
@@ -167,7 +200,8 @@ public static partial class PlannedRules
     /// no plan or no ledger view. It keeps the owner's Need unmet so the owner's step removes the spare.
     /// </summary>
     public static bool HostRetireOwed(ReviewFacts facts, LedgerView? view, FilingKey owner) =>
-        facts.LayoutPlan is { } plan && view is not null && HostRetirementsOf(plan, view, OwnedHostedRecipes(view, owner, plan), ClaimedBy(facts, owner)).Count != 0;
+        facts.LayoutPlan is { } plan && view is not null
+        && HostRetirementsOf(plan, view, OwnedHostedRecipes(view, owner, plan), ClaimedBy(facts, owner), ServicingChoiceRules.TransitionFactsOf(facts)).Count != 0;
 
     /// <summary>
     /// The recipes of <paramref name="owner"/>'s ledger loads the plan hosts (RG-HABITAT-005): its declared orders with a

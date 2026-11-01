@@ -56,6 +56,13 @@ public enum OpKind
     [WireName("pack_in_use")]
     PackInUse,
 
+    /// <summary>
+    /// A chosen Relocate: the standing piece reinstalled at its planned slot in one native order (the game's Reinstall blueprint,
+    /// GenConstruct.PlaceBlueprintForReinstall), which uninstalls, carries and installs it. Targets[i] moves to Pieces[i].
+    /// </summary>
+    [WireName("reinstall")]
+    Reinstall,
+
     [WireName("floor_out")]
     FloorOut,
 
@@ -196,6 +203,22 @@ public sealed record ReconcileInput
     /// roof (#2962).
     /// </summary>
     public IReadOnlySet<Cell>? Unroofed { get; init; }
+
+    /// <summary>
+    /// The transition facts an unlisted standing piece is compared by (task 8.1, ServicingChoiceRules.Transition); null while
+    /// unread, when a piece the plan builds over is held and any other stays.
+    /// </summary>
+    public TransitionFacts? Transitions { get; init; }
+
+    /// <summary>The definitions the room's owner forbids standing in it (a throne room's beds): such a piece cannot be retained.</summary>
+    public Func<string, bool>? Forbidden { get; init; }
+
+    /// <summary>
+    /// The other planned rooms' unfilled pieces (OpenSlotsOf): slots an unlisted minifiable piece here could be relocated to when
+    /// this room has none of its def open. A piece chosen to relocate to one is reinstalled there in one native order (OpKind.Reinstall)
+    /// by this room's reconcile; the slot's own room sees it filled once the census shows it standing there.
+    /// </summary>
+    public IReadOnlyList<WantedPiece> OpenSlots { get; init; } = [];
 }
 
 /// <summary>
@@ -210,6 +233,9 @@ public sealed record Reconciliation
 
     /// <summary>The foreign things left standing, with the reason.</summary>
     public IReadOnlyList<ReconcileHold> Holds { get; init; } = [];
+
+    /// <summary>The transition decisions of the unlisted pieces, bound or compared: what a committed step binds into the plan.</summary>
+    public IReadOnlyList<TransitionDecision> Transitions { get; init; } = [];
 }
 
 internal sealed class ReconcileItem
@@ -228,6 +254,9 @@ internal sealed class ReconcileItem
     /// <summary>An install fed by a piece this pass packs.</summary>
     public bool Fed { get; set; }
 
+    /// <summary>A Reinstall onto one of this room's own slots (it waits on the room's ring); false for another room's slot.</summary>
+    public bool Here { get; set; }
+
     /// <summary>A thing that is not the colony's: it feeds no install.</summary>
     public bool Foreign { get; set; }
 
@@ -239,7 +268,7 @@ public static partial class ReconcileRules
     private static readonly OpKind[] OpKindsInOrder =
     [
         OpKind.RoofOff, OpKind.DoorOut, OpKind.WallOut, OpKind.Claim, OpKind.Cut, OpKind.WallIn, OpKind.WallUp,
-        OpKind.DoorIn, OpKind.Pack, OpKind.FurnitureOut, OpKind.PackInUse, OpKind.FloorOut, OpKind.FloorIn, OpKind.Install,
+        OpKind.DoorIn, OpKind.Pack, OpKind.FurnitureOut, OpKind.PackInUse, OpKind.Reinstall, OpKind.FloorOut, OpKind.FloorIn, OpKind.Install,
         OpKind.Build, OpKind.VentIn, OpKind.RoofIn,
     ];
 
@@ -292,6 +321,17 @@ public static partial class ReconcileRules
             }
         }
 
+        // The cells the plan builds on: every wanted piece, the ring and the airlocks.
+        var planned = new HashSet<Cell>(ring.Cells());
+        planned.UnionWith(input.Plan.AirlockCells(r));
+        foreach (var p in input.Furniture)
+        {
+            planned.UnionWith(p.Cells());
+        }
+        var transitionHolds = new List<ReconcileHold>();
+        var decisions = new List<TransitionDecision>();
+        var heldCells = new HashSet<Cell>();
+        var unlisted = new List<ClearanceTarget>();
         foreach (var row in rows)
         {
             if (!row.Player || !ClearanceGroundRules.Overlaps(row, ground))
@@ -335,17 +375,71 @@ public static partial class ReconcileRules
                 }
                 continue;
             }
-            var kind = OpKind.FurnitureOut;
-            if (row.Packable && !row.Designated && row.InUse)
+            // A standing deconstruct designation is already ordered, whoever placed it: the row comes down as designated.
+            if (row.Designated)
             {
-                kind = OpKind.PackInUse;
+                removals.Add(Add(new ReconcileItem { Kind = OpKind.FurnitureOut, Target = row }));
+                removedRows.Add(row);
+                continue;
             }
-            else if (row.Packable && !row.Designated)
+            unlisted.Add(row);
+        }
+        // The unfilled slots an unlisted piece of the same def could move into: this room's first, then the other rooms'.
+        var open = new List<WantedPiece>();
+        for (var i = 0; i < input.Furniture.Count; i++)
+        {
+            if (!matched[i] && input.Furniture[i].Stuff.Length == 0)
             {
-                kind = OpKind.Pack;
+                open.Add(input.Furniture[i]);
             }
-            removals.Add(Add(new ReconcileItem { Kind = kind, Target = row }));
-            removedRows.Add(row);
+        }
+        var destinations = RelocationSlots(unlisted, open, input.OpenSlots, input.Transitions);
+        foreach (var row in unlisted)
+        {
+            // An unlisted piece is only proposed: the transition choice decides whether it stays, moves, is stored or removed. It
+            // cannot stay where the plan builds (a wanted piece, the ring, an airlock) or where the room's owner forbids it; the
+            // furnishing's omission alone never takes it down (task 8.3), and a removal waits on its replacement's observed service.
+            var service = input.Transitions?.Standing?.Invoke(row);
+            var decision = ServicingChoiceRules.Choose(new(row.EntityId, row.DefName, InteriorFurniture(r, row) ? TransitionCause.StaleInterior : TransitionCause.PlannedGround)
+            {
+                RetainExcluded = RowCells(row).Any(planned.Contains) ? FootprintPlanned : input.Forbidden?.Invoke(row.DefName) == true ? ForbiddenInRoom : null,
+                Service = service,
+                Destination = destinations.GetValueOrDefault(row.EntityId),
+            }, input.Transitions);
+            decisions.Add(decision);
+            if (decision.Admitted && decision.Chosen!.Kind == ServicingChoiceKind.Relocate)
+            {
+                // A Relocate is one native reinstall onto its slot: the slot is neither built nor installed from stock meanwhile.
+                var slot = destinations.GetValueOrDefault(row.EntityId)?.Piece
+                    ?? throw new InvalidOperationException("relocate without a slot piece: " + row.EntityId);
+                var here = false;
+                for (var i = 0; i < input.Furniture.Count; i++)
+                {
+                    if (ReferenceEquals(input.Furniture[i], slot))
+                    {
+                        matched[i] = here = true;
+                    }
+                }
+                Add(new ReconcileItem { Kind = OpKind.Reinstall, Target = row, Piece = slot, Here = here });
+                removedRows.Add(row);
+            }
+            else if (decision.Admitted)
+            {
+                var kind = !decision.Uninstalls ? OpKind.FurnitureOut : row.InUse ? OpKind.PackInUse : OpKind.Pack;
+                removals.Add(Add(new ReconcileItem { Kind = kind, Target = row }));
+                removedRows.Add(row);
+            }
+            else if (decision.Hold is { } hold)
+            {
+                // Nothing could be priced, or the chosen removal waits on its replacement: the piece stays, named, and nothing is
+                // built over it.
+                transitionHolds.Add(new ReconcileHold { Cell = row.Minimum, Def = row.DefName, Reason = hold });
+                heldCells.UnionWith(RowCells(row));
+            }
+            else
+            {
+                Cover(row);
+            }
         }
         var foreign = ForeignThings(input, ring, wallDef, doorWanted);
         foreach (var it in foreign.Items)
@@ -353,6 +447,7 @@ public static partial class ReconcileRules
             removals.Add(Add(it));
         }
         var removalCells = new HashSet<Cell>(foreign.Blocked);
+        removalCells.UnionWith(heldCells);
         foreach (var row in removedRows)
         {
             foreach (var c in PlannedRules.RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1)))
@@ -599,6 +694,12 @@ public static partial class ReconcileRules
                 case OpKind.FloorIn:
                     it.Ready = !removalCells.Contains(it.Cell) && !floorOutCells.Contains(it.Cell);
                     break;
+                case OpKind.Reinstall:
+                    // The slot clear of every removal and floor work but the piece's own cells, which it vacates itself.
+                    var own = RowCells(it.Target).ToHashSet();
+                    it.Ready = (!it.Here || !ringOwed) && it.Piece.Cells().All(c => own.Contains(c)
+                        || (!removalCells.Contains(c) && !floorOutCells.Contains(c) && !floorInCells.Contains(c)));
+                    break;
                 case OpKind.Install or OpKind.Build:
                     var ready = !ringOwed;
                     foreach (var c in it.Piece.Cells())
@@ -613,8 +714,80 @@ public static partial class ReconcileRules
                     break;
             }
         }
-        return GroupItems(items) with { Holds = foreign.Holds };
+        return GroupItems(items) with { Holds = [.. foreign.Holds, .. transitionHolds], Transitions = decisions };
     }
+
+    /// <summary>The retain exclusion of an unlisted piece standing where the plan builds.</summary>
+    public const string FootprintPlanned = "footprint_planned";
+
+    /// <summary>The retain exclusion of an unlisted piece the room's owner forbids.</summary>
+    public const string ForbiddenInRoom = "forbidden_in_room";
+
+    /// <summary>
+    /// The Relocate destination proposer (task 8.1): each unlisted minifiable piece, in id order, takes the nearest unfilled slot of
+    /// its def that no earlier piece took (by octile distance from its footprint's minimum to the slot's, then the slot's minimum
+    /// Z and X): this room's own slots (<paramref name="here"/>, filled through Pack and a fed Install) before the other planned
+    /// rooms' (<paramref name="elsewhere"/>, filled from packed stock). The haul is the walk at the worker's TicksPerCell over that
+    /// distance (a lower bound: no path to a cell not yet built is read); unread while no worker is read. The avoided build is the
+    /// slot's build price (TransitionFacts.BuildPrice). A piece the plan already relocates keeps its bound slot first while it is open.
+    /// A piece with no open slot of its def gets none (no_destination).
+    /// </summary>
+    public static Dictionary<string, TransitionDestination> RelocationSlots(IReadOnlyList<ClearanceTarget> pieces, IReadOnlyList<WantedPiece> here, IReadOnlyList<WantedPiece> elsewhere, TransitionFacts? transitions)
+    {
+        var output = new Dictionary<string, TransitionDestination>(StringComparer.Ordinal);
+        var taken = new HashSet<WantedPiece>(ReferenceEqualityComparer.Instance);
+        foreach (var row in pieces.OrderBy(p => p.EntityId, StringComparer.Ordinal))
+        {
+            if (transitions?.Read?.Transitions.FirstOrDefault(m => m.Id == row.EntityId) is not { Minifiable: true } m)
+            {
+                continue;
+            }
+            // A bound Relocate keeps its slot while that slot is still open (TransitionBindingRules.Holds).
+            var bound = transitions.Planned.FirstOrDefault(t => t.Target == row.EntityId && t.Kind == ServicingChoiceKind.Relocate)?.Slot?.Minimum;
+            WantedPiece? Nearest(IReadOnlyList<WantedPiece> slots) => slots.Where(s => s.DefName == row.DefName && s.Stuff.Length == 0 && !taken.Contains(s))
+                .OrderBy(s => s.Minimum == bound ? 0 : 1).ThenBy(s => Octile(row.Minimum, s.Minimum)).ThenBy(s => s.Minimum.Z).ThenBy(s => s.Minimum.X).FirstOrDefault();
+            if ((Nearest(here) ?? Nearest(elsewhere)) is not { } slot)
+            {
+                continue;
+            }
+            taken.Add(slot);
+            RimGovernor.Brain.GameFacts.Observations.TransitionLeg haul = m.Worker is { } w ? new RimGovernor.Brain.GameFacts.Observations.TransitionLeg.Walked(Octile(row.Minimum, slot.Minimum) * w.TicksPerCell) : new RimGovernor.Brain.GameFacts.Observations.TransitionLeg.Unread(ServicingRules.NoWorker);
+            output[row.EntityId] = new(haul, transitions.BuildPrice?.Invoke(slot) ?? new TransitionBuild.Unread("build price:" + slot.DefName)) { Slot = slot.Minimum, Piece = slot };
+        }
+        return output;
+    }
+
+    // Cells walked between two cells with diagonal steps at TicksPerMoveDiagonal's 1.41421 cardinal steps.
+    // The 1.41421 is Pawn.TicksPerMove's diagonal factor (kept-constants.md, "Mirrored game literals: transitions").
+    private static double Octile(Cell a, Cell b)
+    {
+        var (dx, dz) = (Math.Abs(a.X - b.X), Math.Abs(a.Z - b.Z));
+        return Math.Max(dx, dz) + ((1.41421 - 1) * Math.Min(dx, dz));
+    }
+
+    /// <summary>
+    /// The other planned rooms' unfilled pieces (ReconcileInput.OpenSlots): every piece the plan places in a room other than
+    /// <paramref name="room"/> where no building of its def stands inside its footprint (<paramref name="standing"/>, by def and position).
+    /// </summary>
+    public static List<WantedPiece> OpenSlotsOf(LayoutPlan plan, int room, IReadOnlyList<(string Def, Cell Cell)> standing)
+    {
+        var output = new List<WantedPiece>();
+        foreach (var other in plan.Rooms.Where(o => o.Id != room).OrderBy(o => o.Id))
+        {
+            foreach (var piece in plan.Pieces.GetValueOrDefault(other.Id) ?? [])
+            {
+                var wanted = piece.Wanted();
+                if (!standing.Any(b => b.Def == wanted.DefName && b.Cell.X >= wanted.Minimum.X && b.Cell.X <= wanted.Maximum.X && b.Cell.Z >= wanted.Minimum.Z && b.Cell.Z <= wanted.Maximum.Z))
+                {
+                    output.Add(wanted);
+                }
+            }
+        }
+        return output;
+    }
+
+    private static List<Cell> RowCells(ClearanceTarget row) =>
+        PlannedRules.RectCells(new Rectangle(row.Minimum.X, row.Minimum.Z, row.Maximum.X - row.Minimum.X + 1, row.Maximum.Z - row.Minimum.Z + 1));
 
     /// <summary>
     /// The census row of the wall or door on ring cell c, or a stand-in naming the cell when the census has none.
@@ -681,6 +854,11 @@ public static partial class ReconcileRules
                     Pieces.Add(it.Piece);
                     Cells.AddRange(it.Piece.Cells());
                     break;
+                case OpKind.Reinstall:
+                    Targets.Add(it.Target);
+                    Pieces.Add(it.Piece);
+                    Cells.AddRange(it.Piece.Cells());
+                    break;
                 case OpKind.Claim or OpKind.Cut:
                     Targets.Add(it.Target);
                     Cells.Add(it.Cell);
@@ -712,7 +890,7 @@ public static partial class ReconcileRules
         OpKind.DoorOut or OpKind.DoorIn => GroundPhase.Doors,
         OpKind.WallOut or OpKind.WallIn or OpKind.RoofOff or OpKind.Claim => GroundPhase.Walls,
         OpKind.FloorOut or OpKind.FloorIn => GroundPhase.Floors,
-        OpKind.None or OpKind.WallUp or OpKind.FurnitureOut or OpKind.Install or OpKind.Build or OpKind.Cut or OpKind.VentIn or OpKind.RoofIn => GroundPhase.Furniture,
+        OpKind.None or OpKind.WallUp or OpKind.FurnitureOut or OpKind.Reinstall or OpKind.Install or OpKind.Build or OpKind.Cut or OpKind.VentIn or OpKind.RoofIn => GroundPhase.Furniture,
         var other => throw new ArgumentOutOfRangeException(nameof(k), other, "undeclared op kind"),
     };
 }

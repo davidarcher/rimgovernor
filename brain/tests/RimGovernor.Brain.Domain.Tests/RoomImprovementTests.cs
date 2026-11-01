@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class RoomImprovementTests
 {
-    private static readonly PawnId A = new("a");
+    internal static readonly PawnId A = new("a");
     private static readonly Resource Wood = new("WoodLog");
     private static readonly NeedCell IndoorCell = new(true, false, false, false, false);
 
@@ -28,7 +28,7 @@ public sealed class RoomImprovementTests
         Targets = [NeedsFixtures.Service("b", "rest", 0d, 0) with { Bed = NeedsFixtures.BedRoom("Bedroom", 1, false), Cell = IndoorCell }],
     };
 
-    private static RoomImprovementFacts Facts(double materialValue = 1) => new()
+    internal static RoomImprovementFacts Facts(double materialValue = 1) => new()
     {
         Gains = new()
         {
@@ -42,7 +42,7 @@ public sealed class RoomImprovementTests
     };
 
     /// <summary>A 20-cell bedroom scoring <paramref name="impressiveness"/>: 29 is dull, one point under mediocre.</summary>
-    private static UpkeepRoom Room(double impressiveness) => new()
+    internal static UpkeepRoom Room(double impressiveness) => new()
     {
         StatKeys = SleepingNativeFixtures.StatKeys,
         Native = SleepingNativeFixtures.Room("r", RoomRole.Bedroom, new RoomQuality(28, 0.5, 0, 300, impressiveness), 20),

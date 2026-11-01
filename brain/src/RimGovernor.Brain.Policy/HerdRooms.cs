@@ -59,26 +59,6 @@ public sealed partial record LayoutPlan
 {
     /// <summary>The rooms of role of the unit keyed herd, in plan order.</summary>
     internal IReadOnlyList<PlannedRoom> HerdRooms(PlannedRole role, string herd) => [.. RoomsOf(role).Where(r => r.Herd == herd)];
-
-    /// <summary>
-    /// The room a pen outline holds, as a plan saved with them as reservations is read (WithLegacySites): a
-    /// door in the middle of the south wall. A replan tiles the room again, and the tiler chooses its door. Id is
-    /// the caller's.
-    /// </summary>
-    internal static PlannedRoom HerdRoom(Rectangle area, PlannedRole role, string herd)
-    {
-        var inner = new Rectangle { X = area.X + 1, Z = area.Z + 1, Width = area.Width - 2, Height = area.Height - 2 };
-        return new PlannedRoom
-        {
-            Role = role,
-            Region = RegionRules.RectRegion(inner),
-            Outdoor = role.IsOutdoor(),
-            Herd = herd,
-            Door = new Cell(inner.X + (inner.Width / 2), inner.Z - 1),
-            DoorSide = new DoorSide.Doored(Rotation.South),
-        };
-    }
-
 }
 
 public static class HerdRoomsRules

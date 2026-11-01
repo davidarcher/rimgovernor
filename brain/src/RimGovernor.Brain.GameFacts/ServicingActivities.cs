@@ -23,9 +23,110 @@ public sealed record ServicingActivityRead
     /// <summary>Every spawned stack the player may use of each resource a target's work consumes, summed by def.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<ServicingStock>))]
     public required EquatableArray<ServicingStock> Stock { get; init; }
-    /// <summary>The read's standing limits: <c>servicing_targets_truncated</c> when the target bound cut targets.</summary>
+    /// <summary>
+    /// The colony's standing equipment a plan may transition (task 8.1): each player building that is no wall, door or conduit,
+    /// with the native mechanics of retaining, storing, relocating and removing it.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<TransitionMechanics>))]
+    public required EquatableArray<TransitionMechanics> Transitions { get; init; }
+    /// <summary>
+    /// The read's standing limits: <c>servicing_targets_truncated</c> when the target bound cut targets,
+    /// <c>transition_targets_truncated</c> when the transition bound cut standing equipment.
+    /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> Findings { get; init; }
+}
+
+/// <summary>
+/// One standing building's transition mechanics (task 8.1 of <c>redefine-habitat-requirements</c>). <see cref="Minifiable"/> is
+/// ThingDef.Minifiable (a minifiedDef exists) on a player building: Designator_Uninstall.CanDesignateThing's def and faction
+/// checks, the only way the native packs a building. <see cref="UninstallWork"/> is BuildingProperties.uninstallWork
+/// (JobDriver_Uninstall's TotalNeededWork); <see cref="Deconstructible"/> is Building.DeconstructibleBy(Faction.OfPlayer);
+/// <see cref="Removal"/> what deconstructing it returns and its work (as a servicing target's); <see cref="BrokenDown"/>
+/// CompBreakdownable.BrokenDown; <see cref="Storage"/> where a hauler takes the minified thing; <see cref="Worker"/> the nearest
+/// capable builder, or null when no free colonist can do construction work or reach it. <see cref="Beauty"/> is
+/// Thing.GetBeauty(outside) as BeautyUtility.CellBeauty sums it for the room it stands in (StatDefOf.Beauty indoors,
+/// BeautyOutdoors where the room is psychologically outdoors); <see cref="Wealth"/> Thing.MarketValue, which
+/// RoomStatWorker_Wealth sums; <see cref="Room"/> the room it stands in.
+/// </summary>
+public sealed record TransitionMechanics(string Id, string Definition, Cell Cell)
+{
+    public required double Beauty { get; init; }
+    public required double Wealth { get; init; }
+    public required TransitionRoom Room { get; init; }
+    public required bool Minifiable { get; init; }
+    public required double UninstallWork { get; init; }
+    public required bool Deconstructible { get; init; }
+    public required bool BrokenDown { get; init; }
+    public required ServicingRemoval Removal { get; init; }
+    public required TransitionStorage Storage { get; init; }
+    public required TransitionWorker? Worker { get; init; }
+}
+
+/// <summary>
+/// Where the minified building would be stored: <see cref="Accepting"/>, the nearest cell of the highest-priority player slot
+/// group whose StorageSettings.AllowedToAccept the building (ThingFilter.Allows unwraps a minified thing to its inner building),
+/// or <see cref="None"/> naming why none takes it (<c>not_minifiable</c>, <c>no_accepting_storage</c>).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(None), "none")]
+[JsonDerivedType(typeof(Accepting), "accepting")]
+public abstract record TransitionStorage
+{
+    private protected TransitionStorage() { }
+
+    public sealed record None(string Reason) : TransitionStorage;
+
+    public sealed record Accepting(Cell Cell) : TransitionStorage;
+}
+
+/// <summary>
+/// The room a building stands in: <see cref="Inside"/> its native Room.ID (as the upkeep room census names it), or
+/// <see cref="None"/> naming why it has none (<c>outdoors</c>: no proper room, or a psychologically outdoor one).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(None), "none")]
+[JsonDerivedType(typeof(Inside), "inside")]
+public abstract record TransitionRoom
+{
+    private protected TransitionRoom() { }
+
+    public sealed record None(string Reason) : TransitionRoom;
+
+    public sealed record Inside(string Id) : TransitionRoom;
+}
+
+/// <summary>
+/// The free colonist nearest the building whose construction work type is enabled: its walk to the building, its
+/// StatDefOf.ConstructionSpeed (the uninstall and deconstruct drivers' rate, times <see cref="ServicingMechanics.WorkPerSpeed"/>),
+/// whether its work settings have the uninstall and deconstruct givers' work types active (both are designations native-led
+/// labor works), the loaded carry from the building to <see cref="TransitionStorage.Accepting"/> (<see cref="StoreLeg"/>), and
+/// <see cref="TicksPerCell"/> Pawn.TicksPerMoveCardinal (a diagonal step is TicksPerMoveDiagonal, the cardinal times 1.41421),
+/// the per-cell rate a carry to a planned cell no path was read to is priced at.
+/// </summary>
+public sealed record TransitionWorker(string Pawn, double ApproachTicks)
+{
+    public required double TicksPerCell { get; init; }
+    public required ServicingAbility Ability { get; init; }
+    public required bool UninstallActive { get; init; }
+    public required bool DeconstructActive { get; init; }
+    public required TransitionLeg StoreLeg { get; init; }
+}
+
+/// <summary>
+/// A worker's path leg: <see cref="Walked"/> its native path cost in ticks, or <see cref="Unread"/> naming why none is read
+/// (<c>no_accepting_storage</c> without a destination, <c>no_path</c> when the path finder finds none).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(Unread), "unread")]
+[JsonDerivedType(typeof(Walked), "walked")]
+public abstract record TransitionLeg
+{
+    private protected TransitionLeg() { }
+
+    public sealed record Unread(string Fact) : TransitionLeg;
+
+    public sealed record Walked(double Ticks) : TransitionLeg;
 }
 
 /// <summary>

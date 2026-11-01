@@ -83,6 +83,9 @@ public sealed record GroundStep
     public EquatableArray<ClearanceFloor> Floors { get; init; }
 
     public EquatableArray<Cell> Roof { get; init; }
+
+    /// <summary>The transition decisions the step's computation made (bound or compared): what committing it binds into the plan.</summary>
+    public EquatableArray<TransitionDecision> Transitions { get; init; }
 }
 
 public static class ClearanceGroundRules
@@ -153,28 +156,76 @@ public static class ClearanceGroundRules
     }
 
     /// <summary>
-    /// The retired ground with nothing left to clear: no building and no floor of ours that is not a kept
-    /// room's. The plan drops these entries.
+    /// The retired ground with nothing left to clear: no blueprint, no compared removal and no wall or floor of ours that is not
+    /// a kept room's, unless a building the transition choice retains stands there (its walls and floors then stay with it).
+    /// The plan drops these entries.
     /// </summary>
-    public static List<Region> RetiredGroundDone(LayoutPlan plan, IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<ClearanceFloor> floors)
+    public static List<Region> RetiredGroundDone(LayoutPlan plan, IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<ClearanceFloor> floors, TransitionFacts? transitions = null)
     {
         var rg = RetiredGroundOf(plan);
-        return [.. rg.Ground.Items.Where(g => !RetiredWork(rows, floors, g, rg))];
+        return [.. rg.Ground.Items.Where(g => RetiredWork(rows, floors, g, rg, transitions).Count == 0)];
     }
 
     /// <summary>The plan less the entries of <paramref name="done"/>.</summary>
     public static LayoutPlan WithoutRetiredGround(this LayoutPlan p, IReadOnlyCollection<Region> done) =>
         p with { RetiredGround = EquatableArray.From(p.RetiredGround.Where(g => !done.Any(g.Equal))) };
 
-    /// <summary>A building or floor left on retired ground <paramref name="g"/>.</summary>
-    private static bool RetiredWork(IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<ClearanceFloor> floors, Region g, RetiredGround rg)
-    {
-        if (rows.Any(row => GroundTarget(row, g, rg)))
-        {
-            return true;
-        }
+    /// <summary>
+    /// The rows of retired ground <paramref name="g"/> by what clearing it owes: its blueprints (cancelled), the buildings the
+    /// transition choice removes (deconstructed or packed: a standing designation is deconstructed as designated), the walls
+    /// and roof-holders, and the buildings the choice retains. Retired ground is omitted by the plan, not needed by it, so each
+    /// building may stay: only a compared Store or Remove takes it down.
+    /// </summary>
+    private sealed record RetiredRows(List<ClearanceTarget> Blueprints, List<ClearanceTarget> Furniture, List<ClearanceTarget> Packs, List<ClearanceTarget> Walls, List<ClearanceTarget> Retained, List<TransitionDecision> Decisions);
 
-        return floors.Any(f => g.Contains(f.Cell) && !rg.IsKept(f.Cell) && !GroundCovered(f.Cell, rows));
+    private static RetiredRows RetiredRowsOf(IEnumerable<ClearanceTarget> rows, Region g, RetiredGround rg, TransitionFacts? transitions, HashSet<string>? claimed = null)
+    {
+        var output = new RetiredRows([], [], [], [], [], []);
+        foreach (var row in rows)
+        {
+            if ((claimed is not null && claimed.Contains(row.EntityId)) || !GroundTarget(row, g, rg))
+            {
+                continue;
+            }
+            claimed?.Add(row.EntityId);
+            // A blueprint is cancelled (#3742); a frame is a building and is deconstructed with the rest.
+            if (row.Blueprint || row.DefName.StartsWith("Frame_", StringComparison.Ordinal))
+            {
+                (row.Blueprint ? output.Blueprints : output.Furniture).Add(row);
+            }
+            // A roof-holder goes with the walls and their roof, whatever it still encloses (#3681).
+            else if (row.EnclosesRoom || row.RoofBlocker.Length != 0)
+            {
+                output.Walls.Add(row);
+            }
+            else if (row.Designated)
+            {
+                output.Furniture.Add(row);
+            }
+            else
+            {
+                // The plan retired the room: each piece is compared on its service, retirement alone never takes it down (task
+                // 8.3), and a chosen removal whose replacement is not observed serving keeps it standing.
+                var service = transitions?.Standing?.Invoke(row);
+                var decision = ServicingChoiceRules.Choose(new(row.EntityId, row.DefName, TransitionCause.RetiredGround) { Service = service }, transitions);
+                output.Decisions.Add(decision);
+                (!decision.Admitted ? output.Retained : decision.Uninstalls ? output.Packs : output.Furniture).Add(row);
+            }
+        }
+        return output;
+    }
+
+    /// <summary>The ids a retired ground still owes: blueprints, compared removals, then, with nothing retained, its walls and floors.</summary>
+    private static List<string> RetiredWork(IReadOnlyList<ClearanceTarget> rows, IReadOnlyList<ClearanceFloor> floors, Region g, RetiredGround rg, TransitionFacts? transitions)
+    {
+        var work = RetiredRowsOf(rows, g, rg, transitions);
+        var output = new List<string>([.. work.Blueprints.Concat(work.Furniture).Concat(work.Packs).Select(row => row.EntityId)]);
+        if (work.Retained.Count == 0)
+        {
+            output.AddRange(work.Walls.Select(row => row.EntityId));
+            output.AddRange(floors.Where(f => g.Contains(f.Cell) && !(rg.Has(g) && rg.IsKept(f.Cell)) && !GroundCovered(f.Cell, rows)).Select(f => GroundFloorID(f.Cell)));
+        }
+        return output;
     }
 
     /// <summary>A building clearance of retired ground <paramref name="g"/> takes down: everything but a kept room's walls.</summary>
@@ -216,63 +267,41 @@ public static class ClearanceGroundRules
         IReadOnlyList<ClearanceFloor> floors,
         EquatableArray<Region> ground,
         RoomObservation rooms,
-        RetiredGround rg
+        RetiredGround rg,
+        TransitionFacts? transitions = null
     )
     {
         var ordered = rows.OrderBy(r => r.EntityId, StringComparer.Ordinal).ToList();
         var cells = floors.OrderBy(f => f.Cell.Z).ThenBy(f => f.Cell.X).ToList();
         var claimed = new HashSet<string>(StringComparer.Ordinal);
         var claimedFloor = new HashSet<Cell>();
+        var decisions = new List<TransitionDecision>();
         foreach (var g in ground.Items)
         {
-            var blueprints = new List<ClearanceTarget>();
-            var furniture = new List<ClearanceTarget>();
-            var packs = new List<ClearanceTarget>();
-            var walls = new List<ClearanceTarget>();
-            foreach (var row in ordered)
-            {
-                if (claimed.Contains(row.EntityId) || !GroundTarget(row, g, rg))
-                {
-                    continue;
-                }
-
-                claimed.Add(row.EntityId);
-                // A blueprint is cancelled (#3742); a frame is a building and is deconstructed with the rest.
-                if (row.Blueprint)
-                {
-                    blueprints.Add(row);
-                }
-                // A roof-holder goes with the walls and their roof, whatever it still encloses (#3681).
-                else if (row.EnclosesRoom || row.RoofBlocker.Length != 0)
-                {
-                    walls.Add(row);
-                }
-                else if (row.Packable && !row.Designated)
-                {
-                    packs.Add(row);
-                }
-                else
-                {
-                    furniture.Add(row);
-                }
-            }
-
+            var (blueprints, furniture, packs, walls, retained, made) = RetiredRowsOf(ordered, g, rg, transitions, claimed);
+            decisions.AddRange(made);
             // Pieces in use go after every other piece in the room.
             packs = [.. packs.OrderBy(p => p.InUse)];
             // Nothing more is built on retired ground: its blueprints go first, in one batch.
             if (blueprints.Count > 0)
             {
-                return new GroundStep { Ground = g, Phase = GroundPhase.Blueprints, Targets = EquatableArray.From(blueprints) };
+                return new GroundStep { Ground = g, Phase = GroundPhase.Blueprints, Targets = EquatableArray.From(blueprints) , Transitions = EquatableArray.From(decisions) };
             }
 
             if (furniture.Count > 0)
             {
-                return new GroundStep { Ground = g, Phase = GroundPhase.Furniture, Targets = EquatableArray.From(furniture) };
+                return new GroundStep { Ground = g, Phase = GroundPhase.Furniture, Targets = EquatableArray.From(furniture) , Transitions = EquatableArray.From(decisions) };
             }
 
             if (packs.Count > 0)
             {
-                return new GroundStep { Ground = g, Phase = GroundPhase.Pack, Targets = EquatableArray.From(packs) };
+                return new GroundStep { Ground = g, Phase = GroundPhase.Pack, Targets = EquatableArray.From(packs) , Transitions = EquatableArray.From(decisions) };
+            }
+
+            if (retained.Count > 0)
+            {
+                // A building the transition choice keeps stands in its room: the room's walls, roof and floors stay with it.
+                continue;
             }
 
             if (walls.Count > 0 && HoldsStandingRoom(walls, ground.Items, rooms))
@@ -290,6 +319,7 @@ public static class ClearanceGroundRules
                     Phase = GroundPhase.Walls,
                     Targets = EquatableArray.From(walls),
                     Roof = EquatableArray.From(RetiredRoof(walls, g, ground.Items, rooms, rg)),
+                    Transitions = EquatableArray.From(decisions),
                 };
             }
 
@@ -305,38 +335,26 @@ public static class ClearanceGroundRules
 
             if (mine.Count > 0)
             {
-                return new GroundStep { Ground = g, Phase = GroundPhase.Floors, Floors = EquatableArray.From(mine) };
+                return new GroundStep { Ground = g, Phase = GroundPhase.Floors, Floors = EquatableArray.From(mine) , Transitions = EquatableArray.From(decisions) };
             }
         }
 
         return null;
     }
 
-    /// <summary>The clearance deficit retired ground owes: every target building and every floor cell no player building covers, stable.</summary>
+    /// <summary>
+    /// The clearance deficit retired ground owes (<see cref="RetiredWork"/>): its blueprints and compared removals, and the walls
+    /// and floor cells no player building covers of a ground nothing retained stands on, stable.
+    /// </summary>
     internal static List<string> RetiredGroundWork(
         IReadOnlyList<ClearanceTarget> rows,
         IReadOnlyList<ClearanceFloor> floors,
         EquatableArray<Region> ground,
-        RetiredGround rg
+        RetiredGround rg,
+        TransitionFacts? transitions = null
     )
     {
-        var output = new List<string>();
-        foreach (var row in rows)
-        {
-            if (ground.Items.Any(g => GroundTarget(row, g, rg)))
-            {
-                output.Add(row.EntityId);
-            }
-        }
-
-        foreach (var f in floors)
-        {
-            if (ground.Items.Any(g => g.Contains(f.Cell) && !GroundCovered(f.Cell, rows) && !(rg.Has(g) && rg.IsKept(f.Cell))))
-            {
-                output.Add(GroundFloorID(f.Cell));
-            }
-        }
-
+        var output = ground.Items.SelectMany(g => RetiredWork(rows, floors, g, rg, transitions)).Distinct().ToList();
         output.Sort(StringComparer.Ordinal);
         return output;
     }

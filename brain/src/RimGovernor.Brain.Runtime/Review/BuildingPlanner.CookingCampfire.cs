@@ -36,8 +36,11 @@ public sealed partial class BuildingPlanner
         return new MethodId($"{prefix}-{Convert.ToHexStringLower(sum.AsSpan(0, 8))}");
     }
 
-    /// <summary>Deconstructs one standing building through an excavation-style admission, once per building.</summary>
-    internal async Task<BuildingResult> RetireBuildingAsync(ControlState state, ReviewStep review, NeedOwner goal, ColonyReading reading, string id, string def, Cell cell, string prefix, string reason, CancellationToken call, CancellationToken epoch)
+    /// <summary>
+    /// Takes one standing building down through an excavation-style admission, once per building: uninstalled to storage when
+    /// the transition choice stores it (<paramref name="uninstall"/>), deconstructed otherwise.
+    /// </summary>
+    internal async Task<BuildingResult> RetireBuildingAsync(ControlState state, ReviewStep review, NeedOwner goal, ColonyReading reading, string id, string def, Cell cell, bool uninstall, string prefix, string reason, CancellationToken call, CancellationToken epoch)
     {
         if (reading.Facts.Preferences.Protects(id))
         {
@@ -61,15 +64,16 @@ public sealed partial class BuildingPlanner
         }
 
         Check();
-        var value = new Deconstruction(id, def, cell);
-        var action = DomainAction.NewDeconstructionAction(new ActionId($"{snapshot.Plan}-0"), value);
+        var action = uninstall
+            ? DomainAction.NewUninstallBuildingAction(new ActionId($"{snapshot.Plan}-0"), new MoveBuilding(id, def, cell, Rotation.South))
+            : DomainAction.NewDeconstructionAction(new ActionId($"{snapshot.Plan}-0"), new Deconstruction(id, def, cell));
         var spec = new PlanSpec(snapshot.Plan, new PlanRevision(1), [action]);
         Tel.Decide(new Decision
         {
             Kind = TelemetryKinds.LayoutEditKind,
             Component = "building",
             Verdict = "admitted",
-            Reason = "building_retire",
+            Reason = uninstall ? "building_uninstall" : "building_retire",
             Target = id,
             Attrs = new Dictionary<string, object?> { ["family"] = "building", ["owner"] = goal.OwnerKey, ["x"] = cell.X, ["z"] = cell.Z },
         });

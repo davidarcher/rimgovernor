@@ -60,6 +60,7 @@ public static partial class ForecastValue
             .Concat(ForecastWorkshop.ConnectionMaterials(context))
             .Concat(context.FreezerStock.Where(s => s.Rot is FoodRot.Rots).Select(s => new Resource(s.DefName)))
             .Concat(context.RoomPrerequisites.Values.SelectMany(s => s).SelectMany(s => s.Material).Select(m => m.Resource))
+            .Concat(context.TransitionMaterials)
             .Distinct().OrderBy(r => r.Value, StringComparer.Ordinal)];
     }
 

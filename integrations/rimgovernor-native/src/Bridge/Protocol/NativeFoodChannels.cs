@@ -82,16 +82,38 @@ namespace RimGovernor.Native
                 food.ResetAndProcessPen(pen);
                 var pasture = Enumerable.Range(0, 4).Min(q => food.nutritionPerDayPerQuadrum.ForQuadrum((Quadrum)q));
                 var shelters = new List<RimGovernor.Brain.GameFacts.Observations.PenShelterRoom>();
+                var boundary = new SortedSet<string>(StringComparer.Ordinal);
+                var animals = new SortedSet<string>(StringComparer.Ordinal);
                 if (state.Enclosed)
                 {
                     penned.UnionWith(state.ConnectedRegions);
+                    // What bounds the enclosure: the edifice on each cell just outside its regions (fences, gates, walls)
+                    // and the door of each doorway region it passes (animal flaps); the player animals inside it.
+                    var inside = new HashSet<Region>(state.ConnectedRegions);
+                    foreach (var region in inside)
+                    {
+                        if (region.door != null) boundary.Add(region.door.GetUniqueLoadID());
+                        foreach (var cell in region.Cells)
+                            foreach (var d in GenAdj.CardinalDirections)
+                            {
+                                var near = cell + d;
+                                if (!near.InBounds(map)) continue;
+                                var other = near.GetRegion(map, RegionType.Set_All);
+                                if (other != null && inside.Contains(other)) continue;
+                                var edifice = near.GetEdifice(map);
+                                if (edifice != null) boundary.Add(edifice.GetUniqueLoadID());
+                            }
+                        foreach (var thing in region.ListerThings.ThingsInGroup(ThingRequestGroup.Pawn))
+                            if (thing is Pawn roamer && roamer.Spawned && roamer.RaceProps.Animal && roamer.Faction == Faction.OfPlayerSilentFail) animals.Add(roamer.GetUniqueLoadID());
+                    }
                     // The roofed, walled rooms the enclosure flood reaches: it crosses only doors the pen's roamers pass.
                     foreach (var room in state.ConnectedRegions.Select(r => r.Room).Where(r => r != null && !r.UsesOutdoorTemperature).Distinct().OrderBy(r => r.ID))
                         shelters.Add(new RimGovernor.Brain.GameFacts.Observations.PenShelterRoom { Room = room.ID, Cells = room.CellCount, TemperatureC = Finite(room.Temperature) });
                 }
                 grazing.Add(new RimGovernor.Brain.GameFacts.Observations.PenGrazing { Marker = building.GetUniqueLoadID(), Cell = new RimGovernor.Brain.Domain.Cell(building.Position.x, building.Position.z),
                     Enclosed = state.Enclosed, Cells = food.numCells, DemandPerDay = Finite(food.SumNutritionConsumptionPerDay), PastureTodayPerDay = Finite(food.NutritionPerDayToday),
-                    PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow), Shelters = [.. shelters] });
+                    PasturePerDay = Finite(pasture), StoredNutrition = Finite(food.sumStockpiledNutritionAvailableNow), Shelters = [.. shelters],
+                    Boundary = [.. boundary], Animals = [.. animals] });
             }
             // Pen feed outside every enclosed pen: the stock a pen's feed store would be hauled from.
             var feed = new Dictionary<ThingDef, double>();

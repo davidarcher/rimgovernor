@@ -35,7 +35,6 @@ public sealed partial record ReviewFacts
     public LightTerrains LightTerrains { get; init; } = new();
     public double RoofSupport { get; init; }
     public ImpressivenessLevels Impressiveness { get; init; } = new();
-    public IReadOnlySet<string> Packable { get; init; } = new HashSet<string>();
     public LayoutPlan? LayoutPlan { get; init; }
     public RingStuffSources? RingSources { get; init; }
     public IReadOnlyList<PlanningDefinition> Definitions { get; init; } = [];

@@ -202,6 +202,17 @@ public static partial class PlannedRules
                 removals.Add(next);
             }
         }
+        // A chosen Relocate (task 8.4) keeps its (target, slot) pairs as pairs: one whose old piece or slot lies in what is kept.
+        foreach (var op in ops.Where(o => o.Kind == OpKind.Reinstall))
+        {
+            var pairs = op.Targets.Zip(op.Pieces).Where(tp =>
+                RectCells(new Rectangle(tp.First.Minimum.X, tp.First.Minimum.Z, tp.First.Maximum.X - tp.First.Minimum.X + 1, tp.First.Maximum.Z - tp.First.Minimum.Z + 1)).Any(footprint.Contains)
+                || tp.Second.Cells().Any(footprint.Contains)).ToList();
+            if (pairs.Count > 0)
+            {
+                removals.Add(op with { Targets = [.. pairs.Select(tp => tp.First)], Pieces = [.. pairs.Select(tp => tp.Second)], Cells = [.. pairs.SelectMany(tp => tp.Second.Cells())] });
+            }
+        }
         return [.. removals, .. kept];
     }
 

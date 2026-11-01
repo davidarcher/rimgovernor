@@ -13,7 +13,7 @@ internal static class CoupledFixtures
 
     /// <summary>The native servicing mechanics (JobDriver_Repair 80/20 at ConstructionSpeed x 1.7, FixBrokenDownBuilding 1000, Refuel 240).</summary>
     internal static ServicingMechanics ServicingMechanics => new(1.7, 80, 20, 1000, 240, "ComponentIndustrial");
-    internal static ServicingActivityRead NoServicing => new() { Mechanics = ServicingMechanics, Targets = [], Workers = [], Stock = [], Findings = [] };
+    internal static ServicingActivityRead NoServicing => new() { Mechanics = ServicingMechanics, Targets = [], Workers = [], Stock = [], Transitions = [], Findings = [] };
 
     /// <summary>A comfortable room's temperature (21) for a patient comfortable from 16 to 26: no exposure either side.</summary>
     internal static CareTemperature Comfortable => new CareTemperature.Read(21);
