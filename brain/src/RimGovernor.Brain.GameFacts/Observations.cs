@@ -2240,7 +2240,10 @@ public abstract record BuildingFuel
 
     public sealed record NotRefuelable : BuildingFuel;
 
-    /// <summary>CompRefuelable's fuel, its target fuel level, and whether it is out of fuel (not HasFuel).</summary>
+    /// <summary>
+    /// CompRefuelable's fuel, its target fuel level, whether it is out of fuel (not HasFuel), and Props.autoRefuelPercent: the
+    /// fraction of TargetFuelLevel at or below which ShouldAutoRefuelNow lets the native refuel work giver start a refuel.
+    /// </summary>
     public sealed record Refuelable : BuildingFuel
     {
         public required AutoRefuelControl AutoRefuel { get; init; }
@@ -2249,6 +2252,8 @@ public abstract record BuildingFuel
         public required double Fuel { get; init; }
 
         public required double TargetFuel { get; init; }
+
+        public required double AutoRefuelPercent { get; init; }
 
         public required bool OutOfFuel { get; init; }
     }

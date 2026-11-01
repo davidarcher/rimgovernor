@@ -1,8 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// What the disaster family reads (#3304): the sheltering moves the hazards call for, the review's disaster history,
-/// and the recovery census the service step selects from.
+/// What the disaster family reads (#3304): the sheltering moves the hazards call for and the review's disaster history.
 /// </summary>
 public sealed record DisasterFacts
 {
@@ -12,10 +11,7 @@ public sealed record DisasterFacts
     /// <summary>The review's disaster history; null when none was observed, or none is open after a restore.</summary>
     public DisasterHistory? Disaster { get; init; }
 
-    /// <summary>The recovery census: area restrictions, workers and the buildings the services restore.</summary>
-    public RecoveryPlanning Planning { get; init; } = new();
-
-    /// <summary>The colonists' work rows: the area step's live pawns and the service step's running jobs.</summary>
+    /// <summary>The colonists' work rows: the area step's live pawns.</summary>
     public WorkPawnsRead Workers { get; init; } = new WorkPawnsRead([]);
 
     /// <summary>
@@ -33,7 +29,6 @@ public sealed record DisasterFacts
         {
             Changes = EquatableArray.From(ShelterRules.PlanSheltering(f)),
             Disaster = history,
-            Planning = new RecoveryPlanning { Safety = f.RecoverySafety, Workers = f.MoodPawns, Buildings = f.RecoveryBuildings },
         };
     }
 }
@@ -47,8 +42,9 @@ public sealed record DisasterFacts
 /// its own Method (<see cref="AreaMethod"/>), and an area-only assignment claims only that pawn's allowed area, so it
 /// is admitted beside open service work.</item>
 /// <item><c>disaster/services</c> (Wellbeing): the services a disaster took down (power, fuel, broken-down and
-/// damaged buildings) are restored. It waits on sheltering, and its Methods are the selection's repair, breakdown and
-/// refuel services, named by their candidate's hash.</item>
+/// damaged buildings) are restored. It waits on sheltering and binds no Method of its own: each service is compared and
+/// ordered by the family that owns it (power/basic restores lost producers by refuel, fuel acquisition or fix; home-upkeep/repairs
+/// fixes and repairs), so it holds naming them and closes only on the disaster history's fresh finding.</item>
 /// </list>
 /// </summary>
 public sealed class DisasterFamily : IFamily<DisasterFacts>
@@ -58,6 +54,9 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
     public static readonly NeedId Sheltering = NeedId.Of(FamilyId, "sheltering");
 
     public static readonly NeedId Services = NeedId.Of(FamilyId, "services");
+
+    /// <summary>The hold subject of the services Need: its restoration is the owning families' compared work.</summary>
+    public const string ServicesOwned = "services_by_owning_families";
 
     public string Id => FamilyId;
 
@@ -70,8 +69,14 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
     /// <summary>Sheltering, the SeriousHarm Need.</summary>
     public IReadOnlyList<Need> DeriveSeriousHarm(DisasterFacts facts) => [ShelteringNeed(facts.Changes)];
 
-    /// <summary>Nothing pure: both steps fence and commit the read they act on.</summary>
-    public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, DisasterFacts facts) => [];
+    /// <summary>
+    /// The services Need holds while unmet: power, fuel, breakdowns and damage are restored by the families that compare them. The
+    /// sheltering step fences and commits the read it acts on.
+    /// </summary>
+    public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, DisasterFacts facts) =>
+        ready.Any(n => n.Id == Services && n.Satisfaction != Satisfaction.Met)
+            ? [NeedMethod.Held(Services, ServicesOwned, "disaster services are restored by power/basic (refuel, fuel acquisition, generation) and home-upkeep/repairs (fixes, repairs); the Need closes on the disaster history's next finding")]
+            : [];
 
     /// <summary>Unmet while any area move is owed, met otherwise.</summary>
     public static Need ShelteringNeed(IReadOnlyList<AllowedAreaChange> owed)

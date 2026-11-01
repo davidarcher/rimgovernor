@@ -16,7 +16,7 @@ public sealed class FacilityPlanningRulesTests
             Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable
             {
                 AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.Switch { Allowed = true },
-                Burn = BuildingServiceWire.IdleBurn, Fuel = 1, TargetFuel = 10, OutOfFuel = false,
+                Burn = BuildingServiceWire.IdleBurn, Fuel = 1, TargetFuel = 10, AutoRefuelPercent = 0.3, OutOfFuel = false,
             },
         } } };
         var facts = ColonyFactsCoreTests.Reading().Facts;

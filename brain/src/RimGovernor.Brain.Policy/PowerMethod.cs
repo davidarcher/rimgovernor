@@ -36,10 +36,9 @@ public enum PowerMethod
     NoMethod,
     [WireName("waiting_for_native_power")]
     WaitOutput,
-    [WireName("waiting_for_refuel")]
-    WaitFuel,
-    [WireName("waiting_for_repair")]
-    WaitRepair,
+    /// <summary>The network's capacity covers demand once the producers the power Need restores (refuel, fix) work again.</summary>
+    [WireName("restoring_producers")]
+    Restore,
     [WireName("solar_flare")]
     WaitBlackout,
     [WireName("player_disabled_power")]
@@ -149,6 +148,12 @@ public sealed record PowerPlanning
     /// built cells, and searches the ground only where the plan holds no path.
     /// </summary>
     public PlannedNet Net { get; init; } = new();
+
+    /// <summary>
+    /// The out-of-fuel or broken-down producers whose function the power Need's restoration choice restores
+    /// (<see cref="PowerRestoration.Restorable"/>): only these of the lost producers count toward a network's capacity.
+    /// </summary>
+    public IReadOnlySet<string> Restorable { get; init; } = new HashSet<string>(StringComparer.Ordinal);
 }
 
 /// <summary>
@@ -327,8 +332,10 @@ public static partial class PowerRules
     /// <summary>
     /// Ports the network-local capacity and bounded route choices. Proposed geometry still requires native
     /// placement previews and shared admission. Output and PowerOn, not installed capacity or a receipt,
-    /// establish recovery. Producers that are out of fuel or broken down hold the proposal: refueling and
-    /// repair are ordinary pawn work owned by other families. A powered network whose stored reserve runway
+    /// establish recovery. A producer that is out of fuel or broken down counts toward its network's capacity only
+    /// while the power Need's restoration choice restores it (PowerPlanning.Restorable): a network such producers
+    /// cover proposes Restore, and one they cannot restore is short and is answered by new generation as if they
+    /// were not there. A powered network whose stored reserve runway
     /// falls under ReserveMinDays is a deficit too, sized by its 24 h budget (ComputePowerBudget): a
     /// generation shortfall adds a generator, a storage shortfall alone adds a battery, and a network the
     /// budget already covers waits for its bank to charge. Throws DomainException on invalid input.
@@ -485,11 +492,13 @@ public static partial class PowerRules
             upgrade.Sort(PlannedRules.LessComparer<Cell>(CombatManhunterRules.CellLess));
             return new PowerProposal { Method = PowerMethod.Connect, Cells = upgrade, Key = PowerMethodKey("upgrade", GoFormat(upgrade)) };
         }
+        // A lost producer (empty or broken down) the restoration choice does not restore produces nothing a plan can count on.
+        bool Dead(PowerSite b) => b.BaseW > 0 && !b.Forbidden && b.SwitchedOn && (b.Unfueled || b.BrokenDown) && !planning.Restorable.Contains(b.Id);
         var producers = new List<PowerSite>();
         foreach (var b in v.Buildings)
         {
             var w = b.BaseW;
-            if (w > 0)
+            if (w > 0 && !Dead(b))
             {
                 producers.Add(b);
             }
@@ -513,7 +522,7 @@ public static partial class PowerRules
             bool Same(PowerSite b) => connected && b.Connected && b.Network == network;
             double demand = 0, capacity = 0, output = 0;
             var connectedProducers = 0;
-            bool disabledProducer = false, unfueledProducer = false, brokenProducer = false;
+            bool disabledProducer = false, restoringProducer = false;
             var budgetProducers = new List<PowerProducer>();
             double budgetCapacity = 0;
             foreach (var b in v.Buildings)
@@ -529,7 +538,7 @@ public static partial class PowerRules
                 {
                     demand -= w;
                 }
-                if (w > 0)
+                if (w > 0 && !Dead(b))
                 {
                     connectedProducers++;
                     capacity += w;
@@ -540,9 +549,7 @@ public static partial class PowerRules
                     RequirePowerProfile(profile);
                     budgetProducers.Add(new PowerProducer { NominalW = w, Profile = profile });
                     disabledProducer = disabledProducer || b.Forbidden || !b.SwitchedOn;
-                    var empty = b.Unfueled;
-                    unfueledProducer = unfueledProducer || empty;
-                    brokenProducer = brokenProducer || b.BrokenDown;
+                    restoringProducer = restoringProducer || b.Unfueled || b.BrokenDown;
                 }
             }
             var budget = new PowerBudgetInput
@@ -577,13 +584,9 @@ public static partial class PowerRules
             }
             if (connectedProducers > 0 && capacity >= demand)
             {
-                if (brokenProducer)
+                if (restoringProducer)
                 {
-                    p = p with { Method = PowerMethod.WaitRepair };
-                }
-                else if (unfueledProducer)
-                {
-                    p = p with { Method = PowerMethod.WaitFuel };
+                    p = p with { Method = PowerMethod.Restore };
                 }
                 else if (!powered || reserveShort)
                 {

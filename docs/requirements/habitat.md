@@ -50,10 +50,14 @@ unavailable, the affected service and blocker should remain visible.
 **Intent:** Documented in [power](../developers/contracts/power-contracts.md),
 [upkeep](../developers/contracts/upkeep-contracts.md) and spatial contracts.
 **Implementation:** Partial. Fuel, roof/temperature, cooling and Home-area
-maintenance are supported. Ordinary repairs and door-to-wall replacement are
-explicitly held (H5). Resilience across repeated losses needs further evidence.
-A hosted guest's or slave's cold or hot sleeping room is temperature work like a
-colonist's (H9). Evidence H3–H6.
+maintenance are supported. Milestone 5 compares a lost producer's refuel, fuel
+acquisition and breakdown fix, and a damaged building's repair, fix, door-to-wall
+replacement, retirement or deferral, as measured servicing work; the Need stays unmet
+until fresh facts show restoration ([H12](#h12--servicing-and-power-restoration-compared-as-measured-work)).
+Turret and other non-power service value, chemfuel and trade fuel acquisition and a
+component source are not modelled. Resilience across repeated losses needs further
+evidence. A hosted guest's or slave's cold or hot sleeping room is temperature work like a
+colonist's (H9). Evidence H3–H6, H12.
 
 ## RG-HABITAT-003 — Develop rooms for the benefit they provide
 
@@ -151,7 +155,8 @@ Evidence H11.
   bedroom-space deadlock. Thermal safety and a full night's sleep are outside
   those assertions.
 - **H3 — Fuel and useful power.** [PowerMethodTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PowerMethodTests.cs)
-  asserts `WaitFuel` for an empty producer with adequate capacity. Registered
+  asserts that an empty producer with adequate capacity is `Restore` (wire `restoring_producers`) only while the
+  restoration choice restores it ([H12](#h12--servicing-and-power-restoration-compared-as-measured-work)). Registered
   OnDemand [power/fuel](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Power/PowerFuel.cs)
   stages a generator, stove and wood; it reads an empty generator and unpowered
   stove, then waits for fuel and powered service. The fixture enables hauling;
@@ -185,11 +190,11 @@ enables native services; completed cleaning and repair have their own outcomes.
 The spatial contract's room reconciliation covers existing rooms as well as new
 construction. Growth and destroyed structures change the next required work.
 
-HomeUpkeepFamily.Propose deliberately holds ordinary repairs and door-to-wall
-replacement. Its tests assert those holds. These are implementation gaps tracked
-in [#4006](https://github.com/davidarcher/rimgovernor/issues/4006) and
-[#4007](https://github.com/davidarcher/rimgovernor/issues/4007); the working Home-area
-restoration case does not prove either action.
+Ordinary repairs and door-to-wall replacement were held here (tracked in
+[#4006](https://github.com/davidarcher/rimgovernor/issues/4006) and
+[#4007](https://github.com/davidarcher/rimgovernor/issues/4007)); milestone 5 replaced
+the holds with a compared choice ([H12](#h12--servicing-and-power-restoration-compared-as-measured-work)).
+The Home-area restoration case proves neither action.
 
 ### H6 — Growth and changed plans
 
@@ -492,3 +497,74 @@ provision from outcome for care. The [medical](../developers/contracts/medical-c
 [persistence](../developers/contracts/persistence-contracts.md) (schema 73),
 [action](../developers/contracts/action-contracts.md) and
 [method-continuation](../developers/contracts/method-continuation.md#care-chains) contracts own the behavior.
+
+
+### H12 — Servicing and power restoration compared as measured work
+
+Milestone 5 (RG-HABITAT-002, -008, -010, -011) replaces the repair and wall-replacement
+holds, the fuel and repair waits and the disaster recovery selection with one comparison of
+measured servicing work. The [forecast](../developers/contracts/forecast-contracts.md#servicing-activity-read),
+[upkeep](../developers/contracts/upkeep-contracts.md#repairs-cleaning),
+[power](../developers/contracts/power-contracts.md#restoration) and
+[persistence](../developers/contracts/persistence-contracts.md) (schema 74) contracts own the behavior.
+
+- **Measurement (RG-HABITAT-010).** [ServicingWorkTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/ServicingWorkTests.cs)
+  check that a repair, breakdown fix, refuel and door-to-wall replacement take the native drivers' ticks at the pawn's
+  measured rate (repair warm-up and per-hit-point work, fix ticks divided by the success chance with the component
+  consumed on failure, refuel in loads of the carry capacity, the replacement's deconstruct, delivery and build with the
+  leavings recovered and the cell left open), that a target joins its canonical row by id and a mismatched def or cell is
+  a contract violation, that each missing fact is named and never defaulted, and that a known refusal excludes an option
+  with its reason.
+- **Maintenance choice (RG-HABITAT-010, -002).** [HomeUpkeepFamilyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HomeUpkeepFamilyTests.cs)
+  check that a damaged wall gets a claimed repair and stays deficient until fresh facts show it whole, that a door the
+  clearance step walls is replaced when repair cannot restore its service and repaired otherwise, that a builder whose
+  work types are inactive is excluded `work_inactive` while repair and fix (forced ordered jobs) are not, that Defer wins
+  only when every work option is excluded and keeps the Need visible with the reasons, that Retire wins only when its
+  loss is assessed zero (a clearance target) and is otherwise unassessed naming the service, and that a refused receipt
+  spends the budget and the next review reselects. The `unsupported_forecast_repair` and
+  `unsupported_forecast_wall_replacement` holds are gone.
+- **Power restoration (RG-HABITAT-002, -008).** [PowerRestorationTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PowerRestorationTests.cs)
+  check that an empty generator with fuel in stock is refuelled and the Need closes only on fresh powered facts, that
+  with no stock and a tree to cut the acquire-then-refuel chain is bound and a later review with stock refuels, that with
+  no path the chain is the named state `fuel acquisition:<def>` and generation wins, that a broken generator is fixed
+  with a component and otherwise names `component acquisition:<def>`, that two empty generators never claim one stock
+  twice, that the native `Props.autoRefuelPercent` gates native starts, and that a refused refuel spends the budget.
+  [PowerMethodTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/PowerMethodTests.cs) check that a lost producer
+  counts toward capacity only while restorable. The `.25` refuel fraction is deleted for the building's own threshold.
+- **Disaster services (RG-HABITAT-011).** [DisasterFamilyTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/DisasterFamilyTests.cs)
+  check that `disaster/services` holds `services_by_owning_families` (naming power/basic and home-upkeep/repairs) and
+  closes only on the disaster history's fresh finding. The selection layer (`SelectRecoveryMethods`, `RecoveryPlanning`,
+  the retained `ReviewState.Recovery` and its five codecs) is deleted through every layer; schema 73 to 74 replaces older
+  journals that carried it.
+- **Native case.** OnDemand `upkeep/restore-service`
+  ([RestoreService](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Upkeep/RestoreService.cs), 15,000 ticks, one
+  colonist, families power and repair) stages an empty `WoodFiredGenerator` wired to an `ElectricStove` with 150 wood,
+  a wooden `Wall` in Home at 100 hit points, no components, and work priorities at zero (forced orders still go; active
+  vanilla labor would pre-empt the brain). It asserts that no blueprint or frame appears, that `refuel-<generator>` and
+  `repair-<wall>` are selected through the normal path, that each Need stays open while its order is in flight and closes
+  only on the observed fuelled and powered generator, powered stove and full-health wall. It is registered and compiles
+  but was not executed; the nightly `-full` run or task 9.4 executes it. No run has read the native servicing census, so
+  no native evidence exists for this milestone, and no executed pass is claimed.
+
+Known limits, stated rather than priced:
+
+- a damaged producer still produces, so condition repair is not a power deficit and stays `home-upkeep/repairs`';
+  the breakdown fix is home-upkeep's Method even for a generator (power only counts it);
+- the refuel order is issued even when native auto-refuel would also start it;
+- a second producer with only a partial stock left is excluded `fuel_taken` and defers; the fuel count is held by
+  the policy ledger, not `MethodClaims`, and the component ledger is count-based (no stack id);
+- only the harvest path of fuel acquisition is modelled (chemfuel production and trade are the named state
+  `fuel acquisition:<def>`), and no component acquisition path exists (`component acquisition:<def>`);
+- a turret's and other non-power buildings' service value is unmodelled (`service:<def>`), and the use-driven fuel
+  rate of a per-use comp is named (`fuel use rate:<def>`), not priced, so a turret's refuel is still held
+  (`unsupported_forecast_turret_refuel`);
+- the supply legs assume the nearest reservable stack serves every load (`servicing_supply_nearest_stack_legs`);
+- deconstruction needs a designation, worked by native labor, so a replacement depends on both giver work types
+  being active;
+- the servicing read lists at most 32 targets; a larger set is cut with `servicing_targets_truncated` and the absent
+  targets are unassessed, not unread;
+- the private driver constants (1.7 work per speed, 80 and 20 repair work, 1000 fix ticks, 240 refuel ticks, the
+  industrial component) are copied from the decompiled drivers.
+
+Provision stays separate from outcome as RG-HABITAT-011 requires: an accepted order, a chosen option or a staged
+acquisition establishes nothing, and an unread fact is named rather than defaulted.

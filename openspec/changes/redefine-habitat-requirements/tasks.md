@@ -42,10 +42,10 @@ from executed passes in the existing habitat evidence page.
 
 ## 5. Selected maintenance and service restoration (002, 008, 010, 011)
 
-- [ ] 5.1 Extend native work probes/shared activities for repair, refuel and door/wall replacement using measured rates, inputs and service effects. Verify native-derived duration/material accounting, canonical target joins and explicit required-fact refusal.
-- [ ] 5.2 Replace home-upkeep repair/wall-swap holds with compared and claimed work through Hands, including repair versus replacement/defer/retire where feasible. Replace hold-asserting tests with normal-path tests that damage stays deficient until observed service/condition restoration.
-- [ ] 5.3 Connect power fuel/repair deficits to selected acquisition/delivery/work dependencies. Verify an adequately sized empty producer gets fuel instead of redundant generation and changing supply revises the chain rather than leaving a permanent wait.
-- [ ] 5.4 Extend recovery/upkeep native coverage to autonomous selection and observed restoration; update upkeep, power, action and forecast contracts plus habitat evidence. Delete replaced hold symbols/readers/assertions and pass the repository gate before committing and landing.
+- [x] 5.1 Extend native work probes/shared activities for repair, refuel and door/wall replacement using measured rates, inputs and service effects. Verify native-derived duration/material accounting, canonical target joins and explicit required-fact refusal.
+- [x] 5.2 Replace home-upkeep repair/wall-swap holds with compared and claimed work through Hands, including repair versus replacement/defer/retire where feasible. Replace hold-asserting tests with normal-path tests that damage stays deficient until observed service/condition restoration.
+- [x] 5.3 Connect power fuel/repair deficits to selected acquisition/delivery/work dependencies. Verify an adequately sized empty producer gets fuel instead of redundant generation and changing supply revises the chain rather than leaving a permanent wait.
+- [x] 5.4 Extend recovery/upkeep native coverage to autonomous selection and observed restoration; update upkeep, power, action and forecast contracts plus habitat evidence. Delete replaced hold symbols/readers/assertions and pass the repository gate before committing and landing.
 
 ## 6. Agriculture, future capacity and utility resilience (006, 007, 008)
 

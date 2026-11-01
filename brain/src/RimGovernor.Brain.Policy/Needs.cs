@@ -147,7 +147,7 @@ public sealed record NeedMethod(NeedId Need, MethodId Method, string Reason, Fun
     /// </summary>
     public NeedHold? Hold { get; init; }
 
-    /// <summary>A hold for <paramref name="need"/>: a stable subject (for example <c>unsupported_forecast_repair</c>) and its detail.</summary>
+    /// <summary>A hold for <paramref name="need"/>: a stable subject (for example <c>servicing_deferred</c>) and its detail.</summary>
     public static NeedMethod Held(NeedId need, string subject, string detail) =>
         new(need, default, detail, _ => throw new DomainException($"need {need} is held: {subject}")) { Hold = new NeedHold(subject, detail) };
 }

@@ -180,7 +180,6 @@ public static class GiveJobRules
     private static string RecoveryServiceJob(RecoveryMethod method) =>
         method == RecoveryMethod.OfferHelp ? "OfferHelp"
         : method == RecoveryMethod.InspectGravEngine ? JobInspectGravEngine
-        : method == RecoveryMethod.Repair ? JobRepair
         : method == RecoveryMethod.Breakdown ? JobFixBrokenDownBuilding
         : method == RecoveryMethod.Refuel ? JobRefuel
         : method == RecoveryMethod.InvestigateMonolith ? JobInvestigateMonolith
@@ -189,8 +188,8 @@ public static class GiveJobRules
         : throw BridgeContractException.Contract("recover intent requires a service method");
 
     /// <summary>
-    /// The GiveJobIntent of one pawn servicing one colony building (repair, breakdown,
-    /// refuel). Native checks the pawn, the building and whether it still needs the service live, and the game's own
+    /// The GiveJobIntent of one pawn servicing one colony building (a breakdown fix or a
+    /// refuel; a repair is its own Repair intent). Native checks the pawn, the building and whether it still needs the service live, and the game's own
     /// WorkGiver builds the job.
     /// </summary>
     internal static RimGovernor.Brain.GameOrders.Operations.Action RecoverAction(DomainAction action)

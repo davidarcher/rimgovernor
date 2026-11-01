@@ -239,7 +239,7 @@ public static class DisasterRules
 
     /// <summary>
     /// Lists measured ordinary work: a broken-down building, a building below its maximum hit points and a
-    /// refuelable building under a quarter of its fuel target, refuels first. Forbidden and burning buildings are
+    /// refuelable building at or below its native auto-refuel fraction (Props.autoRefuelPercent) of its fuel target, refuels first. Forbidden and burning buildings are
     /// skipped. Native eligibility and resource previews remain mandatory at action admission. Throws on an invalid row.
     /// </summary>
     public static EquatableArray<RecoveryWork> RecoveryPending(IReadOnlyList<RimGovernor.Brain.GameFacts.Observations.BuildingState> rows)
@@ -272,7 +272,7 @@ public static class DisasterRules
             {
                 work.Add(new RecoveryWork(row.Building.Id, RecoveryMethod.Repair));
             }
-            if (row.Service.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable low && low.Fuel < low.TargetFuel * .25)
+            if (row.Service.Fuel is RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable low && low.TargetFuel > 0 && low.Fuel <= low.AutoRefuelPercent * low.TargetFuel)
             {
                 work.Add(new RecoveryWork(row.Building.Id, RecoveryMethod.Refuel));
             }

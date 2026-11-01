@@ -11,8 +11,7 @@ public sealed class VoluntaryMethodAdmissionTests
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
     [Theory]
-    [InlineData(RecoveryMethod.Repair)]
-    [InlineData(RecoveryMethod.Breakdown)]
+    // Repairs and breakdown fixes are the home-upkeep repairs Need's compared choice (task 5.2): the disaster services only refuels.
     [InlineData(RecoveryMethod.Refuel)]
     public void DisasterServicesRecoveryRetainsItsAdmission(RecoveryMethod method)
     {

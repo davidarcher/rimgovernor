@@ -21,7 +21,7 @@ public sealed partial class BuildingPlanner
     /// <summary>The planner resolved to the power method the policy picked, or the verdict that says why none applies.</summary>
     internal (BuildingPlanner? Planner, Verdict Verdict) SelectPower(ColonyReading facts, IReadOnlyList<string> pendingConsumers)
     {
-        var planning = PowerRules.DefaultPowerPlanning();
+        var planning = PowerRules.DefaultPowerPlanning() with { Restorable = PowerRestorable };
         var crops = FieldPlanner.CropChoices(facts);
         var biome = facts.Facts.CropClimate.Biome;
         var skill = TreePlantationRules.GrowerSkill(facts.Facts.ForecastObserved.WorkPawns);
@@ -60,8 +60,7 @@ public sealed partial class BuildingPlanner
             }
 
             case PowerMethod.WaitOutput:
-            case PowerMethod.WaitFuel:
-            case PowerMethod.WaitRepair:
+            case PowerMethod.Restore:
             case PowerMethod.WaitBlackout:
             case PowerMethod.WaitPlayer:
             case PowerMethod.WaitCharge:

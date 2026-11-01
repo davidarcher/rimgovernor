@@ -345,6 +345,25 @@ crafter works its timetable's work hours on the bill alone.
 The medicine stock target the colony model crafts toward is `MedicalReservePolicy.TargetPerColonist` (3) a colonist, the reserve's
 own target, standing in for the player's stock-target bill count.
 
+## Mirrored game literals: servicing drivers (habitat 5.1)
+
+`NativeServicingActivities` (`integrations/rimgovernor-native/src/Bridge/NativeServicingActivities.cs`) carries the
+constants of the native servicing drivers that the servicing durations
+([forecast contracts](forecast-contracts.md#servicing-activity-read)) are made of, as `ServicingMechanics` on the read. Each is a
+private const or an inline literal with no typed route, so it is copied from the decompiled 1.7 drivers (ilspycmd). The refuel
+duration and the component def are typed members and are read. The refuel threshold is not a constant here: the building's own
+`Props.autoRefuelPercent` is read per building (`BuildingFuel.Refuelable.AutoRefuelPercent`), replacing the former `.25`.
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Construction work a tick | `ConstructionSpeed` × 1.7 (repair, deconstruct and frame finishing) | the inline factor in `JobDriver_Repair`, `JobDriver_RemoveBuilding` (`JobDriver_Deconstruct`) and `JobDriver_ConstructFinishFrame` tick actions |
+| Repair warm-up and pace | 80 work before the first hit point, then 20 work per hit point, at most one hit point a tick | `JobDriver_Repair.WarmupTicks`, `TicksBetweenRepairs` (private) |
+| Breakdown fix | 1000 work ticks per attempt; the component is consumed whether or not the attempt succeeds | `JobDriver_FixBrokenDownBuilding.TicksDuration` (private) |
+| Refuel wait | 240 ticks per load carried | `JobDriver_Refuel.RefuelingDuration` (read) |
+| Fix component | `ComponentIndustrial` | `ThingDefOf.ComponentIndustrial` (read) |
+| Deconstruct work | the building's `WorkToBuild` clamped to 20..3000 | `JobDriver_Deconstruct` |
+| Target bound | 32 targets a read (`servicing_targets_truncated`) | an authored cap: every free colonist is priced against each target by up to four legs |
+
 ## Mirrored game rules: trader stock (#3869)
 
 `TradeArrivalRules` and the trade records (`brain/src/RimGovernor.Brain.Policy/TradeArrival.cs`), the catalog's `TraderStock`

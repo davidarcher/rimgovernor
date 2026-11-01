@@ -4,7 +4,8 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Runtime;
 
 /// <summary>
-/// The runtime half of the home-upkeep family (#3253): one colony read gives the damaged-structure census, and when
+/// The runtime half of the home-upkeep family (#3253): one colony read gives the damaged-structure census, the servicing
+/// census and the servicing underway and refused (task 5.2), and when
 /// clearance runs, the clearance census on the planned ground, its planned-ground work and the next clearance step
 /// (the recovery queue's batch first, then the planned-ground step, with already designated targets dropped).
 /// </summary>
@@ -34,11 +35,11 @@ public sealed partial class HomeUpkeepReader
         return new FamilyRunner<HomeUpkeepFacts>(new HomeUpkeepFamily(repairs, clearance), reader.ReadAsync, Schedule);
     }
 
-    /// <summary>An optional entry woken by the outcomes of repairs and of every clearance step kind.</summary>
+    /// <summary>An optional entry woken by the outcomes of repairs, breakdown fixes and every clearance step kind.</summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Optional,
-        Kinds = [ActionKind.Repair, ActionKind.Deconstruction, ActionKind.UninstallBuilding, ActionKind.RemoveRoof, ActionKind.FloorRemoval],
+        Kinds = [ActionKind.Repair, ActionKind.RecoveryService, ActionKind.Deconstruction, ActionKind.UninstallBuilding, ActionKind.RemoveRoof, ActionKind.FloorRemoval],
     };
 
     internal async Task<HomeUpkeepFacts> ReadAsync(FamilyReadScope scope, CancellationToken call)
@@ -63,10 +64,12 @@ public sealed partial class HomeUpkeepReader
         var colony = _clearance
             ? (await _reviewer.ObserveOwnedAsync(_native, expected, call).ConfigureAwait(false)).Reading
             : await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
-        var facts = new HomeUpkeepFacts();
-        if (_repairs)
+        // Both Needs read the structure census: the repairs targets, and the rows of the doors a clearance step swaps.
+        var (underway, refused) = ServicingHistory(_reviewer.Player.Journal, scope.World, colony.Facts.ForecastObserved.WorkPawns.Pawns, call);
+        var facts = new HomeUpkeepFacts { Structures = colony.Facts.Upkeep.Structures, Underway = [.. underway], Refused = [.. refused] };
+        if (colony.Facts.ForecastObserved.Coupled?.Servicing is { } servicing)
         {
-            facts = facts with { Structures = colony.Facts.Upkeep.Structures };
+            facts = facts with { Servicing = ServicingCensusOf(servicing, colony.Tables.Buildings.Table.At) };
         }
         if (!_clearance)
         {
@@ -115,7 +118,7 @@ public sealed partial class HomeUpkeepReader
         {
             Candidate = new ClearanceCandidate(
                 new MethodId(prefix.EndsWith('-') ? prefix[..^1] : prefix),
-                probe.Any(a => a.Deconstruction is { ReplacesWithWall: true }),
+                [.. probe.Where(a => a.Deconstruction is { ReplacesWithWall: true }).Select(a => a.Deconstruction!.Target)],
                 id => method(id, chosen).Actions),
         };
     }

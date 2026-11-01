@@ -44,6 +44,7 @@ internal static class NativeCoupledForecast
         var clothing = NativeRecipeActivity.Read(context.Identity, legs); Lap("clothing");
         var future = NativeCoupledFood.Read(map, food, legs); Lap("future");
         var support = NativeSupportActivities.Read(map, legs); Lap("support");
+        var servicing = NativeServicingActivities.Read(map, legs); Lap("servicing");
         var practice = NativePracticeActivities.Read(map, legs); Lap("practice");
         var research = NativeResearchActivities.Read(map); Lap("research");
         var hunt = NativeHuntActivity.Read(map); Lap("hunt");
@@ -137,7 +138,7 @@ internal static class NativeCoupledForecast
             return rows;
         });
         Lap("routes");
-        return new() { Tick = context.Tick, Practice = practice, Research = research, Hunt = hunt, Sowing = sowing, Support = support, Thermal = thermal, Food = food, Construction = construction, Clothing = clothing,
+        return new() { Tick = context.Tick, Practice = practice, Research = research, Hunt = hunt, Sowing = sowing, Support = support, Servicing = servicing, Thermal = thermal, Food = food, Construction = construction, Clothing = clothing,
             FoodSources = EquatableArray.From(future.Sources), FoodConversions = EquatableArray.From(future.Conversions), FoodUses = EquatableArray.From(future.Uses),
             Routes = EquatableArray.From(routes) };
     }

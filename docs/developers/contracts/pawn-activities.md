@@ -238,6 +238,18 @@ uses native area intent as described below. Ordinary hauling is also native work
 delivery costs install no exact worker. A justified Deliver of a chunk marks the chunk's Haul
 designation record `Ordered`, which the designation guard's revocation release reads.
 
+### Servicing work
+
+Labor stays native-led; servicing splits by how the work reaches a pawn
+([servicing read](forecast-contracts.md#servicing-activity-read)). A building's repair, a breakdown fix and a
+producer's refuel are player-forced ordered jobs: the `home-upkeep/repairs` and `power/basic` Needs issue them as exact
+Methods through `TryTakeOrderedJobPrioritizedWork`, which refuses only a disabled work type, so a pawn whose repair
+or refuel work type is merely inactive (priority 0) still takes the order and the comparison does not exclude it. A
+door-to-wall replacement is not an order: it is a deconstruct designation and a wall frame worked by native-led
+labor, so it is excluded `work_inactive` unless both the deconstruct giver's and the frame-finishing giver's work
+types are active for the builder. The fuel an empty producer needs is acquired through ordinary harvest
+designations, also native-led.
+
 ### Roof preparation
 
 The clearance read exposes `ClearanceTarget.RoofRemoval`: proven removable cells

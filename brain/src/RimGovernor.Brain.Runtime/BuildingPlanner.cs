@@ -53,6 +53,9 @@ public sealed partial class BuildingPlanner
 
     internal Pol.PowerProposal? Power { get; set; }
 
+    /// <summary>The lost producers the power Need's restoration choice restores this review (PowerPlanning.Restorable).</summary>
+    internal IReadOnlySet<string> PowerRestorable { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+
     internal Pol.TemperatureProposal? Temperature { get; set; }
 
     internal Pol.RefrigerationProposal? Refrigeration { get; set; }

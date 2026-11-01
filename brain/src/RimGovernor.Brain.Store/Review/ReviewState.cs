@@ -36,8 +36,6 @@ public sealed record ReviewState
     /// <summary>The one recovery queue: the clearance planner executes its removals against a fresh native census; its held entries are the journalled hold reasons.</summary>
     public RecoveryQueue? RecoveryQueue { get; init; }
 
-    public Recovery? Recovery { get; init; }
-
     public DisasterHistory? Disaster { get; init; }
 
     public Mood? Mood { get; init; }

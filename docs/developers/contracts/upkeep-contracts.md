@@ -253,7 +253,10 @@ or second demand owner is introduced. See [roof preparation](pawn-activities.md#
   run through the recovery queue (tier 1 room obstructions first, then nearest); the
   roof-first batch takes a roof off before its holders. Each held target and reason is a
   held `RecoveryQueue` entry. Roof removal claims `roof/x/z` and floor removal `floor/x/z`.
-- A door-to-wall swap is held as `unsupported_forecast_wall_replacement`. A refused step
+- A door-to-wall swap is proposed only when the [maintenance choice](#repairs-cleaning) picks
+  Replace for the door; otherwise the step is held `servicing_deferred` with the reasons
+  (a builder whose deconstruct or frame-finishing work type is inactive is excluded
+  `work_inactive`, since the swap is a designation worked by native-led labor). A refused step
   spends the shared retry budget under its MethodId before a new attempt is admitted.
 - Useful chunk acquisition follows actual material demand through the
   [support portfolio](support-work.md#delivery-and-chunks). A store accepting chunks
@@ -275,9 +278,33 @@ or second demand owner is introduced. See [roof preparation](pawn-activities.md#
 ### Repairs, cleaning
 
 - The `home-upkeep/repairs` Need (Wellbeing; composed by the `repair` toggle) is met
-  when no player building inside Home is damaged; its deficit is the missing hit points.
-  An unknown structure census leaves it unknown. Repairs are not yet a supported forecast
-  outcome, so an unmet Need is held as `unsupported_forecast_repair` and commits nothing.
+  when no player building inside Home is damaged or broken down; its deficit is the missing
+  hit points plus the broken-down buildings. An unknown structure census leaves it unknown.
+  Each deficient building is decided by the pure maintenance choice
+  (`ServicingChoiceRules.Decide`) over the native
+  [servicing read](forecast-contracts.md#servicing-activity-read): Repair, FixBreakdown,
+  Replace (door to wall), Retire and Defer, each Assessed, Excluded for a named constraint or
+  Unassessed naming the fact it lacks. Ranking is the building's function lost, then
+  unresolved deficits, the open transition, the expected duration (a fix's divided by the
+  pawn's success chance), the inputs, the kind and the pawn. Defer is the baseline and wins only
+  when no work is assessed, holding `servicing_deferred` with every exclusion named; work
+  already underway holds `servicing_underway`, and targets clearance serves
+  `servicing_by_clearance`. Retire is zero-loss only when the building is a clearance target;
+  otherwise it is unassessed, naming the `clearance census`, the `power output value:<def>`
+  (watts on its network) or the `service:<def>` it would lose.
+- A chosen repair or fix is an exact Method, `repair-<target>-<pawn>` (a `Repair` op) or
+  `fix-<target>-<pawn>` (a `RecoveryService` Breakdown op), claiming its pawn and structure
+  (`MethodClaims`). Both are player-forced ordered jobs (`TryTakeOrderedJobPrioritizedWork`,
+  which refuses only disabled work types), so an inactive work type does not exclude them.
+  Open orders and running native jobs are re-derived every review from the journal and the
+  pawn census (`HomeUpkeepReader.ServicingHistory`, no store); a refused order is read from the
+  refusal budget as `refused:<reason>` and the next review reselects. The Need stays unmet until
+  fresh hit-point and breakdown facts show the building whole: an accepted order restores
+  nothing. A required unread fact (`servicing read`, `servicing target:<id>`,
+  `building row:<id>`, `hit points:<def>`, `repair rate:<def>`, `fix success chance:<def>`,
+  `construction rate:<def>`) leaves the option Unassessed naming it. A refuel is the `power/basic`
+  Need's ([power contracts](power-contracts.md#restoration)); a breakdown fix stays here even for
+  a generator.
 - No concern owns fire. A home fire neither raises a need nor pauses development work;
   native firefighting answers it.
 - Methods inspect at most eight targets and eight enabled, available workers per

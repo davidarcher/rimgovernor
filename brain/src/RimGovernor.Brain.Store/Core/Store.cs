@@ -77,8 +77,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 71 keeps each planned production's host step (a chain's bridge, a kept spare's share; RG-HABITAT-005); older journals are replaced.
     /// Version 72 keeps the layout plan's activity sites and each planned room's activity (habitat 3.3); older journals are replaced.
     /// Version 73 gives a rescue its exact bed and adds the bed rest action (a walking patient's lay-down, habitat 4.3); older journals are replaced.
+    /// Version 74 drops the review's retained disaster recovery selection (power and home upkeep compare and order restoration, habitat 5.3); older journals are replaced.
     /// </summary>
-    public const int SchemaVersion = 73;
+    public const int SchemaVersion = 74;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

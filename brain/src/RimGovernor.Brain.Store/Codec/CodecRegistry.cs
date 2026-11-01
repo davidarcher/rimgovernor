@@ -220,13 +220,6 @@ internal static class CodecRegistry
         codecs.Register(new ContractRecordCodec<RimGovernor.Brain.GameFacts.Observations.PawnState>());
         codecs.Register(new ContractRecordCodec<RimGovernor.Brain.GameFacts.Observations.PatientForecast>());
         codecs.Register(new ReviewMoodStateConverter());
-        codecs.Register(new RecoveryCandidateConverter());
-        codecs.Register(new RecoverySelectionConverter());
-        codecs.Register(new ContractRecordCodec<RimGovernor.Brain.GameFacts.Observations.BuildingState>());
-        codecs.Register(new ContractRecordCodec<RimGovernor.Brain.GameFacts.Observations.BuildingFuel>());
-        codecs.Register(new RecoveryConverter());
-        codecs.Register(new RecoveryRestrictionConverter());
-        codecs.Register(new RecoverySafetyConverter());
         codecs.Register(new RowRunConverter());
         codecs.Register(new SafeguardProposalConverter());
         codecs.Register(new SiteLaneConverter());

@@ -42,10 +42,14 @@ all affected services recover, the episode should close. Renewed damage should
 reopen the relevant work.
 
 **Intent:** Documented in [disaster planning](../developers/contracts/disaster-planning.md).
-**Implementation:** Supported for the inspected service-state and work-selection
-path and explicit native repair. Ordinary home repairs have a separate unsupported
-path, described in P5. Autonomous episode closure still needs execution evidence.
-Evidence P1, P3–P5.
+**Implementation:** Supported for the inspected service-state path and explicit
+native repair. The disaster family no longer selects work: `power/basic` refuels,
+acquires fuel for or fixes lost producers and `home-upkeep/repairs` repairs and fixes
+damaged buildings, each compared as measured servicing work
+([H12](habitat.md#h12--servicing-and-power-restoration-compared-as-measured-work)), and
+`disaster/services` closes only on the disaster history's fresh finding. Autonomous
+episode closure still needs execution evidence; the native case `upkeep/restore-service`
+is registered but unexecuted. Evidence P1, P3–P5.
 
 ## Evidence and inspection coverage
 
@@ -74,8 +78,10 @@ spread need broader outcome evidence than the sampled dispatch cases. See
 ### P4 — Native recovery and combat effects
 
 [DisasterRecoveryReadTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/DisasterRecoveryReadTests.cs)
-checks repair, refuel and breakdown selection, ignores burning or forbidden
-targets, rejects invalid service facts and keeps unread recovery unresolved.
+checks that pending work reads the buildings' hit points and fuel states against the native
+auto-refuel fraction, rejects invalid service facts and keeps unread recovery unresolved; the
+repair, refuel and breakdown selection it once checked is deleted, and the owning families'
+comparisons are [H12](habitat.md#h12--servicing-and-power-restoration-compared-as-measured-work).
 [recovery/service](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Recovery/RecoveryService.cs)
 explicitly repairs a damaged wall to full health; it does not exercise autonomous
 episode closure. [recovery/area](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Recovery/RecoveryArea.cs)
@@ -103,9 +109,10 @@ holds precautionary creepjoiner weapon drops. These gaps are tracked in
 [#4008](https://github.com/davidarcher/rimgovernor/issues/4008) and
 [#4010](https://github.com/davidarcher/rimgovernor/issues/4010). Immediate combat
 and food-specific hunting prerequisites have separate supported paths.
-Ordinary repairs are held by HomeUpkeepFamily
-([#4006](https://github.com/davidarcher/rimgovernor/issues/4006)); the explicit
-recovery tool and disaster-service route do not remove that limitation.
+Ordinary repairs were held by HomeUpkeepFamily
+([#4006](https://github.com/davidarcher/rimgovernor/issues/4006)); milestone 5 compares
+and orders them instead
+([H12](habitat.md#h12--servicing-and-power-restoration-compared-as-measured-work)).
 
 ### P6 — Civilian exposure and forecast evidence
 

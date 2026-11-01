@@ -190,14 +190,17 @@ This is coordination within existing concerns, not an executor.
   room against the Heater; a standing Heater does. The power family connects and
   budgets the Heater as any consumer (nominal draw, conservative against the 44-164 W
   average of spike #2769).
-- The `disaster/services` Need selects bounded refuel, structural repair and
-  breakdown-repair `GiveJobIntent` jobs (Repair, FixBrokenDownBuilding, Refuel) through
-  native WorkGivers, preserving work permissions, allowed areas, forbidden supplies,
-  reservations and player-forced jobs; Hands previews again at dispatch.
-  `service_recovered` needs fresh health, breakdown or fuel evidence; missing targets and
-  interrupted labor never count. Definitions without hit points (sleeping and butcher
-  spots) need no repair; unknown definitions keep damage risk. A destroyed building
-  stays a deficit until accepted rebuilding work. Power recovery needs actual service
+- The `disaster/services` Need binds no Method of its own. The services a disaster took down are
+  restored by the families that compare them: `power/basic` refuels, acquires fuel for or lets
+  a fix restore lost producers ([power contracts](power-contracts.md#restoration)), and
+  `home-upkeep/repairs` repairs and fixes ([upkeep contracts](upkeep-contracts.md#repairs-cleaning)), as
+  forced ordered jobs through native WorkGivers that preserve work permissions, allowed areas,
+  forbidden supplies, reservations and player-forced jobs; Hands previews again at dispatch.
+  While unmet the Need holds `services_by_owning_families` naming them, and closes only on the
+  disaster history's fresh finding (`service_recovered` needs fresh health, breakdown or fuel
+  evidence; missing targets and interrupted labor never count). Definitions without hit points
+  (sleeping and butcher spots) need no repair; unknown definitions keep damage risk. A destroyed
+  building stays a deficit until accepted rebuilding work. Power recovery needs actual service
   from enabled consumers, excluding player-switched-off loads and generators. Solar
   flares defer generation changes while the cooking fallback is available.
 - Toxic fallout: the `disaster/sheltering` Need can move a colonist restricted outside every

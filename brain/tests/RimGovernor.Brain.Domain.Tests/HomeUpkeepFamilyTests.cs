@@ -5,12 +5,14 @@ using RimGovernor.Brain.Store;
 using Xunit;
 using Journal = RimGovernor.Brain.Store.Store;
 using Ex = RimGovernor.Brain.Executor;
+using ServicingKind = RimGovernor.Brain.GameFacts.Observations.ServicingKind;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The home-upkeep family (#3253): repairs and clearance are Needs with pure met, unmet and unknown predicates;
-/// clearance steps are Need-owned Methods admitted by claims, side by side when independent.
+/// clearance steps are Need-owned Methods admitted by claims, side by side when independent; repairs, breakdown fixes and
+/// door-to-wall swaps are the maintenance choice's claimed Methods (task 5.2).
 /// </summary>
 public sealed class HomeUpkeepFamilyTests
 {
@@ -31,11 +33,15 @@ public sealed class HomeUpkeepFamilyTests
 
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
-    private static RepairStructure Structure(string id, int hp, int max = 100, bool home = true, int priority = 1) =>
-        new(new() { Id = id, Home = home }, PowerBuildingFixtures.Trader(id, "Wall", new(1, 1), 0, 0, false) with
+    private static RepairStructure Structure(string id, int hp, int max = 100, bool home = true, int priority = 1, string def = "Wall", bool broken = false, int x = 1)
+    {
+        var row = PowerBuildingFixtures.Trader(id, def, new(x, 1), 0, 0, false);
+        return new(new() { Id = id, Home = home }, row with
         {
             HitPoints = new RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Tracked { Current = hp, Maximum = max },
+            Service = row.Service with { BrokenDown = broken },
         }, priority, 0);
+    }
 
     // Only the Need under test is composed: the family raises on the first composed Need whose fact is unread.
     private static Need Derive(HomeUpkeepFacts facts, NeedId id) =>
@@ -81,26 +87,17 @@ public sealed class HomeUpkeepFamilyTests
     }
 
     [Fact]
-    public void RepairsAndAWallSwapAreHeldWhileOtherClearanceIsProposed()
+    public void AClearanceStepWithoutSwapsIsProposedUnderItsNeedBesideTheRepairChoice()
     {
-        var family = new HomeUpkeepFamily();
-        var ready = new[]
-        {
-            new Need { Id = HomeUpkeepFamily.Repairs, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet },
-            new Need { Id = HomeUpkeepFamily.Clearance, Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet },
-        };
-        var swap = family.Propose(ready, new HomeUpkeepFacts { Candidate = Step("swap-door-d", "d", wall: true) });
-        Assert.Equal([HomeUpkeepFamily.UnsupportedRepair, HomeUpkeepFamily.UnsupportedWallReplacement], swap.Select(m => m.Hold!.Subject));
-
-        var cut = Assert.Single(family.Propose(ready, new HomeUpkeepFacts { Candidate = Step("deconstruct-a", "a") }), m => m.Hold is null);
-        Assert.Equal((HomeUpkeepFamily.Clearance, "deconstruct-a"), (cut.Need, cut.Method.Value));
+        var cut = Assert.Single(new HomeUpkeepFamily().Propose(ReadyBoth, new HomeUpkeepFacts { Candidate = Step("deconstruct-a", "a") }));
+        Assert.Equal((HomeUpkeepFamily.Clearance, "deconstruct-a", null), (cut.Need, cut.Method.Value, cut.Hold));
 
         // Clearance no longer waits on repairs: the old hold only labelled the progress strip.
         Assert.Empty(new HomeUpkeepFamily().Derive(new HomeUpkeepFacts { Structures = [], Clearance = new ClearanceCensus([]) }).SelectMany(n => n.Preconditions));
     }
 
     private static ClearanceCandidate Step(string method, string target, int x = 5, bool wall = false) =>
-        new(new MethodId(method), wall, id =>
+        new(new MethodId(method), wall ? [target] : [], id =>
         {
             var value = new Deconstruction(target, "Wall", new(x, 5));
             return [DomainAction.NewDeconstructionAction(new(id.Value + "-0"), wall ? value.WithWallReplacement() : value)];
@@ -112,6 +109,13 @@ public sealed class HomeUpkeepFamilyTests
         public required FamilyRunner<HomeUpkeepFacts> Runner { get; init; }
         public required ReviewRequest Review { get; init; }
         public HomeUpkeepFacts Facts { get; set; } = new();
+
+        /// <summary>The facts as the reader gives them: the servicing underway and refused re-derived from the journal.</summary>
+        public HomeUpkeepFacts Observed()
+        {
+            var (underway, refused) = HomeUpkeepReader.ServicingHistory(Journal, World, [], TestContext.Current.CancellationToken);
+            return Facts with { Underway = [.. underway, .. Facts.Underway], Refused = [.. refused] };
+        }
 
         /// <summary>Files a run's Need progress as the scheduler does after a wave.</summary>
         public void File(FamilyRun run) =>
@@ -139,7 +143,7 @@ public sealed class HomeUpkeepFamilyTests
         var review = new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts };
         journal.Review(review, ct);
         Colony? colony = null;
-        var runner = new FamilyRunner<HomeUpkeepFacts>(new HomeUpkeepFamily(), (_, _) => Task.FromResult(colony!.Facts),
+        var runner = new FamilyRunner<HomeUpkeepFacts>(new HomeUpkeepFamily(), (_, _) => Task.FromResult(colony!.Observed()),
             new FamilySchedule { Kinds = [ActionKind.Deconstruction] });
         colony = new Colony { Journal = journal, Runner = runner, Review = review };
         return colony;
@@ -168,7 +172,7 @@ public sealed class HomeUpkeepFamilyTests
         var step = ClearanceGroundRules.DesignatedRoofStep([target]);
         var (prefix, _) = HomeUpkeepReader.GroundStepMethod(new("probe"), step);
         colony.Facts = new() { Clearance = new ClearanceCensus([]) { Ground = [.. step.Roof.Select(ClearanceGroundRules.GroundRoofID)] },
-            Candidate = new(new(prefix.TrimEnd('-')), false, id => HomeUpkeepReader.GroundActions(id, step)) };
+            Candidate = new(new(prefix.TrimEnd('-')), [], id => HomeUpkeepReader.GroundActions(id, step)) };
         var run = colony.Run();
         Assert.Equal(Outcome.Admitted, Colony.Report(run, HomeUpkeepFamily.Clearance).Outcome);
         var method = Assert.Single(run.Methods);
@@ -199,7 +203,7 @@ public sealed class HomeUpkeepFamilyTests
     }
 
     [Fact]
-    public void RepairsIsHeldAndTheClearanceStepIsAdmittedUnderItsNeed()
+    public void WithoutAServicingReadRepairsIsDeferredByNameAndTheClearanceStepIsAdmittedUnderItsNeed()
     {
         var ct = TestContext.Current.CancellationToken;
         using var colony = Open();
@@ -208,7 +212,8 @@ public sealed class HomeUpkeepFamilyTests
 
         var repairs = Colony.Report(run, HomeUpkeepFamily.Repairs);
         Assert.True(repairs.Is(Cause.AwaitingPlan));
-        Assert.Equal(HomeUpkeepFamily.UnsupportedRepair, repairs.Refusal.Subject);
+        Assert.Equal(HomeUpkeepFamily.Deferred, repairs.Refusal.Subject);
+        Assert.Contains("Repair unassessed servicing read", repairs.Refusal.Detail, StringComparison.Ordinal);
         Assert.Empty(colony.Journal.LoadNeed(HomeUpkeepFamily.Repairs, World, ct).Methods);
 
         Assert.Equal(Outcome.Admitted, Colony.Report(run, HomeUpkeepFamily.Clearance).Outcome);
@@ -292,7 +297,7 @@ public sealed class HomeUpkeepFamilyTests
         colony.File(colony.Run());
 
         var repairs = colony.Row(HomeUpkeepFamily.Repairs)!;
-        Assert.Equal((BlockedReason.FromCause(Cause.AwaitingPlan), Cause.AwaitingPlan, HomeUpkeepFamily.UnsupportedRepair, ""),
+        Assert.Equal((BlockedReason.FromCause(Cause.AwaitingPlan), Cause.AwaitingPlan, HomeUpkeepFamily.Deferred, ""),
             (repairs.Blocked, repairs.Planner, repairs.PlannerSubject, repairs.Method));
         var clearance = colony.Row(HomeUpkeepFamily.Clearance)!;
         Assert.Equal(("deconstruct-a", true), (clearance.Method, clearance.Open));
@@ -333,6 +338,8 @@ public sealed class HomeUpkeepFamilyTests
         Assert.Equal("home-upkeep", entry.Name);
         Assert.Contains(ActionKind.Deconstruction, entry.Kinds);
         Assert.Contains(ActionKind.RemoveRoof, entry.Kinds);
+        Assert.Contains(ActionKind.Repair, entry.Kinds);
+        Assert.Contains(ActionKind.RecoveryService, entry.Kinds);
         Assert.Contains(RimGovernor.Brain.Facts.Section.Colony, entry.Sections);
         Assert.Contains(RimGovernor.Brain.Facts.Section.Rooms, entry.Sections);
         Assert.DoesNotContain(PlannerCatalog.Entries, e => e.Name is "repair" or "clearance");
@@ -352,5 +359,225 @@ public sealed class HomeUpkeepFamilyTests
             [new WorkAction(plan, roof, new ProgressView { Action = roof.Id, Stage = Stage.Pending }), new WorkAction(plan, floor, new ProgressView { Action = floor.Id, Stage = Stage.Pending })]);
         Assert.Contains("roof/2/3", claims.Targets);
         Assert.Contains("floor/4/5", claims.Targets);
+    }
+
+    // The maintenance choice (task 5.2): the bug was the categorical unsupported_forecast_* holds. A damaged wall, a broken
+    // generator and a door the plan walls were never compared or ordered; these drive the normal review path instead.
+
+    private static ServicingOption.Assessed Repairing(string target, string pawn, double ticks = 100, bool active = true) =>
+        new ServicingOption.Assessed(new RepairWork(target, pawn, active, true, 60, 10, ticks) { ServiceLoss = new ServiceLoss.Condition(60, 100) });
+
+    private static ServicingOption.Assessed Fixing(string target, string pawn) =>
+        new ServicingOption.Assessed(new FixBreakdownWork(target, pawn, true, true, new Resource("ComponentIndustrial"), 10, 10, 1000, 0.5)
+            { ServiceLoss = new ServiceLoss.Unmodelled("service:Generator") });
+
+    private static ServicingOption.Assessed Swapping(string target, string pawn, bool active = true, double deconstruct = 50) =>
+        new ServicingOption.Assessed(new ReplacementWork(target, pawn, active, "Wall", [new(new Resource("Steel"), 5)], [new(new Resource("Steel"), 2)], 10, deconstruct, 20, 100)
+            { ServiceLoss = new ServiceLoss.Enclosure(new(5, 5), 100) });
+
+    private static ServicingCensus Census(int? components, params ServicingOption[] options) =>
+        new([.. options]) { Components = components is { } count ? new ServicingComponents.Counted(count) : new ServicingComponents.Unread("component stock:ComponentIndustrial") };
+
+    private static HomeUpkeepFacts Servicing(ServicingCensus census, params RepairStructure[] structures) =>
+        new() { Structures = [.. structures], Clearance = new ClearanceCensus([]), Servicing = census };
+
+    private static readonly Need[] ReadyBoth =
+    [
+        new Need { Id = HomeUpkeepFamily.Repairs, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet },
+        new Need { Id = HomeUpkeepFamily.Clearance, Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet },
+    ];
+
+    private static ServicingStanding StandingOf(ServicingDecision d, ServicingChoiceKind kind, string pawn = "") =>
+        d.Alternatives.Single(a => a.Kind == kind && a.Pawn == pawn).Standing;
+
+    private static void Refuse(Colony colony, FamilyMethod method, string reason)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var action = new ActionId(method.Plan.Value + "-0");
+        var scope = World with { Plan = method.Plan };
+        colony.Journal.Prepare(method.Plan, action, scope, new(110), ct);
+        var sent = colony.Journal.Dispatch(method.Plan, action, scope, new(110), ct);
+        colony.Journal.RecordReceipts([new BatchReceipt(method.Plan, action, sent.View.Attempt, Receipt.Refused)
+        {
+            Refusal = new NativeRefusal("refused", reason, RefusalClass.Permanent),
+        }], ct);
+    }
+
+    [Fact]
+    public async Task ADamagedWallGetsAClaimedRepairAndStaysDeficientUntilFreshFactsShowItWhole()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open();
+        colony.Facts = Servicing(Census(null, Repairing("wall", "a")), Structure("wall", 40));
+        var run = colony.Run();
+        Assert.Equal(Outcome.Admitted, Colony.Report(run, HomeUpkeepFamily.Repairs).Outcome);
+        var method = Assert.Single(run.Methods);
+        Assert.Equal("repair-wall-a", method.Method.Value);
+        var progress = Assert.Single(colony.Journal.LoadPlan(method.Plan, ct).Progress);
+        Assert.Equal(("a", "wall", new Cell(1, 1)), (progress.Action.Repair!.Pawn.Value, progress.Action.Repair.Structure, progress.Action.Repair.Cell));
+        // The open order claims its target and its worker slot.
+        var claims = MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [new WorkAction(method.Plan, progress.Action, progress.View)]);
+        Assert.Equal(new MethodClaims(["a"], ["wall"], []), claims);
+        // While the order is open the same choice continues its Method.
+        Assert.Equal(ClaimOutcome.Continued, Assert.Single(colony.Run().Methods).Outcome);
+
+        var boundary = new RoofBoundary();
+        using var hands = new Ex.Executor(new ExecutorJournal(colony.Journal), boundary, new RoofClock(), new Ex.Limits
+            { MaxAge = TimeSpan.FromSeconds(30), RunTimeout = TimeSpan.FromSeconds(10), JournalTimeout = TimeSpan.FromSeconds(10) },
+            new PlanAuthorizer(colony.Journal, true));
+        hands.UpdateAuthority(new() { Snapshot = World, Enabled = true });
+        await hands.RunBatchAsync(method.Plan, [progress.Action.Id], ct);
+        Assert.Equal(ActionKind.Repair, Assert.Single(boundary.Written).Kind);
+        Assert.Equal(Stage.Completed, Assert.Single(colony.Journal.LoadPlan(method.Plan, ct).Progress).View.Stage);
+
+        // An accepted order restores nothing: the wall at 40 hit points stays deficient.
+        Assert.Equal((Satisfaction.Unmet, 60.0), (Derive(colony.Facts, HomeUpkeepFamily.Repairs).Satisfaction, Derive(colony.Facts, HomeUpkeepFamily.Repairs).Deficit));
+        // The pawn's running native repair is observed underway: no second order.
+        colony.Facts = colony.Facts with { Underway = [new("wall", ServicingKind.Repair, "a", false)] };
+        var working = Colony.Report(colony.Run(), HomeUpkeepFamily.Repairs);
+        Assert.True(working.Is(Cause.AwaitingPlan));
+        Assert.Equal(HomeUpkeepFamily.Underway, working.Refusal.Subject);
+        Assert.Single(colony.Journal.LoadNeed(HomeUpkeepFamily.Repairs, World, ct).Methods);
+        // Only fresh facts at full hit points close the Need.
+        colony.Facts = colony.Facts with { Structures = [Structure("wall", 100)], Underway = [] };
+        Assert.Equal(Satisfaction.Met, Derive(colony.Facts, HomeUpkeepFamily.Repairs).Satisfaction);
+    }
+
+    [Fact]
+    public void ADoorTheStepWallsIsReplacedWhenRepairCannotRestoreItsServiceAndRepairedOtherwise()
+    {
+        var door = Structure("door", 50, def: "Door");
+        var walled = Servicing(Census(null, Repairing("door", "a"), Swapping("door", "b")), door) with { Candidate = Step("swap-door-door", "door", wall: true) };
+        var decision = Assert.Single(HomeUpkeepFamily.Decide(walled));
+        Assert.Equal(ServicingChoiceKind.Replace, decision.Chosen.Kind);
+        // The repair restores the hit points but leaves the door the plan walls.
+        Assert.Equal(1, Assert.IsType<ServicingStanding.Assessed>(StandingOf(decision, ServicingChoiceKind.Repair, "a")).Effect.Unresolved);
+        Assert.Equal(new ServicingStanding.Excluded(ServicingChoiceRules.WallPlanned), StandingOf(decision, ServicingChoiceKind.Retire));
+        var methods = new HomeUpkeepFamily().Propose(ReadyBoth, walled);
+        var swap = Assert.Single(methods, m => m.Need == HomeUpkeepFamily.Clearance);
+        Assert.Equal(("swap-door-door", null), (swap.Method.Value, swap.Hold));
+        Assert.Equal(HomeUpkeepFamily.ByClearance, Assert.Single(methods, m => m.Need == HomeUpkeepFamily.Repairs).Hold!.Subject);
+
+        // A door the plan keeps: replacing it is excluded and the repair wins.
+        var kept = walled with { Candidate = null };
+        Assert.Equal(new ServicingStanding.Excluded(ServicingChoiceRules.DoorPlanned), StandingOf(Assert.Single(HomeUpkeepFamily.Decide(kept)), ServicingChoiceKind.Replace));
+        Assert.Equal("repair-door-a", Assert.Single(new HomeUpkeepFamily().Propose(ReadyBoth, kept)).Method.Value);
+
+        // An unmeasured replacement is never chosen: the repair restores what it can and the swap step waits, naming why.
+        var unmeasured = walled with { Servicing = Census(null, Repairing("door", "a")) };
+        var held = new HomeUpkeepFamily().Propose(ReadyBoth, unmeasured);
+        Assert.Equal("repair-door-a", Assert.Single(held, m => m.Need == HomeUpkeepFamily.Repairs).Method.Value);
+        var wait = Assert.Single(held, m => m.Need == HomeUpkeepFamily.Clearance).Hold!;
+        Assert.Equal(HomeUpkeepFamily.Deferred, wait.Subject);
+        Assert.Contains("door: Repair by a", wait.Detail, StringComparison.Ordinal);
+        Assert.Equal(new ServicingStanding.Unassessed("servicing target:door"), StandingOf(Assert.Single(HomeUpkeepFamily.Decide(unmeasured)), ServicingChoiceKind.Replace));
+    }
+
+    [Fact]
+    public void ASwapIsChosenOnlyThroughABuilderWhoseWorkTypesAreActive()
+    {
+        // The bug: a builder whose construction work is inactive never takes the native swap designation, yet the shorter
+        // measured swap chose it and the step waited with nobody to work it.
+        var door = Structure("door", 100, def: "Door");
+        var facts = Servicing(Census(null, Swapping("door", "a", active: false, deconstruct: 10), Swapping("door", "b")), door)
+            with { Candidate = Step("swap-door-door", "door", wall: true) };
+        var decision = Assert.Single(HomeUpkeepFamily.Decide(facts));
+        Assert.Equal((ServicingChoiceKind.Replace, "b"), (decision.Chosen.Kind, decision.Chosen.Pawn));
+        Assert.Equal(new ServicingStanding.Excluded(ServicingChoiceRules.WorkInactive), StandingOf(decision, ServicingChoiceKind.Replace, "a"));
+        var swap = Assert.Single(new HomeUpkeepFamily().Propose(ReadyBoth, facts), m => m.Need == HomeUpkeepFamily.Clearance);
+        Assert.Equal(("swap-door-door", null), (swap.Method.Value, swap.Hold));
+
+        // Nobody active: the swap is deferred and the clearance Need names why.
+        var idle = facts with { Servicing = Census(null, Swapping("door", "a", active: false), Swapping("door", "b", active: false)) };
+        Assert.Equal(ServicingChoiceKind.Defer, Assert.Single(HomeUpkeepFamily.Decide(idle)).Chosen.Kind);
+        var hold = Assert.Single(new HomeUpkeepFamily().Propose(ReadyBoth, idle), m => m.Need == HomeUpkeepFamily.Clearance).Hold!;
+        Assert.Equal(HomeUpkeepFamily.Deferred, hold.Subject);
+        Assert.Contains("Replace by a excluded work_inactive, Replace by b excluded work_inactive", hold.Detail, StringComparison.Ordinal);
+
+        // A repair is a player-forced order the native gives whatever the pawn's work priorities: inactive work does not exclude it.
+        var repair = Servicing(Census(null, Repairing("wall", "a", active: false)), Structure("wall", 40));
+        Assert.Equal("repair-wall-a", Assert.Single(new HomeUpkeepFamily().Propose(ReadyBoth, repair)).Method.Value);
+    }
+
+    [Fact]
+    public void DeferWinsWhenEveryWorkOptionIsExcludedAndTheNeedStaysVisibleWithTheReason()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open();
+        colony.Facts = Servicing(Census(null, new ServicingOption.Excluded("wall", ServicingKind.Repair, "", ServicingRules.NoWorker)), Structure("wall", 40));
+        var report = Colony.Report(colony.Run(), HomeUpkeepFamily.Repairs);
+        Assert.True(report.Is(Cause.AwaitingPlan));
+        Assert.Equal(HomeUpkeepFamily.Deferred, report.Refusal.Subject);
+        Assert.Contains("Repair excluded no_worker", report.Refusal.Detail, StringComparison.Ordinal);
+        Assert.Contains("Retire unassessed service:Wall", report.Refusal.Detail, StringComparison.Ordinal);
+        Assert.Empty(colony.Journal.LoadNeed(HomeUpkeepFamily.Repairs, World, ct).Methods);
+        Assert.Equal(Satisfaction.Unmet, Derive(colony.Facts, HomeUpkeepFamily.Repairs).Satisfaction);
+
+        // Without the servicing read every work option is unassessed and named, never defaulted.
+        var unread = Assert.Single(HomeUpkeepFamily.Decide(colony.Facts with { Servicing = null }));
+        Assert.Equal((ServicingChoiceKind.Defer, new ServicingStanding.Unassessed("servicing read")), (unread.Chosen.Kind, StandingOf(unread, ServicingChoiceKind.Repair)));
+    }
+
+    [Fact]
+    public void RetireWinsOnlyWhenItsLossIsAssessedZero()
+    {
+        var needed = Servicing(Census(null, Repairing("wall", "a")), Structure("wall", 40));
+        var kept = Assert.Single(HomeUpkeepFamily.Decide(needed));
+        Assert.Equal((ServicingChoiceKind.Repair, new ServicingStanding.Unassessed("service:Wall")), (kept.Chosen.Kind, StandingOf(kept, ServicingChoiceKind.Retire)));
+        Assert.Equal(new ServicingStanding.Unassessed("clearance census"), StandingOf(Assert.Single(HomeUpkeepFamily.Decide(needed with { Clearance = null })), ServicingChoiceKind.Retire));
+
+        // The plan does not need the wall (a clearance target): retiring it loses nothing and beats the repair.
+        var unneeded = needed with { Clearance = new ClearanceCensus([new ClearanceTarget { EntityId = "wall", Deconstructible = true }]) };
+        var retired = Assert.Single(HomeUpkeepFamily.Decide(unneeded));
+        Assert.Equal(ServicingChoiceKind.Retire, retired.Chosen.Kind);
+        Assert.Equal(new ServicingEffect(false, 0, 0, 0, 0), Assert.IsType<ServicingStanding.Assessed>(retired.Chosen.Standing).Effect);
+        var hold = Assert.Single(new HomeUpkeepFamily(clearance: false).Propose([ReadyBoth[0]], unneeded)).Hold!;
+        Assert.Equal((HomeUpkeepFamily.ByClearance, "wall: retired by clearance."), (hold.Subject, hold.Detail));
+    }
+
+    [Fact]
+    public void TwoTargetsCannotClaimTheSameSingleComponent()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open();
+        colony.Facts = Servicing(Census(1, Fixing("gen1", "a"), Fixing("gen1", "b"), Fixing("gen2", "a"), Fixing("gen2", "b")),
+            Structure("gen1", 100, def: "Generator", broken: true), Structure("gen2", 100, def: "Generator", broken: true, x: 3));
+        Assert.Equal(2.0, Derive(colony.Facts, HomeUpkeepFamily.Repairs).Deficit);
+        var decisions = HomeUpkeepFamily.Decide(colony.Facts);
+        Assert.Equal(("gen1", ServicingChoiceKind.FixBreakdown, "a"), (decisions[0].Target, decisions[0].Chosen.Kind, decisions[0].Chosen.Pawn));
+        Assert.Equal(ServicingChoiceKind.Defer, decisions[1].Chosen.Kind);
+        Assert.Equal((new ServicingStanding.Excluded(ServicingChoiceRules.PawnTaken), new ServicingStanding.Excluded(ServicingChoiceRules.ComponentTaken)),
+            (StandingOf(decisions[1], ServicingChoiceKind.FixBreakdown, "a"), StandingOf(decisions[1], ServicingChoiceKind.FixBreakdown, "b")));
+
+        var method = Assert.Single(colony.Run().Methods);
+        Assert.Equal("fix-gen1-a", method.Method.Value);
+        var fix = Assert.Single(colony.Journal.LoadPlan(method.Plan, ct).Progress).Action.RecoveryService!;
+        Assert.Equal(("a", "gen1", RecoveryMethod.Breakdown), (fix.Pawn.Value, fix.Thing, fix.Method));
+        // The next review re-derives the open fix from the journal: it still holds the component, so gen2 still cannot take it.
+        Assert.Equal(ComponentTakenAgain(colony), new ServicingStanding.Excluded(ServicingChoiceRules.ComponentTaken));
+        Assert.Equal(ClaimOutcome.Continued, Assert.Single(colony.Run().Methods).Outcome);
+        Assert.Single(colony.Journal.LoadNeed(HomeUpkeepFamily.Repairs, World, ct).Methods);
+    }
+
+    private static ServicingStanding ComponentTakenAgain(Colony colony) =>
+        StandingOf(HomeUpkeepFamily.Decide(colony.Observed()).Single(d => d.Target == "gen2"), ServicingChoiceKind.FixBreakdown, "b");
+
+    [Fact]
+    public void ARefusedReceiptSpendsTheBudgetAndTheNextReviewReselects()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        using var colony = Open();
+        colony.Facts = Servicing(Census(null, Repairing("wall", "a", 50), Repairing("wall", "b", 90)), Structure("wall", 40));
+        var first = Assert.Single(colony.Run().Methods);
+        Assert.Equal("repair-wall-a", first.Method.Value);
+        Refuse(colony, first, "no path");
+        Assert.Equal(Stage.Unsuccessful, colony.Journal.LoadPlan(first.Plan, ct).Progress[0].View.Stage);
+
+        var (_, refused) = HomeUpkeepReader.ServicingHistory(colony.Journal, World, [], ct);
+        Assert.Equal(new RefusedServicing("wall", ServicingKind.Repair, "a", "no_path"), Assert.Single(refused));
+        Assert.Equal(new ServicingStanding.Excluded("refused:no_path"), StandingOf(Assert.Single(HomeUpkeepFamily.Decide(colony.Observed())), ServicingChoiceKind.Repair, "a"));
+        var next = colony.Run();
+        Assert.Equal(Outcome.Admitted, Colony.Report(next, HomeUpkeepFamily.Repairs).Outcome);
+        Assert.Equal("repair-wall-b", Assert.Single(next.Methods).Method.Value);
     }
 }

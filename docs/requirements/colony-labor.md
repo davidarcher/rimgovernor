@@ -1077,7 +1077,7 @@ sowing and schema 69 replaced the old journals); and
 regressions still pass: `MedicalFamilyTests.APatientWhoseCareIsWithheldOrUnmanagedIsNotPaired`,
 `MedicalFamilyTests.ACareOrderOnAPawnAnotherOrderHoldsIsAClaimConflict`,
 `ClimateStatesTests.ARefuelSwitchOutranksTheRoomMethodAndNamesTheCampfire`,
-`PowerMethodTests.OutOfFuelProducerWithCapacityHoldsForRefuel`,
+`PowerMethodTests.OutOfFuelProducerWithCapacityRestoresOnlyWhileTheChoiceRestoresIt`,
 `WorkOccupancyTests.UsefulNativeWorkIsOccupiedAndKeepsItsRoleWithoutInventingDuration`,
 `NativeWorkShortfallTests.NativeOccupiedTimeCannotFinanceUnselectedWork`,
 `ActivityNeedBoundaryTests.ARunningTaskIsNeverInterruptedByAUrgentNeed`,

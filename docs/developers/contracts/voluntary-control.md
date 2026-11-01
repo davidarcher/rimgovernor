@@ -137,7 +137,7 @@ Supervisor clock; readmitting time cannot turn that terminal assignment into ind
 | Medical support | Shared support candidates; exact pending service identities and native conditional room factors. Critical medical protection remains with its existing emergency owner. No fabricated prognosis. |
 | Fire/combat/player protection | Existing protection and emergency paths retain authority; an ordinary Method cannot convert protected occupancy into free capacity. Vanilla fights home-area fires; the brain has no fire Method. Native releases the committed orders of capable colonists near a home-area fire, so they fight it through vanilla job selection ([home fire](pawn-activities.md#home-area-fire), #3672). |
 | Drugs, addictions, genetic dependencies, hemogen, psyfocus, unsupported or modded needs | Native observations expose blockers; the pawn's supported needs and labor stay selectable. Ordinary safe-idle admission cannot cover them. A future Method must supply onset/effect observations and exact execution under the existing Concern owner before support can be claimed. |
-| Mining, tree cutting, hunting, research, repair, refuel, cleaning, firefighting, non-supported production and colony services | Concerns stand the demand (designations, bills, zones, work priorities); a colonist with no committed order works it through vanilla job selection (#3662, #3669). That is native execution, not a planner-owned choice: a service the brain must decide against the forecast (who, when, at what cost) gets an exact shared Method that preempts it. |
+| Mining, tree cutting, hunting, research, cleaning, firefighting, non-supported production and colony services | Concerns stand the demand (designations, bills, zones, work priorities); a colonist with no committed order works it through vanilla job selection (#3662, #3669). That is native execution, not a planner-owned choice: a service the brain must decide against the forecast (who, when, at what cost) gets an exact shared Method that preempts it. A building's repair, breakdown fix and a producer's refuel are such Methods (forced ordered jobs). |
 
 The boundary does not establish universal autonomous play across DLCs and mods.
 Hunting prediction/qualification and the hunting integration acceptance remain
@@ -245,13 +245,11 @@ committing orders. Their Concerns remain unmet:
 | Population capture | unsupported_forecast_population_capture |
 | Quest gift delivery | unsupported_forecast_quest_gift |
 | Comms trade request | unsupported_forecast_trade_request |
-| Door-to-wall replacement | unsupported_forecast_wall_replacement |
 | Preventative mood cast | unsupported_forecast_mood_cast |
 | Caravan formation | unsupported_forecast_caravan_formation |
 | Shuttle explicit loading / autoload enabled | unsupported_forecast_shuttle_loading |
 | Ordinary weapon equipping | unsupported_forecast_equipment |
 | Ordinary apparel replacement | unsupported_forecast_apparel_replacement |
-| Essential structure repairs | unsupported_forecast_repair |
 | Corpse storage delivery | unsupported_forecast_corpse_delivery |
 | Quest monument delivery | unsupported_forecast_monument_delivery |
 | Empty throne-room light | unsupported_forecast_throne_refuel |
@@ -259,6 +257,13 @@ committing orders. Their Concerns remain unmet:
 | Ideology ritual / bestowing | unsupported_forecast_ritual / unsupported_forecast_bestowing |
 | Monolith interaction | unsupported_forecast_monolith |
 | Quest grav inspection / site help | unsupported_forecast_grav_inspection / unsupported_forecast_site_help |
+
+Essential structure repair, breakdown fix, producer refuel and the door-to-wall swap left this
+table: the `home-upkeep/repairs` and `power/basic` Needs compare them as measured servicing work
+and issue the chosen repair, fix or refuel as an exact Need Method
+([upkeep](upkeep-contracts.md#repairs-cleaning), [power](power-contracts.md#restoration)); the swap
+is a native designation the comparison permits. The turret and throne-light refuels remain held
+above.
 
 Supporting these outcomes requires exact candidate alternatives, shared
 occupancy/input admission and observed completion in the existing forecast and

@@ -34,7 +34,8 @@ public static partial class MethodClaimsRules
     /// <item>supply allow and forbid: the stack;</item>
     /// <item>husbandry (train, tame, slaughter, release, master, sterilize): the animal; an animal's allowed-area
     /// move its <c>allowed-area/&lt;animal&gt;</c>;</item>
-    /// <item>recovery services (repair, breakdown, refuel and the quest services): the serviced thing;</item>
+    /// <item>recovery services (breakdown, refuel and the quest services) and repairs: the serviced thing, and a repair's,
+    /// breakdown fix's or refuel's pawn (its worker slot);</item>
     /// <item>rituals: the ritual precept or bestowing kind (<c>ritual/&lt;kind&gt;</c>);</item>
     /// <item>ideoligion reforms: the ideoligion (<c>ideoligion/&lt;id&gt;</c>);</item>
     /// <item>surgery bills: <c>surgery/&lt;patient&gt;/&lt;recipe&gt;/&lt;part&gt;</c>;</item>
@@ -60,6 +61,9 @@ public static partial class MethodClaimsRules
             if (!(v.Unresolved || v.Stage is Stage.Pending or Stage.Prepared or Stage.Dispatched or Stage.AwaitingObservation)) continue;
             targets.UnionWith(ActionSubjects(row.Action).Where(t => t.Length != 0));
             if (row.Action.CommsTradeRequest is { } request) pawns.Add(request.Negotiator);
+            // A repair, a breakdown fix or a refuel is one pawn's exact order: it holds that worker slot while open.
+            if (row.Action.Repair is { } repair) pawns.Add(repair.Pawn.Value);
+            if (row.Action.RecoveryService is { Method: RecoveryMethod.Breakdown or RecoveryMethod.Refuel } service) pawns.Add(service.Pawn.Value);
             if (row.Action.CaravanDeparture is { } departure) pawns.UnionWith(departure.Crew.Select(p => p.Value));
             if (row.Action.Trade is { Kind: TradeOperationKind.Open } trade && trade.Participant.Kind != TradeParticipantKind.Settlement) pawns.Add(trade.Negotiator.Value);
         }
@@ -160,6 +164,7 @@ public static partial class MethodClaimsRules
         else if (a.Husbandry is { Method: HusbandryMethod.AllowedArea } fenced) yield return "allowed-area/" + fenced.Animal.Value;
         else if (a.Husbandry is { } husbandry) yield return husbandry.Animal.Value;
         else if (a.RecoveryService is { } service) yield return service.Thing;
+        else if (a.Repair is { } repaired) yield return repaired.Structure;
         else if (a.Ritual is { } ritual) yield return "ritual/" + ritual.Kind.Value;
         else if (a.IdeoligionReform is { } reform) yield return "ideoligion/" + reform.IdeoId;
         else if (a.Conversion is { } conversion) yield return "conversion/" + conversion.Target.Value;

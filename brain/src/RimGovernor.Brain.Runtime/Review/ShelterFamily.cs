@@ -175,9 +175,14 @@ public sealed class PowerReview
     /// <summary>The family's scheduler entry, woken by its building outcomes.</summary>
     public FamilyRunner Runner() => new FamilyRunner<PowerFacts>(new PowerFamily(), ReadAsync, Schedule, WorkAsync);
 
-    public static FamilySchedule Schedule { get; } = new() { Class = PlannerClass.Optional, Kinds = [ActionKind.Building] };
+    /// <summary>An optional entry woken by its buildings', refuels' and fuel acquisitions' outcomes.</summary>
+    public static FamilySchedule Schedule { get; } = new() { Class = PlannerClass.Optional, Kinds = [ActionKind.Building, ActionKind.RecoveryService, ActionKind.Acquisition] };
 
-    /// <summary>Reads the owned census in <paramref name="scope"/>'s world; the immediate pass reads nothing (no SeriousHarm Need).</summary>
+    /// <summary>
+    /// Reads the owned census in <paramref name="scope"/>'s world and the restoration choice's facts: the servicing census of the
+    /// same read, the repairs Need's fixes and the power Need's refuels underway and refused (journal and running jobs), and the
+    /// sources open acquisition actions hold. The immediate pass reads nothing (no SeriousHarm Need).
+    /// </summary>
     internal async Task<PowerFacts> ReadAsync(FamilyReadScope scope, CancellationToken call)
     {
         if (scope.Immediate)
@@ -191,10 +196,39 @@ public sealed class PowerReview
             throw new ControlException("power read: the scope is another world or older than the review");
         }
         var reading = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, call).ConfigureAwait(false);
-        return PowerFacts.From(reading.Reading.Facts);
+        var colony = reading.Reading;
+        var f = colony.Facts;
+        var journal = _reviewer.Player.Journal;
+        var pawns = f.ForecastObserved.WorkPawns.Pawns;
+        var (fixes, refusedFixes) = HomeUpkeepReader.ServicingHistory(journal, scope.World, pawns, call);
+        var (refuels, refusedRefuels) = HomeUpkeepReader.ServicingHistory(journal, scope.World, PowerFamily.Basic, [PowerRestorationRules.RefuelMethod], pawns,
+            [(HomeUpkeepReader.RefuelJob, RimGovernor.Brain.GameFacts.Observations.ServicingKind.Refuel)], call);
+        var held = new Dictionary<string, bool>(StringComparer.Ordinal);
+        foreach (var plan in journal.LoadPlans(call))
+        {
+            foreach (var progress in plan.Progress)
+            {
+                if (progress.Action.Acquisition is { } acquisition && WorkProgress.Open([progress])) held[acquisition.Thing] = true;
+            }
+        }
+        return PowerFacts.From(f) with
+        {
+            Restoration = new PowerRestorationRequest
+            {
+                Topology = f.EssentialInputs.Power,
+                Census = f.ForecastObserved.Coupled?.Servicing is { } servicing ? HomeUpkeepReader.ServicingCensusOf(servicing, colony.Tables.Buildings.Table.At) : null,
+                Underway = [.. refuels, .. fixes],
+                Refused = [.. refusedRefuels, .. refusedFixes],
+                Sources = f.Acquisition,
+                Held = held,
+            },
+        };
     }
 
-    /// <summary>The power planner for the ready Need, unless a flare holds it (the family's hold says why).</summary>
+    /// <summary>
+    /// The power planner for the ready Need, unless a flare holds it (the family's hold says why). The planner counts only the lost
+    /// producers the restoration choice restores (the same pure choice the family's Methods come from).
+    /// </summary>
     internal async Task<Verdict> WorkAsync(NeedWork work, PowerFacts facts, CancellationToken call)
     {
         if (work.Need.Id != PowerFamily.Basic)
@@ -205,6 +239,8 @@ public sealed class PowerReview
         {
             return Verdict.AwaitingPlan(PowerFamily.OutageHold, "a solar flare switches the grid off; the planner waits for it to end");
         }
-        return ShelterReview.Building(await _power.Copy().StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false));
+        var planner = _power.Copy();
+        planner.PowerRestorable = PowerRestorationRules.Decide(facts.Restoration).Restorable;
+        return ShelterReview.Building(await planner.StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false));
     }
 }

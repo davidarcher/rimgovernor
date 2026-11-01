@@ -284,7 +284,7 @@ the Need owner and family scheduling (#3250), then one slice per family. The
 deletion slice (#3265) removed the Concern registry, Standards (with Episodes,
 Settle and Once), Incidents, `standard_methods`, the open-work gate and its
 exemptions. The review (`ReviewState`) still carries what families read: the
-progress rows, the combat standing, the recovery selection and the latches the
+progress rows, the combat standing and the latches the
 silver gap and housing labor read. MaintainFireSafety was deleted outright, not
 migrated: pawns fight fires natively, firefighter work stays assigned through
 work assignments, and home fires no longer pause development work. The paragraphs
@@ -714,7 +714,7 @@ anomaly).
 | Economy | `economy`: Needs `research` (#3263; EnsureResearch deleted) and `resource` (#3303; MaintainResource deleted), `trade`, `caravan` and `trade-mission` (#3316; the trade Concern, caravan Incident and trade-mission Standard deleted) |
 | Colony admin | `admin`: Needs `creep-joiners` (#3264), `supply-safety`, `burial`, `work-ledger`, `stockpiles`, `work-assignments` (#3304) |
 | People | `people`: Needs `dialog` and `mood/<pawn>` (#3304; AnswerDialog, EnsureMood and their planners deleted) |
-| Disaster | `disaster`: Needs `sheltering` (SeriousHarm) and `services` (waits on `sheltering`) (#3304; the disaster recovery incident Concern, its planner and the immediate Concern set deleted) |
+| Disaster | `disaster`: Needs `sheltering` (SeriousHarm) and `services` (waits on `sheltering`; binds no Method, holds `services_by_owning_families` while power/basic and home-upkeep/repairs restore) (#3304; the disaster recovery incident Concern, its planner and the immediate Concern set deleted; the retained recovery selection deleted in schema 74) |
 
 ## Observe and prioritize
 

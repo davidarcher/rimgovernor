@@ -162,12 +162,13 @@ Reconsideration uses stable `defenders_available`, `shelter_exposed` and
 ## Disaster recovery
 
 Entry requires a current disaster deficit or independently observed exposure
-restriction. Pending actions remain owned by the shared Plan. After application,
-the current pawn job and target establish whether repair, breakdown or refuel
-work still serves an observed pending need. Increasing hit points or fuel does
-not justify replacing that useful job. Unknown jobs or targets hold admission.
-When the job ends, selection can reconsider known work using the shared Episode's
-used Method identities; refusal does not erase that history. (Episodes are legacy;
+restriction. The `disaster/services` Need binds no Method (it holds
+`services_by_owning_families`); the repair, breakdown and refuel work it used to select is the
+servicing chain below, owned by `home-upkeep/repairs` and `power/basic`. Pending actions remain
+owned by the shared Plan. After application, the current pawn job and target establish whether
+repair, breakdown or refuel work still serves an observed pending need. Increasing hit points or
+fuel does not justify replacing that useful job. Unknown jobs or targets hold admission.
+(Episodes are legacy;
 see the [target model](../architecture/control-loop.md#target-model-needs-families-and-claimed-methods).)
 
 The scheduler's existing game-tick review deadline releases its wait and obtains
@@ -179,6 +180,20 @@ Incident; independently observed hazard absence releases area restrictions.
 Existing `planner_step` rows distinguish unknown observations, no eligible
 worker, missing/protected infrastructure, existing work, exhausted methods and
 no pending work. Existing log readers consume these rows.
+
+## Servicing chains
+
+A repair, breakdown fix or refuel is one exact Method of its owning Need, not a stored plan
+([upkeep](upkeep-contracts.md#repairs-cleaning), [power](power-contracts.md#restoration), habitat 5.2 to 5.3):
+`repair-<target>-<pawn>` and `fix-<target>-<pawn>` of `home-upkeep/repairs`, `refuel-<target>-<pawn>` and the
+fuel acquisition `fuel-<def>-<sha8>` of `power/basic`. The state is not stored: each review re-derives it
+from the journal and the pawns' census (`HomeUpkeepReader.ServicingHistory`). An action still open is
+underway and continues its Method; a pawn's running native job on the target (`Repair`,
+`FixBrokenDownBuilding`, `Refuel`) is underway work to continue, not to reorder; a refused one is read from the
+refusal budget as `refused:<reason>`, excludes that option and the next review reselects. A
+Method claims its pawn and (repair, fix) its structure, so no second order takes either. Only a later
+fresh census showing the building whole, fixed or fuelled closes the Need: an accepted receipt
+never certifies restoration.
 
 ## Workshop host construction
 

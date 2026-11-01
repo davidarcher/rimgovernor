@@ -2063,7 +2063,6 @@ internal sealed class Converter : ObjectCodec<ReviewState>
             LarderSupplies = e.Get<EquatableArray<StartingSupply>>("LarderSupplies", o),
             PollutionSupplies = e.Get<EquatableArray<StartingSupply>>("PollutionSupplies", o),
             RecoveryQueue = e.GetOr<RecoveryQueue?>("RecoveryQueue", null, o),
-            Recovery = e.GetOr<Recovery?>("Recovery", null, o),
             Disaster = e.GetOr<DisasterHistory?>("Disaster", null, o),
             Mood = e.GetOr<Mood?>("Mood", null, o),
             MoodMethods = e.Get<EquatableArray<MoodMethod>>("MoodMethods", o),
@@ -2098,10 +2097,6 @@ internal sealed class Converter : ObjectCodec<ReviewState>
         if (v.RecoveryQueue is { } vRecoveryQueue)
         {
             w.Put("RecoveryQueue", vRecoveryQueue, o);
-        }
-        if (v.Recovery is { } vRecovery)
-        {
-            w.Put("Recovery", vRecovery, o);
         }
         if (v.Disaster is { } vDisaster)
         {

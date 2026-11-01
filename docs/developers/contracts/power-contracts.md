@@ -29,12 +29,53 @@ powered network whose stored reserve covers its current drain for under `Reserve
 whose known stored reserve is under the coming night's deficit (a solar-only network by day).
 
 - Forbidden or switched-off consumers and producers are player intent (`player_disabled_power`).
-- An out-of-fuel or broken producer whose installed capacity covers demand holds the concern
-  (`waiting_for_refuel`, `waiting_for_repair`): refuelling and repair are ordinary pawn work. The
-  refuel hold lends the clock the same bounded window a stock refusal does (`stockWaitTicks`), since
-  only ticks land the haul.
+- An out-of-fuel or broken producer on a short network is a lost producer. It counts toward the
+  network's capacity only while the [restoration comparison](#restoration) restores it; a network
+  its restorable producers cover reports `restoring_producers` (`PowerMethod.Restore`) and adds
+  nothing, and one they cannot restore is short and is answered by new generation as if the
+  producer were absent. There are no `waiting_for_refuel` or `waiting_for_repair` waits.
 - A `SolarFlare` condition holds every build (`solar_flare`, see
   [upkeep contracts](upkeep-contracts.md)).
+
+## Restoration
+
+A *lost producer* is a connected, switched-on, unforbidden producer that is out of fuel or
+broken down on a network where a switched-on consumer is unpowered or the output is negative
+(`PowerRestorationRules.LostProducers`, most rated watts first). The `power/basic` Need
+compares each one every review through the shared maintenance choice (`ServicingChoiceRules`,
+[forecast contracts](forecast-contracts.md#servicing-activity-read)):
+
+- **Refuel**: carry stocked fuel to the empty tank (`RefuelWork`, priced from the pawn's carry
+  capacity, the legs to the nearest stack and the 240-tick wait per load).
+- **Fix**: the breakdown fix (`FixBreakdownWork`, one component, divided by the pawn's
+  success chance). The fix is the `home-upkeep/repairs` Need's Method (one owner); power only
+  counts it toward the restorable capacity.
+- **Acquire, then refuel**: when the colony holds none of the fuel, the chain whose first step
+  designates the harvest sources `AcquisitionRules.SelectResourceAcquisition` picks over the
+  observed non-hunt sources and the yield already designated. Only the harvest path is
+  modelled: with no observed source the state is the named `fuel acquisition:<def>`
+  (chemfuel production and trade are not modelled), and a fix with no component in stock is
+  the named `component acquisition:<def>` (no component path exists).
+
+A condition-only loss (damaged but running) is not a power deficit: a damaged producer still
+produces, so its repair stays `home-upkeep/repairs`'.
+
+Methods: `refuel-<producer>-<pawn>` (an exact `RecoveryService` refuel claiming its producer
+and pawn; an issued one continues its open Method and a running native refuel is observed,
+not reordered) and `fuel-<def>-<sha8>` (the acquisition, its digest over the sources it
+designates, so the same selection continues). The fuel items a chosen or issued refuel
+carries are held by the choice's ledger (census stock less issued and chosen refuels), so two
+producers never count one stock twice; a second producer with only a partial stock left is
+excluded `fuel_taken` (the stock is spent) and defers; an acquire-then-refuel chain is excluded `fuel_stocked` while any of its fuels is in stock. The ledger is policy state re-derived each review, not a
+`MethodClaims` claim. Underway and refused orders come from the journal and the pawns'
+running jobs (no store); a refused order spends its refusal budget and the next review
+reselects.
+
+The native auto-refuel threshold is read, not assumed: `BuildingFuel.Refuelable.AutoRefuelPercent`
+(`Props.autoRefuelPercent`, 0.3 by default) gates whether native auto-refuel starts the work
+now (`NativeStarts`) and `RecoveryPending`'s refuel entry. The brain still issues the refuel
+order when native auto-refuel would also start it. The Need closes only on fresh facts
+(output meets demand): an accepted refuel restores nothing by itself.
 
 ## Energy budget
 
@@ -170,7 +211,10 @@ what budget, and the `connect` contract above is unchanged. No action kind carri
 ## Acceptance
 
 `power/fuel` (`brain/src/RimGovernor.Brain.Acceptance.Cases/Power`) stages an empty wood-fired generator and shows
-ordinary hauling refuel it until its stove is powered; the planner's refuel hold is `PowerMethodTests`.
+ordinary hauling refuel it until its stove is powered; the restoration comparison is `PowerRestorationTests` and
+`PowerMethodTests`. The OnDemand native case `upkeep/restore-service` stages the same empty generator with the
+colonist's work priorities at zero, so only the brain's forced refuel (and a wall's forced repair) can restore it;
+it is registered and compiles but has not been executed.
 `power/wind-path` reads the service row's `wind` state (`wind_turbine` with its `blocked_cells`) for a clear and a roofed turbine.
 The generation shortfall on a draining reserve, storage for a solar-only network (one `Battery` sited
 indoors), a wind turbine on a clear catch zone and a geothermal generator on a free geyser ahead of

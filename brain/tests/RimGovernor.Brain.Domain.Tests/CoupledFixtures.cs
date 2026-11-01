@@ -11,6 +11,10 @@ internal static class CoupledFixtures
     internal static SupportActivityRead NoSupport => new() { Demands = [], Workers = [], Deliveries = [], Findings = [], Patients = [] };
     internal static FoodActivityRead NoFood => new() { Options = [] };
 
+    /// <summary>The native servicing mechanics (JobDriver_Repair 80/20 at ConstructionSpeed x 1.7, FixBrokenDownBuilding 1000, Refuel 240).</summary>
+    internal static ServicingMechanics ServicingMechanics => new(1.7, 80, 20, 1000, 240, "ComponentIndustrial");
+    internal static ServicingActivityRead NoServicing => new() { Mechanics = ServicingMechanics, Targets = [], Workers = [], Stock = [], Findings = [] };
+
     /// <summary>A comfortable room's temperature (21) for a patient comfortable from 16 to 26: no exposure either side.</summary>
     internal static CareTemperature Comfortable => new CareTemperature.Read(21);
 
@@ -54,7 +58,7 @@ internal static class CoupledFixtures
     internal static CoupledForecastRead Empty => new()
     {
         Tick = 0, Practice = NoPractice, Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt,
-        Sowing = NoSowing, Support = NoSupport, Thermal = CoupledThermalTests.NoThermal, Food = NoFood,
+        Sowing = NoSowing, Support = NoSupport, Servicing = NoServicing, Thermal = CoupledThermalTests.NoThermal, Food = NoFood,
         Construction = ConstructionFixtures.NoConstruction(), Clothing = ClothingFixtures.NoClothing,
         FoodConversions = [], FoodUses = [], FoodSources = [], Routes = [],
     };

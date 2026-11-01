@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
@@ -11,8 +10,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The disaster family (#3304) replaced the disaster recovery incident Concern: disaster/sheltering (SeriousHarm) is
 /// unmet while an allowed-area move is owed and runs in the immediate pass; disaster/services waits on it. An
-/// area-only move claims only the pawn's allowed area, so it is admitted beside open service work; the review's
-/// recovery readback is keyed by the services Need, and an older save's incident-keyed record is dropped on load.
+/// area-only move claims only the pawn's allowed area, so it is admitted beside open service work. The services Need
+/// holds: its restoration is the owning families' compared work, and an older save's retained selection is reset on load.
 /// </summary>
 public sealed class DisasterFamilyTests
 {
@@ -42,32 +41,6 @@ public sealed class DisasterFamilyTests
     };
 
     [Fact]
-    public void UnreadServiceFactsFailSelectionAndInvalidReasonsCannotWait()
-    {
-        var unread = Disrupted() with { Phase = DisasterPhase.Unread };
-        Assert.Equal("disaster service finding", Assert.Throws<RequiredFactException>(() =>
-            RecoveryRules.SelectRecoveryMethods(new RecoveryPlanning(), unread, [], new(1))).Fact);
-        Assert.Throws<DomainException>(() => new RecoverySelection { Reason = (RecoverySelectionReason)999 }.Validate());
-        Assert.Throws<ControlException>(() => DisasterReview.RecoverySelectionVerdict(RecoverySelectionReason.None));
-        Assert.Throws<ControlException>(() => DisasterReview.RecoverySelectionVerdict((RecoverySelectionReason)999));
-        Assert.Equal(Verdict.WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
-            DisasterReview.RecoverySelectionVerdict(RecoverySelectionReason.MethodsSeen));
-        Assert.Equal(Verdict.WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
-            DisasterReview.RecoverySelectionVerdict(RecoverySelectionReason.AdmissionRequired));
-    }
-    [Fact]
-    public void RecoveryRefusesARestrictionWhoseWorkerIsMissingFromTheTotalCensus()
-    {
-        var planning = new RecoveryPlanning
-        {
-            Safety = new RecoverySafety { Restrictions = [RecoveryObservationFixtures.Restriction("missing", "Safe")] },
-            Workers = [],
-        };
-        Assert.Equal("recovery worker and restriction censuses disagree",
-            Assert.Throws<DomainException>(() => RecoveryRules.SelectRecoveryMethods(planning, Disrupted(), [], new(1))).Message);
-    }
-
-    [Fact]
     public void ShelteringIsUnmetWhileAMoveIsOwedAndAnUnknownTriggerRaisesOnTheRead()
     {
         Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => DisasterFacts.From(new ReviewFacts(), null)).Fact);
@@ -88,7 +61,10 @@ public sealed class DisasterFamilyTests
         Assert.Equal((Satisfaction.Unmet, NeedTier.Wellbeing), (unmet.Satisfaction, unmet.Tier));
         Assert.Equal([DisasterFamily.Sheltering], unmet.Preconditions);
         Assert.Equal("disaster service finding", Assert.Throws<RequiredFactException>(() => Derive(new DisasterFacts { Disaster = Disrupted() with { Phase = DisasterPhase.Unread } }, DisasterFamily.Services)).Fact);
-        Assert.Empty(new DisasterFamily().Propose([unmet], new DisasterFacts()));
+        // The services are restored by the families that compare them (power/basic, home-upkeep/repairs): the Need holds, naming them.
+        var hold = Assert.Single(new DisasterFamily().Propose([unmet], new DisasterFacts())).Hold;
+        Assert.Equal(DisasterFamily.ServicesOwned, hold?.Subject);
+        Assert.Empty(new DisasterFamily().Propose([unmet with { Satisfaction = Satisfaction.Met }], new DisasterFacts()));
     }
 
     [Fact]
@@ -110,7 +86,7 @@ public sealed class DisasterFamilyTests
         Assert.Empty(area.Pawns);
         var animal = Claims(DomainAction.NewHusbandryAction(new("pen"), new Husbandry(new("dog"), HusbandryMethod.AllowedArea, "Safe")));
         Assert.Equal(["allowed-area/dog"], animal.Targets);
-        var service = Claims(DomainAction.NewRecoveryServiceAction(new("fix"), new(new("a"), "battery", RecoveryMethod.Repair)));
+        var service = Claims(DomainAction.NewRecoveryServiceAction(new("fix"), new(new("a"), "battery", RecoveryMethod.Refuel)));
         Assert.Contains("battery", service.Targets);
     }
 
@@ -121,8 +97,8 @@ public sealed class DisasterFamilyTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-disaster-claims-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.Review(new ReviewRequest { Current = World, Tick = new(100), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = WorkResourceTestFacts.Create("a", "b") }, ct);
 
-        var service = journal.CommitClaimedMethod(DisasterFamily.Services, World, new("recovery-a"), "",
-            Plan(id => DomainAction.NewRecoveryServiceAction(id, new(new("a"), "battery", RecoveryMethod.Repair))), ct);
+        var service = journal.CommitClaimedMethod(PowerFamily.Basic, World, new("refuel-battery-a"), "",
+            Plan(id => DomainAction.NewRecoveryServiceAction(id, new(new("a"), "battery", RecoveryMethod.Refuel))), ct);
         Assert.Equal(ClaimOutcome.Admitted, service.Outcome);
 
         var move = journal.CommitClaimedMethod(DisasterFamily.Sheltering, World, DisasterFamily.AreaMethod(Move("a", "Safe")), "",
@@ -136,63 +112,6 @@ public sealed class DisasterFamilyTests
         Assert.Equal(ClaimOutcome.Conflict, held.Outcome);
         Assert.Equal("allowed-area/a", held.Conflict!.Claim);
 
-    }
-
-    [Fact]
-    public void TheRecoveryReadbackIsKeyedByTheServicesNeedAndAnOlderJournalsIncidentKeyedReviewIsResetOnLoad()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var path = Path.Combine(Path.GetTempPath(), "rg-disaster-recovery-" + Guid.NewGuid().ToString("N") + ".db");
-        var facts = WorkResourceTestFacts.Create("a") with
-        {
-            DisasterConditions = EquatableArray.From([new DisasterCondition { Observed = new RimGovernor.Brain.GameFacts.Observations.EnvironmentCondition { Id = "condition-1", DefName = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } } }]),
-            RecoveryBuildings = [PowerBuildingFixtures.Trader("generator", "Generator", new(2, 3), 1000, 1000, true)],
-            MoodPawns = [new MoodPawn { Pawn = PawnFixtures.Row("a"), Forecast = null, Thoughts = [] }],
-            RecoverySafety = new RecoverySafety { Restrictions = [RecoveryObservationFixtures.Restriction("a")] },
-        };
-        ReviewResult Review(Journal journal, long tick) => journal.Review(new ReviewRequest
-        {
-            Current = World, Tick = new(tick), Enabled = true, Policy = Rules.DefaultPlannerSettings(), Facts = facts, Revision = journal.LoadReview(ct).Revision,
-        }, ct);
-        using (var journal = Journal.Open(path, ct))
-        {
-            var review = Review(journal, 100).Review;
-            Assert.NotNull(review.Disaster);
-            var recovery = Assert.IsType<Recovery>(review.Recovery);
-            Assert.Equal(DisasterFamily.Services, recovery.Need);
-            Assert.Equal(new RimGovernor.Brain.Store.World(World.Colony, World.Load, World.Map), recovery.World);
-            Assert.Same(Assert.Single(facts.RecoveryBuildings), Assert.Single(recovery.Buildings));
-            Assert.Equal(facts.MoodPawns.Count, recovery.Workers.Count);
-            for (var i = 0; i < facts.MoodPawns.Count; i++)
-            {
-                Assert.Same(facts.MoodPawns[i], recovery.Workers[i]);
-            }
-            Assert.Equal(recovery, journal.LoadReview(ct).Recovery);
-        }
-        SqliteConnection.ClearAllPools();
-        using (var connection = new SqliteConnection($"Data Source={path};Pooling=False"))
-        {
-            connection.Open();
-            using var write = connection.CreateCommand();
-            // An older journal's review keyed the recovery selection by an incident.
-            write.CommandText = "UPDATE rounds SET payload=json_set(json_remove(payload,'$.Recovery.Need','$.Recovery.World'),'$.Recovery.Incident','incident-1')";
-            Assert.Equal(1, write.ExecuteNonQuery());
-        }
-        SqliteConnection.ClearAllPools();
-        using (var reopened = Journal.Open(path, ct))
-        {
-            Assert.ThrowsAny<Exception>(() => reopened.LoadReview(ct));
-            // The load sequence (GovernorState.EnsureAsync) resets the review before anything reads it.
-            var saved = reopened.GovernorStateBlobs(ct);
-            reopened.RebuildOwners(null, ct);
-            reopened.RebuildFamilies(saved, ct);
-            reopened.ResetReview(ct);
-            Assert.Null(reopened.LoadReview(ct).Recovery);
-
-            // The next full review selects under the Need.
-            var review = Review(reopened, 110).Review;
-            Assert.Equal(DisasterFamily.Services, review.Recovery?.Need);
-        }
     }
 
     [Fact]

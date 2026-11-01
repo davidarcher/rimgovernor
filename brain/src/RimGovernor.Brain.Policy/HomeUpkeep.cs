@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -8,9 +6,9 @@ namespace RimGovernor.Brain.Policy;
 /// MethodId names the step's first target, kind and size, so the same step continues its open Method.
 /// </summary>
 /// <param name="Method">The step's MethodId, for example <c>deconstruct-&lt;id&gt;-x3</c>.</param>
-/// <param name="ReplacesWithWall">Whether the step swaps a door for a wall (door-to-wall labor is not yet a supported forecast outcome).</param>
+/// <param name="Swaps">The doors the step swaps for walls: each is proposed only when the maintenance choice picks its replacement.</param>
 /// <param name="Actions">The step's actions under a minted plan id.</param>
-public sealed record ClearanceCandidate(MethodId Method, bool ReplacesWithWall, Func<PlanId, IReadOnlyList<DomainAction>> Actions);
+public sealed record ClearanceCandidate(MethodId Method, EquatableArray<string> Swaps, Func<PlanId, IReadOnlyList<DomainAction>> Actions);
 
 /// <summary>
 /// The clearance census one native read returned: the rows that are not the player's own buildings and the
@@ -37,20 +35,34 @@ public sealed record HomeUpkeepFacts
 
     /// <summary>The next clearance step, or null when none is supported or every target of it is already designated.</summary>
     public ClearanceCandidate? Candidate { get; init; }
+
+    /// <summary>
+    /// The measured servicing options of the same read's servicing census (task 5.1), joined to its canonical building rows; null
+    /// when the read carried no coupled forecast, and every repair, fix and replacement is then unassessed.
+    /// </summary>
+    public ServicingCensus? Servicing { get; init; }
+
+    /// <summary>The servicing underway: the Need's open orders and the pawns' running repair and fix jobs, re-derived each review.</summary>
+    public EquatableArray<ServicingUnderway> Underway { get; init; }
+
+    /// <summary>The servicing orders the native refused in this world while the refusal budget refuses their Methods.</summary>
+    public EquatableArray<RefusedServicing> Refused { get; init; }
 }
 
 /// <summary>
 /// The home-upkeep family (#3253): essential repairs and clearance of home obstructions. It replaced the
 /// MaintainEssentialRepairs and ClearHomeObstructions Concerns, their upkeep inspection and planners.
 /// <list type="bullet">
-/// <item><c>home-upkeep/repairs</c> (Wellbeing): no damaged player building inside Home. Repairs are not yet a
-/// supported forecast outcome, so an unmet Need is held as <c>unsupported_forecast_repair</c>.</item>
+/// <item><c>home-upkeep/repairs</c> (Wellbeing): no damaged or broken-down player building inside Home. Each deficient
+/// building's repair, fix, replacement, retirement and deferral are compared (<see cref="ServicingChoiceRules"/>, task 5.2) and
+/// the chosen repair or fix is a claimed Method (an exact Repair order, or a RecoveryService breakdown fix). The Need stays
+/// unmet until fresh facts observe the building whole: an accepted order restores nothing by itself.</item>
 /// <item><c>home-upkeep/clearance</c> (Development): no removable obstruction on home ground and no planned-ground
 /// work left. Its Method is the next clearance step; independent steps run side by side and overlapping ones are
-/// refused by their claims.</item>
+/// refused by their claims. A step that swaps doors for walls is proposed only when the maintenance choice picks the
+/// replacement for every door it swaps.</item>
 /// </list>
-/// Clearance does not wait on repairs: the old hold only labelled the progress strip and never stopped the planner,
-/// and repairs proposes no work it could wait for.
+/// Clearance does not wait on repairs: the old hold only labelled the progress strip and never stopped the planner.
 /// </summary>
 public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true) : IFamily<HomeUpkeepFacts>
 {
@@ -60,11 +72,11 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
 
     public static readonly NeedId Clearance = NeedId.Of(FamilyId, "clearance");
 
-    /// <summary>The stable refusal subject of an unmet repairs Need.</summary>
-    public const string UnsupportedRepair = "unsupported_forecast_repair";
+    /// <summary>The hold subjects when no work is chosen: a deferral (its reasons in the detail), work already underway, or targets clearance serves.</summary>
+    public const string Deferred = "servicing_deferred", Underway = "servicing_underway", ByClearance = "servicing_by_clearance";
 
-    /// <summary>The stable refusal subject of a clearance step that swaps a door for a wall.</summary>
-    public const string UnsupportedWallReplacement = "unsupported_forecast_wall_replacement";
+    /// <summary>The MethodId prefixes of a repair and a breakdown fix: <c>repair-&lt;target&gt;-&lt;pawn&gt;</c>.</summary>
+    public const string RepairMethod = "repair-", FixMethod = "fix-";
 
     public string Id => FamilyId;
 
@@ -91,26 +103,82 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, HomeUpkeepFacts facts)
     {
         var output = new List<NeedMethod>();
+        var decisions = Decide(facts);
         foreach (var need in ready)
         {
             if (need.Id == Repairs)
             {
-                output.Add(NeedMethod.Held(Repairs, UnsupportedRepair,
-                    "Observed repair demand requires shared forecast worker, timing and outcome alternatives."));
+                var (targets, _) = DamagedStructures(facts.Structures);
+                output.AddRange(RepairMethods(facts, [.. decisions.Where(d => targets.Contains(d.Target))]));
             }
             else if (need.Id == Clearance && facts.Candidate is { } step)
             {
-                output.Add(step.ReplacesWithWall
-                    ? NeedMethod.Held(Clearance, UnsupportedWallReplacement, "Door-to-wall labor requires shared observed worker and construction obligations.")
-                    : new NeedMethod(Clearance, step.Method, "", id => new PlanSpec(id, new PlanRevision(1), step.Actions(id))));
+                var swaps = decisions.Where(d => step.Swaps.Contains(d.Target)).ToArray();
+                output.Add(step.Swaps.Count == 0 || (swaps.Length == step.Swaps.Count && swaps.All(d => d.Chosen.Kind == ServicingChoiceKind.Replace))
+                    ? new NeedMethod(Clearance, step.Method, "", id => new PlanSpec(id, new PlanRevision(1), step.Actions(id)))
+                    : NeedMethod.Held(Clearance, Deferred, "Door-to-wall replacement not chosen: " + string.Join("; ",
+                        step.Swaps.Select(door => swaps.FirstOrDefault(d => d.Target == door) is { } d ? ServicingChoiceRules.Describe(d) : door + ": building row unread")) + "."));
             }
         }
         return output;
     }
 
     /// <summary>
-    /// The damaged player buildings inside Home, most urgent first (repair priority, then lowest health fraction,
-    /// then id), and their missing hit points. Throws on an invalid row.
+    /// The maintenance choice over the deficient home buildings (most urgent first) and the doors the clearance step swaps: the
+    /// clearance targets are the buildings the plan does not need (unknown while the clearance census is unread).
+    /// </summary>
+    public static IReadOnlyList<ServicingDecision> Decide(HomeUpkeepFacts facts)
+    {
+        var (targets, _) = DamagedStructures(facts.Structures);
+        var rows = facts.Structures.ToDictionary(s => s.Id, s => s.Building, StringComparer.Ordinal);
+        var swaps = facts.Candidate?.Swaps.ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
+        var order = targets.Concat(swaps.Order(StringComparer.Ordinal).Where(s => !targets.Contains(s) && rows.ContainsKey(s))).ToArray();
+        return ServicingChoiceRules.Decide(new ServicingRequest
+        {
+            Targets = [.. order.Select(id => rows[id])],
+            Census = facts.Servicing,
+            Swaps = swaps,
+            Unneeded = facts.Clearance is { } census ? ClearanceTargets(census.Targets, census.Ground).ToHashSet(StringComparer.Ordinal) : null,
+            Underway = facts.Underway,
+            Refused = facts.Refused,
+        });
+    }
+
+    /// <summary>
+    /// The Repairs Need's Methods: each chosen repair or fix not already running natively, as an exact order claiming its target
+    /// and pawn (an issued order continues its open Method). With none, one hold naming why: a deferral's exclusions, the work
+    /// underway, or the targets clearance retires or replaces.
+    /// </summary>
+    private static IEnumerable<NeedMethod> RepairMethods(HomeUpkeepFacts facts, IReadOnlyList<ServicingDecision> decisions)
+    {
+        var cells = facts.Structures.ToDictionary(s => s.Id, s => s.Cell, StringComparer.Ordinal);
+        var bound = 0;
+        foreach (var d in decisions)
+        {
+            if (d.Underway is { Issued: false }) continue;
+            var pawn = new PawnId(d.Chosen.Pawn);
+            if (d.Chosen.Kind == ServicingChoiceKind.Repair)
+            {
+                bound++;
+                yield return new NeedMethod(Repairs, new MethodId(RepairMethod + d.Target + "-" + d.Chosen.Pawn), ServicingChoiceRules.Describe(d),
+                    id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewRepairAction(new ActionId(id.Value + "-0"), new Repair(pawn, d.Target, cells[d.Target]))]));
+            }
+            else if (d.Chosen.Kind == ServicingChoiceKind.FixBreakdown)
+            {
+                bound++;
+                yield return new NeedMethod(Repairs, new MethodId(FixMethod + d.Target + "-" + d.Chosen.Pawn), ServicingChoiceRules.Describe(d),
+                    id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewRecoveryServiceAction(new ActionId(id.Value + "-0"), new RecoveryService(pawn, d.Target, RecoveryMethod.Breakdown))]));
+            }
+        }
+        if (bound > 0 || decisions.Count == 0) yield break;
+        var subject = decisions.Any(d => d.Underway is null && d.Chosen.Kind == ServicingChoiceKind.Defer) ? Deferred
+            : decisions.Any(d => d.Underway is not null) ? Underway : ByClearance;
+        yield return NeedMethod.Held(Repairs, subject, string.Join("; ", decisions.Select(ServicingChoiceRules.Describe)) + ".");
+    }
+
+    /// <summary>
+    /// The damaged or broken-down player buildings inside Home, most urgent first (repair priority, then lowest health
+    /// fraction, then id), and their missing hit points. Throws on an invalid row.
     /// </summary>
     public static (IReadOnlyList<string> Targets, double Missing) DamagedStructures(IReadOnlyList<RepairStructure> structures)
     {
@@ -123,7 +191,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
             {
                 throw new DomainException("invalid upkeep structure");
             }
-            if (s.Home && s.HitPoints.Maximum > 0 && s.HitPoints.Current < s.HitPoints.Maximum)
+            if (s.Home && s.HitPoints.Maximum > 0 && (s.HitPoints.Current < s.HitPoints.Maximum || s.Building.Service.BrokenDown))
             {
                 selected.Add(row);
             }
@@ -178,13 +246,15 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
 
     private static Need RepairsNeed(EquatableArray<RepairStructure> census)
     {
+        // Each breakdown counts one beside the missing hit points: the Need is met only on a fresh read of whole buildings.
         var (targets, missing) = DamagedStructures(census);
+        var broken = census.Count(s => targets.Contains(s.Id) && s.Building.Service.BrokenDown);
         return new Need
         {
             Id = Repairs,
             Tier = NeedTier.Wellbeing,
             Satisfaction = targets.Count == 0 ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = missing,
+            Deficit = missing + broken,
         };
     }
 

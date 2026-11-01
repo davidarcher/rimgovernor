@@ -171,7 +171,7 @@ namespace RimGovernor.Native
                     PerDay = Nonnegative(fuel.Props.fuelConsumptionRate), UnitsPerItem = Nonnegative(fuel.Props.FuelMultiplierCurrentDifficulty),
                     UseDriven = fuel.Props.consumeFuelOnlyWhenUsed || fuel.Props.externalTicking,
                     InRain = fuel.Props.fuelConsumptionPerTickInRain > 0,
-                    WhenPowered = fuel.Props.consumeFuelOnlyWhenPowered, Flickable = thing.TryGetComp<CompFlickable>() != null }, Fuel = Nonnegative(fuel.Fuel), TargetFuel = Nonnegative(fuel.TargetFuelLevel), OutOfFuel = !fuel.HasFuel }
+                    WhenPowered = fuel.Props.consumeFuelOnlyWhenPowered, Flickable = thing.TryGetComp<CompFlickable>() != null }, Fuel = Nonnegative(fuel.Fuel), TargetFuel = Nonnegative(fuel.TargetFuelLevel), AutoRefuelPercent = Nonnegative(fuel.Props.autoRefuelPercent), OutOfFuel = !fuel.HasFuel }
                 : new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.NotRefuelable(),
             BrokenDown = thing.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false,
             Wind = thing.TryGetComp<CompPowerPlantWind>() != null

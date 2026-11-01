@@ -51,7 +51,6 @@ public sealed partial class Store
         {
             throw new StoreCorruptException("future disaster history");
         }
-        ValidateReviewRecovery(r);
         var proposals = r.Enabled ? MoodProposals(r.MoodHistory()) : [];
         if (proposals.Count != r.MoodMethods.Count)
         {
@@ -353,7 +352,6 @@ public sealed partial class Store
                 Progress = EquatableArray.From(ConcernProgressRules.HoldProgress(ReviewProgress(request, previous, reset))),
                 ReadyWork = ReadyWorkOf(request, Plans(tx, request.Current), []),
             };
-            r = r with { Recovery = RecoveryFor(tx, request.Facts, disaster, r, request.Tick) };
         }
         if (!request.Immediate && request.Facts.Upkeep.Clearance is { Targets: var clearance })
         {

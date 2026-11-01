@@ -23,16 +23,14 @@ namespace RimGovernor.Native
             && GameThread.IsLoaded(building.Map) && !building.Position.Fogged(building.Map)
             && !building.IsForbidden(Faction.OfPlayer) && !building.IsBurning();
 
-        // Refuses when the "observed service no longer needs this
-        // method" refusal: repair only while under max HP, breakdown only while
-        // broken, refuel only while under a quarter of the target fuel level,
-        // the controller's own refuel threshold (policy.RecoveryWork orders a
-        // refuel below 25%, the defensive layout's rearm on an empty barrel).
-        // One refuel job carries at most a pawn's load (75 steel fills a mini
+        // Refuses when the observed service no longer needs this method:
+        // breakdown only while broken, refuel only while at or below the
+        // comp's own Props.autoRefuelPercent of its target fuel level (the
+        // threshold CompRefuelable.ShouldAutoRefuelNow starts native refuels
+        // at, and the one the brain's RefuelWork.NativeStarts reads). One
+        // refuel job carries at most a pawn's load (75 steel fills a mini
         // turret barrel to 56 of 60), so a full-barrel criterion would
         // read a successful order as interrupted and never re-issue it.
-        internal const float RefuelSatisfiedFraction = 0.25f;
-
         internal static bool Satisfied(Building building, JobOrderKind method)
         {
             switch (method)
@@ -41,7 +39,7 @@ namespace RimGovernor.Native
                     return building.TryGetComp<CompBreakdownable>()?.BrokenDown != true;
                 case JobOrderKind.Refuel:
                     var fuel = building.TryGetComp<CompRefuelable>();
-                    return fuel == null || fuel.Fuel >= fuel.TargetFuelLevel || fuel.Fuel >= RefuelSatisfiedFraction * fuel.TargetFuelLevel;
+                    return fuel == null || fuel.Fuel >= fuel.TargetFuelLevel || fuel.Fuel > fuel.Props.autoRefuelPercent * fuel.TargetFuelLevel;
                 default:
                     return true;
             }

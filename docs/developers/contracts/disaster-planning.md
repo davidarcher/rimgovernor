@@ -44,39 +44,39 @@ retain the episode as `unknown` until conditions are observed again.
 History retains affected services and exact damaged-building identities. An expired
 condition, a missing building, a receipt or elapsed ticks cannot certify repair.
 Observed full native hit points and cleared breakdown state establish recovery of
-tracked damage. Fuel shortages use the native target and enter below one quarter
-of that target. Forbidden or burning buildings are excluded from new work; their
+tracked damage. Fuel shortages use the native target and enter at or below the building's own
+native auto-refuel fraction of that target (`Props.autoRefuelPercent`, read per building,
+0.3 by default). Forbidden or burning buildings are excluded from new work; their
 exclusion cannot clear previously tracked damage.
 
 The review records ordered refuel, breakdown and repair needs. It ranks nothing: concerns carry no priority, and a disrupted service is simply
-unmet. Player cancellation, resource reservations and admission checks still
-apply. A known roof-sensitive hazard independently keeps `disaster/sheltering`
+unmet. The disaster family no longer selects or dispatches any of that work (milestone 5 of
+`redefine-habitat-requirements`): each lost service is compared and ordered by the family that
+owns it. `power/basic` refuels a lost producer, acquires its fuel first when the colony holds
+none, or lets a fix restore it ([power contracts](power-contracts.md#restoration)), and
+`home-upkeep/repairs` repairs and fixes damaged or broken-down buildings
+([upkeep contracts](upkeep-contracts.md#repairs-cleaning)). While its Need is unmet
+`disaster/services` holds `services_by_owning_families`, naming both, and closes only when the
+disaster history's next finding shows every tracked service restored. Player cancellation,
+resource reservations and admission checks still apply to the owning families' orders. A known
+roof-sensitive hazard independently keeps `disaster/sheltering`
 unmet while a move is owed, and keeps `disaster/services` unmet, including when buildings are intact or another service is unknown.
 
-The durable `Recovery` review records at most eight native admission candidates.
-Available workers are ordered by exact pawn identity. During a roof-sensitive
-hazard, an observed restriction outside the known roofed areas produces refuge
-candidates first, using at most two existing areas per pawn. Each candidate retains
-the prior restriction; it never authorizes widening player access. Exhausted refuge
-methods do not fall through to exposed service work. Unknown restrictions, missing
-roster identities and unknown availability preserve explicit blockers.
+`disaster/sheltering` still produces area-correction Methods. During a roof-sensitive hazard an
+observed restriction outside the known roofed areas is moved into an existing wholly roofed
+allowed area (at most two per pawn); each move retains the prior restriction and never
+authorizes widening player access. Exhausted refuge methods do not fall through to exposed
+service work. Unknown restrictions, missing roster identities and unknown availability
+preserve explicit blockers. Refuge identities include the prior area and a 600-tick lease
+window and use ordinary work-settings and husbandry actions.
 
-With exposure protection satisfied, candidate pairs use the ordered refuel,
-breakdown and repair needs. Method identities include pawn/target and observed
-hit points or fuel; refuge identities include the prior area and a 600-tick lease
-window. The shared Episode supplies used methods, including retired plans.
-Refreshing a proposal does not count as attempting it. The review retains the actual native building rows and mood-pawn views. Candidate evidence keeps the complete native fuel union, including burn state and target. Saved typed inputs reproduce
-the candidates on load, and cancelled concerns receive no new
-proposals.
+There is no retained recovery selection: the review stores no candidate record, and a journal
+written before schema 74 that carried one is replaced on load
+([persistence](persistence-contracts.md)). Applied intent does not prove recovery. Observed
+useful service jobs retain their responsibility as hit points or fuel change; unknown jobs hold
+replacement. See [Method continuation](method-continuation.md) for reconsideration and release.
 
-Candidates enter ordinary Hands admission for pawn eligibility, reachability,
-reservations, supplies and area safety. Service Methods dispatch `RecoveryService`
-intent; area correction uses ordinary work-settings and husbandry actions.
-Applied intent does not prove recovery. Observed useful service jobs retain their
-responsibility as hit points or fuel change; unknown jobs hold replacement.
-See [Method continuation](method-continuation.md) for reconsideration and release.
-
-Manual clears candidates and suspends the recovery concern while retaining observation
+Manual control suspends the recovery concern while retaining observation
 history; the episode survives a resume. Colony/load/map replacement or tick rewind
 resets it.
 A restored episode stays closed through unrelated later shortages and a newly

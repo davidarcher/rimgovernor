@@ -1,8 +1,14 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>What the power family reads (#3257): the foothold power standing and whether a solar flare holds the grid off.</summary>
+/// <summary>
+/// What the power family reads (#3257): the foothold power standing, whether a solar flare holds the grid off, and the facts the
+/// lost producers' restoration is compared from (task 5.3), re-derived each review.
+/// </summary>
 public sealed record PowerFacts
 {
+    /// <summary>The restoration choice's facts; empty on the immediate pass, which reads nothing.</summary>
+    public PowerRestorationRequest Restoration { get; init; } = new();
+
     /// <summary>Whether the grid covers its required draw with no consumer disabled and no weather outage owed (<see cref="Rules.FootholdPower"/>).</summary>
     public bool Standing { get; init; }
 
@@ -18,9 +24,12 @@ public sealed record PowerFacts
 }
 
 /// <summary>
-/// The power family (#3257): one Need, <c>power/basic</c>, met while the grid covers its draw. Its Methods are the
-/// power planner's generators, batteries and conduits, which the runtime's work step commits under the Need. A
-/// solar flare holds it without a Method: the deficit it measures is real, but a generator does not answer it.
+/// The power family (#3257): one Need, <c>power/basic</c>, met while the grid covers its draw. Its pure Methods restore the
+/// producers an empty tank or a breakdown took off a short network (<see cref="PowerRestorationRules"/>, task 5.3): a chosen
+/// refuel, or the fuel acquisition an acquire-then-refuel chain starts with. The power planner's generators, batteries and
+/// conduits are the runtime's work step, which counts only restorable producers toward a network's capacity. The Need closes
+/// only on fresh facts (output meets demand): an accepted refuel restores nothing by itself. A solar flare holds it without a
+/// Method: the deficit it measures is real, but a generator does not answer it.
 /// </summary>
 public sealed class PowerFamily : IFamily<PowerFacts>
 {
@@ -41,11 +50,13 @@ public sealed class PowerFamily : IFamily<PowerFacts>
 
     public IReadOnlyList<Need> DeriveSeriousHarm(PowerFacts facts) => [];
 
-    /// <summary>A flare holds the ready Need; otherwise every Method is the work step's.</summary>
-    public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, PowerFacts facts) =>
-        facts.OutageHeld && ready.Any(n => n.Id == Basic)
-            ? [NeedMethod.Held(Basic, OutageHold, "a solar flare switches the grid off; the planner waits for it to end")]
-            : [];
+    /// <summary>A flare holds the ready Need; otherwise its restoration Methods, and the planner's are the work step's.</summary>
+    public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, PowerFacts facts)
+    {
+        if (!ready.Any(n => n.Id == Basic)) return [];
+        if (facts.OutageHeld) return [NeedMethod.Held(Basic, OutageHold, "a solar flare switches the grid off; the planner waits for it to end")];
+        return PowerRestorationRules.Methods(Basic, PowerRestorationRules.Decide(facts.Restoration));
+    }
 }
 
 public static partial class PowerRules

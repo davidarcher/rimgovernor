@@ -5,8 +5,8 @@ namespace RimGovernor.Brain.Runtime;
 /// The runtime half of the disaster family (#3304). The read is the owned census with its emergency read (the
 /// hostiles, the danger window and its haulers, the squad's draft set) in both passes, and the review's disaster
 /// history. The disaster/sheltering step cancels the stale moves of its open plans and commits each owed
-/// allowed-area move as its own Method; the disaster/services step (full pass only) waits on a running service and
-/// otherwise commits the selection's first repair, breakdown or refuel service. It replaced the recovery planner.
+/// allowed-area move as its own Method; the disaster/services Need holds (the family's hold names the owning
+/// families that restore each service). It replaced the recovery planner.
 /// </summary>
 public sealed partial class DisasterReview
 {
@@ -22,13 +22,13 @@ public sealed partial class DisasterReview
     }
 
     /// <summary>
-    /// A critical entry, as the recovery planner was, woken by its area moves' and services' outcomes. The immediate
-    /// pass watches only the sheltering Need's plans, so only the area moves are protection.
+    /// A critical entry, as the recovery planner was, woken by its area moves' outcomes. The immediate pass watches only
+    /// the sheltering Need's plans, so only the area moves are protection.
     /// </summary>
     public static FamilySchedule Schedule { get; } = new()
     {
         Class = PlannerClass.Critical,
-        Kinds = [ActionKind.RecoveryService, ActionKind.WorkAssignment, ActionKind.Husbandry],
+        Kinds = [ActionKind.WorkAssignment, ActionKind.Husbandry],
     };
 
     /// <summary>The family's scheduler entry.</summary>
@@ -64,16 +64,12 @@ public sealed partial class DisasterReview
         return DisasterFacts.From(f, review.Disaster) with { Workers = read.Reading.Facts.ForecastObserved.WorkPawns };
     }
 
-    /// <summary>The work step of a ready Need: the area moves, or (full pass only) a service.</summary>
+    /// <summary>The work step of a ready Need: the area moves; the services Need is held by the family.</summary>
     internal Task<Verdict> WorkAsync(NeedWork work, DisasterFacts facts, CancellationToken call)
     {
         if (work.Need.Id == DisasterFamily.Sheltering)
         {
             return Task.FromResult(ShelteringWork(work, facts, call));
-        }
-        if (work.Need.Id == DisasterFamily.Services && !work.Immediate)
-        {
-            return Task.FromResult(ServicesWork(work, facts, call));
         }
         return Task.FromResult(AwaitingPlan(work.Need.Id.Value, "no_method"));
     }
@@ -126,77 +122,6 @@ public sealed partial class DisasterReview
         }
         return AdminReview.OutcomeVerdict(outcomes) ?? blocked ?? BuildingReasonNoDeficit;
     }
-
-    /// <summary>
-    /// The disaster/services step: open or still-running service work waits; otherwise the selection over the census
-    /// (skipping the Need's unretired MethodIds, as the review's readback does) gives the next service, committed
-    /// under its candidate's MethodId and claiming its building.
-    /// </summary>
-    internal Verdict ServicesWork(NeedWork work, DisasterFacts facts, CancellationToken call)
-    {
-        var p = _reviewer.Player;
-        var review = p.Journal.LoadReview(call);
-        if (!review.Enabled || review.Snapshot != work.State.Snapshot || review.Immediate)
-        {
-            return BuildingReasonNoReview;
-        }
-        var applied = new List<RecoveryService>();
-        foreach (var method in work.Owner.Methods)
-        {
-            var plan = p.Journal.LoadPlan(method.Plan, call);
-            if (WorkProgress.Open(plan.Progress))
-            {
-                return BuildingReasonExistingWork;
-            }
-            for (var i = 0; i < plan.Spec.Actions.Count && i < plan.Progress.Count; i++)
-            {
-                if (plan.Spec.Actions[i].RecoveryService is { } service && plan.Progress[i].View.Stage == Stage.Completed)
-                {
-                    applied.Add(service);
-                }
-            }
-        }
-        foreach (var service in applied)
-        {
-            if (RecoveryRules.RecoveryWorkContinuing(service, facts.Planning.Buildings, facts.Workers))
-            {
-                return BuildingReasonExistingWork;
-            }
-        }
-        var selection = RecoveryRules.SelectRecoveryMethods(facts.Planning, review.Disaster, StoreJournal.RecoveryMethodsUsed(work.Owner), review.Tick);
-        selection.Validate();
-        var chosen = selection.Candidates.FirstOrDefault(c => c.Kind == RecoveryProposalKind.ServiceWork);
-        if (chosen is null)
-        {
-            return RecoverySelectionVerdict(selection.Reason);
-        }
-        if (work.Arbiter is { } arbiter && !arbiter.TryClaim([chosen.Pawn]))
-        {
-            return WaitFor(Cause.MethodUsed, "recovery_pawn_claim");
-        }
-        var id = PlanIds.MintPlanId();
-        var action = DomainAction.NewRecoveryServiceAction(new ActionId($"{id}-0"), new RecoveryService((Domain.PawnId)chosen.Pawn, chosen.Building, chosen.Method));
-        p.Current(call, work.Epoch);
-        if (p.Session.State() != work.State)
-        {
-            throw new ControlException("recovery service: the session moved");
-        }
-        var reason = "recovery: " + Wire.Name(chosen.Method) + " " + chosen.Building;
-        var commit = p.Journal.CommitClaimedMethod(work.Need.Id, work.Owner.Snapshot, chosen.ID, reason, new PlanSpec(id, new PlanRevision(1), [action]), call);
-        return AdminReview.OutcomeVerdict([commit]) ?? BuildingReasonAdmitted;
-    }
-
-    /// <summary>Why no service was selected, as the Need's verdict.</summary>
-    internal static Verdict RecoverySelectionVerdict(RecoverySelectionReason reason) => reason switch
-    {
-        RecoverySelectionReason.NoWorker => NoWorker("recovery_service"),
-        RecoverySelectionReason.TrackedMissing => SiteBlocked("recovery_infrastructure", reason.ToString()),
-        RecoverySelectionReason.NoWork => BuildingReasonNoDeficit,
-        RecoverySelectionReason.MethodsSeen => WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
-        RecoverySelectionReason.AdmissionRequired => WaitFor(Cause.MethodUsed, "recovery_service_proposal"),
-        RecoverySelectionReason.None => throw new ControlException("recovery selection has no reason"),
-        RecoverySelectionReason invalid => throw new ControlException($"invalid recovery selection reason {invalid}"),
-    };
 
     /// <summary>The colonists an open fight in <paramref name="world"/> has drafted: a threat shelters none of them.</summary>
     internal static EquatableArray<PawnId> ShelterCombatants(StoreJournal journal, StoreWorld world, CancellationToken ct)

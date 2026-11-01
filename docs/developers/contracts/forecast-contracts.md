@@ -1855,6 +1855,53 @@ remove-floors giver (`WorkGiver_ConstructRemoveFloor`) and the `Finish` ticks th
 summed `JobDriver_RemoveFloor` work (200 a cell) over `ConstructionSpeed x 1.7` a
 tick (a rate of zero is `CannotFinish`).
 
+### Servicing activity read
+
+`CoupledForecastRead.Servicing` (`ServicingActivityRead`, habitat 5.1) lists the colony buildings that need
+servicing and every free colonist who could service them: a building below its maximum hit points that
+`RepairUtility.PawnCanRepairEver` admits, a `CompBreakdownable` building that is broken down, a `CompRefuelable`
+that is not full, and a 1x1 player door of a wall stuff (the door-to-wall swap). It carries only what the canonical
+building row lacks; a target's hit points, power, fuel, breakdown and door state are the row's, and each
+`ServicingTarget` joins it by id, def and cell. These are conditional estimates, never demand or an order.
+
+- **Targets** (at most 32; a larger set is cut and the read's finding `servicing_targets_truncated` says so, so an
+  absent target is then unassessed, not unread): the home-area flag (`WorkGiver_Repair` and
+  `WorkGiver_FixBrokenDownBuilding` refuse a colony building outside Home), `Repairable`, the refuel facts
+  (`IsFull`, `GetFuelCountToFullyRefuel`, `allowRefuelIfNotEmpty`; the auto-refuel fraction is the row's
+  `AutoRefuelPercent`), the removal facts (`CostListAdjusted`, `resourcesFractionWhenDeconstructed`, the deconstruct
+  `WorkToBuild` clamped 20..3000) and, for a door, the wall that replaces it (cost list in the allowed stuff,
+  `WorkToBuild`, the stuff's `ConstructionSpeedFactor`).
+- **Workers**, one row per free colonist, target and kind: the approach ticks, `WorkIsActive` for the giver's work type
+  (a replacement also needs the frame-finishing giver's active, since native-led labor builds the wall), the ability
+  (`ConstructionSpeed`, `FixBrokenDownBuildingSuccessChance`, a carry, or `Unread` naming the stat the native disabled)
+  and the supply the work consumes (a component, fuel or the wall's stuff): the carry capacity and the fetch, carry and
+  return legs to the nearest reservable stack (finding `servicing_supply_nearest_stack_legs`: later loads reuse that
+  stack's legs). A pawn that cannot manipulate or has no path has no row.
+- **Findings**: `servicing_targets_truncated`, `servicing_supply_nearest_stack_legs` and
+  `servicing_routes_are_conditional_duration_estimates`.
+- **Stock** per consumed def, and the **mechanics** copied from the decompiled private drivers: the construction work
+  rate 1.7 x `ConstructionSpeed`, repair warm-up 80 and 20 work per hit point (at most one hit point a tick), 1000 fix
+  ticks, the 240-tick refuel wait per load, and `ComponentIndustrial` as the component
+  ([kept constants](kept-constants.md#mirrored-game-literals-servicing-drivers-habitat-51)).
+
+Policy joins and prices these in `ServicingRules` (`Survey`, `OptionsOf`, `WorkOf`): `RepairWork`, `FixBreakdownWork`,
+`RefuelWork` and `ReplacementWork` each carry a `Duration` in ticks, the `Inputs` consumed and the `ServiceLoss` the
+work restores (or, for a replacement, causes): `Condition` (hit points only; the building still serves),
+`PowerOutput` (a producer's rated watts its network lacks), `Pending` (the fuel left lasts so long, then the service
+is lost), `Enclosure` (the cell left open between the door's removal and the wall's completion) or `Unmodelled`
+(`service:<def>`, `turret service:<def>`, `fuel use rate:<def>` naming the service not modelled). Each option is
+`Assessed`, `Excluded` (`not_repairable`, `no_worker`, `no_supply`, `no_stock`, `cannot_carry`, `zero_rate`,
+`refuel_not_empty`, plus the choice's own, see [upkeep](upkeep-contracts.md#repairs-cleaning)) or `Unassessed`. A missing
+required fact raises `RequiredFactException` naming it and is never defaulted: `servicing read`,
+`servicing target:<id>`, `building row:<id>`, `hit points:<def>`, `repair rate:<def>`, `fix success chance:<def>`,
+`construction rate:<def>`, `fuel:<def>`, `fuel def:<def>`, `fuel stock:<resource>`, `cost list:<def>`,
+`wall delivery:<resource>`. `ServicingChoiceRules` compares the options for the `home-upkeep/repairs` and
+`power/basic` Needs ([upkeep](upkeep-contracts.md#repairs-cleaning), [power](power-contracts.md#restoration)).
+
+Known limits: the use-driven fuel burn of a turret or other per-use comp has no rate and is named, not priced; a
+turret's and other non-power buildings' service value is `Unmodelled`; the supply legs assume the nearest stack
+serves every load; deconstruction needs a designation the native work then takes.
+
 ### Planned shelter thermal read
 
 The coupled capture samples `ThermalCell` rows only within six cells of placed sites

@@ -53,11 +53,11 @@ numbers or admission guards.
    forecast time alone does not prove restoration.
 3. The `disaster` family (`DisasterReview`) re-reads owned facts in both passes;
    `disaster/sheltering` derives `PlanSheltering`, cancels obsolete area actions and
-   commits each move. `disaster/services` waits on sheltering and on still-open work.
-   [SelectRecoveryMethods](../../../brain/src/RimGovernor.Brain.Policy/RecoveryMethod.cs)
-   checks known worker/safety facts; the step claims the selected pawn and
-   commits a Need Method.
-4. `RecoveryServiceAction` uses the [ordinary intent executor](../../../brain/src/RimGovernor.Brain.Executor/Intent.cs).
+   commits each move. `disaster/services` waits on sheltering and binds no Method: it holds
+   `services_by_owning_families`, since `power/basic` ([restoration](../contracts/power-contracts.md#restoration))
+   and `home-upkeep/repairs` ([servicing choice](../contracts/upkeep-contracts.md#repairs-cleaning))
+   compare and order the refuel, fix and repair work.
+4. `RecoveryServiceAction` (a refuel or breakdown fix) uses the [ordinary intent executor](../../../brain/src/RimGovernor.Brain.Executor/Intent.cs).
    Its applied receipt completes the service-order intent. Restoration remains
    a later observed service/infrastructure result in `ReviewDisaster`.
 
@@ -68,7 +68,7 @@ competes with already committed routine work. Neither is proved by the hazard
 probe's bound.
 
 Existing evidence includes disaster policy tests
-for temporary survival and false recovery, and recovery selection tests.
+for temporary survival and false recovery, and the servicing comparison tests (`PowerRestorationTests`, `HomeUpkeepFamilyTests`).
 Long-horizon native recovery evidence (a shortage followed by a raid) is
 tracked in #2351; none of this is evidence for every environmental disaster
 or simultaneous resource/labor conflict.

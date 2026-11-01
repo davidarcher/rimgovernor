@@ -9,5 +9,6 @@ public static class UpkeepCases
         registry.Register(UpkeepAutoHomeArea.Case());
         registry.Register(UpkeepCouple.Case());
         registry.Register(UpkeepHomeCoverage.Case());
+        registry.Register(UpkeepRestoreService.Case());
     }
 }

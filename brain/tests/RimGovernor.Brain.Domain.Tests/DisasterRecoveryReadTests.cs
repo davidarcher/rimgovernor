@@ -24,81 +24,12 @@ public sealed class DisasterRecoveryReadTests
 
     private static RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable Fuel(double amount, double target) => new()
     {
-        AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(), Fuel = amount, TargetFuel = target, OutOfFuel = amount == 0,
+        AutoRefuel = new RimGovernor.Brain.GameFacts.Observations.AutoRefuelControl.NoSwitch(), Fuel = amount, TargetFuel = target, AutoRefuelPercent = 0.3, OutOfFuel = amount == 0,
         Burn = BuildingServiceWire.IdleBurn with { PerDay = 2, UnitsPerItem = 3, UseDriven = true, InRain = true, WhenPowered = true, Flickable = true },
     };
 
     private static DisasterCondition Flare(ConditionDuration duration) =>
         new() { Observed = new EnvironmentCondition { Id = "condition-1", DefName = "SolarFlare", Duration = duration }, DisablesPower = true };
-
-    [Fact]
-    public void RecoveryRetainsWholeInputsAndReplaysTheSameSelectionAfterStorage()
-    {
-        var fuel = Fuel(0, 30);
-        var building = Building("generator") with
-        {
-            Roofed = true, RainVulnerable = true, FuelDefinitions = ["WoodLog"], Stuff = "Steel",
-            Service = Building("generator").Service with { Fuel = fuel },
-            Door = new RimGovernor.Brain.GameFacts.Observations.BuildingDoor { Open = true, HoldOpen = false },
-        };
-        var native = PawnFixtures.Row("a");
-        native = native with
-        {
-            Needs = native.Needs with { Mood = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.35), BreakThresholdMinor = .2,
-                Food = new RimGovernor.Brain.GameFacts.Observations.FoodNeed.Has(.7, RimGovernor.Brain.GameFacts.Defs.HungerCategory.Fed),
-                Rest = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.8), Joy = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.6) },
-            Social = native.Social with { HighExpectations = true },
-        };
-        MoodPawn Worker(RimGovernor.Brain.GameFacts.Observations.PawnState row) => new()
-        {
-            Pawn = row, Forecast = new RimGovernor.Brain.GameFacts.Observations.PatientForecast { PawnId = row.Pawn.Id, MoodTarget = .65 },
-            Thoughts = [new("TestThought", -5)],
-        };
-        RimGovernor.Brain.GameFacts.Observations.PawnState Named(string id) => native with { Pawn = native.Pawn with { Id = id } };
-        var pawn = Worker(native);
-        var planning = new RecoveryPlanning
-        {
-            Buildings = [building],
-            Workers = [pawn, Worker(Named("forced") with { Job = new RimGovernor.Brain.GameFacts.Observations.JobEvidence { PlayerForced = true } }),
-                Worker(Named("dead") with { Dead = true }), Worker(Named("downed") with { Downed = true }),
-                Worker(Named("drafted") with { Drafted = true }),
-                Worker(Named("mental") with { MentalState = new RimGovernor.Brain.GameFacts.Observations.PawnMentalState { DefName = "Wander", IsAggro = false, Ticks = 120 } })],
-            Safety = new RecoverySafety { Restrictions = [RecoveryObservationFixtures.Restriction("a", "Safe"), RecoveryObservationFixtures.Restriction("forced"),
-                RecoveryObservationFixtures.Restriction("dead"), RecoveryObservationFixtures.Restriction("downed"), RecoveryObservationFixtures.Restriction("drafted"), RecoveryObservationFixtures.Restriction("mental")] },
-        };
-        var condition = Flare(new ConditionDuration.Timed { Ticks = 321 });
-        var services = Enum.GetValues<DisasterService>().Where(s => s != DisasterService.Infrastructure)
-            .ToDictionary(s => s, _ => DisasterServiceStatus.Restored);
-        var history = DisasterRules.ReviewDisaster([condition], planning.Buildings, services, null, new(100), new DisasterShortCircuit.NoneSeen());
-        var selection = RecoveryRules.SelectRecoveryMethods(planning, history, [], new(100));
-        Assert.Equal([new PawnId("a"), new PawnId("forced")], selection.Candidates.Select(c => c.Pawn));
-        Assert.All(selection.Candidates, candidate => Assert.Same(fuel, candidate.Fuel));
-
-        var record = new RimGovernor.Brain.Store.Recovery
-        {
-            Need = DisasterFamily.Services, Selection = selection,
-            World = new RimGovernor.Brain.Store.World(new("colony"), new("load"), new(0)),
-            Buildings = planning.Buildings, Workers = planning.Workers,
-            Safety = new() { Restrictions = EquatableArray.From(planning.Safety.Restrictions.Select(r => new RimGovernor.Brain.Store.ReviewRecoveryRestriction(new PawnId(r.Pawn.Id), r.AreaId ?? ""))) },
-        };
-        Assert.Same(building, Assert.Single(record.Buildings));
-        Assert.Same(pawn, record.Workers[0]);
-
-        var back = StoreJson.Deserialize<RimGovernor.Brain.Store.Recovery>(StoreJson.Serialize(record));
-        Assert.Equal(record, back);
-        Assert.Equal("{\"Pawn\":\"forced\",\"Area\":\"\"}", StoreJson.Serialize(back.Safety.Restrictions[1]));
-        Assert.Equal(building, Assert.Single(back.Buildings));
-        Assert.Equal(fuel.Burn, Assert.IsType<RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable>(back.Buildings[0].Service.Fuel).Burn);
-        Assert.True(Assert.IsType<RimGovernor.Brain.GameFacts.Observations.BuildingFuel.Refuelable>(back.Selection.Candidates[0].Fuel).OutOfFuel);
-        var replay = new RecoveryPlanning
-        {
-            Buildings = back.Buildings, Workers = back.Workers,
-            Safety = new() { Restrictions = EquatableArray.From(back.Safety.Restrictions.Select(r => RecoveryObservationFixtures.Restriction(r.Pawn.Value, r.Area.Length == 0 ? null : r.Area))) },
-        };
-        Assert.Null(replay.Safety.Restrictions[1].AreaId);
-        Assert.Equal(selection, RecoveryRules.SelectRecoveryMethods(replay, history, [], new(100)));
-        Assert.Same(condition.Observed, Assert.Single(history!.Conditions).Observed);
-    }
 
     [Fact]
     public void AConditionsDurationIsPermanentOrTimedOnTheWire()
@@ -156,7 +87,7 @@ public sealed class DisasterRecoveryReadTests
     }
 
     [Fact]
-    public void TheDisasterHistoryAndARecoveryCandidateRoundTripTheirNamedStates()
+    public void TheDisasterHistoryRoundTripsItsNamedStates()
     {
         foreach (var history in new[]
         {
@@ -171,19 +102,6 @@ public sealed class DisasterRecoveryReadTests
             var back = StoreJson.Deserialize<DisasterHistory>(StoreJson.Serialize(history));
             Assert.Equal((history.ShortCircuit, history.Phase), (back.ShortCircuit, back.Phase));
             Assert.Equal(history.Conditions, back.Conditions);
-        }
-
-        foreach (var candidate in new[]
-        {
-            new RecoveryCandidate
-            {
-                ID = new("recovery-a"), Building = "generator", Method = RecoveryMethod.Refuel,
-                HitPoints = new BuildingHitPoints.Tracked { Current = 50, Maximum = 100 }, Fuel = Fuel(5, 30),
-            },
-            new RecoveryCandidate { ID = new("recovery-b"), Building = "wall", Method = RecoveryMethod.Breakdown, HitPoints = new BuildingHitPoints.Untracked(), Fuel = new RimGovernor.Brain.GameFacts.Observations.BuildingFuel.NotRefuelable() },
-        })
-        {
-            Assert.Equal(candidate, StoreJson.Deserialize<RecoveryCandidate>(StoreJson.Serialize(candidate)));
         }
     }
 }

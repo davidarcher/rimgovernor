@@ -13,6 +13,7 @@ public sealed record CoupledForecastRead
     public required HuntActivityRead Hunt { get; init; }
     public required SowingActivityRead Sowing { get; init; }
     public required SupportActivityRead Support { get; init; }
+    public required ServicingActivityRead Servicing { get; init; }
     public required CoupledThermalRead Thermal { get; init; }
     public required FoodActivityRead Food { get; init; }
     public required ConstructionActivityRead Construction { get; init; }
