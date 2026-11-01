@@ -559,6 +559,26 @@ public sealed class HomeUpkeepFamilyTests
         Assert.Single(colony.Journal.LoadNeed(HomeUpkeepFamily.Repairs, World, ct).Methods);
     }
 
+    // A running repair on a building that is also broken down is one alternative: with a free pawn and a component the breakdown fix
+    // wins over it (the running work is recorded beside it), with no component the repair is continued.
+    [Fact]
+    public void ARunningRepairDoesNotHideTheBreakdownFixWhenTheFixWinsTheComparison()
+    {
+        var running = new ServicingUnderway("gen", ServicingKind.Repair, "q", false);
+        var facts = Servicing(Census(1, Repairing("gen", "q"), Fixing("gen", "a")), Structure("gen", 40, def: "Generator", broken: true)) with { Underway = [running] };
+        var fixing = Assert.Single(HomeUpkeepFamily.Decide(facts));
+        Assert.Equal((ServicingChoiceKind.FixBreakdown, "a", running), (fixing.Chosen.Kind, fixing.Chosen.Pawn, fixing.Underway));
+        Assert.False(ServicingChoiceRules.Continues(fixing));
+        Assert.Equal("fix-gen-a", Assert.Single(new HomeUpkeepFamily().Propose(ReadyBoth, facts)).Method.Value);
+
+        var noComponent = facts with { Servicing = Census(0, Repairing("gen", "q"), Fixing("gen", "a")) };
+        var continued = Assert.Single(HomeUpkeepFamily.Decide(noComponent));
+        Assert.Equal((ServicingChoiceKind.Repair, "q", running), (continued.Chosen.Kind, continued.Chosen.Pawn, continued.Underway));
+        Assert.True(ServicingChoiceRules.Continues(continued));
+        Assert.Equal(new ServicingStanding.Excluded(ServicingRules.NoStock), StandingOf(continued, ServicingChoiceKind.FixBreakdown, "a"));
+        Assert.Equal(HomeUpkeepFamily.Underway, Assert.Single(new HomeUpkeepFamily().Propose(ReadyBoth, noComponent)).Hold!.Subject);
+    }
+
     private static ServicingStanding ComponentTakenAgain(Colony colony) =>
         StandingOf(HomeUpkeepFamily.Decide(colony.Observed()).Single(d => d.Target == "gen2"), ServicingChoiceKind.FixBreakdown, "b");
 

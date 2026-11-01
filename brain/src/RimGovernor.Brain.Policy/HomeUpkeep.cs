@@ -60,6 +60,9 @@ public sealed record HomeUpkeepFacts
 
     /// <summary>The servicing orders the native refused in this world while the refusal budget refuses their Methods.</summary>
     public EquatableArray<RefusedServicing> Refused { get; init; }
+
+    /// <summary>The review's servicing ledger (ColonyReading.Servicing): the component and pawns the review's other servicing choices hold; null takes a fresh one.</summary>
+    public ServicingLedger? Ledger { get; init; }
 }
 
 /// <summary>
@@ -154,6 +157,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
             Unneeded = facts.Clearance is { } census ? ClearanceTargets(census.Targets, census.Ground).ToHashSet(StringComparer.Ordinal) : null,
             Underway = facts.Underway,
             Refused = facts.Refused,
+            Ledger = facts.Ledger,
         });
     }
 
@@ -168,7 +172,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
         var bound = 0;
         foreach (var d in decisions)
         {
-            if (d.Underway is { Issued: false }) continue;
+            if (d.Underway is { Issued: false } && ServicingChoiceRules.Continues(d)) continue;
             var pawn = new PawnId(d.Chosen.Pawn);
             if (d.Chosen.Kind == ServicingChoiceKind.Repair)
             {
@@ -184,8 +188,8 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
             }
         }
         if (bound > 0 || decisions.Count == 0) yield break;
-        var subject = decisions.Any(d => d.Underway is null && d.Chosen.Kind == ServicingChoiceKind.Defer) ? Deferred
-            : decisions.Any(d => d.Underway is not null) ? Underway : ByClearance;
+        var subject = decisions.Any(d => !ServicingChoiceRules.Continues(d) && d.Chosen.Kind == ServicingChoiceKind.Defer) ? Deferred
+            : decisions.Any(ServicingChoiceRules.Continues) ? Underway : ByClearance;
         yield return NeedMethod.Held(Repairs, subject, string.Join("; ", decisions.Select(ServicingChoiceRules.Describe)) + ".");
     }
 

@@ -44,14 +44,12 @@ internal static class NativeDefenseProbe
     internal static bool Validate(Orders.DefenseProbeRequest request, out RimGovernor.Brain.GameFacts.Common.Failure failure)
     {
         failure = GameThread.Fail(RimGovernor.Brain.GameFacts.Common.FailureCode.InvalidRequest,
-            "Valid identity scope and at most 16 uniquely identified candidates of bounded unique firing, approach and piece cells are required.");
-        if (request?.Scope?.ExpectedIdentity == null || request.Candidates.Count > Orders.DefenseProbeRequest.MaxCandidates) return false;
+            "Valid identity scope and uniquely identified candidates of unique firing, approach and piece cells are required.");
+        if (request?.Scope?.ExpectedIdentity == null) return false;
         if (request.Candidates.Select(c => c.Id).Distinct(StringComparer.Ordinal).Count() != request.Candidates.Count) return false;
         foreach (var c in request.Candidates)
         {
             if (string.IsNullOrEmpty(c.Id)) return false;
-            if (c.Firing.Count > Orders.DefenseProbeRequest.MaxFiring || c.Approach.Count > Orders.DefenseProbeRequest.MaxApproach
-                || c.Pieces.Count > Orders.DefenseProbeRequest.MaxPieces) return false;
             if (c.Firing.Distinct().Count() != c.Firing.Count || c.Approach.Distinct().Count() != c.Approach.Count
                 || c.Pieces.Select(p => p.Cell).Distinct().Count() != c.Pieces.Count) return false;
         }

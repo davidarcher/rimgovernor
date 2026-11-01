@@ -135,6 +135,7 @@ public sealed class TransitionHandsTests
         {
             Standing = ServicingChoiceRules.StandingServiceOf(sleeping, (_, _) => new ExpectedLoss.PerDay(0.3), new Lazy<RoomImprovementFacts>(() => RoomImprovementTests.Facts()), packing),
             BuildPrice = _ => new TransitionBuild.Priced(5),
+            Hauls = (_, _) => new TransitionLeg.Walked(300),
         };
         var r = ReconcileRules.Reconcile(new ReconcileInput
         {
@@ -145,5 +146,24 @@ public sealed class TransitionHandsTests
         Assert.Equal("old", Assert.Single(reinstall.Targets).EntityId);
         Assert.Equal(other, Assert.Single(reinstall.Pieces));
         Assert.DoesNotContain(r.Owed, o => o.Kind is OpKind.Pack or OpKind.PackInUse or OpKind.FurnitureOut or OpKind.Install);
+
+        // Once the plan binds that Relocate, the workshop's own reconcile sees its open slot as the bed's destination: it is held
+        // naming the bed, neither built nor installed from stock, until the bed stands there (then it is matched, not open).
+        var workshop = Room(PlannedRole.Workshop, 2, 20);
+        var bound = facts with { Planned = [new PlannedTransition("old", "Bed", TransitionCause.StaleInterior, ServicingChoiceKind.Relocate) { Slot = new RelocationSlot(other.Minimum) }] };
+        var w = ReconcileRules.Reconcile(new ReconcileInput
+        {
+            Rooms = RoomTestFacts.NoRooms, Plan = new LayoutPlan { Rooms = [bedroom, workshop] }, Room = workshop, Ground = new GroundCensus(),
+            Rows = [], Furniture = [other], Transitions = bound, Stock = new Dictionary<string, int> { ["Bed"] = 1 },
+        });
+        Assert.DoesNotContain(w.Owed, o => o.Kind is OpKind.Build or OpKind.Install);
+        var hold = Assert.Single(w.Holds);
+        Assert.Equal((other.Minimum, "Bed", ReconcileRules.SlotBoundToRelocation + ":old"), (hold.Cell, hold.Def, hold.Reason));
+        // Unbound, the same slot is installed from stock as before.
+        Assert.Contains(ReconcileRules.Reconcile(new ReconcileInput
+        {
+            Rooms = RoomTestFacts.NoRooms, Plan = new LayoutPlan { Rooms = [bedroom, workshop] }, Room = workshop, Ground = new GroundCensus(),
+            Rows = [], Furniture = [other], Transitions = facts, Stock = new Dictionary<string, int> { ["Bed"] = 1 },
+        }).Owed, o => o.Kind == OpKind.Install);
     }
 }

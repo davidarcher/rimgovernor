@@ -30,10 +30,10 @@ public sealed record DefenseCivilians(IReadOnlyList<string> Before, IReadOnlyLis
 /// <item><see cref="Shots"/>: shots per second of the staffed shooters and ready turrets that reach an approach cell, each
 /// burstShotCount over its cycle (turret burst warmup + verb warmup + cooldown + burst seconds).</item>
 /// <item><see cref="Cover"/>: the mean block chance the staffed firing cells' cover gives against the approach cells they see.</item>
-/// <item><see cref="Staffing"/>: the shooters the candidate seats (its firing cells and mannable turrets); a shortfall is
-/// <c>staffing:&lt;needed&gt;/&lt;available&gt;</c>.</item>
+/// <item><see cref="Staffing"/>: the shooters able to take the candidate's seats (its firing cells and mannable turrets); a
+/// shortfall is priced on the seats that are staffed and named <c>staffing:&lt;needed&gt;/&lt;able&gt;</c>.</item>
 /// <item><see cref="Ammunition"/>: 0 when nothing loads any (small arms and gun turrets fire without it), else the shells
-/// in stock; a mortar with none loaded or stocked is <c>shells:&lt;turret&gt;</c>.</item>
+/// in stock; a mortar with none loaded or stocked reaches nothing (a known zero) and is named <c>shells:&lt;turret&gt;</c>.</item>
 /// <item><see cref="Power"/>: the powered turrets; an unpowered one protects nothing and is named <c>power:&lt;turret&gt;</c>.</item>
 /// <item><see cref="Exposure"/>: the routine positions within the raiders' weapon range of the raid walk with the candidate's
 /// walls (<see cref="Civilians"/> holds both walks); melee raiders (range 0) expose only the walk's own cells.</item>
@@ -82,18 +82,13 @@ public static class DefenseProtectionRules
 
     public const string Fogged = "sight:fogged";
 
-    /// <summary>The walks probed: the newest raids', each down to its last cells before the colony or the candidate's barrier.</summary>
-    internal const int ProbedRaids = 3;
-
-    /// <summary>One probed approach cell every this many walked cells, back from the walk's end.</summary>
-    internal const int ApproachStride = 3;
-
     /// <summary>The refusal of a reply row for a candidate the request did not ask for.</summary>
     public static string UnknownCandidate(string id) => "defense_probe:unknown_candidate:" + id;
 
     /// <summary>
     /// A raid's walk, cell by cell along its samples (the game's integer line between consecutive samples), up to the first
-    /// barrier cell it reaches: past a wall or a door the raid does not walk on unbroken.
+    /// barrier cell it reaches: past a wall or a door the raid does not walk on unbroken. A track keeps each cell once, so two
+    /// consecutive samples lie apart where the lord recrossed ground it had walked; the line between them stands for that walk.
     /// </summary>
     public static IReadOnlyList<Cell> Walk(IReadOnlyList<Cell> trail, IReadOnlySet<Cell> barriers)
     {
@@ -140,39 +135,44 @@ public static class DefenseProtectionRules
     }
 
     /// <summary>
-    /// The approach cells probed for a candidate: of the newest <see cref="ProbedRaids"/> walks cut at its barriers, every
-    /// <see cref="ApproachStride"/>th cell back from each walk's end, at most <see cref="Orders.DefenseProbeRequest.MaxApproach"/>
-    /// in all, distinct, in walk order.
+    /// The approach cells probed for a candidate: of every observed ground raid's walk cut at the candidate's barriers, the
+    /// cells from which the raid engages it, within the raiders' longest observed weapon range (<see cref="DefenseThreat.Range"/>)
+    /// of a firing cell, a planned piece or a barrier, and each walk's last cell, where the raid stands when the barrier stops it
+    /// (a melee raid, range 0, engages there alone). Distinct, in walk order; the cells it walks out of every weapon's reach are
+    /// not probed, since <see cref="Assess"/> counts coverage over the engagement, not the march.
     /// </summary>
     public static IReadOnlyList<Cell> Approach(DefenseThreat threat, DefenseCandidate c)
     {
         var barriers = c.Barriers.ToHashSet();
-        var per = Orders.DefenseProbeRequest.MaxApproach / ProbedRaids;
+        var engaged = c.Firing.Concat(c.Structures.Select(s => s.Cell)).Concat(c.Barriers).Distinct().ToList();
         var output = new List<Cell>();
-        foreach (var trail in threat.Trails.TakeLast(ProbedRaids))
+        foreach (var trail in threat.Trails)
         {
             var walk = Walk(trail, barriers);
-            var picked = new List<Cell>();
-            for (var i = walk.Count - 1; i >= 0 && picked.Count < per; i -= ApproachStride)
+            for (var i = 0; i < walk.Count; i++)
             {
-                picked.Add(walk[i]);
+                var cell = walk[i];
+                if (i == walk.Count - 1 || engaged.Any(e => Distance(e, cell) <= threat.Range))
+                {
+                    output.Add(cell);
+                }
             }
-            picked.Reverse();
-            output.AddRange(picked);
         }
-        return [.. output.Distinct().Take(Orders.DefenseProbeRequest.MaxApproach)];
+        return [.. output.Distinct()];
     }
 
+    private static double Distance(Cell a, Cell b) => Math.Sqrt(((a.X - b.X) * (a.X - b.X)) + ((a.Z - b.Z) * (a.Z - b.Z)));
+
     /// <summary>
-    /// The probe rows: one per candidate not excluded, with its key as id, its first firing cells, its approach and its
-    /// pieces (one per cell, the first structure there); none while no ground raid was observed.
+    /// The probe rows: one per candidate not excluded, with its key as id, its firing cells, its approach and its pieces (one
+    /// per cell, the first structure there); none while no ground raid was observed.
     /// </summary>
     public static IReadOnlyList<Orders.DefenseCandidateProbe> Probes(IReadOnlyList<DefenseCandidate> candidates)
     {
         var output = new List<Orders.DefenseCandidateProbe>();
         foreach (var c in candidates)
         {
-            if (c.Standing is DefenseCandidateStanding.Excluded || c.Threat.Trails.Count == 0 || output.Count == Orders.DefenseProbeRequest.MaxCandidates)
+            if (c.Standing is DefenseCandidateStanding.Excluded || c.Threat.Trails.Count == 0)
             {
                 continue;
             }
@@ -184,9 +184,9 @@ public static class DefenseProtectionRules
             output.Add(new Orders.DefenseCandidateProbe
             {
                 Id = c.Key,
-                Firing = [.. c.Firing.Take(Orders.DefenseProbeRequest.MaxFiring)],
+                Firing = [.. c.Firing.Distinct()],
                 Approach = [.. approach],
-                Pieces = [.. c.Structures.DistinctBy(s => s.Cell).Take(Orders.DefenseProbeRequest.MaxPieces).Select(s => new Orders.DefenseProbePiece(s.Cell, s.Definition))],
+                Pieces = [.. c.Structures.DistinctBy(s => s.Cell).Select(s => new Orders.DefenseProbePiece(s.Cell, s.Definition))],
             });
         }
         return output;
@@ -321,7 +321,7 @@ public static class DefenseProtectionRules
         if (needed > shooters.Count)
         {
             var fact = string.Create(CultureInfo.InvariantCulture, $"staffing:{needed}/{shooters.Count}");
-            staffing = new DefenseTerm.Unassessed(fact);
+            staffing = new DefenseTerm.Assessed(shooters.Count);
             states.Add(fact);
         }
 
@@ -349,7 +349,6 @@ public static class DefenseProtectionRules
         var drawn = new Dictionary<string, double>(StringComparer.Ordinal);
         var ready = new List<Facts.DefenseTurretProbe>();
         var shellTurrets = 0;
-        string? shellsMissing = null;
         var draws = new List<DefenseDraw>();
         foreach (var t in turrets)
         {
@@ -373,7 +372,6 @@ public static class DefenseProtectionRules
                 shellTurrets++;
                 if (s.Loaded is null && read.Shells <= 0)
                 {
-                    shellsMissing ??= "shells:" + t.Id;
                     states.Add("shells:" + t.Id);
                     continue;
                 }
@@ -384,8 +382,8 @@ public static class DefenseProtectionRules
             }
             ready.Add(t);
         }
-        DefenseTerm ammunition = shellsMissing is { } shells ? new DefenseTerm.Unassessed(shells)
-            : new DefenseTerm.Assessed(shellTurrets == 0 ? 0 : read.Shells);
+        // A shell turret with none loaded or stocked reaches nothing (a priced zero, its state named); the stock is the term.
+        DefenseTerm ammunition = new DefenseTerm.Assessed(shellTurrets == 0 ? 0 : read.Shells);
 
         var exposure = new DefenseTerm.Assessed(civilians.After.Count);
         if (answer.Lines.Any(l => l is Facts.DefenseSightLine.Fogged))

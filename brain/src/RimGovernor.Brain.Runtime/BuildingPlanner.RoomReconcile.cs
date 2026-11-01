@@ -498,6 +498,15 @@ public sealed partial class BuildingPlanner
             }
             input = input with { Stock = left };
         }
+        // The relocation hauls are the game's walks (task 8.1): the diff names the legs it would price, the native walks them, and
+        // the diff runs again with them answered. A source without the probe leaves every haul unread (haul_unprobed).
+        if (input.Transitions is { } transitionFacts && Native is IHaulProbeSource haulSource && ReconcileRules.UnprobedHauls(input) is { Count: > 0 } legs)
+        {
+            var probed = await haulSource.ReadHaulProbeAsync(facts.Identity, legs, call).ConfigureAwait(false);
+            var asked = legs.ToDictionary(l => l.Id, l => l.To, StringComparer.Ordinal);
+            var answered = probed.Legs.Where(a => asked.ContainsKey(a.Id)).ToDictionary(a => a.Id, a => a.Leg, StringComparer.Ordinal);
+            input = input with { Transitions = transitionFacts with { Hauls = (id, to) => answered.TryGetValue(id, out var leg) && asked[id] == to ? leg : null } };
+        }
         var (ops, holds, owed, transitions) = ReconcileRules.ReconcileRoomHolds(input);
         if (!rr.ClimateOnly)
         {

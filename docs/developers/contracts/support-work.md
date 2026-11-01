@@ -142,9 +142,8 @@ outside the census is left to native rescue. Each patient carries:
   Hostile: whether a doctor can treat it);
 - `Bleeding` (`Stable` or the bleed rate and `TicksUntilDeathDueToBloodLoss`), the
   `Temperature` where it lies (`Read` or the unread fact) and its comfort range;
-- its candidate `Beds` (`SupportCareBed`): its current bed, else the nearest it fits
-  (at most four medical and two other beds, `care_beds_truncated:<demand>` naming a
-  cut). Each bed has its class (`Medical`, `Prisoners`, `Slaves`, `Humanlike`),
+- its candidate `Beds` (`SupportCareBed`): its current bed, else every bed it fits,
+  nearest first (no cut: the choice reads the colony's beds, not a sample of them). Each bed has its class (`Medical`, `Prisoners`, `Slaves`, `Humanlike`),
   `Occupants`, `Slots`, the native `CanUseBedNow` (`UsableNow`), its room's
   `InfectionChanceFactor`, `Temperature`, `bed_healPerDay`, its
   `SurgerySuccessFactor` (`CareSurgeryFactor.Read` or `Unread`) and how the patient

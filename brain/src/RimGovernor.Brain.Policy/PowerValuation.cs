@@ -124,7 +124,7 @@ public static class PowerValuationRules
             else if (def == f.HospitalMonitor.Def && f.HospitalMonitor.Def.Length != 0)
             {
                 consumers[b.Id] = new(UtilityService.Care, f.ForecastObserved.Coupled?.Support is { } support
-                    ? CareLoss(b.Cell, f.HospitalMonitor, support, f.MedicalPawns, ForecastValuePolicy.For(f.Preferences))
+                    ? CareLoss(b.Cell, f.HospitalMonitor, support, f.MedicalPawns, ForecastValuePolicy.For(f.Preferences), b.Powered)
                     : new InterruptionLoss.Unassessed("care census"));
             }
             else if (b.Turret is not null)
@@ -212,11 +212,13 @@ public static class PowerValuationRules
     /// What a medical facility at <paramref name="at"/> standing unpowered costs, by milestone 4's care valuation, once per pending
     /// surgery (OnceDays: each queued surgery bill on a patient is done once, and none queued costs nothing): for every
     /// patient lying in a medical bed within its link distance, the queued operations' loss there (CareCapacityRules.SurgeryLossOf)
-    /// at the bed's SurgerySuccessChanceFactor less the facility's offset (CompFacility applies offsets only while it is powered) over
-    /// the loss at the factor read now. Unassessed naming an unread bed factor, or the immunity gain a patient with an immunizable
+    /// at the bed's SurgerySuccessChanceFactor without the facility's offset over the loss with it. CompFacility applies the offset
+    /// only while the facility is powered, so the bed's read factor carries it where the facility is <paramref name="poweredNow"/>
+    /// and lacks it where it stands unpowered now: the powered factor is then the read one plus the offset, and the unpowered one
+    /// the read factor itself. Unassessed naming an unread bed factor, or the immunity gain a patient with an immunizable
     /// condition loses (its illness course is not priced here).
     /// </summary>
-    public static InterruptionLoss CareLoss(Cell at, FacilityLink link, SupportActivityRead support, IReadOnlyList<CarePawn> pawns, ForecastValuePolicy value)
+    public static InterruptionLoss CareLoss(Cell at, FacilityLink link, SupportActivityRead support, IReadOnlyList<CarePawn> pawns, ForecastValuePolicy value, bool poweredNow)
     {
         var request = new CareCapacityRequest { Support = support, Value = value };
         var conditions = pawns.GroupBy(p => p.Id.Value, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().Conditions, StringComparer.Ordinal);
@@ -232,9 +234,9 @@ public static class PowerValuationRules
             if (surgeries.Length == 0) continue;
             if (bed.SurgerySuccessFactor is CareSurgeryFactor.Unread { Fact: var fact }) return new InterruptionLoss.Unassessed(fact);
             var factor = ((CareSurgeryFactor.Read)bed.SurgerySuccessFactor).Factor;
-            var (powered, _) = CareCapacityRules.SurgeryLossOf(request, surgeries, bed);
-            var (unpowered, _) = CareCapacityRules.SurgeryLossOf(request, surgeries,
-                bed with { SurgerySuccessFactor = new CareSurgeryFactor.Read(Math.Max(0, factor - link.SurgerySuccessChanceOffset)) });
+            var (withOffset, without) = poweredNow ? (factor, Math.Max(0, factor - link.SurgerySuccessChanceOffset)) : (factor + link.SurgerySuccessChanceOffset, factor);
+            var (powered, _) = CareCapacityRules.SurgeryLossOf(request, surgeries, bed with { SurgerySuccessFactor = new CareSurgeryFactor.Read(withOffset) });
+            var (unpowered, _) = CareCapacityRules.SurgeryLossOf(request, surgeries, bed with { SurgerySuccessFactor = new CareSurgeryFactor.Read(without) });
             loss += Math.Max(0, unpowered - powered);
         }
         return new InterruptionLoss.PerDay(0) { OnceDays = loss };

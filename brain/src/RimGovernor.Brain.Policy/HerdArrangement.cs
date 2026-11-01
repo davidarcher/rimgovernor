@@ -159,9 +159,6 @@ public static class HerdArrangementRules
     public const string ReasonRepairRestores = "repair_restores_enclosure";
     public const string ReasonNoPenWant = "no_pen_want";
 
-    /// <summary>The cells a pen's feed store covers at most, so a long winter's feed does not zone the whole pen.</summary>
-    internal const int MaxPenFeedCells = 16;
-
     /// <summary>Every pen unit's arrangement in unit key order, the pen feed outside the pens allocated across them in that order.</summary>
     public static IReadOnlyList<HerdArrangement> Assess(HerdArrangementInput input)
     {
@@ -382,7 +379,7 @@ public static class HerdArrangementRules
     /// <summary>
     /// The pen feed stores the arrangements ask for, one per unit with a planned pen: a live store while the unit eats more
     /// than its pasture over the horizon and pen feed is known, sized by that gross feed over the smallest feed stack's
-    /// nutrition per cell (at most MaxPenFeedCells), else a retired one, so the zone goes once the pasture suffices.
+    /// nutrition per cell, else a retired one, so the zone goes once the pasture suffices.
     /// </summary>
     public static IReadOnlyList<PenFeedAsk> FeedAsks(IReadOnlyList<HerdArrangement> arrangements, LayoutPlan plan, EquatableArray<RimGovernor.Brain.GameFacts.Observations.PenFeedStock> feed)
     {
@@ -401,7 +398,7 @@ public static class HerdArrangementRules
             }
             else if (defs.Count > 0 && perCell > 0)
             {
-                var cells = (int)Math.Clamp(Math.Ceiling(a.FeedNeed / perCell), 1, MaxPenFeedCells);
+                var cells = (int)Math.Max(1, Math.Ceiling(a.FeedNeed / perCell));
                 output.Add(new PenFeedAsk(a.Herd, pen.Region, EquatableArray.From(defs), cells, false));
             }
         }

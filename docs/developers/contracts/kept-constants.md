@@ -362,6 +362,7 @@ duration and the component def are typed members and are read. The refuel thresh
 | Refuel wait | 240 ticks per load carried | `JobDriver_Refuel.RefuelingDuration` (read) |
 | Fix component | `ComponentIndustrial` | `ThingDefOf.ComponentIndustrial` (read) |
 | Deconstruct work | the building's `WorkToBuild` clamped to 20..3000 | `JobDriver_Deconstruct` |
+| Servicing job defs | `Repair`, `FixBrokenDownBuilding`, `Refuel`: the def names a running repair, breakdown fix and refuel carry, matched against the job census (`HomeUpkeepReader.Servicing.cs`, `RepairJob`, `FixJob`, `RefuelJob`) | `JobDefOf.Repair`, `JobDefOf.FixBrokenDownBuilding`, `JobDefOf.Refuel` (def names, no typed route from the brain) |
 
 ## Mirrored game literals: transitions (habitat 8.1, 8.4)
 
@@ -375,7 +376,7 @@ reads are not constants and are not listed: `building.uninstallWork`, `Pawn.Tick
 | --- | --- | --- | --- |
 | Removal work a tick | `ConstructionSpeed` x 1.7, for an uninstall (total `uninstallWork`) and a deconstruction alike; the same literal as the [servicing drivers](#mirrored-game-literals-servicing-drivers-habitat-51) | `JobDriver_RemoveBuilding` tick action | `WorkPerSpeed`, `integrations/rimgovernor-native/src/Bridge/NativeServicingActivities.cs:29` |
 | Deconstruct work | `WorkToBuild` clamped to 20..3000; the same literal as the servicing drivers | `JobDriver_Deconstruct.TotalNeededWork` | `integrations/rimgovernor-native/src/Bridge/NativeServicingActivities.cs:247` |
-| Diagonal step | 1.41421: a diagonal step's ticks over a cardinal one's, pricing the haul to a relocation slot as the octile distance (the same literal as [food hauling](#mirrored-game-rules-food-hauling-3849)) | `Pawn.TicksPerMove` | `brain/src/RimGovernor.Brain.Policy/Reconcile.cs:765` |
+| Diagonal step | 1.41421: a diagonal step's ticks over a cardinal one's, ordering the open slots a piece could move into by octile distance; the haul itself is the game's walk (the haul probe, `observations_read_haul_probe`), not this distance (the same literal as [food hauling](#mirrored-game-rules-food-hauling-3849)) | `Pawn.TicksPerMove` | `ReconcileRules.Octile`, `brain/src/RimGovernor.Brain.Policy/Reconcile.cs` |
 | Reinstall install work | `Blueprint_Install.WorkTotal` is 150, named in a comment and not used: the install itself is the delivery, because the native installs a minified thing when it is carried onto its blueprint, so a relocation prices its haul and not 150 work | `Blueprint_Install.WorkTotal` | `brain/src/RimGovernor.Brain.Policy/ServicingTransition.cs:47` (comment) |
 
 ## Mirrored game literals: barn animal flap (habitat 9.2)
@@ -394,11 +395,12 @@ work are read from its catalog row, not copied. Checked in the 1.7 Core defs (`A
 
 The native keeps the hostile lords it samples and saves them with the map (`RaidTrackLog`, RG-HABITAT-009;
 [persistence contracts](persistence-contracts.md#what-must-survive)), so the defense probe keeps its approaches across days and loads.
+Every finished ground track is kept: a trail holds each cell once (`Track.Walk`), so a track is bounded by the map, and no count of
+raids is authored. A review before 2026-11-01 kept the newest eight (`KeptGroundRaids`), a bound nobody asked for, since removed.
 
 | Constant | Where | Value | Why it stays |
 | --- | --- | --- | --- |
 | `RaidTrackLog.FinishedAge` | `integrations/rimgovernor-native/src/Runtime/Persistence/RaidTrackLog.cs` | 60000 ticks | A lord unseen for one game day has left or died; its track is finished. The former `RaidArrivalState.FinishedAge`, moved. |
-| `RaidTrackLog.KeptGroundRaids` | same | 8 | An authored bound, not a game rule: the newest finished ground raids kept for the probe's approaches, so the save does not grow with every raid. |
 
 ## Mirrored game literals: rain short circuit (habitat 6.4)
 
@@ -433,16 +435,34 @@ the shot geometry, not a measured block rate.
 
 ## Policy constants: defense candidates (habitat 7.1, 7.2)
 
-Authored choices of the defense candidates and their probe, not game rules ([spatial
-contracts](spatial-contracts.md#defense-candidates-rg-habitat-009)). Each is a bound on how much the comparison asks of the
-game or a size for a sandbag line, and none is a veto: the candidate it cuts down is still compared with what it holds.
+Authored choices of the defense candidates, not game rules ([spatial
+contracts](spatial-contracts.md#defense-candidates-rg-habitat-009)). The probe itself has no authored constant: every candidate
+is probed on every firing cell and piece it names, and its approach cells are defined by the raid's observed walks and weapon
+range (every walked cell within the raid's longest range of a cell the candidate engages from, plus each walk's end), not sampled.
+A review before 2026-11-01 carried `ProbedRaids` (3), `ApproachStride` (3) and request bounds of 16 candidates, 8 firing, 24
+approach and 4096 pieces, none asked for by the design, since removed.
 
 | Constant | Where | Value | Why it is a choice |
 | --- | --- | --- | --- |
 | Temporary cover line | `DefenseCandidateRules.CoverHalf`, `CoverOffset` | 5 bags (two each side of the entrance), 3 cells outside it | A sandbag line wide enough to shield a doorway's firing positions, standing clear of the core wall so a raider stopped at it is in range of the seats behind it. The game states no size. |
-| Probed raids | `DefenseProtectionRules.ProbedRaids` | 3 | The newest ground raids' walks stand for where raiders arrive; more walks cost probe cells without more edges. |
-| Approach stride | `DefenseProtectionRules.ApproachStride` | every 3rd walked cell | Samples a walk densely enough to see its last stretch inside the weapons' reach and sparsely enough to fit the 24-cell bound. |
-| Probe bounds | `DefenseProbeRequest.MaxCandidates`, `MaxFiring`, `MaxApproach`, `MaxPieces` | 16, 8, 24, 4096 | Input bounds on one batched main-thread read; native refuses a larger request. A candidate with more firing cells is probed on its first eight. |
+
+## Policy constants: layout search trials (habitat 3, 4)
+
+The layout search's own computation bounds, retained by the habitat design decision ("retain explicit computation bounds,
+report truncation, never a colony-capacity quota"): each cuts how many placements one comparison tries, and what it cuts is
+reported as a skipped decision, never read as a fact about the colony.
+
+| Constant | Where | Value | What it bounds, and how the cut is reported |
+| --- | --- | --- | --- |
+| `ActivitySiteRules.MaxRoomTrials` | `brain/src/RimGovernor.Brain.Policy/ActivitySites.cs` | 6 | The existing rooms one activity kind offers the comparator as placements; the rooms past it are one skipped decision (`Untried`, `SitesOmitted` on the host search). |
+| `LayoutHospitalBedRules.MaxDefTrials` | `brain/src/RimGovernor.Brain.Policy/LayoutHospitalBeds.cs` | 3 | The bed definitions compared in preference order; the ones past it are named as skipped (`Omitted`). |
+| `LayoutHostRules.HostTrials` | `brain/src/RimGovernor.Brain.Policy/LayoutHosts.cs` | `LayoutSiteGroundRules.SiteSearchTop` (8) | The deviations compared beside the host baseline, the regroup search's own proposals a round; those past it are `Omitted`. |
+
+## Mirrored game literals: power connection reach (habitat 6)
+
+| Literal | Value | 1.7 member | Where |
+| --- | --- | --- | --- |
+| Connector reach | 6: a power connector joins the nearest transmitter within the square six cells around it, so the room prediction's planned connector reads the same reach | `PowerConnectionMaker.ConnectMaxDist` (private) | `ConnectMaxDist`, `integrations/rimgovernor-native/src/Bridge/NativeRoomPrediction.cs` |
 
 ## Mirrored game rules: trader stock (#3869)
 

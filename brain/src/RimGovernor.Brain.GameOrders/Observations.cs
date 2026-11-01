@@ -195,17 +195,12 @@ public sealed record LinesOfFireRequest
 /// The defense alternatives' batched probe (RG-HABITAT-009, task 7.2): one row per candidate, its id the candidate's key,
 /// in the generator's order. Native answers each with its lines of fire and cover under the candidate's planned pieces,
 /// and once for the read the colonists who could shoot, the standing turrets, each planned turret (its id qualified by
-/// the candidate's) and the shells in stock. Bounded: at most <see cref="MaxCandidates"/> rows of at most
-/// <see cref="MaxFiring"/> firing cells, <see cref="MaxApproach"/> approach cells and <see cref="MaxPieces"/> pieces;
-/// native refuses a larger request.
+/// the candidate's) and the shells in stock. Every candidate is probed on every firing cell, approach cell and piece it
+/// names; the request has no size bound, and native refuses only a row it cannot read (a duplicate id or cell, a cell off
+/// the map, an unknown piece definition).
 /// </summary>
 public sealed record DefenseProbeRequest
 {
-    public const int MaxCandidates = 16;
-    public const int MaxFiring = 8;
-    public const int MaxApproach = 24;
-    public const int MaxPieces = 4096;
-
     public required ReadScope Scope { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<DefenseCandidateProbe>))]
@@ -233,6 +228,24 @@ public sealed record DefenseCandidateProbe
 
 /// <summary>One planned piece of a probed candidate: its cell and ThingDef.</summary>
 public sealed record DefenseProbePiece(RimGovernor.Brain.Domain.Cell Cell, string Definition);
+
+/// <summary>
+/// The relocation haul probe (RG-HABITAT-010, task 8.1): one row per unlisted piece a room reconcile would move into an open
+/// planned slot (ReconcileRules.UnprobedHauls), its id the building's, the worker the capable builder the transition read
+/// named for it, From the piece's footprint minimum and To the slot's. Native answers each with that pawn's path from From
+/// to To on the map as it stands (a slot not yet built is walked as the ground it is). The request has no size bound; native
+/// refuses only a row it cannot read (a duplicate or empty id, no worker named, a cell off the map).
+/// </summary>
+public sealed record HaulProbeRequest
+{
+    public required ReadScope Scope { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<HaulProbeLeg>))]
+    public required EquatableArray<HaulProbeLeg> Legs { get; init; }
+}
+
+/// <summary>One haul to read: the building, the worker's load id, and the walk's two cells.</summary>
+public sealed record HaulProbeLeg(string Id, string Pawn, RimGovernor.Brain.Domain.Cell From, RimGovernor.Brain.Domain.Cell To);
 
 /// <summary>
 /// One or more unique nonnegative cells, at least one of them on the map, and the access cell a miner works from.

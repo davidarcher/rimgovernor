@@ -135,6 +135,9 @@ public interface IGameApi
     /// <summary>The defense alternatives' batched probe (RG-HABITAT-009): lines of fire and cover per candidate, shooters, turrets and shells.</summary>
     Task<RimGovernor.Brain.GameFacts.Observations.DefenseProbeSnapshot> ReadDefenseProbeAsync(RimGovernor.Brain.GameOrders.Observations.DefenseProbeRequest request, CancellationToken cancellationToken);
 
+    /// <summary>The relocation haul probe (RG-HABITAT-010): each named worker's path ticks from a standing piece to its planned slot.</summary>
+    Task<RimGovernor.Brain.GameFacts.Observations.HaulProbeSnapshot> ReadHaulProbeAsync(RimGovernor.Brain.GameOrders.Observations.HaulProbeRequest request, CancellationToken cancellationToken);
+
     Task<RimGovernor.Brain.GameFacts.Presentation.NotificationsSnapshot> ReadNotificationsAsync(RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest request, CancellationToken cancellationToken);
 
     Task<RimGovernor.Brain.GameFacts.Observations.PopulationSnapshot> ReadPopulationAsync(RimGovernor.Brain.GameOrders.Observations.PopulationRequest request, CancellationToken cancellationToken);

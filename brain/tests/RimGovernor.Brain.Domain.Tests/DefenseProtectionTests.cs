@@ -16,7 +16,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class DefenseProtectionTests
 {
-    /// <summary>One observed ground raid walking north from (22,44) past (22,50) to (22,58).</summary>
+    /// <summary>One observed melee raid (range 0) walking north from (22,44) past (22,50) to (22,58).</summary>
     private static readonly DefenseThreat Raid = new() { Trails = [[new Cell(22, 44), new Cell(22, 50), new Cell(22, 58)]], ArrivalEdges = [new Cell(22, 44)] };
 
     /// <summary>An open sandbag line across the walk at z 52, shot from behind at (21,53) and (23,53).</summary>
@@ -46,26 +46,20 @@ public sealed class DefenseProtectionTests
     };
 
     /// <summary>
-    /// The probe reply recorded for <see cref="Cover"/> and <see cref="Perimeter"/>: two rifle colonists, no turret, no
-    /// shells; the sandbags give 0.75 against shots from the south and the door none.
+    /// The probe reply recorded for <see cref="Cover"/> and <see cref="Perimeter"/> against the melee raid: two rifle
+    /// colonists, no turret, no shells; the raid engages the line on its sandbag cell and at its last cell, where the bags give
+    /// 0.75 against the shot from the south and the open ground none, and it engages the perimeter at the cell before its door,
+    /// which gives no cover.
     /// </summary>
     private const string Recorded = """
         {"context":{"identity":{"colonyId":"colony","loadToken":"load","mapId":0},"tick":100,"nativeGeneration":{"type":"unclaimed"}},
          "candidates":[
           {"id":"temporary_cover@21,52","lines":[
-            {"type":"traced","from":{"x":21,"z":53},"to":{"x":22,"z":46},"distance":7.07,"lineOfSight":true,"cover":0.75},
-            {"type":"traced","from":{"x":21,"z":53},"to":{"x":22,"z":49},"distance":4.12,"lineOfSight":true,"cover":0.75},
             {"type":"traced","from":{"x":21,"z":53},"to":{"x":22,"z":52},"distance":1.41,"lineOfSight":true,"cover":0.75},
-            {"type":"traced","from":{"x":21,"z":53},"to":{"x":22,"z":55},"distance":2.24,"lineOfSight":true,"cover":0},
             {"type":"traced","from":{"x":21,"z":53},"to":{"x":22,"z":58},"distance":5.1,"lineOfSight":true,"cover":0},
-            {"type":"traced","from":{"x":23,"z":53},"to":{"x":22,"z":46},"distance":7.07,"lineOfSight":true,"cover":0.75},
-            {"type":"traced","from":{"x":23,"z":53},"to":{"x":22,"z":49},"distance":4.12,"lineOfSight":true,"cover":0.75},
             {"type":"traced","from":{"x":23,"z":53},"to":{"x":22,"z":52},"distance":1.41,"lineOfSight":true,"cover":0.75},
-            {"type":"traced","from":{"x":23,"z":53},"to":{"x":22,"z":55},"distance":2.24,"lineOfSight":true,"cover":0},
             {"type":"traced","from":{"x":23,"z":53},"to":{"x":22,"z":58},"distance":5.1,"lineOfSight":true,"cover":0}]},
           {"id":"perimeter_doored@20,52","lines":[
-            {"type":"traced","from":{"x":22,"z":52},"to":{"x":22,"z":45},"distance":7,"lineOfSight":true,"cover":0},
-            {"type":"traced","from":{"x":22,"z":52},"to":{"x":22,"z":48},"distance":4,"lineOfSight":true,"cover":0},
             {"type":"traced","from":{"x":22,"z":52},"to":{"x":22,"z":51},"distance":1,"lineOfSight":true,"cover":0}]}],
          "shooters":[
           {"pawn":"Human1","verb":{"range":30,"minRange":0,"warmup":1,"cooldown":1.7,"burstShots":1,"burstSeconds":0,"lineOfSight":true},"shooting":8,"violentDisabled":false,"downed":false},
@@ -129,15 +123,23 @@ public sealed class DefenseProtectionTests
 
     private static IEnumerable<DefenseTerm> Terms(DefenseProtection p) => [p.Covered, p.Shots, p.Cover, p.Staffing, p.Ammunition, p.Power, p.Exposure];
 
-    /// <summary>(a) The lines join their candidate by id; a reply row for a candidate no probe asked for is refused, and an asked candidate the reply omits is named, not zeroed.</summary>
+    /// <summary>
+    /// (a) The lines join their candidate by id; a reply row for a candidate no probe asked for is refused, and an asked
+    /// candidate the reply omits is named, not zeroed. The melee raid engages the open line where its walk crosses the bags and
+    /// at its last cell, and the perimeter at the cell before the door that stops it; a rifle raid engages every walk cell
+    /// within its range of the pieces, and every observed walk is probed, not a newest few.
+    /// </summary>
     [Fact]
     public void LinesJoinByIdAndAnUnknownIdIsRefused()
     {
         var probes = DefenseProtectionRules.Probes([Cover, Perimeter]);
         Assert.Equal(["temporary_cover@21,52", "perimeter_doored@20,52"], probes.Select(p => p.Id));
-        Assert.Equal([new Cell(22, 46), new Cell(22, 49), new Cell(22, 52), new Cell(22, 55), new Cell(22, 58)], probes[0].Approach);
-        Assert.Equal([new Cell(22, 45), new Cell(22, 48), new Cell(22, 51)], probes[1].Approach);
+        Assert.Equal([new Cell(22, 52), new Cell(22, 58)], probes[0].Approach);
+        Assert.Equal([new Cell(22, 51)], probes[1].Approach);
         Assert.Equal(5, probes[1].Pieces.Count);
+        var rifles = Raid with { Range = 3, Trails = [.. Raid.Trails, [new Cell(30, 44), new Cell(30, 48)]] };
+        Assert.Equal([new Cell(22, 49), new Cell(22, 50), new Cell(22, 51), new Cell(30, 48)],
+            DefenseProtectionRules.Approach(rifles, Perimeter with { Threat = rifles }));
 
         var joined = DefenseProtectionRules.Protections([Cover, Perimeter], probes, Snapshot([Answer(probes[1])], [Shooter("Human1")]), Field());
         Assert.All(Terms(joined[0]), t => Assert.Equal("defense_probe:temporary_cover@21,52", Fact(t)));
@@ -148,7 +150,7 @@ public sealed class DefenseProtectionTests
         Assert.Equal(DefenseProtectionRules.UnknownCandidate("killbox@0,0"), refused.Fact);
     }
 
-    /// <summary>(b) Four firing cells and two able shooters: the violence-incapable and the downed colonists do not count, and the shortfall is named 4/2.</summary>
+    /// <summary>(b) Four firing cells and two able shooters: the violence-incapable and the downed colonists do not count; the shortfall is named 4/2 and the staffing term is the two able (priced, not unassessed).</summary>
     [Fact]
     public void StaffingExcludesTheViolenceIncapableAndTheDowned()
     {
@@ -156,7 +158,7 @@ public sealed class DefenseProtectionTests
         var probe = Assert.Single(DefenseProtectionRules.Probes([line]));
         var shooters = new[] { Shooter("Human1"), Shooter("Human2"), Shooter("Human3", violentDisabled: true), Shooter("Human4", downed: true), Shooter("Human5") with { Verb = null } };
         var p = Assert.Single(DefenseProtectionRules.Protections([line], [probe], Snapshot([Answer(probe)], shooters), Field()));
-        Assert.Equal("staffing:4/2", Fact(p.Staffing));
+        Assert.Equal(2, Value(p.Staffing));
         Assert.Contains("staffing:4/2", p.States);
         // The two who can shoot still fire from the first two cells.
         Assert.Equal(2 / 2.7, Value(p.Shots), 6);
@@ -189,7 +191,7 @@ public sealed class DefenseProtectionTests
         Assert.DoesNotContain(on.States, s => s.StartsWith("power:", StringComparison.Ordinal));
     }
 
-    /// <summary>(d) Rifles load nothing (a known zero, not unread); a mortar counts the shells in stock, and with none loaded or stocked its term names the mortar.</summary>
+    /// <summary>(d) Rifles load nothing (a known zero, not unread); a mortar counts the shells in stock, and with none loaded or stocked it reaches nothing: the term is the known zero stock and the state names the mortar.</summary>
     [Fact]
     public void RiflesNeedNoAmmunitionAndAMortarCountsItsShells()
     {
@@ -204,8 +206,9 @@ public sealed class DefenseProtectionTests
         Assert.Equal(3, Value(stocked.Staffing));
 
         var dry = Assert.Single(DefenseProtectionRules.Protections([Cover], [probe], Snapshot([Answer(probe, mortar.Cell)], shooters, [mortar], shells: 0), Field()));
-        Assert.Equal("shells:Turret_Mortar1", Fact(dry.Ammunition));
+        Assert.Equal(0, Value(dry.Ammunition));
         Assert.Contains("shells:Turret_Mortar1", dry.States);
+        Assert.True(Value(dry.Shots) <= Value(stocked.Shots));
     }
 
     /// <summary>(e) The field on the raid's walk counts before the perimeter's wall and not after it; the open sandbag line leaves it exposed.</summary>
@@ -237,7 +240,7 @@ public sealed class DefenseProtectionTests
         Assert.Equal("temporary_cover@21,52", line.Candidate);
         Assert.Equal(1, Value(line.Covered));
         Assert.Equal(2 / 2.7, Value(line.Shots), 6);
-        Assert.Equal(0.45, Value(line.Cover), 6);
+        Assert.Equal(0.375, Value(line.Cover), 6);
         Assert.Equal(2, Value(line.Staffing));
         Assert.Equal(0, Value(line.Ammunition));
         Assert.Equal(0, Value(line.Power));

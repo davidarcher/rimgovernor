@@ -273,13 +273,18 @@ public sealed class ReadingPolicyConverter : ObjectCodec<ReadingPolicy>
 public sealed class RecoveryServiceConverter : ObjectCodec<RecoveryService>
 {
     protected override RecoveryService Read(JsonElement e, Codecs o) =>
-        new(e.Get<PawnId>("Pawn", o), e.Str("Thing"), e.Get<RecoveryMethod>("Method", o));
+        new(e.Get<PawnId>("Pawn", o), e.Str("Thing"), e.Get<RecoveryMethod>("Method", o), e.StrOr("Fuel"), e.Has("Items") ? e.I32("Items") : 0);
 
     protected override void WriteFields(Utf8JsonWriter w, RecoveryService v, Codecs o)
     {
         w.Put("Pawn", v.Pawn, o);
         w.WriteString("Thing", v.Thing);
         w.Put("Method", v.Method, o);
+        if (v.Items > 0)
+        {
+            w.WriteString("Fuel", v.Fuel);
+            w.WriteNumber("Items", v.Items);
+        }
     }
 }
 

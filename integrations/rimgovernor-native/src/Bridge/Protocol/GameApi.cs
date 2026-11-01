@@ -208,6 +208,9 @@ namespace RimGovernor.Native
         public Task<RimGovernor.Brain.GameFacts.Observations.DefenseProbeSnapshot> ReadDefenseProbeAsync(RimGovernor.Brain.GameOrders.Observations.DefenseProbeRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadDefenseProbe, request, () => NativeDefenseProbe.HandleRead(request), cancellationToken);
 
+        public Task<RimGovernor.Brain.GameFacts.Observations.HaulProbeSnapshot> ReadHaulProbeAsync(RimGovernor.Brain.GameOrders.Observations.HaulProbeRequest request, CancellationToken cancellationToken)
+            => Read(NativeOps.ReadHaulProbe, request, () => NativeHaulProbe.HandleRead(request), cancellationToken);
+
         public Task<RimGovernor.Brain.GameFacts.Presentation.NotificationsSnapshot> ReadNotificationsAsync(RimGovernor.Brain.GameOrders.Presentation.NotificationsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadNotifications, request, () => NativeNotificationReadTools.HandleNotifications(request), cancellationToken);
 

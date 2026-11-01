@@ -30,13 +30,17 @@ public enum RecoveryMethod
 /// </summary>
 public sealed record RecoveryService : IActionPayload
 {
-    public RecoveryService(PawnId pawn, string thing, RecoveryMethod method)
+    public RecoveryService(PawnId pawn, string thing, RecoveryMethod method, string fuel = "", int items = 0)
     {
         DomainException.Require(pawn.IsValid && IdText.IsValidText(thing), "recovery service requires a valid pawn and thing identity");
         DomainException.Require(Wire.IsDefined(method), "recovery service requires a valid method");
         Pawn = pawn;
         Thing = thing;
+        DomainException.Require(items >= 0 && (fuel.Length == 0) == (items == 0) && (items == 0 || method == RecoveryMethod.Refuel),
+            "recovery service carries fuel items only for a refuel, both a fuel def and a count");
         Method = method;
+        Fuel = fuel;
+        Items = items;
     }
 
     public PawnId Pawn { get; }
@@ -44,6 +48,11 @@ public sealed record RecoveryService : IActionPayload
     public string Thing { get; }
 
     public RecoveryMethod Method { get; }
+
+    /// <summary>The fuel def a refuel carries and how many items of it (empty and 0 for any other method): what the order holds out of the colony's stock while it is open.</summary>
+    public string Fuel { get; }
+
+    public int Items { get; }
 }
 
 public sealed partial record DomainAction

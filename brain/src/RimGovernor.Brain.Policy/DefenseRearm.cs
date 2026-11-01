@@ -32,7 +32,7 @@ public static class DefenseRearm
             .OrderBy(b => b.Id, StringComparer.Ordinal)];
 
     /// <summary>Each spent turret's refuel decision over the servicing census of the same read and the refuels underway and refused.</summary>
-    public static IReadOnlyList<ServicingDecision> Refuels(IReadOnlyList<BuildingRow> empty, ServicingCensus? census, IReadOnlyList<ServicingUnderway> underway, IReadOnlyList<RefusedServicing> refused) =>
+    public static IReadOnlyList<ServicingDecision> Refuels(IReadOnlyList<BuildingRow> empty, ServicingCensus? census, IReadOnlyList<ServicingUnderway> underway, IReadOnlyList<RefusedServicing> refused, ServicingLedger? ledger = null) =>
         empty.Count == 0 ? [] : ServicingChoiceRules.Decide(new ServicingRequest
         {
             Considered = Considered,
@@ -41,6 +41,7 @@ public static class DefenseRearm
             Unneeded = new HashSet<string>(StringComparer.Ordinal),
             Underway = underway,
             Refused = refused,
+            Ledger = ledger,
         });
 
     /// <summary>The chosen refuels as exact RecoveryService refuels claiming their turret and pawn; an issued one continues its open Method.</summary>
@@ -49,14 +50,15 @@ public static class DefenseRearm
         var output = new List<NeedMethod>();
         foreach (var d in decisions)
         {
-            if (d.Underway is not null || d.Chosen.Kind != ServicingChoiceKind.Refuel)
+            if (ServicingChoiceRules.Continues(d) || d.Chosen.Kind != ServicingChoiceKind.Refuel)
             {
                 continue;
             }
             var pawn = new PawnId(d.Chosen.Pawn);
             var target = d.Target;
+            var (fuel, items) = ServicingChoiceRules.Carried(d);
             output.Add(new NeedMethod(need, new MethodId(RefuelMethod + target + "-" + d.Chosen.Pawn), ServicingChoiceRules.Describe(d),
-                id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewRecoveryServiceAction(new ActionId(id.Value + "-0"), new RecoveryService(pawn, target, RecoveryMethod.Refuel))])));
+                id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewRecoveryServiceAction(new ActionId(id.Value + "-0"), new RecoveryService(pawn, target, RecoveryMethod.Refuel, fuel, items))])));
         }
         return output;
     }

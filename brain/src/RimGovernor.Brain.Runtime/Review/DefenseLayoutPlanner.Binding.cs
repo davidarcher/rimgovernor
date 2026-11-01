@@ -211,12 +211,12 @@ public sealed partial class DefenseLayoutPlanner
         var (underway, refused) = HomeUpkeepReader.ServicingHistory(p.Journal, state.Snapshot, goal.Need, [DefenseRearm.RefuelMethod], f.ForecastObserved.WorkPawns.Pawns,
             [(HomeUpkeepReader.RefuelJob, RimGovernor.Brain.GameFacts.Observations.ServicingKind.Refuel)], call);
         var census = f.ForecastObserved.Coupled?.Servicing is { } servicing ? HomeUpkeepReader.ServicingCensusOf(servicing, colony.Tables.Buildings.Table.At) : null;
-        var decisions = DefenseRearm.Refuels(empty, census, underway, refused);
+        var decisions = DefenseRearm.Refuels(empty, census, underway, refused, colony.Servicing);
         var methods = DefenseRearm.Methods(goal.Need, decisions).Where(m => p.Journal.OwnerMethodPlan(goal, m.Method, call) is null).ToList();
         var tier = DefenseTurretsPolicy.TierTurrets.Value;
         if (methods.Count == 0)
         {
-            return decisions.Any(d => d.Underway is not null)
+            return decisions.Any(ServicingChoiceRules.Continues)
                 ? (new DefenseLayoutResult { Verdict = BuildingReasonExistingWork, Tier = tier }, true)
                 : (new DefenseLayoutResult { Verdict = AwaitingPlan(DefenseTurretFuel, string.Join("; ", decisions.Select(ServicingChoiceRules.Describe))), Tier = tier }, true);
         }

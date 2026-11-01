@@ -83,7 +83,8 @@ public abstract record ServicingAcquisition
 
 /// <summary>
 /// One target's compared alternatives and the one chosen: the best assessed, Defer when no work is. <see cref="Underway"/> is the
-/// servicing already at work on it (an open order or a running native job), which the choice continues instead of comparing.
+/// servicing already at work on it (an open order or a running native job): one alternative the choice compares, continued when it wins
+/// (<see cref="ServicingChoiceRules.Continues"/>), recorded beside the chosen alternative when another wins.
 /// </summary>
 public sealed record ServicingDecision(string Target, EquatableArray<ServicingDeficit> Deficits, EquatableArray<ServicingAlternative> Alternatives, ServicingAlternative Chosen)
 {
@@ -94,7 +95,7 @@ public sealed record ServicingDecision(string Target, EquatableArray<ServicingDe
 /// Servicing already at work on a target: <see cref="Issued"/> for an open order of the Need (its action not yet resolved),
 /// otherwise a pawn's running native job (JobDefOf.Repair, FixBrokenDownBuilding or Refuel) on it.
 /// </summary>
-public sealed record ServicingUnderway(string Target, ServicingKind Kind, string Pawn, bool Issued);
+public sealed record ServicingUnderway(string Target, ServicingKind Kind, string Pawn, bool Issued, string Fuel = "", int Items = 0);
 
 /// <summary>A servicing order the native refused in the current world while the refusal budget refuses its Method: a fact the choice reads, never retried.</summary>
 public sealed record RefusedServicing(string Target, ServicingKind Kind, string Pawn, string Reason);
@@ -147,6 +148,9 @@ public sealed record ServicingRequest
     public IReadOnlySet<string>? Unneeded { get; init; }
     public IReadOnlyList<ServicingUnderway> Underway { get; init; } = [];
     public IReadOnlyList<RefusedServicing> Refused { get; init; } = [];
+
+    /// <summary>The review's servicing ledger (ColonyReading.Servicing), shared by the requests of one review; null takes a fresh one.</summary>
+    public ServicingLedger? Ledger { get; init; }
 }
 
 public static partial class ServicingChoiceRules
@@ -162,26 +166,22 @@ public static partial class ServicingChoiceRules
     public const string FuelAcquisition = "fuel acquisition:", ComponentAcquisition = "component acquisition:";
 
     /// <summary>
-    /// Decides every target in order. Servicing underway on a target is continued. Otherwise each alternative is assessed: a repair,
+    /// Decides every target in order. Servicing underway on a target is one alternative (priced as done, its pawn held), compared
+    /// with the others for all the target's deficits and continued when it wins. Each other alternative is assessed: a repair,
     /// fix or replacement per measured worker (a pawn another target already took, an order refused under the budget, a target
     /// outside the home area or a component another fix holds excludes it); retiring, zero-loss only when the plan does not need
     /// the building (otherwise unassessed, naming the service it would lose); deferring, the baseline. The best assessed by
     /// <see cref="Compare"/> wins; a chosen fix holds one component, a chosen repair, fix or refuel its pawn, and a chosen refuel the
-    /// fuel items it carries (an issued refuel not yet running holds its items too), so two targets never count one stock twice.
+    /// fuel items it carries (an issued refuel not yet running holds the items its row carries, <see cref="ServicingUnderway.Items"/>), so two targets, or two
+    /// requests of one review sharing <see cref="ServicingRequest.Ledger"/>, never count one stock twice.
     /// </summary>
     public static IReadOnlyList<ServicingDecision> Decide(ServicingRequest r)
     {
         var decisions = new List<ServicingDecision>();
-        var pawns = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var u in r.Underway) pawns.Add(u.Pawn);
-        // An issued fix not yet running holds the component it will fetch; a running one has reserved or carried it.
-        var components = r.Census?.Components is ServicingComponents.Counted stock ? stock.Count - r.Underway.Count(u => u.Issued && u.Kind == ServicingKind.FixBreakdown) : (int?)null;
-        var fuel = new Dictionary<string, int>(r.Census?.Stock ?? new Dictionary<string, int>(), StringComparer.Ordinal);
-        foreach (var u in r.Underway.Where(u => u.Issued && u.Kind == ServicingKind.Refuel))
-        {
-            if (r.Census?.Options.OfType<ServicingOption.Assessed>().Select(o => o.Work).OfType<RefuelWork>().FirstOrDefault(w => w.Target == u.Target && w.Pawn == u.Pawn) is { } issued)
-                Take(fuel, issued);
-        }
+        // The review's ledger holds the underway pawns, an issued fix's component and an issued refuel's carried items (a running
+        // one has reserved or carried them), and what the targets decided before this one chose, in this request or another's.
+        var ledger = r.Ledger ?? new ServicingLedger();
+        ledger.Underway(r.Underway);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in r.Targets)
         {
@@ -189,18 +189,19 @@ public static partial class ServicingChoiceRules
             if (!seen.Add(id)) throw new DomainException($"servicing target {id} is listed twice");
             var deficits = DeficitsOf(row, r.Swaps, r.Considered);
             if (deficits.Count == 0) continue;
-            if (r.Underway.FirstOrDefault(u => u.Target == id && Resolves(u.Kind, deficits)) is { } underway)
+            ledger.Begin(id);
+            var alternatives = Alternatives(r, row, deficits, ledger);
+            // The work already at work on it is one alternative (priced as done, its pawn held), compared with the rest.
+            var underway = r.Underway.FirstOrDefault(u => u.Target == id && Resolves(u.Kind, deficits));
+            ServicingAlternative? continued = null;
+            if (underway is not null)
             {
-                var continued = new ServicingAlternative(ChoiceOf(underway.Kind), underway.Pawn, new ServicingStanding.Assessed(Effect(Without(deficits, underway.Kind), 0, 0, 0)));
-                decisions.Add(new(id, [.. deficits], [continued], continued) { Underway = underway });
-                continue;
+                continued = new ServicingAlternative(ChoiceOf(underway.Kind), underway.Pawn, new ServicingStanding.Assessed(Effect(Without(deficits, underway.Kind), 0, 0, 0)));
+                alternatives.Insert(0, continued);
             }
-            var alternatives = Alternatives(r, row, deficits, pawns, components, fuel);
             var chosen = alternatives.Where(a => a.Standing is ServicingStanding.Assessed).OrderBy(a => a, Comparer<ServicingAlternative>.Create(Compare)).First();
-            if (chosen.Kind is ServicingChoiceKind.Repair or ServicingChoiceKind.FixBreakdown or ServicingChoiceKind.Refuel) pawns.Add(chosen.Pawn);
-            if (chosen.Kind == ServicingChoiceKind.FixBreakdown) components--;
-            if (chosen.Work is RefuelWork carried) Take(fuel, carried);
-            decisions.Add(new(id, [.. deficits], [.. alternatives], chosen));
+            ledger.Take(id, ReferenceEquals(chosen, continued) ? null : chosen);
+            decisions.Add(new(id, [.. deficits], [.. alternatives], chosen) { Underway = underway });
         }
         return decisions;
     }
@@ -216,8 +217,16 @@ public static partial class ServicingChoiceRules
                 ? a.Kind == ServicingChoiceKind.FixBreakdown
                 : a.Kind is ServicingChoiceKind.Refuel or ServicingChoiceKind.Acquire)));
 
-    private static void Take(Dictionary<string, int> fuel, RefuelWork work) =>
-        fuel[work.Fuel.Value] = fuel.GetValueOrDefault(work.Fuel.Value) - work.Items;
+    /// <summary>The fuel and items a chosen refuel carries: its measured work's, or the continued order's own.</summary>
+    public static (string Fuel, int Items) Carried(ServicingDecision d) =>
+        d.Chosen.Work is RefuelWork w ? (w.Fuel.Value, w.Items) : d.Underway is { } u ? (u.Fuel, u.Items) : ("", 0);
+
+    /// <summary>
+    /// Whether the decision continues the servicing underway on its target (it won the comparison); otherwise the underway work
+    /// is only recorded beside the chosen alternative, and a consumer binds the chosen one.
+    /// </summary>
+    public static bool Continues(ServicingDecision d) =>
+        d.Underway is { } u && d.Chosen.Kind == ChoiceOf(u.Kind) && d.Chosen.Pawn == u.Pawn && d.Chosen.Work is null;
 
     /// <summary>
     /// The building's function first (an alternative that leaves it broken down loses), then fewer unresolved deficits, then the
@@ -255,7 +264,7 @@ public static partial class ServicingChoiceRules
     /// <summary>One clause per decision for a hold's detail: the target, its choice, and for a deferral why no work was chosen.</summary>
     public static string Describe(ServicingDecision d)
     {
-        if (d.Underway is { } u) return $"{d.Target}: {u.Kind} by {u.Pawn} underway";
+        if (Continues(d) && d.Underway is { } u) return $"{d.Target}: {u.Kind} by {u.Pawn} underway";
         if (d.Chosen.Kind == ServicingChoiceKind.Retire) return $"{d.Target}: retired by clearance";
         if (d.Chosen.Work is { } work) return $"{d.Target}: {ServicingRules.DescribeWork(work)}";
         if (d.Chosen.Chain is { } chain) return string.Create(CultureInfo.InvariantCulture,
@@ -272,25 +281,24 @@ public static partial class ServicingChoiceRules
 
     private static string By(string pawn) => pawn.Length == 0 ? "" : " by " + pawn;
 
-    private static List<ServicingAlternative> Alternatives(ServicingRequest r, BuildingRow row, List<ServicingDeficit> deficits, HashSet<string> pawns, int? components,
-        Dictionary<string, int> fuel)
+    private static List<ServicingAlternative> Alternatives(ServicingRequest r, BuildingRow row, List<ServicingDeficit> deficits, ServicingLedger ledger)
     {
         var id = row.Building.Id;
         var output = new List<ServicingAlternative>();
-        if (deficits.Contains(ServicingDeficit.Condition)) output.AddRange(Work(r, row, ServicingKind.Repair, deficits, pawns, components, fuel));
+        if (deficits.Contains(ServicingDeficit.Condition)) output.AddRange(Work(r, row, ServicingKind.Repair, deficits, ledger));
         if (deficits.Contains(ServicingDeficit.Breakdown))
         {
-            output.AddRange(Work(r, row, ServicingKind.FixBreakdown, deficits, pawns, components, fuel));
+            output.AddRange(Work(r, row, ServicingKind.FixBreakdown, deficits, ledger));
             // No component in stock and no observed path that acquires one: the fix waits on a named state, not a timer.
             if (r.Acquisitions is not null && r.Census is { Components: ServicingComponents.Counted { Count: <= 0 } } census)
                 output.Add(new(ServicingChoiceKind.Acquire, "", new ServicingStanding.Unassessed(ComponentAcquisition + census.Component)));
         }
         if (deficits.Contains(ServicingDeficit.Fuel))
         {
-            output.AddRange(Work(r, row, ServicingKind.Refuel, deficits, pawns, components, fuel));
-            if (r.Acquisitions is not null) output.Add(Chain(r, row, deficits, fuel));
+            output.AddRange(Work(r, row, ServicingKind.Refuel, deficits, ledger));
+            if (r.Acquisitions is not null) output.Add(Chain(r, row, deficits, ledger));
         }
-        if (deficits.Contains(ServicingDeficit.Swap)) output.AddRange(Work(r, row, ServicingKind.Replace, deficits, pawns, components, fuel));
+        if (deficits.Contains(ServicingDeficit.Swap)) output.AddRange(Work(r, row, ServicingKind.Replace, deficits, ledger));
         else if (r.Considered.Contains(ServicingDeficit.Swap) && r.Census?.Options.Any(o => o.Target == id && o.Kind == ServicingKind.Replace) == true)
             output.Add(new(ServicingChoiceKind.Replace, "", new ServicingStanding.Excluded(DoorPlanned)));
         output.Add(new(ServicingChoiceKind.Retire, "", Retire(r, row, deficits)));
@@ -303,11 +311,11 @@ public static partial class ServicingChoiceRules
     /// assessed with the first fuel's acquisition path (its duration unmeasured: the harvest is native-led), or unassessed naming
     /// <c>fuel acquisition:&lt;def&gt;</c> when no observed source yields any of its fuels.
     /// </summary>
-    private static ServicingAlternative Chain(ServicingRequest r, BuildingRow row, List<ServicingDeficit> deficits, Dictionary<string, int> fuel)
+    private static ServicingAlternative Chain(ServicingRequest r, BuildingRow row, List<ServicingDeficit> deficits, ServicingLedger ledger)
     {
         var defs = row.FuelDefinitions;
         if (defs.Count == 0) return new(ServicingChoiceKind.Acquire, "", new ServicingStanding.Unassessed("fuel def:" + row.Building.DefName));
-        if (defs.Any(d => fuel.GetValueOrDefault(d) > 0)) return new(ServicingChoiceKind.Acquire, "", new ServicingStanding.Excluded(FuelStocked));
+        if (defs.Any(d => FuelLeft(r.Census, ledger, d, row.Building.Id) > 0)) return new(ServicingChoiceKind.Acquire, "", new ServicingStanding.Excluded(FuelStocked));
         foreach (var def in defs)
         {
             if (r.Acquisitions!.GetValueOrDefault(def) is ServicingAcquisition.Path path)
@@ -331,8 +339,7 @@ public static partial class ServicingChoiceRules
         });
     }
 
-    private static IEnumerable<ServicingAlternative> Work(ServicingRequest r, BuildingRow row, ServicingKind kind, List<ServicingDeficit> deficits, HashSet<string> pawns, int? components,
-        Dictionary<string, int> fuel)
+    private static IEnumerable<ServicingAlternative> Work(ServicingRequest r, BuildingRow row, ServicingKind kind, List<ServicingDeficit> deficits, ServicingLedger ledger)
     {
         var id = row.Building.Id;
         var choice = ChoiceOf(kind);
@@ -354,13 +361,12 @@ public static partial class ServicingChoiceRules
             else
             {
                 var work = ((ServicingOption.Assessed)option).Work;
-                yield return new(choice, option.Pawn, Standing(r, census, row, work, deficits, pawns, components, fuel)) { Work = work };
+                yield return new(choice, option.Pawn, Standing(r, census, row, work, deficits, ledger)) { Work = work };
             }
         }
     }
 
-    private static ServicingStanding Standing(ServicingRequest r, ServicingCensus census, BuildingRow row, ServicingWork work, List<ServicingDeficit> deficits, HashSet<string> pawns, int? components,
-        Dictionary<string, int> fuel)
+    private static ServicingStanding Standing(ServicingRequest r, ServicingCensus census, BuildingRow row, ServicingWork work, List<ServicingDeficit> deficits, ServicingLedger ledger)
     {
         if (r.Refused.FirstOrDefault(x => x.Target == work.Target && x.Kind == work.Kind && x.Pawn == work.Pawn) is { } refused)
             return new ServicingStanding.Excluded(RefusedPrefix + refused.Reason);
@@ -368,7 +374,7 @@ public static partial class ServicingChoiceRules
         // never takes it. A repair or fix is a player-forced order (TryTakeOrderedJobPrioritizedWork), which the native gives
         // whatever the pawn's work priorities, so its WorkActive does not exclude it.
         if (work.Kind == ServicingKind.Replace && !work.WorkActive) return new ServicingStanding.Excluded(WorkInactive);
-        if (work.Kind != ServicingKind.Replace && pawns.Contains(work.Pawn)) return new ServicingStanding.Excluded(PawnTaken);
+        if (work.Kind != ServicingKind.Replace && ledger.PawnHeld(work.Pawn, work.Target)) return new ServicingStanding.Excluded(PawnTaken);
         // WorkGiver_Refuel takes a target anywhere; only the repair and fix givers require the home area.
         if (!work.InHomeArea && work.Kind != ServicingKind.Refuel) return new ServicingStanding.Excluded(OutsideHomeArea);
         var left = Without(deficits, work.Kind);
@@ -380,11 +386,12 @@ public static partial class ServicingChoiceRules
                 return new ServicingStanding.Assessed(Effect(left, 0, repair.Duration, 0));
             case FixBreakdownWork fix:
                 if (census.Components is ServicingComponents.Unread unread) return new ServicingStanding.Unassessed(unread.Fact);
-                if (components <= 0) return new ServicingStanding.Excluded(census.Components is ServicingComponents.Counted { Count: > 0 } ? ComponentTaken : ServicingRules.NoStock);
+                if (census.Components is ServicingComponents.Counted counted && counted.Count - ledger.ComponentsHeld(work.Target) <= 0)
+                    return new ServicingStanding.Excluded(counted.Count > 0 ? ComponentTaken : ServicingRules.NoStock);
                 if (fix.SuccessChance <= 0) return new ServicingStanding.Excluded(ServicingRules.ZeroRate);
                 return new ServicingStanding.Assessed(Effect(left, 0, fix.Duration / fix.SuccessChance, fix.Inputs.Sum(i => i.Count) / fix.SuccessChance));
             case RefuelWork refuel:
-                if (fuel.GetValueOrDefault(refuel.Fuel.Value) < refuel.Items) return new ServicingStanding.Excluded(FuelTaken);
+                if (FuelLeft(census, ledger, refuel.Fuel.Value, work.Target) < refuel.Items) return new ServicingStanding.Excluded(FuelTaken);
                 return new ServicingStanding.Assessed(Effect(left, 0, refuel.Duration, refuel.Items));
             case ReplacementWork swap:
                 var transition = swap.ServiceLoss is ServiceLoss.Enclosure e ? e.Ticks : 0;
@@ -392,6 +399,10 @@ public static partial class ServicingChoiceRules
         }
         throw new DomainException($"no maintenance choice for {work.Kind} of {row.Building.Id}");
     }
+
+    /// <summary>The usable stock of a fuel less what the servicing underway and the targets decided before <paramref name="target"/> hold.</summary>
+    private static int FuelLeft(ServicingCensus? census, ServicingLedger ledger, string fuel, string target) =>
+        (census?.Stock.GetValueOrDefault(fuel) ?? 0) - ledger.FuelHeld(fuel, target);
 
     private static ServicingEffect Effect(List<ServicingDeficit> left, double transition, double duration, double inputs) =>
         new(left.Contains(ServicingDeficit.Breakdown) || left.Contains(ServicingDeficit.Fuel), left.Count, transition, duration, inputs);

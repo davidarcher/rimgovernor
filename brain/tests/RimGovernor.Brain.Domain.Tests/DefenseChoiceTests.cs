@@ -104,11 +104,11 @@ public sealed class DefenseChoiceTests
         Assert.Equal(new DefensePrice.Unassessed(DefenseProtectionRules.Fogged), Row(again, Cover).Price);
     }
 
-    // (b) With one shooter, every firing line seating two is unstaffed; the retreat behind a standing door needs one and wins.
+    // (b) With the staffing fact unread, every firing line is unassessed; the retreat behind a standing door is priced and wins.
     [Fact]
-    public void RetreatWinsWhenEveryFiringLineNeedsMoreShootersThanTheColonyHas()
+    public void RetreatWinsWhenEveryFiringLineLeavesItsStaffingUnread()
     {
-        var unstaffed = new DefenseTerm.Unassessed("staffing:2/1");
+        var unstaffed = new DefenseTerm.Unassessed(DefenseProtectionRules.ProbeUnread);
         DefenseAlternative[] alternatives =
         [
             new(Retain, Guard("retain", 0, 0), null),
@@ -118,10 +118,74 @@ public sealed class DefenseChoiceTests
         ];
         var d = DefenseChoiceRules.Choose(alternatives, Inputs());
         Assert.Equal(DefenseCandidateKind.Retreat, d.Kind);
-        Assert.Equal(new DefensePrice.Unassessed("staffing:2/1"), Row(d, Cover).Price);
-        Assert.Equal(new DefensePrice.Unassessed("staffing:2/1"), Row(d, Perimeter).Price);
+        Assert.Equal(new DefensePrice.Unassessed(DefenseProtectionRules.ProbeUnread), Row(d, Cover).Price);
+        Assert.Equal(new DefensePrice.Unassessed(DefenseProtectionRules.ProbeUnread), Row(d, Perimeter).Price);
         Assert.Equal((1 - 0.4) * Loss * 60, Days(Row(d, Retreat)), 9);
         Assert.Equal(0, d.Deficit);
+    }
+
+    // An understaffed line is priced on what its staffed seats cover (staffing is an assessed count of the able shooters, the
+    // shortfall a named state), not left unassessed: it beats the retreat when the staffed seats still cover more.
+    [Fact]
+    public void AnUnderstaffedLineIsPricedOnItsStaffedSeatsCoverage()
+    {
+        var short1 = Guard(Cover.Key, 0.9, 1) with { States = ["staffing:2/1"] };
+        DefenseAlternative[] alternatives =
+        [
+            new(Retain, Guard("retain", 0, 0), null),
+            new(Retreat, Guard(Retreat.Key, 0.4, 1), null),
+            new(Cover, short1, Guard(Cover.Key + DefenseChoiceRules.StandingSuffix, 0, 1)),
+        ];
+        var d = DefenseChoiceRules.Choose(alternatives, Inputs());
+        var row = Row(d, Cover);
+        Assert.IsType<DefensePrice.Assessed>(row.Price);
+        Assert.Equal(1, Value(row.Alternative.Protection.Staffing));
+        Assert.Contains("staffing:2/1", row.Alternative.Protection.States);
+        Assert.Equal(DefenseCandidateKind.TemporaryCover, d.Kind);
+        Assert.Equal(Value(row.Construction) + (0.1 * Loss * (60 - Value(row.LeadDays))) + (Loss * Value(row.LeadDays)), Days(row), 9);
+    }
+
+    // Rows of an equal assessed price are ordered by more shots, then more cover, then the generator's order.
+    [Fact]
+    public void EqualPricesOrderByMoreShotsThenMoreCover()
+    {
+        DefenseAlternative Twin(string key, double shots, double cover) =>
+            new(Cover with { Key = key }, Guard(key, 0.8, 2) with { Shots = new DefenseTerm.Assessed(shots), Cover = new DefenseTerm.Assessed(cover) },
+                Guard(key + DefenseChoiceRules.StandingSuffix, 0, 2));
+        var baseline = new DefenseAlternative(Retain, Guard("retain", 0, 0), null);
+
+        var byShots = DefenseChoiceRules.Choose([baseline, Twin("a", 1, 0.5), Twin("b", 2, 0.1)], Inputs());
+        Assert.Equal("b", byShots.Chosen.Key);
+        var byCover = DefenseChoiceRules.Choose([baseline, Twin("a", 2, 0.1), Twin("b", 2, 0.5)], Inputs());
+        Assert.Equal("b", byCover.Chosen.Key);
+        var first = DefenseChoiceRules.Choose([baseline, Twin("a", 2, 0.5), Twin("b", 2, 0.5)], Inputs());
+        Assert.Equal("a", first.Chosen.Key);
+    }
+
+    // A bound choice whose pieces are not all built pays its routes as the same candidate does as an alternative.
+    [Fact]
+    public void ABoundUnbuiltBaselinePaysItsRoutesLikeAnAlternative()
+    {
+        var route = new DefenseRouteChange(DefenseCandidateRules.RouteMapEdge, new DefenseRouteEffect.Longer(2));
+        var trips = new Dictionary<string, double> { [DefenseCandidateRules.RouteMapEdge] = 6 };
+        var inputs = Inputs() with { Trips = trips };
+        var expected = 2 * FieldPlacementRules.WalkTicksPerCell * 6 / GameTime.TicksPerDay * ColonyModelPolicy.DefaultHorizonDays;
+
+        var bound = Cover with { Kind = DefenseCandidateKind.Retain, Key = "retain", Routes = [route] };
+        var retained = DefenseChoiceRules.Choose([new(bound, Guard("retain", 0.8, 2), Guard("retain" + DefenseChoiceRules.StandingSuffix, 0, 2))], inputs);
+        var row = Row(retained, bound);
+        Assert.Equal(expected, Value(row.Routes), 9);
+
+        var alt = Cover with { Routes = [route] };
+        var asAlternative = DefenseChoiceRules.Choose(
+            [new(Retain, Guard("retain", 0, 0), null), new(alt, Guard(alt.Key, 0.8, 2), Guard(alt.Key + DefenseChoiceRules.StandingSuffix, 0, 2))], inputs);
+        var other = Row(asAlternative, alt);
+        Assert.Equal(Value(other.Routes), Value(row.Routes), 9);
+        Assert.Equal(Days(other), Days(row), 9);
+
+        var unprobed = bound with { Routes = [new DefenseRouteChange(DefenseCandidateRules.RouteMapEdge, new DefenseRouteEffect.Unprobed())] };
+        var blind = DefenseChoiceRules.Choose([new(unprobed, Guard("retain", 0.8, 2), Guard("retain" + DefenseChoiceRules.StandingSuffix, 0, 2))], inputs);
+        Assert.Equal(new DefensePrice.Unassessed(DefenseCandidateRules.RouteMapEdge + ":unprobed"), Row(blind, unprobed).Price);
     }
 
     // (c) A perimeter laid over a standing killbox's traps replaces them: while it is built the killbox's protection is lost,

@@ -117,7 +117,7 @@ namespace RimGovernor.Native
             return new RimGovernor.Brain.GameFacts.Observations.DefenseSiteSnapshot { Context = context, Cells = [.. rows] };
         }
 
-        // The hostile lords RaidArrivalState keeps (live, and the newest finished ground raids, saved with the map), oldest first.
+        // The hostile lords RaidArrivalState keeps (live, and every finished ground raid, saved with the map), oldest first.
         internal static IEnumerable<RimGovernor.Brain.GameFacts.Observations.RaidTrack> RaidTracks(Map map)
         {
             var raids = map.GetComponent<RaidArrivalState>();

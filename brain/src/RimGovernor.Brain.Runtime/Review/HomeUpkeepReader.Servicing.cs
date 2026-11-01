@@ -62,7 +62,7 @@ partial class HomeUpkeepReader
                     progress.Action.RecoveryService.Pawn.Value);
             if (!plan.Retired && WorkProgress.Open([progress]))
             {
-                underway.Add(new(target, kind, pawn, true));
+                underway.Add(new(target, kind, pawn, true, progress.Action.RecoveryService?.Fuel ?? "", progress.Action.RecoveryService?.Items ?? 0));
             }
             else if (progress.View.Stage == Stage.Unsuccessful)
             {

@@ -93,6 +93,27 @@ public sealed partial class GameClient
         return census;
     }
 
+    /// <summary>The relocation haul probe (task 8.1): the legs the room reconcile names, walked by the game's pathfinder.</summary>
+    internal async Task<RimGovernor.Brain.GameFacts.Observations.HaulProbeSnapshot> ReadHaulProbeAsync(Identity expected, IReadOnlyList<RimGovernor.Brain.GameOrders.Observations.HaulProbeLeg> legs, CancellationToken cancellationToken)
+    {
+        expected.Validate();
+        if (!ColonyContexts.SameColonyContext(expected, expected))
+        {
+            throw new ObservationContractException("expected identity lacks a native generation");
+        }
+        var request = new RimGovernor.Brain.GameOrders.Observations.HaulProbeRequest
+        {
+            Scope = new RimGovernor.Brain.GameFacts.Observations.ReadScope { ExpectedIdentity = new RimGovernor.Brain.GameFacts.Common.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value } },
+            Legs = EquatableArray.From(legs),
+        };
+        var probed = await Facade.ReadHaulProbeAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!ColonyContexts.SameColonyContext(new ObservationIdentity { Context = probed.Context }, expected))
+        {
+            throw new ObservationChangedException();
+        }
+        return probed;
+    }
+
     internal static class SiteBudgets
     {
         // Salvage evidence tunables sent on every clearance read. Native computes

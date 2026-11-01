@@ -309,6 +309,16 @@ or second demand owner is introduced. See [roof preparation](pawn-activities.md#
   `construction rate:<def>`) leaves the option Unassessed naming it. A refuel is the `power/basic`
   Need's ([power contracts](power-contracts.md#restoration)); a breakdown fix stays here even for
   a generator.
+- One review shares one `ServicingLedger` (`ColonyReading.Servicing`, per reading, nothing remembered between
+  reviews): home upkeep, power restoration and defense rearm read and take the breakdown component, the fuel items
+  and the pawns from it, so one component or fuel item serves one target across the three choices. The ledger is the
+  reading's, as the bridging ledger is: a family that observes its own `ColonyReading` in the same review has its own
+  ledger, so the three choices share one stock only where they share one reading. Servicing underway
+  (an open order or a running job) is one alternative compared with the rest for all of the target's deficits and is
+  continued only when it wins; otherwise `ServicingDecision.Underway` still records it beside the chosen alternative
+  (`ServicingChoiceRules.Continues`) and its pawn stays held. An issued refuel carries its fuel def and items on its
+  `RecoveryService` payload and so on the `ServicingUnderway` row, which holds them from the ledger even after the
+  census stops measuring its option.
 - No concern owns fire. A home fire neither raises a need nor pauses development work;
   native firefighting answers it.
 - Methods inspect at most eight targets and eight enabled, available workers per

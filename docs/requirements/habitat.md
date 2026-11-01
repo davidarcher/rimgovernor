@@ -671,7 +671,7 @@ comparison priced in capability-days, and one chosen alternative bound into the 
   killbox tiers the Killbox candidate lays.
 - **Probed protection (RG-HABITAT-009, -008).** [DefenseProtectionTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/DefenseProtectionTests.cs)
   check that rows join the candidates by id and an unknown id is refused, that violence-incapable and downed colonists
-  are not staffing, that an unpowered turret protects nothing and is named `power:<turret>` while a powered one fires
+  are not staffing (a shortfall is named and priced on the able shooters), that an unpowered turret protects nothing and is named `power:<turret>` while a powered one fires
   its burst, that rifles need no ammunition and a mortar counts its shells, that a field on the approach counts before the
   wall and not after, that a recorded native reply gives the cover and the doored perimeter different protection, that a
   raider's weapon range sets the exposed positions, that the probe round-trips exactly, and that no observed arrival
@@ -710,9 +710,10 @@ Known limits, stated rather than priced:
 - the approximations of the comparison: a power shortfall scales the whole coverage instead of the turrets it starves,
   and removing a defense charges its full baseline protection;
 - `Covered` is a probed-cell fraction, a stated stand-in for the share of the loss the defense stops, not a simulated
-  fight; the approach cells are the newest three observed ground raids' walks sampled every third cell (a policy choice),
-  so a colony that has seen no ground raid since load has every term unassessed (`arrival_edges:none_observed_since_load`)
-  and no term is compared as a number;
+  fight; the approach cells are every observed ground raid's walked cells within the raid's weapon range of a cell the
+  candidate engages from, plus each walk's end (nothing sampled or counted off; a review before 2026-11-01 took the newest
+  three raids every third cell, since removed), so a colony that has never kept a ground raid has every term unassessed
+  (`arrival_edges:none_observed`) and no term is compared as a number;
 - the cover block chance restates the private `CoverUtility.TryFindAdjustedCoverInCell` factors
   ([kept constants](../developers/contracts/kept-constants.md#mirrored-game-rules-cover-block-chance-habitat-72));
 - raider weapon range comes from the native raid track and is memory, not saved: it is read live only, and the native
@@ -813,8 +814,12 @@ Known limits, stated rather than priced:
   memory), so a standing piece that does not protect is not told from one that does;
 - power conduits and structure are not transition targets and none is proposed for removal, and definitions other lanes carry
   in owned rooms are never proposed;
-- Relocate exists only on planned ground: clearance, a host's spare and a spare bed have no slot (`no_destination`), and the
-  haul to a slot is a lower bound because no path to a cell not yet built is read; a broken-down building relocated arrives
+- Relocate exists only on planned ground: clearance, a host's spare and a spare bed have no slot (`no_destination`); the haul
+  to a slot is the game's own walk, read by the haul probe (`observations_read_haul_probe`) for the legs the reconcile names,
+  and unread (`haul_unprobed`, Relocate unassessed) until it is (`TransitionServiceTests.AMinifiableBedRelocatesIntoAnOpenBedSlotRatherThanTheSlotBeingBuiltNew`,
+  extended 2026-11-01: before it the haul was an octile distance through walls); a slot a bound Relocate moves another room's
+  piece into is held by that room, neither built nor installed meanwhile
+  (`TransitionHandsTests`, same date); a broken-down building relocated arrives
   broken, so Relocate loses its service over the horizon as Retain does and the fix wins
   (`TransitionChoiceTests.RelocatingABrokenDownBuildingMovesItBrokenSoTheFixWinsAndTheMoveLosesTheHorizon`, added 2026-11-01:
   before it the move was priced as if it restored service);
@@ -874,7 +879,7 @@ state blocks the scenario's main outcome although a read or proposer could exist
 | 008 Interrupted services have different consequences | `UtilityChoiceRules.Choose` (configure, route, generate, store, shelter, passive) → topology, thermal read → `PowerValuationRules.Valuation` per consumer | the `configure-` Method's `switch/<thing>` claims → `PowerSwitchAction` → a later building read (`BuildingPlanner.PowerSwitchHold`) | unit: `PowerUtilityTests.SwitchingAnIdleBenchOffBeatsANewGeneratorWhenAFreezerIsSpoiling`, `.AShortWinterNetworkOfABenchAPatientsMonitorAndABedroomHeaterBuilds`, `.StorageIsSizedByThePricedInterruption`, `PowerSwitchTests.TheIdleBenchIsSwitchedOffHeldAndSwitchedBackOnInSurplus`; native `power/configure-and-route` | Complete |
 | 008 A reserve shares the primary system's vulnerability | the same choice → rain rate (`UtilityExposure`), fuel runway, network shedding → the same choice | as above | unit: `PowerUtilityTests.RoofingAnExposedBankBeatsASecondBatteryOnlyWhileTheRateIsRead`, `.SolarWinsUnderOpenSkyAndWoodWinsInACave`, `.RoutingToASurplusNetworkBeatsANewGenerator`, `.APassiveCoolerInBandBeatsThePoweredOneWhenPowerIsShort`, `PowerRestorationTests.TwoEmptyGeneratorsCannotClaimTheSameFuelTwice` | Partial (open): the shared-producer dependence (a reserve on the net its primary powers) is unpriced (H13's gap list) and asserted by no test; the cited fuel test proves one stock is spent once, not the dependence |
 | 009 Defensive arrangements impose different operating burdens | `DefenseCandidateRules.Generate`/`Constrain` → `DefenseCandidateRules.ThreatOf` over the native raid tracks saved with the map (`RaidTrackLog`, `RaidArrivalState.ExposeData`), the native probe (`DefenseProtectionRules.Probes`/`Protections`) → `DefenseChoiceRules.Choose` | `DefenseBindingRules.Bind`, `defense-choice-<kind>-` Methods → `BuildingAction` → the deficit stays until the piece stands and draws (`DefenseBindingRules.Next`) | unit: `DefenseCandidatesTests.WithNoThreatReadNoKillboxIsLaidAndAlternativesStand`, `DefenseProtectionTests.AnUnpoweredTurretIsZeroAndNamedAndAPoweredOneFiresItsBurst`, `.RecordedCoverAndDooredPerimeterGetDifferentProtection`, `DefenseChoiceTests.ASandbagLineBeatsADooredPerimeterAtTheSameProtectionUntilItsSightIsFogged`, `.AnAcceptedBuildLeavesTheDeficitUntilThePieceStandsAndDraws`, `DefenseBindingTests.ABoundChoiceSurvivesLoadWithoutReselection`, `ThreatFactsTests.ASavedGroundRaidPricesItsArrivalEdgeAfterLoadAndAFreshSaveNamesNoneObserved`, `DefenseProtectionTests.NoArrivalEdgesLeaveEveryTermUnassessed`; native probe `native-raid-track-log` | Complete (a save that never kept a ground raid names `arrival_edges:none_observed`, which the requirement allows) |
-| 009 Temporary defenses or retreat positions are useful | the TemporaryCover and Retreat candidates → staffing, civilians (`DefenseProtectionRules.Civilians`), lead → `DefenseChoiceRules.Choose` | as above | unit: `DefenseChoiceTests.RetreatWinsWhenEveryFiringLineNeedsMoreShootersThanTheColonyHas`, `.ATemporaryLineWinsOnTheGameShapedReadingAndRetainsWhileAnyOfItIsUnread`, `DefenseCandidatesTests.RetreatUsesTheStandingInteriorDoorsAndClaimsNoGround`, `DefenseProtectionTests.StaffingExcludesTheViolenceIncapableAndTheDowned`, `ThreatFactsTests.ASavedGroundRaidPricesItsArrivalEdgeAfterLoadAndAFreshSaveNamesNoneObserved`; native `defense/temporary-cover` | Complete (as above) |
+| 009 Temporary defenses or retreat positions are useful | the TemporaryCover and Retreat candidates → staffing, civilians (`DefenseProtectionRules.Civilians`), lead → `DefenseChoiceRules.Choose` | as above | unit: `DefenseChoiceTests.RetreatWinsWhenEveryFiringLineLeavesItsStaffingUnread`, `.AnUnderstaffedLineIsPricedOnItsStaffedSeatsCoverage`, `.ATemporaryLineWinsOnTheGameShapedReadingAndRetainsWhileAnyOfItIsUnread`, `DefenseCandidatesTests.RetreatUsesTheStandingInteriorDoorsAndClaimsNoGround`, `DefenseProtectionTests.StaffingExcludesTheViolenceIncapableAndTheDowned`, `ThreatFactsTests.ASavedGroundRaidPricesItsArrivalEdgeAfterLoadAndAFreshSaveNamesNoneObserved`; native `defense/temporary-cover` | Complete (as above) |
 | 010 A damaged generator no longer justifies restoration | `ServicingChoiceRules.Transition`, `PowerRestorationRules.Decide`, `HomeUpkeepFamily.Decide` (Retire) → servicing and transition reads → the same comparators | `CommitClaimedMethod` → fix, refuel or removal orders → `TransitionBridgingRules.PowerUnserved`, `PowerFamily.Basic` | unit: `TransitionChoiceTests.ADamagedIdleBenchIsRetainedAndOnlyABreakdownUnderABillQueueBuysTheFix`, `PowerRestorationTests.WithNoStockAndNoPathTheChainIsANamedStateAndGenerationWins`, `.ABrokenGeneratorWithAComponentIsFixedAndWithoutOneTheAcquisitionIsANamedState`, `HomeUpkeepFamilyTests.RetireWinsOnlyWhenItsLossIsAssessedZero`, `TransitionBridgingTests.AGeneratorIsHeldUntilItsReplacementPowersTheNetAndAReplacementBreakdownReopensAndCancels` | Complete |
 | 010 Redevelopment displaces occupied accommodation | `ReconcileRules.Reconcile`/`RelocationSlots` → `ServicingActivityRead.Transitions` (native) → `ServicingChoiceRules.Choose` | `TransitionBindingRules` on the plan and the `TransitionBridgingRules.RestUnserved` gate → `MoveBuildingAction` (reinstall), uninstall and deconstruct designations → `TransitionBindingRules.Settled` | unit: `TransitionBridgingTests.AnOccupiedBedIsKeptWhileItsReplacementIsUnassignableAndRemovedOnceTheSleeperIsAssigned`, `TransitionServiceTests.AnUnownedBedOnAPlannedKitchenFootprintIsStoredAndAnOwnedBedStays`, `TransitionChoiceTests.ASpareBedLosesItsRemovalWhileADatedArrivalNeedsIt`, `TransitionBindingTests.BoundTransitionsSurviveLoadAndAreNotComparedAgain`, `TransitionHandsTests.TheReinstallIsOneMoveOfTheStandingBuildingOntoItsSlot`; native `redevelopment/replace-before-remove` | Complete |
 | 010 A spot or room outlives its original purpose | `HostSharing.HostRetirementsOf`, `ReconcileRules.Reconcile` → the transition read → `ServicingChoiceRules.Choose` (retain, relocate, store, remove; Repurpose excluded) | as above | unit: `TransitionChoiceTests.AHostRetirementIsAComparedRemoveThatLosesWhileTheReplacementDoesNotServe`, `.StoreIsExcludedWithNoStockpileThatAcceptsTheBuilding`, `TransitionServiceTests.OmissionAloneNeverRemovesAndAGatedRemovalIsANamedHoldWithNoOrder`, `HostRetirementTests.ASpareRetiresOnlyOnceItsReplacementServes` | Partial (b): Repurpose `no_typed_op` |
@@ -913,7 +918,8 @@ for it.
 - **`arrival_edges:none_observed_since_load` (both 009 rows)** with this audit update. The native saves its raid tracks
   with the map (`RaidTrackLog`, `RaidArrivalState.ExposeData`;
   [persistence contracts](../developers/contracts/persistence-contracts.md#what-must-survive)), and a lord unseen for a day
-  no longer drops its ground walk: the newest eight finished ground tracks stay. The probe's approaches and the raider
+  no longer drops its ground walk: every finished ground track stays (a trail holds each cell once, so the save is bounded by
+  the map, not by a count of raids). The probe's approaches and the raider
   weapon range survive days and loads, and the reason is now `arrival_edges:none_observed` (a save that never kept a ground
   raid), which the requirement allows. The old name was also wrong within a session: a track was evicted a day after its
   lord was last seen, load or not. No session-journal shape changed, so the store schema stays 78.
@@ -953,7 +959,7 @@ building's use other than a bed's medical, prisoner and slave settings, which th
   and no field or pen has been built under the comparison in a game; no barn ring with its placed flap has been built in a game.
 - *Defense:* builders are not claimed per pawn; a power shortfall scales the whole coverage; removing a defense charges its
   full baseline protection; `Covered` is a probed-cell fraction over a sampled approach, not a simulated fight; the cover
-  block chance is restated from game code; at most eight finished ground raids are kept with the map; killbox mining is unpriced
+  block chance is restated from game code; a staffing shortfall (`staffing:<needed>/<able>`) and a shell-less mortar (`shells:<turret>`) are priced on the seats and turrets that do reach, and shots and cover only order rows of equal price; a bound baseline with unbuilt pieces pays its routes as an alternative does; every finished ground raid is kept with the map; killbox mining is unpriced
   (`dig:mining_unpriced`), and an unpriced piece is `piece:<def>`; `RetainPerimeter`, `PerimeterHold` and the stored
   `DefenseLayoutRecord` still serve a retained layout with the older tier code; `PlanPerimeter` still traces the sites, and
   the routing cut is logged advice.

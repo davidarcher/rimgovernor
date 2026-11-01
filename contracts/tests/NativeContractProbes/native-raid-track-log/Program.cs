@@ -34,11 +34,14 @@ internal static class NativeRaidTrackLogProbe
         loaded.Sample(7, "Pirate", 900000, (2, 40), true, (8, 41), 0f);
         Require(loaded.Tracks.Single().Trail.Count == 3, "a loaded track samples on");
 
-        // Only the newest finished ground tracks stay.
+        // Every finished ground track stays (no authored count), and a trail holds each cell once however long the lord lives.
         var many = new RaidTrackLog();
-        for (var lord = 0; lord < RaidTrackLog.KeptGroundRaids + 3; lord++) many.Sample(lord, "Tribe", 1000 * lord, (0, lord), true, (1, lord), 0f);
-        many.Evict(1000 * (RaidTrackLog.KeptGroundRaids + 3) + RaidTrackLog.FinishedAge + 1);
-        Require(many.Count == RaidTrackLog.KeptGroundRaids && many.Tracks.First().LordId == 3, "the newest kept ground raids stay, the oldest go");
+        for (var lord = 0; lord < 11; lord++) many.Sample(lord, "Tribe", 1000 * lord, (0, lord), true, (1, lord), 0f);
+        many.Evict(11000 + RaidTrackLog.FinishedAge + 1);
+        Require(many.Count == 11 && many.Tracks.First().LordId == 0, "every finished ground raid stays");
+        var pacing = new RaidTrackLog();
+        for (var tick = 0; tick < 6000; tick += 60) pacing.Sample(1, "Tribe", tick, (0, 0), true, (tick / 60 % 3, 0), 0f);
+        Require(pacing.Tracks.Single().Trail.Count == 3, "a trail holds each cell once");
 
         // A save from before the log, or a malformed one, loads no track.
         loaded.Import(null, null, null);
@@ -47,7 +50,7 @@ internal static class NativeRaidTrackLogProbe
         Require(loaded.Count == 0, "a truncated trail loads none");
         loaded.Import(ints, factions, new List<float>());
         Require(loaded.Count == 0, "mismatched lists load none");
-        Console.WriteLine("native-raid-track-log: sampling, ground retention, kept bound, save round trip and malformed loads passed");
+        Console.WriteLine("native-raid-track-log: sampling, ground retention, unbounded ground retention, save round trip and malformed loads passed");
     }
 
     private static void Require(bool condition, string message)

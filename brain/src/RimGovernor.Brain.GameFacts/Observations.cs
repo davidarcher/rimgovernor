@@ -2964,6 +2964,22 @@ public sealed record DefenseProbeAnswer
 }
 
 /// <summary>
+/// The haul probe's answer (RG-HABITAT-010): per requested leg, the worker's walk in ticks (<see cref="TransitionLeg.Walked"/>,
+/// the pathfinder's own cost at that pawn's move ticks) or why it is unread (<c>no_path</c>, <c>pawn_unspawned</c>). Native
+/// answers every row or throws.
+/// </summary>
+public sealed record HaulProbeSnapshot
+{
+    public required RimGovernor.Brain.GameFacts.Common.ObservationContext Context { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<HaulProbeAnswer>))]
+    public required EquatableArray<HaulProbeAnswer> Legs { get; init; }
+}
+
+/// <summary>One answered haul, keyed by the request's id.</summary>
+public sealed record HaulProbeAnswer(string Id, TransitionLeg Leg);
+
+/// <summary>
 /// One (firing, approach) pair under the candidate's planned pieces: fogged at either end (distance only), or traced with
 /// GenSight.LineOfSight (skipping the firing cell, a planned full-fill piece blocking) and the block chance the firing cell's
 /// cover gives against a shot from the approach cell (CoverUtility.CalculateOverallBlockChance, planned pieces as cover).

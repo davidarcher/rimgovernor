@@ -219,6 +219,7 @@ public sealed class PowerReview
                 Census = f.ForecastObserved.Coupled?.Servicing is { } servicing ? HomeUpkeepReader.ServicingCensusOf(servicing, colony.Tables.Buildings.Table.At) : null,
                 Underway = [.. refuels, .. fixes],
                 Refused = [.. refusedRefuels, .. refusedFixes],
+                Ledger = colony.Servicing,
                 Sources = f.Acquisition,
                 Held = held,
             },

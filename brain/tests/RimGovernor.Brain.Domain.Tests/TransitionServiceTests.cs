@@ -156,11 +156,25 @@ public sealed class TransitionServiceTests
 
         // With the slot's build priced, reinstalling the bed there avoids building a new one: one Reinstall op pairs the
         // standing bed with its slot (task 8.4, the game's one Reinstall order), with no separate pack, install or build.
-        var facts = Read(sleeping, TransitionFixtures.Packing(rows), new TransitionBuild.Priced(5));
+        // The haul is the game's walk, not a distance: unread naming haul_unprobed until the probe answers the leg the reconcile
+        // names (the bed's worker from its footprint to the slot), then the probe's ticks.
+        var unprobed = Read(sleeping, TransitionFixtures.Packing(rows), new TransitionBuild.Priced(5));
+        Assert.Equal(new TransitionLeg.Unread(ServicingRules.HaulUnprobed), ReconcileRules.RelocationSlots(rows, [BedSlot], [], unprobed)["old"].Haul);
+        ReconcileInput Input(TransitionFacts transitions) => new()
+        {
+            Rooms = RoomTestFacts.NoRooms, Plan = new LayoutPlan { Rooms = [Bedroom] }, Room = Bedroom, Ground = new GroundCensus(),
+            Rows = ReconcileRules.OwnerRows(Bedroom, rows, [BedSlot], null, _ => false), Furniture = [BedSlot], Transitions = transitions,
+        };
+        var leg = Assert.Single(ReconcileRules.UnprobedHauls(Input(unprobed)));
+        Assert.Equal(new RimGovernor.Brain.GameOrders.Observations.HaulProbeLeg("old", TransitionFixtures.Builder.Pawn, new Cell(13, 13), BedSlot.Minimum), leg);
+        var facts = unprobed with { Hauls = (id, to) => id == "old" && to == BedSlot.Minimum ? new TransitionLeg.Walked(70) : null };
         var destinations = ReconcileRules.RelocationSlots(rows, [BedSlot], [], facts);
         var destination = destinations["old"];
-        Assert.Equal(new TransitionLeg.Walked((2 + 2 * (1.41421 - 1)) * 13), destination.Haul);
+        Assert.Equal(new TransitionLeg.Walked(70), destination.Haul);
         Assert.Same(BedSlot, destination.Piece);
+        // With the haul unread, the move is unassessed and nothing is reinstalled; answered, no leg is left to ask.
+        Assert.DoesNotContain(Reconcile(Bedroom, [BedSlot], rows, unprobed).Owed, o => o.Kind == OpKind.Reinstall);
+        Assert.Empty(ReconcileRules.UnprobedHauls(Input(facts)));
         var moved = Reconcile(Bedroom, [BedSlot], rows, facts);
         var reinstall = Assert.Single(moved.Owed, o => o.Kind == OpKind.Reinstall);
         Assert.Equal("old", Assert.Single(reinstall.Targets).EntityId);

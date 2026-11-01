@@ -350,8 +350,8 @@ deficit's baseline and wins ties; an excluded or unassessed remedy never wins.
 - **Feeding.** *Haul feed*: the colony's pasture-edible feed lying outside every enclosed pen
   (`FoodChannelsFacts.PenFeed`) goes into a feed store inside the pen through a ledger in unit order, so no stock
   feeds two pens (`no_pen_feed_outside_pens` when there is none). The `HerdOwner` store registry creates the
-  `penfeed:<herd>` stockpile, sized by the gross feed need over the smallest feed stack's nutrition per cell (at most
-  16 cells) and retired once the pasture suffices. *Hay field*: the remainder is the hay demand
+  `penfeed:<herd>` stockpile, sized by the gross feed need over the smallest feed stack's nutrition per cell (no authored
+  ceiling: the need is the size) and retired once the pasture suffices. *Hay field*: the remainder is the hay demand
   (`HerdArrangementRules.HayDemand`) the shared [field ledger](spatial-contracts.md#field-placement-comparison-rg-habitat-006)
   places. *Expand pen* is excluded (the layout's pen growth, `layout_pen_growth_owed` or `pen_at_pasture_size`) and
   *cull* is excluded (`cull_derived_by_animals_herd`: the herd plan's feed ratio owns it).

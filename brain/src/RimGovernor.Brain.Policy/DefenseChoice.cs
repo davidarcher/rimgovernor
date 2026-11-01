@@ -284,6 +284,21 @@ public static class DefenseChoiceRules
 
     private static string Fact(DefenseTerm t) => ((DefenseTerm.Unassessed)t).Fact;
 
+    /// <summary>
+    /// Whether <paramref name="row"/> orders ahead of <paramref name="best"/> at an equal assessed price: more shots, then more
+    /// cover. Firepower and cover only order equal prices and are otherwise unpriced, because no fact converts them to loss
+    /// stopped (the model has no fight); a still-equal row keeps the earlier one (the generator's order).
+    /// </summary>
+    private static bool Orders(DefenseChoiceRow row, DefenseChoiceRow best)
+    {
+        var (rs, bs) = (Value(row.Alternative.Protection.Shots) ?? 0, Value(best.Alternative.Protection.Shots) ?? 0);
+        if (Math.Abs(rs - bs) > Tolerance)
+        {
+            return rs > bs;
+        }
+        return (Value(row.Alternative.Protection.Cover) ?? 0) > (Value(best.Alternative.Protection.Cover) ?? 0) + Tolerance;
+    }
+
     /// <summary>Picks among <paramref name="alternatives"/> (Retain among them, the baseline) at <paramref name="inputs"/>.</summary>
     public static DefenseDecision Choose(IReadOnlyList<DefenseAlternative> alternatives, DefenseChoiceInputs inputs)
     {
@@ -307,7 +322,8 @@ public static class DefenseChoiceRules
             var row = Priced(a, baseline, inputs);
             rows.Add(row);
             if (basePrice is DefensePrice.Assessed { Days: var floor } && row.Price is DefensePrice.Assessed { Days: var p }
-                && best.Price is DefensePrice.Assessed { Days: var current } && p < Math.Min(floor, current) - Tolerance)
+                && best.Price is DefensePrice.Assessed { Days: var current }
+                && (p < Math.Min(floor, current) - Tolerance || (p < floor - Tolerance && Math.Abs(p - current) <= Tolerance && Orders(row, best))))
             {
                 best = row;
             }
@@ -320,7 +336,7 @@ public static class DefenseChoiceRules
 
     /// <summary>
     /// The baseline's row: <c>(1 − S)·L·H</c> while everything it retains stands. A bound choice (DefenseBindingRules) whose
-    /// pieces are not all built is priced like the alternative it was: <c>C + (1 − S_s)·L·T + (1 − S·(1 − u))·L·(H − T)</c>, S_s
+    /// pieces are not all built is priced like the alternative it was: <c>C + R + (1 − S_s)·L·T + (1 − S·(1 − u))·L·(H − T)</c>, S_s
     /// what of it stands, so it is kept while it is still the cheapest and re-selected only when fresh facts make another
     /// cheaper. A term it cannot assess leaves it retained naming the fact; it is never excluded.
     /// </summary>
@@ -344,10 +360,11 @@ public static class DefenseChoiceRules
         }
         var removes = Removals(unbuilt, inputs);
         var (construction, lead, _) = Construction(unbuilt, inputs);
+        var routes = Routes(baseline.Candidate, inputs);
         var interruption = Interruption(baseline.Protection, inputs);
-        row = row with { Unbuilt = unbuilt, Removes = removes, Construction = construction, LeadDays = lead, Interruption = interruption };
+        row = row with { Unbuilt = unbuilt, Removes = removes, Construction = construction, LeadDays = lead, Routes = routes, Interruption = interruption };
         var stood = baseline.Standing is { } s ? s.Covered : new DefenseTerm.Unassessed(DefenseBindingRules.RemovalHeld + ":replacement_unprobed");
-        foreach (var term in new[] { construction, lead, interruption, stood })
+        foreach (var term in new[] { construction, lead, routes, interruption, stood })
         {
             if (term is DefenseTerm.Unassessed tu)
             {
@@ -357,7 +374,7 @@ public static class DefenseChoiceRules
         var l = harm.LossPerDay;
         var t = Math.Min(h, Value(lead)!.Value);
         var sa = sb.Value * (1 - Value(interruption)!.Value);
-        return row with { Price = new DefensePrice.Assessed(Value(construction)!.Value + ((1 - Value(stood)!.Value) * l * t) + ((1 - sa) * l * (h - t))) };
+        return row with { Price = new DefensePrice.Assessed(Value(construction)!.Value + Value(routes)!.Value + ((1 - Value(stood)!.Value) * l * t) + ((1 - sa) * l * (h - t))) };
     }
 
     /// <summary>The standing buildings the unbuilt pieces replace, <c>&lt;def&gt;@x,z</c>, each once.</summary>

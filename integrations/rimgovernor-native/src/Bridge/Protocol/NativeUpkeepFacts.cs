@@ -404,11 +404,11 @@ namespace RimGovernor.Native
             var speed = p.Dead ? 0f : PawnUtility.BodyResourceGrowthSpeed(p);
             if (speed <= 0f) return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Unread("birth tick:" + p.GetUniqueLoadID());
             return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated(now + Math.Max(0L,
-                (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * p.RaceProps.gestationPeriodDays * 60000.0 / speed)));
+                (long)Math.Ceiling((1.0 - pregnancy.GestationProgress) * p.RaceProps.gestationPeriodDays * (double)GenDate.TicksPerDay / speed)));
         }
 
         // A baby's move from crib to bed: the first later life stage whose developmental stage is no baby stage, reached at
-        // its minAge (years of 3600000 biological ticks) at the age tracker's BiologicalTicksPerTick.
+        // its minAge (years of GenDate.TicksPerYear biological ticks) at the age tracker's BiologicalTicksPerTick.
         private static RimGovernor.Brain.GameFacts.Observations.ExpectedTiming LeavesCrib(Pawn p)
         {
             if (!p.DevelopmentalStage.Baby()) return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.None();
@@ -421,7 +421,7 @@ namespace RimGovernor.Native
             }
             if (next < 0 || tracker.BiologicalTicksPerTick <= 0f) return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Unread("crib to bed tick:" + p.GetUniqueLoadID());
             return new RimGovernor.Brain.GameFacts.Observations.ExpectedTiming.Dated((long)Find.TickManager.TicksGame + Math.Max(0L,
-                (long)Math.Ceiling((stages![next].minAge * 3600000.0 - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick)));
+                (long)Math.Ceiling((stages![next].minAge * (double)GenDate.TicksPerYear - tracker.AgeBiologicalTicks) / tracker.BiologicalTicksPerTick)));
         }
 
         private static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.GameFacts.Observations.UpkeepBed> Beds(ThingSets sets, List<Pawn> people) =>

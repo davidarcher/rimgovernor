@@ -82,8 +82,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 76 keeps a bound defense choice's owed coverage on its layout plan site (TierFacts.Owed, habitat 7.4); older journals are replaced.
     /// Version 77 keeps each chosen standing-building transition's intent on the layout plan (LayoutPlan.Transitions, habitat 8.2); older journals are replaced, an older plan blob decodes with none.
     /// Version 78 deletes the layout plan's save shims (legacy pen, barn and yard reservations; optional Pieces, ActivitySites and Transitions, habitat 8.4): an older plan blob restores as no plan; older journals are replaced.
+    /// Version 79 carries an issued refuel's fuel def and items on its recovery payload (RecoveryService.Fuel, Items, the servicing ledger's hold; habitat review item 13): an older refuel payload loads holding no fuel; older journals are replaced.
     /// </summary>
-    public const int SchemaVersion = 78;
+    public const int SchemaVersion = 79;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

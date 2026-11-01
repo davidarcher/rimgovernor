@@ -263,8 +263,53 @@ public sealed class PowerRestorationTests
 
         // An issued refuel not yet running still holds the wood it will carry: the next review cannot give it to gen2.
         var issued = PowerRestorationRules.Decide(Request(topology, Census(100, 1, Refueling("gen1", "a"), Refueling("gen2", "b", fetch: 200))) with
-            { Underway = [new("gen1", ServicingKind.Refuel, "a", true)] });
+            { Underway = [new("gen1", ServicingKind.Refuel, "a", true, "WoodLog", 75)] });
         Assert.Equal(new ServicingStanding.Excluded(ServicingChoiceRules.FuelTaken), StandingOf(issued.Decisions[1], ServicingChoiceKind.Refuel, "b"));
+    }
+
+    // (e2) The issued refuel carries its items on the underway row: it holds them although the census no longer measures its option.
+    [Fact]
+    public void AnIssuedRefuelStillHoldsItsFuelWhenItsCensusOptionIsGone()
+    {
+        var topology = Topology(Generator("gen1"), Generator("gen2", x: 5));
+        var issued = PowerRestorationRules.Decide(Request(topology, Census(100, 1, Refueling("gen2", "b", fetch: 200))) with
+            { Underway = [new("gen1", ServicingKind.Refuel, "a", true, "WoodLog", 75)] });
+        Assert.Equal(ServicingChoiceKind.Refuel, issued.Decisions[0].Chosen.Kind);
+        Assert.Equal(new ServicingStanding.Excluded(ServicingChoiceRules.FuelTaken), StandingOf(issued.Decisions[1], ServicingChoiceKind.Refuel, "b"));
+    }
+
+    // (e3) One review, one ledger: a component or fuel item a choice took is not counted again by another request of the review.
+    [Fact]
+    public void TwoRequestsOfOneReviewSharingALedgerSpendTheSameStockOnce()
+    {
+        ServicingRequest Over(ServicingCensus census, ServicingLedger? ledger, params BuildingState[] targets) =>
+            new() { Targets = targets, Census = census, Unneeded = new HashSet<string>(StringComparer.Ordinal), Ledger = ledger };
+
+        // One component, a broken generator (power) and a broken cooler (home upkeep): the power choice takes it, home upkeep cannot.
+        var broken = Generator("gen", empty: false, broken: true);
+        var cooler = Generator("cooler", empty: false, broken: true, x: 6);
+        var fixes = Census(0, 1, Fixing("gen", "a"), Fixing("cooler", "b"));
+        var ledger = new ServicingLedger();
+        var power = Assert.Single(PowerRestorationRules.Decide(Request(Topology(broken), fixes) with { Ledger = ledger }).Decisions);
+        var home = Assert.Single(ServicingChoiceRules.Decide(Over(fixes, ledger, cooler)));
+        Assert.Equal(ServicingChoiceKind.FixBreakdown, power.Chosen.Kind);
+        Assert.Equal(ServicingChoiceKind.Defer, home.Chosen.Kind);
+        Assert.Equal(new ServicingStanding.Excluded(ServicingChoiceRules.ComponentTaken), StandingOf(home, ServicingChoiceKind.FixBreakdown, "b"));
+        // Deciding either again on the review's ledger takes nothing more and changes no answer.
+        Assert.Equal(ServicingChoiceKind.FixBreakdown, Assert.Single(PowerRestorationRules.Decide(Request(Topology(broken), fixes) with { Ledger = ledger }).Decisions).Chosen.Kind);
+        Assert.Equal(ServicingChoiceKind.Defer, Assert.Single(ServicingChoiceRules.Decide(Over(fixes, ledger, cooler))).Chosen.Kind);
+        // Without the shared ledger each request counts the stock for itself.
+        Assert.Equal(ServicingChoiceKind.FixBreakdown, Assert.Single(ServicingChoiceRules.Decide(Over(fixes, null, cooler))).Chosen.Kind);
+
+        // Wood for one refuel, an empty generator (power) and an empty turret barrel (defense rearm).
+        var wood = Census(100, 1, Refueling("gen", "a"), Refueling("turret", "b", fetch: 200));
+        var empty = Generator("gen");
+        var barrel = Generator("turret", x: 7);
+        var fuel = new ServicingLedger();
+        var refuel = Assert.Single(PowerRestorationRules.Decide(Request(Topology(empty), wood) with { Ledger = fuel }).Decisions);
+        var rearm = Assert.Single(DefenseRearm.Refuels([barrel], wood, [], [], fuel));
+        Assert.Equal((ServicingChoiceKind.Refuel, ServicingChoiceKind.Defer), (refuel.Chosen.Kind, rearm.Chosen.Kind));
+        Assert.Equal(new ServicingStanding.Excluded(ServicingChoiceRules.FuelTaken), StandingOf(rearm, ServicingChoiceKind.Refuel, "b"));
     }
 
     // (f) The native auto-refuel threshold is the row's Props.autoRefuelPercent (0.3 for the wood generator), not a constant .25.

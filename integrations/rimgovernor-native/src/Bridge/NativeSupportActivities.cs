@@ -79,8 +79,8 @@ internal static class NativeSupportActivities
             var operated = surgical.Contains(patient);
             // A recovering patient in a sleeping spot, and a surgical one in any bed, is listed with that bed and the nearest beds it
             // could move to; a surgical one also with the bed the native would operate it in (RestUtility.FindPatientBedFor).
-            var beds = current == null ? CareBeds(patient, colonyBeds, id, findings)
-                : tendable && !operated ? new[] { current } : new[] { current }.Concat(CareBeds(patient, colonyBeds.Where(b => b != current).ToArray(), id, findings)).ToArray();
+            var beds = current == null ? CareBeds(patient, colonyBeds)
+                : tendable && !operated ? new[] { current } : new[] { current }.Concat(CareBeds(patient, colonyBeds.Where(b => b != current).ToArray())).ToArray();
             if (operated && NativePawnDetails.SurgeryBed(patient) is { } operatedIn && !beds.Contains(operatedIn)) beds = beds.Append(operatedIn).ToArray();
             var site = tendable ? FieldSite(patient, current) : new Obs.CareFieldSpot.None(operated && !Recovering(patient) ? "surgery" : "recovering");
             carePatients.Add(new(id, patient.GetUniqueLoadID(), OccupantOf(patient), PostureOf(patient, current), ConductOf(patient))
@@ -98,15 +98,17 @@ internal static class NativeSupportActivities
                 var count = patient.health.hediffSet.hediffs.Count(h => h.TendableNow());
                 if (speed <= 0 || count == 0) continue;
                 var tend = TendGiver(pawn, patient);
+                // The medicine this doctor could fetch for this patient, scanned once and shared by every place the tend could happen.
+                var medicines = Medicines(pawn, patient);
                 // Where the patient lies now (GoodLayingStatusForTend: a humanlike patient in bed, an animal lying down, or a self-tend).
                 if (tend != null && pawn.CanReserveAndReach(patient, PathEndMode.Touch, Danger.None))
-                    Tends(pawn, patient, id, tend, "", patient.Position, medicine => TendUtility.CalculateBaseTendQuality(pawn, patient, medicine));
+                    Tends(pawn, patient, id, tend, "", patient.Position, medicines, medicine => TendUtility.CalculateBaseTendQuality(pawn, patient, medicine));
                 // In a bed the patient is moved to first: WorkGiver_Tend's checks short of GoodLayingStatusForTend, the doctor reaching the bed.
                 if (current != null || pawn == patient || BedTendGiver(pawn) is not { } bedTend || !pawn.CanReserve(patient)) continue;
-                foreach (var bed in beds) Tends(pawn, patient, id, bedTend, bed.GetUniqueLoadID(), bed.Position, medicine => TendQualityIn(pawn, medicine, bed));
+                foreach (var bed in beds) Tends(pawn, patient, id, bedTend, bed.GetUniqueLoadID(), bed.Position, medicines, medicine => TendQualityIn(pawn, medicine, bed));
                 // On the field spot once it stands: the spot def's own MedicalTendQualityOffset (none in vanilla), never an invented ward's.
                 if (site is Obs.CareFieldSpot.Site spot)
-                    Tends(pawn, patient, id, bedTend, spot.Id, new IntVec3(spot.Cell.X, 0, spot.Cell.Z),
+                    Tends(pawn, patient, id, bedTend, spot.Id, new IntVec3(spot.Cell.X, 0, spot.Cell.Z), medicines,
                         medicine => TendQualityAt(pawn, medicine, ThingDefOf.SleepingSpot.GetStatValueAbstract(StatDefOf.MedicalTendQualityOffset)));
             }
         }
@@ -154,13 +156,15 @@ internal static class NativeSupportActivities
             Workers = EquatableArray.From(workers), Deliveries = EquatableArray.From(deliveries), Findings = EquatableArray.From(findings.OrderBy(x => x, StringComparer.Ordinal)),
             Patients = EquatableArray.From(carePatients) };
 
-        // One worker per medicine stack the patient's care allows (and none), its walk ending where the patient is tended.
-        void Tends(Pawn pawn, Pawn patient, string id, WorkGiverDef giver, string careBed, IntVec3 at, Func<ThingDef?, float> quality)
+        // The medicine stacks the patient's care allows and the doctor can fetch, in id order, and none: one scan per doctor and
+        // patient, whichever bed or spot the tend happens at.
+        Thing?[] Medicines(Pawn pawn, Pawn patient) => NoMedicine(patient) ? new Thing?[] { null } : map.listerThings.AllThings
+            .Where(t => t.Spawned && t.def.IsMedicine && patient.playerSettings != null && patient.playerSettings.medCare.AllowsMedicine(t.def)
+                && !t.IsForbidden(pawn) && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None))
+            .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Cast<Thing?>().Append(null).ToArray();
+        // One worker per medicine (and none), its walk ending where the patient is tended.
+        void Tends(Pawn pawn, Pawn patient, string id, WorkGiverDef giver, string careBed, IntVec3 at, Thing?[] medicines, Func<ThingDef?, float> quality)
         {
-            var medicines = NoMedicine(patient) ? new Thing?[] { null } : map.listerThings.AllThings
-                .Where(t => t.Spawned && t.def.IsMedicine && patient.playerSettings != null && patient.playerSettings.medCare.AllowsMedicine(t.def)
-                    && !t.IsForbidden(pawn) && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None))
-                .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Cast<Thing?>().Append(null).ToArray();
             var learning = NativeSkillLearning.Read(pawn, pawn.skills.GetSkill(SkillDefOf.Medicine));
             var speed = pawn.GetStatValue(StatDefOf.MedicalTendSpeed);
             // One selected native treatment batch. Remaining wounds need fresh observation and selection.
@@ -197,15 +201,16 @@ internal static class NativeSupportActivities
                 SurgerySuccessFactor = bed.Spawned && bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor) is var factor && !float.IsNaN(factor)
                     ? new Obs.CareSurgeryFactor.Read(factor) : new Obs.CareSurgeryFactor.Unread("surgery_success_factor:" + bed.GetUniqueLoadID()),
             };
-        // The nearest cell near a patient lying in no bed where a sleeping spot can be placed facing south, clear of pawns, that the
-        // patient reaches (task 4.4); the preview and the receipt decide the placement itself.
+        // The nearest cell to a patient lying in no bed where a sleeping spot can be placed facing south, clear of pawns, that the
+        // patient reaches (task 4.4), searched outward as far as the game's radial pattern goes (GenRadial.MaxRadialPatternRadius);
+        // the preview and the receipt decide the placement itself.
         Obs.CareFieldSpot FieldSite(Pawn patient, Building_Bed? current)
         {
             if (current != null) return new Obs.CareFieldSpot.None("in_bed");
             if (!patient.RaceProps.Humanlike) return new Obs.CareFieldSpot.None("animal_tended_lying");
             if (patient.IsPrisonerOfColony) return new Obs.CareFieldSpot.None("prisoner_needs_prison_bed");
             var def = ThingDefOf.SleepingSpot;
-            foreach (var cell in GenRadial.RadialCellsAround(patient.Position, FieldSpotRadius, true))
+            foreach (var cell in GenRadial.RadialCellsAround(patient.Position, GenRadial.MaxRadialPatternRadius, true))
             {
                 if (!cell.InBounds(map) || cell.Fogged(map)) continue;
                 var rect = GenAdj.OccupiedRect(cell, Rot4.South, def.size);
@@ -328,17 +333,12 @@ internal static class NativeSupportActivities
     /// <summary>A room stat of <paramref name="room"/>, its roomlessScore without a room.</summary>
     private static double Stat(Room? room, RoomStatDef stat) => room == null ? stat.roomlessScore : room.GetStat(stat);
     /// <summary>
-    /// The beds a patient lying in none could be cared in: the colony's beds it fits (RestUtility.CanUseBedEver: humanlike or
-    /// animal, body size), nearest first, at most four medical and two others; a cut is named.
+    /// The beds a patient lying in none could be cared in: every colony bed it fits (RestUtility.CanUseBedEver: humanlike or
+    /// animal, body size), nearest first; none is cut.
     /// </summary>
-    private static Building_Bed[] CareBeds(Pawn patient, Building_Bed[] colonyBeds, string demand, HashSet<string> findings)
-    {
-        var fitting = colonyBeds.Where(b => b.Spawned && RestUtility.CanUseBedEver(patient, b.def))
-            .OrderBy(b => (b.Position - patient.Position).LengthHorizontalSquared).ToArray();
-        var medical = fitting.Where(b => b.Medical).ToArray(); var other = fitting.Where(b => !b.Medical).ToArray();
-        if (medical.Length > 4 || other.Length > 2) findings.Add("care_beds_truncated:" + demand);
-        return medical.Take(4).Concat(other.Take(2)).ToArray();
-    }
+    private static Building_Bed[] CareBeds(Pawn patient, Building_Bed[] colonyBeds) => colonyBeds
+        .Where(b => b.Spawned && RestUtility.CanUseBedEver(patient, b.def))
+        .OrderBy(b => (b.Position - patient.Position).LengthHorizontalSquared).ThenBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
     /// <summary>Who a bed takes the patient as: RestUtility.CanUseBedNow's guest status, an animal by RaceProps.</summary>
     private static RimGovernor.Brain.GameFacts.Observations.BedOccupant OccupantOf(Pawn patient) => !patient.RaceProps.Humanlike
         ? RimGovernor.Brain.GameFacts.Observations.BedOccupant.Animal : patient.GuestStatus switch
@@ -376,8 +376,6 @@ internal static class NativeSupportActivities
     private static float TendQualityAt(Pawn doctor, ThingDef? medicine, float offset) => Math.Min(Math.Max(0f,
         doctor.GetStatValue(StatDefOf.MedicalTendQuality) * (medicine?.GetStatValueAbstract(StatDefOf.MedicalPotency) ?? 0.3f)
             + offset), medicine?.GetStatValueAbstract(StatDefOf.MedicalQualityMax) ?? 0.7f);
-    /// <summary>How far from a patient a field spot's cell is searched (task 4.4).</summary>
-    private const float FieldSpotRadius = 4.9f;
     /// <summary>
     /// A patient recovering rather than waiting on a tend (task 4.4): not downed, HealthAIUtility.ShouldSeekMedicalRest, lying in no
     /// bed or in a sleeping spot, so a transfer to a better bed is a later step of its care.

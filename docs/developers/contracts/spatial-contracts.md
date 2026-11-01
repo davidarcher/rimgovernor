@@ -823,8 +823,13 @@ beauty:`, `common room mood:`, `room contribution:`). A host spare's service is 
 **Relocation slots.** `ReconcileRules.RelocationSlots` offers each unlisted minifiable piece, in id order, the nearest
 unfilled slot of its definition that no earlier piece took: this room's own unmatched template pieces first, then the other
 planned rooms' (`OpenSlotsOf`: a planned piece with no building of its definition standing in its footprint in the census,
-`HomeUpkeepReader.StandingCells`). The haul is the octile distance from the piece to the slot at the worker's `TicksPerCell`
-(a lower bound: no path to a cell not yet built is read) and the avoided cost is the slot's build price
+`HomeUpkeepReader.StandingCells`). The haul is the worker's walk from the piece to the slot as the game's pathfinder reads it:
+the reconcile names the legs it would price (`ReconcileRules.UnprobedHauls`, each a building, its read worker and the two cells),
+the room reconcile asks the native for them in one batched read (`observations_read_haul_probe`, `IGameApi.ReadHaulProbeAsync`,
+`IHaulProbeSource`, `NativeHaulProbe.cs`: `NativePathLegs.Cost` at the pawn's move ticks, `PathEndMode.OnCell`, the legs searched
+on the path job workers and kept across reads) and reconciles again with `TransitionFacts.Hauls` answering, as the servicing
+read collects its legs and runs again. A leg not read leaves the haul unread (`haul_unprobed`) and Relocate unassessed; a source
+without the probe reads none. The avoided cost is the slot's build price
 (`LayoutClusterRules.PiecePrice` over the ordinary build stuff). The slot's service is the same whether the piece is moved in
 or built new, so moving competes with building on the build price alone and the install adds nothing (the native installs a
 minified thing when it is carried onto its blueprint). Only planned ground proposes slots: clearance, a host's spare and a
@@ -887,7 +892,10 @@ owning family's ordinary configuration, not part of the move.
 Limits stated rather than priced: the defense read checks the standing pieces of the planned tiers, not observed coverage
 (`DefenseVerified` is runtime memory, not a fact the read can use); walls, doors, power conduits and frames are structure, not
 transition targets, and definitions other lanes carry in owned rooms (`CarriedOver`) are never proposed; Relocate exists only
-on planned ground; Repurpose has no typed operation; the haul to a slot is a lower bound.
+on planned ground; Repurpose has no typed operation; a haul the game has not walked is unread, not guessed. A slot a bound
+Relocate from another room moves its piece into is held by that room's reconcile (`slot_bound_to_relocation:<target>`), neither
+built nor installed from stock, until the piece stands there; in the review that first decides the move, before the plan binds
+it, the other room may still owe the slot's build (the native refuses the second placement on the cell).
 
 #### Activity sites
 
@@ -1194,9 +1202,10 @@ it (`DefenseCover`: `thing_id`, `def_name`, `kind` plant/chunk/mineable/building
 `designated`) with a CAS token over identity, definition, cell and designation
 state. `RaidArrivalState`, a map component, samples every hostile lord every 60 ticks:
 its first pawn position is the spawn (ground when within 14 cells of the map edge) and
-the pawn nearest the home area adds one trail cell per sample. The tracks are a `RaidTrackLog`: a live lord's trail is
-never truncated; a track not sampled for `FinishedAge` (60000 ticks, one game day) is finished, the newest
-`KeptGroundRaids` (8) finished ground tracks stay, and every other finished track is evicted. Each sample also keeps the longest primary-verb range any of the lord's sampled pawns carried (`RaidTrack.Range`, `range` on the wire, cells; 0 when every pawn fought melee). `RaidArrivalState.ExposeData` saves the log with the map as the `raidTracks`, `raidFactions` and `raidRanges` lists, so the tracks and their ranges survive a load ([persistence contracts](persistence-contracts.md#what-must-survive)); a save without the nodes, or with a malformed list, loads none. The colony threat census's `raids` rows (`ThreatFacts.raids`) carry those tracks; the brain
+the pawn nearest the home area adds one trail cell per sample, each cell once (`Track.Walk`), so a trail is bounded by the
+map however long the lord lives. The tracks are a `RaidTrackLog`: a live lord's trail is never truncated; a track not sampled
+for `FinishedAge` (60000 ticks, one game day) is finished; every finished ground track stays, and a finished track of a
+non-ground arrival is evicted. Each sample also keeps the longest primary-verb range any of the lord's sampled pawns carried (`RaidTrack.Range`, `range` on the wire, cells; 0 when every pawn fought melee). `RaidArrivalState.ExposeData` saves the log with the map as the `raidTracks`, `raidFactions` and `raidRanges` lists, so the tracks and their ranges survive a load ([persistence contracts](persistence-contracts.md#what-must-survive)); a save without the nodes, or with a malformed list, loads none. The colony threat census's `raids` rows (`ThreatFacts.raids`) carry those tracks; the brain
 takes the first trail cell inside its census region as the crossing, and the policy
 snaps it to the nearest sector edge cell within eight cells. Drop pods and tunnellers
 are not ground arrivals.
@@ -1325,16 +1334,18 @@ range (`RaidTrack.Range`, 0 for melee).
 
 `DefenseProtectionRules.Probes` asks the game, in one batched read (`observations_read_defense_probe`,
 `IGameApi.ReadDefenseProbeAsync`, `NativeDefenseProbe.cs`), what each standing candidate would protect. Native answers from
-the game's own shooting geometry; nothing is placed or simulated and no raid is predicted. Request bounds, refused by
-native when exceeded: at most 16 candidates, 8 firing cells and 24 approach cells each, and 4096 planned pieces
-(`DefenseProbeRequest.MaxCandidates`, `MaxFiring`, `MaxApproach`, `MaxPieces`). A row is keyed by the candidate's key; a
+the game's own shooting geometry; nothing is placed or simulated and no raid is predicted. The request has no size bound:
+every candidate is probed on every firing cell, approach cell and piece it names, and native refuses only a row it cannot
+read (a duplicate id or cell, a cell off the map, an unknown piece definition). A row is keyed by the candidate's key; a
 planned turret is `<candidate>/<def>@x,z`. Each candidate is asked twice, with its pieces placed and as it stands (the
 `~standing` shadow, `DefenseChoiceRules.Shadows`), so what a bound choice already protects is observed separately from
 what it would.
 
-The approach cells are the newest three ground raids' observed walks (`ProbedRaids`), cut at the candidate's barriers
-(a raid does not walk on unbroken past a wall or a door), every third cell back from each walk's end
-(`ApproachStride`), at most 24 and distinct. They are a sampling choice, not a game rule. Native reads, per candidate,
+The approach cells (`DefenseProtectionRules.Approach`) are every observed ground raid's walk, cut at the candidate's barriers
+(a raid does not walk on unbroken past a wall or a door), kept to the cells the candidate engages: each walked cell within the
+raid's longest weapon range (`RaidTrack.Range`) of one of the candidate's firing cells, pieces or barriers, plus each walk's
+last cell (where the raid stopped), distinct. A melee raid (range 0) contributes its walks' ends. Nothing is sampled or counted
+off: the probe's cost is the engaged cells the facts name. Native reads, per candidate,
 `GenSight.LineOfSight` between each firing and approach cell with the candidate's full-fill pieces blocking, and the
 cover chance the pieces give; and once per read the free colonists who could shoot (`WorkTagIsDisabled(Violent)`,
 downed, Shooting skill and the primary verb's range, minimum range, warmup, burst count, cooldown and
@@ -1350,8 +1361,8 @@ positions within the raiders' weapon range of the walk, uncut and cut at the can
 walk's own cells), `Draws` (the planned turrets' draws on their networks) and `States`. Every term is a
 `DefenseTerm.Assessed(value)` from read facts (a known zero included: ammunition is zero for small arms and gun turrets,
 which fire without it) or `Unassessed(fact)`; an unassessed term is never compared as a number. Named states:
-`staffing:<needed>/<available>`, `power:<turret>` (an unpowered turret protects nothing), `shells:<turret>` (a mortar
-with no shell loaded or stocked), `sight:fogged`, `verb_cycle:<pos>` (a cycle the read gives that is not positive),
+`staffing:<needed>/<able>` (a shortfall: `Staffing` is the able count and the price rests on the staffed seats), `power:<turret>` (an unpowered turret protects nothing), `shells:<turret>` (a mortar
+with no shell loaded or stocked reaches nothing, a priced zero), `sight:fogged`, `verb_cycle:<pos>` (a cycle the read gives that is not positive),
 `defense_probe:unread` (asked, no read), `defense_probe:no_approach`, `defense_probe:unknown_candidate:<id>`. A reply row
 for a candidate nobody asked about is refused with a `RequiredFactException` naming it. `RaidExposure`'s bin is unchanged;
 this extends it.
@@ -1370,7 +1381,9 @@ coverage, u the unserved share of the turrets' network from `Draws` ([the power 
 `FieldPlacementRules.WalkTicksPerCell` times the trips a day, there and back, `DefenseChoiceRules.TripsOf`). The
 `dig:mining_unpriced` state names a Killbox whose mining the defs cannot price. The cheapest wins; ties go to Retain.
 
-An alternative cannot win when `Covered`, `Staffing` or `Ammunition` is unassessed where the baseline's is assessed, when
+Retain, once its bound pieces are not all built, pays the same routes term as an alternative. Rows of an equal assessed price order by more `Shots`, then more `Cover`; no fact converts them to loss stopped, so they are otherwise unpriced.
+
+An alternative cannot win when `Covered`, `Staffing` (unread) or `Ammunition` (unread) is unassessed where the baseline's is assessed, when
 it exposes more civilians than the baseline, when its materials are short, or when no builder is free
 (`builders:none_free`); a missing fact leaves its price `Unassessed(fact)`, and an exclusion keeps the generator's
 reason. The step is met only when the verification is current, no fight waits and the decision's deficit (the coverage
@@ -1396,7 +1409,7 @@ Its work is a chain (`DefenseBindingRules.Next`, re-derived each review): `Build
 (`replacement_unprobed`), or while its observed coverage is below `Owed` (`replacement_deficit:<d>`); a protected building
 holds it (`protected_thing:<id>`); a lost replacement piece reopens its build first and cancels the removals not yet
 issued. The service hold names `power:<turret>` (the power family's), `shells:<turret>` (military equipment's) or
-`staffing:<needed>/<available>`. The builds are the Method `defense-choice-<kind>-<sha8>` and the removals
+`staffing:<needed>/<able>`. The builds are the Method `defense-choice-<kind>-<sha8>` and the removals
 `defense-removal-<sha8>`, each admitted through the refusal budget (`ReviewRefusalBudget.AdmitOwnerSubject`), previewed
 natively over each piece's whole footprint (`ClassifyDefensePreview` checks the occupied rectangle lies within the native
 footprint). The comparison is kept for the re-verify window and re-derived early when `DefenseBindingRules.ReviewKey`

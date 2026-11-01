@@ -93,7 +93,7 @@ public sealed partial class HomeUpkeepReader
             : await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
         // Both Needs read the structure census: the repairs targets, and the rows of the doors a clearance step swaps.
         var (underway, refused) = ServicingHistory(_reviewer.Player.Journal, scope.World, colony.Facts.ForecastObserved.WorkPawns.Pawns, call);
-        var facts = new HomeUpkeepFacts { Structures = colony.Facts.Upkeep.Structures, Underway = [.. underway], Refused = [.. refused] };
+        var facts = new HomeUpkeepFacts { Structures = colony.Facts.Upkeep.Structures, Underway = [.. underway], Refused = [.. refused], Ledger = colony.Servicing };
         if (colony.Facts.ForecastObserved.Coupled?.Servicing is { } servicing)
         {
             facts = facts with { Servicing = ServicingCensusOf(servicing, colony.Tables.Buildings.Table.At) };

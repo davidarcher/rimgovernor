@@ -371,7 +371,8 @@ internal static class NativeRoomPrediction
 
     private static double Surplus(PowerNet net) => net.powerComps.Where(c => c.PowerOn).Sum(c => c.PowerOutput);
 
-    private static string Network(PowerNet net) => string.Join("/", net.powerComps.Select(c => c.parent.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal));
+    // The net's id as the power topology read names it (NativeBuildingObservationTools.NetId), so a bench's net joins the topology's rows.
+    private static string Network(PowerNet net) => NativeBuildingObservationTools.NetId(net);
 
     // A bench's or a defense turret's power supply (RG-HABITAT-005, RG-HABITAT-009), as the heater source reads it (NativeCoupledThermal.Source): a standing
     // building's own CompPowerTrader network, a planned one's PowerConnectionMaker.BestTransmitterForConnector network at its anchor, the

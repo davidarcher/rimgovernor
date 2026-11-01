@@ -21,6 +21,9 @@ public sealed record PowerRestorationRequest
     public ServicingCensus? Census { get; init; }
     public IReadOnlyList<ServicingUnderway> Underway { get; init; } = [];
     public IReadOnlyList<RefusedServicing> Refused { get; init; } = [];
+
+    /// <summary>The review's servicing ledger (ColonyReading.Servicing); null takes a fresh one.</summary>
+    public ServicingLedger? Ledger { get; init; }
     public EquatableArray<AcquisitionSource> Sources { get; init; }
     public IReadOnlyDictionary<string, bool> Held { get; init; } = new Dictionary<string, bool>(StringComparer.Ordinal);
 }
@@ -81,6 +84,7 @@ public static class PowerRestorationRules
             Unneeded = new HashSet<string>(StringComparer.Ordinal),
             Underway = r.Underway,
             Refused = r.Refused,
+            Ledger = r.Ledger,
         })]) { Forbidden = [.. lost.Where(b => b.Forbidden).Select(b => b.Id)] };
     }
 
@@ -151,13 +155,14 @@ public static class PowerRestorationRules
                     id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewBuildingAllowAction(new ActionId(id.Value + "-0"), new BuildingAllow(target))])));
                 continue;
             }
-            if (d.Underway is { Issued: false }) continue;
+            if (d.Underway is { Issued: false } && ServicingChoiceRules.Continues(d)) continue;
             if (d.Chosen.Kind == ServicingChoiceKind.Refuel)
             {
                 var pawn = new PawnId(d.Chosen.Pawn);
                 var target = d.Target;
+                var (fuel, items) = ServicingChoiceRules.Carried(d);
                 output.Add(new NeedMethod(need, new MethodId(RefuelMethod + target + "-" + d.Chosen.Pawn), ServicingChoiceRules.Describe(d),
-                    id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewRecoveryServiceAction(new ActionId(id.Value + "-0"), new RecoveryService(pawn, target, RecoveryMethod.Refuel))])));
+                    id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewRecoveryServiceAction(new ActionId(id.Value + "-0"), new RecoveryService(pawn, target, RecoveryMethod.Refuel, fuel, items))])));
             }
             else if (d.Chosen.Chain is { Sources.Count: > 0 } chain)
             {

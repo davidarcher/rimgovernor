@@ -14,6 +14,7 @@ public sealed partial class GameClient :
     IReviewSource,
     IResearchSource,
     IClearanceSource,
+    IHaulProbeSource,
     IRefrigerationSource,
     IZonesNative,
     IClockNative,
@@ -73,6 +74,9 @@ public sealed partial class GameClient :
 
     Task<RimGovernor.Brain.GameFacts.Observations.ClearanceTargetsSnapshot> IClearanceSource.ReadClearanceAsync(Identity expected, bool includeSalvage, IReadOnlyList<Rectangle> ground, CancellationToken cancellationToken) =>
         ReadClearanceAsync(expected, includeSalvage, ground, cancellationToken);
+
+    Task<RimGovernor.Brain.GameFacts.Observations.HaulProbeSnapshot> IHaulProbeSource.ReadHaulProbeAsync(Identity expected, IReadOnlyList<RimGovernor.Brain.GameOrders.Observations.HaulProbeLeg> legs, CancellationToken cancellationToken) =>
+        ReadHaulProbeAsync(expected, legs, cancellationToken);
 
     Task<RimGovernor.Brain.GameFacts.Observations.BuildingsSnapshot> IRefrigerationSource.ReadConstructionBuildingsAsync(RimGovernor.Brain.GameFacts.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadConstructionBuildingsAsync(identity, ids, cancellationToken);

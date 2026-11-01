@@ -236,6 +236,9 @@ public sealed record Reconciliation
 
     /// <summary>The transition decisions of the unlisted pieces, bound or compared: what a committed step binds into the plan.</summary>
     public IReadOnlyList<TransitionDecision> Transitions { get; init; } = [];
+
+    /// <summary>The Relocate destination offered to each unlisted piece, by id (RelocationSlots); a piece with no open slot has none.</summary>
+    public IReadOnlyDictionary<string, TransitionDestination> Destinations { get; init; } = new Dictionary<string, TransitionDestination>(StringComparer.Ordinal);
 }
 
 internal sealed class ReconcileItem
@@ -643,6 +646,13 @@ public static partial class ReconcileRules
             {
                 continue;
             }
+            // A slot the plan already relocates another room's piece into (a bound Relocate, TransitionBindingRules.Holds) is that
+            // piece's reinstall destination: neither built nor installed from stock meanwhile, held naming the piece.
+            if (input.Transitions?.Planned.FirstOrDefault(t => t.Kind == ServicingChoiceKind.Relocate && t.Slot?.Minimum == p.Minimum && t.Definition == p.DefName) is { } relocation)
+            {
+                transitionHolds.Add(new ReconcileHold { Cell = p.Minimum, Def = p.DefName, Reason = SlotBoundToRelocation + ":" + relocation.Target });
+                continue;
+            }
             if (p.Stuff.Length > 0)
             {
                 Add(new ReconcileItem { Kind = OpKind.Build, Piece = p });
@@ -721,7 +731,7 @@ public static partial class ReconcileRules
                     break;
             }
         }
-        return GroupItems(items) with { Holds = [.. foreign.Holds, .. transitionHolds], Transitions = decisions };
+        return GroupItems(items) with { Holds = [.. foreign.Holds, .. transitionHolds], Transitions = decisions, Destinations = destinations };
     }
 
     /// <summary>The retain exclusion of an unlisted piece standing where the plan builds.</summary>
@@ -730,12 +740,16 @@ public static partial class ReconcileRules
     /// <summary>The retain exclusion of an unlisted piece the room's owner forbids.</summary>
     public const string ForbiddenInRoom = "forbidden_in_room";
 
+    /// <summary>The hold of an open slot a bound Relocate from another room is moving its piece into: <c>slot_bound_to_relocation:&lt;target&gt;</c>.</summary>
+    public const string SlotBoundToRelocation = "slot_bound_to_relocation";
+
     /// <summary>
     /// The Relocate destination proposer (task 8.1): each unlisted minifiable piece, in id order, takes the nearest unfilled slot of
     /// its def that no earlier piece took (by octile distance from its footprint's minimum to the slot's, then the slot's minimum
     /// Z and X): this room's own slots (<paramref name="here"/>, filled through Pack and a fed Install) before the other planned
-    /// rooms' (<paramref name="elsewhere"/>, filled from packed stock). The haul is the walk at the worker's TicksPerCell over that
-    /// distance (a lower bound: no path to a cell not yet built is read); unread while no worker is read. The avoided build is the
+    /// rooms' (<paramref name="elsewhere"/>, filled from packed stock). The haul is the worker's walk from the piece to the slot as
+    /// the game's pathfinder read it (TransitionFacts.Hauls, the haul probe); unread naming <c>haul_unprobed</c> while that leg is
+    /// not read (<see cref="UnprobedHauls"/> names it), and <c>no_worker</c> while no worker is read. The avoided build is the
     /// slot's build price (TransitionFacts.BuildPrice). A piece the plan already relocates keeps its bound slot first while it is open.
     /// A piece with no open slot of its def gets none (no_destination).
     /// </summary>
@@ -758,14 +772,28 @@ public static partial class ReconcileRules
                 continue;
             }
             taken.Add(slot);
-            RimGovernor.Brain.GameFacts.Observations.TransitionLeg haul = m.Worker is { } w ? new RimGovernor.Brain.GameFacts.Observations.TransitionLeg.Walked(Octile(row.Minimum, slot.Minimum) * w.TicksPerCell) : new RimGovernor.Brain.GameFacts.Observations.TransitionLeg.Unread(ServicingRules.NoWorker);
-            output[row.EntityId] = new(haul, transitions.BuildPrice?.Invoke(slot) ?? new TransitionBuild.Unread("build price:" + slot.DefName)) { Slot = slot.Minimum, Piece = slot };
+            RimGovernor.Brain.GameFacts.Observations.TransitionLeg haul = m.Worker is null ? new RimGovernor.Brain.GameFacts.Observations.TransitionLeg.Unread(ServicingRules.NoWorker)
+                : transitions.Hauls?.Invoke(row.EntityId, slot.Minimum) ?? new RimGovernor.Brain.GameFacts.Observations.TransitionLeg.Unread(ServicingRules.HaulUnprobed);
+            output[row.EntityId] = new(haul, transitions.BuildPrice?.Invoke(slot) ?? new TransitionBuild.Unread("build price:" + slot.DefName)) { Slot = slot.Minimum, Piece = slot, From = row.Minimum, Worker = m.Worker?.Pawn };
         }
         return output;
     }
 
-    // Cells walked between two cells with diagonal steps at TicksPerMoveDiagonal's 1.41421 cardinal steps.
-    // The 1.41421 is Pawn.TicksPerMove's diagonal factor (kept-constants.md, "Mirrored game literals: transitions").
+    /// <summary>
+    /// The relocation hauls <see cref="Reconcile"/> at <paramref name="input"/> would price had the game walked them (task 8.1):
+    /// each destination whose haul is unread for want of a probe (<see cref="ServicingRules.HaulUnprobed"/>) and has a worker,
+    /// in id order, as the haul probe's legs. A reader asks the game for them (observations_read_haul_probe) and reconciles again
+    /// with <see cref="TransitionFacts.Hauls"/> answering, as the servicing read collects its legs and runs again.
+    /// </summary>
+    public static IReadOnlyList<RimGovernor.Brain.GameOrders.Observations.HaulProbeLeg> UnprobedHauls(ReconcileInput input) =>
+        [.. Reconcile(input).Destinations
+            .Where(d => d.Value.Haul is RimGovernor.Brain.GameFacts.Observations.TransitionLeg.Unread { Fact: ServicingRules.HaulUnprobed } && d.Value.Worker is not null)
+            .OrderBy(d => d.Key, StringComparer.Ordinal)
+            .Select(d => new RimGovernor.Brain.GameOrders.Observations.HaulProbeLeg(d.Key, d.Value.Worker!, d.Value.From, d.Value.Slot))];
+
+    // Cells walked between two cells with diagonal steps at TicksPerMoveDiagonal's 1.41421 cardinal steps: the nearest-slot
+    // order, not a price (the haul is the probe's). The 1.41421 is Pawn.TicksPerMove's diagonal factor (kept-constants.md,
+    // "Mirrored game literals: transitions").
     private static double Octile(Cell a, Cell b)
     {
         var (dx, dz) = (Math.Abs(a.X - b.X), Math.Abs(a.Z - b.Z));

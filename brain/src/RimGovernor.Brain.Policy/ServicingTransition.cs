@@ -53,6 +53,12 @@ public sealed record TransitionDestination(TransitionLeg Haul, TransitionBuild A
     /// <summary>The slot's minimum cell: what a bound Relocate is checked against (TransitionBindingRules.Holds).</summary>
     public Cell Slot { get; init; }
 
+    /// <summary>The piece's footprint minimum, where the haul starts; with <see cref="Worker"/>, the leg the haul probe walks.</summary>
+    public Cell From { get; init; }
+
+    /// <summary>The load id of the worker the transition read named for the piece, null when it named none.</summary>
+    public string? Worker { get; init; }
+
     /// <summary>
     /// The planned piece the slot is (its anchor and rotation): where a chosen Relocate's reinstall blueprint is placed
     /// (OpKind.Reinstall). Null leaves the Relocate without a placement, so it is not executed.
@@ -91,6 +97,13 @@ public sealed record TransitionFacts
 
     /// <summary>What building a planned piece new costs, the price a relocation into its slot avoids; null leaves it unread.</summary>
     public Func<WantedPiece, TransitionBuild>? BuildPrice { get; init; }
+
+    /// <summary>
+    /// The worker's walk from a standing building (its id) to a slot (its minimum cell), as the game's pathfinder read it
+    /// (observations_read_haul_probe, asked for the legs ReconcileRules.UnprobedHauls names); null for a leg not read, which
+    /// leaves the haul unread (ServicingRules.HaulUnprobed). Null itself reads no haul.
+    /// </summary>
+    public Func<string, Cell, TransitionLeg?>? Hauls { get; init; }
 
     /// <summary>The transitions the plan committed to (LayoutPlan.Transitions): read back by <see cref="ServicingChoiceRules.Choose"/> while they hold.</summary>
     public IReadOnlyList<PlannedTransition> Planned { get; init; } = [];

@@ -122,6 +122,9 @@ public static class ServicingRules
     public const string NoWorker = "no_worker", NoSupply = "no_supply", NoStock = "no_stock", CannotCarry = "cannot_carry",
         ZeroRate = "zero_rate", NotRepairable = "not_repairable", RefuelNotEmpty = "refuel_not_empty";
 
+    /// <summary>The unread fact of a relocation haul the game has not walked yet (ReconcileRules.UnprobedHauls names the leg to read).</summary>
+    public const string HaulUnprobed = "haul_unprobed";
+
     /// <summary>
     /// The building's servicing target in the read, joined by id: a building the read does not list is a required fact
     /// unread (<c>servicing target:&lt;id&gt;</c>); a listed target whose def or cell is not the row's is a contract violation.

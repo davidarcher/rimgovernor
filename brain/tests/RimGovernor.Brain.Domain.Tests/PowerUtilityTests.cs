@@ -278,7 +278,7 @@ public sealed class PowerUtilityTests
         };
         var monitor = new FacilityLink { Def = "VitalsMonitor", MaxDistance = 8, SurgerySuccessChanceOffset = 0.05 };
         var value = new ForecastValuePolicy();
-        var care = PowerValuationRules.CareLoss(new(2, 4), monitor, support, [], value);
+        var care = PowerValuationRules.CareLoss(new(2, 4), monitor, support, [], value, true);
         // 0.9 x 1 succeeds 0.9 powered, 0.9 x 0.95 unpowered: the bed's own surgery loss at each factor.
         var request = new CareCapacityRequest { Support = support, Value = value };
         var surgery = support.Demands.ToArray();
@@ -286,8 +286,12 @@ public sealed class PowerUtilityTests
             - CareCapacityRules.SurgeryLossOf(request, surgery, bed).Loss;
         // The queued surgery is done once: its loss is charged once, not every day of the horizon.
         Assert.Equal(new InterruptionLoss.PerDay(0) { OnceDays = lost }, care);
+        // The monitor standing unpowered now: the bed's read factor already lacks the offset (CompFacility applies it only powered), so
+        // the same loss is read from a 0.95 factor, powered 1 against unpowered 0.95, not 0.95 against 0.9.
+        var dark = support with { Patients = [support.Patients[0] with { Beds = [bed with { SurgerySuccessFactor = new CareSurgeryFactor.Read(0.95) }] }] };
+        Assert.Equal(care, PowerValuationRules.CareLoss(new(2, 4), monitor, dark, [], value, false));
         // No surgery queued on the patient: the facility's surgery term is nothing.
-        Assert.Equal(new InterruptionLoss.PerDay(0), PowerValuationRules.CareLoss(new(2, 4), monitor, support with { Demands = [] }, [], value));
+        Assert.Equal(new InterruptionLoss.PerDay(0), PowerValuationRules.CareLoss(new(2, 4), monitor, support with { Demands = [] }, [], value, true));
         Assert.Equal((((1 - 0.855) * 0.5) - ((1 - 0.9) * 0.5)) * value.DeathTerminalValue, lost, 9);
 
         // The heater: its sleeper sleeps at 20 now and at the -10 outdoors the room settles at without it, in slept_in_cold.

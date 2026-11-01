@@ -17,6 +17,13 @@ public sealed record ColonyReading
     /// remaining generation serves one removal, not each.
     /// </summary>
     public TransitionBridgingLedger Bridging { get; init; } = new();
+
+    /// <summary>
+    /// What the review's servicing choices hold of the component and fuel stock and of the pawns (ServicingLedger): one ledger for
+    /// the reading, shared by home upkeep, power restoration and defense rearm built from it, so one component or fuel item serves
+    /// one target, not each choice. Nothing is remembered between reviews.
+    /// </summary>
+    public ServicingLedger Servicing { get; init; } = new();
     public Held<PlanningCells>? Window { get; init; }
     public Held<RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot>? Zones { get; init; }
     public DateTimeOffset StartedAt { get; init; }

@@ -204,7 +204,12 @@ before any of them, or holding a `barn`, `pen` or `yard` reservation, does not d
 review derives one); the version 77 paragraph's optional `Transitions` read above is superseded, the rest of it stays in
 force. No field is added: a chosen `relocate` is executed as one native reinstall (`OpKind.Reinstall`, a `MoveBuilding`
 of the standing building onto its slot), which is a session-journal Method like any other. Older session journals are
-replaced on load (schema mismatch). `StoreSchemaPinTests` pins version 78 and the new codec shape hash.
+replaced on load (schema mismatch).
+
+Version 79 carries an issued refuel's fuel def and item count on its `RecoveryService` payload (`fuel`, `items`, set
+together; habitat review item 13), so the servicing ledger holds the fuel an issued refuel will fetch after the census stops
+measuring its option. A refuel payload written before them loads holding no fuel; nothing else changes. Older session
+journals are replaced on load (schema mismatch). `StoreSchemaPinTests` pins version 79 and the new codec shape hash.
 
 | Home | Holds | On reload |
 |---|---|---|
@@ -441,11 +446,12 @@ journal; this schema change does not invalidate game saves.
 - **Raid arrival tracks (game save).** Native keeps each hostile lord it samples (`RaidArrivalState`: spawn cell, ground
   flag, nearest-pawn trail, longest weapon range; [spatial contracts](spatial-contracts.md)) in `RaidTrackLog` and saves
   it with the map (`RaidArrivalState.ExposeData`: `raidTracks`, a flat list of ints, with `raidFactions` and `raidRanges`,
-  one entry per track; RG-HABITAT-009). A lord seen within the last day keeps its whole track. A lord unseen for a day is
-  finished: the newest `RaidTrackLog.KeptGroundRaids` (8) finished ground tracks are kept, so the defense probe keeps the
-  approaches it was priced over across days and loads, and every other finished track is evicted. A save from before it,
+  one entry per track; RG-HABITAT-009). A trail holds each cell once, so a track is bounded by the map. A lord seen within
+  the last day keeps its whole track. A lord unseen for a day is finished: every finished ground track is kept, so the
+  defense probe keeps the approaches it was priced over across days and loads, and a finished non-ground track (a drop pod,
+  a tunneller) is evicted. A save from before it,
   or a malformed list, loads no tracks, and the defense terms name `arrival_edges:none_observed` until a ground raid is
-  seen. No session-journal shape changes, so `Store.SchemaVersion` stays 78.
+  seen. The tracks are a game-save shape, not a session-journal one, so they move `Store.SchemaVersion` by nothing.
 
 ## What is re-derived
 

@@ -16,9 +16,10 @@ namespace RimGovernor.Native
     // the lord nearest the colony adds one trail sample, so the controller
     // can find where the raid crossed the boundary of its own census rather
     // than guess from a far map-edge coordinate. The tracks are RaidTrackLog's:
-    // a live lord keeps its whole trail, a lord unseen for a day is finished and
-    // only the newest finished ground tracks stay. ExposeData saves them with the
-    // map (RG-HABITAT-009); a save without the nodes loads none.
+    // a trail holds each cell once, a lord unseen for a day is finished, and every
+    // finished ground raid's track stays while a finished drop or tunnel is evicted.
+    // ExposeData saves them with the map (RG-HABITAT-009); a save without the
+    // nodes loads none.
     public sealed class RaidArrivalState : MapComponent
     {
         public const int SampleInterval = 60;
