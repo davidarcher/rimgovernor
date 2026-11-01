@@ -3,9 +3,39 @@ namespace RimGovernor.Brain.Policy;
 // The bridging provision a transition removal waits on (task 8.3 of redefine-habitat-requirements, RG-HABITAT-011): a building a
 // chosen Store, Remove or Relocate takes off its cell keeps its place while what it provides is not observed served by a
 // replacement on fresh facts. Four provisions are read: an occupied bed's sleepers, a live power net's consumers, a usable pen's
-// herd, and the defense's standing tiers. Nothing is remembered: each review reads the dependency again, so a replacement lost
-// before the old service is removed reopens it (ServicingChoiceRules.Choose gates the removal and binds nothing), and one lost
-// after is a plain deficit for its owning family.
+// herd, and the defense's standing tiers. Nothing is remembered across reviews: each review reads the dependency again, so a
+// replacement lost before the old service is removed reopens it (ServicingChoiceRules.Choose gates the removal and binds nothing),
+// and one lost after is a plain deficit for its owning family. Within one review a replacement serves once: the bed slots and the
+// net generation each admitted removal relies on are taken on the review's ledger (TransitionBridgingLedger), so two removals
+// never pass against the same spare slot or the same remaining wattage.
+
+/// <summary>
+/// The replacements the removals admitted so far in one review rely on (ColonyReading.Bridging; one per review, shared by every
+/// proposing path that reads the same colony): the buildings taken down, the free bed slots assigned to their stranded
+/// sleepers, and the generation their nets lose. A removal is checked against what is left (<see cref="TransitionBridgingRules.UnservedOf"/>)
+/// and, once admitted, takes its share (<see cref="TransitionBridgingRules.AdmitOf"/>); taking the same building twice takes nothing more.
+/// </summary>
+public sealed class TransitionBridgingLedger
+{
+    private readonly HashSet<string> removed = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> slots = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, double> generation = new(StringComparer.Ordinal);
+
+    /// <summary>Whether an admitted removal takes <paramref name="target"/> down: it serves no one as a replacement.</summary>
+    public bool Removed(string target) => removed.Contains(target);
+
+    /// <summary>The free slots of <paramref name="bed"/> already assigned to sleepers of removed beds.</summary>
+    public int SlotsTaken(string bed) => slots.GetValueOrDefault(bed);
+
+    /// <summary>The generation <paramref name="network"/> loses with its admitted producer removals.</summary>
+    public double GenerationTaken(string network) => generation.GetValueOrDefault(network);
+
+    internal bool TakeRemoved(string target) => removed.Add(target);
+
+    internal void TakeSlot(string bed) => slots[bed] = SlotsTaken(bed) + 1;
+
+    internal void TakeGeneration(string network, double watts) => generation[network] = GenerationTaken(network) + watts;
+}
 
 public static class TransitionBridgingRules
 {
@@ -17,10 +47,11 @@ public static class TransitionBridgingRules
 
     /// <summary>
     /// What a removal of the standing building (its id and definition) would leave without an observed serving replacement, from
-    /// the review's facts (TransitionFacts.Unserved): the first of <see cref="RestUnserved"/>, <see cref="PowerUnserved"/>,
-    /// <see cref="PenUnserved"/> and <see cref="DefenseUnserved"/>; null when nothing it provides is left unserved.
+    /// the review's facts and what <paramref name="ledger"/> says earlier admitted removals already rely on (TransitionFacts.Unserved):
+    /// the first of <see cref="RestUnserved"/>, <see cref="PowerUnserved"/>, <see cref="PenUnserved"/> and <see cref="DefenseUnserved"/>;
+    /// null when nothing it provides is left unserved.
     /// </summary>
-    public static Func<string, string, string?> UnservedOf(ReviewFacts f)
+    public static Func<string, string, string?> UnservedOf(ReviewFacts f, TransitionBridgingLedger? ledger = null)
     {
         var herds = new Lazy<(IReadOnlyList<HerdArrangement> Herds, string? Unread)>(() =>
         {
@@ -50,19 +81,44 @@ public static class TransitionBridgingRules
             }
         });
         var pens = new HashSet<string>([HerdPenRules.PenFenceDefinition, HerdPenRules.PenGateDefinition, HerdPenRules.PenMarkerDefinition, .. f.AnimalDoors], StringComparer.Ordinal);
+        ledger ??= new();
         return (target, definition) =>
-            RestUnserved(f.Sleeping, target)
-            ?? PowerUnserved(f.EssentialInputs.Power, target)
+            RestUnserved(f.Sleeping, target, ledger)
+            ?? PowerUnserved(f.EssentialInputs.Power, target, ledger)
             ?? (pens.Contains(definition) ? herds.Value.Unread ?? PenUnserved(herds.Value.Herds, target) : null)
             ?? DefenseUnserved(f.LayoutPlan, f.EssentialInputs.Power, standing.Value, target, definition);
     }
 
     /// <summary>
-    /// An occupied bed's sleeper left without rest (<c>rest:&lt;pawn&gt;</c>): each owner of <paramref name="target"/> needs another
-    /// bed of the same use (crib or not, never a medical bed) that LegalBed gives the occupant class the old bed holds, that the
-    /// owner can reach, and that the owner is assigned to or has a free slot in. Null for a bed no one owns, or no bed at all.
+    /// What an admitted removal of the standing building takes on <paramref name="ledger"/> (TransitionFacts.Admit): the building
+    /// itself, the free slot of the replacement bed each of its sleepers moves to (<see cref="RestUnserved"/>'s assignment), and the
+    /// generation its net loses. The same building admitted again takes nothing more.
     /// </summary>
-    public static string? RestUnserved(SleepingObservation sleeping, string target)
+    public static Action<string, string> AdmitOf(ReviewFacts f, TransitionBridgingLedger ledger) => (target, _) =>
+    {
+        if (!ledger.TakeRemoved(target))
+        {
+            return;
+        }
+        RestOf(f.Sleeping, target, ledger, take: true);
+        if (f.EssentialInputs.Power.Buildings.FirstOrDefault(b => b.Id == target) is { Network.Length: > 0 } site
+            && site.Service.Power is RimGovernor.Brain.GameFacts.Observations.BuildingPower.Trader { OutputW: > 0 })
+        {
+            ledger.TakeGeneration(site.Network, site.OutputW);
+        }
+    };
+
+    /// <summary>
+    /// An occupied bed's sleeper left without rest (<c>rest:&lt;pawn&gt;</c>): each owner of <paramref name="target"/>, in id order,
+    /// needs another bed of the same use (crib or not, never a medical bed) that LegalBed gives the occupant class the old bed
+    /// holds, that the owner can reach, that no admitted removal takes down, and that the owner is assigned to or has a free slot
+    /// in. A free slot serves one sleeper: the first owner it serves takes it, for the bed's other owners and, on
+    /// <paramref name="ledger"/>, for every later removal. Null for a bed no one owns, or no bed at all.
+    /// </summary>
+    public static string? RestUnserved(SleepingObservation sleeping, string target, TransitionBridgingLedger? ledger = null) =>
+        RestOf(sleeping, target, ledger ?? new(), take: false);
+
+    private static string? RestOf(SleepingObservation sleeping, string target, TransitionBridgingLedger ledger, bool take)
     {
         if (sleeping.Beds.FirstOrDefault(b => b.Id == target) is not { Owners.Count: > 0 } old || old.Medical)
         {
@@ -72,25 +128,43 @@ public static class TransitionBridgingRules
             : old.Prisoners ? RimGovernor.Brain.GameFacts.Observations.BedOccupant.Prisoner
             : old.Slaves ? RimGovernor.Brain.GameFacts.Observations.BedOccupant.Slave
             : RimGovernor.Brain.GameFacts.Observations.BedOccupant.Colonist;
+        var taken = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var owner in old.Owners.OrderBy(o => o.Value, StringComparer.Ordinal))
         {
-            var served = sleeping.Beds.Any(b => b.Id != old.Id && !b.Medical && b.Crib == old.Crib
-                && SleepingRules.LegalBed(b.Humanlike, b.Prisoners, b.Slaves, who) && b.AccessibleTo.Contains(owner)
-                && (b.Owners.Contains(owner) || b.Owners.Count < b.Slots));
-            if (!served)
+            var candidates = sleeping.Beds.Where(b => b.Id != old.Id && !b.Medical && b.Crib == old.Crib && !ledger.Removed(b.Id)
+                && SleepingRules.LegalBed(b.Humanlike, b.Prisoners, b.Slaves, who) && b.AccessibleTo.Contains(owner));
+            if (candidates.Any(b => b.Owners.Contains(owner)))
+            {
+                continue;
+            }
+            var free = candidates.Where(b => b.Owners.Count + ledger.SlotsTaken(b.Id) + taken.GetValueOrDefault(b.Id) < b.Slots)
+                .OrderBy(b => b.Id, StringComparer.Ordinal).FirstOrDefault();
+            if (free is null)
             {
                 return Rest + owner.Value;
+            }
+            taken[free.Id] = taken.GetValueOrDefault(free.Id) + 1;
+        }
+        if (take)
+        {
+            foreach (var (bed, count) in taken)
+            {
+                for (var i = 0; i < count; i++)
+                {
+                    ledger.TakeSlot(bed);
+                }
             }
         }
         return null;
     }
 
     /// <summary>
-    /// A live net's consumer left unpowered (<c>power:&lt;consumer&gt;</c>): a producer whose net's other generation no longer meets
-    /// the net's draw without its output, or a battery on a net whose generation does not meet its draw, while the net powers a
-    /// consumer. A net the per-net summary does not list names the net (<c>power:network:&lt;id&gt;</c>). Null for anything else.
+    /// A live net's consumer left unpowered (<c>power:&lt;consumer&gt;</c>): a producer whose net's other generation, less what
+    /// <paramref name="ledger"/>'s admitted producer removals already take, no longer meets the net's draw without its output, or a
+    /// battery on a net whose remaining generation does not meet its draw, while the net powers a consumer. A net the per-net
+    /// summary does not list names the net (<c>power:network:&lt;id&gt;</c>). Null for anything else.
     /// </summary>
-    public static string? PowerUnserved(PowerTopology power, string target)
+    public static string? PowerUnserved(PowerTopology power, string target, TransitionBridgingLedger? ledger = null)
     {
         if (power.Buildings.FirstOrDefault(b => b.Id == target) is not { } site || site.Network.Length == 0)
         {
@@ -113,7 +187,7 @@ public static class TransitionBridgingRules
         {
             return Power + "network:" + site.Network;
         }
-        var left = producer ? net.GenerationW - site.OutputW : net.GenerationW;
+        var left = net.GenerationW - (ledger?.GenerationTaken(net.Id) ?? 0) - (producer ? site.OutputW : 0);
         return left + Tolerance < net.ConsumptionW ? Power + consumer : null;
     }
 

@@ -203,7 +203,7 @@ partial class HomeUpkeepReader
     }
 
     /// <summary>The colony's transition facts (ServicingChoiceRules.TransitionFactsOf), its servicing options joined to its building rows.</summary>
-    internal static TransitionFacts TransitionsOf(ColonyReading colony) => ServicingChoiceRules.TransitionFactsOf(colony.Facts, colony.Tables.Buildings.Table.At);
+    internal static TransitionFacts TransitionsOf(ColonyReading colony) => ServicingChoiceRules.TransitionFactsOf(colony.Facts, colony.Tables.Buildings.Table.At, colony.Bridging);
 
     /// <summary>The colony's standing buildings by def and map position, the census an open planned slot is read against (ReconcileRules.OpenSlotsOf).</summary>
     internal static List<(string Def, Cell Cell)> StandingCells(ColonyReading colony) =>

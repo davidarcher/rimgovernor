@@ -172,4 +172,21 @@ public sealed class TransitionChoiceTests
         Assert.Equal(OpKind.Pack, Removal(TransitionFixtures.Packing(rows)));
         Assert.Equal(OpKind.FurnitureOut, Removal(TransitionFixtures.Removing(rows)));
     }
+
+    [Fact]
+    public void RelocatingABrokenDownBuildingMovesItBrokenSoTheFixWinsAndTheMoveLosesTheHorizon()
+    {
+        var service = new TransitionService.Assessed(1, 0);
+        var slot = new TransitionDestination(new TransitionLeg.Walked(300), new TransitionBuild.Priced(2));
+        // Whole, the move loses the service only for its own days.
+        var whole = ServicingChoiceRules.Transition(new("bench", "TableButcher", TransitionCause.StaleInterior) { Service = service, Destination = slot },
+            Serviced(TransitionFixtures.Mechanics("bench", "TableButcher", At), Repair, Fix));
+        Assert.Equal((100 + 200 / 1.7 + 300) / GameTime.TicksPerDay, Price(whole, ServicingChoiceKind.Relocate).Service, 9);
+        // Broken down, the move restores nothing: it loses the service over the horizon as Retain does, and the fix wins.
+        var broken = ServicingChoiceRules.Transition(new("bench", "TableButcher", TransitionCause.StaleInterior) { Service = service, Destination = slot },
+            Serviced(TransitionFixtures.Mechanics("bench", "TableButcher", At, brokenDown: true), Repair, Fix));
+        Assert.Equal(ColonyModelPolicy.DefaultHorizonDays, Price(broken, ServicingChoiceKind.Relocate).Service, 9);
+        Assert.Equal(Price(broken, ServicingChoiceKind.Retain).Service, Price(broken, ServicingChoiceKind.Relocate).Service, 9);
+        Assert.Equal(ServicingChoiceKind.FixBreakdown, broken.Chosen!.Kind);
+    }
 }

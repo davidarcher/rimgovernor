@@ -10,6 +10,13 @@ public sealed record ColonyReading
     public required Tables Tables { get; init; }
     public required ObservationIdentity Identity { get; init; }
     public required ReviewFacts Facts { get; init; }
+
+    /// <summary>
+    /// What the transition removals this review admitted so far rely on (TransitionBridgingRules): one ledger for the reading,
+    /// shared by every proposing path that compares a standing building against its facts, so a spare bed slot or a net's
+    /// remaining generation serves one removal, not each.
+    /// </summary>
+    public TransitionBridgingLedger Bridging { get; init; } = new();
     public Held<PlanningCells>? Window { get; init; }
     public Held<RimGovernor.Brain.GameFacts.Observations.ZonesSnapshot>? Zones { get; init; }
     public DateTimeOffset StartedAt { get; init; }

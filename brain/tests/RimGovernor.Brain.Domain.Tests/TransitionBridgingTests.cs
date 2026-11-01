@@ -23,8 +23,11 @@ public sealed class TransitionBridgingTests
 
     // A building whose footprint the plan builds on: it cannot stay, and not being minifiable, the comparison removes it.
     private static TransitionDecision Decide(string target, string def, Func<string, string, string?>? unserved, params PlannedTransition[] planned) =>
+        Decide(target, def, unserved, null, planned);
+
+    private static TransitionDecision Decide(string target, string def, Func<string, string, string?>? unserved, Action<string, string>? admit, params PlannedTransition[] planned) =>
         ServicingChoiceRules.Choose(new(target, def, TransitionCause.PlannedGround) { RetainExcluded = ReconcileRules.FootprintPlanned, Service = new TransitionService.Assessed(0, 0) },
-            TransitionFixtures.Facts(TransitionFixtures.Mechanics(target, def, new Cell(1, 1), minifiable: false)) with { Unserved = unserved, Planned = planned });
+            TransitionFixtures.Facts(TransitionFixtures.Mechanics(target, def, new Cell(1, 1), minifiable: false)) with { Unserved = unserved, Admit = admit, Planned = planned });
 
     private static SleepingBed Bed(string id, EquatableArray<PawnId> owners = default, EquatableArray<PawnId> reach = default, int slots = 1) => new()
     {
@@ -194,5 +197,63 @@ public sealed class TransitionBridgingTests
         Assert.False(TransitionBindingRules.SettledOpen(plan, "bed", [TransitionCause.HostRetirement], standing, _ => true));
         // Furniture off every retired and planned room's ground has lost its cause.
         Assert.True(TransitionBindingRules.SettledOpen(plan, "bed", [TransitionCause.RetiredGround, TransitionCause.PlannedGround], standing, _ => false));
+    }
+
+    [Fact]
+    public void AFreeSlotServesOneSleeperAcrossABedsOwnersAndAcrossTheReviewsRemovals()
+    {
+        // A double bed with two owners and one spare single slot in reach of both: the first owner takes the slot, the second is
+        // stranded, so the removal is gated on the second sleeper. Two spare slots serve both.
+        var one = new SleepingObservation { Beds = [Bed("old", owners: [A, B], reach: [A, B], slots: 2), Bed("new", reach: [A, B])] };
+        Assert.Equal("rest:b", TransitionBridgingRules.RestUnserved(one, "old"));
+        var two = new SleepingObservation { Beds = [Bed("old", owners: [A, B], reach: [A, B], slots: 2), Bed("new", reach: [A, B]), Bed("other", reach: [A, B])] };
+        Assert.Null(TransitionBridgingRules.RestUnserved(two, "old"));
+
+        // Two single beds removed in one review against one spare slot: the first removal takes the slot on the review's ledger, the
+        // second is gated; checked alone each would have passed against the same slot.
+        var singles = new SleepingObservation { Beds = [Bed("a-bed", owners: [A], reach: [A]), Bed("b-bed", owners: [B], reach: [B]), Bed("new", reach: [A, B])] };
+        Assert.Null(TransitionBridgingRules.RestUnserved(singles, "a-bed"));
+        Assert.Null(TransitionBridgingRules.RestUnserved(singles, "b-bed"));
+        var ledger = new TransitionBridgingLedger();
+        var facts = new ReviewFacts { Sleeping = singles };
+        var first = Decide("a-bed", "Bed", TransitionBridgingRules.UnservedOf(facts, ledger), TransitionBridgingRules.AdmitOf(facts, ledger));
+        Assert.True(first.Admitted);
+        Assert.Equal(1, ledger.SlotsTaken("new"));
+        Assert.True(ledger.Removed("a-bed"));
+        var second = Decide("b-bed", "Bed", TransitionBridgingRules.UnservedOf(facts, ledger), TransitionBridgingRules.AdmitOf(facts, ledger));
+        Assert.Equal("replacement not serving:rest:b", second.Gate);
+        Assert.False(second.Admitted);
+        // Admitting the same bed again takes nothing more; a removed bed serves no one as a replacement.
+        Decide("a-bed", "Bed", TransitionBridgingRules.UnservedOf(facts, ledger), TransitionBridgingRules.AdmitOf(facts, ledger));
+        Assert.Equal(1, ledger.SlotsTaken("new"));
+        var onto = new SleepingObservation { Beds = [Bed("a-bed", reach: [A, B]), Bed("b-bed", owners: [B], reach: [B])] };
+        Assert.Null(TransitionBridgingRules.RestUnserved(onto, "b-bed"));
+        Assert.Equal("rest:b", TransitionBridgingRules.RestUnserved(onto, "b-bed", ledger));
+    }
+
+    [Fact]
+    public void TwoProducersOnOneNetCannotBothBeRemovedAgainstTheSameRemainingGeneration()
+    {
+        // 2000 W generated, 800 W drawn: either generator alone can go, not both. The first removal takes its 1000 W on the ledger.
+        var power = new PowerTopology
+        {
+            Buildings =
+            [
+                PowerBuildingFixtures.Trader("g1", "WoodFiredGenerator", new Cell(1, 1), 1000, 1000, true),
+                PowerBuildingFixtures.Trader("g2", "WoodFiredGenerator", new Cell(3, 1), 1000, 1000, true),
+                PowerBuildingFixtures.Trader("lamp", "StandingLamp", new Cell(2, 2), -800, -800, true),
+            ],
+            Networks = [new PowerNetwork { Id = "net", GenerationW = 2000, ConsumptionW = 800, StoredWD = 0 }],
+        };
+        Assert.Null(TransitionBridgingRules.PowerUnserved(power, "g1"));
+        Assert.Null(TransitionBridgingRules.PowerUnserved(power, "g2"));
+        var ledger = new TransitionBridgingLedger();
+        var facts = new ReviewFacts { EssentialInputs = new() { Power = power } };
+        var first = Decide("g1", "WoodFiredGenerator", TransitionBridgingRules.UnservedOf(facts, ledger), TransitionBridgingRules.AdmitOf(facts, ledger));
+        Assert.True(first.Admitted);
+        Assert.Equal(1000, ledger.GenerationTaken("net"));
+        var second = Decide("g2", "WoodFiredGenerator", TransitionBridgingRules.UnservedOf(facts, ledger), TransitionBridgingRules.AdmitOf(facts, ledger));
+        Assert.Equal("replacement not serving:power:lamp", second.Gate);
+        Assert.Equal(1000, ledger.GenerationTaken("net"));
     }
 }

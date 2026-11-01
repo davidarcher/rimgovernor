@@ -101,6 +101,12 @@ public sealed record TransitionFacts
     /// <c>defense:&lt;tier&gt;</c>), null when nothing it provides is left unserved; null itself reads no dependency.
     /// </summary>
     public Func<string, string, string?>? Unserved { get; init; }
+
+    /// <summary>
+    /// What an admitted removal of a standing building (its id and definition) takes on the review's bridging ledger
+    /// (TransitionBridgingRules.AdmitOf), so a later removal in the same review is checked against what is left; null takes nothing.
+    /// </summary>
+    public Action<string, string>? Admit { get; init; }
 }
 
 /// <summary>
@@ -165,19 +171,24 @@ public static partial class ServicingChoiceRules
     /// chosen removal whose replacement is not observed serving on these facts (TransitionFacts.Unserved) is gated, named
     /// <c>replacement not serving:&lt;dependant&gt;</c>, and binds nothing: a replacement lost before the old service is removed
     /// drops the binding, so the path's unissued removal is stale and cancelled and the building stays. Omission is never a cause.
+    /// An admitted removal takes what it relies on from the review's bridging ledger (TransitionFacts.Admit), so the next removal
+    /// the review admits is checked against what is left.
     /// </summary>
     public static TransitionDecision Choose(TransitionCandidate c, TransitionFacts? f)
     {
         var unserved = f?.Unserved?.Invoke(c.Target, c.Definition);
         if (unserved is null && f?.Planned.FirstOrDefault(t => t.Target == c.Target) is { } bound && TransitionBindingRules.Holds(bound, c))
         {
-            return new TransitionDecision(c.Target, c.Definition, c.Cause, [], new ServicingAlternative(bound.Kind, "", new ServicingStanding.Bound())) { Planned = bound };
+            var readBack = new TransitionDecision(c.Target, c.Definition, c.Cause, [], new ServicingAlternative(bound.Kind, "", new ServicingStanding.Bound())) { Planned = bound };
+            if (readBack.Admitted) f!.Admit?.Invoke(c.Target, c.Definition);
+            return readBack;
         }
         var d = Transition(c, f);
         if (unserved is not null && d.Chosen?.Kind is ServicingChoiceKind.Store or ServicingChoiceKind.Remove or ServicingChoiceKind.Relocate)
         {
             d = d with { Gate = ReplacementNotServing + unserved };
         }
+        if (d.Admitted) f?.Admit?.Invoke(c.Target, c.Definition);
         return d with { Planned = TransitionBindingRules.PlannedOf(c, d) };
     }
 
@@ -188,7 +199,8 @@ public static partial class ServicingChoiceRules
     /// Relocate keep the building whole) and the service it loses (the service term over the days within H it leaves the function
     /// lost, from the service's start). Retain is the baseline and costs nothing unless the building is broken down (it then loses
     /// its service over H); Repair restores hit points, which carry no function (StatPart_Health prices only), so damage alone never
-    /// beats Retain; FixBreakdown loses service only for its expected work; Relocate needs a minifiable building and a destination;
+    /// beats Retain; FixBreakdown loses service only for its expected work; Relocate needs a minifiable building and a destination,
+    /// and moves a broken-down building broken, so like Store and Remove it then loses the service over H;
     /// Repurpose needs a typed operation (none is modelled); Store needs a minifiable building and storage that accepts it; Remove
     /// needs a deconstructible one. A fact an alternative needs that is unread makes it unassessed; with the service unassessed, an
     /// alternative losing more service days than the least-losing measured one is unassessed too, so an unassessed service is never
@@ -237,8 +249,9 @@ public static partial class ServicingChoiceRules
             throw new InvalidOperationException("transition destination: " + destination);
         else
         {
+            // The move restores nothing: a broken-down building arrives broken, its service lost over the horizon as Retain's is.
             var days = (m.Worker!.ApproachTicks + m.UninstallWork / rate!.Value + haul) / GameTime.TicksPerDay;
-            raw.Add(new(ServicingChoiceKind.Relocate, m.Worker.Pawn, null, days, -avoided, 0, days));
+            raw.Add(new(ServicingChoiceKind.Relocate, m.Worker.Pawn, null, days, -avoided, 0, m.BrokenDown ? horizon : days));
         }
         Excluded(ServicingChoiceKind.Repurpose, NoTypedOp);
         // Store: uninstall and haul the minified building to storage that accepts it; the building is kept whole.
@@ -365,12 +378,19 @@ public static partial class ServicingChoiceRules
 
     /// <summary>
     /// The transition facts of a review: the coupled forecast's native servicing read, the review's material values, the default
-    /// horizon, and the read's servicing options joined to <paramref name="rows"/> (none without them).
+    /// horizon, the read's servicing options joined to <paramref name="rows"/> (none without them), and the bridging reads against
+    /// <paramref name="bridging"/>, the review's ledger of what admitted removals rely on (ColonyReading.Bridging; a fresh one,
+    /// shared by nothing else, when the caller has none).
     /// </summary>
-    public static TransitionFacts TransitionFactsOf(ReviewFacts f, Func<string, BuildingRow?>? rows = null)
+    public static TransitionFacts TransitionFactsOf(ReviewFacts f, Func<string, BuildingRow?>? rows = null, TransitionBridgingLedger? bridging = null)
     {
+        bridging ??= new();
         var t = TransitionFactsOf(f.ForecastObserved.Coupled?.Servicing, f.CoupledAlternatives?.Context.MaterialValues, rows);
-        return t with { Standing = StandingServiceOf(f, t), BuildPrice = BuildPriceOf(f, t.Values), Planned = f.LayoutPlan?.Transitions ?? [], Unserved = TransitionBridgingRules.UnservedOf(f) };
+        return t with
+        {
+            Standing = StandingServiceOf(f, t), BuildPrice = BuildPriceOf(f, t.Values), Planned = f.LayoutPlan?.Transitions ?? [],
+            Unserved = TransitionBridgingRules.UnservedOf(f, bridging), Admit = TransitionBridgingRules.AdmitOf(f, bridging),
+        };
     }
 
     /// <summary>

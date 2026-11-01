@@ -855,7 +855,13 @@ the same load (each path's `MethodOnce`, latest-attempt or withdrawn-target gate
 by a replacement on fresh facts (`TransitionBridgingRules.UnservedOf`, `TransitionDecision.Admitted`). Otherwise the decision
 carries the gate `replacement not serving:<dependant>`, binds nothing, and the building stays. A replacement lost before the
 old service is removed drops the binding and reopens the dependency (`transition_reopened`); one lost afterwards is a plain
-deficit for its owning family. Nothing is remembered between reviews. Four provisions are read:
+deficit for its owning family. Nothing is remembered between reviews. Within one review a replacement serves once: the
+reading's bridging ledger (`ColonyReading.Bridging`, a `TransitionBridgingLedger`; `TransitionFacts.Admit`,
+`TransitionBridgingRules.AdmitOf`) records each admitted removal, the free bed slot each of its stranded sleepers is assigned
+and the generation its net loses, and every later check in the review reads against what is left, so two removals never
+pass on the same spare slot or the same remaining wattage, and a bed an admitted removal takes down serves no one. Within one
+bed, each owner in id order takes the first free slot that serves it, so a double bed's two owners need two slots. Four
+provisions are read:
 
 | Dependant | Read | Unserved when |
 |---|---|---|
