@@ -8,7 +8,7 @@ Balance immediate provision, continued operation, resilience and improvement
 against other colony needs.
 
 This specification formalizes the maintainer's habitat exploration on 2026-10-25–26,
-as traced in the [decision record](../../changes/redefine-habitat-requirements/proposal.md#decision-provenance-and-review-boundary).
+as traced in the [decision record](../../changes/archive/2026-11-01-redefine-habitat-requirements/proposal.md#decision-provenance-and-review-boundary).
 The scenarios are proposed acceptance examples, not separately approved tactics
 or evidence of passing behavior. The [habitat evidence page](../../../docs/requirements/habitat.md)
 owns implementation inspection, execution and proof limits, retaining H1–H7 with their

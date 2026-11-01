@@ -8,7 +8,7 @@ Shelter becomes useful when people can occupy it and its services work. The
 governor may revise every room, building and zone as the colony's needs change.
 The [habitat specification](../../openspec/specs/habitat/spec.md) is the standing owner of RG-HABITAT-001–011 and
 their scenarios; the maintainer-confirmed policy and its provenance are in the
-[decision record](../../openspec/changes/redefine-habitat-requirements/proposal.md#decision-provenance-and-review-boundary).
+[decision record](../../openspec/changes/archive/2026-11-01-redefine-habitat-requirements/proposal.md#decision-provenance-and-review-boundary).
 This page owns implementation inspection, executed results and proof limits, not
 requirements. Its inspection history (H1–H7) and the decisions below are preserved
 as recorded.
