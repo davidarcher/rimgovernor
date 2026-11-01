@@ -77,8 +77,8 @@ public static class DefenseProtectionRules
     /// <summary>The candidate was asked for and the read is absent.</summary>
     public const string ProbeUnread = "defense_probe:unread";
 
-    /// <summary>No ground raid was observed since load: there is no walk to probe.</summary>
-    public const string ArrivalUnobserved = "arrival_edges:none_observed_since_load";
+    /// <summary>No ground raid is in the saved raid tracks (none seen on this map, or none kept): there is no walk to probe.</summary>
+    public const string ArrivalUnobserved = "arrival_edges:none_observed";
 
     public const string Fogged = "sight:fogged";
 

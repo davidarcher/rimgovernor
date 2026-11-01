@@ -341,7 +341,7 @@ edifice on every cell outside the enclosure's connected regions that touches one
 region (fences, gates, walls, animal doors), and `Animals` the load ids of the player animals inside it; an unenclosed pen has
 neither. `HerdArrangement.Pieces` joins them per unit: the marker and boundary of every pen tied to the unit, one whose marker
 stands in the unit's planned pens or whose enclosure holds one of its animals. A standing-building removal reads it to keep a
-pen piece only on the herd whose pen it bounds ([transitions](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and-011)),
+pen piece only on the herd whose pen it bounds ([transitions](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and--011)),
 never on another herd's deficit.
 
 Remedies are compared, never chosen by kind, and `retain` (valued at the zero of the loss it keeps) is every

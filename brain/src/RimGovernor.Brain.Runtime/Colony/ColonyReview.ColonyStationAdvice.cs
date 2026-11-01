@@ -135,14 +135,24 @@ public sealed partial class ColonyReview
     /// priced in its cheapest common stuff (LayoutClusterRules.PiecePrice) and its work over the colony's builders. Null while
     /// the catalog shows the bed no work or cost list.
     /// </summary>
-    internal async Task<ProvisionOption?> ProspectiveBedAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct)
+    internal Task<ProvisionOption?> ProspectiveBedAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct) =>
+        ProspectivePieceAsync(snapshot, projection, "bed", projection.Facts.Shapes.Furniture.PrimaryBed(), ct);
+
+    /// <summary>
+    /// The catalog's crib (RoomFurniture.Crib) as a newborn's permanent provision, priced as <see cref="ProspectiveBedAsync"/> prices the
+    /// bed. Null while the catalog has no crib or shows it no work or cost list.
+    /// </summary>
+    internal Task<ProvisionOption?> ProspectiveCribAsync(GenerationSnapshot snapshot, ColonyReading projection, CancellationToken ct) =>
+        ProspectivePieceAsync(snapshot, projection, "crib", projection.Facts.Shapes.Furniture.Crib, ct);
+
+    private async Task<ProvisionOption?> ProspectivePieceAsync(GenerationSnapshot snapshot, ColonyReading projection, string kind, string def, CancellationToken ct)
     {
-        if (ColonyPlanningRules.HostPiece(projection.Facts, projection.Facts.Shapes.Furniture.PrimaryBed()) is not { } piece)
+        if (def.Length == 0 || ColonyPlanningRules.HostPiece(projection.Facts, def) is not { } piece)
         {
             return null;
         }
         var values = await MaterialValuesAsync(snapshot, piece.Costs.Select(a => a.Resource), projection.Facts.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
-        return ProspectiveCapacityRules.BedOption(piece.Work, LayoutClusterRules.PiecePrice(piece, values), LayoutClusterRules.BuildersOf(projection.Facts.ForecastObserved.WorkPawns));
+        return ProspectiveCapacityRules.PieceOption(kind, piece.Work, LayoutClusterRules.PiecePrice(piece, values), LayoutClusterRules.BuildersOf(projection.Facts.ForecastObserved.WorkPawns));
     }
 
     /// <summary>

@@ -49,7 +49,7 @@ public sealed class CareTransportTests
     };
 
     /// <summary>Patients lying on the floor, each with its own dirty bed and the clean ward the comparison reuses.</summary>
-    private static CareCapacityRequest Request(params SupportCarePatient[] patients) => new()
+    internal static CareCapacityRequest Request(params SupportCarePatient[] patients) => new()
     {
         Support = CoupledFixtures.NoSupport with
         {
@@ -61,7 +61,7 @@ public sealed class CareTransportTests
         Rooms = RoomFixtures.Census(RoomFixtures.State("r1", RoomRole.Bedroom, beds: ["own", "qown", "ward"])),
     };
 
-    private static SupportCarePatient Walking(string demand, string pawn, BedOccupant who = BedOccupant.Colonist) =>
+    internal static SupportCarePatient Walking(string demand, string pawn, BedOccupant who = BedOccupant.Colonist) =>
         Patient(demand, pawn, who, CareBed(pawn == "p" ? "own" : "qown", false, 2), CareBed("ward", true, .5));
 
     private static CareCapacityOption Option(CareCapacityPlan plan, string demand, string bed) =>

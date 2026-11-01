@@ -366,7 +366,7 @@ duration and the component def are typed members and are read. The refuel thresh
 
 ## Mirrored game literals: transitions (habitat 8.1, 8.4)
 
-The transition choice ([spatial contracts](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and-011)) prices a
+The transition choice ([spatial contracts](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and--011)) prices a
 standing building's removal, storage and relocation from the native read `ServicingActivityRead.Transitions` and a few
 literals that have no typed route. Each was checked in the decompiled 1.7 code (ilspycmd on `Assembly-CSharp.dll`). Typed
 reads are not constants and are not listed: `building.uninstallWork`, `Pawn.TicksPerMoveCardinal` (the worker's `TicksPerCell`),
@@ -379,6 +379,28 @@ reads are not constants and are not listed: `building.uninstallWork`, `Pawn.Tick
 | Diagonal step | 1.41421: a diagonal step's ticks over a cardinal one's, pricing the haul to a relocation slot as the octile distance (the same literal as [food hauling](#mirrored-game-rules-food-hauling-3849)) | `Pawn.TicksPerMove` | `brain/src/RimGovernor.Brain.Policy/Reconcile.cs:765` |
 | Reinstall install work | `Blueprint_Install.WorkTotal` is 150, named in a comment and not used: the install itself is the delivery, because the native installs a minified thing when it is carried onto its blueprint, so a relocation prices its haul and not 150 work | `Blueprint_Install.WorkTotal` | `brain/src/RimGovernor.Brain.Policy/ServicingTransition.cs:47` (comment) |
 | Transition target bound | 96 standing equipment buildings a read (`transition_targets_truncated`), one worker leg and one store leg each | an authored cap, not a game rule | `TransitionBound`, `integrations/rimgovernor-native/src/Bridge/NativeServicingActivities.cs:23` |
+
+## Mirrored game literals: barn animal flap (habitat 9.2)
+
+A planned barn's ring door is the game's animal flap, so penned animals pass it (RG-HABITAT-001). Policy reads no game type and
+1.7 has no `ThingDefOf.AnimalFlap`, so the def name is a string. Its passability is not assumed: the barn is credited only when
+the native `roamerCanOpen` read (`NativeFoodChannels.AnimalDoors`) lists the door. The flap's stuffs (Fabric, Leathery), cost and
+work are read from its catalog row, not copied. Checked in the 1.7 Core defs (`AnimalFlap`, parent `DoorBase`).
+
+| Literal | Value | 1.7 member | Where |
+| --- | --- | --- | --- |
+| Barn door def | `AnimalFlap` | the `AnimalFlap` ThingDef (no `ThingDefOf` field) | `HerdShelterRules.BarnDoorDefinition`, `brain/src/RimGovernor.Brain.Policy/HerdShelter.cs:109` |
+| Door over door | a door blueprint is placed over a standing door of another def, with no deconstruction first | `DoorBase` `replaceTags` `Door` | `brain/src/RimGovernor.Brain.Policy/Reconcile.cs:471` |
+
+## Policy constants: saved raid tracks (habitat 9.2)
+
+The native keeps the hostile lords it samples and saves them with the map (`RaidTrackLog`, RG-HABITAT-009;
+[persistence contracts](persistence-contracts.md#what-must-survive)), so the defense probe keeps its approaches across days and loads.
+
+| Constant | Where | Value | Why it stays |
+| --- | --- | --- | --- |
+| `RaidTrackLog.FinishedAge` | `integrations/rimgovernor-native/src/Runtime/Persistence/RaidTrackLog.cs` | 60000 ticks | A lord unseen for one game day has left or died; its track is finished. The former `RaidArrivalState.FinishedAge`, moved. |
+| `RaidTrackLog.KeptGroundRaids` | same | 8 | An authored bound, not a game rule: the newest finished ground raids kept for the probe's approaches, so the save does not grow with every raid. |
 
 ## Mirrored game literals: rain short circuit (habitat 6.4)
 

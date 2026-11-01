@@ -30,6 +30,7 @@ public sealed partial record LayoutPlan
             Fences = g.Fences,
             Gates = g.Gates,
             Stuff = g.Stuff,
+            DoorDefs = g.DoorDefs,
             Vents = g.Vents,
             Rock = [],
         };

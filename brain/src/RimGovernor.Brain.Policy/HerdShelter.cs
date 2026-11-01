@@ -12,8 +12,10 @@ namespace RimGovernor.Brain.Policy;
 // The barn's exposure is the mirrored hypothermia and heatstroke givers (ForecastValue.ThermalGainPerTick) walked over the
 // map's twelve seasonal means from the current twelfth; an animal whose severity reaches the def's lethal value is lost at
 // its market value over the days until it does. A comfort range that covers the climate is a known zero, not an exclusion. A
-// fact the barn needs unread makes only the barn Unassessed, naming the fact. A barn whose ring door no roamer can open (the shell door,
-// HerdShelterRules.AnimalEntry) is Unassessed under "animal access:<unit>": it would earn nothing. No arrangement is chosen here: the barn is a layout regroup deviation
+// fact the barn needs unread makes only the barn Unassessed, naming the fact. A barn's ring door is the animal flap
+// (HerdShelterRules.BarnDoorDefinition); a barn whose standing or planned door no roamer can open (a plain door standing in its
+// ring until it is replaced, a load without the flap, HerdShelterRules.AnimalEntry) is Unassessed under "animal access:<unit>":
+// it would earn nothing. No arrangement is chosen here: the barn is a layout regroup deviation
 // (LayoutHerdBarnRules) the coupled ledger prices with its own shelter model (ForecastHerdShelter) against the baseline.
 
 /// <summary>A pen unit's resting arrangements.</summary>
@@ -73,6 +75,13 @@ public sealed record HerdShelterInput
 
     /// <summary>The door defs a fence-blocked roamer can open (FoodChannelsFacts.AnimalDoors); a barn entered by any other door serves no penned animal.</summary>
     public IReadOnlyList<string> AnimalDoors { get; init; } = [];
+
+    /// <summary>
+    /// The door def at each door cell of each unit's planned barns, by unit key: the door standing there (GroundCensus.DoorDefs),
+    /// else the planned one (PlannedRoom.RingDefs, the animal flap). A unit with no barn in the plan has no entry, and its barn
+    /// is the one the regroup would plan.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> BarnDoors { get; init; } = new Dictionary<string, IReadOnlyList<string>>();
 }
 
 public static class HerdShelterRules
@@ -91,6 +100,14 @@ public static class HerdShelterRules
     /// <summary>The fact a barn's gain waits on while its entry is no door a penned animal can pass: "animal access:&lt;unit&gt;".</summary>
     public const string FactAnimalAccess = "animal access:";
 
+    /// <summary>
+    /// The def of a barn's ring door: Core's animal flap, the door BuildingProperties.roamerCanOpen lets a fence-blocked roamer
+    /// open, built in its own stuff (Fabric or Leathery, read from its catalog row). ThingDefOf has no AnimalFlap field and the
+    /// policy layer reads no game type, so the name is the one string lookup (as ContainmentCellRules.ShellDoorDefinition); the
+    /// native roamerCanOpen read (AnimalDoors) checks it, and a load without it leaves the barn under "animal access:&lt;unit&gt;".
+    /// </summary>
+    public const string BarnDoorDefinition = "AnimalFlap";
+
     /// <summary>A barn's floor per animal: its sleeping spot and the free cell it is tended from.</summary>
     internal const int BarnCellsPerAnimal = 2;
 
@@ -107,11 +124,14 @@ public static class HerdShelterRules
         [.. input.Animals.Where(a => a.RequiresPen && UnitOf(a, input.Herds) == herd).OrderBy(a => a.Id.Value, StringComparer.Ordinal)];
 
     /// <summary>
-    /// Whether the door the layout raises in a barn's ring (PlannedRoom.RingDefs) is one a fence-blocked roamer can open
-    /// (RG-HABITAT-006: no credit for an unusable barn). The ring door is the shell door, which roamers cannot open, so a
-    /// barn earns nothing until its entry is an animal flap.
+    /// Whether every door of unit <paramref name="herd"/>'s barn is one a fence-blocked roamer can open (RG-HABITAT-006: no
+    /// credit for an unusable barn): the doors standing in its planned barns' rings, else the planned ring door
+    /// (PlannedRoom.RingDefs, the animal flap), each checked against the native roamerCanOpen read. A plain door standing in a
+    /// barn's ring passes no penned animal, so that barn earns nothing until the reconcile's replacement stands.
     /// </summary>
-    internal static bool AnimalEntry(HerdShelterInput input) => input.AnimalDoors.Contains(new PlannedRoom { Role = PlannedRole.Barn }.RingDefs().Door);
+    internal static bool AnimalEntry(HerdShelterInput input, string herd) =>
+        (input.BarnDoors.TryGetValue(herd, out var doors) && doors.Count > 0 ? doors : [new PlannedRoom { Role = PlannedRole.Barn }.RingDefs().Door])
+            .All(input.AnimalDoors.Contains);
 
     /// <summary>Each pen unit's alternatives, in unit key order.</summary>
     public static IReadOnlyList<HerdShelter> Assess(HerdShelterInput input)
@@ -168,7 +188,7 @@ public static class HerdShelterRules
                 gain += LossPerDay(MarketValueOf(animal), days);
             }
         }
-        if (gain > 0 && !AnimalEntry(input))
+        if (gain > 0 && !AnimalEntry(input, herd))
         {
             return new HerdShelterValue.Unassessed(FactAnimalAccess + (herd.Length == 0 ? "misc" : herd));
         }
@@ -275,5 +295,24 @@ public static class FactsHerdShelterExtensions
         Penalties = f.CapacityPenalties,
         AnimalSpot = f.Shapes.Furniture.AnimalSpot,
         AnimalDoors = f.AnimalDoors,
+        BarnDoors = BarnDoorsOf(f),
     };
+
+    /// <summary>The door defs of each unit's planned barns (HerdShelterInput.BarnDoors): the census's standing door at each planned door cell, else the planned one.</summary>
+    private static Dictionary<string, IReadOnlyList<string>> BarnDoorsOf(ReviewFacts f)
+    {
+        var output = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        if (f.LayoutPlan is not { } plan)
+        {
+            return output;
+        }
+        var ground = LayoutGroundRules.GroundOf(f.CurrentConstruction.Buildings);
+        foreach (var barn in plan.RoomsOf(PlannedRole.Barn).OrderBy(r => r.Id))
+        {
+            var planned = barn.RingDefs().Door;
+            var doors = plan.ShellDoors(barn).Select(c => ground.DoorDefs.GetValueOrDefault(c) ?? planned);
+            output[barn.Herd] = [.. (output.GetValueOrDefault(barn.Herd) ?? []).Concat(doors)];
+        }
+        return output;
+    }
 }

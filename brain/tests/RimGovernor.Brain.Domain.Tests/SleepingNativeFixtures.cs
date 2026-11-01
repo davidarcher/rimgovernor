@@ -42,7 +42,8 @@ internal static class SleepingNativeFixtures
         Status = RimGovernor.Brain.GameFacts.Observations.BuildingStatus.Built, HitPoints = new RimGovernor.Brain.GameFacts.Observations.BuildingHitPoints.Untracked(), Construction = null,
         Service = BuildingServiceWire.NoService,
         Settings = new RimGovernor.Brain.GameFacts.Observations.BuildingSettings { Forbidden = false, Control = new RimGovernor.Brain.GameFacts.Observations.BuildingControl.None() },
-        Burning = false, Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = cell, Maximum = cell }, Anomaly = null, Door = null,
+        Burning = false, Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle { Minimum = cell, Maximum = cell }, Anomaly = null,
+        Door = ConstructionObservationFixtures.DoorOf(definition?.Value ?? "Bed"),
     };
 
     internal static RimGovernor.Brain.GameFacts.Observations.RoomState Room(string id, RoomRole role, RoomQuality quality, int cells) => RoomFixtures.State(id, role,

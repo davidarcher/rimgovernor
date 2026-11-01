@@ -170,12 +170,89 @@ public sealed class ProspectiveCapacityTests
         var facts = Colony(new SleepingObservation { Colonists = 1, People = [Person(mother, labor: birth)] });
         var changes = ProspectiveCapacityRules.SleepingChanges(facts, null);
         Assert.Equal([(ExpectedOwner.Crib, birth), (ExpectedOwner.CareBed, birth)], changes.Select(c => (c.Owner, c.At)));
-        // No crib row is catalogued and no owner values a maternal bed rest, so the birth prepares nothing ahead.
-        Assert.Equal(["crib catalog row", "maternal bed rest valuation"], changes.Select(c => ((ExpectedLoss.Unassessed)c.Loss).Fact));
+        // No crib def is catalogued (no Biotech) and no primary bed is read, so the birth prepares nothing ahead and names why.
+        Assert.Equal([ProspectiveCapacityRules.CribDefAbsent, "primary bed rest effectiveness"], changes.Select(c => ((ExpectedLoss.Unassessed)c.Loss).Fact));
+        Assert.Equal(new ExpectedStay.Undated("postpartum exhaustion duration"), changes[1].Stay);
+        Assert.Equal(ProspectiveCapacityRules.CribDefAbsent, Assert.IsType<ProspectiveChoice.Defer>(ProspectiveCapacityRules.SleepingChoices(facts with { ProspectiveBed = Bedroom })[0].Choice).Reason);
         Assert.Equal(ProspectiveAdmission.None, ProspectiveCapacityRules.Admitted(facts with { ProspectiveBed = Bedroom }));
         // The native unread state passes through by name.
         var unread = Colony(new SleepingObservation { Colonists = 1, People = [Person(mother, labor: new ExpectedTiming.Unread("birth tick:mother"))] });
         Assert.All(ProspectiveCapacityRules.SleepingChanges(unread, null), c => Assert.Equal(new ExpectedTiming.Unread("birth tick:mother"), c.At));
+    }
+
+    // The newborn rest rates the 1.7 defs give (DefinitionCatalog.NewbornRest): Need_Rest's 1.5833333E-05 fall and 3.809524E-05 gain
+    // a tick, the ground's 0.8 effectiveness, and no HumanlikeBaby or Human rest stat modifier.
+    private static readonly NewbornRestRates Newborn = new(1.5833333E-05, 3.809524E-05 * 0.8, 3.809524E-05);
+
+    // A colony with a pregnant mother (birth at birthTick) and no baby yet, the mother with a rest row, the catalog's bed and
+    // crib, the newborn's def-level rest rates, and the game's postpartum exhaustion (Biotech's HediffCompProperties_Disappears,
+    // 40000 ticks).
+    private static ReviewFacts Birth(long birthTick, ProvisionOption? crib)
+    {
+        var mother = new PawnId("mother");
+        var rest = NeedsFixtures.Rate("rest", 0.8, 0.0001, 0.28) with { UnservedGainPerTick = 0.0001, GainPerTickPerEffectiveness = 0.0004 };
+        return Colony(new SleepingObservation { Colonists = 1, People = [Person(mother, labor: new ExpectedTiming.Dated(birthTick))] }) with
+        {
+            ProspectiveBed = Bedroom,
+            ProspectiveCrib = crib,
+            NewbornRest = Newborn,
+            Shapes = new PieceShapes { Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }], Crib = "Crib" } },
+            SleepingBeds = [new SleepingBedFacts("Bed", "WoodLog", false, 1, 0.75), new SleepingBedFacts("Crib", "WoodLog", false, 1, 0.75)],
+            CapacityPenalties = new CapacityPenaltyTables { PostpartumExhaustion = new HediffPenaltyTable { Known = true, Hediff = "PostpartumExhaustion", Lifespan = new Lifespan.EndsAfter(40000, 40000) } },
+            ForecastObserved = new ColonyForecastObserved { Needs = NeedsFixtures.Read(Now.Value, NeedsFixtures.Pawn("mother") with { Needs = [rest] }) },
+        };
+    }
+
+    [Fact]
+    public void ABirthSixDaysOutPreparesACribOnlyWhenTheComparatorValuesIt()
+    {
+        var birth = Now.Value + 6 * Day;
+        // A colony's first birth, no baby present: the newborn's loss is the rest the crib (effectiveness 1) frees over the ground
+        // (0.8) at the def-level newborn rates (ForecastHousing.RestDaysFreed), with no needs row read for any baby.
+        var unpriced = Birth(birth, null);
+        Assert.DoesNotContain(unpriced.Sleeping.People, p => p.Baby);
+        var loss = ProspectiveCapacityRules.SleepingChanges(unpriced).Single(c => c.Owner == ExpectedOwner.Crib).Loss;
+        Assert.Equal(new ExpectedLoss.PerDay(ForecastHousing.RestDaysFreed(Newborn.FallPerTick, Newborn.UnservedGainPerTick, Newborn.GainPerTickPerEffectiveness)), loss);
+        var perDay = Assert.IsType<ExpectedLoss.PerDay>(loss).CapabilityDays;
+        Assert.True(perDay > 0);
+        // Unread newborn rates name the defs' read.
+        Assert.Equal(new ExpectedLoss.Unassessed(ProspectiveCapacityRules.NewbornRestUnread),
+            ProspectiveCapacityRules.SleepingChanges(unpriced with { NewbornRest = null }).Single(c => c.Owner == ExpectedOwner.Crib).Loss);
+        var cheap = ProspectiveCapacityRules.PieceOption("crib", Day, perDay * ColonyModelPolicy.DefaultHorizonDays / 2, 1);
+        var choice = ProspectiveCapacityRules.SleepingChoices(Birth(birth, cheap)).Single(c => c.Change.Owner == ExpectedOwner.Crib).Choice;
+        // A crib dearer than the horizon's shortage is not prepared; a cheap one is, started its one-day lead before the birth.
+        var prepared = Assert.IsType<ProspectiveChoice.Prepare>(choice);
+        Assert.Equal(("crib", birth - Day), (prepared.Kind, prepared.StartTick));
+        Assert.False(choice.Due(Now));
+        var dear = ProspectiveCapacityRules.PieceOption("crib", Day, perDay * ColonyModelPolicy.DefaultHorizonDays * 2, 1);
+        Assert.IsType<ProspectiveChoice.Defer>(ProspectiveCapacityRules.SleepingChoices(Birth(birth, dear)).Single(c => c.Change.Owner == ExpectedOwner.Crib).Choice);
+        // No crib priced (none built yet, or no builder): the birth defers.
+        Assert.IsType<ProspectiveChoice.Defer>(ProspectiveCapacityRules.SleepingChoices(Birth(birth, null)).Single(c => c.Change.Owner == ExpectedOwner.Crib).Choice);
+        // A catalog without the crib def names the absent def.
+        var absent = unpriced with { Shapes = new PieceShapes { Furniture = unpriced.Shapes.Furniture with { Crib = "" } } };
+        Assert.Equal(new ExpectedLoss.Unassessed(ProspectiveCapacityRules.CribDefAbsent), ProspectiveCapacityRules.SleepingChanges(absent).Single(c => c.Owner == ExpectedOwner.Crib).Loss);
+    }
+
+    [Fact]
+    public void TheMothersBedRestIsPricedByHerRestOverThePostpartumExhaustion()
+    {
+        var birth = Now.Value + 6 * Day;
+        var facts = Birth(birth, null);
+        var (change, choice) = ProspectiveCapacityRules.SleepingChoices(facts).Single(c => c.Change.Owner == ExpectedOwner.CareBed);
+        // Her loss is her own rest the primary bed frees over the ground; the rest lasts the game's 40000-tick exhaustion.
+        Assert.Equal(ProspectiveCapacityRules.RestLoss(facts, "mother", 1), change.Loss);
+        var perDay = Assert.IsType<ExpectedLoss.PerDay>(change.Loss).CapabilityDays;
+        Assert.True(perDay > 0);
+        Assert.Equal(new ExpectedStay.Until(birth + 40000), change.Stay);
+        // A two-day, three-day bedroom for two-thirds of a day's rest: the shortage over the exhaustion is priced and wins.
+        var deferred = Assert.IsType<ProspectiveChoice.Defer>(choice);
+        Assert.Equal(perDay * 40000 / Day, deferred.Shortage, 9);
+        // A free, instant bed is prepared to be ready at the birth.
+        var free = new ProvisionOption("bed", false, LeadDays: 0, CostDays: 0);
+        Assert.IsType<ProspectiveChoice.Prepare>(ProspectiveCapacityRules.Choose(change, Now, [free]));
+        // Without Biotech's hediff row the rest's end is unread and named.
+        var unread = facts with { CapacityPenalties = new CapacityPenaltyTables() };
+        Assert.Equal(new ExpectedStay.Undated("postpartum exhaustion duration"), ProspectiveCapacityRules.SleepingChanges(unread).Single(c => c.Owner == ExpectedOwner.CareBed).Stay);
     }
 
     [Fact]

@@ -117,15 +117,15 @@ namespace RimGovernor.Native
             return new RimGovernor.Brain.GameFacts.Observations.DefenseSiteSnapshot { Context = context, Cells = [.. rows] };
         }
 
-        // The hostile lords RaidArrivalState has tracked since load, oldest first.
+        // The hostile lords RaidArrivalState keeps (live, and the newest finished ground raids, saved with the map), oldest first.
         internal static IEnumerable<RimGovernor.Brain.GameFacts.Observations.RaidTrack> RaidTracks(Map map)
         {
             var raids = map.GetComponent<RaidArrivalState>();
             if (raids == null) yield break;
-            foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {
+            foreach (var track in raids.Tracks.Tracks) {
                 yield return new RimGovernor.Brain.GameFacts.Observations.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                    SpawnTick = new RimGovernor.Brain.Domain.Tick(track.SpawnTick), Spawn = new RimGovernor.Brain.Domain.Cell(track.Spawn.x, track.Spawn.z), Ground = track.Ground, Range = track.Range,
-                    Trail = [.. track.Trail.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))] };
+                    SpawnTick = new RimGovernor.Brain.Domain.Tick(track.SpawnTick), Spawn = new RimGovernor.Brain.Domain.Cell(track.SpawnX, track.SpawnZ), Ground = track.Ground, Range = track.Range,
+                    Trail = [.. track.Trail.Select(c => new RimGovernor.Brain.Domain.Cell(c.X, c.Z))] };
             }
         }
 

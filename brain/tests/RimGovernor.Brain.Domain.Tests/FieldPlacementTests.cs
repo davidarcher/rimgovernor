@@ -9,16 +9,16 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class FieldPlacementTests
 {
-    private static readonly NeedId Food = new("food/supply");
+    internal static readonly NeedId Food = new("food/supply");
     private static readonly NeedId Textile = new("economy/resource");
 
-    private static CropChoice Crop(string name, bool edible = true, double sow = 100, double harvest = 200, double grow = 5, double min = 0) => new()
+    internal static CropChoice Crop(string name, bool edible = true, double sow = 100, double harvest = 200, double grow = 5, double min = 0) => new()
     {
         Name = name, Edible = edible, FertilityMin = .5, FertilitySensitivity = 1, GrowDays = grow,
         SowWork = sow, HarvestWork = harvest, MinGrowthTemperature = min, MaxGrowthTemperature = 58, MinGlow = .5,
     };
 
-    private static FieldPlacementRequest Request(RowRun[] blocks, SiteCell[] cells, FieldDemand[] demands,
+    internal static FieldPlacementRequest Request(RowRun[] blocks, SiteCell[] cells, FieldDemand[] demands,
         Cell[]? protectedCells = null, ZoneState[]? zones = null, CropChoice[]? crops = null)
     {
         var facts = ColonyFactsCoreTests.Reading().Facts with
@@ -41,10 +41,10 @@ public sealed class FieldPlacementTests
         };
     }
 
-    private static SiteCell[] Row(int from, int to, Func<int, SiteCell>? at = null) =>
+    internal static SiteCell[] Row(int from, int to, Func<int, SiteCell>? at = null) =>
         [.. Enumerable.Range(from, to - from + 1).Select(x => at is null ? SiteCellFixtures.At(new(x, 0)) : at(x))];
 
-    private static FieldDemand Demand(NeedId need, CropChoice crop, int needed) => new(need, [new FieldBlockOption(crop, needed)]);
+    internal static FieldDemand Demand(NeedId need, CropChoice crop, int needed) => new(need, [new FieldBlockOption(crop, needed)]);
 
     private static FieldPlacementEffect Effect(FieldPlacementAlternative a) => ((FieldPlacementStanding.Assessed)a.Standing).Effect;
 

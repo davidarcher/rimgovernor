@@ -20,6 +20,7 @@ internal static class ConstructionObservationFixtures
             },
             Stuff = string.IsNullOrEmpty(building.Stuff) ? null : building.Stuff,
             Service = BuildingServiceWire.NoService,
+            Door = DoorOf(building.Definition),
             Occupied = new RimGovernor.Brain.GameFacts.Observations.Rectangle
             {
                 Minimum = new Cell(occupied.Min(c => c.X), occupied.Min(c => c.Z)),
@@ -27,6 +28,11 @@ internal static class ConstructionObservationFixtures
             },
         };
     }
+
+    /// <summary>The door state the native reads off a Building_Door (closed, unlatched): the fixtures' door defs are the shell door and the animal flap.</summary>
+    internal static RimGovernor.Brain.GameFacts.Observations.BuildingDoor? DoorOf(string definition) =>
+        definition.Contains("Door", StringComparison.Ordinal) || definition == HerdShelterRules.BarnDoorDefinition
+            ? new RimGovernor.Brain.GameFacts.Observations.BuildingDoor { Open = false, HoldOpen = false } : null;
 
     internal static CurrentBuilding Built(Building building, string id = "built", EquatableArray<Cell> cells = default) =>
         new() { Observed = Row(building, id, cells) };

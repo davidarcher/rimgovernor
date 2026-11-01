@@ -465,6 +465,13 @@ public static partial class ReconcileRules
         {
             if (doorWanted.Contains(c) && doors.Contains(c))
             {
+                // A standing door of another def than the ring's (a plain door where a barn's animal flap is planned) is owed
+                // replaced in place: the ring's door is placed over it (a door's replaceTags let one door's blueprint replace
+                // another). A door the census names no def for stands.
+                if (!r.Outdoor && input.Ground.DoorDefs.TryGetValue(c, out var standing) && standing != doorDef)
+                {
+                    Add(new ReconcileItem { Kind = OpKind.DoorIn, Cell = c });
+                }
                 continue;
             }
             if (doorWanted.Contains(c) && walls.Contains(c))
@@ -527,7 +534,7 @@ public static partial class ReconcileRules
         // Walls standing inside the interior are no part of the ring and come down, but only once the new ring
         // stands: a reshaped room (a column more, an L) is never opened to the weather or walled off from its
         // pawns while its new wall is still owed. Until then they are owed, not ready, and bring no roof off.
-        var ringStands = !items.Skip(ringStart).Any(it => it.Kind == OpKind.WallIn || (it.Kind == OpKind.DoorIn && !walls.Contains(it.Cell)));
+        var ringStands = !items.Skip(ringStart).Any(it => it.Kind == OpKind.WallIn || (it.Kind == OpKind.DoorIn && !walls.Contains(it.Cell) && !doors.Contains(it.Cell)));
         var wallTargets = new List<ClearanceTarget>(innerWalls);
         if (!ringStands)
         {

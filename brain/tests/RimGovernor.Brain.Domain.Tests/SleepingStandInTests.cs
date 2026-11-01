@@ -11,13 +11,13 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class SleepingStandInTests
 {
-    private static readonly PawnId A = new("a");
+    internal static readonly PawnId A = new("a");
 
-    private static PlannedRoom Planned(int id, PlannedRole role, int x) =>
+    internal static PlannedRoom Planned(int id, PlannedRole role, int x) =>
         new() { Id = id, Role = role, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = 0, Width = 3, Height = 3 }) };
 
     private static readonly PlannedRoom Workshop = Planned(1, PlannedRole.Workshop, 0);
-    private static readonly PlannedRoom Bedroom = Planned(2, PlannedRole.Bedroom, 10);
+    internal static readonly PlannedRoom Bedroom = Planned(2, PlannedRole.Bedroom, 10);
     private static readonly PlannedRoom Barracks = Planned(3, PlannedRole.Barracks, 20);
     private static readonly LayoutPlan Plan = new() { Rooms = [Workshop, Bedroom, Barracks], NextRoomId = 4 };
 
@@ -88,14 +88,14 @@ public sealed class SleepingStandInTests
         Assert.Equal([1, 3, 4], ShelterRules.PickStandIns(footprints, blocked, i => i != 0, 3));
     }
 
-    private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, params string[] beds) => (RoomFixtures.State(id, RoomRole.Bedroom, beds: beds), room.Region.Cells());
+    internal static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, params string[] beds) => (RoomFixtures.State(id, RoomRole.Bedroom, beds: beds), room.Region.Cells());
 
-    private static SleepingBed Bed(string id, string def, string room, params PawnId[] owners) => new SleepingBed { Native = SleepingNativeFixtures.Bed(id: id, room: room, owners: [.. owners], accessibleTo: [A]), Building = SleepingNativeFixtures.Building(id: id, definition: new Resource(def)), Humanlike = true };
+    internal static SleepingBed Bed(string id, string def, string room, params PawnId[] owners) => new SleepingBed { Native = SleepingNativeFixtures.Bed(id: id, room: room, owners: [.. owners], accessibleTo: [A]), Building = SleepingNativeFixtures.Building(id: id, definition: new Resource(def)), Humanlike = true };
 
     private static BedroomStep Step(LayoutPlan plan, (RoomState Room, IEnumerable<Cell> Cells)[] rooms, SleepingObservation sleeping) =>
         SleepingRules.NextBedroomStep(plan, RoomFixtures.Census(rooms), sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
 
-    private static readonly LayoutPlan OneBedroom = new() { Rooms = [Bedroom], NextRoomId = 3 };
+    internal static readonly LayoutPlan OneBedroom = new() { Rooms = [Bedroom], NextRoomId = 3 };
 
     [Fact]
     public void AStandInHousesNoOneSoItsSleeperStillGetsTheBedroom()

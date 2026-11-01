@@ -243,6 +243,12 @@ public static partial class WorkRules
             {
                 foreach (var subject in MethodClaimsRules.TradeSubjects(row.Action.Payload)) Take(subject);
                 if (row.Action.CommsTradeRequest is { } request) pawns.Add(request.Negotiator);
+                // A repair, a breakdown fix, a refuel, a rescue carry or a tend is one pawn's exact native order: while open it holds
+                // that worker, for claim admission and for every reader of the review's work claims (a free builder, a free hauler).
+                if (row.Action.Repair is { } repair) pawns.Add(repair.Pawn.Value);
+                if (row.Action.RecoveryService is { Method: RecoveryMethod.Breakdown or RecoveryMethod.Refuel } service) pawns.Add(service.Pawn.Value);
+                if (row.Action.Rescue is { } rescue) pawns.Add(rescue.Rescuer.Value);
+                if (row.Action.Tend is { } tend) pawns.Add(tend.Doctor.Value);
                 if (row.Action.CaravanDeparture is { } departure) pawns.UnionWith(departure.Crew.Select(p => p.Value));
                 if (row.Action.Trade is { Kind: TradeOperationKind.Open } trade && trade.Participant.Kind != TradeParticipantKind.Settlement) pawns.Add(trade.Negotiator.Value);
             }

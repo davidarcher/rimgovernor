@@ -78,6 +78,7 @@ public static class ReviewReads
                 MedicalReserve = p.Facts.MedicalReserve with { Catalog = p.Facts.Items },
                 Recipes = catalog.RecipeFacts(),
                 CapacityPenalties = catalog.CapacityPenalties(),
+                NewbornRest = catalog.NewbornRest(),
                 ThreatTable = catalog.ThreatSchedule(),
                 DiseaseTable = catalog.DiseaseTable(),
                 HarmCatalog = new()

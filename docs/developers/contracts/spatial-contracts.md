@@ -707,7 +707,7 @@ does not depend on unsaved station advice.
 There is no separate tidy pass. A PlannedRoom is worked toward the plan by the room's owner
 (build side) and by planned-ground clearance (clear side), both over one per-cell diff
 (`policy.Reconcile`, `ReconcileRoom`): furniture off its template slot is a proposed
-[transition](#standing-building-transitions-rg-habitat-010-and-011) (retained, stored, relocated or
+[transition](#standing-building-transitions-rg-habitat-010-and--011) (retained, stored, relocated or
 removed, never removed by omission) and the slot filled from packed stock or built on site, floors are replaced. Ring first (#3743): an
 `Install` or `Build` is owed but not ready while the same diff owes a `WallIn` or `DoorIn`, in
 every role; a room with no ring (unfenced, a stand-in spot) has none to wait for, and `RoofIn`
@@ -777,7 +777,7 @@ production is pending and leaves a heating campfire another owner claims (`Claim
 The room reconcile applies the same rule through `PlannedRules.AdmittedRemovals`, which
 takes held targets out of `FurnitureOut`, `Pack`, `PackInUse` and `Reinstall` ops while the room's
 other work proceeds. A held removal is `AwaitingPlan` `host_retire_held`. An admitted one
-is a `host-retire-*` Method holding one deconstruction, or one uninstall when the transition choice stores the spare ([transitions](#standing-building-transitions-rg-habitat-010-and-011)). `PlannedRules.HostRetireOwed` keeps the
+is a `host-retire-*` Method holding one deconstruction, or one uninstall when the transition choice stores the spare ([transitions](#standing-building-transitions-rg-habitat-010-and--011)). `PlannedRules.HostRetireOwed` keeps the
 owner's Need unmet until the removal lands. This replaces the automatic campfire retirement.
 
 #### Standing-building transitions (RG-HABITAT-010 and -011)
@@ -1188,8 +1188,9 @@ it (`DefenseCover`: `thing_id`, `def_name`, `kind` plant/chunk/mineable/building
 `designated`) with a CAS token over identity, definition, cell and designation
 state. `RaidArrivalState`, a map component, samples every hostile lord every 60 ticks:
 its first pawn position is the spawn (ground when within 14 cells of the map edge) and
-the pawn nearest the home area adds one trail cell per sample; a live lord's trail is
-never truncated, and a track not sampled for 60000 ticks (one game day) is evicted. Each sample also keeps the longest primary-verb range any of the lord's sampled pawns carried (`RaidTrack.Range`, `range` on the wire, cells; 0 when every pawn fought melee); like the rest of the track it is memory, not saved. The colony threat census's `raids` rows (`ThreatFacts.raids`) carry those tracks; the brain
+the pawn nearest the home area adds one trail cell per sample. The tracks are a `RaidTrackLog`: a live lord's trail is
+never truncated; a track not sampled for `FinishedAge` (60000 ticks, one game day) is finished, the newest
+`KeptGroundRaids` (8) finished ground tracks stay, and every other finished track is evicted. Each sample also keeps the longest primary-verb range any of the lord's sampled pawns carried (`RaidTrack.Range`, `range` on the wire, cells; 0 when every pawn fought melee). `RaidArrivalState.ExposeData` saves the log with the map as the `raidTracks`, `raidFactions` and `raidRanges` lists, so the tracks and their ranges survive a load ([persistence contracts](persistence-contracts.md#what-must-survive)); a save without the nodes, or with a malformed list, loads none. The colony threat census's `raids` rows (`ThreatFacts.raids`) carry those tracks; the brain
 takes the first trail cell inside its census region as the crossing, and the policy
 snaps it to the nearest sector edge cell within eight cells. Drop pods and tunnellers
 are not ground arrivals.
@@ -1310,8 +1311,8 @@ over the whole-map survey for the trips out of the entrances to the map edge and
 plan door, link or entrance blocks ordinary access and excludes the candidate `access:<what>@x,z`.
 
 **Threat.** `ThreatOf` reads the colony census: the raid points against the capacity and their `RaidExposure` bin
-(`exposure_bin:*`; `threat:colony census` while it is unread), the spawn cells of the ground raids observed since load
-(`arrival_edges:none_observed_since_load` when none), each raid's sampled walk and the longest ground raider weapon
+(`exposure_bin:*`; `threat:colony census` while it is unread), the spawn cells of the ground raids the saved
+`RaidTrackLog` holds (`arrival_edges:none_observed` when none), each raid's sampled walk and the longest ground raider weapon
 range (`RaidTrack.Range`, 0 for melee).
 
 ### The protection probe

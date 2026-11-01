@@ -193,7 +193,7 @@ accepted receipt. An open removal Method whose target the plan no longer carries
 issues transition work (clearance, room reconcile, host retirement, bed removal) its unissued actions are cancelled
 (`ColonyReview.CancelStaleTransitionWork`) and the removal is not issued again in the same load. A binding is applied to
 the newest recorded plan, so the bindings two planners make in one review merge by target. This is not a restoration ledger (Decision 4): nothing records what was removed, what is owed back or when
-a replacement served. The comparison, the settle rule and the execution are in the [spatial contracts](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and-011). `Transitions` is optional on read, so a plan blob written before it decodes with none (the next
+a replacement served. The comparison, the settle rule and the execution are in the [spatial contracts](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and--011). `Transitions` is optional on read, so a plan blob written before it decodes with none (the next
 committed step binds again) and the rest of the plan is kept; older session journals are replaced on load (schema
 mismatch). `StoreSchemaPinTests` pins version 77 and the new codec shape hash.
 
@@ -438,6 +438,14 @@ journal; this schema change does not invalidate game saves.
   (`TrafficState.ExposeData`, a `sightings` list of ints, #3835). A save from before it loads an
   empty record, a state the credits price from what it holds (nothing covered, no credit) until the
   colonists' passes fill it; the traffic counts beside it are not saved.
+- **Raid arrival tracks (game save).** Native keeps each hostile lord it samples (`RaidArrivalState`: spawn cell, ground
+  flag, nearest-pawn trail, longest weapon range; [spatial contracts](spatial-contracts.md)) in `RaidTrackLog` and saves
+  it with the map (`RaidArrivalState.ExposeData`: `raidTracks`, a flat list of ints, with `raidFactions` and `raidRanges`,
+  one entry per track; RG-HABITAT-009). A lord seen within the last day keeps its whole track. A lord unseen for a day is
+  finished: the newest `RaidTrackLog.KeptGroundRaids` (8) finished ground tracks are kept, so the defense probe keeps the
+  approaches it was priced over across days and loads, and every other finished track is evicted. A save from before it,
+  or a malformed list, loads no tracks, and the defense terms name `arrival_edges:none_observed` until a ground raid is
+  seen. No session-journal shape changes, so `Store.SchemaVersion` stays 78.
 
 ## What is re-derived
 

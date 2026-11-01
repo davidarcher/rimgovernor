@@ -15,31 +15,33 @@ namespace RimGovernor.Native
     // colony). Afterwards the pawn of
     // the lord nearest the colony adds one trail sample, so the controller
     // can find where the raid crossed the boundary of its own census rather
-    // than guess from a far map-edge coordinate. A live lord keeps its whole
-    // trail; a track whose lord has not been seen for FinishedAge ticks is
-    // evicted. Tracks live for the loaded session only.
+    // than guess from a far map-edge coordinate. The tracks are RaidTrackLog's:
+    // a live lord keeps its whole trail, a lord unseen for a day is finished and
+    // only the newest finished ground tracks stay. ExposeData saves them with the
+    // map (RG-HABITAT-009); a save without the nodes loads none.
     public sealed class RaidArrivalState : MapComponent
     {
         public const int SampleInterval = 60;
-        public const int FinishedAge = 60000;
         public const int EdgeMargin = 14;
 
-        public sealed class Track
-        {
-            public int LordId;
-            public string FactionDef = "";
-            public int SpawnTick;
-            public IntVec3 Spawn;
-            public bool Ground;
-            public int LastTick;
-            // The longest primary-verb range any sampled pawn carried (verbProps.range); 0 for melee only.
-            public float Range;
-            public readonly List<IntVec3> Trail = new List<IntVec3>();
-        }
+        public readonly RaidTrackLog Tracks = new RaidTrackLog();
 
-        public readonly Dictionary<int, Track> Tracks = new Dictionary<int, Track>();
+        private List<int>? savedTracks;
+        private List<string>? savedFactions;
+        private List<float>? savedRanges;
 
         public RaidArrivalState(Map map) : base(map) { }
+
+        public override void ExposeData()
+        {
+            base.ExposeData();
+            if (Scribe.mode == LoadSaveMode.Saving) (savedTracks, savedFactions, savedRanges) = Tracks.Export();
+            Scribe_Collections.Look(ref savedTracks, "raidTracks", LookMode.Value);
+            Scribe_Collections.Look(ref savedFactions, "raidFactions", LookMode.Value);
+            Scribe_Collections.Look(ref savedRanges, "raidRanges", LookMode.Value);
+            if (Scribe.mode == LoadSaveMode.LoadingVars) Tracks.Import(savedTracks, savedFactions, savedRanges);
+            if (Scribe.mode == LoadSaveMode.Saving || Scribe.mode == LoadSaveMode.LoadingVars) (savedTracks, savedFactions, savedRanges) = (null, null, null);
+        }
 
         public override void MapComponentTick()
         {
@@ -54,19 +56,11 @@ namespace RimGovernor.Native
                 if (lord.faction == null || !lord.faction.HostileTo(player)) continue;
                 var pawns = lord.ownedPawns.Where(p => p != null && p.Spawned && !p.Dead && p.Map == map).ToList();
                 if (pawns.Count == 0) continue;
-                if (!Tracks.TryGetValue(lord.loadID, out var track))
-                {
-                    var first = pawns[0].Position;
-                    track = new Track { LordId = lord.loadID, FactionDef = lord.faction.def.defName, SpawnTick = tick, Spawn = first, Ground = OnEdge(first) };
-                    Tracks[lord.loadID] = track;
-                }
+                var first = pawns[0].Position;
                 var nearest = pawns.OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.thingIDNumber).First().Position;
-                track.LastTick = tick;
-                foreach (var p in pawns) track.Range = System.Math.Max(track.Range, WeaponRange(p));
-                if (track.Trail.Count == 0 || track.Trail[track.Trail.Count - 1] != nearest) track.Trail.Add(nearest);
+                Tracks.Sample(lord.loadID, lord.faction.def.defName, tick, (first.x, first.z), OnEdge(first), (nearest.x, nearest.z), pawns.Max(WeaponRange));
             }
-            var finished = Tracks.Values.Where(t => tick - t.LastTick > FinishedAge).Select(t => t.LordId).ToList();
-            foreach (var id in finished) Tracks.Remove(id);
+            Tracks.Evict(tick);
         }
 
         // A pawn's primary verb range (Pawn_EquipmentTracker.PrimaryEq.PrimaryVerb): 0 without one or for a melee verb.

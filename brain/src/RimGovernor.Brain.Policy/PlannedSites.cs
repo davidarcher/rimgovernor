@@ -133,7 +133,8 @@ public static partial class PlannedRules
 
     /// <summary>
     /// The planned sites of the rooms' owed operations, one per op x stuff: the ring's walls, doors and vents in each
-    /// of the room's ring stuffs (ringStuffs; ring gives the stuff a def is built from for a wanted stuff, "" for a def
+    /// of the room's ring stuffs for the def (ringStuffs: a barn's animal flap is read in its own stuffs, the rest in the
+    /// wall's; ring gives the stuff a def is built from for a wanted stuff, "" for a def
     /// made from no stuff, and its cost list, or null where the def is unavailable), floors one site per floor def
     /// (floor), each piece one site in its own stuff (piece), the roof one site, and an owed wall swap (WallUp, #3657) one
     /// site per ring stuff over the standing walls <paramref name="wallStuff"/> names in another stuff (<c>wallup/{stuff}</c>:
@@ -143,7 +144,7 @@ public static partial class PlannedRules
     /// </summary>
     public static IReadOnlyList<PlannedBuildSite> PlannedSitesOf(
         IEnumerable<(PlannedRoom Room, IReadOnlyList<Operation> Owed)> rooms,
-        Func<PlannedRoom, IReadOnlyList<string>> ringStuffs,
+        Func<PlannedRoom, string, IReadOnlyList<string>> ringStuffs,
         Func<string, string, (string Stuff, IReadOnlyList<Amount> Costs)?> ring,
         Func<string, (string Stuff, IReadOnlyList<Amount> Costs)?> piece,
         Func<string, IReadOnlyList<Amount>?> floor,
@@ -176,7 +177,7 @@ public static partial class PlannedRules
                     {
                         var def = op.Kind == OpKind.WallIn ? wallDef : op.Kind == OpKind.DoorIn ? doorDef : ventDef;
                         var cells = Sorted(op.Cells.Where(c => claimed.Add((def, c))));
-                        foreach (var wanted in ringStuffs(room))
+                        foreach (var wanted in ringStuffs(room, def))
                         {
                             if (ring(def, wanted) is { } priced)
                             {
@@ -190,7 +191,7 @@ public static partial class PlannedRules
                     {
                         // A standing wall swapped in place (#3657): per ring stuff, its walls built in another stuff.
                         var cells = Sorted(op.Cells.Where(c => claimed.Add((wallDef, c))));
-                        foreach (var wanted in ringStuffs(room))
+                        foreach (var wanted in ringStuffs(room, wallDef))
                         {
                             if (ring(wallDef, wanted) is { Stuff.Length: > 0 } priced)
                             {
@@ -234,7 +235,7 @@ public static partial class PlannedRules
 
     /// <summary>
     /// The ground as if the room's owed ring work were done (#3276): a copy of ground with each owed WallIn and DoorOut
-    /// cell walled, each DoorIn cell a door and each WallOut cell cleared. Reconcile over it owes the roof and the vents
+    /// cell walled, each DoorIn cell a door (a replaced door's def dropped) and each WallOut cell cleared. Reconcile over it owes the roof and the vents
     /// the ring brings, by the same rule real placement meets once the ring stands; nothing else is assumed built.
     /// </summary>
     public static GroundCensus RingStandsGround(GroundCensus ground, IReadOnlyList<Operation> owed)
@@ -246,6 +247,7 @@ public static partial class PlannedRules
             Fences = [.. ground.Fences],
             Gates = [.. ground.Gates],
             Stuff = new Dictionary<Cell, string>(ground.Stuff),
+            DoorDefs = new Dictionary<Cell, string>(ground.DoorDefs),
             Vents = [.. ground.Vents],
             Rock = [.. ground.Rock],
         };
@@ -258,10 +260,13 @@ public static partial class PlannedRules
                     case OpKind.WallIn:
                     case OpKind.DoorOut:
                         _ = g.Doors.Remove(c);
+                        _ = g.DoorDefs.Remove(c);
                         _ = g.Walls.Add(c);
                         break;
                     case OpKind.DoorIn:
+                        // The owed door stands: a replaced door's old def is gone, and the new one is the ring's.
                         _ = g.Walls.Remove(c);
+                        _ = g.DoorDefs.Remove(c);
                         _ = g.Doors.Add(c);
                         break;
                     case OpKind.WallOut:

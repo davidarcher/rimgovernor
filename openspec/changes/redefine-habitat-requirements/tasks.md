@@ -72,10 +72,10 @@ from executed passes in the existing habitat evidence page.
 
 ## 9. Cross-capability verification and authority migration (001–011)
 
-- [ ] 9.1 Add normal-review integration regressions for competing accommodation, care, production, utility and defense work. Verify canonical slots/inputs/workers are not spent twice, functional deficits remain visible, known zero differs from missing facts and chains survive reconsideration/load without independent re-selection.
-- [ ] 9.2 Match every approved scenario to implemented generation, facts, shared comparison, admission, Hands, readback and tests; update habitat evidence claim by claim with exact execution/registration limits. Keep this task open for any missing plumbing or unsupported hold; documentation, receipts and aggregate counts do not prove implementation.
-- [ ] 9.3 Synchronize the reviewed habitat capability preserving RG-HABITAT-001–011, make the old habitat page its evidence owner, and update documentation/requirements/OpenSpec maps and context authority. Verify strict OpenSpec validation, links, stable-ID uniqueness and single standing ownership while preserving historical H1–H7 and decision provenance.
-- [ ] 9.4 Run `RimGovernor.cmd test -full > test.out 2>&1` to final PASS at epic end, strict OpenSpec validation and final removed-reader/orphan audit. Commit and land with rules 7–9, complexity and accurate verification limits; mark complete only after all preceding obligations work. The gate implies no campaign pass.
+- [x] 9.1 Add normal-review integration regressions for competing accommodation, care, production, utility and defense work. Verify canonical slots/inputs/workers are not spent twice, functional deficits remain visible, known zero differs from missing facts and chains survive reconsideration/load without independent re-selection.
+- [x] 9.2 Match every approved scenario to implemented generation, facts, shared comparison, admission, Hands, readback and tests; update habitat evidence claim by claim with exact execution/registration limits. Keep this task open for any missing plumbing or unsupported hold; documentation, receipts and aggregate counts do not prove implementation.
+- [x] 9.3 Synchronize the reviewed habitat capability preserving RG-HABITAT-001–011, make the old habitat page its evidence owner, and update documentation/requirements/OpenSpec maps and context authority. Verify strict OpenSpec validation, links, stable-ID uniqueness and single standing ownership while preserving historical H1–H7 and decision provenance.
+- [x] 9.4 Run `RimGovernor.cmd test -full > test.out 2>&1` to final PASS at epic end, strict OpenSpec validation and final removed-reader/orphan audit. Commit and land with rules 7–9, complexity and accurate verification limits; mark complete only after all preceding obligations work. The gate implies no campaign pass.
 
 ## Workflow follow-up
 

@@ -358,7 +358,8 @@ partial class BuildingPlanner
     /// <summary>
     /// Chooses the wall's and the door's stuff; refusal names what is unavailable. A ring no selection chose stuff for
     /// is placed in its base ring stuff (the first of PlannedRingStuffsOf: the cheapest stocked stuff the door can also
-    /// be made from, else the map's wood or rock blocks, #3747), the stuff its planned sites are priced in (#3677).
+    /// be made from, else the map's wood or rock blocks, #3747; a door of its own stuffs, the barn's animal flap, in the first
+    /// of PlannedDoorStuffsOf), the stuff its planned sites are priced in (#3677).
     /// </summary>
     internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) ShellMaterials(RimGovernor.Brain.GameAccess.ColonyReading facts, string wall, string door, ShellStuff? choose)
     {
@@ -377,10 +378,13 @@ partial class BuildingPlanner
         return (wallStuff, doorStuff, refusal, ok);
     }
 
-    /// <summary>Builds both from the ring's base stuff (PlannedRingStuffsOf); refused when the wall and door share no stuff.</summary>
+    /// <summary>
+    /// Builds the wall from the ring's base stuff (PlannedRingStuffsOf) and the door from its own (PlannedDoorStuffsOf: the
+    /// same stuff, or an animal flap's Fabric or Leathery); refused when either has none.
+    /// </summary>
     private static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) BaseRingStuff(RimGovernor.Brain.GameAccess.ColonyReading facts, string wall, string door) =>
-        ColonyReview.PlannedRingStuffsOf(facts, wall, door) is [{ Length: > 0 } stuff, ..]
-            ? (stuff, stuff, new Verdict(), true)
+        ColonyReview.PlannedRingStuffsOf(facts, wall, door) is [{ Length: > 0 } stuff, ..] && ColonyReview.PlannedDoorStuffsOf(facts, wall, door) is [{ Length: > 0 } doorStuff, ..]
+            ? (stuff, doorStuff, new Verdict(), true)
             : ("", "", FieldUnavailable("wall_door_stuff"), false);
 
     /// <summary>

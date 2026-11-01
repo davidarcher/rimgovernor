@@ -116,17 +116,18 @@ public sealed class HerdArrangementTests
     public void AColdSpeciesClosesShelterOnlyOnAnObservedReachableRoofedRoomInItsBand()
     {
         UpkeepAnimal[] cows = [Animal("cow1"), Animal("cow2")];
-        var open = Assert.Single(HerdArrangementRules.Assess(Input(-30, OnePen, [Row(CowPen, today: 5, worst: 5)], cows)));
-        Assert.Equal(2, open.ShelterDeficit);
-        // The barn the layout can raise has a plain shell door: it is unassessed, so the open baseline holds.
-        Assert.Equal(new HerdShelterValue.Unassessed(HerdShelterRules.FactAnimalAccess + "Cow"), open.Remedies.Single(r => r.Kind == HerdRemedyKind.Barn).Value);
-        Assert.Equal(HerdRemedyKind.Retain, open.Best(HerdDeficitKind.Shelter));
-        // Were its ring door one roamers open, the barn would stop the deaths and win over the open ground.
-        var passable = Input(-30, OnePen, [Row(CowPen, today: 5, worst: 5)], cows);
-        passable = passable with { Shelter = passable.Shelter with { AnimalDoors = [new PlannedRoom { Role = PlannedRole.Barn }.RingDefs().Door] } };
-        var flap = Assert.Single(HerdArrangementRules.Assess(passable));
+        // The barn the layout can raise is entered by its animal flap, which the native read lists: it stops the deaths and
+        // wins over the open ground.
+        var flap = Assert.Single(HerdArrangementRules.Assess(Input(-30, OnePen, [Row(CowPen, today: 5, worst: 5)], cows)));
         Assert.IsType<HerdShelterValue.Assessed>(flap.Remedies.Single(r => r.Kind == HerdRemedyKind.Barn).Value);
         Assert.Equal((HerdRemedyKind.Barn, 2), (flap.Best(HerdDeficitKind.Shelter), flap.ShelterDeficit));
+        // A barn standing with a plain door is unassessed, so the open baseline holds until its flap replaces the door.
+        var plain = Input(-30, OnePen, [Row(CowPen, today: 5, worst: 5)], cows);
+        plain = plain with { Shelter = plain.Shelter with { BarnDoors = new Dictionary<string, IReadOnlyList<string>> { ["Cow"] = [ContainmentCellRules.ShellDoorDefinition] } } };
+        var open = Assert.Single(HerdArrangementRules.Assess(plain));
+        Assert.Equal(2, open.ShelterDeficit);
+        Assert.Equal(new HerdShelterValue.Unassessed(HerdShelterRules.FactAnimalAccess + "Cow"), open.Remedies.Single(r => r.Kind == HerdRemedyKind.Barn).Value);
+        Assert.Equal(HerdRemedyKind.Retain, open.Best(HerdDeficitKind.Shelter));
         // A roofed room the enclosure reaches but outside the band serves none; one too small serves what fits.
         var cold = new PenShelterRoom { Room = 5, Cells = 4, TemperatureC = -20 };
         Assert.Equal(2, Assert.Single(HerdArrangementRules.Assess(Input(-30, OnePen, [Row(CowPen, today: 5, worst: 5, shelters: cold)], cows))).ShelterDeficit);

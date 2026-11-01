@@ -33,7 +33,7 @@ public sealed class PowerRestorationTests
         AutoRefuel = new AutoRefuelControl.Switch { Allowed = true }, Fuel = fuel, TargetFuel = 75, AutoRefuelPercent = percent, OutOfFuel = fuel == 0, Burn = Burn,
     };
 
-    private static BuildingState Generator(string id, bool empty = true, bool broken = false, int x = 2)
+    internal static BuildingState Generator(string id, bool empty = true, bool broken = false, int x = 2)
     {
         var row = PowerBuildingFixtures.Trader(id, "WoodFiredGenerator", new(x, 3), 1000, 0, false);
         return row with
@@ -44,18 +44,18 @@ public sealed class PowerRestorationTests
         };
     }
 
-    private static BuildingState Stove => PowerBuildingFixtures.Trader("stove", "ElectricStove", new(8, 2), -350, 0, false);
+    internal static BuildingState Stove => PowerBuildingFixtures.Trader("stove", "ElectricStove", new(8, 2), -350, 0, false);
 
-    private static PowerTopology Topology(params BuildingState[] producers) => new() { Buildings = [.. producers, Stove] };
+    internal static PowerTopology Topology(params BuildingState[] producers) => new() { Buildings = [.. producers, Stove] };
 
-    private static ServicingOption.Assessed Refueling(string target, string pawn, int items = 75, double fetch = 100) =>
+    internal static ServicingOption.Assessed Refueling(string target, string pawn, int items = 75, double fetch = 100) =>
         new(new RefuelWork(target, pawn, true, true, new Resource("WoodLog"), items, 3, fetch, 50, 40, 240, true)
             { ServiceLoss = new ServiceLoss.PowerOutput("net", 1000) });
 
-    private static ServicingOption.Assessed Fixing(string target, string pawn) =>
+    internal static ServicingOption.Assessed Fixing(string target, string pawn) =>
         new(new FixBreakdownWork(target, pawn, true, true, new Resource("ComponentIndustrial"), 10, 10, 1000, 0.5) { ServiceLoss = new ServiceLoss.PowerOutput("net", 1000) });
 
-    private static ServicingCensus Census(int wood, int components, params ServicingOption[] options) => new([.. options])
+    internal static ServicingCensus Census(int wood, int components, params ServicingOption[] options) => new([.. options])
     {
         Components = new ServicingComponents.Counted(components), Component = "ComponentIndustrial",
         Stock = new Dictionary<string, int>(StringComparer.Ordinal) { ["WoodLog"] = wood, ["ComponentIndustrial"] = components },
@@ -69,7 +69,7 @@ public sealed class PowerRestorationTests
         Tree = true,
     };
 
-    private static PowerRestorationRequest Request(PowerTopology topology, ServicingCensus census, params AcquisitionSource[] sources) =>
+    internal static PowerRestorationRequest Request(PowerTopology topology, ServicingCensus census, params AcquisitionSource[] sources) =>
         new() { Topology = topology, Census = census, Sources = [.. sources] };
 
     private static PowerProposal Select(PowerTopology topology, PowerRestoration restoration) =>
@@ -78,9 +78,9 @@ public sealed class PowerRestorationTests
     private static ServicingStanding StandingOf(ServicingDecision d, ServicingChoiceKind kind, string pawn = "") =>
         d.Alternatives.Single(a => a.Kind == kind && a.Pawn == pawn).Standing;
 
-    private sealed class Clock : IClock { public DateTimeOffset Now() => DateTimeOffset.UnixEpoch; }
+    internal sealed class Clock : IClock { public DateTimeOffset Now() => DateTimeOffset.UnixEpoch; }
 
-    private sealed class Boundary : Ex.IBoundary
+    internal sealed class Boundary : Ex.IBoundary
     {
         public readonly List<DomainAction> Written = [];
         public Task<Ex.IntentInspection> InspectIntentAsync(Ex.Target target, CancellationToken ct) =>

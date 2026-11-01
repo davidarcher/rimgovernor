@@ -292,7 +292,7 @@ public static partial class PlannedRules
 
     /// <summary>
     /// The ring stuff the selected sites were compared in (#3278): the selected wall's and door's, each standing in for
-    /// the other when only one is selected (a planned ring stuff is one the door is made from too); null when neither is.
+    /// the other when only one is selected (the unselected piece is not owed, so its stuff is never placed); null when neither is.
     /// </summary>
     public static (string Wall, string Door)? SelectedRingStuff(IReadOnlyList<SelectedPlannedSite> sites)
     {

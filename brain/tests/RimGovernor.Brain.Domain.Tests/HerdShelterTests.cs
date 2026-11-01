@@ -37,8 +37,9 @@ public sealed class HerdShelterTests
     {
         Animals = animals, Herds = [new Resource("Cow")], Pens = [new PenWant("Cow", 30)], Climate = climate,
         Penalties = ForecastValueTests.Tables(), AnimalSpot = "AnimalSleepingSpot",
-        // The barn's ring door passes roamers: the barn alternative is priced (a plain shell door is ABarnEnteredByAPlainDoorIsNotCredited).
-        AnimalDoors = [new PlannedRoom { Role = PlannedRole.Barn }.RingDefs().Door],
+        // The native roamerCanOpen read on Core (NativeFoodChannels.AnimalDoors): nothing here declares the barn's door passable.
+        // The planned barn's ring door is the animal flap, so the barn is priced (a plain standing door is ABarnEnteredByAPlainDoorIsNotCredited).
+        AnimalDoors = ["AnimalFlap"],
     };
 
     private static HerdShelterValue ValueOf(HerdShelter shelter, HerdShelterKind kind) => shelter.Alternatives.Single(a => a.Kind == kind).Value;
@@ -107,12 +108,23 @@ public sealed class HerdShelterTests
     [Fact]
     public void ABarnEnteredByAPlainDoorIsNotCredited()
     {
-        // Bug: the barn was credited with the deaths it stops while its ring door, the shell door, keeps roamers out.
-        var plain = Input(Climate(Year(-30)), Cow("cow1"), Cow("cow2")) with { AnimalDoors = ["AnimalFlap"] };
+        // Bug: the barn was credited with the deaths it stops while its ring door, the shell door, keeps roamers out. A barn
+        // standing with a plain door passes no penned animal until the reconcile's flap replaces it.
+        var plain = Input(Climate(Year(-30)), Cow("cow1"), Cow("cow2")) with
+        {
+            BarnDoors = new Dictionary<string, IReadOnlyList<string>> { ["Cow"] = [ContainmentCellRules.ShellDoorDefinition] },
+        };
         var shelter = Assert.Single(HerdShelterRules.Assess(plain));
         Assert.Equal(new HerdShelterValue.Unassessed(HerdShelterRules.FactAnimalAccess + "Cow"), ValueOf(shelter, HerdShelterKind.Barn));
         Assert.Empty(Offered(Plan(), shelter));
         Assert.Empty(ForecastHerdShelter.BarnCredit(new(1, "", 0), default!, [], Context() with { HerdShelter = plain }, 0));
+        // Once the flap stands in its ring the same barn is credited.
+        var flapped = plain with { BarnDoors = new Dictionary<string, IReadOnlyList<string>> { ["Cow"] = [HerdShelterRules.BarnDoorDefinition] } };
+        Assert.IsType<HerdShelterValue.Assessed>(ValueOf(Assert.Single(HerdShelterRules.Assess(flapped)), HerdShelterKind.Barn));
+        Assert.NotEmpty(ForecastHerdShelter.BarnCredit(new(1, "", 0), default!, [], Context() with { HerdShelter = flapped }, 0));
+        // A load whose native read lists no door a roamer opens leaves the planned barn under the same named fact.
+        var none = Input(Climate(Year(-30)), Cow("cow1"), Cow("cow2")) with { AnimalDoors = [] };
+        Assert.Equal(new HerdShelterValue.Unassessed(HerdShelterRules.FactAnimalAccess + "Cow"), ValueOf(Assert.Single(HerdShelterRules.Assess(none)), HerdShelterKind.Barn));
     }
 
     [Fact]

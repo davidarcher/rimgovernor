@@ -150,6 +150,15 @@ public sealed partial record ReviewFacts
     /// </summary>
     public ProvisionOption? ProspectiveBed { get; init; }
 
+    /// <summary>
+    /// The catalog's crib (RoomFurniture.Crib) as a newborn's permanent provision (ProspectiveCapacityRules.PieceOption), read beside
+    /// <see cref="ProspectiveBed"/>; null while the crib, its price or a builder is unread.
+    /// </summary>
+    public ProvisionOption? ProspectiveCrib { get; init; }
+
+    /// <summary>The expected newborn's rest rates as the defs state them (DefinitionCatalog.NewbornRest, RG-HABITAT-007); null while unread.</summary>
+    public NewbornRestRates? NewbornRest { get; init; }
+
     /// <summary>Per research bench def, its ResearchSpeedFactor as the def data states it (DefinitionCatalog.ResearchBenchSpeeds, #3800); empty without a catalog.</summary>
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
     public IReadOnlyDictionary<string, BenchSpeedModel> WorkBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();

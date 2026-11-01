@@ -41,6 +41,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-team-policy": NativeTeamPolicyProbe.Invoke(); return 0;
                 case "native-traffic-counts":NativeTrafficCountsProbe.Invoke(); return 0;
                 case "native-sighting-log": NativeSightingLogProbe.Invoke(); return 0;
+                case "native-raid-track-log": NativeRaidTrackLogProbe.Invoke(); return 0;
                 case "native-authority": NativeAuthorityProbe.Invoke(); return 0;
                 case "native-authority-control": NativeAuthorityControlProbe.Invoke(); return 0;
                 case "native-authority-status": NativeAuthorityStatusProbe.Invoke(); return 0;

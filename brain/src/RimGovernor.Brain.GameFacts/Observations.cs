@@ -6168,7 +6168,7 @@ public sealed record ThreatFacts
     public required EquatableArray<string> HostileFactions { get; init; }
 
     /// <summary>
-    /// The hostile lords seen on the map since load (RaidArrivalState): the defense layout ranks the approaches by where ground raids crossed its census.
+    /// The hostile lords RaidArrivalState keeps, saved with the map: the live ones and the newest finished ground raids. The defense layout ranks the approaches by where ground raids crossed its census.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<RaidTrack>))]
     public required EquatableArray<RaidTrack> Raids { get; init; }

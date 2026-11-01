@@ -186,7 +186,10 @@ public static class ProspectiveCapacityRules
     /// another's until its dated departure), each human pregnancy's crib and maternal bed rest at its birth tick, and each baby's own
     /// bed at the tick it leaves the crib. A bed's loss is the rest a sleep gains in the primary bed over the ground
     /// (<paramref name="bed"/>'s rest effectiveness): the baby's own, a lodger's the least of the present sleepers'. A crib's loss is
-    /// unassessed (the furniture catalog has no crib row), and so is a mother's bed rest (no owner values a maternal bed rest).
+    /// the rest a newborn's sleep gains in the catalog's crib (RoomFurniture.Crib, its least restful row) over the ground
+    /// at the newborn's rest rates the defs state (ReviewFacts.NewbornRest); unassessed as <c>crib:def_absent</c> when the catalog has no crib. A
+    /// mother's bed rest is her own rest in the bed over the ground, lasting from the birth until her postpartum exhaustion
+    /// disappears (CapacityPenaltyTables.PostpartumExhaustion, the game's HediffCompProperties_Disappears ticks).
     /// </summary>
     public static IReadOnlyList<ExpectedChange> SleepingChanges(ReviewFacts f, SleepingBedFacts? bed)
     {
@@ -217,8 +220,8 @@ public static class ProspectiveCapacityRules
             var pawn = person.Id.Value;
             if (person.Native.Labor is not ExpectedTiming.None)
             {
-                output.Add(new("birth:" + pawn, ExpectedOwner.Crib, 1, person.Native.Labor, new ExpectedStay.Permanent(), new ExpectedLoss.Unassessed("crib catalog row")));
-                output.Add(new("birth:" + pawn, ExpectedOwner.CareBed, 1, person.Native.Labor, new ExpectedStay.Undated("bed rest end:" + pawn), new ExpectedLoss.Unassessed("maternal bed rest valuation")));
+                output.Add(new("birth:" + pawn, ExpectedOwner.Crib, 1, person.Native.Labor, new ExpectedStay.Permanent(), NewbornRestLoss(f)));
+                output.Add(new("birth:" + pawn, ExpectedOwner.CareBed, 1, person.Native.Labor, BedRestStay(f, person.Native.Labor, pawn), BedRestLoss(f, pawn, bed)));
             }
             if (person.Native.LeavesCrib is not ExpectedTiming.None)
             {
@@ -226,6 +229,39 @@ public static class ProspectiveCapacityRules
             }
         }
         return output;
+    }
+
+    /// <summary>The fact a crib change names while the catalog has no crib definition (no Biotech).</summary>
+    public const string CribDefAbsent = "crib:def_absent";
+
+    /// <summary>The fact a crib change names while the newborn's rest rates are unread from the defs (ReviewFacts.NewbornRest).</summary>
+    public const string NewbornRestUnread = "newborn rest rates";
+
+    // A newborn's loss a day without a crib: the rest the catalog crib's least restful row frees over the ground at the newborn's
+    // def-level rest rates (DefinitionCatalog.NewbornRest: Human, HumanlikeBaby), read whether or not a baby is present.
+    private static ExpectedLoss NewbornRestLoss(ReviewFacts f)
+    {
+        var crib = f.Shapes.Furniture.Crib;
+        if (crib.Length == 0) return new ExpectedLoss.Unassessed(CribDefAbsent);
+        if (f.SleepingBeds.Where(b => b.Def == crib && !b.Ground).OrderBy(b => b.RestEffectiveness).FirstOrDefault() is not { } row)
+            return new ExpectedLoss.Unassessed("crib rest effectiveness:" + crib);
+        if (f.NewbornRest is not { } rest) return new ExpectedLoss.Unassessed(NewbornRestUnread);
+        var planned = rest.GainPerTickPerEffectiveness * row.RestEffectiveness;
+        if (!double.IsFinite(rest.FallPerTick) || rest.FallPerTick < 0 || !double.IsFinite(rest.UnservedGainPerTick) || rest.UnservedGainPerTick <= 0
+            || !double.IsFinite(planned) || planned <= 0)
+            return new ExpectedLoss.Unassessed(NewbornRestUnread);
+        return new ExpectedLoss.PerDay(Math.Max(0, ForecastHousing.RestDaysFreed(rest.FallPerTick, rest.UnservedGainPerTick, planned)));
+    }
+
+    // A mother's bed rest: from the birth until the postpartum exhaustion's disappearance (its mean HediffCompProperties_Disappears
+    // ticks); undated while the birth is undated or the hediff's row is unread.
+    private static ExpectedStay BedRestStay(ReviewFacts f, ExpectedTiming labor, string pawn)
+    {
+        if (labor is not ExpectedTiming.Dated { Tick: var birth }) return new ExpectedStay.Undated("bed rest end:" + pawn);
+        if (f.CapacityPenalties.PostpartumExhaustion is not { Known: true, Lifespan: Lifespan.EndsAfter { MinTicks: var min, MaxTicks: var max } }
+            || !double.IsFinite(min) || !double.IsFinite(max) || min < 0 || max < min)
+            return new ExpectedStay.Undated("postpartum exhaustion duration");
+        return new ExpectedStay.Until(birth + (long)Math.Round((min + max) / 2));
     }
 
     // A lodger's stay: until its dated departure, else undated naming the departure's unread fact.
@@ -270,7 +306,7 @@ public static class ProspectiveCapacityRules
     /// The sleeping changes whose provision is due at <paramref name="f"/>'s tick, by owner: a change joins the sized population
     /// only when the comparison prepares it and its start has come. The permanent bed is <see cref="ReviewFacts.ProspectiveBed"/>
     /// (null while its price is unread, which provides nothing), resting as the primary bed's least restful built row
-    /// (<see cref="ReviewFacts.SleepingBeds"/>). A newborn's crib and a mother's bed rest carry unassessed losses, so a birth defers.
+    /// (<see cref="ReviewFacts.SleepingBeds"/>). A newborn's crib and a mother's bed rest are compared and logged, never sized here.
     /// </summary>
     public static ProspectiveAdmission Admitted(ReviewFacts f)
     {
@@ -287,11 +323,12 @@ public static class ProspectiveCapacityRules
         return admitted;
     }
 
-    /// <summary>Each expected sleeping change with the comparison's pick: beds priced as <see cref="ReviewFacts.ProspectiveBed"/>, a crib with no provision.</summary>
+    /// <summary>Each expected sleeping change with the comparison's pick: beds priced as <see cref="ReviewFacts.ProspectiveBed"/>, a crib as <see cref="ReviewFacts.ProspectiveCrib"/>.</summary>
     public static IReadOnlyList<(ExpectedChange Change, ProspectiveChoice Choice)> SleepingChoices(ReviewFacts f)
     {
         IReadOnlyList<ProvisionOption> beds = f.ProspectiveBed is { } option ? [option] : [];
-        return [.. SleepingChanges(f).Select(change => (change, Choose(change, f.Tick, change.Owner == ExpectedOwner.Crib ? [] : beds)))];
+        IReadOnlyList<ProvisionOption> cribs = f.ProspectiveCrib is { } crib ? [crib] : [];
+        return [.. SleepingChanges(f).Select(change => (change, Choose(change, f.Tick, change.Owner == ExpectedOwner.Crib ? cribs : beds)))];
     }
 
     /// <summary>The colony's dated sleeping changes resting in the primary bed's least restful built row (<see cref="ReviewFacts.SleepingBeds"/>).</summary>

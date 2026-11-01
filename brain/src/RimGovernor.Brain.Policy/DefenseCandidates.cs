@@ -316,7 +316,7 @@ public static class DefenseCandidateRules
         }
         if (edges.Count == 0)
         {
-            missing.Add("arrival_edges:none_observed_since_load");
+            missing.Add(DefenseProtectionRules.ArrivalUnobserved);
         }
         return new DefenseThreat { Exposure = exposure, ArrivalEdges = edges, Trails = trails, Range = range, Missing = missing };
     }

@@ -51,6 +51,20 @@ public sealed class CapacityPenaltiesTests
     }
 
     [Fact]
+    public void PostpartumExhaustionCarriesTheTicksItDisappearsAfter()
+    {
+        // Biotech's Hediffs_Global_Misc.xml: disappearsAfterTicks 40000, the mother's bed rest after a birth (RG-HABITAT-007).
+        var tables = Catalog(new HediffDef
+        {
+            defName = nameof(HediffDefOf.PostpartumExhaustion), initialSeverity = 0.001f,
+            comps = [new HediffCompProperties_Disappears { disappearsAfterTicks = new IntRange(40000, 40000) }],
+        }).CapacityPenalties();
+        Assert.True(tables.PostpartumExhaustion.Known);
+        Assert.Equal(new P.Lifespan.EndsAfter(40000, 40000), tables.PostpartumExhaustion.Lifespan);
+        Assert.False(Catalog(Malnutrition()).CapacityPenalties().PostpartumExhaustion.Known);
+    }
+
+    [Fact]
     public void AMissingDefIsAnUnknownTableNotAnEmptyOne()
     {
         var tables = Catalog(Malnutrition()).CapacityPenalties();

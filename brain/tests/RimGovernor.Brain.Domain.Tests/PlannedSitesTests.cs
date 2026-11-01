@@ -27,7 +27,7 @@ public sealed class PlannedSitesTests
 
     private static IReadOnlyList<PlannedBuildSite> Sites(IEnumerable<(PlannedRoom, IReadOnlyList<Operation>)> rooms, IReadOnlySet<(string, Cell)>? placed = null,
         IReadOnlyDictionary<Cell, string>? standing = null) =>
-        PlannedRules.PlannedSitesOf(rooms, _ => ["WoodLog", "Steel"], Ring, Piece, Floor, "Vent", placed ?? NonePlaced, standing ?? new Dictionary<Cell, string>());
+        PlannedRules.PlannedSitesOf(rooms, (_, _) => ["WoodLog", "Steel"], Ring, Piece, Floor, "Vent", placed ?? NonePlaced, standing ?? new Dictionary<Cell, string>());
 
     private static readonly WantedPiece Bench = new()
     {
@@ -161,7 +161,7 @@ public sealed class PlannedSitesTests
     {
         var plan = new LayoutPlan { Rooms = [Room(2, 4), Room(1, 0)] };
         var owed = plan.Rooms.Select(room => (room, ReconcileRules.Reconcile(new ReconcileInput { Rooms = RoomTestFacts.NoRooms, Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [] }).Owed));
-        var sites = PlannedRules.PlannedSitesOf(owed, _ => ["WoodLog"], Ring, Piece, Floor, "Vent", NonePlaced, new Dictionary<Cell, string>());
+        var sites = PlannedRules.PlannedSitesOf(owed, (_, _) => ["WoodLog"], Ring, Piece, Floor, "Vent", NonePlaced, new Dictionary<Cell, string>());
         var ring = sites.Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn).ToList();
         // Two 3x3 rooms with a wall between: 16 + 16 - 5 shared ring cells, as PlannedOwedCost counts them.
         Assert.Equal(27, ring.Sum(s => s.Positions.Count));

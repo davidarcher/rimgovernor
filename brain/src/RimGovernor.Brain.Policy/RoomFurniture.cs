@@ -83,6 +83,12 @@ public sealed partial record RoomFurniture
 
     public string AnimalBed { get; init; } = "";
 
+    /// <summary>
+    /// The crib a newborn is prepared (RG-HABITAT-007): the humanlike bed flagged <c>bed_crib</c> ranked first as the beds are (the
+    /// costed ones by Comfort per cost ahead of the free ones, then by name); empty when the catalog has none (no Biotech).
+    /// </summary>
+    public string Crib { get; init; } = "";
+
     public IReadOnlyDictionary<RoomRole, string> Bench { get; init; } = new Dictionary<RoomRole, string>();
 
     public FacilityLink EndTable { get; init; } = new();
@@ -180,7 +186,7 @@ public sealed partial record RoomFurniture
     {
         var output = BedDefs(Beds);
         output.AddRange(BedDefs(MedicalBeds));
-        output.AddRange([Sarcophagus, Heater, AnimalSpot, AnimalBed]);
+        output.AddRange([Sarcophagus, Heater, AnimalSpot, AnimalBed, Crib]);
         output.AddRange(Bench.Values);
         foreach (var link in Facilities())
         {

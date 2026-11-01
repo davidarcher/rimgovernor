@@ -30,6 +30,9 @@ internal static class GameConstants
         Math.Max(Read<IntRange>(typeof(LordJob_AssaultColony), "SapTimeBeforeGiveUp").max,
             Read<IntRange>(typeof(LordJob_AssaultColony), "BreachTimeBeforeGiveUp").max));
 
+    // Need_Rest's Rested-category fall a tick before the hediff and stat factors (a newborn's rest, RG-HABITAT-007).
+    internal static float RestFallPerTick => Read<float>(typeof(Need_Rest), "BaseRestFallPerTick");
+
     internal static T Read<T>(Type owner, string name)
     {
         var field = owner.GetField(name, Any) ?? throw new CatalogException($"game constant {owner.Name}.{name} is absent");

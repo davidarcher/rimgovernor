@@ -1,21 +1,40 @@
-# Provide a habitable colony
+# Provide a habitable colony: implementation and evidence
 
-[Collection](README.md) · [Review queue](review-queue.md)
+[Collection](README.md) · [Habitat requirements](../../openspec/specs/habitat/spec.md) · [Review queue](review-queue.md)
+
+## Intent and evidence ownership
 
 Shelter becomes useful when people can occupy it and its services work. The
 governor may revise every room, building and zone as the colony's needs change.
+The [habitat specification](../../openspec/specs/habitat/spec.md) is the standing owner of RG-HABITAT-001–011 and
+their scenarios; the maintainer-confirmed policy and its provenance are in the
+[decision record](../../openspec/changes/redefine-habitat-requirements/proposal.md#decision-provenance-and-review-boundary).
+This page owns implementation inspection, executed results and proof limits, not
+requirements. Its inspection history (H1–H7) and the decisions below are preserved
+as recorded.
 
-## RG-HABITAT-001 — Give colonists usable sleeping space
+## Requirement map
 
-The governor should provide sleeping places and develop enclosed, roofed rooms
-with beds for the colony. Temporary sleeping spots should bridge construction
-delays. Population changes and lost shelter should lead to a fresh assessment.
-The purpose is a usable home through both initial settlement and later growth.
+Each requirement is stated once, in the specification.
 
-With three colonists, materials and eligible builders, a first sleeping room
-should finish and each colonist should own a bed inside it. If construction is
-blocked, the need should remain visible with its cause. A new arrival should
-receive a temporary place while permanent capacity catches up.
+- RG-HABITAT-001: [Provide suitable sleeping and resting accommodation](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-001--provide-suitable-sleeping-and-resting-accommodation)
+- RG-HABITAT-002: [Keep essential facilities usable](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-002--keep-essential-facilities-usable)
+- RG-HABITAT-003: [Develop facilities for the benefits they provide](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-003--develop-facilities-for-the-benefits-they-provide)
+- RG-HABITAT-004: [Provide suitable places for treatment and recovery](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-004--provide-suitable-places-for-treatment-and-recovery)
+- RG-HABITAT-005: [Compare complete facility and activity-site alternatives](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-005--compare-complete-facility-and-activity-site-alternatives)
+- RG-HABITAT-006: [Provide spatial support for agriculture and animals](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-006--provide-spatial-support-for-agriculture-and-animals)
+- RG-HABITAT-007: [Improve and prepare capacity when worthwhile](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-007--improve-and-prepare-capacity-when-worthwhile)
+- RG-HABITAT-008: [Invest in resilience according to service consequences](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-008--invest-in-resilience-according-to-service-consequences)
+- RG-HABITAT-009: [Develop useful defensive infrastructure](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-009--develop-useful-defensive-infrastructure)
+- RG-HABITAT-010: [Maintain and redevelop with transition costs included](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-010--maintain-and-redevelop-with-transition-costs-included)
+- RG-HABITAT-011: [Verify functional provision and retain unmet needs](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-011--verify-functional-provision-and-retain-unmet-needs)
+
+## Implementation status of the original requirements
+
+RG-HABITAT-001–004 carry implementation status recorded before the specification
+owned their requirement text. Their status below stays with the evidence it cites.
+
+### Status of RG-HABITAT-001 (sleeping space)
 
 **Intent:** Documented in [spatial](../developers/contracts/spatial-contracts.md)
 and [population](../developers/contracts/population-contracts.md) contracts.
@@ -37,17 +56,7 @@ patient held in one counts once, and a bed a care transport holds is its patient
 ([H11](#h11--care-locations-compared-by-readiness-movement-delay-and-outcome)).
 Milestone 8 holds an occupied bed until its replacement is observed assignable and reachable, and relocates a minifiable bed onto its slot as one native reinstall ([H15](#h15--executable-redevelopment-and-retirement-milestone-8)). Evidence H1–H2, H6, H9, H11, H13, H15.
 
-## RG-HABITAT-002 — Keep essential facilities usable
-
-The governor should provide the power, fuel, temperature control and upkeep
-needed by occupied rooms and useful facilities. Service demand should reflect
-what the colony needs to operate. Reassessment should distinguish a fuel shortage,
-damage and insufficient generating capacity so the chosen work addresses the cause.
-
-An empty generator with adequate capacity and available fuel should be refuelled.
-A damaged facility should remain deficient until an observation shows restoration.
-A cold or hot sleeping room should create temperature work. Where resources are
-unavailable, the affected service and blocker should remain visible.
+### Status of RG-HABITAT-002 (essential facilities)
 
 **Intent:** Documented in [power](../developers/contracts/power-contracts.md),
 [upkeep](../developers/contracts/upkeep-contracts.md) and spatial contracts.
@@ -63,25 +72,7 @@ switches and a forbidden producer's allow under Auto ([H13](#h13--fields-herds-p
 Resilience across repeated losses needs further evidence. A hosted guest's or slave's cold or hot sleeping room is
 temperature work like a colonist's (H9). Milestone 8 holds a generator until its replacement is observed powering the net ([H15](#h15--executable-redevelopment-and-retirement-milestone-8)). Evidence H3–H6, H12, H13, H15.
 
-## RG-HABITAT-003 — Develop rooms for the benefit they provide
-
-The governor should compare room construction with other useful work by the
-consequences the finished room changes for this colony. A room should gain value
-from when its required work is complete, after accounting for materials, shared
-workers and other rooms already under construction. Completing an arbitrary
-number of buildings, floors or removals is not itself a benefit.
-
-A workshop should be useful because its stations improve needed production; a
-prison cell because its conditions improve a wanted prisoner's recruitment after
-any required conversion and warden work. A classroom should gain only the useful
-learning its pupils can realize within the existing investment horizon. A room
-with nobody eligible to use it can have a known zero benefit. An unread required
-fact must prevent that option from being priced, rather than inventing a gain.
-
-Floors and removals should contribute through the rooms they enable. Corridors
-and airlocks should contribute through the rooms they reach or seal. Sharing a
-room should weigh changed room benefits, disturbed sleep, walls and travel;
-membership in a fixed room-compatibility table should not decide it.
+### Status of RG-HABITAT-003 (room development)
 
 **Intent:** Human-approved in [epic #3650](https://github.com/davidarcher/rimgovernor/issues/3650),
 including its service-day and forecast-limit decisions.
@@ -118,12 +109,7 @@ counted again.
 ([H10](#h10--spot-bridges-retirement-and-activity-sites-compared-as-layout-alternatives)).
 Milestone 8 compares retaining, relocating, storing and removing each standing building with its transition cost, binds the choice on the plan and executes it only after the replacement is observed serving ([H15](#h15--executable-redevelopment-and-retirement-milestone-8)). Evidence H7, H8, H10 and H15 prove the policy path; they do not establish sustained native colony performance.
 
-## RG-HABITAT-004 — Provide suitable places for treatment and recovery
-
-The governor should compare care locations with medical needs: existing beds, a
-bed made medical for the occasion, an improvised sleeping spot and an equipped
-hospital. A bed serving care should not also count as free sleeping or treatment
-capacity, and a separate hospital is not a prerequisite for an operation.
+### Status of RG-HABITAT-004 (treatment and recovery)
 
 **Intent:** Documented in [medical care](../developers/contracts/medical-care.md#care-capacity),
 [support work](../developers/contracts/support-work.md#care-census),
@@ -744,7 +730,7 @@ Milestone 8 (RG-HABITAT-010 and -011, with -001, -002 and -003 where noted) repl
 buildings with a comparison of retaining, repairing, replacing, relocating, repurposing, storing and removing each one,
 binds the chosen transition on the layout plan, admits a removal only while what the building provides is observed served
 by a replacement, and executes a chosen relocation as one native reinstall. The
-[spatial](../developers/contracts/spatial-contracts.md#standing-building-transitions-rg-habitat-010-and-011),
+[spatial](../developers/contracts/spatial-contracts.md#standing-building-transitions-rg-habitat-010-and--011),
 [forecast](../developers/contracts/forecast-contracts.md),
 [action](../developers/contracts/action-contracts.md#standing-building-transitions-habitat-84),
 [husbandry](../developers/contracts/husbandry-contracts.md),
@@ -829,3 +815,148 @@ Known limits, stated rather than priced:
 - the `layout_edit` rows for the four transition reasons have no automated reader;
 - the native reinstall, the uninstall designation, the storage read, `PenGrazing.Boundary` and `Animals`, and the per-worker
   transition legs have not been run in a game: no live-game verification of milestone 8 exists.
+
+### H16 — Scenario audit (task 9.2)
+
+Each of the 27 approved scenarios of RG-HABITAT-001–011 is traced at `8c4bd9f8e` through seven stages: generation (the
+proposer), facts (the read and its native bridge), shared comparison, admission (Method and claims), Hands (the order and
+its receipt), readback (the observed service that closes or keeps the Need) and tests. Every symbol below was checked to
+exist at that revision; the milestone sections H8–H15 above stay as history and are not re-asserted here.
+
+Execution limits that hold for every row:
+
+- **Unit** marks pure policy xUnit tests in `RimGovernor.Brain.Domain.Tests`. **Rig** marks
+  [HabitatReviewIntegrationTests](../../brain/tests/RimGovernor.Brain.Domain.Tests/HabitatReviewIntegrationTests.cs) on
+  [ColonyReviewRig](../../brain/tests/RimGovernor.Brain.Domain.Tests/ColonyReviewRig.cs): one real journal driven through
+  `Journal.Review`, claim admission (`Journal.CommitClaimedMethod`), the Executor's Hands with a recording fake native and
+  the power family's real `FamilyRunner`, then save and load. The rig does not drive `ColonyReview.StepAsync`: nothing
+  implements `IGameApi` for it and no full-frame fixture exists.
+- **Native** cases named below are all `CaseTier.OnDemand`: registered and compiled only, executed by no automated run
+  (not the normal gate, not `RimGovernor.cmd test -full`, which only forces the normal gate, and not the nightly, which
+  runs `Nightly` cases only). The Nightly `layout/first-bedroom-closes` (H2) predates this change; no result of it is cited.
+- No live-game verification exists for this change. Every row is policy and boundary evidence.
+
+Classes: **Complete** — all seven stages exist and are tested, and the named limits only lower a price or bound a read;
+**Partial (open)** — one stage is missing for part of the scenario, and the missing fact or proposer could exist;
+**Partial (b)** — the missing part has no native operation or read to use; **Unsupported hold** — a permanent Unassessed
+state blocks the scenario's main outcome although a read or proposer could exist.
+
+| Scenario | Generation → facts → comparison | Admission → Hands → readback | Tests (exact) | Class |
+| --- | --- | --- | --- | --- |
+| 001 A barracks is preferable to individual bedrooms | `LayoutBedShareRules.DeviationsOf` (`bed_share`), `LayoutClusterRules.BedMergeChoiceOf` → `BedMergeFacts` (`ColonyReview.BedMergeFactsOf`), sleeping census → `LayoutRegroupRules.RegroupAsync` over `PlannedRoomCredits` | `SleepingRules.SelectSleepingMethod`, `CommitClaimedMethod` (footprint and bed claims) → `BuildingAction`, `BedUseAction` → `SleepingRules.ReviewSleeping` (observed use of an owned suitable bed) | unit: `BedShareAlternativeTests.APermanentBarracksWinsWhenItsSleepersLoseLessThanTheBedroomsCost`, `.TheBarracksLosesWhenTheBedroomsGainExceedsTheirCost`, `RoomSharingCreditTests.ADaysResearcherAndLoneSleeperPayNoDisturbedSleepCreditTwice`; rig: `ABarracksStandInMeetsNoBedroomNeedAndStandsWhileItIsTheOnlyRoof` | Complete |
+| 001 Guests or prisoners need accommodation | `SleepingRules.SelectSleepingMethod` (build, then assign), `PrisonersFamily.Unbedded` → `Sleeping.Guests`/`Slaves`, `Population.Prisoners`, `SleepingRules.CompatibleSlot`/`LegalBed` → `ForecastPrisonAccommodation.AccommodationCredit` in the regroup | `CommitClaimedMethod` → `BuildingAction`, `BedUseAction` → `ReviewSleeping`; `PrisonersFamily.Recruit` stays unmet until the prisoner owns a bed | unit: `GuestAccommodationTests.AGuestWithNoVacantBedStaysATargetAndHoldsTheSleepingNeed`, `.TheNormalMethodBuildsABedForTheGuestThenAssignsItAndOnlyObservedUseMeetsTheNeed`, `PrisonersFamilyTests.ANonRecruitedPrisonerWithoutABedStillHoldsTheNeedSoTheJailIsStaged`, `PrisonCreditTests.ANonRecruitedPrisonerStillGetsAccommodationCreditedApartFromRecruitment`, `HabitatOccupantTests.EachOccupantKindIsLegalOnlyInItsOwnBedClass`; native `bed/built-for-guest` | Complete |
+| 001 Animals require different resting arrangements | `HerdShelterRules.Assess` (open, barn, animal bed), `LayoutHerdBarnRules.DeviationsOf` → `HerdShelterInput` (climate, comfort range, `FoodChannelsFacts.AnimalDoors` from `NativeFoodChannels`, `BarnDoors`: each barn's standing door defs from the typed `BuildingState.Door` fact, else the planned `AnimalFlap`) → `HerdShelterRules.AnimalEntry` → regroup with `ForecastHerdShelter.BarnCredit` | the barn room through room reconcile: its ring is the wall in ring stuff and the `AnimalFlap` (`HerdShelterRules.BarnDoorDefinition`) in its own Fabric or Leathery stuff from the flap's catalog row (`ColonyReview.PlannedDoorStuffsOf`/`OwnStuffDoor`, `PlannedRules.PlannedSitesOf`, `BuildingPlanner.ShellMaterials`); a barn standing with a plain door is owed the flap placed over it (`ReconcileRules.Reconcile`, `DoorIn`) → `HerdArrangementRules.Assess` closes shelter only on an observed reachable roofed room in band | unit: `HerdShelterTests.AComfortRangeThatCoversTheClimateIsAKnownZeroAndPlansNoBarn`, `.ABarnEnteredByAPlainDoorIsNotCredited`, `.AHeatedBarnJoinedToItsPenIsCreditedTheDeathsItStops` (its input lists `AnimalFlap`, as the native read does), `BarnAnimalFlapTests.ABarnsRingIsAWallAndAnAnimalFlapEachReadInItsOwnStuff`, `.ThePlannedBarnsSitesCarryTheWallStuffTheFlapDefAndTheFlapStuff`, `.ABarnStandingWithAPlainDoorIsOwedTheFlapOverItAndIsNotCreditedMeanwhile`, `HerdArrangementTests.AHardySpeciesHasNoShelterDeficitAndNoBarn`, `.AColdSpeciesClosesShelterOnlyOnAnObservedReachableRoofedRoomInItsBand` | Complete (closed after the audit, below) |
+| 001 Growth or damage leaves an immediate shortage | `ShelterRules.StandInsOwed`/`PickStandIns`, `ProspectiveCapacityRules.Choose` (bed share against bedroom) → sleeping census, dated `ExpectedTiming` reads → `ProspectiveCapacityRules.Choose` | `stand-in-sleeping-*` Methods, `CommitClaimedMethod` → `BuildingAction` → `ShelterRules.SleepingNeedOf` owed until both foothold places stand, `ReviewSleeping` | unit: `SleepingStandInTests.TemporaryCapacityMeetsTheImmediateNeedButDoesNotEraseTheFunctionalShortage`, `.AStandInHousesNoOneSoItsSleeperStillGetsTheBedroom`, `ProspectiveCapacityTests.ABedShareCoversAShortVisitAndABedroomARecruit`; rig: `ATemporaryProvisionAnswersTheImmediateNeedButKeepsTheFunctionalDeficitOpen` | Complete (a lost shelter's stand-ins are owed by rule beside the permanent bed, not priced against waiting) |
+| 002 Installed power capacity is sufficient but its generator is empty | `PowerRestorationRules.Decide`/`Methods`, `ServicingRules.OptionsOf` → `ServicingActivityRead` (native servicing census), power topology → `ServicingChoiceRules` (`FuelStocked`, `FuelTaken`), `PowerRules.SelectPowerMethod` | `FamilyRunner` → `CommitClaimedMethod` (worker and generator) → `RecoveryServiceAction` (Refuel) → `PowerFamily.Basic` closes only on fresh powered facts | unit: `PowerRestorationTests.AnEmptyGeneratorWithWoodInStockIsRefuelledAndTheNeedClosesOnlyOnFreshPoweredFacts`, `.TwoEmptyGeneratorsCannotClaimTheSameFuelTwice`, `PowerMethodTests.OutOfFuelProducerWithCapacityRestoresOnlyWhileTheChoiceRestoresIt`; rig: `AnAcceptedUtilityOrderLeavesItsNeedOpenUntilServiceIsObserved`; native `power/fuel`, `upkeep/restore-service` | Complete |
+| 002 A service remains unavailable after an order | `HomeUpkeepFamily.Decide`, `PowerRestorationRules.Decide`, `BuildingPlanner.PowerSwitchPlan` → servicing census, building read → `ServicingChoiceRules`, `UtilityChoiceRules.Choose` | `CommitClaimedMethod` → repair, refuel and switch orders → `HomeUpkeepFamily.Repairs` and `PowerFamily.Basic` stay unmet until fresh facts; a switch is confirmed only by a later building read (`BuildingPlanner.PowerSwitchHold`) | unit: `HomeUpkeepFamilyTests.ADamagedWallGetsAClaimedRepairAndStaysDeficientUntilFreshFactsShowItWhole`, `PowerSwitchTests.AnAcceptedButUnchangedSwitchIsUnconfirmedAndNotReissued`, `DisasterFamilyTests.ServicesFollowTheDisasterHistoryAndWaitOnSheltering`; rig: `AnAcceptedUtilityOrderLeavesItsNeedOpenUntilServiceIsObserved`; native `upkeep/restore-service`, `power/configure-and-route` | Complete |
+| 003 A facility cannot yet deliver its benefit | `LayoutHostRules.Of` (chains), planned-room alternatives → `BenchPower`, research and stock reads → `PlannedRoomCredits.ServiceDays` in the regroup | planned-room gate, `CommitClaimedMethod` → `BuildingAction` → each owning Need's `need_satisfied` predicate; construction closes while the served Need stays unmet | unit: `PlannedRoomCreditTests.ABarracksOwingAStoveNoOptionCanFinishIsNeverServedAndEarnsNothing`, `.APricedRoomWithoutAFreeBuilderIsNeverServedAndEarnsNothing`, `WorkshopHostAlternativeTests.AChainsBridgeEarnsOnlyFromItsOwnReadinessUntilTheReplacementServes`, `PlannedRoomGateTests.ABuiltHostClosesItsConstructionWhileTheServedNeedStaysUnmet`, `ActivityContinuationTests.AnUnconfirmedHostBuildIsPreservedAndNeitherCompletesNorReselects` | Complete |
+| 003 Shared space and connectors support several functions | regroup batch, `PlannedRoomCredits.ConnectorsOf` → the layout plan's rooms and doors → `PlannedRoomCredits.FunctionsOf` (no role table) | `MethodClaimsRules.MethodClaimOverlap` → `BuildingAction` → the served room's credit after connector work | unit: `PlannedRoomCreditTests.AConnectorsWorkDelaysTheServedRoomsActualLedgerCredit`, `.ABedroomReachedThroughACorridorServesAfterTheCorridorsWork`, `RoomSharingCreditTests.ResearchAndBothSleepersPayTheirActualMergedRoomLosses`, `.SavedStationPurposesDispatchGuestCreditsAndPlacementWithoutARoleWhitelist`, `WorkshopHostAlternativeTests.BenchesOnOneNetworkShareItsSurplusOnceEachInAnchorOrder`; rig: `CompetingGroundGoesToOneClaimAndARefusedOrderReleasesIt`, `OneStockOfMaterialsIsSpentOnceAndARefusedOrderReturnsIt` | Complete |
+| 003 No eligible user exists | demand from facts (`ActivitySiteRules.Demands`, hospital expected patients) → a known zero against `RequiredFactException` and `RegroupValuation.Unassessed` (`regroup_unassessed`) → the shared ledger | no Method for an absent beneficiary | unit: `ActivitySiteTests.EachKindsDemandIsDerivedFromFactsAndTheRitualIsAbsentWithoutIdeology`, `HospitalCreditTests.NoExpectedPatientEarnsNothing`, `WorkshopHostAlternativeTests.AnUnconnectedElectricSmithyIsAKnownZeroWhileAnUnreadSurplusIsNamed`, `ServiceInvestmentTests.UnrelatedAdoptedSiteHasNoValueAndNoOriginRequirement`; rig: `ZeroFreeBuildersIsAssessedAndUnreadClaimsAreUnassessedAndTheyDecideDifferently`, `ACountedZeroStockAndUnreadGroundAreNotTheMissingFact` | Complete |
+| 004 Routine care can occur in a patient's own bed | `CareCapacityRules.Plan` (own bed, another's bed, ward, new medical bed via `LayoutHospitalBedRules.PlannedBed`) → care census, `SleepingRules.HeldInMedicalBeds`, native `CareSurgeryFactor` and `BedRest` → `CareCapacityRules.Compare` | `care/<pawn>` and exact-bed claims → `BedUseAction`, `RescueAction`, `BedRestAction` → a later census sees the patient lying in the bed; `CareTransportRules.Holds` from the journal | unit: `CareCapacityTests.ConvertingThePatientsOwnBedBeatsWaitingForANewBedAndHoldsOneSlot`, `.AnotherOccupantsBedIsConvertedOnlyWhenTheyKeepASlot`, `.AfterCareTheBedIsRestoredWhenItsSleeperNeedsItAndKeptOtherwise`, `CareTransportTests.ADownedPatientIsCarriedToItsExactBedAndAWalkingColonistLiesDownInIt`, `.AHeldBedIsNoSecondPatientsAndNoSleepersFreeSlot`, `ClaimAdmissionTests.ExactCareAndUtilityOrdersClaimTheirWorkerWhileOpen`; rig: `OneWorkerIsClaimedOnceAcrossCareAndUtilityWork` | Complete |
+| 004 Surgery benefits from a better bed and room | `CareCapacityRules.Plan` over legal beds → the bed factor (`CareSurgeryFactor`), linked facilities → `CareCapacityRules.SurgeryLossOf`, `SurgeryChance.NoCareBed` | transfer through the care transport → the surgery bill at the chosen bed → census | unit: `SurgeryLocationTests.AnOperationProceedsInTheNonMedicalBedThePatientLiesInWhenNoBedGivesABetterChance`, `.AHospitalTransferWinsOnlyWhenItsChanceGapOutweighsTheMove`, `.APrisonersOperationIsComparedOverItsPrisonLegalBeds`, `.AVitalsMonitorRaisesTheChanceThroughTheBedsStat`, `HospitalCreditTests.AnExistingMedicalBedAsGoodAsTheHospitalsLeavesTheNewBedNoSurgeryCredit` | Complete |
+| 004 Field stabilization can avoid treatment delay | `CareCapacityRules.Plan`'s field alternative → bleed rate, cell temperature (`CareCapacityRules.TemperatureFact`) → `CareCapacityRules.BleedsOut` over a common horizon | spot placement, medical designation, carry → the census reads the tend or recovery, not the spot | unit: `CareFieldTests.AFieldSpotBeatsACarryToTheWardThatTheBleedingDoesNotSurvive`, `.ExposureWhereThePatientLiesIsPricedOverACommonHorizon`, `.APlacedSpotIsMadeMedicalForItsPatientThenCarriedToAndARefusedPlacementIsExcluded`, `.AStabilizingSelfTendMovesNobodyUntilTheCensusReadsThePatientRecovering`; rig: `AFieldSpotCreditsTreatmentOnlyWhenTheTendIsObservedAndATransferReselectsOnlyItsPatient`; native `medical/field-treatment` | Complete |
+| 005 A spot bridges workstation construction | `LayoutHostRules.Of`/`HostMove` (spot, table, chain, keep or remove the spare) → `BenchPower`, `StorageReach`, `BillState.Workers` → the regroup ledger | planned-room gate binding → `BuildingAction`, `host-retire-*` deconstruction → `HostSharing.HostRetirementsOf` (`replaced_host`), `host_retire_held` while a bill is worked | unit: `WorkshopHostAlternativeTests.AButcherOrderWithNoBenchIsUnhostedAndItsSpotOrTableIsChosenByConsequence`, `.AServingReplacementComparesRemovingAgainstKeepingTheSpare`, `.PopulationAloneNoLongerCapsTheBenchesALoadNeeds`, `HostRetirementTests.ABillInProgressHoldsTheRemovalNamingItThenTheSpareRetires`, `PlannedRoomGateTests.ABridgeSpotIsPlacedFirstThenItsBenchAndRetiredOnlyOnceTheBenchServesAndNoBillIsWorked`; native `production/spot-bridge`, `redevelopment/replace-before-remove` | Complete |
+| 005 A spot designates an activity rather than an equipment substitute | `ActivitySiteRules.Demands`/`Deviations` → room capacity, roof, `ActivityAccess` → the regroup ledger | `BuildingPlanner.SitePlaceMethod` (one per kind and room) → placement → `ActivitySiteRules.States` | unit: `ActivitySiteTests.TheConsequenceDecidesTheSiteAndTheBaselineKeepsATie`, `.ANewRoomEarnsTheAttendanceAnExistingRoomWithoutCapacityCannot`, `.ThePlacementMethodIsOnePerKindAndRoomAndItsRoomIsReadSpent`, `.ASiteHasNoRetireOrUpgradeLifecycle`, `.CompletionAndProvisionAreDistinctInBothDirections` | Complete |
+| 006 Crop alternatives compete for useful land | `FieldPlacementRules.Choose` → fertility, roof, season, worker access → its own comparison over shared ground | `cell/x/z` claims → zone create → `FieldPlanner.PendingFieldHolds` holds the ground until observed, and a refusal releases it | unit: `FieldPlacementTests.TheSecondMoreFertilePatchBeatsTheFirstFeasibleOne`, `.FoodAndTextileCompeteForOneFertilePatchWithoutSharingCells`, `.AHalfRoofedHalfInfertilePatchIsCreditedOnlyForItsUsableCells`, `.AnInFlightZoneCreateHoldsItsGroundUntilObservedAndARefusalReleasesIt`, `ClaimAdmissionTests.SecondFieldBatchIsAdmittedOnOtherCellsAndRefusedOnSharedCells`; rig: `ARefusalAloneReleasesTheCellsAcrossTheNextReview` | Complete |
+| 006 A pen exists without usable feeding access | `HerdArrangementRules.Assess`/`FeedAsks`/`HayDemand` → pen grazing, pen feed, pasture → the retain baseline against containment and feed | hay-field and fence work under their owners → observed nutrition covers consumption; shelter as in the animals row | unit: `HerdArrangementTests.AMarkerAndACompleteFenceOverBareGroundLeaveFeedingOpen`, `.HayFeedsBackAsRunwayAndFeedingClosesOnlyWhenObservedNutritionCoversConsumption`, `.TwoPensCannotClaimTheSameFeedTwice`, `.AnUnenclosedPenIsAContainmentDeficitRepairedOverTheRetainBaselineByTheRoamingLossItStops`, `TransitionBridgingTests.AnOldFenceIsHeldWhileTheNewPenHasAGapAndRemovedOnceItIsClosedAndFed` | Complete (the shelter half closed with the animals row) |
+| 007 Better accommodation competes with another useful investment | `RoomQualityRules.ImprovementValueOf`, bed-share deviations → room quality, beauty → the owners' stage gain against cost | planned sites → `BuildingAction` → the observed room stage | unit: `RoomImprovementTests.APieceThatReachesTheNextStageIsBuiltOnlyWhenItsOwnersGainBeatsItsCost`, `.AnUnreadFactLeavesTheImprovementUnassessedAndUnplanned`, `BedShareAlternativeTests.PrivateRoomsReplaceAProposedBarracksWhenTheirGainExceedsTheirCost`, `TransitionServiceTests.ABeautifulSculptureInAnOwnedBedroomStaysAndAPlainOneTheFurnishingOmitsStaysOnMerit` | Complete |
+| 007 Foreseeable arrivals or injuries could exceed capacity | `ProspectiveCapacityRules.SleepingChanges`/`HayChange`/`ChainPower` → dated quest, pregnancy and crib-leaving reads (`ExpectedTiming`), the catalog crib (`RoomFurniture.Crib`, `DefinitionCatalog.CribDefinition`) and the newborn's def-level rest rates (`DefinitionCatalog.NewbornRest`, `ReviewFacts.NewbornRest`) priced as `ReviewFacts.ProspectiveCrib`, the postpartum exhaustion's disappear ticks (`CapacityPenaltyTables.PostpartumExhaustion`), raid dates for hospital injuries → `ProspectiveCapacityRules.Choose` | `ProspectiveCapacityRules.Admitted` sizes the station population when due → the bed build → `ReviewSleeping` | unit: `ProspectiveCapacityTests.AFullColonyWithNoExpectedChangeBuildsNoSpareBed`, `.TwoLodgersInThreeDaysPrepareTheirBedsAtTheReviewTheLeadRequiresAndACancellationRetiresThem`, `.APregnancyDatesACribAndTheMothersBedRestAtTheBirthTick`, `.ABirthSixDaysOutPreparesACribOnlyWhenTheComparatorValuesIt`, `.TheMothersBedRestIsPricedByHerRestOverThePostpartumExhaustion`, `.TheSeasonsEndDatesTheHayDemandAndAFieldIsSizedOnlyWhenReadyByThen`, `CapacityPenaltiesTests.PostpartumExhaustionCarriesTheTicksItDisappearsAfter`, `NurseryCribCatalogTests.TheNewbornsRestRatesAreReadFromTheDefsWithNoBabyPresent`, `HospitalCreditTests.AServedHospitalPricesNativeRaidDatesRatherThanProratingTheSameCount` | Complete (closed after the audit, below) |
+| 008 Interrupted services have different consequences | `UtilityChoiceRules.Choose` (configure, route, generate, store, shelter, passive) → topology, thermal read → `PowerValuationRules.Valuation` per consumer | the `configure-` Method's `switch/<thing>` claims → `PowerSwitchAction` → a later building read (`BuildingPlanner.PowerSwitchHold`) | unit: `PowerUtilityTests.SwitchingAnIdleBenchOffBeatsANewGeneratorWhenAFreezerIsSpoiling`, `.AShortWinterNetworkOfABenchAPatientsMonitorAndABedroomHeaterBuilds`, `.StorageIsSizedByThePricedInterruption`, `PowerSwitchTests.TheIdleBenchIsSwitchedOffHeldAndSwitchedBackOnInSurplus`; native `power/configure-and-route` | Complete |
+| 008 A reserve shares the primary system's vulnerability | the same choice → rain rate (`UtilityExposure`), fuel runway, network shedding → the same choice | as above | unit: `PowerUtilityTests.RoofingAnExposedBankBeatsASecondBatteryOnlyWhileTheRateIsRead`, `.SolarWinsUnderOpenSkyAndWoodWinsInACave`, `.RoutingToASurplusNetworkBeatsANewGenerator`, `.APassiveCoolerInBandBeatsThePoweredOneWhenPowerIsShort`, `PowerRestorationTests.TwoEmptyGeneratorsCannotClaimTheSameFuelTwice` | Complete |
+| 009 Defensive arrangements impose different operating burdens | `DefenseCandidateRules.Generate`/`Constrain` → `DefenseCandidateRules.ThreatOf` over the native raid tracks saved with the map (`RaidTrackLog`, `RaidArrivalState.ExposeData`), the native probe (`DefenseProtectionRules.Probes`/`Protections`) → `DefenseChoiceRules.Choose` | `DefenseBindingRules.Bind`, `defense-choice-<kind>-` Methods → `BuildingAction` → the deficit stays until the piece stands and draws (`DefenseBindingRules.Next`) | unit: `DefenseCandidatesTests.WithNoThreatReadNoKillboxIsLaidAndAlternativesStand`, `DefenseProtectionTests.AnUnpoweredTurretIsZeroAndNamedAndAPoweredOneFiresItsBurst`, `.RecordedCoverAndDooredPerimeterGetDifferentProtection`, `DefenseChoiceTests.ASandbagLineBeatsADooredPerimeterAtTheSameProtectionUntilItsSightIsFogged`, `.AnAcceptedBuildLeavesTheDeficitUntilThePieceStandsAndDraws`, `DefenseBindingTests.ABoundChoiceSurvivesLoadWithoutReselection`, `ThreatFactsTests.ASavedGroundRaidPricesItsArrivalEdgeAfterLoadAndAFreshSaveNamesNoneObserved`, `DefenseProtectionTests.NoArrivalEdgesLeaveEveryTermUnassessed`; native probe `native-raid-track-log` | Complete (a save that never kept a ground raid names `arrival_edges:none_observed`, which the requirement allows) |
+| 009 Temporary defenses or retreat positions are useful | the TemporaryCover and Retreat candidates → staffing, civilians (`DefenseProtectionRules.Civilians`), lead → `DefenseChoiceRules.Choose` | as above | unit: `DefenseChoiceTests.RetreatWinsWhenEveryFiringLineNeedsMoreShootersThanTheColonyHas`, `.ATemporaryLineWinsOnTheGameShapedReadingAndRetainsWhileAnyOfItIsUnread`, `DefenseCandidatesTests.RetreatUsesTheStandingInteriorDoorsAndClaimsNoGround`, `DefenseProtectionTests.StaffingExcludesTheViolenceIncapableAndTheDowned`, `ThreatFactsTests.ASavedGroundRaidPricesItsArrivalEdgeAfterLoadAndAFreshSaveNamesNoneObserved`; native `defense/temporary-cover` | Complete (as above) |
+| 010 A damaged generator no longer justifies restoration | `ServicingChoiceRules.Transition`, `PowerRestorationRules.Decide`, `HomeUpkeepFamily.Decide` (Retire) → servicing and transition reads → the same comparators | `CommitClaimedMethod` → fix, refuel or removal orders → `TransitionBridgingRules.PowerUnserved`, `PowerFamily.Basic` | unit: `TransitionChoiceTests.ADamagedIdleBenchIsRetainedAndOnlyABreakdownUnderABillQueueBuysTheFix`, `PowerRestorationTests.WithNoStockAndNoPathTheChainIsANamedStateAndGenerationWins`, `.ABrokenGeneratorWithAComponentIsFixedAndWithoutOneTheAcquisitionIsANamedState`, `HomeUpkeepFamilyTests.RetireWinsOnlyWhenItsLossIsAssessedZero`, `TransitionBridgingTests.AGeneratorIsHeldUntilItsReplacementPowersTheNetAndAReplacementBreakdownReopensAndCancels` | Complete |
+| 010 Redevelopment displaces occupied accommodation | `ReconcileRules.Reconcile`/`RelocationSlots` → `ServicingActivityRead.Transitions` (native) → `ServicingChoiceRules.Choose` | `TransitionBindingRules` on the plan and the `TransitionBridgingRules.RestUnserved` gate → `MoveBuildingAction` (reinstall), uninstall and deconstruct designations → `TransitionBindingRules.Settled` | unit: `TransitionBridgingTests.AnOccupiedBedIsKeptWhileItsReplacementIsUnassignableAndRemovedOnceTheSleeperIsAssigned`, `TransitionServiceTests.AnUnownedBedOnAPlannedKitchenFootprintIsStoredAndAnOwnedBedStays`, `TransitionChoiceTests.ASpareBedLosesItsRemovalWhileADatedArrivalNeedsIt`, `TransitionBindingTests.BoundTransitionsSurviveLoadAndAreNotComparedAgain`, `TransitionHandsTests.TheReinstallIsOneMoveOfTheStandingBuildingOntoItsSlot`; native `redevelopment/replace-before-remove` | Complete |
+| 010 A spot or room outlives its original purpose | `HostSharing.HostRetirementsOf`, `ReconcileRules.Reconcile` → the transition read → `ServicingChoiceRules.Choose` (retain, relocate, store, remove; Repurpose excluded) | as above | unit: `TransitionChoiceTests.AHostRetirementIsAComparedRemoveThatLosesWhileTheReplacementDoesNotServe`, `.StoreIsExcludedWithNoStockpileThatAcceptsTheBuilding`, `TransitionServiceTests.OmissionAloneNeverRemovesAndAGatedRemovalIsANamedHoldWithNoOrder`, `HostRetirementTests.ASpareRetiresOnlyOnceItsReplacementServes` | Partial (b): Repurpose `no_typed_op` |
+| 011 Attractive accommodation is inaccessible or unusable | the legal reachable slot (`SleepingRules.CompatibleSlot`), route effects → census reach | no credit for an unusable bed or barn | unit: `HabitatOccupantTests.TheHospitalityGateCountsCompatibleReachableSlots`, `.APatientHeldInAMedicalBedIsNoFreeSlotAndWantsNoSecondOne`, `.AColonistIsNeverOfferedASlavePrisonMedicalBedOrCribAsItsSlot`, `HerdShelterTests.ABarnEnteredByAPlainDoorIsNotCredited`, `DefenseCandidatesTests.ClosingTheOnlyDoorExcludesByRouteAndALongerRouteIsPriced` | Complete |
+| 011 A staged facility has not achieved its intended outcome | every owner above | a receipt closes construction only; outcomes close on fresh facts | unit: `ActivityContinuationTests.AnUnconfirmedHostBuildIsPreservedAndNeitherCompletesNorReselects`, `ActivitySiteTests.CompletionAndProvisionAreDistinctInBothDirections`, `DefenseChoiceTests.AnAcceptedBuildLeavesTheDeficitUntilThePieceStandsAndDraws`; rig: `AFieldSpotCreditsTreatmentOnlyWhenTheTendIsObservedAndATransferReselectsOnlyItsPatient`, `BoundChainsSurviveReviewAndLoadWithTheirIdsAndAChangedInputReselectsOnlyItsChain`, `ARewindToBeforeBindingLeavesNoOrdersClaimsOrReceipts` | Complete |
+
+Counts at `8c4bd9f8e`: 21 Complete, 4 Partial (open), 1 Partial (b) and 1 Unsupported hold. After the closures below: 26
+Complete, 1 Partial (b) and no Partial (open) or Unsupported hold.
+
+**Closed after the audit** (one commit each, with its tests; no game check of any of them has run):
+
+- **`animal access:<unit>` (001 animals, 006 pen shelter)** at `867642e78`. A barn's ring door is the `AnimalFlap`
+  (`HerdShelterRules.BarnDoorDefinition`; 1.7 has no `ThingDefOf` field for it) in its own stuff, read from the flap's
+  catalog row (`ColonyReview.OwnStuffDoor`: a stuffed door made from none of the wall's stuffs). The wall keeps the ring stuff
+  and the flap takes Fabric or Leathery (`PlannedDoorStuffsOf`) in the planned sites, the owed materials and the reconcile
+  placement. `HerdShelterRules.AnimalEntry` checks each barn's standing door defs (`GroundCensus.DoorDefs`, from the typed
+  door fact), else the planned flap, against the native `roamerCanOpen` read. A barn standing with a plain door stays
+  Unassessed under `animal access:<unit>` and is owed the flap placed over the door (a `DoorIn`: `DoorBase`'s `replaceTags`
+  let one door's blueprint replace another, [kept constants](../developers/contracts/kept-constants.md)). This is ring work,
+  not the servicing comparator: doors are no transition target and the servicing `Replace` is door to wall only.
+- **`crib catalog row`, `maternal bed rest valuation` (007 arrivals)** at `cd0a0cdde`, and `rest need of a present baby` with the newborn rest read after it. The furniture catalog carries its
+  crib (`RoomFurniture.Crib`, the buildable humanlike `bed_crib` bed ranked as beds are; empty without Biotech, when the crib
+  change names `crib:def_absent`), priced as `ReviewFacts.ProspectiveCrib`. The mother's bed rest is her own rest in the primary bed (`BedRestLoss`) until her
+  postpartum exhaustion disappears, its mean `HediffCompProperties_Disappears` ticks read from the def (40000 in Biotech),
+  not copied. A newborn's loss is the rest the crib's least restful row frees over the ground at the newborn's rest rates,
+  read from the defs whether or not a baby is present (`DefinitionCatalog.NewbornRest`): Need_Rest's `BaseRestFallPerTick`
+  (read by name) and `BaseRestGainPerTick`, the ground's `BedRestEffectiveness` `valueIfMissing`, and the
+  `RestFallRateFactor` and `RestRateMultiplier` stats as the `Human` race's `statBases` and the `HumanlikeBaby` life stage's
+  `statOffsets`/`statFactors` give them (none lists a rest stat in 1.7, so both are 1). A colony's first birth no longer
+  defers on `rest need of a present baby`; the rates unread name `newborn rest rates`. A newborn's hediffs, capacities and
+  genes are unknown before the birth and are left out.
+- **`arrival_edges:none_observed_since_load` (both 009 rows)** with this audit update. The native saves its raid tracks
+  with the map (`RaidTrackLog`, `RaidArrivalState.ExposeData`;
+  [persistence contracts](../developers/contracts/persistence-contracts.md#what-must-survive)), and a lord unseen for a day
+  no longer drops its ground walk: the newest eight finished ground tracks stay. The probe's approaches and the raider
+  weapon range survive days and loads, and the reason is now `arrival_edges:none_observed` (a save that never kept a ground
+  raid), which the requirement allows. The old name was also wrong within a session: a track was evicted a day after its
+  lord was last seen, load or not. No session-journal shape changed, so the store schema stays 78.
+
+**Partial (b).** Repurpose (`no_typed_op`, 010 outlived purpose): RimWorld has no operation that changes a standing
+building's use other than a bed's medical, prisoner and slave settings, which the care comparison
+(`CareCapacityRules.Plan`) and the sleeping Methods own. A room's role changes only through the layout replan.
+
+**Consolidated carry-forward gaps** (merged from H8–H15, each listed once; the milestone sections keep their history):
+
+- *Accommodation:* a prisoner outside a cell is not fed by wardens and its hunger is unpriced
+  (`prisoner_unfed_outside_cell_not_modelled`); room-quality minimums (bed replacement, beauty floors, sculptures, common
+  rooms) stay fixed, and dining and recreation mood is unpriced; a lost shelter's stand-ins are owed by rule; the prospective
+  bed's lead is optimistic, and an arrival's loss is a lower bound with mood omitted; the native birth, crib, arrival and
+  departure tick formulas are unchecked against live saves; prisoner recruitment and animal pregnancies are undated; a quest
+  structure other than delay-to-leave or delay-to-quest-end reads `Unread`.
+- *Production and sites:* builder skill, ingredient search radius, ingredient value and spoilage are unpriced; generators are
+  not a host alternative; kinded orders bypass the comparator except through upgrade chains; `SelectPaste` is kept;
+  ideology-gated recipes are not filtered; party and marriage surroundings carry no price beyond the roof;
+  `WorkRules.ReconcileLedger`'s orphan-bill removal can interrupt a worked bill; a host piece with no selected stuff falls
+  back to bulk stuff choice.
+- *Care:* a failure's price is a heal-days proxy; the surgeon's approach and transit temperature use the patient's current
+  cell; a planned bed's `MedicalTendQualityOffset` is unpriced; a recovering patient's carried transfer has no issuer; a
+  deleted field spot cannot be placed again under the same native authority; `RescuerFor` may differ from the priced rescuer;
+  a downed patient outside the census is left to native rescue; prisoner operations stay on `OrganHarvest` and animals on
+  `HerdWard`; a guest's operation in a colony hospital bed is not credited (`hospital_guest_surgery_unmodelled`).
+- *Servicing and power:* a damaged producer still produces, so its condition repair is home upkeep's; the refuel order is
+  issued even where native auto-refuel would start it; a partial second stock is excluded `fuel_taken`; fuel and component
+  counts are held by the policy ledger and are count-based; fuel acquisition is harvest-only (`fuel acquisition:<def>`) and no
+  component acquisition exists (`component acquisition:<def>`); non-power service value is `service:<def>` and a per-use fuel
+  rate is `fuel use rate:<def>`; supply legs assume the nearest stack (`servicing_supply_nearest_stack_legs`); a replacement
+  needs both the deconstruct and construct work types active; the servicing read stops at 32 targets
+  (`servicing_targets_truncated`); the driver constants are mirrored from decompiled code.
+- *Utility:* unvalued consumers (lamps, turrets, a patient's immunity gain, tend quality) make the priced interruption a lower
+  bound; the rain short-circuit constants are mirrored; a wind turbine's clear path, breakdown rate, shared dependence on one
+  producer and material delivery time are unpriced; a switch is confirmed only by a later building read.
+- *Agriculture and herds:* the field fertility, season and roof reads and the herd's feeding runway are policy checks only,
+  and no field or pen has been built under the comparison in a game; no barn ring with its placed flap has been built in a game.
+- *Defense:* builders are not claimed per pawn; a power shortfall scales the whole coverage; removing a defense charges its
+  full baseline protection; `Covered` is a probed-cell fraction over a sampled approach, not a simulated fight; the cover
+  block chance is restated from game code; at most eight finished ground raids are kept with the map; killbox mining is unpriced
+  (`dig:mining_unpriced`), and an unpriced piece is `piece:<def>`; `RetainPerimeter`, `PerimeterHold` and the stored
+  `DefenseLayoutRecord` still serve a retained layout with the older tier code; `PlanPerimeter` still traces the sites, and
+  the routing cut is logged advice.
+- *Redevelopment:* Repurpose is excluded (above); the defense bridging read checks standing pieces, not observed coverage;
+  conduits and structure are not transition targets, and other lanes' definitions in owned rooms are never proposed;
+  Relocate exists only on planned ground (`no_destination`), and its haul is a lower bound; the transition read stops at 96
+  buildings (`transition_targets_truncated`); the four transition `layout_edit` rows have no automated reader.
+- *Native and live evidence:* none of `bed/built-for-guest`, `production/spot-bridge`, `medical/field-treatment`,
+  `upkeep/restore-service`, `power/configure-and-route`, `defense/temporary-cover` or `redevelopment/replace-before-remove`
+  has run, nor the `StagePawn.Dead` and `StagePawn.Cut` staging; the changed Nightly `custody/population` has no cited run;
+  no live game has read `BenchPower`, `RequiresPower`, `StorageReach`, `BillState.Workers`, `BillStackRow.Reachable`,
+  `ActivityAccess`, `CareSurgeryFactor`, bleed and temperature, `BedRest`, exact `Rescue`, the servicing census, the native
+  power gizmo and flick, the raid track, the defense probe, the reinstall and uninstall, the storage read,
+  `PenGrazing.Boundary` or the per-worker transition legs.
+
+Correction to the history above: H9 and H13 say a barn is credited only where an animal entry exists and that its credit is
+zero until then. In a game the barn is never offered: it is Unassessed `animal access:<unit>`, because its ring door is the
+shell door and the native read lists only `AnimalFlap` as passable. This audit did not check the heater H9 lists as deferred. The flap ring closed above supersedes this for any barn planned
+or reconciled from `867642e78` on.

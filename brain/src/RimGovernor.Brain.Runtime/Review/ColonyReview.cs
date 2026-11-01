@@ -460,7 +460,8 @@ public sealed partial class ColonyReview
         reading = ReviewChildRooms(reading);
         // The bed an expected sleeper's preparation is priced against (ProspectiveCapacityRules.Admitted), read before the layout sizes beds.
         var prospectiveBed = await ProspectiveBedAsync(state.Snapshot, reading.Reading, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { ProspectiveBed = prospectiveBed });
+        var prospectiveCrib = await ProspectiveCribAsync(state.Snapshot, reading.Reading, ct).ConfigureAwait(false);
+        reading = reading.WithFacts(rf => rf with { ProspectiveBed = prospectiveBed, ProspectiveCrib = prospectiveCrib });
         LogProspectiveCapacity(reading.Reading.Facts);
         reading = reading.WithReading(await ReviewLayoutPlanAsync(state.Snapshot, reading.Reading, ct).ConfigureAwait(false));
         Lap("layout");
@@ -1024,7 +1025,8 @@ partial class ColonyReview
 
     /// <summary>
     /// What the whole plan still owes, per room id: the reconciler's owed operations over the plan (PlannedOwedCost), priced from the def catalog with
-    /// the stuff the shell chooser takes (ShellSharedStuff) for the ring and the bulk chooser's for pieces; null while the plan or the construction census is unread.
+    /// the stuff the shell chooser takes (ShellSharedStuff) for the ring (a ring piece of none of its stuffs, the animal flap, in its own base
+    /// stuff) and the bulk chooser's for pieces; null while the plan or the construction census is unread.
     /// A roofed-set cell still open to the sky is owed a roof (RoofIn) once the ring stands; a roof costs no material.
     /// </summary>
     internal static IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>? PlannedConstructionOf(ColonyReading colony, FlooringPolicy flooring) =>
@@ -1052,7 +1054,9 @@ partial class ColonyReview
                 var costs = (def.FixedConstruction ?? throw new RequiredFactException("planning FixedConstruction")).Costs;
                 return costs;
             }
-            var stuff = shell is not null && def.MakeableFrom(shell) ? shell : null;
+            // A ring piece made from none of the shell's stuffs (a barn's animal flap) is priced in its own base stuff.
+            var stuff = shell is not null && def.MakeableFrom(shell) ? shell
+                : PlannedRingStuffsOf(colony, name, "") is [{ Length: > 0 } own, ..] ? own : null;
             foreach (var option in def.StuffOptions)
             {
                 if (option.Stuff == stuff)

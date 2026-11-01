@@ -34,6 +34,7 @@ public sealed partial class DefinitionCatalog
             Heatstroke = PenaltyTable(nameof(HediffDefOf.Heatstroke)),
             BloodLoss = PenaltyTable(nameof(HediffDefOf.BloodLoss)),
             WoundInfection = PenaltyTable(nameof(HediffDefOf.WoundInfection)),
+            PostpartumExhaustion = PenaltyTable(nameof(HediffDefOf.PostpartumExhaustion)),
             MovingMinForCapable = Decimal32(moving.minForCapable),
         };
 

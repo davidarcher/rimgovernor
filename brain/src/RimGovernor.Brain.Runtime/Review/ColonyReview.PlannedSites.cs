@@ -63,7 +63,7 @@ public sealed partial class ColonyReview
     /// <summary>PlannedRoomSitesOf over an owed diff already taken (PlannedOwedOf), so one review's readers share it; null without one.</summary>
     internal static IReadOnlyList<PlannedBuildSite>? PlannedRoomSitesOf(ColonyReading colony, PlannedOwed? owed) =>
         owed is null ? null
-            : PlannedRules.PlannedSitesOf(owed.Sited, room => PlannedRingStuffsOf(colony, room),
+            : PlannedRules.PlannedSitesOf(owed.Sited, (room, def) => PlannedRingStuffsOf(colony, room, def),
                 (def, stuff) => PlannedRingPrice(colony, def, stuff), def => PlannedPiecePrice(colony, def), owed.FloorPrice,
                 ClimateRules.ClimateDefs().VentDef, owed.Placed, owed.WallStuff);
 
@@ -86,15 +86,34 @@ public sealed partial class ColonyReview
             ? work : throw new RequiredFactException("construction work:" + site.Definition + ":" + site.Stuff);
     }
     /// <summary>
-    /// The stuffs a planned room's ring is read in (PlannedRingStuffs): the wall def's ordinary stuffs the door can be made
-    /// from too, priced by the wall's cost list, stocked when the colony holds any of the stuff, else the wood or rock
-    /// blocks the map offers, else another mined, lying or salvage material (ReviewFacts.RingSources).
+    /// The stuffs a planned room's ring piece <paramref name="def"/> is read in (PlannedRingStuffs): the wall def's ordinary
+    /// stuffs the door can be made from too, priced by the wall's cost list, stocked when the colony holds any of the stuff,
+    /// else the wood or rock blocks the map offers, else another mined, lying or salvage material (ReviewFacts.RingSources); a
+    /// door made from none of the wall's stuffs (a barn's animal flap) is read in its own (PlannedDoorStuffsOf).
     /// </summary>
-    private static IReadOnlyList<string> PlannedRingStuffsOf(ColonyReading colony, PlannedRoom room)
+    private static IReadOnlyList<string> PlannedRingStuffsOf(ColonyReading colony, PlannedRoom room, string def)
     {
         var (wallDef, doorDef) = room.RingDefs();
-        return PlannedRingStuffsOf(colony, wallDef, doorDef);
+        return def == doorDef ? PlannedDoorStuffsOf(colony, wallDef, doorDef) : PlannedRingStuffsOf(colony, wallDef, doorDef);
     }
+
+    /// <summary>
+    /// The stuffs a ring's door is read in: the ring's own (PlannedRingStuffsOf) when the door shares a stuff with the wall,
+    /// else the door's own stuffs ranked alone (an animal flap's Fabric or Leathery, from its catalog row), the first its base
+    /// sites' stuff. Empty while either definition is unread.
+    /// </summary>
+    internal static IReadOnlyList<string> PlannedDoorStuffsOf(ColonyReading colony, string wallDef, string doorDef) =>
+        OwnStuffDoor(colony, wallDef, doorDef) ? PlannedRingStuffsOf(colony, doorDef, "") : PlannedRingStuffsOf(colony, wallDef, doorDef);
+
+    /// <summary>
+    /// Whether <paramref name="doorDef"/> is a stuffed door made from none of <paramref name="wallDef"/>'s stuffs (the animal
+    /// flap beside a wall): such a ring's wall and door are each read in their own stuffs. False while either is unread.
+    /// </summary>
+    internal static bool OwnStuffDoor(ColonyReading colony, string wallDef, string doorDef) =>
+        doorDef.Length > 0
+        && AnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, wallDef) is { } wall
+        && AnimalContainment.AnimalContainmentDefinition(colony.Facts.Definitions, doorDef) is { StuffOptions.Count: > 0 } door
+        && !wall.StuffOptions.Any(o => door.MakeableFrom(o.Stuff));
 
     /// <summary>
     /// The stuffs a ring of <paramref name="wallDef"/> and <paramref name="doorDef"/> is read in (PlannedRingStuffs); the
@@ -107,7 +126,7 @@ public sealed partial class ColonyReview
     /// <summary>
     /// <see cref="PlannedRingStuffsOf"/> with whether its facts were read (#3819): the wall's definition, and, unless a
     /// usable stuff is stocked, the stock and the map's ring sources. A missing door definition or unread salvage cannot
-    /// establish that no shared stuff is obtainable.
+    /// establish that no shared stuff is obtainable. A door made from none of the wall's stuffs leaves the wall's unfiltered.
     /// </summary>
     internal static (IReadOnlyList<string> Stuffs, bool Read) PlannedRingStuffsRead(ColonyReading colony, string wallDef, string doorDef)
     {
@@ -119,6 +138,11 @@ public sealed partial class ColonyReview
         if (doorDef.Length > 0 && door is null)
         {
             return ([], false);
+        }
+        // A door of its own stuffs (the animal flap) is read apart (PlannedDoorStuffsOf): the wall is read alone.
+        if (OwnStuffDoor(colony, wallDef, doorDef))
+        {
+            door = null;
         }
         var common = wall.StuffOptions.Any(o => o.Common);
         var (stock, sources) = MapMaterialsOf(colony);

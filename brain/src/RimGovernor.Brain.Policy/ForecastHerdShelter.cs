@@ -31,7 +31,7 @@ internal static class ForecastHerdShelter
         }
         var input = context.HerdShelter;
         var animals = HerdShelterRules.UnitAnimals(input, herd);
-        if (animals.Count == 0 || !HerdShelterRules.AnimalEntry(input))
+        if (animals.Count == 0 || !HerdShelterRules.AnimalEntry(input, herd))
         {
             return [];
         }

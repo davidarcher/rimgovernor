@@ -126,7 +126,7 @@ Food and health obligations link to [food](food-security.md) and
 
 ### K6 — Care, learning and prison-room consequences
 
-The [room requirement](habitat.md#rg-habitat-003--develop-rooms-for-the-benefit-they-provide)
+The [room requirement](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-003--develop-facilities-for-the-benefits-they-provide)
 also covers facilities used by children, babies, prisoners and DLC dependants.
 Their value must reflect eligible occupants and shared worker time, rather than
 the mere presence of a classroom, nursery, cell or requirement room.

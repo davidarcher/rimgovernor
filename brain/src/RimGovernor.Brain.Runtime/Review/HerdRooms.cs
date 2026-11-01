@@ -7,6 +7,7 @@ internal static class HerdRooms
     [
         nameof(RimWorld.ThingDefOf.Wall),
         nameof(RimWorld.ThingDefOf.Door),
+        HerdShelterRules.BarnDoorDefinition,
         HerdPenRules.PenFenceDefinition,
         HerdPenRules.PenGateDefinition,
         HerdPenRules.PenMarkerDefinition,

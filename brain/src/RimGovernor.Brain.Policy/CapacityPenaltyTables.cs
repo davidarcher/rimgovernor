@@ -165,6 +165,12 @@ public sealed record CapacityPenaltyTables
     /// <summary>The wound infection hediff (#3544).</summary>
     public HediffPenaltyTable WoundInfection { get; init; } = new();
 
+    /// <summary>
+    /// The postpartum exhaustion a mother carries after a birth (RG-HABITAT-007): its Lifespan (HediffCompProperties_Disappears) is how
+    /// long her bed rest lasts. Not part of <see cref="Valid"/>; unknown without Biotech, which leaves the bed rest's end unread.
+    /// </summary>
+    public HediffPenaltyTable PostpartumExhaustion { get; init; } = new();
+
     /// <summary>PawnCapacityDefOf.Moving's minForCapable, read with the tables (the catalog throws without the def); meaningful only beside known tables.</summary>
     public double MovingMinForCapable { get; init; }
 

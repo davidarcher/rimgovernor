@@ -16,6 +16,9 @@ public sealed class GroundCensus
     /// <summary>The stuff of each standing wall, where the census names one.</summary>
     public Dictionary<Cell, string> Stuff { get; set; } = [];
 
+    /// <summary>The def of each standing door (a shell door, a barn's animal flap): a wanted door of another def is owed replaced.</summary>
+    public Dictionary<Cell, string> DoorDefs { get; set; } = [];
+
     /// <summary>The cells a vent stands in; a vent stands in a wall, so each is also a wall (#2962).</summary>
     public HashSet<Cell> Vents { get; set; } = [];
 
@@ -52,9 +55,11 @@ public static partial class LayoutGroundRules
                     g.Walls.Add(c);
                     g.Stuff[c] = b.Building.Stuff;
                 }
-                else if (def.Contains("door", StringComparison.OrdinalIgnoreCase))
+                else if (b.Observed.Door is not null)
                 {
+                    // The census's door state (Building_Door): any door def, the shell door and a barn's animal flap alike.
                     g.Doors.Add(c);
+                    g.DoorDefs[c] = def;
                 }
             }
         }
@@ -110,9 +115,13 @@ public static partial class LayoutGroundRules
 
 partial record PlannedRoom
 {
-    /// <summary>The defs r's ring is raised from: a wall and a door, or a fence and a gate round an outdoor room.</summary>
+    /// <summary>
+    /// The defs r's ring is raised from: a wall and a door, or a fence and a gate round an outdoor room. A barn's door is the
+    /// animal flap (HerdShelterRules.BarnDoorDefinition), the door a fence-blocked roamer opens, built in its own stuff.
+    /// </summary>
     public (string Wall, string Door) RingDefs() =>
-        this.Outdoor ? (HerdPenRules.PenFenceDefinition, HerdPenRules.PenGateDefinition) : (ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition);
+        this.Outdoor ? (HerdPenRules.PenFenceDefinition, HerdPenRules.PenGateDefinition)
+        : (ContainmentCellRules.ShellWallDefinition, this.Role == PlannedRole.Barn ? HerdShelterRules.BarnDoorDefinition : ContainmentCellRules.ShellDoorDefinition);
 
     /// <summary>
     /// The cells r's shell stands on: the region's wall ring (Region.Walls). A sparring ring and the unfenced

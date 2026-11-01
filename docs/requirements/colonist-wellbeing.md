@@ -137,7 +137,7 @@ in thermal value. An unwanted garment earns no automatic delivery-count credit.
 These are forecast choices, not evidence that every produced garment was worn.
 
 Hospital, dining, recreation and sleeping-room benefits use the same
-[room service-day comparison](habitat.md#rg-habitat-003--develop-rooms-for-the-benefit-they-provide).
+[room service-day comparison](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-003--develop-facilities-for-the-benefits-they-provide).
 Nursery crib rest, play and baby mood also alter caretaker time and the people
 exposed to crying or giggles; [K6](colony-commitments.md#k6--care-learning-and-prison-room-consequences)
 states the approved approximation limits. Combat-related benefits retain the

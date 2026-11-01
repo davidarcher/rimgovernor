@@ -16,6 +16,13 @@ public sealed record RoyalRoomNeed(string Pawn, int MinArea, int MinImpressivene
 /// nothing (ApplyBedThoughts' SleptOnGround), its rest effectiveness (the BedRestEffectiveness stat, its valueIfMissing for a
 /// def without the stat base, as the rest tick reads it) and its Comfort stat.
 /// </summary>
+/// <summary>
+/// The rest rates a newborn will have, read from the defs before it exists (DefinitionCatalog.NewbornRest, RG-HABITAT-007): its
+/// fall a tick, its gain a tick on the ground (the BedRestEffectiveness valueIfMissing) and its gain a tick per unit of a bed's
+/// rest effectiveness, each as <see cref="RimGovernor.Brain.GameFacts.NeedRate"/> states a present pawn's.
+/// </summary>
+public sealed record NewbornRestRates(double FallPerTick, double UnservedGainPerTick, double GainPerTickPerEffectiveness);
+
 public sealed record SleepingBedFacts(string Def, string Stuff, bool Ground, double RestEffectiveness, double Comfort);
 
 /// <summary>
@@ -246,10 +253,12 @@ public static class ForecastHousing
     /// the steady day spends fall / (fall + gain) of itself asleep, a whole capability loss as RestLoss counts a collapse. 0
     /// for the same gain; throws when the fall is unread or a rate is not positive.
     /// </summary>
-    internal static double RestDaysFreed(NeedRate rest, double now, double planned)
+    internal static double RestDaysFreed(NeedRate rest, double now, double planned) => RestDaysFreed(rest.FallPerTick, now, planned);
+
+    /// <summary>The capability-days a day a sleeper whose rest falls <paramref name="fall"/> a tick frees moving from gain <paramref name="now"/> to <paramref name="planned"/>.</summary>
+    internal static double RestDaysFreed(double fall, double now, double planned)
     {
         if (now == planned) return 0;
-        var fall = rest.FallPerTick;
         if (fall < 0 || now <= 0 || planned <= 0) throw new RequiredFactException("rest fall and gain per tick");
         return fall / (fall + now) - fall / (fall + planned);
     }

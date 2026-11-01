@@ -54,6 +54,7 @@ public sealed partial class DefinitionCatalog
             Heater = CheapestHeater(),
             FueledHeaters = Domain.EquatableArray.From(FueledHeaters()),
             Sarcophagus = CheapestOfClass<Building_Sarcophagus>(),
+            Crib = CribDefinition(),
         };
         var (spot, bed) = AnimalBeds(beds);
         var bench = new Dictionary<RoomRole, string>();
@@ -77,6 +78,13 @@ public sealed partial class DefinitionCatalog
         var (lab, analyzer) = AdvancedLab(shapes, facilities, bench[RoomRole.Laboratory]);
         return furniture with { AdvancedLab = lab, Analyzer = analyzer };
     }
+
+    /// <summary>
+    /// The crib a newborn is prepared (P.RoomFurniture.Crib, RG-HABITAT-007): the buildable humanlike bed flagged <c>bed_crib</c> ranked
+    /// first as the beds are (CompareBeds); empty when the catalog has none, as without Biotech.
+    /// </summary>
+    public string CribDefinition() =>
+        Beds().All.Where(b => b.Humanlike && b.Crib).Order(Comparer<BedRank>.Create(CompareBeds)).FirstOrDefault()?.Def ?? "";
 
     // The laboratory bench besides the default one that links a facility offsetting research speed (the cheapest when
     // several, by name when equal) and the best such facility it links. Both are empty when the catalog has no such bench.

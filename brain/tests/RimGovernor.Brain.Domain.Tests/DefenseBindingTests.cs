@@ -17,12 +17,12 @@ public sealed class DefenseBindingTests
 {
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
-    private static readonly Resource Wood = new("WoodLog");
+    internal static readonly Resource Wood = new("WoodLog");
 
-    private static DefensePiece.Priced Piece() => new(600, [new Amount(Wood, 5)]);
+    internal static DefensePiece.Priced Piece() => new(600, [new Amount(Wood, 5)]);
 
     /// <summary>A sandbag line at z 28 (x 21 to 23) in front of the workshop's entrance, firing from z 29.</summary>
-    private static readonly DefenseCandidate Cover = new()
+    internal static readonly DefenseCandidate Cover = new()
     {
         Kind = DefenseCandidateKind.TemporaryCover,
         Key = "temporary_cover@21,28",
@@ -31,13 +31,13 @@ public sealed class DefenseBindingTests
         Cells = [new Cell(21, 28), new Cell(22, 28), new Cell(23, 28), new Cell(21, 29), new Cell(23, 29)],
     };
 
-    private static LayoutPlan Workshop() => new LayoutPlan
+    internal static LayoutPlan Workshop() => new LayoutPlan
     {
         Rooms = [new PlannedRoom { Role = PlannedRole.Workshop, Region = RegionRules.RectRegion(new Rectangle(20, 20, 6, 5)), Door = new Cell(22, 25), DoorSide = new DoorSide.Doored(Rotation.North) }],
         Entrances = [new Cell(22, 26)],
     }.WithRoomIDs();
 
-    private static DefenseProtection Guard(string candidate, double covered, int staffing = 2) => new()
+    internal static DefenseProtection Guard(string candidate, double covered, int staffing = 2) => new()
     {
         Candidate = candidate,
         Covered = new DefenseTerm.Assessed(covered),
@@ -49,7 +49,7 @@ public sealed class DefenseBindingTests
         Exposure = new DefenseTerm.Assessed(0),
     };
 
-    private static DefenseChoiceInputs Inputs(IReadOnlyDictionary<Cell, string>? standing = null) => new()
+    internal static DefenseChoiceInputs Inputs(IReadOnlyDictionary<Cell, string>? standing = null) => new()
     {
         Harm = new DefenseHarm.Read(1),
         Builders = new DefenseTerm.Assessed(1),
@@ -59,7 +59,7 @@ public sealed class DefenseBindingTests
     };
 
     /// <summary>Retain over the bound plan: the bound node's pieces and firing cells (DefenseCandidateRules.Retain's shape).</summary>
-    private static DefenseCandidate Retained(LayoutPlan bound)
+    internal static DefenseCandidate Retained(LayoutPlan bound)
     {
         var node = Assert.IsType<PlannedSite>(DefenseBindingRules.Bound(bound));
         return new DefenseCandidate

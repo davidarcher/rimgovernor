@@ -42,6 +42,25 @@ public sealed class ThreatFactsTests
         Assert.Equal(Raided, FactsJson.Deserialize<ThreatFacts>(FactsJson.Serialize(Raided)));
     }
 
+    /// <summary>
+    /// RG-HABITAT-009: the native saves its raid tracks with the map (RaidTrackLog, the native-raid-track-log probe), so the census
+    /// after a load carries the ground raid seen before it and its arrival edge is priced; a save that never saw a raid names none.
+    /// </summary>
+    [Fact]
+    public void ASavedGroundRaidPricesItsArrivalEdgeAfterLoadAndAFreshSaveNamesNoneObserved()
+    {
+        var loaded = FactsJson.Deserialize<ThreatFacts>(FactsJson.Serialize(Raided));
+        var threat = Pol.DefenseCandidateRules.ThreatOf(new Pol.ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = loaded } }, DefenseCapacity = 621 });
+        Assert.Equal([new Cell(0, 40)], threat.ArrivalEdges);
+        Assert.Equal([new Cell(0, 40), new Cell(0, 40), new Cell(3, 41)], Assert.Single(threat.Trails));
+        Assert.Equal(24.9, threat.Range);
+        Assert.DoesNotContain(Pol.DefenseProtectionRules.ArrivalUnobserved, threat.Missing);
+
+        var fresh = Pol.DefenseCandidateRules.ThreatOf(new Pol.ReviewFacts { Census = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat } }, DefenseCapacity = 621 });
+        Assert.Empty(fresh.ArrivalEdges);
+        Assert.Contains("arrival_edges:none_observed", fresh.Missing);
+    }
+
     [Fact]
     public void PlanningHerdAndMonolithKeepTheSameNativeThreatOwner()
     {

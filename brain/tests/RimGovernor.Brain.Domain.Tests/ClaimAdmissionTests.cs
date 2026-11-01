@@ -310,4 +310,35 @@ public sealed class ClaimAdmissionTests
         Assert.Null(MethodClaimsRules.MethodClaimOverlap(held with { Shared = [new WorkTargetClaim("bed-1", "y", "u", 0)] }, held));
         Assert.Equal("bed-1", MethodClaimsRules.MethodClaimOverlap(held with { Shared = [] }, held));
     }
+
+    /// <summary>
+    /// A rescue carry, a tend, a repair, a breakdown fix and a refuel are each one pawn's exact native order (RG-HABITAT-003):
+    /// while open they hold that worker in the work claims, which claim admission and the review's work view both read. The
+    /// bug: a rescue claimed its rescuer and a tend its doctor only as care subjects, so a refuel by the same pawn was admitted
+    /// beside them and the second job order replaced the first; and the review's work view (a defense alternative's free
+    /// builders) counted every one of these workers as free. A refused or cancelled order holds nothing.
+    /// </summary>
+    [Fact]
+    public void ExactCareAndUtilityOrdersClaimTheirWorkerWhileOpen()
+    {
+        var plan = new PlanId("p");
+        WorkAction Open(DomainAction a) => new(plan, a, new ProgressView { Action = a.Id, Stage = Stage.Dispatched });
+        DomainAction[] orders =
+        [
+            DomainAction.NewRescueAction(new("rescue"), new Rescue(new("rescuer"), new("patient"), "ward")),
+            DomainAction.NewTendAction(new("tend"), new Tend(new("doctor"), new("patient-2"))),
+            DomainAction.NewRepairAction(new("repair"), new Repair(new("mender"), "wall-1", new(1, 1))),
+            DomainAction.NewRecoveryServiceAction(new("fix"), new RecoveryService(new("fixer"), "gen-1", RecoveryMethod.Breakdown)),
+            DomainAction.NewRecoveryServiceAction(new("refuel"), new RecoveryService(new("fueler"), "gen-2", RecoveryMethod.Refuel)),
+        ];
+        string[] workers = ["doctor", "fixer", "fueler", "mender", "rescuer"];
+        Assert.Equal(workers, WorkRules.WorkClaimsOf(new WorkAdmissionEvidence(), orders.Select(Open)).Pawns.Order(StringComparer.Ordinal));
+        foreach (var (order, worker) in orders.Zip(["rescuer", "doctor", "mender", "fixer", "fueler"]))
+            Assert.Contains(worker, MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [Open(order)]).Pawns);
+        Assert.Equal("pawn/doctor", MethodClaimsRules.MethodClaimOverlap(
+            MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [Open(DomainAction.NewRecoveryServiceAction(new("refuel-2"), new RecoveryService(new("doctor"), "gen-3", RecoveryMethod.Refuel)))]),
+            MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [Open(orders[1])])));
+        var refused = orders.Select(a => new WorkAction(plan, a, new ProgressView { Action = a.Id, Stage = Stage.Cancelled }));
+        Assert.Empty(WorkRules.WorkClaimsOf(new WorkAdmissionEvidence(), refused).Pawns);
+    }
 }

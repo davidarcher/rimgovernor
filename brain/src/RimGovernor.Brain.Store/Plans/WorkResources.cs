@@ -13,7 +13,7 @@ public sealed partial class Store
             SELECT n.plan_id,n.need_id FROM need_methods n
             WHERE n.colony=$colony AND n.load_token=$load AND n.map_id=$map
               AND EXISTS(SELECT 1 FROM actions a JOIN plans p ON p.id=a.plan_id WHERE a.plan_id=n.plan_id
-                  AND (a.kind IN ('building','production_bill') OR a.kind IN ('pawn_activities','ordered_work') AND p.retired=0))
+                  AND (a.kind IN ('building','production_bill') OR a.kind IN ('pawn_activities','ordered_work','repair','recovery_service','rescue','tend') AND p.retired=0))
             ORDER BY 1 LIMIT 1025
             """, current);
         if (links.Count > MaxWorkActions) return new([], true);
@@ -24,11 +24,13 @@ public sealed partial class Store
             var plan = LoadIn(tx, link.Plan);
             foreach (var action in plan.Progress)
             {
-                if (action.Action.Building is null && action.Action.PawnActivities is null && action.Action.ProductionBill is null && action.Action.OrderedWork is null) continue;
+                if (action.Action.Building is null && action.Action.PawnActivities is null && action.Action.ProductionBill is null && action.Action.OrderedWork is null
+                    && !ExactWorkerOrder(action.Action)) continue;
                 // Native authority rollover ends all activity assignments, including pending old-generation intent.
                 // Buildings and bills persist in the game and retain their independent material accounting.
                 if (action.Action.PawnActivities is { } activity && (plan.Retired || activity.AuthorityGeneration != current.Native.Value)) continue;
-                if (action.Action.OrderedWork is not null && plan.Retired) continue;
+                // A retired plan's exact worker order (a repair, a fix or refuel, a rescue carry, a tend) holds no worker.
+                if ((action.Action.OrderedWork is not null || ExactWorkerOrder(action.Action)) && plan.Retired) continue;
                 rows.Add(new(link.Plan, action.Action, action.View));
             }
             if (!plan.Retired && plan.Progress.Count == 1 && plan.Progress[0].Action.PawnActivities is not null
@@ -43,6 +45,10 @@ public sealed partial class Store
         }
         return new(EquatableArray.From(rows));
     }
+
+    /// <summary>One pawn's exact native order, which holds that worker while open (WorkRules.WorkClaimsOf): the review's work view reads it.</summary>
+    private static bool ExactWorkerOrder(DomainAction a) =>
+        a.Repair is not null || a.RecoveryService is { Method: RecoveryMethod.Breakdown or RecoveryMethod.Refuel } || a.Rescue is not null || a.Tend is not null;
 
     private static WorkResourceView WorkResourcesIn(StoreTransaction tx, GenerationSnapshot current, PlanId exclude = default,
         IReadOnlyList<ActivityOwnership>? observed = null)

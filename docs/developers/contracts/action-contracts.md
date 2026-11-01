@@ -114,7 +114,7 @@ Planned-host and activity-site work (RG-HABITAT-005, habitat 3.3) adds no verb.
 ### Standing-building transitions (habitat 8.4)
 
 A standing building a plan takes off its cell is taken down by the transition the comparison chose
-([spatial contracts](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and-011)), as one Method of the
+([spatial contracts](spatial-contracts.md#standing-building-transitions-rg-habitat-010-and--011)), as one Method of the
 path's Need and no other verb: Remove a `deconstruction` action, Store an `uninstall_building` (the game's Uninstall
 designation, vanilla hauling stores the packed item), Relocate one `move_building`.
 

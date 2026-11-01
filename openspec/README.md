@@ -11,7 +11,10 @@ and test inspection, results and proof limits; it does not certify the expanded
 requirements. The [colony labor specification](specs/colony-labor/spec.md) owns RG-LABOR-001–008,
 synchronized from the archived [native-led labor change](changes/archive/2026-10-31-native-led-labor-execution/proposal.md);
 its [evidence page](../docs/requirements/colony-labor.md) owns inspection, migration
-coverage and proof limits. Other standing capabilities remain in the existing collection.
+coverage and proof limits. The [habitat specification](specs/habitat/spec.md) owns RG-HABITAT-001–011,
+synchronized from the active [habitat change](changes/redefine-habitat-requirements/proposal.md);
+its [evidence page](../docs/requirements/habitat.md) owns implementation inspection, the
+historical H1–H7 and proof limits. Other standing capabilities remain in the existing collection.
 The active [change](changes/redefine-food-requirements/proposal.md) also captures
 related acquisition, hunting, growing and herd drafts. Design and implementation
 tasks are outside this requirements capture; the change remains active.

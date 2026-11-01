@@ -16,16 +16,16 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class TransitionBindingTests
 {
-    private const string Spot = "CraftingSpot", Smithy = "Smithy", Knife = "MakeKnife";
+    internal const string Spot = "CraftingSpot", Smithy = "Smithy", Knife = "MakeKnife";
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
-    private static readonly OrderSpec KnifeOrder = new() { Recipe = Knife, Target = 1, Mode = BillMode.StockTarget };
-    private static readonly HostBench SpotBench = new("spot", Spot, true, [Knife], []), SmithyBench = new("smithy", Smithy, true, [Knife], []);
-    private static readonly Cell BedAt = new(22, 22), BedSlot = new(21, 21);
+    internal static readonly OrderSpec KnifeOrder = new() { Recipe = Knife, Target = 1, Mode = BillMode.StockTarget };
+    internal static readonly HostBench SpotBench = new("spot", Spot, true, [Knife], []), SmithyBench = new("smithy", Smithy, true, [Knife], []);
+    internal static readonly Cell BedAt = new(22, 22), BedSlot = new(21, 21);
 
-    private static LedgerView View(params HostBench[] benches) => WorkRules.NewLedgerView(WorkRules.LedgerViewReconciled) with { Orders = [KnifeOrder], Benches = benches };
+    internal static LedgerView View(params HostBench[] benches) => WorkRules.NewLedgerView(WorkRules.LedgerViewReconciled) with { Orders = [KnifeOrder], Benches = benches };
 
     /// <summary>A workshop hosting the knife at the smithy.</summary>
-    private static LayoutPlan Workshop() => new LayoutPlan
+    internal static LayoutPlan Workshop() => new LayoutPlan
     {
         Rooms = [new PlannedRoom
         {
@@ -35,8 +35,8 @@ public sealed class TransitionBindingTests
         Entrances = [new Cell(22, 26)],
     }.WithRoomIDs();
 
-    private static readonly PlannedTransition Retire = new("spot", Spot, TransitionCause.HostRetirement, ServicingChoiceKind.Remove) { Dependency = new(Knife, Smithy) };
-    private static readonly PlannedTransition Move = new("bed", "Bed", TransitionCause.PlannedGround, ServicingChoiceKind.Relocate) { Slot = new(BedSlot) };
+    internal static readonly PlannedTransition Retire = new("spot", Spot, TransitionCause.HostRetirement, ServicingChoiceKind.Remove) { Dependency = new(Knife, Smithy) };
+    internal static readonly PlannedTransition Move = new("bed", "Bed", TransitionCause.PlannedGround, ServicingChoiceKind.Relocate) { Slot = new(BedSlot) };
 
     private static LayoutPlan Bound() => Workshop() with { Transitions = [Move, Retire] };
 

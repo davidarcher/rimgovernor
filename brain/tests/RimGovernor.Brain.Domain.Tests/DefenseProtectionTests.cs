@@ -287,7 +287,7 @@ public sealed class DefenseProtectionTests
         Assert.Equal(asked, OrdersJson.Serialize(OrdersJson.Deserialize<O.DefenseProbeRequest>(asked)));
     }
 
-    /// <summary>(g) With no ground raid observed since load nothing is probed and every term names the missing arrival edges; a fogged line or an unread probe leaves the terms named, not zeroed.</summary>
+    /// <summary>(g) With no ground raid in the saved raid tracks nothing is probed and every term names the missing arrival edges; a fogged line or an unread probe leaves the terms named, not zeroed.</summary>
     [Fact]
     public void NoArrivalEdgesLeaveEveryTermUnassessed()
     {

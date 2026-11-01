@@ -14,13 +14,13 @@ public sealed class GuestAccommodationTests
     private static readonly PawnId A = new("a");
     private static readonly PawnId G = new("g");
 
-    private static SleepingPerson Person(PawnId id, string bed = "") => new()
+    internal static SleepingPerson Person(PawnId id, string bed = "") => new()
     {
         Native = SleepingNativeFixtures.Person(id),
         Pawn = SleepingNativeFixtures.Pawn(id, ownedBed: bed, comfortableMin: 10, comfortableMax: 30),
     };
 
-    private static SleepingBed Bed(string id, EquatableArray<PawnId> owners = default, EquatableArray<PawnId> users = default) => new()
+    internal static SleepingBed Bed(string id, EquatableArray<PawnId> owners = default, EquatableArray<PawnId> users = default) => new()
     {
         Native = SleepingNativeFixtures.Bed(id, temperature: 21, owners: owners, users: users, accessibleTo: [A, G], room: "r1"),
         Building = SleepingNativeFixtures.Building(id, roofed: true),

@@ -15,6 +15,9 @@ The [OpenSpec food pilot](../openspec/README.md) separates
 [food decision record and related production drafts](../openspec/changes/redefine-food-requirements/proposal.md)
 capture the maintainer-confirmed replacement for the recovered baseline.
 
+The [habitat specification](../openspec/specs/habitat/spec.md) owns RG-HABITAT-001–011;
+[habitat evidence and implementation status](requirements/habitat.md) records inspection, results and proof limits.
+
 The [native-led labor change](../openspec/changes/archive/2026-10-31-native-led-labor-execution/proposal.md) defines the new routine execution direction; [labor evidence and migration coverage](requirements/colony-labor.md) records actual implementation status and proof limits.
 
 | Task | Guide |
