@@ -37,7 +37,7 @@ Reconciliation retains canonical hunger/current-care facts, usable nursing and p
 
 The [standing specification](../../openspec/specs/food-security/spec.md) owns
 RG-FOOD-001–013. Its policy was confirmed by the maintainer in this chat on
-2026-10-25; the [decision record](../../openspec/changes/redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary)
+2026-10-25; the [decision record](../../openspec/changes/archive/2026-11-03-redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary)
 records the direction and authorization to replace the recovered baseline.
 RG-FOOD-005/007/008 are no longer inferred candidates. The detailed scenarios
 formalize the agreed direction and do not constitute new gameplay evidence.

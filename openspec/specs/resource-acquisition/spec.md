@@ -6,8 +6,10 @@ Obtain useful goods for colony goals through a common comparison of available
 sources, their combined contributions, delivery times, costs and risks.
 
 This specification formalizes the maintainer's confirmation review on 2026-11-03,
-as traced in the [decision record](../../changes/redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds).
-RG-ACQUIRE-001–002 are new identities; the scenarios are illustrative acceptance examples,
+as traced in the [decision record](../../changes/archive/2026-11-03-redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds).
+RG-ACQUIRE-001–002 are new identities; RG-SUPPLY-001–002 were retired into them by the
+[reconciliation record](../../changes/archive/2026-11-03-reconcile-supply-and-commitments/proposal.md#decision-provenance-and-review-boundary).
+The scenarios are illustrative acceptance examples,
 not separately approved tactics or evidence of passing behavior. The [supply evidence page](../../../docs/requirements/development-and-supply.md) and the [food evidence page](../../../docs/requirements/food-security.md) own the related
 inspection, execution and proof limits; no implementation-completeness claim
 follows from this specification. Acquisition compares every source in one shared,
@@ -21,6 +23,7 @@ The governor SHALL compare acquisition options across colony goals, crediting al
 useful outputs while charging shared work and resources once. Selection SHALL
 account for existing stock, commitments, competing resources, time to usable
 delivery and risk. Food demand SHALL participate in that shared comparison.
+Extraction of deposits on the colony map is a source in that comparison.
 
 #### Scenario: A hunt serves leather demand when food is sufficient
 
@@ -52,13 +55,21 @@ delivery and risk. Food demand SHALL participate in that shared comparison.
 - **THEN** the governor can state how much of the source's credited value came from each demand
 - **AND** the explanation uses the same shared comparison that selected the source rather than a separate account
 
-### Requirement: RG-ACQUIRE-002 — Treat food trade as an optional fully costed source
+#### Scenario: A deposit on the colony map depletes or needs prerequisites
 
-The governor SHALL consider food and ingredient trades with traders the colony
-can already reach, at home or during a journey undertaken for another purpose,
-when their expected contribution justifies their full costs and risks.
-Purchases and surplus sales SHALL account for future feeding and reserves.
-The governor SHALL NOT mount a dedicated expedition to buy food.
+- **WHEN** a surface vein or deep deposit could supply a material, or a worked deposit is exhausted or unreachable
+- **THEN** the deposit's yield counts as expected supply only until ore is observed in stock, and an exhausted or unreachable deposit prompts a fresh source assessment rather than persistence
+- **AND** research, scanning and drilling a deep deposit requires are costed into that option, and mining away from the colony map is not an option
+
+### Requirement: RG-ACQUIRE-002 — Treat trade as an optional fully costed source
+
+The governor SHALL consider trade in any goods, with reachable traders or by a
+dedicated expedition, when its expected contribution justifies full costs and
+risks. Expedition costs include travel time, provisions, carrying capacity,
+danger and each participant's absence from work and defense, priced by the
+capabilities that lose them; an expedition serves only a shortfall the forecast
+places later than its return. Purchases and sales SHALL account for future needs
+and justified reserves.
 
 #### Scenario: An accessible trader offers useful food
 
@@ -77,3 +88,27 @@ The governor SHALL NOT mount a dedicated expedition to buy food.
 - **WHEN** a sale would remove food needed for expected consumption or justified reserves
 - **THEN** those feeding consequences are weighed against what the sale obtains before choosing whether to sell
 - **AND** the governor may sell into reserves when the acquired goods matter more than the reserve's expected feeding contribution
+
+#### Scenario: A forecast shortfall is far enough out for a caravan
+
+- **WHEN** the forecast shows a shortfall in any goods later than a trading expedition could return
+- **THEN** the expedition is compared with nearer sources using its full costs, including participants' absence
+- **AND** the governor may send it when that comparison favors it
+
+#### Scenario: A shortage is already present
+
+- **WHEN** the colony is already short of a good or the shortfall arrives before any expedition could return
+- **THEN** an expedition is not a response to it
+- **AND** nearer sources and, for food, the scarcity priorities apply instead
+
+#### Scenario: Participants are chosen by absence cost and trade contribution
+
+- **WHEN** an expedition needs people and animals
+- **THEN** each candidate's absence is priced by what labor, defense and other capabilities actually lose from that pawn, not by headcount
+- **AND** a pawn whose trading skill helps and whose absence costs little is preferred
+
+#### Scenario: A deal is accepted and confirmed
+
+- **WHEN** a trade is selected
+- **THEN** the decision uses current prices, available stock and the actual offered terms, and an unaffordable deal is refused with a reason
+- **AND** completion is confirmed from the deal result and changed inventory, and changed terms require fresh review

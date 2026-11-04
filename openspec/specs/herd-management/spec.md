@@ -6,8 +6,10 @@ Maintain animals whose expected contribution serves colony goals, with herd
 numbers and feeding arrangements the colony can sustain through changing conditions.
 
 This specification formalizes the maintainer's confirmation review on 2026-11-03,
-as traced in the [decision record](../../changes/redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds).
-RG-HERD-001–002 are new identities; the scenarios are illustrative acceptance examples,
+as traced in the [decision record](../../changes/archive/2026-11-03-redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds).
+RG-HERD-001–002 are new identities, and RG-COMMIT-002 moved here with its identity by the
+[reconciliation record](../../changes/archive/2026-11-03-reconcile-supply-and-commitments/proposal.md#decision-provenance-and-review-boundary).
+The scenarios are illustrative acceptance examples,
 not separately approved tactics or evidence of passing behavior. The [commitments evidence page](../../../docs/requirements/colony-commitments.md) owns the related animal-care
 inspection, execution and proof limits; no implementation-completeness claim
 follows from this specification. Acquisition compares every source in one shared,
@@ -80,3 +82,29 @@ scarcity follows food-management priorities.
 - **WHEN** expected grazing becomes insufficient before the next dependable supply
 - **THEN** the governor prepares feed or another justified herd strategy before the gap
 - **AND** food planning includes each retained animal's usable feeding access
+
+### Requirement: RG-COMMIT-002 — Carry out and observe animal care
+
+The governor SHALL maintain supported herd settings, containment and care for
+every kept animal, then observe whether the intended animal work has happened.
+Feeding follows RG-HERD-002. An eligible animal can receive a training
+designation, and completed training needs a later native observation. Food and
+medical obligations SHALL remain visible while unresolved.
+
+#### Scenario: Containment review after escape or acquisition
+
+- **WHEN** an animal escapes or is newly acquired
+- **THEN** the governor reviews containment and allowed areas for it
+- **AND** a missing allowed area blocks an assignment that depends on it with a specific reason
+
+#### Scenario: Training is designated, not assumed
+
+- **WHEN** an eligible animal receives a training designation
+- **THEN** the training counts as complete only after a later native observation confirms it
+- **AND** the designation alone establishes no gained capability
+
+#### Scenario: Care obligations stay visible
+
+- **WHEN** a kept animal needs food or medical care that has not been provided
+- **THEN** the obligation remains visible until a native observation shows it met
+- **AND** it is not cleared by the work being assigned

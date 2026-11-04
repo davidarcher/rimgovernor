@@ -10,7 +10,7 @@ preservation and feeding access as part of the colony's overall goals and risks.
 
 The maintainer confirmed the policy in the food exploration on 2026-10-25 and
 explicitly authorized replacing the recovered food baseline. The
-[decision record](../../changes/redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary)
+[decision record](../../changes/archive/2026-11-03-redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary)
 traces those decisions. The requirement wording formalizes that direction;
 scenarios are illustrative acceptance examples, not separately approved tactics
 or evidence that the implementation passes them.
@@ -34,10 +34,10 @@ travel owns journeys. Shared player explanations expose important feeding
 conditions and decisions. These dependencies must serve the complete feeding path.
 
 The same decision record captures related capability drafts:
-[resource acquisition](../../changes/redefine-food-requirements/specs/resource-acquisition/spec.md),
-[hunting](../../changes/redefine-food-requirements/specs/hunting/spec.md),
-[growing](../../changes/redefine-food-requirements/specs/growing/spec.md) and
-[herd management](../../changes/redefine-food-requirements/specs/herd-management/spec.md).
+[resource acquisition](../../changes/archive/2026-11-03-redefine-food-requirements/specs/resource-acquisition/spec.md),
+[hunting](../../changes/archive/2026-11-03-redefine-food-requirements/specs/hunting/spec.md),
+[growing](../../changes/archive/2026-11-03-redefine-food-requirements/specs/growing/spec.md) and
+[herd management](../../changes/archive/2026-11-03-redefine-food-requirements/specs/herd-management/spec.md).
 They describe combined yields, shared costs, production and herd choices; they
 are not additional standing capability migrations or new implementation evidence.
 

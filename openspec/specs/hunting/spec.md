@@ -6,7 +6,7 @@ Acquire useful wildlife products for colony goals through hunts whose expected
 benefits justify participant requirements, danger and the work to recover output.
 
 This specification formalizes the maintainer's confirmation review on 2026-11-03,
-as traced in the [decision record](../../changes/redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds).
+as traced in the [decision record](../../changes/archive/2026-11-03-redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds).
 RG-HUNT-001–002 are new identities; the scenarios are illustrative acceptance examples,
 not separately approved tactics or evidence of passing behavior. The [food evidence page](../../../docs/requirements/food-security.md) owns the related hunting
 inspection, execution and proof limits; no implementation-completeness claim

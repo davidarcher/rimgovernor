@@ -12,7 +12,7 @@ estimates, and a prioritized review queue.
 The [OpenSpec food pilot](../openspec/README.md) separates
 [standing food requirements](../openspec/specs/food-security/spec.md) from
 [historical implementation evidence](requirements/food-security.md). The
-[food decision record and related production drafts](../openspec/changes/redefine-food-requirements/proposal.md)
+[food decision record and related production drafts](../openspec/changes/archive/2026-11-03-redefine-food-requirements/proposal.md)
 capture the maintainer-confirmed replacement for the recovered baseline.
 
 The [habitat specification](../openspec/specs/habitat/spec.md) owns RG-HABITAT-001–011;

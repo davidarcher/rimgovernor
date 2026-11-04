@@ -5,7 +5,7 @@
 
 Food security is the pilot. Its [standing specification](specs/food-security/spec.md)
 owns RG-FOOD-001–013, based on the maintainer-confirmed policy in the
-[decision record](changes/redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary).
+[decision record](changes/archive/2026-11-03-redefine-food-requirements/proposal.md#decision-provenance-and-review-boundary).
 The [evidence page](../docs/requirements/food-security.md) retains historical source
 and test inspection, results and proof limits; it does not certify the expanded
 requirements. The [colony labor specification](specs/colony-labor/spec.md) owns RG-LABOR-001–008,
@@ -18,11 +18,13 @@ historical H1–H7 and proof limits. The [resource acquisition](specs/resource-a
 [growing](specs/growing/spec.md), [hunting](specs/hunting/spec.md) and
 [herd management](specs/herd-management/spec.md) specifications own RG-ACQUIRE-001–002,
 RG-GROW-001–002, RG-HUNT-001–002 and RG-HERD-001–002, confirmed by the maintainer on
-2026-11-03 in the food change's [second decision record](changes/redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds);
+2026-11-03 in the food change's [second decision record](changes/archive/2026-11-03-redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds);
 they have no evidence page of their own yet, and the food, supply and commitments
 evidence pages own the related inspection. Other standing capabilities remain in the
-existing collection. Design and implementation tasks are outside this requirements
-capture; the [food change](changes/redefine-food-requirements/proposal.md) remains active.
+existing collection. Design and implementation tasks are outside that requirements
+capture; the [food change](changes/archive/2026-11-03-redefine-food-requirements/proposal.md)
+was archived on 2026-11-03 once its specs were synchronized, and later behavior
+changes get their own change each.
 
 ## Authority
 

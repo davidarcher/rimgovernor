@@ -6,7 +6,7 @@ Provide crop outputs for feeding and other colony goals by selecting production
 that fits available land, labor, growing conditions and the time goods are needed.
 
 This specification formalizes the maintainer's confirmation review on 2026-11-03,
-as traced in the [decision record](../../changes/redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds).
+as traced in the [decision record](../../changes/archive/2026-11-03-redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds).
 RG-GROW-001–002 are new identities; the scenarios are illustrative acceptance examples,
 not separately approved tactics or evidence of passing behavior. The [food evidence page](../../../docs/requirements/food-security.md) owns the related growing
 inspection, execution and proof limits; no implementation-completeness claim

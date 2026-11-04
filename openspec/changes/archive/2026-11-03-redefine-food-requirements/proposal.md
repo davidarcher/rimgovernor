@@ -56,8 +56,8 @@ This capture changes requirement documents and linked authority/navigation only.
 It implements no planner, game operation or workflow configuration. The standing
 food spec is replaced now under explicit authorization; the other four standing
 capabilities were created after their 2026-11-03 confirmation. Design and
-implementation tasks are not part of this capture. The change remains active for
-their later preparation.
+implementation tasks are not part of this capture; the change was archived on
+2026-11-03 after synchronization, and implementation changes trace to its RG IDs.
 
 Existing evidence remains in the food, supply and commitments requirement pages.
 Future implementation must assess each changed claim through the existing path:

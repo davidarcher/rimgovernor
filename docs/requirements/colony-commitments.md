@@ -2,13 +2,14 @@
 
 [Collection](README.md) · [Review queue](review-queue.md)
 
-New people, animals and quests bring continuing obligations. The governor should
-account for those obligations when deciding what the colony can support.
+New people and quests bring continuing obligations. The governor should account
+for those obligations when deciding what the colony can support. Acquiring and
+keeping animals is decided in the [herd management specification](../../openspec/specs/herd-management/spec.md).
 
 ## RG-COMMIT-001 — Match commitments to available capacity
 
 The governor should account for food, workers, shelter and relevant safety limits
-when taking on supported people, herds and quests. It should retain those demands
+when taking on supported people and quests. It should retain those demands
 while the obligation remains active. This protects the colony from accepting work
 whose cost appears only after the decision.
 
@@ -23,21 +24,14 @@ Changed colony capacity should trigger reassessment of the work that remains.
 decisions and supported quest objectives are connected. Autonomous population
 capture and bestowing are explicitly held (K4–K5).
 
-## RG-COMMIT-002 — Carry out and observe animal care
+## RG-COMMIT-002 — Moved to herd management
 
-The governor should maintain supported herd settings, containment and care, then
-observe whether the intended animal work has happened. The purpose is a herd the
-colony can feed and manage through changing numbers and conditions.
-
-An eligible animal can receive a training designation; completed training needs
-a later native observation. A missing allowed area should block that assignment.
-An escaped or newly acquired animal should prompt a containment review. Food and
-medical obligations should remain visible while unresolved.
-
-**Intent:** Documented in [husbandry](../developers/contracts/husbandry-contracts.md).
-**Implementation:** Supported for sampled settings writes and containment work
-routing. Completed training, herd feeding and recovery have no executed evidence
-in this collection. Evidence K3–K4.
+On 2026-11-03 the maintainer moved this requirement, identity preserved, into the
+[herd management specification](../../openspec/specs/herd-management/spec.md),
+where herd size, feeding and animal care have one owner. The
+[reconciliation record](../../openspec/changes/archive/2026-11-03-reconcile-supply-and-commitments/proposal.md#decision-provenance-and-review-boundary)
+holds the decision. Evidence K3–K4 below stands as inspected and is cited from
+that specification.
 
 ## RG-COMMIT-003 — Advance supported colony practices and abilities
 

@@ -5,41 +5,18 @@
 Materials matter because they enable needed work. The governor should connect
 acquisition and production to the colony's actual shortages and commitments.
 
-## RG-SUPPLY-001 — Acquire enough usable material
+## Retired requirements
 
-The governor should obtain materials needed for selected work, accounting for
-stock already present and resources committed elsewhere. It should compare
-available sources, assign feasible work and reassess after depletion or failure.
-This avoids both stalled construction and unnecessary extraction.
-
-When a needed material can be mined, the selected work should produce observed
-stock. A depleted deposit should lead to a fresh source assessment. Missing yield
-or route information should keep the option unresolved. Expected mining yield
-should reserve planned supply while the stock target remains open until delivery
-or other relevant native stock observation.
-
-**Intent:** Documented in [material extraction](../developers/contracts/mining-contracts.md)
-and [resource planning](../developers/architecture/space-and-resources.md).
-**Implementation:** Supported for inspected deficit assessment, source selection,
-production commitments and native extraction. Delivery across a whole supply
-chain lacks a current executed result. Evidence S1–S2, S4.
-
-## RG-SUPPLY-002 — Trade within the colony's means
-
-The governor should choose supported trades that address useful demand while
-retaining resources needed at home. Before accepting a deal, it should use current
-prices, available stock and the actual offered terms. Completion should be
-confirmed by the deal result and changed inventory.
-
-A feasible buy-and-sell deal should exchange the selected amounts. An
-unaffordable deal should be refused with a reason. Changed terms should require
-fresh review. Outbound trading also needs enough people, provisions and carrying
-capacity for the journey and the remaining colony.
-
-**Intent:** Documented in [controllable trade](../developers/contracts/controllable-trade.md).
-**Implementation:** Supported for inspected deal selection, native exchange and
-mission reconciliation. End-to-end expedition success remains an evidence limit.
-Evidence S3, S5–S7. The wider zero-stock bootstrap remains separate (S6).
+RG-SUPPLY-001 (acquire enough usable material) and RG-SUPPLY-002 (trade within
+the colony's means) were recovered from developer contracts and never
+maintainer-confirmed. On 2026-11-03 the maintainer folded their surviving intent
+into the [resource acquisition specification](../../openspec/specs/resource-acquisition/spec.md):
+extraction on the colony map is a source under RG-ACQUIRE-001, and trade in any
+goods, including costed expeditions for forecast shortfalls, is RG-ACQUIRE-002.
+The [reconciliation record](../../openspec/changes/archive/2026-11-03-reconcile-supply-and-commitments/proposal.md#decision-provenance-and-review-boundary)
+holds the decisions. The retired identities are not reused. The evidence below
+stands as inspected and is cited from that specification; none of it establishes
+a pass against the RG-ACQUIRE requirements.
 
 ## Evidence and inspection coverage
 
