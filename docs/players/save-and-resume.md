@@ -14,12 +14,15 @@ if the name exists. After generation, the new save is selected in **Saved game**
 
 ## Restart a session
 
-Save before stopping if you want to keep current progress.
+The brain runs inside the game, so every button that ends the game ends the
+brain with it. Save in RimWorld first if you want to keep current progress:
+Stop, Restart and Close game do not save.
 
-- **Stop** ends the brain and leaves RimWorld running.
-- **Restart** restarts the brain with current settings.
-- **Close game** closes the launcher's private game.
-- **Play** starts the brain and loads the selected save, if any.
+- **Stop** and **Close game** close the launcher's private RimWorld, and the
+  brain with it. They are the same action.
+- **Restart** closes the game the same way, then starts it again with the
+  current settings and the selected save.
+- **Play** starts the game and the brain and loads the selected save, if any.
 
 The launcher enables Auto at startup and after each load. Pause in RimWorld
 to take manual control.
