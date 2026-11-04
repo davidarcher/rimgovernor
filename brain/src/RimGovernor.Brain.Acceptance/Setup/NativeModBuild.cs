@@ -269,6 +269,10 @@ public static class NativeModBuild
             {
                 log.WriteLine("native build: the contracts differ from this work directory's last build; recompiling from scratch");
             }
+            foreach (var obj in ClearTornReferenceAssemblies(work))
+            {
+                log.WriteLine($"native build: {obj} held a reference assembly without managed metadata (#4042); deleted, so the build regenerates it");
+            }
             SyncWork(source, work, copied);
             var published = Path.Combine(work, "_out", "published");
             var workCompiled = Path.Combine(work, "_out", "compiled");
@@ -356,6 +360,54 @@ public static class NativeModBuild
         _ = Directory.CreateDirectory(Path.GetDirectoryName(recordPath)!);
         File.WriteAllText(recordPath, identity);
         return discard;
+    }
+
+    /// <summary>
+    /// Deletes each <c>obj</c> directory under <paramref name="work"/> holding a <c>ref/</c> or <c>refint/</c> assembly
+    /// that is not a PE image with managed metadata, and returns them. The shared work cache kept such a file across
+    /// builds (#4042): the compiler failed every dependent with CS0009 until it was deleted by hand, one per rebuild.
+    /// Deleting the project's intermediate directory makes the build regenerate it; every other project's state stays.
+    /// Called under the work directory's mutex, before the sync. The other build roots get the same from the front
+    /// door's <c>TornRefAssemblies</c> (#3535), which checks the MZ header only.
+    /// </summary>
+    internal static IReadOnlyList<string> ClearTornReferenceAssemblies(string work)
+    {
+        var cleared = new List<string>();
+        if (!Directory.Exists(work))
+        {
+            return cleared;
+        }
+        foreach (var obj in Directory.EnumerateDirectories(work, "obj", SearchOption.AllDirectories).ToList())
+        {
+            if (!Directory.Exists(obj))
+            {
+                continue;
+            }
+            var torn = Directory.EnumerateFiles(obj, "*.dll", SearchOption.AllDirectories)
+                .FirstOrDefault(dll => Path.GetFileName(Path.GetDirectoryName(dll)) is "ref" or "refint" && !HasManagedMetadata(dll));
+            if (torn is null)
+            {
+                continue;
+            }
+            Directory.Delete(obj, recursive: true);
+            cleared.Add(obj);
+        }
+        return cleared;
+    }
+
+    /// <summary>Whether <paramref name="dll"/> is a PE image carrying managed metadata (what the compiler needs of a reference assembly).</summary>
+    private static bool HasManagedMetadata(string dll)
+    {
+        try
+        {
+            using var stream = File.OpenRead(dll);
+            using var pe = new PEReader(stream);
+            return pe.HasMetadata;
+        }
+        catch (BadImageFormatException)
+        {
+            return false;
+        }
     }
 
     private static string HashContracts(IReadOnlyDictionary<string, string> copied) =>

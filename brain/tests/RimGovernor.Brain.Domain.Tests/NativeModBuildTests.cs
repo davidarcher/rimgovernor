@@ -113,6 +113,44 @@ public sealed class NativeModBuildTests : IDisposable
     }
 
     /// <summary>
+    /// The shared work cache kept a reference assembly without managed metadata, and the compiler failed every dependent
+    /// with CS0009 (#4042). Before a build, each project whose ref/ or refint/ dll is zero-filled or not a managed image
+    /// loses its obj so the build regenerates it; a project whose reference assembly is sound, and every other output,
+    /// keeps its state.
+    /// </summary>
+    [Fact]
+    public void ATornReferenceAssemblyInTheWorkCacheDropsOnlyItsProjectsObj()
+    {
+        var work = Path.Combine(repo, "work");
+        string Obj(string project) => Path.Combine(work, "brain", "src", project, "obj");
+        void Write(string path, byte[] bytes)
+        {
+            _ = Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllBytes(path, bytes);
+        }
+        var zeroFilled = Path.Combine(Obj("Zeroed"), "Release", "win-x64", "ref", "Zeroed.dll");
+        Write(zeroFilled, new byte[4096]);
+        var headerOnly = Path.Combine(Obj("HeaderOnly"), "Release", "refint", "HeaderOnly.dll");
+        Write(headerOnly, [(byte)'M', (byte)'Z', .. new byte[2048]]);
+        var sound = Path.Combine(Obj("Sound"), "Release", "ref", "Sound.dll");
+        Write(sound, File.ReadAllBytes(typeof(NativeModBuildTests).Assembly.Location));
+        var plainOutput = Path.Combine(Obj("Sound"), "Release", "Sound.dll");
+        Write(plainOutput, new byte[16]);
+        var published = Path.Combine(work, "_out", "published", "bridge", "RimGovernor.Brain.Bridge.dll");
+        Write(published, new byte[16]);
+
+        var cleared = NativeModBuild.ClearTornReferenceAssemblies(work);
+
+        Assert.Equal(new[] { Obj("HeaderOnly"), Obj("Zeroed") }.Order(StringComparer.Ordinal), cleared.Order(StringComparer.Ordinal));
+        Assert.False(Directory.Exists(Obj("Zeroed")));
+        Assert.False(Directory.Exists(Obj("HeaderOnly")));
+        Assert.True(File.Exists(sound));
+        Assert.True(File.Exists(plainOutput));
+        Assert.True(File.Exists(published));
+        Assert.Empty(NativeModBuild.ClearTornReferenceAssemblies(work));
+    }
+
+    /// <summary>
     /// The production check (#3393) reads an assembly's fixture surface from metadata: the contracts assembly carries
     /// its records, an assembly with a <c>[Tool("test/...")]</c> op carries that op, and the harness assembly neither.
     /// </summary>

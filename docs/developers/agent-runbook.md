@@ -135,7 +135,7 @@ short: setup refuses game-copy paths RimWorld cannot open.
 | --- | --- |
 | `.rimgovernor/native-rimworld/` | Private copy of the flat 1.7 install (`RimWorld.exe`, Waylith, `Assembly-CSharp.dll`) and the mod; the `Data` tree is a junction to Steam. |
 | `.rimgovernor/bridge/` | Config, endpoint record, private profile and saves; overridden by `-root`. |
-| `.rimgovernor/native-builds/` | Staged native builds; `_work/` holds the persistent compile copies that make rebuilds incremental (safe to delete; a build whose contract projects differ from the directory's last build discards its obj/bin state first). |
+| `.rimgovernor/native-builds/` | Staged native builds; `_work/` holds the persistent compile copies that make rebuilds incremental (safe to delete; a build whose contract projects differ from the directory's last build discards its obj/bin state first, and a project whose `ref/` or `refint/` assembly has no managed metadata loses its `obj` so the build regenerates it, #4042). |
 
 RimGovernor supports RimWorld 1.7 (Waylith) only. The install is flat:
 `RimWorld.exe`, `Waylith.dll`, `UnityStubs.dll` and `Assembly-CSharp.dll` sit in
