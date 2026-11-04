@@ -228,13 +228,16 @@ public abstract class FamilyRunner
 
     /// <summary>
     /// Whether a ready Need's report is one a cadence run keeps (#3556): a wait or a refusal other than open work
-    /// (the entry's own wait covers it), a claim held within one step's arbiter, a field the work could not read or
-    /// a wait only wall-clock time ends (<see cref="Verdict.WaitsOnRealTime"/>). An admission is never kept: the next
-    /// run finds its Method open or its outcome has marked the entry.
+    /// (the entry's own wait covers it), a claim held within one step's arbiter, a field the work could not read,
+    /// a wait only wall-clock time ends (<see cref="Verdict.WaitsOnRealTime"/>) or a wait on the Need's own used
+    /// Method (<see cref="Cause.MethodUsed"/>): what ends that wait is the Method's product standing or a journal
+    /// cooldown, which the Need's derivation does not read and native publishes no evidence for, so a kept
+    /// sleeping Method would hold until the wall-clock full step, which a Hyperfast run never reaches (#3691).
+    /// An admission is never kept: the next run finds its Method open or its outcome has marked the entry.
     /// </summary>
     internal static bool Keepable(Verdict verdict) =>
         verdict.Outcome is Outcome.Waiting or Outcome.Refused
-        && verdict != Verdict.BuildingReasonExistingWork && !verdict.Is(Cause.Claim) && !verdict.Is(Cause.FieldUnavailable) && !verdict.WaitsOnRealTime;
+        && verdict != Verdict.BuildingReasonExistingWork && !verdict.Is(Cause.Claim) && !verdict.Is(Cause.FieldUnavailable) && !verdict.Is(Cause.MethodUsed) && !verdict.WaitsOnRealTime;
 
     /// <summary>
     /// The verdict a family entry reports for itself (the due queue reads it): admitted when any Method was, open

@@ -108,7 +108,7 @@ public sealed class FamilyKeptWaitsTests
     }
 
     [Fact]
-    public void ARefusalIsKeptAndAnAdmissionOpenWorkAHeldClaimOrAnUnreadFieldIsNot()
+    public void ARefusalIsKeptAndAnAdmissionOpenWorkAHeldClaimAnUnreadFieldOrAUsedMethodIsNot()
     {
         using var colony = Open();
         colony.Work = Verdict.Refuse(Cause.SharedAdmission, "safeguard", "");
@@ -116,7 +116,8 @@ public sealed class FamilyKeptWaitsTests
         Assert.Equal([Fix], colony.Run(cadence: true).Kept);
         Assert.Equal(1, colony.Worked);
 
-        foreach (var verdict in new[] { Verdict.BuildingReasonAdmitted, Verdict.BuildingReasonExistingWork, Verdict.ClaimHeld("pawn/a"), Verdict.FieldUnavailable("rooms") })
+        // A used Method's wait ends with its product standing or a cooldown, neither of which marks the entry (#3691).
+        foreach (var verdict in new[] { Verdict.BuildingReasonAdmitted, Verdict.BuildingReasonExistingWork, Verdict.ClaimHeld("pawn/a"), Verdict.FieldUnavailable("rooms"), Verdict.WaitFor(Cause.MethodUsed, "sleeping_method") })
         {
             colony.Work = verdict;
             colony.Run(cadence: false);
@@ -205,5 +206,6 @@ public sealed class FamilyKeptWaitsTests
         Assert.False(FamilyRunner.Keepable(Verdict.BuildingReasonExistingWork));
         Assert.False(FamilyRunner.Keepable(Verdict.ClaimHeld("pawn/a")));
         Assert.False(FamilyRunner.Keepable(Verdict.FieldUnavailable("rooms")));
+        Assert.False(FamilyRunner.Keepable(Verdict.WaitFor(Cause.MethodUsed, "sleeping_method")));
     }
 }

@@ -728,7 +728,8 @@ trade `export_bills` x15, admin `construction_labor` x17 and x15, food x17 and x
 and only admin/work-assignments (admitted 11 of 17) and shelter/starter (4 of 17) ever did anything. So an entry
 selected `due` alone, on a step whose rounds word is `last` or `due`, runs for its cadence (`FamilyStep.Cadence`): a
 ready Need whose last ordinary run ended in a wait or a refusal keeps that verdict and Method and skips propose, commit
-and work. Open work, a held claim, an unread field and an admission are never kept; a `dirty`, `wake`, `full` or `all`
+and work. Open work, a held claim, an unread field, a wait on the Need's own used Method (`method_already_used`: its
+product standing or a journal cooldown ends it, and neither marks the entry, #3691) and an admission are never kept; a `dirty`, `wake`, `full` or `all`
 selection, a Need that was not ready last time or derives differently now (a live read changed: clearance's census once
 the pawns finish a designated step, #3681), the immediate pass and another world run the work again. Kept Needs
 are counted on the `clock_step` row (`kept`) and marked on their `planner_step` rows (`kept`). Landed 9adcf3d36.
@@ -764,7 +765,10 @@ What the day says:
   admin/stockpiles 14, economy/trade 14, shelter/temperature 11, people/mood 23 over three pawns. Every one is a wait
   or refusal on the committed review's facts, except people/mood's `method_already_used`, which a cooldown in the
   journal ends: a kept verdict whose cause is time alone refreshes only on evidence or on the `full` step
-  (`FullStepEvery`, every 2 real minutes). The economy/resource verdict did change during the day, from
+  (`FullStepEvery`, every 2 real minutes). That exception became the rule's one bug: the refrigeration Need slept on
+  its committed cooler's Method (`sleeping_method`), the cooler stood at tick 1585 and the kept wait held it at the
+  vanilla setpoint for the rest of a Hyperfast acceptance run, which never reaches a 2-real-minute `full` step
+  (#3691); `method_already_used` is no longer keepable. The economy/resource verdict did change during the day, from
   `awaiting_plan research` (9 due runs) to `held:no_source` (8), at the hazard wakes around tick 30000; without a
   wake the cadence would have kept the old answer until the `full` step at 54006. Nothing was kept that then
   admitted: admin/work-assignments (admitted 12, `field_unavailable` 5), shelter/starter (admitted 3, open work 14)
