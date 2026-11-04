@@ -7,8 +7,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>recovery/service</c>: the disaster-recovery repair dispatch. A GiveJobIntent Repair on a staged damaged player
-/// wall in the home area starts the vanilla WorkGiver_Repair job, an unknown pawn is refused, a resent key returns its
-/// first result, and the game repairs the wall to full hit points.
+/// wall in the home area starts the vanilla WorkGiver_Repair job, an unknown pawn is refused, a resent key applies again
+/// as the already-running job without issuing it twice, and the game repairs the wall to full hit points.
 /// </summary>
 internal static class RecoveryService
 {
@@ -19,8 +19,8 @@ internal static class RecoveryService
     {
         Name = "recovery/service",
         Scope = "GiveJobIntent Repair on operations_apply: on a staged damaged player Wall in the home area, the applied "
-            + "receipt names the Repair job for the builder on the wall; an unknown pawn is refused; a resent key returns its "
-            + "first result; observations_list_buildings then reads the wall back at full hit points. The repair runs "
+            + "receipt names the Repair job for the builder on the wall; an unknown pawn is refused; a resent key applies "
+            + "again as the running job (issued false), since nothing is replayed; observations_list_buildings then reads the wall back at full hit points. The repair runs "
             + "RimWorld's own WorkGiver_Repair and JobDriver.",
         Ticks = 20000,
         Tier = CaseTier.Nightly,
@@ -98,15 +98,19 @@ internal static class RecoveryService
         var repair = await RepairAsync("recovery-repair", builderId).ConfigureAwait(false);
         s.RecordWire("repair", repair);
         var job = repair.Outcome?.Applied?.Outcome?.Applied?.Observed?.Effect?.Job;
-        if (job?.PawnId != builderId || job.JobDef != "Repair" || job.TargetA?.Target?.ThingId != wallId)
+        if (job?.PawnId != builderId || job.JobDef != "Repair" || job.TargetA?.Target?.ThingId != wallId || !job.Issued)
         {
-            throw new AcceptanceException($"recovery-repair: want an applied Repair job for {builderId} on {wallId}, got {repair}");
+            throw new AcceptanceException($"recovery-repair: want an issued Repair job for {builderId} on {wallId}, got {repair}");
         }
 
-        var replay = await RepairAsync("recovery-repair", builderId).ConfigureAwait(false);
-        if (OrdersJson.Serialize(replay) != OrdersJson.Serialize(repair))
+        // Nothing is replayed over the in-process hop (NativeActionDispatch): the resend applies again, and the
+        // ordered-job path finds the builder already on this Repair, so it reports the running job without issuing (#3689).
+        var resend = await RepairAsync("recovery-repair", builderId).ConfigureAwait(false);
+        s.RecordWire("repair_resend", resend);
+        var running = resend.Outcome?.Applied?.Outcome?.Applied?.Observed?.Effect?.Job;
+        if (running?.PawnId != builderId || running.JobDef != "Repair" || running.TargetA?.Target?.ThingId != wallId || running.Issued)
         {
-            throw new AcceptanceException($"recovery-repair: the resent key returned {replay}, not its first result");
+            throw new AcceptanceException($"recovery-repair: want the resent key applied as the running Repair job, not issued again, got {resend}");
         }
 
         var after = before;
