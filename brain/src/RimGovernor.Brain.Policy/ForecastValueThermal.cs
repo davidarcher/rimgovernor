@@ -84,7 +84,7 @@ public static partial class ForecastValue
             return null;
         }
 
-        if (seen is not { Pawn: { HypothermiaSeverity: var cold, HeatstrokeSeverity: var hot }, Levels: var levels })
+        if (seen is not { Pawn: { HypothermiaSeverity: var cold, HeatstrokeSeverity: var hot, Pain: var pain }, Levels: var levels })
         {
             findings.Add("capacities_unobserved:" + pawn);
             return null;
@@ -94,8 +94,8 @@ public static partial class ForecastValue
         Span<int> order = spans.Count <= 64 ? stackalloc int[spans.Count] : new int[spans.Count];
         for (var i = 0; i < order.Length; i++) order[i] = i;
         order.Sort(new ThermalSpanOrder(spans));
-        var coldCourse = new Course(tables.Hypothermia, levels, movingMin, cold);
-        var hotCourse = new Course(tables.Heatstroke, levels, movingMin, hot);
+        var coldCourse = new Course(tables.Hypothermia, levels, movingMin, cold, pain);
+        var hotCourse = new Course(tables.Heatstroke, levels, movingMin, hot, pain);
         return Path(pawn, spans, order, true, ref coldCourse, horizon, policy, findings)
             + Path(pawn, spans, order, false, ref hotCourse, horizon, policy, findings);
     }

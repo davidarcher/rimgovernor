@@ -89,9 +89,11 @@ public static class HarmConsequences
     private const double PainFull = 1;
     private const double PainMaxPenalty = 0.4;
 
+    /// <summary>What <paramref name="pain"/> takes off consciousness (PawnCapacityWorker_Consciousness), before a hediff stage's capacity modifiers apply.</summary>
+    internal static double PainPenalty(double pain) => Math.Clamp((pain - PainFree) / (PainFull - PainFree) * PainMaxPenalty, 0, PainMaxPenalty);
+
     /// <summary>The consciousness a pawn at <paramref name="consciousness"/> keeps under <paramref name="pain"/> (PawnCapacityWorker_Consciousness).</summary>
-    internal static double PainConsciousness(double consciousness, double pain) =>
-        consciousness - Math.Clamp((pain - PainFree) / (PainFull - PainFree) * PainMaxPenalty, 0, PainMaxPenalty);
+    internal static double PainConsciousness(double consciousness, double pain) => consciousness - PainPenalty(pain);
 
     /// <summary>
     /// The share of capability a pawn at <paramref name="consciousness"/> keeps under <paramref name="pain"/>: 0 when the pain
@@ -219,7 +221,7 @@ public static class HarmConsequences
         CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon, SortedSet<string> findings)
     {
         findings.UnionWith(["adaptation_feedback_unassessed", "rescue_labor_unassessed", "bleed_part_factors_unobserved"]);
-        var (shock, healthScale, incoming, healing, levels) = (pawn.PainShockThreshold, pawn.HealthScale, pawn.IncomingDamageFactor, pawn.InjuryHealingFactor, ForecastValue.Levels(pawn));
+        var (shock, healthScale, incoming, healing, levels, pain) = (pawn.PainShockThreshold, pawn.HealthScale, pawn.IncomingDamageFactor, pawn.InjuryHealingFactor, ForecastValue.Levels(pawn), pawn.Pain);
         if (!(healthScale > 0))
         {
             findings.Add("capacities_unobserved:" + pawn.Pawn);
@@ -235,7 +237,7 @@ public static class HarmConsequences
             return null;
         }
 
-        return (new Model(mix, levels, movingMin, shock, healthScale, Math.Max(0, incoming), Math.Max(0, healing), tables, care, policy, horizon, findings), mix);
+        return (new Model(mix, levels, pain, movingMin, shock, healthScale, Math.Max(0, incoming), Math.Max(0, healing), tables, care, policy, horizon, findings), mix);
     }
 
     private static HarmDistribution Unknown(SortedSet<string> findings) => new() { Findings = [.. findings] };
@@ -428,6 +430,8 @@ public static class HarmConsequences
     {
         private readonly Mix mix;
         private readonly double[] levels;
+        /// <summary>The pawn's observed pain, which its observed consciousness carries (#3700): a bleeding or infection stage prices its painOffset as the change from it.</summary>
+        private readonly double pain;
         private readonly double movingMin;
         private readonly double shock;
         private readonly double healthScale;
@@ -493,11 +497,12 @@ public static class HarmConsequences
             return 1 - partDeath;
         }
 
-        public Model(Mix mix, double[] levels, double movingMin, double shock, double healthScale, double incoming, double healing,
+        public Model(Mix mix, double[] levels, double pain, double movingMin, double shock, double healthScale, double incoming, double healing,
             CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon, SortedSet<string> findings)
         {
             this.mix = mix;
             this.levels = levels;
+            this.pain = pain;
             this.movingMin = movingMin;
             this.shock = shock;
             this.healthScale = healthScale;
@@ -620,7 +625,7 @@ public static class HarmConsequences
                 return 0;
             }
 
-            var course = new ForecastValue.Course(table, levels, movingMin, 0);
+            var course = new ForecastValue.Course(table, levels, movingMin, 0, pain);
             course.Advance(bleeding * GameTime.TicksPerDay, rate);
             course.Advance(horizon - bleeding * GameTime.TicksPerDay, -BloodLossRecoveryPerDay);
             downed = course.Downs;
@@ -687,7 +692,7 @@ public static class HarmConsequences
             var tending = tended && table.Tending is TendEffect.Tendable { SeverityPerDayTended: var perDay } ? perDay * tendQuality : 0;
             var immuneAt = Math.Min(days, 1 / immunizable.ImmunityPerDaySick);
             var rising = immunizable.SeverityPerDayNotImmune + tending;
-            var course = new ForecastValue.Course(table, levels, movingMin, 0) { Severity = table.InitialSeverity };
+            var course = new ForecastValue.Course(table, levels, movingMin, 0, pain) { Severity = table.InitialSeverity };
             if (table.Lethality is Lethality.Lethal { Severity: var lethal } && table.InitialSeverity + rising * immuneAt >= lethal)
             {
                 diedAt = rising > 0 ? Math.Max(0, (lethal - table.InitialSeverity) / rising) : 0;

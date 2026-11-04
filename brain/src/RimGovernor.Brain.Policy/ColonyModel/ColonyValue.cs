@@ -639,7 +639,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             var rate = ForecastValue.MalnutritionSeverityPerDay * row.MalnutritionRateFactor;
             var (severity, levels) = (row.MalnutritionSeverity, ForecastValue.Levels(row));
 
-            var course = new ForecastValue.Course(table, levels, tables.MovingMinForCapable, severity);
+            var course = new ForecastValue.Course(table, levels, tables.MovingMinForCapable, severity, row.Pain);
             var clock = 0.0;
             double? died = null;
 

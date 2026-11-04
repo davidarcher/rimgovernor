@@ -953,6 +953,8 @@ public sealed record NeedsForecastPawn
     public required double HeatstrokeSeverity { get; init; }
     /// <summary>The health reads of a raid's consequences (#3544): StatDefOf.PainShockThreshold, pawn.HealthScale, StatDefOf.IncomingDamageFactor and StatDefOf.InjuryHealingFactor.</summary>
     public required double PainShockThreshold { get; init; }
+    /// <summary>The pawn's current pain, pawn.health.hediffSet.PainTotal (#3700): what its observed consciousness already carries, so a hediff stage's painOffset is priced as the change from it.</summary>
+    public required double Pain { get; init; }
     public required double HealthScale { get; init; }
     public required double IncomingDamageFactor { get; init; }
     public required double InjuryHealingFactor { get; init; }

@@ -654,7 +654,7 @@ public static partial class ForecastValue
         if (food.ZeroTicks is ForecastTerm.Unassessed) { findings.Add("hunger_unassessed:" + pawn); return null; }
         if (seen is null)
         { findings.Add("capacities_unobserved:" + pawn); return null; }
-        var course = new Course(table, seen.Levels, movingMin, seen.Pawn.MalnutritionSeverity);
+        var course = new Course(table, seen.Levels, movingMin, seen.Pawn.MalnutritionSeverity, seen.Pawn.Pain);
         var rate = MalnutritionSeverityPerDay * seen.Pawn.MalnutritionRateFactor;
         double cursor = 0;
         var spans = food.ZeroSpans;
@@ -782,7 +782,7 @@ public static partial class ForecastValue
             if (!observed.TryGetValue(pawn, out var seen))
             { findings.Add("capacities_unobserved:" + pawn); return null; }
             // The pawn's own current poisoning, if any, is the stage its capacities already carry.
-            var course = new Course(table, seen.Levels, movingMin, seen.Pawn.FoodPoisoningSeverity) { Severity = table.InitialSeverity };
+            var course = new Course(table, seen.Levels, movingMin, seen.Pawn.FoodPoisoningSeverity, seen.Pawn.Pain) { Severity = table.InitialSeverity };
             course.Advance(length, table.Drift is SeverityDrift.Drifting drifting ? drifting.PerDay : 0);
             course.Report(pawn, findings);
             sum += course.LostTicks / GameTime.TicksPerDay;
@@ -816,10 +816,15 @@ public static partial class ForecastValue
     /// against the observed one, and 0 for a pawn the stage downs that the observed levels do not.
     /// A struct walked in place (#3468): a search prices thousands of outcomes, each with several courses a pawn.
     /// </summary>
-    internal struct Course(HediffPenaltyTable table, double[] observed, double movingMin, double observedSeverity)
+    /// <summary>
+    /// One hediff's course over the horizon: its severity moved through the table's stages, each stretch priced at the
+    /// capability its stage leaves against the observed levels. <paramref name="observedPain"/> is the pawn's current pain
+    /// (NeedsForecastPawn.Pain), which the observed consciousness already carries: a stage's painOffset is priced as the
+    /// change of that pain, through the game's consciousness penalty, before the stage's capacity modifiers (#3700).
+    /// </summary>
+    internal struct Course(HediffPenaltyTable table, double[] observed, double movingMin, double observedSeverity, double observedPain)
     {
         private readonly PenaltyStage? current = table.StageAt(observedSeverity);
-        private bool pain;
         private bool lethal;
 
         public void MarkLethal() => lethal = true;
@@ -881,14 +886,12 @@ public static partial class ForecastValue
 
         public readonly void Report(string pawn, SortedSet<string> findings)
         {
-            if (pain) findings.Add("hediff_pain_unpriced:" + table.Hediff);
             if (lethal) findings.Add("lethal_severity_reached:" + table.Hediff + ":" + pawn);
         }
 
         public void Piece(double ticks, double from, double to)
         {
             if (table.StageAt((from + to) / 2) is not { } stage) return;
-            pain |= stage.PainOffset > 0;
             var factor = Factor(stage);
             Downs |= factor <= 0 && ticks > 0;
             LostTicks += (1 - factor) * ticks;
@@ -898,6 +901,10 @@ public static partial class ForecastValue
         {
             Span<double> after = stackalloc double[Capacities.Length];
             var organ = StageFactors is { } factors && IndexOf(stage) is var index and >= 0 && index < factors.Length ? factors[index] : null;
+            // The pain the pawn carries without this hediff's current stage, and with the stage priced (#3700); the
+            // game subtracts the pain penalty from consciousness before a stage's modifiers apply.
+            var painWithout = Math.Max(0, observedPain - (current?.PainOffset ?? 0));
+            var painDelta = HarmConsequences.PainPenalty(painWithout + stage.PainOffset) - HarmConsequences.PainPenalty(observedPain);
             for (var i = 0; i < Capacities.Length; i++)
             {
                 var (offset, post, max) = Modifiers(current, Capacities[i]);
@@ -906,6 +913,7 @@ public static partial class ForecastValue
                 // ceiling has lost what a stage cannot undo, so it is taken as whole.
                 var level = observed[i];
                 var baseLevel = current is null ? level : level >= max ? 1 : post > 0 ? level / post - offset : level;
+                if (i == 0) baseLevel -= painDelta;
                 after[i] = Math.Max(0, Math.Min((baseLevel + nextOffset) * nextPost, nextMax)) * (organ?[i] ?? 1);
             }
 

@@ -125,7 +125,7 @@ public static class IllnessForecast
         HarmConsequences.Care care, double bedImmunity, ForecastValuePolicy policy, double horizon, StockArrival stock, BedChange? bedChange = null)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        var (disease, levels) = (pawn.Disease, ForecastValue.Levels(pawn));
+        var (disease, levels, pain) = (pawn.Disease, ForecastValue.Levels(pawn), pawn.Pain);
 
         var movingMin = tables.MovingMinForCapable;
 
@@ -183,7 +183,7 @@ public static class IllnessForecast
                     QualityAt = care.QualityAt is { } qualityAt ? day => qualityAt(occurrence.Day + day) : null,
                     TreatmentThroughDays = care.TreatmentThroughDays - occurrence.Day,
                 };
-                var course = Course(incident.Course, branches, disease.ImmunityGainSpeed * Math.Max(0, bedImmunity), occurrenceCare, levels, movingMin, policy, remaining, pawn.Pawn, findings,
+                var course = Course(incident.Course, branches, disease.ImmunityGainSpeed * Math.Max(0, bedImmunity), occurrenceCare, levels, pain, movingMin, policy, remaining, pawn.Pawn, findings,
                     changeAfter, disease.ImmunityGainSpeed * Math.Max(0, bedChange?.BeforeFactor ?? bedImmunity));
                 foreach (var outcome in course)
                 {
@@ -335,7 +335,7 @@ public static class IllnessForecast
     }
 
     /// <summary>The outcomes of <paramref name="course"/> over its <paramref name="branches"/> (shares normalised) for a pawn of <paramref name="gain"/> ImmunityGainSpeed; probabilities sum to 1.</summary>
-    internal static List<CourseOutcome> Course(DiseaseCourse course, IReadOnlyList<Branch> branches, double gain, HarmConsequences.Care care, double[] levels, double movingMin,
+    internal static List<CourseOutcome> Course(DiseaseCourse course, IReadOnlyList<Branch> branches, double gain, HarmConsequences.Care care, double[] levels, double pain, double movingMin,
         ForecastValuePolicy policy, double days, string pawn, SortedSet<string> findings, double gainFrom = 0, double beforeGain = 0)
     {
         var outcomes = new List<CourseOutcome>();
@@ -369,7 +369,7 @@ public static class IllnessForecast
                     foreach (var (goneAt, gw) in Grid(gone.Item1, gone.Item2))
                     {
                         var weight = branch.Share / total * fw * pw * gw;
-                        var run = new Run(course, care, factor, perDay, goneAt, lethal, organ, levels, movingMin, days);
+                        var run = new Run(course, care, factor, perDay, goneAt, lethal, organ, levels, pain, movingMin, days);
                         if (!(immunityRate > 0) && !(beforeRate > 0 && gainFrom > 0))
                         {
                             Add(outcomes, run.Walk(double.PositiveInfinity), weight, policy, days, course, organ, levels, movingMin, pawn, findings);
@@ -489,7 +489,7 @@ public static class IllnessForecast
 
     /// <summary>One draw of a course: its random factors fixed; <see cref="Walk"/> runs it to the day immunity comes.</summary>
     private readonly struct Run(DiseaseCourse course, HarmConsequences.Care care, double factor, double perDay, double goneAt, bool lethal, OrganEffect? organ,
-        double[] levels, double movingMin, double days)
+        double[] levels, double pain, double movingMin, double days)
     {
         public Walked Walk(double immuneAt)
         {
@@ -501,7 +501,7 @@ public static class IllnessForecast
             var lethalAt = lethal && table.Lethality is Lethality.Lethal { Severity: var l } ? l : double.PositiveInfinity;
             var top = Math.Min(lethalAt, course.MaxSeverity);
             var bottom = Math.Max(0, course.MinSeverity);
-            var walked = new Walked { Severity = new ForecastValue.Course(table, levels, movingMin, 0) { StageFactors = organ?.Stages } };
+            var walked = new Walked { Severity = new ForecastValue.Course(table, levels, movingMin, 0, pain) { StageFactors = organ?.Stages } };
             var s = Math.Clamp(table.InitialSeverity, course.MinSeverity, course.MaxSeverity);
             var t = 0.0;
             var quality = 0.0;

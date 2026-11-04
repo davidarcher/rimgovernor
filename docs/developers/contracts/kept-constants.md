@@ -155,9 +155,11 @@ thought (`ThoughtWorker_NeedFood`, `ThoughtWorker_NeedRest`, which the mood
 timeline follows along the needs timeline, [need thoughts](#mirrored-game-literals-need-thoughts-3598)) or a rate above. Zero rest's involuntary sleep is the one rest effect the ledger prices
 ([exhaustion collapse](../architecture/forecast-value.md#capability-days), #3598). The game's `HediffGiver_Heatstroke` is `HediffGiver_Heat`.
 
-The ledger prices a hediff's pain (`painOffset`, which lowers consciousness by up
-to 0.4 in `PawnCapacityWorker_Consciousness`) as unpriced: the pawn's current pain
-is not observed, so a priced stage with pain reports `hediff_pain_unpriced`.
+The ledger prices a hediff stage's pain (`painOffset`, #3700): the pawn's current
+pain (`Pawn_HealthTracker.hediffSet.PainTotal`) is observed as `NeedsForecastPawn.Pain`,
+and a stage's pain is the change from it through `PawnCapacityWorker_Consciousness`'s
+penalty (`LerpDouble(0.1, 1, 0, 0.4, pain)`, clamped to 0.4, taken off consciousness
+before the stage's capacity modifiers apply; `HarmConsequences.PainPenalty`).
 Malnutrition's per-pawn rate factor (`Lerp(0.8, 1.2, Rand.ValueSeeded(thingIDNumber ^ 0x26EF7A))`)
 is observed natively as `NeedsForecastPawn.MalnutritionRateFactor`. Both hunger valuation paths
 apply it to severity gain and recovery; the private game's formula is mirrored on the native side.

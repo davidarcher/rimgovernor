@@ -309,11 +309,11 @@ public static class CreepJoinerHarm
         if (!course.Valid()) throw new DomainException("the creepjoiner hediff " + name + " is not a course");
         foreach (var kind in course.Unmodelled) findings.Add("creepjoiner_hediff_unmodelled:" + name + ":" + kind);
         findings.UnionWith(course.Unpriced);
-        var levels = ForecastValue.Levels(row);
+        var (levels, pain) = (ForecastValue.Levels(row), row.Pain);
         if (hediff.Then is not null)
         {
             if (course.Parts.Count != 0) throw new DomainException("the creepjoiner hediff chain from " + name + " strikes parts");
-            return (Chain(hediff, Severities(hediff), levels, movingMin, days, row.Pawn, findings), 0, []);
+            return (Chain(hediff, Severities(hediff), levels, pain, movingMin, days, row.Pawn, findings), 0, []);
         }
 
         var lethal = course.Table.Lethality is Lethality.Lethal;
@@ -325,7 +325,7 @@ public static class CreepJoinerHarm
             foreach (var (severity, weight) in Severities(hediff))
             {
                 var at = course with { Table = course.Table with { InitialSeverity = severity } };
-                foreach (var o in IllnessForecast.Course(at, branches, 1, care, levels, movingMin, policy, days, row.Pawn, findings))
+                foreach (var o in IllnessForecast.Course(at, branches, 1, care, levels, pain, movingMin, policy, days, row.Pawn, findings))
                 {
                     points.Add(new(o.Loss, weight * o.Probability));
                     died += o.Died ? chance * weight * o.Probability : 0;
@@ -370,7 +370,7 @@ public static class CreepJoinerHarm
     /// its per-day grid, its stages until its severity reaches <see cref="CreepJoinerHediff.ThenAt"/> (or its maxSeverity, held), then its
     /// replacement's from that replacement's own start.
     /// </summary>
-    private static double Chain(CreepJoinerHediff hediff, IEnumerable<(double Severity, double Weight)> starts, double[] levels, double movingMin, double days,
+    private static double Chain(CreepJoinerHediff hediff, IEnumerable<(double Severity, double Weight)> starts, double[] levels, double pain, double movingMin, double days,
         string pawn, SortedSet<string> findings)
     {
         var course = hediff.Course;
@@ -383,7 +383,7 @@ public static class CreepJoinerHarm
         {
             foreach (var (perDay, pw) in IllnessForecast.Grid(course.PerDayMin, course.PerDayMax))
             {
-                var walk = new ForecastValue.Course(course.Table, levels, movingMin, 0) { Severity = start };
+                var walk = new ForecastValue.Course(course.Table, levels, movingMin, 0, pain) { Severity = start };
                 var reach = perDay > 0 && double.IsFinite(top) ? Math.Max(0, (top - start) / perDay) : double.PositiveInfinity;
                 var first = Math.Min(days, reach);
                 walk.Advance(first * GameTime.TicksPerDay, perDay);
@@ -392,7 +392,7 @@ public static class CreepJoinerHarm
                 {
                     if (hediff.Then is { } then && hediff.ThenAt <= course.MaxSeverity)
                     {
-                        lost += Chain(then, Severities(then), levels, movingMin, days - reach, pawn, findings);
+                        lost += Chain(then, Severities(then), levels, pain, movingMin, days - reach, pawn, findings);
                     }
                     else
                     {

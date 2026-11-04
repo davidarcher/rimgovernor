@@ -163,6 +163,22 @@ public sealed class ForecastValueTests
     }
 
     [Theory]
+    [InlineData(0, 1, 0.1)]      // No pain now: a 0.55 painOffset stage takes 0.2 off consciousness; half a day at 0.8 of 1.
+    [InlineData(0.55, 0.8, 0.125)] // Already at 0.55 pain (consciousness 0.8 carries it): the stage adds to 1.1, the penalty tops at 0.4; 0.6 of 0.8.
+    public void AStagesPainIsPricedAsItsConsciousnessChangeFromTheObservedPain(double pain, double consciousness, double loss)
+    {
+        // A stage with pain and no capacity modifiers (#3700): priced through PawnCapacityWorker_Consciousness's penalty.
+        var table = Malnutrition(new PenaltyStage(0, 0.55, []));
+        var pawn = Pawn(foodLevel: 0.5, fall: 0.5 / (Day / 2), consciousness: consciousness) with { Pain = pain };
+        var starving = Timeline(pawn) with { Mood = Mood(0, [0, 0, 0]) };
+
+        var value = ForecastValue.Of(Outcome(starving), Context(pawn, Tables(table)), Day, Outcome(starving));
+
+        Assert.Equal(loss, value.Hunger.Loss(), 9);
+        Assert.DoesNotContain(value.Findings, f => f.Contains("pain", StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData(0.8)]
     [InlineData(1.2)]
     public void MalnutritionUsesTheObservedPawnFactorForGainAndRecovery(double factor)

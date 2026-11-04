@@ -131,6 +131,7 @@ internal static class NativeNeedsForecast
                 MalnutritionRateFactor = F(UnityEngine.Mathf.Lerp(0.8f, 1.2f, Rand.ValueSeeded(pawn.thingIDNumber ^ 0x26EF7A)), "malnutrition rate factor"),
                 HypothermiaSeverity = Severity(health, HediffDefOf.Hypothermia), HeatstrokeSeverity = Severity(health, HediffDefOf.Heatstroke),
                 PainShockThreshold = F(pawn.GetStatValue(StatDefOf.PainShockThreshold), "pain shock threshold"), HealthScale = F(pawn.HealthScale, "health scale"),
+                Pain = F(health.hediffSet.PainTotal, "pain"),
                 IncomingDamageFactor = F(pawn.GetStatValue(StatDefOf.IncomingDamageFactor), "incoming damage factor"),
                 InjuryHealingFactor = F(pawn.GetStatValue(StatDefOf.InjuryHealingFactor), "injury healing factor"),
                 ResearchSpeed = F(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor, "research speed"),
