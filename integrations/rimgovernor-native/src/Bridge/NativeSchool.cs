@@ -17,7 +17,9 @@ internal static class NativeSchool
     internal static RimGovernor.Brain.GameFacts.Observations.SchoolRead Read(Map map, List<Pawn> people)
     {
         var lesson = LearningDesireDefOf.Lessontaking;
-        var teacher = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(CanTeach);
+        // Without Biotech WorkTypeDefOf.Childcare is null, and Pawn_WorkSettings.WorkIsActive(null) indexes its DefMap with it
+        // (NullReferenceException, #3538): there are no lessons to teach, so no teacher is sought.
+        var teacher = ModsConfig.BiotechActive ? map.mapPawns.FreeColonistsSpawned.FirstOrDefault(CanTeach) : null;
         var count = TopTeachableSkillCount();
         var children = people.Where(p => p.needs?.learning != null).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
             .Select(p => new RimGovernor.Brain.GameFacts.Observations.SchoolChildRead

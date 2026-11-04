@@ -39,9 +39,18 @@ public static partial class LayoutPowerDeriveRules
     /// <summary>The conduit a site is wired to the grid with.</summary>
     public const string PowerConduitDefinition = SiteConduit;
 
-    /// <summary>The watts the groups draw: their powered stations and the lamps that light their floor. A group that wants a lamp the catalog does not price makes the demand unknown.</summary>
+    /// <summary>
+    /// The watts the groups draw: their powered stations and the lamps that light their floor. The catalog's lamps are a
+    /// required fact: unread (no lamp at all) the demand is unknown. Read, with no floor lamp the finished research
+    /// allows (a tribal start before Electricity), the rooms draw no lighting watts: fire lights them, and a first plan
+    /// that waited for the lamp would hold the clock for a research the colony has not begun (#3538).
+    /// </summary>
     internal static double PlannedDemandW(this StationFacts f, IReadOnlyList<RoomGroup> groups)
     {
+        if (f.Catalog.Light.Lamps.Count == 0)
+        {
+            throw new RequiredFactException("lamp");
+        }
         var lamp = f.Catalog.Light.Lamps.Where(lamp => !lamp.Wall && !lamp.Refuelable && lamp.Model.Reach() > 0
             && lamp.Research.All(f.FinishedResearch.Contains))
             .OrderBy(lamp => lamp.Model.PowerW / Math.Pow(lamp.Model.Reach(), 2))
@@ -57,13 +66,9 @@ public static partial class LayoutPowerDeriveRules
                     demand += -st.BaseW * s.Count;
                 }
             }
-            if (g.Area <= 0 || g.Requires.Contains(EnvRequirement.OpenSky))
+            if (g.Area <= 0 || g.Requires.Contains(EnvRequirement.OpenSky) || lamp is null)
             {
                 continue;
-            }
-            if (lamp is null)
-            {
-                throw new RequiredFactException("lamp");
             }
             var reach = lamp.Model.Reach();
             demand += lamp.Model.PowerW * Math.Ceiling(g.Area / (Math.PI * reach * reach));
