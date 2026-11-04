@@ -45,7 +45,9 @@ Every case follows these rules. Each one can be checked from the case declaratio
    text.
 7. **Shortcuts stop at the precondition.** Staging may spawn, inject and set state. The behavior under test is
    never shortcut. The defaults stay: needs frozen except the case's kept needs, a superpawn crew and the quiet
-   storyteller. A case that departs from a default declares the departure and the claim that needs it.
+   storyteller. A case that departs from a default declares the departure and the claim that needs it. The crew
+   step runs after staging and keeps the work priorities and timetable a stage set on the colonists already
+   present; only a colonist it adds starts from vanilla's initial priorities (#3690).
 8. **Tier on the case.** The case declares its tier: smoke, nightly or on demand ([tiers](#tiers)).
 
 A case that cannot satisfy rules 1–3 is deleted, not given an arbitrary tick-cap override.

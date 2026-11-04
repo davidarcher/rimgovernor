@@ -29,6 +29,8 @@ internal static class FarmLattice
         Stage = new Fx.StageSpec
         {
             Paused = true,
+            // Trees carry sowResearchPrerequisites TreeSowing; the lab save leaves it at zero progress.
+            Research = [new Fx.StageResearch { Def = "TreeSowing" }],
             Site = new Fx.StageSite
             {
                 Width = (Width * 2) + 4,
@@ -89,7 +91,8 @@ internal static class FarmLattice
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"oak zone holds {oak.Planted.Count} trees, want ceil({Width}/2)*ceil({Height}/2)={wantTrees}"));
         }
 
-        if (oak.Planted.FirstOrDefault(c => (c.X - minX) % pitch != 0 || (c.Z - minZ) % pitch != 0) is { } off)
+        // Cell is a struct: a FirstOrDefault over an all-on-lattice list would read as an oak at (0,0).
+        if (oak.Planted.Where(c => (c.X - minX) % pitch != 0 || (c.Z - minZ) % pitch != 0).Select(c => (Cell?)c).FirstOrDefault() is { } off)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"oak at ({off.X},{off.Z}) is off the lattice anchored at ({minX},{minZ})"));
         }

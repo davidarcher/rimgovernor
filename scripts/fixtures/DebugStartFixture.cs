@@ -41,11 +41,13 @@ namespace RimGovernor.Native
                 var crew = map.mapPawns.FreeColonistsSpawned.ToList();
                 var home = crew.Count > 0 ? crew[0].Position : map.Center;
                 var added = 0;
+                var fresh = new HashSet<Pawn>();
                 while (crew.Count < size)
                 {
                     var pawn = LabStart.Colonist(crew.Count);
                     GenSpawn.Spawn(pawn, CellFinder.RandomClosewalkCellNear(home, map, 8), map);
                     crew.Add(pawn);
+                    fresh.Add(pawn);
                     added++;
                 }
                 foreach (var pawn in crew)
@@ -60,7 +62,11 @@ namespace RimGovernor.Native
                         foreach (var trait in wanted) pawn.story.traits.GainTrait(new Trait(trait.def, trait.Degree, true));
                     }
                     pawn.Notify_DisabledWorkTypesChanged();
-                    pawn.workSettings.EnableAndInitialize();
+                    // Only a colonist this call added starts from vanilla's initial priorities: the game's EnableAndInitialize
+                    // activates six work types by skill and zeroes the rest, which would wipe the priorities a stage set on
+                    // the colonists already present (#3690).
+                    if (fresh.Contains(pawn)) pawn.workSettings.EnableAndInitialize();
+                    else pawn.workSettings.EnableAndInitializeIfNotAlreadyInitialized();
                 }
                 return new { success = true, colonists = crew.Count, added };
             }, cancellationToken).ConfigureAwait(false);
