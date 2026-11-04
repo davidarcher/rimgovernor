@@ -141,12 +141,8 @@ public sealed partial class Harness : IAsyncDisposable
         ? OtlpFiles.RingPath(http.EndpointDirectory, OtlpSignal.Logs)
         : throw new AcceptanceException("the harness transport has no channel directory to read the game's log ring from");
 
-    /// <summary>Every row of <paramref name="kind"/> in the game's log ring, oldest first.</summary>
-    public IReadOnlyList<LogRow> Telemetry(TelemetryKind kind)
-    {
-        ArgumentNullException.ThrowIfNull(kind);
-        return [.. ServiceLogs.ReadLogs(LogsPath()).Where(row => row.Kind == kind.Name)];
-    }
+    /// <summary>Every row of <paramref name="kinds"/> in the game's log ring, oldest first, from one read of the ring (#3736).</summary>
+    public IReadOnlyList<LogRow> Telemetry(params ReadOnlySpan<TelemetryKind> kinds) => ServiceLogs.ReadLogs(LogsPath(), kinds);
 
     /// <summary>Returns the game's native tool names, bounded; null when the transport cannot enumerate them.</summary>
     public Task<IReadOnlyList<string>?> DiscoveryAsync(CancellationToken cancellationToken) => Transport.ToolNamesAsync(cancellationToken);

@@ -55,8 +55,10 @@ internal static class ForecastResidualCase
         _ = await s.ServeUntilAsync("native-residuals", s.TicksLeft, ct =>
         {
             ct.ThrowIfCancellationRequested();
-            var evidence = ForecastEvidenceReader.Decode(s.Telemetry(TelemetryKinds.ForecastPrediction)
-                .Concat(s.Telemetry(TelemetryKinds.ForecastObservation)).Where(r => r.Sequence > after).Select(r => r.Record()));
+            // One ring read for both kinds (#3736): a second read could hold a review's observations before the first
+            // held its predictions, and the reader would report missing_prediction gaps the log does not have.
+            var evidence = ForecastEvidenceReader.Decode(s.Telemetry(TelemetryKinds.ForecastPrediction, TelemetryKinds.ForecastObservation)
+                .Where(r => r.Sequence > after).Select(r => r.Record()));
             var residuals = ForecastResiduals.Compare(evidence.Predictions, evidence.Observations);
             s.Record("forecast_residuals", OutputJson.Fields(
                 ("history", "retained_log_window_only"),

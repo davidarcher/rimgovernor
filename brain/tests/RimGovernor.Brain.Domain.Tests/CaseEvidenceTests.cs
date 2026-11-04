@@ -5,6 +5,7 @@ using RimGovernor.Brain.GameAccess;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.RemoteAccept;
 using RimGovernor.Brain.Store;
+using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 using Xunit;
 
@@ -34,6 +35,27 @@ public sealed class CaseEvidenceTests : IDisposable
 
     private static string LogLine(long nanos, string body) =>
         $"{{\"resourceLogs\":[{{\"scopeLogs\":[{{\"logRecords\":[{{\"timeUnixNano\":\"{nanos}\",\"body\":{{\"stringValue\":\"{body}\"}}}}]}}]}}]}}";
+
+    private static string KindLine(long nanos, string kind) =>
+        $"{{\"resourceLogs\":[{{\"scopeLogs\":[{{\"logRecords\":[{{\"timeUnixNano\":\"{nanos}\",\"body\":{{\"stringValue\":\"r\"}},\"eventName\":\"{kind}\"}}]}}]}}]}}";
+
+    // #3736: a probe that pairs two kinds reads them from one ring read, in the ring's order, with no other kind.
+    [Fact]
+    public void AMultiKindReadKeepsBothKindsInRingOrderFromOneRead()
+    {
+        var game = Path.Combine(root, "game");
+        Directory.CreateDirectory(game);
+        var ring = OtlpFiles.RingPath(game, OtlpSignal.Logs);
+        var prediction = TelemetryKinds.ForecastPrediction.Name;
+        var observation = TelemetryKinds.ForecastObservation.Name;
+        File.WriteAllLines(ring, [KindLine(Since + 1, prediction), KindLine(Since + 2, "planner_step"), KindLine(Since + 3, observation), KindLine(Since + 4, prediction)]);
+
+        var rows = ServiceLogs.ReadLogs(ring, TelemetryKinds.ForecastPrediction, TelemetryKinds.ForecastObservation);
+
+        Assert.Equal([prediction, observation, prediction], rows.Select(r => r.Kind));
+        Assert.Equal(rows.Select(r => r.Sequence).OrderBy(s => s), rows.Select(r => r.Sequence));
+        Assert.Equal([observation], ServiceLogs.ReadLogs(ring, TelemetryKinds.ForecastObservation).Select(r => r.Kind));
+    }
 
     [Fact]
     public void SliceKeepsOnlyTheCasesLinesAcrossRotatedSegments()

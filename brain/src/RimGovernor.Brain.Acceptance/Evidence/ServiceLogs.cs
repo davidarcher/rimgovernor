@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
 
 namespace RimGovernor.Brain.Acceptance;
@@ -33,6 +34,23 @@ public static class ServiceLogs
         }
 
         return rows;
+    }
+
+    /// <summary>
+    /// Every row of the registered <paramref name="kinds"/> in the log ring at <paramref name="path"/>, oldest first,
+    /// from one read of the ring: a probe that pairs two kinds (forecast predictions with their observations) sees no
+    /// row of one kind newer than the rows of the other (#3736), which two reads of a live ring would give it.
+    /// </summary>
+    public static IReadOnlyList<LogRow> ReadLogs(string path, params ReadOnlySpan<TelemetryKind> kinds)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var kind in kinds)
+        {
+            ArgumentNullException.ThrowIfNull(kind);
+            names.Add(kind.Name);
+        }
+
+        return [.. ReadLogs(path).Where(row => names.Contains(row.Kind))];
     }
 
     /// <summary>The msg payloads of every row of <paramref name="kind"/> in the log ring at <paramref name="path"/>, oldest first: the building planner's placement_refused and foreign_held rows carry what they report there.</summary>

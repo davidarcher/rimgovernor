@@ -112,12 +112,11 @@ public sealed class TypedSession
     public Task<IReadOnlyList<GrowingZone>> GrowingZonesAsync(string label, CancellationToken cancellationToken) =>
         H.GrowingZonesAsync(label, Identity, cancellationToken);
 
-    /// <summary>Every row of the registered <paramref name="kind"/> the game's log ring holds, oldest first.</summary>
-    public IReadOnlyList<LogRow> Telemetry(TelemetryKind kind)
-    {
-        ArgumentNullException.ThrowIfNull(kind);
-        return [.. ServiceLogs.ReadLogs(LogsPath()).Where(row => row.Kind == kind.Name)];
-    }
+    /// <summary>
+    /// Every row of the registered <paramref name="kinds"/> the game's log ring holds, oldest first, from one read of
+    /// the ring: pass every kind a probe pairs in one call, so no kind's rows are newer than another's (#3736).
+    /// </summary>
+    public IReadOnlyList<LogRow> Telemetry(params ReadOnlySpan<TelemetryKind> kinds) => ServiceLogs.ReadLogs(LogsPath(), kinds);
 
     /// <summary>Runs the game <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, then pauses.</summary>
     public async Task RunTicksAsync(string label, int ticks, CancellationToken cancellationToken)
