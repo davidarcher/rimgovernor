@@ -84,7 +84,7 @@ internal static class LayoutFirstBedroomCloses
         {
             throw new AcceptanceException($"the lab already holds roofed proper rooms ({string.Join(' ', before.Select(r => r.Id))}): the precondition hides the first room");
         }
-        var floor = Read.SelectMany(s.Telemetry).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
+        var floor = s.Telemetry(Read).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
         LogRow? planned = null;
         Closed? closed = null;
         RimGovernor.Brain.GameFacts.Observations.RoomState? census = null;

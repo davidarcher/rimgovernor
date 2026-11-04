@@ -39,7 +39,7 @@ internal static class LayoutFirstPlanHeld
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var floor = Read.SelectMany(s.Telemetry).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
+        var floor = s.Telemetry(Read).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
         _ = await s.ServeUntilAsync("first-plan", s.TicksLeft, _ =>
         {
             var plan = Planned(s, floor);
