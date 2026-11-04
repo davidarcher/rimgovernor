@@ -138,9 +138,13 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
   Remote setup and game-free checks are in the [runbook](docs/developers/agent-runbook.md#remote-agents).
 - Worktrees can vanish mid-run when another session cleans up; that is not a repo
   bug. Commit early and often, and recover with `git worktree prune` then
-  `git worktree add` on the branch. When delegating, start a fresh agent per round
-  from a session branch synced to current main; do not resume a finished agent in
-  its stale worktree.
+  `git worktree add` on the branch.
+- Do the implementation in your own session; do not hand it to worker agents.
+  A worker starts cold (it re-reads this file, the architecture and the issue),
+  cannot ask the user, and returns a summary that must be re-verified, so it costs
+  more tokens than the work saves. Delegate only read-only sweeps whose conclusion
+  you need without the file dumps. Parallel work is the user's call: they start a
+  second session on a disjoint area.
 - Write long issue bodies to a file and pass `gh ... --body-file`; inline shell
   quoting breaks on apostrophes.
 

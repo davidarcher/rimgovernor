@@ -80,6 +80,17 @@ To refresh both integrations after a CLI upgrade, run
 inspect legacy OpenSpec command folders, marker blocks and home-directory
 `opsx-*.md` prompts: init can remove those older integration files.
 
+### Epic lane
+
+`.claude/skills/` also holds the repository's own GitHub-issue workflow:
+`/brainstorm` files an epic, `/groom` splits it into ordered child issues,
+`/implement` lands the children one milestone at a time, and `/burndown` triages
+and lands ready issues. All four run in the invoking session: they read only what
+the issue names, ask the user in prose at one-way doors, and never spawn worker
+agents (see the shared-machine rules in [AGENTS.md](../../AGENTS.md)). When an
+epic changes an OpenSpec-owned capability, `/opsx:propose` owns the requirements
+delta and the epic links the change.
+
 ### Dev Drive (recommended)
 
 Repositories, worktrees and the cache are small-file heavy, which a Windows
