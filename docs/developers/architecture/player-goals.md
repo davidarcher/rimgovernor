@@ -72,7 +72,10 @@ selection (#3503): an unmet research or worn-garment goal earns its importance's
 goal a schedule progresses, decayed per day past its deadline, and a goal whose every route breaks a floor is
 `Infeasible` and names it ([goals contracts](../contracts/goals-contracts.md#importance-and-deadline),
 [forecast value note](forecast-value.md#goal-value)). The player's risk profile and pace set the forecast's harm weight,
-death floor and wellbeing weight. Tier 2 will supply a goal's marginal value and estimated day (#3470, then #3505).
+death floor and wellbeing weight. Tier 2 supplies a goal's marginal value and, where it models the goal's path and completes
+it inside its horizon, its estimated day (#3470, #3505; `ReviewColonyModel.Review`, shown as `est. day N` on the Pursuing
+row); the other kinds have no forecast route, so their importance and deadline rank nothing yet, a product decision the
+[goals contracts](../contracts/goals-contracts.md#importance-and-deadline) record.
 Floors stay floors at every importance.
 
 ## Related contracts

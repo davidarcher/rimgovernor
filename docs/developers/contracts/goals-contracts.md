@@ -52,7 +52,13 @@ no method and an actionable or held block) or `NoMethod`. A goal whose facts are
 family's Method for an unmet goal is only `NeedMethod.Held`, with the subject `pursuing:<owner need>`,
 `blocked:<reason>`, `infeasible:<floor>` (below) or `no_method:<reason>`. The owner's state is read from its rounds progress row.
 
-An unmet goal also carries `EtaDay` (#3505), the day the tier-2 colony model completes it: derived each review into the ColonyReview's `GoalEta` memory, never stored, unknown for a goal tier 2 has no path for. The panel shows it on the Pursuing row.
+An unmet goal also carries `GoalStatus.Eta` (#3505): `GoalEta.Day` when `ReviewColonyModel.Review` finds the goal's
+terminal (`GoalPaths.Of`: a research chain, a worn garment's sow-grow-craft chain) and `ProjectMarginalValue` completes it
+at a day inside the model's horizon, counted as the deadline is (days since the game began); `GoalEta.Unestimated` for a
+goal with no terminal (`<goal>=unmodelled:<reason>` in the model's notes), one that does not complete inside the horizon
+(`<goal>=open`) and one already met. The review writes the days into the ColonyReview's `GoalEta` memory, never the blob,
+and the next `GoalsReview` read stamps them (`GoalsFacts.Etas`, `GoalRules.Evaluate`). The panel shows the day on the
+Pursuing row (`est. day N`) and `goal_review` carries it as `eta_day`; an unestimated goal shows and logs no day.
 
 ## Room goals
 
@@ -97,12 +103,24 @@ The worth is `GoalImportanceValue[importance]` times the deadline's decay at the
 then `GoalDeadlineDecay` per day, never under `GoalDeadlineFloor`); the constants are in
 [kept-constants](kept-constants.md#policy-constants-3469). The player's risk profile and pace set `HarmRiskAlpha`,
 `HarmRiskWeight`, `DeathRiskFloor` and `WellbeingWeight` through `ForecastValuePolicy.For`. A goal never relaxes a floor.
-The estimated completion day (#3505) waits on the tier-2 colony model (#3470).
+Importance and deadline reach selection only through this term, so only the kinds with a forecast route (research, worn
+garment) are ranked by them; every other kind is pursued by its owning Need at that Need's ordinary standing, and its
+importance and deadline are shown, sort the panel and weight its theme. That is the product decision the
+[player guide](../../players/goals.md#importance-and-deadline) states; widening it means giving a kind a route, not a
+weight. The estimated completion day is the `GoalStatus.Eta` above (#3505, from the tier-2 model of #3470).
 
-**Infeasible.** When every evaluated schedule that progresses a goal breaks the urgent-zero or break-risk floor by more
-than the unchanged colony does, the coupled selection reports `goal_infeasible:<goal need id>:<floor>`; the next goals
-read keeps a pursuing or blocked goal in `GoalState.Infeasible` with the floor as its reason (verdict `infeasible`).
-The death floor is unassessed until the harm model (#3471), so it is never named.
+**Infeasible.** When every evaluated schedule that progresses a goal breaks a floor by more than the unchanged colony
+does (urgent-zero by at least `UrgentZeroResolutionTicks`, then the death floor, then break risk, the first that is
+assessed on both sides and broken), the coupled selection reports `goal_infeasible:<goal need id>:<floor>`
+(`ForecastCoupledSelection.GoalInfeasiblePrefix`; `GoalRules.InfeasibleOf` reads them into the ColonyReview's
+`GoalInfeasible` memory) and the next goals read keeps a pursuing or blocked goal in `GoalState.Infeasible` with the
+floor as its reason (verdict `infeasible`, panel state **Infeasible**). A route whose floors are not all assessed and
+not broken is `goal_route_unassessed:<goal need id>` instead and the goal keeps its pursuing or blocked state: missing
+evidence never certifies a route and never condemns one.
+
+The product requirements collection ([requirements](../../requirements/README.md)) excludes research goals by the
+maintainer's direction, so these goal behaviours are recorded here and in the player guide as product decisions rather
+than as requirement rows.
 
 ## Telemetry
 

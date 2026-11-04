@@ -62,22 +62,28 @@ Each row shows a **State** and, beside it, why.
 | State | Meaning |
 | --- | --- |
 | Met | The condition holds now. |
-| Pursuing | The governor is working on it. The detail names the part of the governor doing the work, for example `economy/research`. |
+| Pursuing | The governor is working on it. The detail names the part of the governor doing the work, for example `economy/research`, and, when the colony model finds a path to the goal inside its horizon of roughly a game year, the estimated game day it completes, `est. day 42`. No day means the model has no path for that kind yet or the goal does not finish inside the horizon; it is not a sign of trouble. |
 | Blocked | A way exists but something stands in the way right now. The detail is the reason (no spare colonist, development points `3/5`, facts not read yet). It clears when the block does. |
+| Infeasible | Every way the governor found to progress the goal would push the colony past a safety floor it holds today: colonists going hungry or exhausted, a mental break, or a death risk. The detail names the floor. The governor keeps the goal and keeps looking each review; it never trades a floor for a goal. |
 | No method | The governor has no way to pursue this goal here, with the reason: a kind it cannot pursue, a non-fluid ideoligion, a missing DLC or def, no eligible wearer. The goal stays saved. |
 | Pending | Added since the last review. |
-
-There is no separate infeasible state and no estimated completion day yet. A goal that would break a safety floor is
-simply not pursued past it.
 
 ## Importance and deadline
 
 Importance (Low, Normal, High) and a deadline are saved with every goal and shown in the table, which sorts high
-importance first. They also weight a theme's progress (High counts four times a Low). They do not yet change what the
-governor chooses to do first: valuing goals against everything else the colony needs, and turning a deadline into an
-estimated day, wait on the forecast work in
-[#3469](https://github.com/davidarcher/rimgovernor/issues/3469) and
-[#3470](https://github.com/davidarcher/rimgovernor/issues/3470). Treat both as your record of priority until then.
+importance first. They also weight a theme's progress (High counts four times a Low).
+
+They change what the governor does in one place: when it weighs the day's schedules against each other, a research or
+worn-garment goal is worth its importance (each level four times the one below) for the share of the goal a schedule
+completes, and a goal past its deadline is worth less each day it is late, never nothing. So a High research goal gets a
+colonist to the bench ahead of a Low one and ahead of small comforts, but never ahead of food, rest, shelter or defence,
+and never past a safety floor. For every other kind (stock, colonists, animals, rooms, ideology, prisoners, quests,
+skills, health) importance and deadline are your record of priority: the governor pursues those goals through its
+ordinary planning and does not rank them by importance yet. That split is deliberate, not an oversight: the kinds the
+forecast can route earn value, the rest wait on a route.
+
+The estimated day on a Pursuing row comes from the same colony model and is recomputed every review from the colony as
+it stands; it is not a promise and is not saved.
 
 ## Long projects when food is secure
 
