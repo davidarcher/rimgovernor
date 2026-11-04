@@ -6,8 +6,11 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>food/forage-unarmed</c> (#3668): a naked start's food. One stripped, unarmed colonist with nothing edible on the lab
-/// and a patch of mature wild berry bushes: under the served brain the food Need designates the bushes, vanilla
-/// harvests them and the colonist eats the berries.
+/// and a patch of mature wild berry bushes: under the served brain the food Need's acquisition plan chooses the bushes and
+/// designates them (DesignateIntent HARVEST_PLANT); RimWorld's WorkGiver_PlantsCut harvests the designation under the
+/// written priorities and the colonist eats the berries as ordinary self-service, which the shared binding withholds from
+/// Hands while its food is not unanswered at zero (#4000). The case observes the designation and the eaten count; neither
+/// identifies who picked the job, so it proves the designation-only path, not autonomous feeding.
 /// </summary>
 internal static class FoodForageUnarmed
 {

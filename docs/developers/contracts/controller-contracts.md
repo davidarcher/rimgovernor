@@ -29,9 +29,19 @@ The priority tree evaluates combat, critical medicine, food, shelter, temperatur
 cooking, work coverage, power, storage, defense, wood and [equipment upkeep](equipment-upkeep.md).
 Food, wood and temperature use separate entry and recovery thresholds. Emergency
 findings guide response planning and reporting; ordinary work may queue alongside
-them and vanilla pawn priorities schedule execution. Manual pause vetoes new routine
-orders (PauseSafeguard). Methods, blockers, provenance and progress evidence live in the
-SQLite-backed ColonyPlan.
+them. Choosing work and running it are split: the shared coupled comparison chooses
+which harvest, cooking, meal, sleep and recreation the day's schedule contains
+(`FoodMethodCandidates.GenerateCoupled`, [pawn activities](pawn-activities.md#live-harvest-and-delivery)),
+and the review admits that selection (`ColonyReview.AdmitCoupledSelection`); RimWorld
+then runs the ordinary jobs in it. Routine harvest and raw-food delivery are generated
+`NativeExecution` and ordinary meals, sleep and recreation are self-service, so the
+shared binding withholds them from Hands (`CoordinatedActivityBinding.Withheld`) and
+the pawn's own job tracker starts them under the numeric priorities Hands wrote; only the
+exact step families ([exact work families](pawn-activities.md#exact-work-families)) and a
+self-service re-admitted under the pawn's own need shortfall
+([self-service orders](pawn-activities.md#intervention-purposes-and-observed-outcomes)) become an installed
+order. Manual pause vetoes new routine orders (PauseSafeguard). Methods, blockers,
+provenance and progress evidence live in the SQLite-backed ColonyPlan.
 
 [Mood relief](mood-control.md) adds per-pawn corrective concerns. Active breaks hold
 routine execution; relief uses ordinary native need jobs and completes only from
@@ -506,7 +516,12 @@ and already designated native harvest yield. Pending yield limits duplicates but
 counts as stored food or clears food risk; plants are indivisible, so a batch may exceed
 its target by one plant. The `food/supply` Need designates the forage and lone-hunt channels
 its food plan opened, forage first, so a colony with no armed hunter (no hunt slots) still
-forages; vanilla harvests the plants and colonists eat (#3668). Food and wood methods issue `DesignateIntent` (`HARVEST_PLANT`)
+forages (#3668). This is a designation-only path: the brain chooses the plant and designates it, RimWorld's
+`WorkGiver_PlantsCut` harvests the designation under the written priorities, and the colonist eats the
+berries as ordinary self-service, which the shared binding withholds from Hands unless the pawn's food is
+observed unanswered at zero ([self-service orders](pawn-activities.md#intervention-purposes-and-observed-outcomes)). The
+`food/forage-unarmed` case observes the designation and the eaten count; neither identifies who picked the
+job, and the case claims no autonomous feeding beyond that. Food and wood methods issue `DesignateIntent` (`HARVEST_PLANT`)
 on the exact observed plant, re-checked natively. A fresh regrowth observation can renew a
 confirmed completed designation under the same concern; pending, uncertain and cancelled
 orders block renewal at their location. A harvest completes once its output landed
