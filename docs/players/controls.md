@@ -61,8 +61,9 @@ Problems and Log show what happened since the launcher began watching.
 The tab refreshes every second and a half while it shows. The Concerns table is the latest
 review, not a history.
 
-Save before ending a session you want to keep. **Stop** ends the brain;
-**Close game** ends its RimWorld process. See [save and resume](save-and-resume.md).
+Save before ending a session you want to keep. **Stop** and **Close game**
+both close the private RimWorld and the brain running inside it. See
+[save and resume](save-and-resume.md).
 
 ### Planned work and needs
 
