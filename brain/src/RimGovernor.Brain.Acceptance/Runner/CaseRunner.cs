@@ -165,7 +165,7 @@ public sealed class CaseRunner
         if (error is not null)
         {
             report["error"] = ErrorText(error);
-            diagnosis = Diagnose(output, report, store, cancellationToken);
+            diagnosis = Diagnose(output, report, RunState.InstalledPackage, store, cancellationToken);
         }
         else
         {
@@ -247,10 +247,11 @@ public sealed class CaseRunner
     // Writes the postmortem digest of a failed case onto the report ("diagnosis", which Finalize emits first) and to
     // output/diagnosis.txt, read from the evidence the run left behind and the case's rows of the live store. It is
     // collected under the caller's token, not the run's, which a timeout may already have cut. The report gets its
-    // installed_package first, which Finalize would add only after, so the revision section reads the source revision.
-    internal static Digest Diagnose(string output, Report report, CaseRows store, CancellationToken cancellationToken)
+    // installed_package (the run's RunState.InstalledPackage, passed in so a test never sets the process-wide static,
+    // #3851) first, which Finalize would add only after, so the revision section reads the source revision.
+    internal static Digest Diagnose(string output, Report report, JsonObject? installed, CaseRows store, CancellationToken cancellationToken)
     {
-        report.StampInstalledPackage();
+        report.StampInstalledPackage(installed);
         Digest digest;
         try
         {

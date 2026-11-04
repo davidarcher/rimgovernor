@@ -246,7 +246,8 @@ public sealed class CaseEvidenceTests : IDisposable
     }
 
     // #3594: a failed case's digest runs before Finalize, so it stamps the run's installed_package itself and the
-    // revision section names the source revision.
+    // revision section names the source revision. The package is passed in; the test never touches the process-wide
+    // RunState static that other tests' digests read (#3851).
     [Fact]
     public void AFailedCasesDigestShowsItsSourceRevision()
     {
@@ -254,18 +255,11 @@ public sealed class CaseEvidenceTests : IDisposable
         Directory.CreateDirectory(output);
         var report = Acceptance.Report.Create("case", headless: true);
         report["error"] = "failed";
-        var installed = RunState.InstalledPackage;
-        RunState.InstalledPackage = new JsonObject { ["source_revision"] = "0123456789abcdef0123" };
-        try
-        {
-            var digest = CaseRunner.Diagnose(output, report, CaseRows.Whole(Path.Combine(output, Checkpoints.CheckpointStoreFile)), TestContext.Current.CancellationToken);
+        var installed = new JsonObject { ["source_revision"] = "0123456789abcdef0123" };
 
-            Assert.Equal("run binary built from 0123456789ab", Assert.Single(digest.Sections, s => s.Name == "revision").Lines[0].Text);
-            Assert.Contains("run binary built from 0123456789ab", File.ReadAllText(Path.Combine(output, "diagnosis.txt")), StringComparison.Ordinal);
-        }
-        finally
-        {
-            RunState.InstalledPackage = installed;
-        }
+        var digest = CaseRunner.Diagnose(output, report, installed, CaseRows.Whole(Path.Combine(output, Checkpoints.CheckpointStoreFile)), TestContext.Current.CancellationToken);
+
+        Assert.Equal("run binary built from 0123456789ab", Assert.Single(digest.Sections, s => s.Name == "revision").Lines[0].Text);
+        Assert.Contains("run binary built from 0123456789ab", File.ReadAllText(Path.Combine(output, "diagnosis.txt")), StringComparison.Ordinal);
     }
 }
