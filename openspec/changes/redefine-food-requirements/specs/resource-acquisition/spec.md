@@ -24,19 +24,31 @@ delivery and risk. Food demand SHALL participate in that shared comparison.
 - **THEN** their contributions to colony goals are compared against the same available resources
 - **AND** the same field capacity or worker time is not promised to multiple incompatible uses
 
+#### Scenario: Expected loss justifies committing more than the point estimate
+
+- **WHEN** expected loss from weather, raids, illness or abandonment makes the minimal plan likely to fall short
+- **THEN** the governor may commit more capacity than the point estimate requires, with each committed resource promised to exactly one use
+- **AND** the expected surplus is accounted for as reserve or trade stock rather than as uncounted slack
+
 #### Scenario: Acquisition has not delivered
 
 - **WHEN** work is planned or issued but its useful output has not reached the required destination
 - **THEN** expected supply remains distinct from available inventory
 - **AND** outstanding commitments remain accounted for without double-counting their output
 
+#### Scenario: A chosen source's value is decomposable by demand
+
+- **WHEN** a source is selected because it serves more than one colony demand
+- **THEN** the governor can state how much of the source's credited value came from each demand
+- **AND** the explanation uses the same shared comparison that selected the source rather than a separate account
+
 ### Requirement: RG-ACQUIRE-002 — Treat food trade as an optional fully costed source
 
-The governor SHALL consider food and ingredient trades when their expected
-contribution justifies their full costs and risks. Purchases and surplus sales
-SHALL account for future feeding and reserves. A dedicated trading expedition
-SHALL include travel, provisions, carrying capacity, danger and absence from
-colony work; routine food-buying expeditions are not required.
+The governor SHALL consider food and ingredient trades with traders the colony
+can already reach, at home or during a journey undertaken for another purpose,
+when their expected contribution justifies their full costs and risks.
+Purchases and surplus sales SHALL account for future feeding and reserves.
+The governor SHALL NOT mount a dedicated expedition to buy food.
 
 #### Scenario: An accessible trader offers useful food
 
@@ -44,13 +56,14 @@ colony work; routine food-buying expeditions are not required.
 - **THEN** the purchase is compared with other uses of the resources and other food sources
 - **AND** the trader's existence alone does not require a purchase
 
-#### Scenario: A distant purchase consumes resources before food returns
+#### Scenario: Food bought away from home is not yet home supply
 
-- **WHEN** an expedition could buy food away from home
-- **THEN** the comparison includes the journey's provisions, opportunity costs, risks and delivery time
+- **WHEN** a caravan already away for another purpose buys food from a trader
+- **THEN** the purchase is compared using the caravan's carrying capacity and return time
 - **AND** purchased food is not counted as usable home supply before it can arrive
 
 #### Scenario: Stock appears surplus only in the immediate period
 
 - **WHEN** a sale would remove food needed for expected consumption or justified reserves
-- **THEN** those feeding consequences are included before choosing whether to sell
+- **THEN** those feeding consequences are weighed against what the sale obtains before choosing whether to sell
+- **AND** the governor may sell into reserves when the acquired goods matter more than the reserve's expected feeding contribution

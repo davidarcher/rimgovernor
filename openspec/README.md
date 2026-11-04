@@ -14,10 +14,15 @@ its [evidence page](../docs/requirements/colony-labor.md) owns inspection, migra
 coverage and proof limits. The [habitat specification](specs/habitat/spec.md) owns RG-HABITAT-001–011,
 synchronized from the archived [habitat change](changes/archive/2026-11-01-redefine-habitat-requirements/proposal.md);
 its [evidence page](../docs/requirements/habitat.md) owns implementation inspection, the
-historical H1–H7 and proof limits. Other standing capabilities remain in the existing collection.
-The active [change](changes/redefine-food-requirements/proposal.md) also captures
-related acquisition, hunting, growing and herd drafts. Design and implementation
-tasks are outside this requirements capture; the change remains active.
+historical H1–H7 and proof limits. The [resource acquisition](specs/resource-acquisition/spec.md),
+[growing](specs/growing/spec.md), [hunting](specs/hunting/spec.md) and
+[herd management](specs/herd-management/spec.md) specifications own RG-ACQUIRE-001–002,
+RG-GROW-001–002, RG-HUNT-001–002 and RG-HERD-001–002, confirmed by the maintainer on
+2026-11-03 in the food change's [second decision record](changes/redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds);
+they have no evidence page of their own yet, and the food, supply and commitments
+evidence pages own the related inspection. Other standing capabilities remain in the
+existing collection. Design and implementation tasks are outside this requirements
+capture; the [food change](changes/redefine-food-requirements/proposal.md) remains active.
 
 ## Authority
 
@@ -34,14 +39,14 @@ they do not duplicate the player outcome requirements. AGENTS.md owns the workin
 agreement. GitHub owns actionable deferred work; the review queue owns evidence
 investments and unresolved source disagreements.
 
-## Changing food behavior
+## Changing food, acquisition, growing, hunting or herd behavior
 
-Use the installed propose and apply workflows described in the runbook. In a
-food change:
+Use the installed propose and apply workflows described in the runbook. In such
+a change:
 
 1. Identify the affected RG IDs, intent provenance and observable outcome in
    the proposal. Put additions or modifications under
-   `changes/<change>/specs/food-security/spec.md`; include the complete requirement
+   `changes/<change>/specs/<capability>/spec.md`; include the complete requirement
    block for a modification and retain its stable ID in the heading.
 2. Trace design through native facts, pure policy, shared demand and Method
    admission, Hands, native orders and observed outcomes. Identify which

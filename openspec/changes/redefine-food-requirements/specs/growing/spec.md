@@ -7,17 +7,30 @@ that fits available land, labor, growing conditions and the time goods are neede
 
 ### Requirement: RG-GROW-001 — Plan crops against shared colony demand
 
-The governor SHALL choose crop types, locations, area and planting times according
-to colony goals, seasonal conditions and expected time to usable output. Food,
-animal feed and non-food crops SHALL compete through shared acquisition for land,
-labor and infrastructure. Harvest, delivery, processing and storage costs SHALL
-contribute to the comparison.
+The governor SHALL choose crop types, area and planting times from the crops the
+colony can currently grow, by colony goals, season and time to usable output.
+Food, feed and non-food crops SHALL compete through shared acquisition, including
+harvest, delivery, processing and storage costs. Growing SHALL express land
+demand to habitat, which places fields, and SHALL express the unlock demand for a
+not-yet-growable crop that would contribute more.
 
 #### Scenario: Food and clothing crops compete for growing capacity
 
 - **WHEN** both feeding and material needs compete for available growing capacity
 - **THEN** the governor chooses the crop allocation using their contributions and delivery times
 - **AND** non-food crops are neither ignored nor assigned a separate unlimited production budget
+
+#### Scenario: Crop choice follows contribution, not a fixed list
+
+- **WHEN** several crops the colony can currently grow could serve a demand
+- **THEN** the governor compares them by yield, growth time, labor, conditions and downstream use
+- **AND** no crop is preferred or excluded by a fixed list; crops not yet growable are not planted
+
+#### Scenario: A better crop is locked behind research
+
+- **WHEN** a crop the colony cannot yet grow would contribute more than the growable alternatives
+- **THEN** the governor expresses the unlock demand, valued by that expected improvement, through shared acquisition
+- **AND** current planting continues from the growable set rather than waiting for the unlock
 
 #### Scenario: A crop cannot arrive before the feeding gap
 
@@ -35,8 +48,10 @@ contribute to the comparison.
 
 The governor SHALL consider protected growing capacity before disruption when its
 expected production and resilience benefits justify construction, operation and
-competing resource costs. It SHALL include supporting inputs and dependencies
-when comparing exposed, protected and mixed production strategies.
+competing resource costs, with no precondition on colony stage or existing
+power surplus beyond those costs. It SHALL include supporting inputs and
+dependencies when comparing exposed, protected and mixed production strategies;
+no strategy is preferred apart from its costed outcome under the colony's conditions.
 
 #### Scenario: Exposure threatens future supply
 

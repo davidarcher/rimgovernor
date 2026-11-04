@@ -7,11 +7,12 @@ benefits justify participant requirements, danger and the work to recover output
 
 ### Requirement: RG-HUNT-001 — Select hunts for net colony contribution
 
-The governor SHALL compare hunting with other acquisition methods using useful
-outputs, time to delivery, participant opportunity costs and expected harm.
-Hunting SHALL serve food or other colony goals through shared acquisition.
-Required capability, including suitable weapons, SHALL be provisioned through
-equipment management with its cost and delay included in the comparison.
+The governor SHALL compare hunting with other acquisition methods by useful
+outputs, time to delivery, participant opportunity costs and expected harm to
+participants and the colony as a whole. Hunting SHALL serve any colony goal
+through shared acquisition; taming to slaughter enters the same comparison.
+Required capability, including weapons, SHALL come through equipment management
+with its cost and delay included.
 
 #### Scenario: A useful hunt requires equipment the colony lacks
 
@@ -25,12 +26,20 @@ equipment management with its cost and delay included in the comparison.
 - **THEN** the governor compares their full consequences against colony needs and alternatives
 - **AND** neither maximum yield nor minimum risk alone dictates the choice
 
+#### Scenario: A target endangers the colony rather than the hunter
+
+- **WHEN** a target could retaliate against the colony, explode near people or property, or draw a herd's response
+- **THEN** that expected colony harm is charged against the hunt alongside participant danger
+- **AND** a safe-for-the-hunter approach is not treated as safe when the colony bears the consequence
+
 ### Requirement: RG-HUNT-002 — Recover useful output and reassess changed hunts
 
 The governor SHALL account for retrieval, processing and preservation needed to
 turn a hunt into usable resources. It SHALL reassess continuation when targets,
-routes, participant needs or danger change, including abandonment when justified.
-A killed animal SHALL not establish completion of feeding or delivered supply.
+routes, participant needs or danger change, comparing only the remaining work
+and danger against the remaining expected output; effort already spent carries
+no weight. Abandonment is justified when that comparison no longer favors the
+hunt. A killed animal SHALL not establish completion of feeding or delivered supply.
 
 #### Scenario: A kill leaves retrieval and processing outstanding
 
@@ -43,3 +52,9 @@ A killed animal SHALL not establish completion of feeding or delivered supply.
 - **WHEN** a route becomes unsafe or a participant's needs change during a hunt
 - **THEN** the governor reassesses continuation against the changed consequences
 - **AND** can withdraw and choose another source rather than persist because the hunt already started
+
+#### Scenario: A wounded target will die without further pursuit
+
+- **WHEN** a target is wounded such that it will yield a corpse without further attack
+- **THEN** the remaining work is retrieval and processing, and the remaining output is the full corpse
+- **AND** the governor continues when that remaining value exceeds the remaining cost and danger
