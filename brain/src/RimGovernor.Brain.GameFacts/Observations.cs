@@ -7053,8 +7053,10 @@ public sealed record ColonyFactsSnapshot
     /// <summary>The human-edible nutrition of every designated harvest and hunt not yet taken.</summary>
     public required double PendingFoodNutrition { get; init; }
 
+    /// <summary>Sleeping slots of the reachable, allowed, humanlike, non-medical, non-prisoner player beds (#4012): animal beds and sleeping spots count for no colonist.</summary>
     public required uint BedCapacity { get; init; }
 
+    /// <summary>The slots of <see cref="BedCapacity"/>'s beds that stand in a proper, fully roofed, indoor room.</summary>
     public required uint IndoorSleepingCapacity { get; init; }
 
     public required SleepingTemperature SleepingTemperature { get; init; }

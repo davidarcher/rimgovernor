@@ -74,7 +74,8 @@ namespace RimGovernor.Native
                 && !t.IsForbidden(player) && reachable(t)).ToList();
             Span("cf.items");
             var stock = items.GroupBy(t => t.def).OrderBy(g => g.Key.defName, StringComparer.Ordinal).ToList();
-            var beds = things.OfType<Building_Bed>().Where(b => b.Faction == player && !b.ForPrisoners && !b.Medical
+            // Colonist sleeping capacity counts humanlike beds only (#4012): an animal bed or sleeping spot houses no colonist.
+            var beds = things.OfType<Building_Bed>().Where(b => b.Faction == player && b.def.building.bed_humanlike && !b.ForPrisoners && !b.Medical
                 && !b.IsForbidden(player) && reachable(b)).ToList();
             var indoorBeds = beds.Where(b => b.GetRoom() != null && b.GetRoom().ProperRoom
                 && !b.GetRoom().PsychologicallyOutdoors && b.GetRoom().OpenRoofCount == 0).ToList();
