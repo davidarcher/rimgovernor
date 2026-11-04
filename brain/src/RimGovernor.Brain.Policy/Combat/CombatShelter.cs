@@ -130,8 +130,8 @@ public static partial class CombatShelterRules
                             reach = state.WeaponFacts.Reach;
                         }
                     }
-                    double dx = at.X - cell.X;
-                    double dz = at.Z - cell.Z;
+                    double dx = (double)at.X - cell.X;
+                    double dz = (double)at.Z - cell.Z;
                     if (Math.Sqrt((dx * dx) + (dz * dz)) <= reach)
                     {
                         return "shelter_exposed";
@@ -186,8 +186,8 @@ public static partial class CombatShelterRules
                 continue;
             }
             var near = hostiles[CombatManhunterRules.NearestIndex(from, hostiles)];
-            double dx = from.X - near.X;
-            double dz = from.Z - near.Z;
+            double dx = (double)from.X - near.X;
+            double dz = (double)from.Z - near.Z;
             var n = Math.Sqrt((dx * dx) + (dz * dz));
             if (n == 0)
             {
@@ -227,8 +227,8 @@ public static partial class CombatShelterRules
         {
             return to;
         }
-        double dx = to.X - from.X;
-        double dz = to.Z - from.Z;
+        double dx = (double)to.X - from.X;
+        double dz = (double)to.Z - from.Z;
         for (var t = 1 - (1.0 / ShelterStep); t > 0; t -= 1.0 / ShelterStep)
         {
             var c = new Cell(from.X + (int)Math.Round(dx * t, MidpointRounding.AwayFromZero), from.Z + (int)Math.Round(dz * t, MidpointRounding.AwayFromZero));

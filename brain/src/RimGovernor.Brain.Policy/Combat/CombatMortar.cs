@@ -393,5 +393,12 @@ public static partial class CombatMortarRules
     /// <summary>Reports a mechanoid standing on <paramref name="c"/>: EMP, not HE, on a camp of mechs.</summary>
     internal static bool MechAt(CombatView view, Cell c) => view.Pawns.Any(p => p.Cell == c && p.Mech);
 
-    internal static double Dist(Cell a, Cell b) => Math.Sqrt(((double)(a.X - b.X) * (a.X - b.X)) + ((double)(a.Z - b.Z) * (a.Z - b.Z)));
+    /// <summary>Euclidean cell distance; the coordinates widen before subtracting so cells at the far ends of the int
+    /// domain report their true separation rather than a wrapped difference (#4017).</summary>
+    internal static double Dist(Cell a, Cell b)
+    {
+        double dx = (double)a.X - b.X;
+        double dz = (double)a.Z - b.Z;
+        return Math.Sqrt((dx * dx) + (dz * dz));
+    }
 }

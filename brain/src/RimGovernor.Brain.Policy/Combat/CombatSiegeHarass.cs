@@ -31,8 +31,8 @@ public static partial class CombatSiegeRules
         var t = target.Cell;
         if (back && cell == at && at != t)
         {
-            double dx = at.X - t.X;
-            double dz = at.Z - t.Z;
+            double dx = (double)at.X - t.X;
+            double dz = (double)at.Z - t.Z;
             var dist = Math.Sqrt((dx * dx) + (dz * dz));
             cell = new Cell(t.X + (int)Math.Round(dx / dist * want, MidpointRounding.AwayFromZero), t.Z + (int)Math.Round(dz / dist * want, MidpointRounding.AwayFromZero));
         }

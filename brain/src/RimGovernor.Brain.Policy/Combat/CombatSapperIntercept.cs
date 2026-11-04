@@ -97,8 +97,8 @@ public static partial class CombatSapperRules
     internal static Cell StandOffAt(Cell target, Cell from, double want)
     {
         var d = target;
-        double dx = from.X - d.X;
-        double dz = from.Z - d.Z;
+        double dx = (double)from.X - d.X;
+        double dz = (double)from.Z - d.Z;
         var dist = Math.Sqrt((dx * dx) + (dz * dz));
         if (dist <= want)
         {

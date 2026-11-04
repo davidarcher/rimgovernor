@@ -196,8 +196,8 @@ public static partial class CombatThreatRules
             return true;
         }
         var b = h.Cell;
-        double dx = a.X - b.X;
-        double dz = a.Z - b.Z;
+        double dx = (double)a.X - b.X;
+        double dz = (double)a.Z - b.Z;
         return Math.Sqrt((dx * dx) + (dz * dz)) <= reach;
     }
 
