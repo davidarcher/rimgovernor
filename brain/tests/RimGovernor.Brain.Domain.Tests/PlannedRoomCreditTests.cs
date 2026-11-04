@@ -445,7 +445,8 @@ public sealed class PlannedRoomCreditTests
     /// #3871 acceptance: a planned roof, the production way (ForecastRoofConsequencesTests' builder whose owned bed is closed into a
     /// bedroom by a wall and a door). A fresh sleep inside the onset window (0.8 rest at 0.00016 a tick, 5000 ticks) renews its bed
     /// thoughts at the chance Rand.Range(2500, 10000) gives, and a pawn asleep now at the onset native read: either way the mood
-    /// forecast stays whole and every shipped credit runs.
+    /// forecast stays whole and every shipped credit runs, on every schedule the planner offers (#3885), including the ones that
+    /// wake the asleep pawn to build first and sleep afterwards.
     /// </summary>
     [Theory]
     [InlineData(false)]
@@ -470,14 +471,16 @@ public sealed class PlannedRoomCreditTests
             || new[] { ForecastRoofConsequencesTests.Wall, ForecastRoofConsequencesTests.Door }.Any(site =>
                 c.Id.StartsWith(site + "/composition/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))).ToArray();
         Assert.Equal(3, roots.Length);
-        // The schedules that sleep: an observed sleep continues (Pawn_JobTracker keeps the lie-down until the wake), so an
-        // asleep pawn's schedule sleeps from the start; one that walks to a site first (now priced, the walk being known)
-        // is not a continuation the mood forecast assesses.
+        // Every schedule that sleeps: an observed sleep continues (Pawn_JobTracker keeps the lie-down until the wake), so an
+        // asleep pawn's schedule sleeps from the start; one that wakes it to walk to a site first (the walk priced, the route
+        // rows being total since #3782) sleeps afterwards, the departure after the observed sleep (#3884). Both are assessed.
         var outcomes = Evaluated(facts, ForecastRoofConsequencesTests.Horizon, roots)
-            .Where(o => o.Plan.Allocations.Any(a => a.Activity == full.Task && (!asleep || a.Depart == 0))).ToArray();
+            .Where(o => o.Plan.Allocations.Any(a => a.Activity == full.Task)).ToArray();
         Assert.Contains(outcomes, o => o.Plan.Allocations.Any(a => a.Activity.StartsWith(ForecastRoofConsequencesTests.Wall, StringComparison.Ordinal)));
+        if (asleep) Assert.Contains(outcomes, o => o.Plan.Allocations.Single(a => a.Activity == full.Task).Depart > 0);
         foreach (var outcome in outcomes)
         {
+            Assert.True(outcome.Feasible, string.Join(", ", outcome.Findings.Select(f => f.Reason + ":" + f.Commitment)));
             outcome.Needs["pawn"].Mood.Projected().Assessed();
             RunsEveryShippedCredit(generated.Context, outcome, ForecastRoofConsequencesTests.Horizon);
         }
