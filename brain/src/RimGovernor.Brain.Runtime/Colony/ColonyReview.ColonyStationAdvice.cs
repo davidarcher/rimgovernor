@@ -254,28 +254,30 @@ internal static class StationAdviceLog
         },
     };
 
-    /// <summary>The layout_stations row of advice made (or <paramref name="error"/>, the chain's); an unread fact is the shared required_fact row (target layout_stations).</summary>
-    public static (Decision Row, StationAdvice Advice, bool Ok) StationOutcome(StationAdvice advice, Exception? error)
+    /// <summary>The layout_stations row of a chain that threw <paramref name="error"/>: an unread fact is the shared required_fact row (target layout_stations), anything else failed/chain_error with the error (#4041: the failure is logged as itself, never as the attrs of a blank advice).</summary>
+    public static Decision StationFailure(Exception error)
     {
-        var decision = new Decision { Kind = TelemetryKinds.LayoutStationsKind, Component = "layout", Target = "plan" };
-        switch (error)
+        ArgumentNullException.ThrowIfNull(error);
+        if (error is RequiredFactException unread)
         {
-            case RequiredFactException unread:
-                decision = RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutStationsKind, unread.Fact, unread.Site);
-                break;
-            case not null:
-                decision = decision with { Level = TelemetryLevel.Warn };
-                decision = decision with { Verdict = "failed" };
-                decision = decision with { Reason = "chain_error" };
-                decision = decision with { Attrs = new Dictionary<string, object?> { ["error"] = error.ToString() } };
-                break;
-            default:
-                decision = decision with { Verdict = "advised" };
-                decision = decision with { Reason = "station_chain" };
-                decision = decision with { Attrs = StationAdviceAttrs(advice) };
-                return (decision, advice, true);
+            return RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutStationsKind, unread.Fact, unread.Site);
         }
-        return (decision, new StationAdvice(), false);
+        return new Decision
+        {
+            Kind = TelemetryKinds.LayoutStationsKind, Component = "layout", Target = "plan", Level = TelemetryLevel.Warn,
+            Verdict = "failed", Reason = "chain_error", Attrs = new Dictionary<string, object?> { ["error"] = error.ToString() },
+        };
+    }
+
+    /// <summary>The layout_stations row of <paramref name="advice"/> the chain made (advised/station_chain with <see cref="StationAdviceAttrs"/>). A record the chain did not build (no embedding) is refused by name.</summary>
+    public static Decision StationAdvised(StationAdvice advice)
+    {
+        ArgumentNullException.ThrowIfNull(advice);
+        if (advice.Embedding is null || advice.Clustering is null || advice.Sites is null)
+        {
+            throw new ArgumentException("not a station chain result: Embedding, Clustering or Sites is absent (#4041)", nameof(advice));
+        }
+        return new Decision { Kind = TelemetryKinds.LayoutStationsKind, Component = "layout", Target = "plan", Verdict = "advised", Reason = "station_chain", Attrs = StationAdviceAttrs(advice) };
     }
 
     /// <summary>The layout_stations row's attrs: each group with its stations, floor, predicted role, costs and the built rooms matched to it, the clustering's conflicts and the embedding's report.</summary>

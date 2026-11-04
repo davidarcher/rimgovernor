@@ -448,6 +448,13 @@ public sealed record GroupAdvice
 }
 
 /// <summary>The chain's result over the live colony.</summary>
+/// <summary>
+/// The station chain's result (<see cref="LayoutStationPlanRules.AdviseStations"/>): <see cref="Graph"/>,
+/// <see cref="Clustering"/>, <see cref="Embedding"/> and <see cref="Sites"/> are always set by the chain; the valid
+/// absent data is <see cref="Tiled"/> (null until TileStations ran), an empty <see cref="Comfort"/> and a null
+/// <see cref="GroupAdvice.Climate"/>. A chain that threw has no advice; its outcome is logged as the failure
+/// (<c>StationAdviceLog.StationFailure</c>), never as the attrs of a blank record (#4041).
+/// </summary>
 public sealed record StationAdvice
 {
     public StationGraph Graph { get; init; } = default!;

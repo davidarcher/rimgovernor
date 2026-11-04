@@ -26,12 +26,17 @@ internal sealed record PendingLayoutReplan(
 /// <summary>The prepared facts and numbered previous plan; canonical candidate comparison runs on the completed review frame.</summary>
 internal sealed record LayoutReplanRun
 {
-    public required Decision StationRow { get; init; }
+    /// <summary>
+    /// The layout_stations row of a preparation that failed (required_fact or chain_error), for the adopting review to
+    /// write; null when the facts were prepared and the chain runs at adoption, which writes the advised row itself
+    /// (#4041: the preparation has no advice to log, so it logs none).
+    /// </summary>
+    public Decision? Failure { get; init; }
 
     public LayoutPlan Previous { get; init; } = new();
 
     /// <summary>Whether the station facts were prepared without a required-fact or catalog failure.</summary>
-    public bool Advised { get; init; }
+    public bool Advised => Failure is null;
 
     public StationFacts Facts { get; init; } = new();
 
@@ -71,8 +76,8 @@ public sealed partial class ColonyReview
         {
             error = e;
         }
-        var (row, _, ok) = StationAdviceLog.StationOutcome(new StationAdvice(), error);
-        return new LayoutReplanRun { StationRow = row, Advised = ok, Facts = facts, Previous = prev, ChainDur = DateTimeOffset.UtcNow - start };
+        var failure = error is null ? null : StationAdviceLog.StationFailure(error);
+        return new LayoutReplanRun { Failure = failure, Facts = facts, Previous = prev, ChainDur = DateTimeOffset.UtcNow - start };
     }
 
     /// <summary>
@@ -121,9 +126,9 @@ public sealed partial class ColonyReview
         }
         var waited = tick.Value - pending.Started.Value;
         var decision = new Decision { Kind = TelemetryKinds.LayoutReplanTiledKind, Component = "layout", Target = "plan", Dur = run.ChainDur };
-        if (!run.Advised)
+        if (run.Failure is { } failure)
         {
-            Tel.Decide(run.StationRow);
+            Tel.Decide(failure);
             return null;
         }
         var compareStart = DateTimeOffset.UtcNow;
@@ -150,7 +155,7 @@ public sealed partial class ColonyReview
         var plan = pending.Layout.Plan;
         var next = winner.Plan;
         var advice = winner.Advice;
-        Tel.Decide(StationAdviceLog.StationOutcome(advice, null).Row);
+        Tel.Decide(StationAdviceLog.StationAdvised(advice));
         foreach (var d in advice.Regroup) Tel.Decide(StationAdviceLog.RegroupDecision(d));
         StationLast = advice;
         StationHeld = true;

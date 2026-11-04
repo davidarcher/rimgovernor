@@ -545,7 +545,7 @@ public sealed partial class ColonyReview
         var f = StationFactsBuilder.FirstPlanFacts(projection, survey, StationNeeds(demandWorld), WorkLedgerView());
         f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays, BedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false), ActivitySites = ActivitySiteAsk(snapshot, projection, null) };
         LayoutPlan? derived = null;
-        StationAdvice advice = new();
+        StationAdvice? advice = null;
         Exception? error = null;
         try
         {
@@ -559,11 +559,15 @@ public sealed partial class ColonyReview
         {
             error = e;
         }
-        var row = StationAdviceLog.StationOutcome(advice, error).Row;
+        // The chain either produced its advice or threw: the row is one or the other, never attrs of a blank advice (#4041).
+        var row = advice is { } advised ? StationAdviceLog.StationAdvised(advised) : StationAdviceLog.StationFailure(error!);
         row = row with { Dur = DateTimeOffset.UtcNow - start, Attrs = new Dictionary<string, object?>(row.Attrs) { ["derive"] = true } };
         Tel.Decide(row);
-        LayoutPlanning.LogInterior(advice);
-        LayoutPlanning.LogConduits(advice);
+        if (advice is not null)
+        {
+            LayoutPlanning.LogInterior(advice);
+            LayoutPlanning.LogConduits(advice);
+        }
         switch (error)
         {
             case RequiredFactException unread:

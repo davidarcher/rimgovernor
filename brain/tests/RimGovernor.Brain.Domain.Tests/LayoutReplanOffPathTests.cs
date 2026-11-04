@@ -21,12 +21,31 @@ public sealed class LayoutReplanOffPathTests
         var run = ColonyReview.RunLayoutReplan(new LayoutPlan(), new StationFacts { Catalog = new StationCatalog { PlayBuildings = [] } }, new MapSurvey(), catalog, [], new RoomGrowth());
 
         Assert.False(run.Advised);
-        Assert.Equal(RimGovernor.Brain.Telemetry.RequiredFactTelemetry.Kind, run.StationRow.Kind);
-        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind, run.StationRow.Target);
-        Assert.Equal("skipped", run.StationRow.Verdict);
-        Assert.Equal(RimGovernor.Brain.Telemetry.RequiredFactTelemetry.Reason, run.StationRow.Reason);
-        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryLevel.Error, run.StationRow.Level);
+        var failure = Assert.IsType<RimGovernor.Brain.Telemetry.Decision>(run.Failure);
+        Assert.Equal(RimGovernor.Brain.Telemetry.RequiredFactTelemetry.Kind, failure.Kind);
+        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind, failure.Target);
+        Assert.Equal("skipped", failure.Verdict);
+        Assert.Equal(RimGovernor.Brain.Telemetry.RequiredFactTelemetry.Reason, failure.Reason);
+        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryLevel.Error, failure.Level);
         Assert.Empty(run.Previous.Rooms);
+    }
+
+    // #4041: a chain that threw is logged as its own failure, with the error kept; the advised row is built only from
+    // a chain's advice, and a blank advice (no embedding) is refused by name instead of a null dereference inside the
+    // attrs that a review then reported as tile_error.
+    [Fact]
+    public void AChainFailureKeepsItsErrorAndABlankAdviceIsRefusedByName()
+    {
+        var failed = StationAdviceLog.StationFailure(new InvalidOperationException("catalog row missing"));
+
+        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind, failed.Kind);
+        Assert.Equal("failed", failed.Verdict);
+        Assert.Equal("chain_error", failed.Reason);
+        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryLevel.Warn, failed.Level);
+        Assert.Contains("catalog row missing", Assert.IsType<string>(failed.Attrs["error"]), StringComparison.Ordinal);
+
+        var blank = Assert.Throws<ArgumentException>(() => StationAdviceLog.StationAdvised(new StationAdvice()));
+        Assert.Contains("Embedding", blank.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -34,7 +53,7 @@ public sealed class LayoutReplanOffPathTests
     {
         var held = new HeldLayout(new LayoutPlan(), new Tick(100));
         var pending = new PendingLayoutReplan(World, new Tick(120), held, ColonyFactsCoreTests.Reading(), new MapSurvey(), null!, new RoomGrowth(), 3, "", "terrain", [], new PerimeterWall(new WallStrength.Unrated(), new WallStrength.Unrated()), [],
-            Task.FromResult(new LayoutReplanRun { StationRow = new RimGovernor.Brain.Telemetry.Decision { Kind = RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind } }));
+            Task.FromResult(new LayoutReplanRun()));
 
         Assert.True(ColonyReview.LayoutReplanAdoptable(pending, World, new Tick(130), held, true));
         Assert.True(ColonyReview.LayoutReplanAdoptable(pending, World with { Revision = new(2), Native = new(3) }, new Tick(130), held, true));
