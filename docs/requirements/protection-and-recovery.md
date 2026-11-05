@@ -11,7 +11,10 @@ RG-PROTECT-001 and its scenarios; the maintainer-confirmed policy and its proven
 are in the [decision record](../../openspec/changes/archive/2026-11-05-confirm-remaining-capabilities/proposal.md#decision-provenance-and-review-boundary). This page owns implementation inspection,
 executed results and proof limits, not requirements. Its inspection history (P1–P6)
 is preserved as recorded. The civilian exposure estimates approved by the maintainer
-and their limits remain in P6.
+and their limits remain in P6. The fight itself is owned by the
+[combat specification](../../openspec/specs/combat/spec.md) (RG-COMBAT-001–004,
+confirmed 2026-11-05); P4 and P5 are the inspected combat paths it cites, and the
+equipping hold named in P5 is a defect to remove under that decision, not a known gap.
 
 ## Requirement map
 

@@ -27,8 +27,11 @@ evidence pages own the related inspection. The [protection](specs/protection/spe
 RG-HEALTH-001–002, RG-CONTROL-001–002, RG-CONTINUITY-001–002 and RG-EXPLAIN-001–003,
 confirmed on 2026-11-04 and 2026-11-05 in the
 [confirmation record](changes/archive/2026-11-05-confirm-remaining-capabilities/proposal.md#decision-provenance-and-review-boundary);
-RG-PROTECT-002 was retired there into RG-HABITAT-003. Every mapped capability now
-has a standing specification; the docs/requirements pages own evidence. Design and implementation tasks are outside that requirements
+RG-PROTECT-002 was retired there into RG-HABITAT-003. The [combat specification](specs/combat/spec.md)
+owns RG-COMBAT-001–004, confirmed on 2026-11-05 in the
+[combat record](changes/archive/2026-11-05-define-combat-requirements/proposal.md#decision-provenance-and-review-boundary),
+with its design direction (the game's Lord framework with governor-authored toils) recorded there.
+Every mapped capability now has a standing specification; the docs/requirements pages own evidence. Design and implementation tasks are outside that requirements
 capture; the [food change](changes/archive/2026-11-03-redefine-food-requirements/proposal.md)
 was archived on 2026-11-03 once its specs were synchronized, and later behavior
 changes get their own change each.

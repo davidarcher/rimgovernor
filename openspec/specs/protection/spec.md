@@ -11,7 +11,8 @@ RG-PROTECT-002 was retired there; service restoration is owned by RG-HABITAT-003
 The scenarios are illustrative acceptance examples, not separately approved
 tactics or evidence of passing behavior. The [protection evidence page](../../../docs/requirements/protection-and-recovery.md)
 owns the related inspection, execution and proof limits; no
-implementation-completeness claim follows from this specification.
+implementation-completeness claim follows from this specification. The fight
+itself, once a response is owed, is owned by the [combat specification](../combat/spec.md).
 
 ## Requirements
 
