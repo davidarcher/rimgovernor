@@ -577,7 +577,7 @@ public sealed partial class ColonyReview
             && plan.Progress.Any(a => a.Action.PawnActivities is { Tasks.Count: > 0 } batch
                 && batch.Orders.Any(o => !o.Release && PawnActivities.Intervention(o))
                 && a.View.Stage is not (Stage.Unsuccessful or Stage.Cancelled))) });
-        reading = reading.WithFacts(rf => rf with { Dash = DashPlanRules.ReviewDash(previous.Latches.Dash, reading.Reading.Facts, reading.Reading.Facts.ForecastObserved.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) });
+        reading = reading.WithFacts(rf => rf with { Warmth = DashPlanRules.ReviewWarmth(previous.Latches.Warmth, reading.Reading.Facts, reading.Reading.Facts.ForecastObserved.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) });
         reading = reading.WithFacts(rf => rf with { UrgentPatients = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
         var (amputationCritical, amputationUrgent) = EmergencyNeedsRules.PatientCounts(reading.Emergency, reading.Reading.Facts.MedicalPawns);
         reading = reading.WithFacts(rf => rf with { CriticalPatients = amputationCritical, UrgentPatients = amputationUrgent });
@@ -714,7 +714,7 @@ public sealed partial class ColonyReview
         reading = reading.WithFacts(rf => rf with { StockArrival = (rf.StockArrival with { Missions = settlementOptions,
             Visits = ForecastTradeVisits.Options(rf.Traders, rf.Census.ColonistCount) })
                 .WithMedicineClaim(rf.Items, medicine, rf.Census.ColonistCount, Policy.MedicalReserve) });
-        var layoutDemand = ResourceRules.ResourceDemandOf(reading.Reading.Facts, Policy, new Latches { MedicalReserve = medicine.Active, Dash = reading.Reading.Facts.Dash });
+        var layoutDemand = ResourceRules.ResourceDemandOf(reading.Reading.Facts, Policy, new Latches { MedicalReserve = medicine.Active, Warmth = reading.Reading.Facts.Warmth });
         var roomSleep = RoomSleepDisturbanceOf(reading.Reading, reading.Catalog ?? throw new RequiredFactException("definition_catalog"), layoutDemand);
         reading = reading.WithFacts(f => f with { RoomSleepDisturbance = roomSleep });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Reading.Facts, batches, workActions);
@@ -763,7 +763,7 @@ public sealed partial class ColonyReview
         }
         fine.Lap("derive/model");
         // Replan geometry is compared with the completed model before the authoritative review chooses or admits work.
-        if (await ReviewCompletedLayoutReplanAsync(state.Snapshot, reading.Reading, new Latches { MedicalReserve = medicine.Active, Dash = reading.Reading.Facts.Dash },
+        if (await ReviewCompletedLayoutReplanAsync(state.Snapshot, reading.Reading, new Latches { MedicalReserve = medicine.Active, Warmth = reading.Reading.Facts.Warmth },
             goalFacts, stockpileRequest, batches, workActions, ct).ConfigureAwait(false) is { } replanned)
         {
             reading = reading.WithReading(replanned.Colony);

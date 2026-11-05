@@ -107,7 +107,7 @@ exclusion beyond the margin, and restoration of a removed corridor cell.
 ### Extent eligibility
 
 - Remote work has no reach stage ladder. Safety vetoes are plain holds: a present or
-  unknown threat, the outdoor hazard hold (an open dash window lifts extreme cold only)
+  unknown threat, the outdoor hazard hold (an open warmth window lifts extreme cold only)
   and the [remote work holds](controller-contracts.md#remote-work-holds-and-resume).
   Distance is the supply planner's path-distance price, never a gate.
 - `policy.ExtentEligibility` overlays current evidence on stored history without

@@ -96,6 +96,6 @@ public static partial class RemoteRules
     /// <summary>Assembles outdoor safety from the required hostile census.</summary>
     public static RemoteSafety LootSafety(ReviewFacts f)
     {
-        return new RemoteSafety { Threat = f.Hostiles, Hazard = OutdoorHazardRules.OutdoorHazardsOf(f), DashOpen = f.DashOpen() };
+        return new RemoteSafety { Threat = f.Hostiles, Hazard = OutdoorHazardRules.OutdoorHazardsOf(f), DashOpen = f.WarmthOpen() };
     }
 }

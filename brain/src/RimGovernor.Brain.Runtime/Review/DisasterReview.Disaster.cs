@@ -58,7 +58,7 @@ public sealed partial class DisasterReview
             DangerWindow = _reviewer.SafeArea.DangerWindow(StockpilePlanner.StockpileWorld(scope.World), f.Hostiles, seeds, expected.Tick),
             DangerHaulers = ShelterRules.DangerHaulers(read.Reading.Facts.ForecastObserved.WorkPawns),
             Tick = expected.Tick,
-            Dash = review.Latches.Dash,
+            Warmth = review.Latches.Warmth,
             ShelterCombatants = ShelterCombatants(journal, new StoreWorld(scope.World.Colony, scope.World.Load, scope.World.Map), call),
         };
         return DisasterFacts.From(f, review.Disaster) with { Workers = read.Reading.Facts.ForecastObserved.WorkPawns };

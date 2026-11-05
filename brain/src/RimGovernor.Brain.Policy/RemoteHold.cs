@@ -151,7 +151,7 @@ public sealed record RemoteSafety
 
     public EquatableArray<OutdoorHazard> Hazard { get; init; }
 
-    /// <summary>A planned dash window is open (DashWindow.OpenAt).</summary>
+    /// <summary>A warmth window is open for some pawn (WarmthWindow.OpenAt).</summary>
     public bool DashOpen { get; init; }
 }
 

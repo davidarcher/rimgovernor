@@ -17,6 +17,6 @@ public static partial class Rules
                 throw new DomainException("invalid immediate count");
             }
         }
-        return new Findings { Latches = previous with { Dash = f.Dash }, Disaster = f.Disaster };
+        return new Findings { Latches = previous with { Warmth = f.Warmth }, Disaster = f.Disaster };
     }
 }

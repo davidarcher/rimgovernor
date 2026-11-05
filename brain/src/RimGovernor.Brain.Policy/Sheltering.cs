@@ -167,7 +167,7 @@ public static partial class ShelterRules
     /// outside the squad's draft set, ShelterCombatants) and animals that take areas without a pen are moved
     /// into the Safe area. Once every trigger is known clear, pawns still restricted to the Safe area go back
     /// to unrestricted. Haulers not sheltered are kept to the NoDanger area while DangerWindow holds, and go
-    /// back to unrestricted once it is known closed; the colonist named by an open dash window (DashOpenFor)
+    /// back to unrestricted once it is known closed; a colonist named by an open warmth window (WarmthOpenFor)
     /// is let out of Safe while the trigger is cold alone, and sheltered again at the window's bound; other
     /// areas are left to their own planners. It keeps no history: the same facts give the same moves after a
     /// restart or reload.
@@ -189,7 +189,7 @@ public static partial class ShelterRules
 
         void Add(PawnId id, bool animal, bool shelter, string area)
         {
-            var dash = !animal && trigger == ShelterTrigger.Temperature && calm && f.DashOpenFor(id);
+            var dash = !animal && trigger == ShelterTrigger.Temperature && calm && f.WarmthOpenFor(id);
             shelter = shelter && !dash;
             var hauler = !animal && haulers.Contains(id);
             var to = "";
@@ -207,7 +207,7 @@ public static partial class ShelterRules
             }
             else if (safe != "" && area == safe)
             {
-                // An open dash window lets the named pawn out of Safe for the cold only.
+                // An open warmth window lets its pawn out of Safe for the cold only.
                 move = trigger == ShelterTrigger.None || dash;
             }
             else if (noKill != "" && area == noKill)

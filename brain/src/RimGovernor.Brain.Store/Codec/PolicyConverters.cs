@@ -616,9 +616,9 @@ internal sealed class DashTripConverter : ObjectCodec<DashTrip>
     }
 }
 
-internal sealed class DashWindowConverter : ObjectCodec<DashWindow>
+internal sealed class WarmthWindowConverter : ObjectCodec<WarmthWindow>
 {
-    protected override DashWindow Read(JsonElement e, Codecs o) =>
+    protected override WarmthWindow Read(JsonElement e, Codecs o) =>
         new()
         {
             Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
@@ -626,7 +626,7 @@ internal sealed class DashWindowConverter : ObjectCodec<DashWindow>
             Trips = e.Get<EquatableArray<DashTrip>>("Trips", o),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, DashWindow v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, WarmthWindow v, Codecs o)
     {
         w.Put("Pawn", v.Pawn, o);
         w.Put("Until", v.Until, o);
@@ -2163,13 +2163,13 @@ internal sealed class LatchesConverter : ObjectCodec<Latches>
         new()
         {
             MedicalReserve = e.Bool("MedicalReserve"),
-            Dash = e.Get<DashWindow>("Dash", o),
+            Warmth = e.Get<EquatableArray<WarmthWindow>>("Warmth", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, Latches v, Codecs o)
     {
         w.WriteBoolean("MedicalReserve", v.MedicalReserve);
-        w.Put("Dash", v.Dash, o);
+        w.Put("Warmth", v.Warmth, o);
     }
 }
 

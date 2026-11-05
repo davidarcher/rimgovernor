@@ -236,11 +236,11 @@ public sealed partial record ReviewFacts
 
     public Tick DisasterTick { get; init; }
 
-    /// <summary>The game tick the facts were assembled at, which Dash is judged against; zero where no dash is planned.</summary>
+    /// <summary>The game tick the facts were assembled at, which the warmth windows are judged against; zero where none is planned.</summary>
     public Tick Tick { get; init; }
 
-    /// <summary>The planned outdoor dash window through extreme cold (#2765); unknown or zero is closed.</summary>
-    public DashWindow Dash { get; init; } = new();
+    /// <summary>The planned warmth windows through extreme cold, one per pawn (#2765, #4049); none means every pawn is held.</summary>
+    public EquatableArray<WarmthWindow> Warmth { get; init; }
 
     public EquatableArray<MoodPawn> MoodPawns { get; init; }
 
@@ -690,8 +690,8 @@ public sealed record Latches
 {
     public bool MedicalReserve { get; set; }
 
-    /// <summary>The planned outdoor dash window (#2765), held until its bound; zero when none is open.</summary>
-    public DashWindow Dash { get; set; } = new();
+    /// <summary>The planned warmth windows (#2765, #4049), one per pawn, each held until its bound; empty when none is open.</summary>
+    public EquatableArray<WarmthWindow> Warmth { get; set; }
 }
 
 /// <summary>One review's findings: the latches, the disaster history and the derived facts the families read.</summary>
@@ -905,7 +905,7 @@ public static partial class Rules
         var latches = new Latches
         {
             MedicalReserve = medicine.Active,
-            Dash = f.Dash,
+            Warmth = f.Warmth,
         };
         var demand = ResourceRules.ResourceDemandOf(f, p, latches);
         var r = new Findings { Latches = latches, ResourceDemand = demand };

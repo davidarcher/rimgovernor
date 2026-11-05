@@ -226,17 +226,22 @@ This is coordination within existing concerns, not an executor.
   with that subject). An unread condition census or outdoor temperature raises `RequiredFactException`
   in the planner that asks (a map without the reads is not known to be free of hazards); the dash review
   alone publishes no window instead. Field expansion is not gated.
-  Planned dashes (#2765): while extreme cold is the only hazard and no hostile is up, `policy.PlanDash`
-  picks one colonist's trips from the loot census, ordered by market value per exposed tick, each an
-  out-and-back leg plus a pickup dwell, walked at the pawn's real move speed slowed by the hypothermia
+  Warmth windows (#2765, #4049 of epic #3578): while extreme cold is the only hazard and no hostile is up,
+  `policy.PlanDash` picks a colonist's trips from the loot census, ordered by market value per exposed tick,
+  each an out-and-back leg plus a pickup dwell, walked at the pawn's real move speed slowed by the hypothermia
   stages it crosses, and cut where hypothermia would reach `DashSeverityCap` (0.35, the serious floor) by the
   last return (the formula of `OutdoorBudgetFor`; trips counted from home with no rest between). The result
-  is `ReviewFacts.Dash` (`DashWindow`: the pawn, trips and `Until`), planned once by `policy.ReviewDash` and
-  held in `Latches.Dash` until `Until` (re-planning from the severity built up out in the cold would
-  close the window under a pawn partway out). At `Until` the review closes it for one review, so the pawn is
-  recalled before a new window can plan; the recovery step reads the persisted latch. `DashWindow.OpenAt(tick)`
-  is the only close rule: open before `Until`, closed from it. `DashMarginIntervals` of growth stay under the cap. While open it lifts the extreme-cold hold (and only that) in
-  `recoveryHold` and `remoteThreatHold`, and `PlanSheltering` lets the named pawn out of Safe; at the bound
+  is `ReviewFacts.Warmth` (`WarmthWindow` per pawn: the pawn, trips and `Until`), planned by
+  `policy.ReviewWarmth` (`PlanWarmth` over the candidates) for every available colonist with a readable body, in
+  pawn id order, a trip offered to one window only, and held in `Latches.Warmth` until each `Until` (re-planning
+  from the severity built up out in the cold would close a window under a pawn partway out). At its `Until` a
+  window closes for one review, so the pawn is recalled before a new one can plan; the recovery step reads the
+  persisted latch. A pawn with no open window gets a new one only when its observed hypothermia is at or under
+  `WarmthRefillSeverity` (the shivering floor): the refill is read from `WorkPawn.Body`, never modelled, and
+  `WarmthRefillTicks` predicts the tick it is reached by the published recovery only for the hold reason.
+  `WarmthWindow.OpenAt(tick)` is the only close rule: open before `Until`, closed from it.
+  `DashMarginIntervals` of growth stay under the cap. An open window lifts the extreme-cold hold (and only that) in
+  `recoveryHold` and `remoteThreatHold`, and `PlanSheltering` lets its pawn out of Safe; at the bound
   it shelters the pawn again. Heat, fallout and unrecognised kinds stay held. The per-colonist inputs
   (comfortable temperature range, move speed, hypothermia and other severities, capacities) are the native
   `PawnSettings.body` block, read with work detail (`WorkPawn.Body`).

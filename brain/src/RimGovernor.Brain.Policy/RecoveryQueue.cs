@@ -103,7 +103,7 @@ public sealed record RecoveryRequest
 
     public EquatableArray<OutdoorHazard> Hazard { get; init; }
 
-    /// <summary>A planned dash window is open, which lifts the extreme cold hold (and only that hazard).</summary>
+    /// <summary>A warmth window is open for some pawn, which lifts the extreme cold hold (and only that hazard).</summary>
     public bool DashOpen { get; init; }
 
     public bool Urgent { get; init; }
@@ -481,7 +481,7 @@ public static partial class RecoveryRules
             Urgent = RemoteRules.UrgentWorkCompeting(f),
             Threat = threat,
             Hazard = OutdoorHazardRules.OutdoorHazardsOf(f),
-            DashOpen = f.DashOpen(),
+            DashOpen = f.WarmthOpen(),
             Origins = origins,
             Center = center,
             Things = things,
