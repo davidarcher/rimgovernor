@@ -63,7 +63,6 @@ public sealed class MoodLevelTests
         var native = input.Pawn with
         {
             Dead = true, Downed = true, Drafted = true,
-            Job = input.Pawn.Job with { PlayerForced = true },
             MentalState = new RimGovernor.Brain.GameFacts.Observations.PawnMentalState { DefName = "Berserk", IsAggro = true, Ticks = 90 },
             Social = input.Pawn.Social with { HighExpectations = true },
             Needs = input.Pawn.Needs with { Food = new RimGovernor.Brain.GameFacts.Observations.FoodNeed.Has(.1, RimGovernor.Brain.GameFacts.Defs.HungerCategory.Hungry), Rest = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.2), Joy = new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.3) },
@@ -71,7 +70,7 @@ public sealed class MoodLevelTests
         var pawn = input with { Pawn = native };
         Assert.Same(native, pawn.Pawn);
         Assert.Same(input.Forecast, pawn.Forecast);
-        Assert.True(pawn.Dead && pawn.Downed && pawn.Drafted && pawn.PlayerForced && pawn.Mental && pawn.HighExpectations);
+        Assert.True(pawn.Dead && pawn.Downed && pawn.Drafted && pawn.Mental && pawn.HighExpectations);
         Assert.Equal(new MoodLevel.Has(.2, .1), pawn.Mood);
         Assert.Equal(.15, pawn.Threshold);
         Assert.Equal(new RimGovernor.Brain.GameFacts.Observations.NeedLevel.Has(.1), pawn.Food);

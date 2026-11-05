@@ -48,7 +48,6 @@ public sealed record MoodPawn
     public bool Dead => Pawn.Dead;
     public bool Downed => Pawn.Downed;
     public bool Drafted => Pawn.Drafted;
-    public bool PlayerForced => Pawn.Job.PlayerForced;
 
     /// <summary>The pawn's observed thought rows, negative and positive, most negative first. Consumers must be sign-aware.</summary>
     public EquatableArray<MoodThought> Thoughts { get; init; }

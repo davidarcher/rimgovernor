@@ -1165,11 +1165,9 @@ or an unknown cell on an otherwise clear walk, is unknown and the position is no
 placed. The rule is checked against the native answers recorded with the defense
 layout snapshots (`TestDefenseLineOfSightMatchesRecordedNativeAnswers`).
 
-A gate that cuts a tier is named on the layout (`policy.DefenseTier.Gated`, `DefenseLayout.Gated`: `turret_unavailable`,
-`turret_threat_budget`, `turret_power`, `turret_stock`, `turret_no_conduit_route`, `mortar_unavailable`,
-`mortar_threat_budget`, `mortar_stock`, `ied_threat_budget`, `ied_stock`) and also names an IED or turret tier a gate
-emptied. No step journals it as a row of its own since the comparison replaced the tier-by-tier round; the Killbox
-candidate carries the tiers the gates left.
+A gate that cuts a turret, mortar or IED tier short (the tier's threat demand, spare watts, stock, or a turret
+without a conduit route) leaves only the buildings it affords. No step journals the gate since the comparison
+replaced the tier-by-tier round; the Killbox candidate carries the tiers the gates left.
 
 ## Defense approach demand
 

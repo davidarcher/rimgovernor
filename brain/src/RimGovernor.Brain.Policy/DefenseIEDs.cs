@@ -164,25 +164,21 @@ internal sealed partial class DefenseSite
                 break;
             }
         }
-        var gated = "";
         if (placed.Count > R.IEDMax)
         {
             var keep = Math.Max(R.IEDMax, 0);
             placed = placed.Take(keep).ToList();
             reserved = reserved.Take(keep).ToList();
-            gated = DefenseTurretsPolicy.GateIEDThreat;
         }
         while (placed.Count > 0 && !DefenseLayout.StockCovers(R.UnitCosts, R.IEDStock, placed))
         {
             placed.RemoveAt(placed.Count - 1);
             reserved.RemoveAt(reserved.Count - 1);
-            gated = DefenseTurretsPolicy.GateIEDStock;
         }
         return tier with
         {
             Buildings = EquatableArray.From(placed),
             Reserved = EquatableArray.From(reserved),
-            Gated = gated,
         };
     }
 }

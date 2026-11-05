@@ -36,27 +36,19 @@ public static class DefenseMortarsPolicy
     /// <summary>Reports whether the observed gates (available definition, budget, stock for one mortar) allow at least one mortar before any site is read.</summary>
     public static bool MortarGatesOpen(this DefenseRequest r) => MortarGate(r, 1) > 0;
 
-    internal static int MortarGate(DefenseRequest r, int sites) => MortarLimit(r, sites).Count;
-
-    /// <summary>MortarGate with the gate that cut the count below the sites ("" when nothing did): the threat demand (Max), then stock.</summary>
-    internal static (int Count, string Gate) MortarLimit(DefenseRequest r, int sites)
+    /// <summary>The mortars the tier affords of the sites: the threat demand (Max), then stock.</summary>
+    internal static int MortarGate(DefenseRequest r, int sites)
     {
         var q = r.Mortar;
         if (q.Definition == "" || !q.Available)
         {
-            return (0, DefenseTurretsPolicy.GateMortarUnavailable);
+            return 0;
         }
         if (q.Max <= 0)
         {
-            return (0, DefenseTurretsPolicy.GateMortarThreat);
+            return 0;
         }
-        var n = q.Max;
-        var gate = DefenseTurretsPolicy.GateMortarThreat;
-        if (n >= sites)
-        {
-            n = sites;
-            gate = "";
-        }
+        var n = Math.Min(q.Max, sites);
         for (; n > 0; n--)
         {
             var mortars = new List<Building>();
@@ -65,7 +57,7 @@ public static class DefenseMortarsPolicy
                 var b = DefenseIEDs.TryBuilding(q.Definition, default, q.Stuff);
                 if (b is null)
                 {
-                    return (0, DefenseTurretsPolicy.GateMortarUnavailable);
+                    return 0;
                 }
                 mortars.Add(b);
             }
@@ -73,9 +65,8 @@ public static class DefenseMortarsPolicy
             {
                 break;
             }
-            gate = DefenseTurretsPolicy.GateMortarStock;
         }
-        return (n, gate);
+        return n;
     }
 
     /// <summary>
@@ -131,11 +122,7 @@ public static class DefenseMortarsPolicy
                 }
             }
         }
-        var (n, gate) = MortarLimit(r, sites.Count);
-        if (sites.Count > 0)
-        {
-            tier = tier with { Gated = gate };
-        }
+        var n = MortarGate(r, sites.Count);
         var buildings = new List<Building>();
         var reserved = new List<Cell>();
         foreach (var c in sites.Take(n))

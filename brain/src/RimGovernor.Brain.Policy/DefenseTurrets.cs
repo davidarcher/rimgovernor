@@ -84,18 +84,6 @@ public static class DefenseTurretsPolicy
     /// <summary>The native PowerConnectionMaker search rect: a consumer connects to the nearest transmitter within six cells.</summary>
     internal const int ConduitReach = 6;
 
-    // Gated reasons: the gate that stopped a tier short of the positions the layout found, journaled by the caller.
-    public const string GateTurretUnavailable = "turret_unavailable";
-    public const string GateTurretThreat = "turret_threat_budget";
-    public const string GateTurretPower = "turret_power";
-    public const string GateTurretStock = "turret_stock";
-    public const string GateTurretRoute = "turret_no_conduit_route";
-    public const string GateMortarUnavailable = "mortar_unavailable";
-    public const string GateMortarThreat = "mortar_threat_budget";
-    public const string GateMortarStock = "mortar_stock";
-    public const string GateIEDThreat = "ied_threat_budget";
-    public const string GateIEDStock = "ied_stock";
-
     /// <summary>The ladder definitions the armory tier allows, highest first; the mini turret is always allowed.</summary>
     public static IReadOnlyList<string> TurretRungs(ArmoryTier tier)
     {
@@ -209,34 +197,25 @@ public static class DefenseTurretsPolicy
     public static bool TurretGatesOpen(this DefenseRequest r) => TurretGate(r, 1) > 0;
 
     /// <summary>How many of the verified positions the power and stock gates allow.</summary>
-    internal static int TurretGate(DefenseRequest r, int verified) => TurretLimit(r, verified).Count;
-
-    /// <summary>TurretGate with the gate that cut the count below the verified positions ("" when nothing did): the threat demand (Max), spare watts, then stock.</summary>
-    internal static (int Count, string Gate) TurretLimit(DefenseRequest r, int verified)
+    /// <summary>The turrets the tier affords of the verified positions: the threat demand (Max), spare watts, then stock.</summary>
+    internal static int TurretGate(DefenseRequest r, int verified)
     {
         var q = r.Turret;
         var (draw, spare) = (q.DrawW, q.SpareW);
         if (!q.Available || draw < 0)
         {
-            return (0, GateTurretUnavailable);
+            return 0;
         }
         if (q.Max <= 0)
         {
-            return (0, GateTurretThreat);
+            return 0;
         }
-        var n = q.Max;
-        var gate = GateTurretThreat;
-        if (n >= verified)
-        {
-            n = verified;
-            gate = "";
-        }
+        var n = Math.Min(q.Max, verified);
         if (draw > 0)
         {
             while (n > 0 && n * draw > spare)
             {
                 n--;
-                gate = GateTurretPower;
             }
         }
         while (n > 0)
@@ -247,7 +226,7 @@ public static class DefenseTurretsPolicy
                 var b = DefenseIEDs.TryBuilding(q.Definition, default, q.Stuff);
                 if (b is null)
                 {
-                    return (0, GateTurretUnavailable);
+                    return 0;
                 }
                 turrets.Add(b);
             }
@@ -256,9 +235,8 @@ public static class DefenseTurretsPolicy
                 break;
             }
             n--;
-            gate = GateTurretStock;
         }
-        return (n, gate);
+        return n;
     }
 
     /// <summary>Reports whether the turret stock covers the buildings' summed unit costs; an unpriced definition is never afforded.</summary>
@@ -392,10 +370,9 @@ internal sealed partial class DefenseSite
             verified.Add(c);
             chosen.Add(DefenseTurretsPolicy.TurretFootprint(c, q.Size));
         }
-        var (n, gate) = DefenseTurretsPolicy.TurretLimit(R, verified.Count);
+        var n = DefenseTurretsPolicy.TurretGate(R, verified.Count);
         if (n == 0)
         {
-            tier = tier with { Gated = verified.Count == 0 ? "" : gate };
             return tier;
         }
         var transmitters = new HashSet<Cell>(q.Transmitters);
@@ -435,7 +412,6 @@ internal sealed partial class DefenseSite
             {
                 // No route to the network: the turret would stand dark, so the tier stops at the turrets it can power.
                 buildings.RemoveAt(buildings.Count - 1);
-                gate = DefenseTurretsPolicy.GateTurretRoute;
                 break;
             }
             foreach (var c in chain)
@@ -448,7 +424,6 @@ internal sealed partial class DefenseSite
         while (buildings.Count > 0 && !DefenseTurretsPolicy.Affordable(R, buildings))
         {
             buildings = DefenseTurretsPolicy.TrimLastTurret(buildings, q.Definition);
-            gate = DefenseTurretsPolicy.GateTurretStock;
         }
         // Each turret reserves its whole footprint.
         var reserved = new List<Cell>();
@@ -461,7 +436,6 @@ internal sealed partial class DefenseSite
         }
         tier = tier with
         {
-            Gated = gate,
             Reserved = EquatableArray.From(reserved),
             Buildings = EquatableArray.From(buildings),
         };

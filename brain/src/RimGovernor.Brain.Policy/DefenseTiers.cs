@@ -80,13 +80,9 @@ public sealed record DefenseTiers
 {
     public EquatableArray<PlannedSite> Nodes { get; init; }
 
-    /// <summary>The tier geometry the nodes were cut from: its firing line, trap lane, approaches and the gates that held tiers short.</summary>
-    public DefenseLayout Layout { get; init; } = new();
 
     /// <summary>Why the layout planner sited nothing, when it refused.</summary>
     public string Refusal { get; init; } = "";
-
-    public EquatableArray<SiteDecision> Decisions { get; init; }
 }
 
 public static class DefenseTiersPolicy
@@ -115,20 +111,6 @@ public static class DefenseTiersPolicy
     public static NodeKind NodeDefMortars => NodeKind.DefMortars;
     public static NodeKind NodeDefIEDs => NodeKind.DefIEDs;
     public static NodeKind NodeDefBait => NodeKind.DefBait;
-
-    // Why a tier node stands where it does; the caller journals them as layout_plan rows (target defense_tiers).
-
-    /// <summary>The tier is sited from the census.</summary>
-    public const string ReasonTierSited = "tier_sited";
-
-    /// <summary>The tier is built, so it stays where it stands.</summary>
-    public const string ReasonTierPinned = "tier_pinned";
-
-    /// <summary>The census holds no corridor (the layout planner's refusal is the attr); only the built tiers stand as nodes.</summary>
-    public const string ReasonTierLayoutFailed = "tier_layout_failed";
-
-    /// <summary>A tier still to build was sited on a cell a built tier holds, and gave it up.</summary>
-    public const string ReasonTierDisplaced = "tier_displaced_by_built";
 
     /// <summary>The nodes PlanDefenseTiers produces.</summary>
     internal static readonly IReadOnlySet<NodeKind> DefenseTierKinds = new HashSet<NodeKind>
@@ -267,7 +249,6 @@ public static class DefenseTiersPolicy
             Cells = EquatableArray.From(PinnedCensus(census.Cells, region, pins)),
         };
 
-        var decisions = new List<SiteDecision>();
         var refusal = "";
         var refused = false;
         DefenseLayout layout;
@@ -278,7 +259,6 @@ public static class DefenseTiersPolicy
         catch (Exception e) when (e is DefenseException or DomainException)
         {
             layout = new DefenseLayout { Toward = kb.Toward, Entry = kb.Entry };
-            decisions.Add(new SiteDecision { Node = id, Verdict = LayoutEmbedRules.EmbedUnplaceable, Reason = ReasonTierLayoutFailed });
             refusal = e.Message;
             refused = true;
         }
@@ -286,10 +266,9 @@ public static class DefenseTiersPolicy
         layout = pinnedLayout;
         if (pinned.Count == 0 && refused)
         {
-            return new DefenseTiers { Layout = layout, Refusal = refusal, Decisions = EquatableArray.From(decisions) };
+            return new DefenseTiers { Refusal = refusal };
         }
-        List<DefenseTierName> displaced;
-        (layout, displaced) = DisplaceBuilt(layout, pinned);
+        layout = DisplaceBuilt(layout, pinned);
         if (!pinned.ContainsKey(DefenseMortarsPolicy.TierMortars))
         {
             var geometry = layout.Geometry();
@@ -311,22 +290,7 @@ public static class DefenseTiersPolicy
             }
         }
         var nodes = TierNodes(id, req.Definitions, layout, pinned);
-        foreach (var n in nodes)
-        {
-            var reason = n.Tier?.Pinned == true ? ReasonTierPinned : ReasonTierSited;
-            decisions.Add(new SiteDecision { Node = n.Node, Verdict = LayoutEmbedRules.EmbedPlace, Reason = reason });
-        }
-        foreach (var name in displaced)
-        {
-            decisions.Add(new SiteDecision { Node = id + "-" + name.Value, Verdict = LayoutEmbedRules.EmbedPlace, Reason = ReasonTierDisplaced });
-        }
-        return new DefenseTiers
-        {
-            Nodes = EquatableArray.From(nodes),
-            Layout = layout,
-            Refusal = refusal,
-            Decisions = EquatableArray.From(decisions),
-        };
+        return new DefenseTiers { Nodes = EquatableArray.From(nodes), Refusal = refusal };
     }
 
     /// <summary>
@@ -403,8 +367,8 @@ public static class DefenseTiersPolicy
         return (layout, pinned);
     }
 
-    /// <summary>Drops the buildings of the tiers still to build that sit on a cell a built tier holds, and returns the tiers that lost one.</summary>
-    internal static (DefenseLayout Layout, List<DefenseTierName> Lost) DisplaceBuilt(DefenseLayout layout, Dictionary<DefenseTierName, DefenseTier> pinned)
+    /// <summary>Drops the buildings of the tiers still to build that sit on a cell a built tier holds.</summary>
+    internal static DefenseLayout DisplaceBuilt(DefenseLayout layout, Dictionary<DefenseTierName, DefenseTier> pinned)
     {
         var held = new HashSet<Cell>();
         foreach (var t in pinned.Values)
@@ -418,7 +382,6 @@ public static class DefenseTiersPolicy
                 held.Add(b.Cell);
             }
         }
-        var lost = new List<DefenseTierName>();
         var tiers = layout.Tiers.ToList();
         for (var i = 0; i < tiers.Count; i++)
         {
@@ -431,10 +394,9 @@ public static class DefenseTiersPolicy
             if (kept.Count < t.Buildings.Count)
             {
                 tiers[i] = t with { Buildings = EquatableArray.From(kept) };
-                lost.Add(t.Name);
             }
         }
-        return (layout with { Tiers = EquatableArray.From(tiers) }, lost);
+        return layout with { Tiers = EquatableArray.From(tiers) };
     }
 
     /// <summary>Cuts the layout's tiers into nodes under the killbox node id, in DefenseTierOrder; a tier that places nothing and reserves nothing has no node.</summary>

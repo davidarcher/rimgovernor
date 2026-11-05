@@ -164,12 +164,7 @@ public sealed partial record DefenseTier
 
     public EquatableArray<Cell> Reserved { get; init; }
 
-    /// <summary>The gate that stopped the tier short of the positions the layout found; empty when nothing did.</summary>
-    public string Gated { get; init; } = "";
 }
-
-/// <summary>A tier a gate stopped short of the positions the layout found.</summary>
-public sealed record DefenseGated(DefenseTierName Tier, string Reason);
 
 public readonly record struct FiringPosition(Cell Cell, Cell Cover, Cell Retreat);
 
@@ -192,8 +187,6 @@ public sealed partial record DefenseLayout
     /// <summary>Local routes and cover demand, not admitted orders.</summary>
     public DefenseApproaches Approaches { get; init; } = new();
 
-    /// <summary>The gates that stopped the turret and IED tiers short.</summary>
-    public EquatableArray<DefenseGated> Gated { get; init; }
 
     /// <summary>The cell raiders reach leaving the snake, the one the firing line and turrets must see; Entry for a layout without a trap lane.</summary>
     public Cell KillZone() => TrapLane.Count > 0 ? TrapLane[TrapLane.Count - 1] : Entry;
@@ -864,17 +857,12 @@ public sealed partial record DefenseLayout
             new() { Name = TierFunnel, Buildings = EquatableArray.From(funnel), Reserved = EquatableArray.From(funnelReserved) },
             new() { Name = TierTrapCorridor, Buildings = EquatableArray.From(corridor), Reserved = EquatableArray.From(reservedLanes) },
         };
-        var gated = new List<DefenseGated>();
         layout = layout with { Tiers = EquatableArray.From(tiers) };
         if (r.Turret.Definition != "")
         {
             var turrets = s.Turrets(layout.Geometry());
             tiers.Add(turrets);
             layout = layout with { Tiers = EquatableArray.From(tiers) };
-            if (turrets.Gated != "")
-            {
-                gated.Add(new DefenseGated(DefenseTurretsPolicy.TierTurrets, turrets.Gated));
-            }
         }
         layout = layout with { Approaches = s.ComputeApproaches(layout) };
         var bait = s.BaitTier(layout);
@@ -889,11 +877,7 @@ public sealed partial record DefenseLayout
             tiers.Add(ieds);
             layout = layout with { Tiers = EquatableArray.From(tiers) };
         }
-        if (ieds.Gated != "")
-        {
-            gated.Add(new DefenseGated(DefenseIEDs.TierIEDs, ieds.Gated));
-        }
-        return layout with { Gated = EquatableArray.From(gated) };
+        return layout;
     }
 
     /// <summary>
