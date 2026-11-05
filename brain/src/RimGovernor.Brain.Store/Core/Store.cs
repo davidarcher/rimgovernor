@@ -84,8 +84,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 78 deletes the layout plan's save shims (legacy pen, barn and yard reservations; optional Pieces, ActivitySites and Transitions, habitat 8.4): an older plan blob restores as no plan; older journals are replaced.
     /// Version 79 carries an issued refuel's fuel def and items on its recovery payload (RecoveryService.Fuel, Items, the servicing ledger's hold; habitat review item 13): an older refuel payload loads holding no fuel; older journals are replaced.
     /// Version 80 replaces the review latches' single loot dash with one warmth window per pawn (<c>Latches.Warmth</c>, #4049 of epic #3578): an older journal is replaced.
+    /// Version 81 names each warmth trip's kind (loot, salvage, lone hunt, forage; WarmthTrip.Kind, #4050 of epic #3578): an older journal is replaced.
     /// </summary>
-    public const int SchemaVersion = 80;
+    public const int SchemaVersion = 81;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

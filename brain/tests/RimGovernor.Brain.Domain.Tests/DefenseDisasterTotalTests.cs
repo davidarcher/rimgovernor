@@ -35,12 +35,12 @@ public sealed class DefenseDisasterTotalTests
     }
 
     [Fact]
-    public void DashUsesObservedBodyAndClosesWhenThePawnCannotMove()
+    public void TripsUseTheObservedBodyAndCloseWhenThePawnCannotMove()
     {
-        var request = new DashRequest { Temperature = -30, ComfortMin = 0, Severity = 0, Speed = 4, Tuning = DashEstimateRules.PublishedHypothermiaTuning, Candidates = [new DashCandidate { Id = "stack", PathCells = 1, Value = 10 }] };
-        Assert.Single(DashPlanRules.PlanDash(request).Trips);
-        Assert.Empty(DashPlanRules.PlanDash(request with { Speed = 0 }).Trips);
-        Assert.Empty(DashPlanRules.PlanDash(request with { Severity = DashPlanRules.DashSeverityCap }).Trips);
+        var request = new WarmthRequest { Temperature = -30, ComfortMin = 0, Severity = 0, Speed = 4, Tuning = DashEstimateRules.PublishedHypothermiaTuning, Candidates = [new WarmthCandidate { Id = "stack", PathCells = 1, Value = 10 }] };
+        Assert.Single(WarmthPlanRules.PlanTrips(request).Trips);
+        Assert.Empty(WarmthPlanRules.PlanTrips(request with { Speed = 0 }).Trips);
+        Assert.Empty(WarmthPlanRules.PlanTrips(request with { Severity = WarmthPlanRules.WarmthSeverityCap }).Trips);
     }
     [Fact]
     public void HuntingAdmissionUsesZeroOrTheObservedIntegerBudget()

@@ -84,7 +84,7 @@ internal static class CodecRegistry
         codecs.Register(new CoverClearanceConverter());
         codecs.Register(new CreatedZoneConverter());
         codecs.Register(new CutPlantConverter());
-        codecs.Register(new DashTripConverter());
+        codecs.Register(new WarmthTripConverter());
         codecs.Register(new WarmthWindowConverter());
         codecs.Register(new DeconstructionConverter());
         codecs.Register(new DefenseBuildingConverter());

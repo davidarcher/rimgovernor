@@ -224,15 +224,24 @@ This is coordination within existing concerns, not an executor.
   fact (`OutdoorHazardsOf`); any active hazard holds remote loot, salvage and
   mining, recovery, and chop, hunt and forage acquisition with reason `outdoor_hazard` (acquisition reports it as a `waiting_for_native_temperature` wait
   with that subject). An unread condition census or outdoor temperature raises `RequiredFactException`
-  in the planner that asks (a map without the reads is not known to be free of hazards); the dash review
+  in the planner that asks (a map without the reads is not known to be free of hazards); the warmth review
   alone publishes no window instead. Field expansion is not gated.
-  Warmth windows (#2765, #4049 of epic #3578): while extreme cold is the only hazard and no hostile is up,
-  `policy.PlanDash` picks a colonist's trips from the loot census, ordered by market value per exposed tick,
-  each an out-and-back leg plus a pickup dwell, walked at the pawn's real move speed slowed by the hypothermia
-  stages it crosses, and cut where hypothermia would reach `DashSeverityCap` (0.35, the serious floor) by the
-  last return (the formula of `OutdoorBudgetFor`; trips counted from home with no rest between). The result
-  is `ReviewFacts.Warmth` (`WarmthWindow` per pawn: the pawn, trips and `Until`), planned by
-  `policy.ReviewWarmth` (`PlanWarmth` over the candidates) for every available colonist with a readable body, in
+  Warmth windows (#2765, #4049 and #4050 of epic #3578): while extreme cold is the only hazard and no hostile is
+  up, `policy.PlanTrips` picks a colonist's trips, each an out-and-back leg plus the work at the site, walked at
+  the pawn's real move speed slowed by the hypothermia stages it crosses, and cut where hypothermia would reach
+  `WarmthSeverityCap` (0.35, the serious floor) by the last return (the formula of `OutdoorBudgetFor`; trips
+  counted from home with no rest between). A trip is any outdoor task the cold hold blocks (`WarmthTripKind`):
+  a loot pickup (the loot census, `WarmthPickupTicks` of work), a salvage (the clearance census's safe salvage
+  evidence, its native path and labor), a lone hunt (acquisition food prey that does not retaliate, worked for
+  the fixed `WarmthHuntEngagementTicks` estimate) or a forage (acquisition plants that are not trees,
+  `WarmthForageWorkTicks`); hunts and forages are priced by the straight line from the colony's reference cell
+  (the layout plan's centre, else the home area's middle), as the acquisition catalog prices them. Trips rank
+  by `WarmthTier`, strict (`WarmthNeedsOf`: shelter materials the planned construction owes beyond stock, fuels
+  the fuel runway is short of, food while the food runway misses its foothold or target days, then other), and
+  within a tier by market value per exposed tick; a lower tier never displaces a higher one, and a trip that
+  would cross the cap is skipped without blocking the ones after it. The result
+  is `ReviewFacts.Warmth` (`WarmthWindow` per pawn: the pawn, trips by kind and id, and `Until`), planned by
+  `policy.ReviewWarmth` (`PlanWarmth` over `WarmthCandidates`) for every available colonist with a readable body, in
   pawn id order, a trip offered to one window only, and held in `Latches.Warmth` until each `Until` (re-planning
   from the severity built up out in the cold would close a window under a pawn partway out). At its `Until` a
   window closes for one review, so the pawn is recalled before a new one can plan; the recovery step reads the
@@ -240,7 +249,7 @@ This is coordination within existing concerns, not an executor.
   `WarmthRefillSeverity` (the shivering floor): the refill is read from `WorkPawn.Body`, never modelled, and
   `WarmthRefillTicks` predicts the tick it is reached by the published recovery only for the hold reason.
   `WarmthWindow.OpenAt(tick)` is the only close rule: open before `Until`, closed from it.
-  `DashMarginIntervals` of growth stay under the cap. An open window lifts the extreme-cold hold (and only that) in
+  `WarmthMarginIntervals` of growth stay under the cap. An open window lifts the extreme-cold hold (and only that) in
   `recoveryHold` and `remoteThreatHold`, and `PlanSheltering` lets its pawn out of Safe; at the bound
   it shelters the pawn again. Heat, fallout and unrecognised kinds stay held. The per-colonist inputs
   (comfortable temperature range, move speed, hypothermia and other severities, capacities) are the native

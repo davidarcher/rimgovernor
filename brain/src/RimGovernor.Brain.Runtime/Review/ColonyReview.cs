@@ -577,7 +577,6 @@ public sealed partial class ColonyReview
             && plan.Progress.Any(a => a.Action.PawnActivities is { Tasks.Count: > 0 } batch
                 && batch.Orders.Any(o => !o.Release && PawnActivities.Intervention(o))
                 && a.View.Stage is not (Stage.Unsuccessful or Stage.Cancelled))) });
-        reading = reading.WithFacts(rf => rf with { Warmth = DashPlanRules.ReviewWarmth(previous.Latches.Warmth, reading.Reading.Facts, reading.Reading.Facts.ForecastObserved.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) });
         reading = reading.WithFacts(rf => rf with { UrgentPatients = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
         var (amputationCritical, amputationUrgent) = EmergencyNeedsRules.PatientCounts(reading.Emergency, reading.Reading.Facts.MedicalPawns);
         reading = reading.WithFacts(rf => rf with { CriticalPatients = amputationCritical, UrgentPatients = amputationUrgent });
@@ -688,6 +687,8 @@ public sealed partial class ColonyReview
             reading = reading.WithReading(DropSettledTransitions(state.Snapshot, reading.Reading, ct));
             reading = reading.WithColonySection(c => c with { Facts = c.Facts with { LayoutPlan = reading.Reading.Facts.LayoutPlan } });
         }
+        // Warmth windows read the clearance census (salvage trips) and the layout plan (the reference cell), so they are planned after both.
+        reading = reading.WithFacts(rf => rf with { Warmth = WarmthPlanRules.ReviewWarmth(previous.Latches.Warmth, reading.Reading.Facts, Policy, reading.Reading.Facts.ForecastObserved.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) });
         Lap("d_clear");
         fine.Mark();
         reading = reading.WithFacts(rf => rf with { AvailableNeeds = AvailableNeeds });

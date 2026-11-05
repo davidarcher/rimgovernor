@@ -598,19 +598,21 @@ internal sealed class CreatedZoneConverter : ObjectCodec<CreatedZone>
     }
 }
 
-internal sealed class DashTripConverter : ObjectCodec<DashTrip>
+internal sealed class WarmthTripConverter : ObjectCodec<WarmthTrip>
 {
-    protected override DashTrip Read(JsonElement e, Codecs o) =>
+    protected override WarmthTrip Read(JsonElement e, Codecs o) =>
         new()
         {
             Id = e.Str("Id"),
+            Kind = e.Get<WarmthTripKind>("Kind", o),
             Value = e.Dbl("Value"),
             Exposure = e.I32("Exposure"),
         };
 
-    protected override void WriteFields(Utf8JsonWriter w, DashTrip v, Codecs o)
+    protected override void WriteFields(Utf8JsonWriter w, WarmthTrip v, Codecs o)
     {
         w.WriteString("Id", v.Id);
+        w.Put("Kind", v.Kind, o);
         w.WriteNum("Value", v.Value);
         w.WriteNum("Exposure", v.Exposure);
     }
@@ -623,7 +625,7 @@ internal sealed class WarmthWindowConverter : ObjectCodec<WarmthWindow>
         {
             Pawn = e.Get<RimGovernor.Brain.Domain.PawnId>("Pawn", o),
             Until = e.Get<Tick>("Until", o),
-            Trips = e.Get<EquatableArray<DashTrip>>("Trips", o),
+            Trips = e.Get<EquatableArray<WarmthTrip>>("Trips", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, WarmthWindow v, Codecs o)

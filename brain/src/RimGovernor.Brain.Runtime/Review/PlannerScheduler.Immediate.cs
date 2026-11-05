@@ -125,7 +125,7 @@ public sealed partial class ColonyReview
         f = f with { DangerWindow = SafeArea.DangerWindow(StockpilePlanner.StockpileWorld(state.Snapshot), f.Hostiles, seeds, expected.Tick) };
         f = f with { DangerHaulers = ShelterRules.DangerHaulers(projection.Facts.ForecastObserved.WorkPawns) };
         f = f with { Tick = expected.Tick };
-        f = f with { Warmth = DashPlanRules.ReviewWarmth(previous.Latches.Warmth, f, projection.Facts.ForecastObserved.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) };
+        f = f with { Warmth = WarmthPlanRules.ReviewWarmth(previous.Latches.Warmth, f, Policy, projection.Facts.ForecastObserved.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) };
         f = f with { AvailableNeeds = AvailableNeeds };
         // The immediate pass plans no food; the last full review's plan carries forward, so a squad hunt it opened
         // stays a combat deficit (#3311).
