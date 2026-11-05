@@ -2,20 +2,29 @@
 
 [Collection](README.md) · [Review queue](review-queue.md)
 
-Care has to reach the patient. Rest, recreation and equipment also affect whether
-people can safely carry out the work the colony depends on.
+## Intent and evidence ownership
 
-## RG-HEALTH-001 — Treat urgent patients
+Care has to reach the patient, and rest, recreation, mood and equipment decide
+whether people can safely do the work the colony depends on. The
+[wellbeing specification](../../openspec/specs/colonist-wellbeing/spec.md) is the standing owner of
+RG-HEALTH-001–002 and their scenarios; the maintainer-confirmed policy and its
+provenance are in the [decision record](../../openspec/changes/archive/2026-11-05-confirm-remaining-capabilities/proposal.md#decision-provenance-and-review-boundary). Mood is valued by the consequences
+it changes, never ignored. This page owns implementation inspection, executed
+results and proof limits, not requirements. Its inspection history (W1–W8) is
+preserved as recorded.
 
-The governor should detect urgent patients, select eligible doctors or rescuers
-and follow the work until its outcome is observed. It should reconsider care when
-the patient's condition or the available workers change. This protects people
-whose condition cannot wait for ordinary development work.
+## Requirement map
 
-With two patients and two available doctors, each doctor should receive one
-patient. If a doctor becomes unavailable, a fresh eligible pairing should be
-considered. A missing health observation should leave care unresolved. Completion
-requires a change in the patient's treatment state; recovery may take longer.
+Each requirement is stated once, in the specification.
+
+- RG-HEALTH-001: [Treat urgent patients](../../openspec/specs/colonist-wellbeing/spec.md#requirement-rg-health-001--treat-urgent-patients)
+- RG-HEALTH-002: [Sustain recovery and everyday wellbeing by consequence](../../openspec/specs/colonist-wellbeing/spec.md#requirement-rg-health-002--sustain-recovery-and-everyday-wellbeing-by-consequence)
+
+## Implementation status of the original requirements
+
+The status below was recorded before the specification owned the requirement text and stays with the evidence it cites.
+
+### Status of RG-HEALTH-001 (treat urgent patients)
 
 **Intent:** Documented in [medical care](../developers/contracts/medical-care.md).
 **Implementation:** Supported for the sampled pairing and native tending dispatch;
@@ -23,18 +32,7 @@ completed autonomous treatment and replacement-doctor recovery still need native
 outcome evidence.
 The contract's eligible-patient and care-policy conditions apply. Evidence W1–W3.
 
-## RG-HEALTH-002 — Sustain recovery and everyday wellbeing
-
-The governor should arrange ongoing care, medicine, rest, recreation and suitable
-equipment as needs arise. Observed improvement should determine whether the need
-has been met. This keeps chronic illness and routine deprivation from undermining
-the colony after an immediate emergency has passed.
-
-A recovering patient should retain care while their condition needs it. A tired
-worker should get useful rest; a pawn exposed to dangerous temperatures should
-have suitable clothing or protection. When the necessary service is unavailable,
-the need should stay open and identify the obstacle. Later availability should
-allow useful work to resume.
+### Status of RG-HEALTH-002 (sustain recovery and everyday wellbeing)
 
 **Intent:** Documented in [medical care](../developers/contracts/medical-care.md),
 [mood](../developers/contracts/mood-control.md) and

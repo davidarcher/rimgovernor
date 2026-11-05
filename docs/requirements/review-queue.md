@@ -80,15 +80,17 @@ intent cannot be saved. A completed governed checkpoint has a stricter boundary.
 This is a concrete source discrepancy and intent question, not an observed
 corrupted-save incident.
 
-## Q5 — Player-facing explanations
+## Q5 — Player-facing explanations (decided 2026-11-05)
 
-The current launcher exposes expected work, progress ticks, subjects and raw
-blocker codes, with older “Concerns” labels. It does not offer a complete
-predicted-versus-realized outcome comparison. RG-EXPLAIN-002's broader presentation
-is a candidate for review. [#3433](https://github.com/davidarcher/rimgovernor/issues/3433)
-already owns the product-interface redesign and requires design discussion.
-Resolve the audience, wording and outcome comparison there; do not silently
-treat the proposed in-game panel as already implemented.
+The maintainer promoted this candidate in its narrow form as
+[RG-EXPLAIN-003](../../openspec/specs/explanations/spec.md): when the player asks
+why the governor is doing something, show what the chosen option was expected to
+contribute, what it beat and by what, and the forecast's limits, drawn from the
+comparison that made the choice. A predicted-versus-realized ledger is separate
+work that was not approved. The current launcher exposes expected work, progress
+ticks, subjects and raw blocker codes and does not implement RG-EXPLAIN-003.
+[#3433](https://github.com/davidarcher/rimgovernor/issues/3433) still owns the
+product-interface redesign; resolve audience and wording there.
 
 ## Q6 — Approved forecast limits and separate work
 

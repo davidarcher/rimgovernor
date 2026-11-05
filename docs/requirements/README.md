@@ -6,8 +6,8 @@ This collection describes the outcomes RimGovernor should deliver, what the code
 supports and what existing tests actually check. Use it to prioritize useful
 changes and preserve intended behavior as the implementation evolves.
 
-The governor has full autonomy. Research goals are excluded by the user's
-direction. Detailed behavior inferred from code remains a candidate until reviewed.
+The governor has full autonomy. Player-specified research goals are excluded by
+the user's direction; research is a prerequisite costed into the option that needs it. Detailed behavior inferred from code remains a candidate until reviewed.
 
 Food is the [OpenSpec pilot](../../openspec/README.md). Its
 [standing specification](../../openspec/specs/food-security/spec.md) owns
@@ -49,16 +49,16 @@ of that trace are exercised and whether the fixture bypasses autonomous choice.
 
 | Outcome | Requirements | Examined paths | Evidence limit or confirmed gap |
 | --- | --- | --- | --- |
-| Start a colony and hand control over predictably | [Start and control](start-and-control.md), RG-CONTROL-001–002 | Launch/setup gating, generation, loading, failure display, authority, clock and speed | Native interrupt/resume and clean-machine execution; conflicting Stop guides |
+| Start a colony and hand control over predictably | [Control and continuity](../../openspec/specs/control-and-continuity/spec.md) RG-CONTROL-001–002; [evidence](start-and-control.md) | Launch/setup gating, generation, loading, failure display, authority, clock and speed | Native interrupt/resume and clean-machine execution; conflicting Stop guides |
 | Feed all colony dependents and preserve food | [Food spec](../../openspec/specs/food-security/spec.md), RG-FOOD-001–013; [historical evidence](food-security.md) | Previously inspected supply, acquisition, cooking, continuation, growing, hunting, storage and dependent-food paths | Expanded confirmed intent requires claim-by-claim assessment; prior proof limits remain |
 | Acquire goods, grow crops, hunt and keep herds for every colony goal | [Acquisition](../../openspec/specs/resource-acquisition/spec.md) RG-ACQUIRE-001–002, [growing](../../openspec/specs/growing/spec.md) RG-GROW-001–002, [hunting](../../openspec/specs/hunting/spec.md) RG-HUNT-001–002, [herds](../../openspec/specs/herd-management/spec.md) RG-HERD-001–002; related evidence stays on the food, supply and commitments pages | None inspected against these IDs yet | Confirmed intent only (2026-11-03); no implementation or pass claim |
 | Provide habitable shelter and working facilities | [Habitat evidence](habitat.md); the [habitat specification](../../openspec/specs/habitat/spec.md) owns RG-HABITAT-001–011 | First rooms, service-day value for every planned role, prerequisite/connector work, priced room sharing, temperature and upkeep | Explicit repair/replacement holds; repeated growth/loss outcomes and forecast approximations |
-| Keep people healthy and able to work | [Wellbeing](colonist-wellbeing.md), RG-HEALTH-001–002 | Urgent pairing/tend, condition history, surgery gates, rest/recreation, subdue, clothing | Treatment/recovery outcomes; gathering and residual apparel holds |
+| Keep people healthy and able to work | [Wellbeing](../../openspec/specs/colonist-wellbeing/spec.md) RG-HEALTH-001–002; [evidence](colonist-wellbeing.md) | Urgent pairing/tend, condition history, surgery gates, rest/recreation, subdue, clothing | Treatment/recovery outcomes; gathering and residual apparel holds |
 | Supply useful work and trade affordably | [Supply evidence](development-and-supply.md); RG-SUPPLY-001–002 retired into [acquisition](../../openspec/specs/resource-acquisition/spec.md) RG-ACQUIRE-001–002 on 2026-11-03 | Deficits, extraction, shared stock arrivals, conditional native incident timing, selected trade, mission cargo | Full delivered supply/expedition proof; bootstrap and conditional arrival estimates |
-| Protect people and restore disrupted services | [Protection](protection-and-recovery.md), RG-PROTECT-001–002 | Fire/shelter response, combat batch/readback, civilian empirical exposure, service recovery | Unconfirmed exposure stability, survival/episode outcomes; equipping/disarm holds |
+| Protect people and restore disrupted services | [Protection](../../openspec/specs/protection/spec.md) RG-PROTECT-001; RG-PROTECT-002 retired into [habitat](../../openspec/specs/habitat/spec.md) RG-HABITAT-003 on 2026-11-05; [evidence](protection-and-recovery.md) | Fire/shelter response, combat batch/readback, civilian empirical exposure, service recovery | Unconfirmed exposure stability, survival/episode outcomes; equipping/disarm holds |
 | Sustain people and accepted work | [Commitments](colony-commitments.md), RG-COMMIT-001 and 003; RG-COMMIT-002 moved to [herd management](../../openspec/specs/herd-management/spec.md) | Capacity, quests, custody/herds, classroom, nursery and prison-room effects, ideology/DLC | Bounded/approximate dependent forecasts, separate prisoner mortality; population/ritual/progression holds |
-| Resume safely after interruptions | [Continuity](continuity.md), RG-CONTINUITY-001–002 | Checkpoint, state blobs, native load/replay, world reconstruction, continuation, autosave and manual-save handshake | Arbitrary mid-write crash recovery; manual-save freshness decision |
-| Explain actions and blockers | [Explanations](explanations.md), RG-EXPLAIN-001–002 | Cause transitions, journal/API projection, launcher reader/render functions, forecast/observed distinction | Executed visual transition/readability evidence; broader outcome presentation decision |
+| Resume safely after interruptions | [Control and continuity](../../openspec/specs/control-and-continuity/spec.md) RG-CONTINUITY-001–002; [evidence](continuity.md) | Checkpoint, state blobs, native load/replay, world reconstruction, continuation, autosave and manual-save handshake | Arbitrary mid-write crash recovery; manual-save freshness decision |
+| Explain actions and blockers | [Explanations](../../openspec/specs/explanations/spec.md) RG-EXPLAIN-001–003; [evidence](explanations.md) | Cause transitions, journal/API projection, launcher reader/render functions, forecast/observed distinction | Executed visual transition/readability evidence; RG-EXPLAIN-003 has no inspected implementation |
 
 ## Shared concerns
 
@@ -141,8 +141,9 @@ OpenSpec validation and archive status do not establish execution or a pass.
 
 Assign stable `RG-<capability>-<number>` IDs. Preserve them when files move and
 never reuse retired IDs. Record retirements with a reason and any replacement;
-Git history retains deleted documents. Research-goal requirements were removed at
-the user's request and are not reinstated by this recovery.
+Git history retains deleted documents. Player-specified research-goal requirements were
+removed at the user's request and are not reinstated; need-driven research is
+covered by the acquisition specification.
 
 Keep source conflicts and intent questions in the [review queue](review-queue.md).
 Track actionable deferred implementation and decisions in GitHub after duplicate

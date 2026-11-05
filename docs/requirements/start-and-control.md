@@ -2,35 +2,34 @@
 
 [Collection](README.md) · [Review queue](review-queue.md)
 
+## Intent and evidence ownership
+
 The player needs a reliable way to start a session, hand the colony to the
 governor and take control again. The governor has full autonomy while Auto is on.
+The [control and continuity specification](../../openspec/specs/control-and-continuity/spec.md)
+is the standing owner of RG-CONTROL-001–002 and their scenarios, confirmed by the
+maintainer on 2026-11-05 in the [decision record](../../openspec/changes/archive/2026-11-05-confirm-remaining-capabilities/proposal.md#decision-provenance-and-review-boundary). This page owns
+implementation inspection, executed results and proof limits, not requirements.
+Its inspection history (C1–C5) is preserved as recorded.
 
-## RG-CONTROL-001 — Start the selected colony
+## Requirement map
 
-Play should start a supported game session and load the selected save, with a
-useful explanation when startup or loading fails. This lets the player reach the
-colony they selected without guessing whether the launcher is still working.
+Each requirement is stated once, in the specification.
 
-For example, a load requested while the game's routes are starting should proceed
-when they become available. A missing or unusable save should leave a visible
-failure. Restart should repeat the selected launch settings. The successful-load
-example has a test with a simulated game service; native generation and failure
-claims are covered separately in C4.
+- RG-CONTROL-001: [Start the selected colony](../../openspec/specs/control-and-continuity/spec.md#requirement-rg-control-001--start-the-selected-colony)
+- RG-CONTROL-002: [Hand control over predictably](../../openspec/specs/control-and-continuity/spec.md#requirement-rg-control-002--hand-control-over-predictably)
+
+## Implementation status of the original requirements
+
+The status below was recorded before the specification owned the requirement text and stays with the evidence it cites.
+
+### Status of RG-CONTROL-001 (start the selected colony)
 
 **Intent:** Documented in [launch](../players/launch.md) and
 [controls](../players/controls.md). **Implementation:** Supported for inspected
 launch, generation, loading and error presentation. Evidence C1, C4.
 
-## RG-CONTROL-002 — Hand control over predictably
-
-Resume should give the governor control of colony actions and the clock. Pause
-should stop its colony actions and let the player run the game manually. A change
-of world or control must invalidate orders based on the previous state. This
-keeps the visible control mode consistent with who can act.
-
-For example, after Pause, a previously prepared order must be refused. After
-Resume, the governor should read the current colony and continue useful work.
-The exact response to interruption during an order needs native execution evidence.
+### Status of RG-CONTROL-002 (hand control over predictably)
 
 **Intent:** Documented in [controls](../players/controls.md) and the
 [authority contract](../developers/contracts/voluntary-control.md); full colony

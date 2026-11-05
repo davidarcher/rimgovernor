@@ -2,19 +2,31 @@
 
 [Collection](README.md) · [Review queue](review-queue.md)
 
+## Intent and evidence ownership
+
 The player should be able to understand what the governor is trying to achieve,
-what is stopping it and what evidence supports its view of the colony.
+what is stopping it, why it chose what it chose and what evidence supports its
+view of the colony. The [explanations specification](../../openspec/specs/explanations/spec.md)
+is the standing owner of RG-EXPLAIN-001–003 and their scenarios, confirmed by the
+maintainer on 2026-11-05 in the [decision record](../../openspec/changes/archive/2026-11-05-confirm-remaining-capabilities/proposal.md#decision-provenance-and-review-boundary). RG-EXPLAIN-003 promotes
+the review queue's former candidate Q5 in its narrow form and has no inspected
+implementation. This page owns implementation inspection, executed results and
+proof limits, not requirements. Its inspection history (E1–E4) is preserved as
+recorded.
 
-## RG-EXPLAIN-001 — Give a useful reason for waiting or refusal
+## Requirement map
 
-When a need remains unmet, the governor should expose the current cause and the
-affected subject in language a player can use. When that cause changes, the
-current explanation should change with it. This makes a stalled colony diagnosable.
+Each requirement is stated once, in the specification.
 
-For example, a missing ingredient should identify the blocked work; a later
-unavailable worker should replace the old reason. Missing observations should
-show an unresolved condition. Recovered needs should leave the active blocker
-view. A new session should make the limits of its available history clear.
+- RG-EXPLAIN-001: [Give a useful reason for waiting or refusal](../../openspec/specs/explanations/spec.md#requirement-rg-explain-001--give-a-useful-reason-for-waiting-or-refusal)
+- RG-EXPLAIN-002: [Distinguish plans from observed results](../../openspec/specs/explanations/spec.md#requirement-rg-explain-002--distinguish-plans-from-observed-results)
+- RG-EXPLAIN-003: [Explain the comparison behind a choice](../../openspec/specs/explanations/spec.md#requirement-rg-explain-003--explain-the-comparison-behind-a-choice)
+
+## Implementation status of the original requirements
+
+The status below was recorded before the specification owned the requirement text and stays with the evidence it cites.
+
+### Status of RG-EXPLAIN-001 (give a useful reason for waiting or refusal)
 
 **Intent:** Documented in [controls](../players/controls.md) and
 [persistence](../developers/contracts/persistence-contracts.md).
@@ -22,17 +34,7 @@ view. A new session should make the limits of its available history clear.
 data reader and render functions. Message clarity and the live rendered experience
 have no user-observation evidence. Evidence E1–E3.
 
-## RG-EXPLAIN-002 — Distinguish plans from observed results
-
-Status and diagnostics should distinguish expected effects, accepted orders,
-ongoing work and observed outcomes. Predictions should retain their conditions
-and missing inputs. This lets the player and maintainer judge whether progress is
-real and where a plan failed.
-
-A forecast meal should remain expected until production is observed. A successful
-order should identify dispatch progress while eating or treatment is still pending.
-If an observation is unavailable, the last prediction should retain that limit.
-After recovery, the current state should reflect fresh evidence.
+### Status of RG-EXPLAIN-002 (distinguish plans from observed results)
 
 **Intent:** Documented in [action completion](../developers/contracts/action-contracts.md),
 [forecast contracts](../developers/contracts/forecast-contracts.md) and

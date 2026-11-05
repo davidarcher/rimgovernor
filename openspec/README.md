@@ -20,8 +20,15 @@ historical H1–H7 and proof limits. The [resource acquisition](specs/resource-a
 RG-GROW-001–002, RG-HUNT-001–002 and RG-HERD-001–002, confirmed by the maintainer on
 2026-11-03 in the food change's [second decision record](changes/archive/2026-11-03-redefine-food-requirements/proposal.md#decision-provenance-for-acquisition-growing-hunting-and-herds);
 they have no evidence page of their own yet, and the food, supply and commitments
-evidence pages own the related inspection. Other standing capabilities remain in the
-existing collection. Design and implementation tasks are outside that requirements
+evidence pages own the related inspection. The [protection](specs/protection/spec.md),
+[colonist wellbeing](specs/colonist-wellbeing/spec.md),
+[control and continuity](specs/control-and-continuity/spec.md) and
+[explanations](specs/explanations/spec.md) specifications own RG-PROTECT-001,
+RG-HEALTH-001–002, RG-CONTROL-001–002, RG-CONTINUITY-001–002 and RG-EXPLAIN-001–003,
+confirmed on 2026-11-04 and 2026-11-05 in the
+[confirmation record](changes/archive/2026-11-05-confirm-remaining-capabilities/proposal.md#decision-provenance-and-review-boundary);
+RG-PROTECT-002 was retired there into RG-HABITAT-003. Every mapped capability now
+has a standing specification; the docs/requirements pages own evidence. Design and implementation tasks are outside that requirements
 capture; the [food change](changes/archive/2026-11-03-redefine-food-requirements/proposal.md)
 was archived on 2026-11-03 once its specs were synchronized, and later behavior
 changes get their own change each.
@@ -41,7 +48,7 @@ they do not duplicate the player outcome requirements. AGENTS.md owns the workin
 agreement. GitHub owns actionable deferred work; the review queue owns evidence
 investments and unresolved source disagreements.
 
-## Changing food, acquisition, growing, hunting or herd behavior
+## Changing specified behavior
 
 Use the installed propose and apply workflows described in the runbook. In such
 a change:
@@ -79,7 +86,7 @@ openspec list --specs --json
 openspec show food-security --type spec --json
 ```
 
-The pilot is useful if a reviewer can find each obligation once, distinguish its
-intent from implementation and proof, and review a behavior delta without losing
-those distinctions. Expansion to other capabilities requires the maintainer's
-decision after reviewing this pilot.
+The collection is useful if a reviewer can find each obligation once, distinguish
+its intent from implementation and proof, and review a behavior delta without
+losing those distinctions. Expansion from the food pilot to every mapped capability
+was the maintainer's decision, recorded change by change in the archive.

@@ -1,13 +1,12 @@
 schema: spec-driven
 
 context: |
-  Food security, colony labor, habitat, resource acquisition, growing, hunting
-  and herd management are the migrated capabilities. Read openspec/README.md and
-  the owning evidence page (docs/requirements/food-security.md,
-  docs/requirements/colony-labor.md, docs/requirements/habitat.md,
-  docs/requirements/development-and-supply.md or docs/requirements/colony-commitments.md)
-  before planning changes in those areas. Other capabilities remain in docs/requirements.
-  AGENTS.md governs work and landing.
+  Every mapped capability has a standing specification under openspec/specs:
+  food security, colony labor, habitat, resource acquisition, growing, hunting,
+  herd management, protection, colonist wellbeing, control and continuity and
+  explanations. Read openspec/README.md and the owning evidence page under
+  docs/requirements (named in each spec's purpose) before planning changes.
+  Player-specified research goals are excluded. AGENTS.md governs work and landing.
 
 rules:
   specs:

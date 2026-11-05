@@ -2,20 +2,28 @@
 
 [Collection](README.md) · [Review queue](review-queue.md)
 
-A loaded colony should resume from the world in that save. Work in progress needs
-fresh observations before the governor decides how to continue it.
+## Intent and evidence ownership
 
-## RG-CONTINUITY-001 — Restore the saved colony's intent
+A loaded colony resumes from the world in that save, and work in progress needs
+fresh observations before the governor decides how to continue it. The
+[control and continuity specification](../../openspec/specs/control-and-continuity/spec.md)
+is the standing owner of RG-CONTINUITY-001–002 and their scenarios, confirmed by
+the maintainer on 2026-11-05 in the [decision record](../../openspec/changes/archive/2026-11-05-confirm-remaining-capabilities/proposal.md#decision-provenance-and-review-boundary). This page owns
+implementation inspection, executed results and proof limits, not requirements.
+Its inspection history (R1–R5) is preserved as recorded.
 
-Saving should retain the governor intent that the world itself cannot reconstruct.
-Loading should restore that intent and rebuild derived plans from the loaded
-world. A failed or uncertain save should be reported so the player knows whether
-there is a confirmed checkpoint.
+## Requirement map
 
-Loading an earlier save should recover its layout and family state. Switching
-colonies should discard the previous world's derived work. A normal Auto/Manual
-toggle in the same loaded world should preserve useful ongoing plans. A refused
-save should leave the previous confirmed checkpoint intact.
+Each requirement is stated once, in the specification.
+
+- RG-CONTINUITY-001: [Restore the saved colony's intent](../../openspec/specs/control-and-continuity/spec.md#requirement-rg-continuity-001--restore-the-saved-colonys-intent)
+- RG-CONTINUITY-002: [Reconcile interrupted work before continuing](../../openspec/specs/control-and-continuity/spec.md#requirement-rg-continuity-002--reconcile-interrupted-work-before-continuing)
+
+## Implementation status of the original requirements
+
+The status below was recorded before the specification owned the requirement text and stays with the evidence it cites.
+
+### Status of RG-CONTINUITY-001 (restore the saved colony's intent)
 
 **Intent:** Documented in [persistence](../developers/contracts/persistence-contracts.md)
 and [save/resume](../players/save-and-resume.md).
@@ -24,18 +32,7 @@ world rebuild and autosave paths. Native cases define round-trip assertions;
 current execution and forced disk-failure recovery remain evidence limits.
 Evidence R1–R2, R4–R5.
 
-## RG-CONTINUITY-002 — Reconcile interrupted work before continuing
-
-After interruption, the governor should determine what happened to the previous
-order and whether the need still exists. Fresh work should use current workers,
-targets and materials. An uncertain result must remain unresolved until enough
-evidence exists to continue safely. This prevents duplicated work and accidental
-replacement of a newer assignment.
-
-A completed cooking step can lead to delivery of its observed meal. A newer
-assignment, changed load or uncertain result should block continuation based on
-the old order. When the original need ends, the governor should release the work
-it still owns. A valid later observation should allow a new decision.
+### Status of RG-CONTINUITY-002 (reconcile interrupted work before continuing)
 
 **Intent:** Documented in [method continuation](../developers/contracts/method-continuation.md)
 and [action completion](../developers/contracts/action-contracts.md).

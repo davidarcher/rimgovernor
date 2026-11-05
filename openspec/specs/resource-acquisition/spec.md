@@ -13,7 +13,10 @@ The scenarios are illustrative acceptance examples,
 not separately approved tactics or evidence of passing behavior. The [supply evidence page](../../../docs/requirements/development-and-supply.md) and the [food evidence page](../../../docs/requirements/food-security.md) own the related
 inspection, execution and proof limits; no implementation-completeness claim
 follows from this specification. Acquisition compares every source in one shared,
-decomposable comparison; habitat owns the placement of fields, pens and storage.
+decomposable comparison; habitat owns the placement of fields, pens and storage. Research is a prerequisite
+costed into the option that needs it, valued by what that option contributes, and
+never a goal of its own; the maintainer confirmed on 2026-11-04 that only
+player-specified research goals are excluded.
 
 ## Requirements
 

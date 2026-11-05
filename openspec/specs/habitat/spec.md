@@ -98,6 +98,12 @@ and unread required facts SHALL prevent pricing the affected alternative.
 - **THEN** the facility receives no assumed benefit from those absent users
 - **AND** known absence remains distinct from a missing required observation
 
+#### Scenario: A service is down for a cause no work addresses
+
+- **WHEN** a service is lost both to a cause no work addresses, such as a solar flare, and to damage that repair would fix
+- **THEN** the repair is compared on its own merits, by when the service is next needed against the work's cost
+- **AND** the cause nobody can fix neither defers the repair nor makes it urgent
+
 ### Requirement: RG-HABITAT-004 — Provide suitable places for treatment and recovery
 
 The governor SHALL compare care locations with medical needs, including existing

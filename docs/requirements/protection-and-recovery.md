@@ -2,20 +2,38 @@
 
 [Collection](README.md) · [Review queue](review-queue.md)
 
-Protection includes getting people out of danger, making urgent work possible and
-restoring the services damaged by an event.
+## Intent and evidence ownership
 
-## RG-PROTECT-001 — Respond to immediate danger
+Protection means getting everyone the colony holds out of danger and keeping the
+colony ready for the dangers its forecast expects. The
+[protection specification](../../openspec/specs/protection/spec.md) is the standing owner of
+RG-PROTECT-001 and its scenarios; the maintainer-confirmed policy and its provenance
+are in the [decision record](../../openspec/changes/archive/2026-11-05-confirm-remaining-capabilities/proposal.md#decision-provenance-and-review-boundary). This page owns implementation inspection,
+executed results and proof limits, not requirements. Its inspection history (P1–P6)
+is preserved as recorded. The civilian exposure estimates approved by the maintainer
+and their limits remain in P6.
 
-The governor should recognize supported threats, arrange protective action and
-reconsider ordinary work that exposes people to harm. Available observations must
-justify the response. When a danger clears, the colony should regain useful work
-under a fresh assessment.
+## Requirement map
 
-For example, a home fire should allow an eligible firefighter to respond. People
-who need shelter should receive appropriate area restrictions. An unread threat
-must remain unresolved. Combat, evacuation and fire each need evidence suited to
-their actual effects; starting a response is one step toward safety.
+Each requirement is stated once, in the specification.
+
+- RG-PROTECT-001: [Protect everyone the colony holds from immediate danger](../../openspec/specs/protection/spec.md#requirement-rg-protect-001--protect-everyone-the-colony-holds-from-immediate-danger)
+
+## Retired requirements
+
+RG-PROTECT-002 — Verify restoration after disruption was retired on 2026-11-05.
+Service restoration is compared as measured work under
+[RG-HABITAT-003](../../openspec/specs/habitat/spec.md#requirement-rg-habitat-003--develop-facilities-for-the-benefits-they-provide),
+which distinguishes causes of service failure; the cause of an outage does not
+matter to whether a repair is worth doing, and a service stays deficient until its
+operation is observed. The identity is not reused. Evidence P1, P3 and P4 describe
+the recovery paths that habitat now owns.
+
+## Implementation status of the original requirements
+
+The status below was recorded before the specification owned the requirement text and stays with the evidence it cites.
+
+### Status of RG-PROTECT-001 (respond to immediate danger)
 
 **Intent:** Documented in [disaster planning](../developers/contracts/disaster-planning.md)
 and [controller contracts](../developers/contracts/controller-contracts.md).
@@ -29,17 +47,7 @@ people already downed, using the same native facts as recorded fights. These
 states require their own evidence; shelter intent does not establish immunity.
 The user-approved empirical estimates and their limits are recorded in P6.
 
-## RG-PROTECT-002 — Verify restoration after disruption
-
-The governor should track affected services through an event and arrange repair,
-refuelling or replacement where supported. It should report restoration only when
-observations show those services recovered. This keeps the recovery plan tied to
-what the colony still lacks after the original danger ends.
-
-When a solar flare ends but a facility remains damaged, recovery should continue.
-A missing building or unread service should leave its outcome unresolved. When
-all affected services recover, the episode should close. Renewed damage should
-reopen the relevant work.
+### Status of retired RG-PROTECT-002 (verify restoration after disruption)
 
 **Intent:** Documented in [disaster planning](../developers/contracts/disaster-planning.md).
 **Implementation:** Supported for the inspected service-state path and explicit
