@@ -12,18 +12,21 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class ForecastValue
 {
-    // Both givers: severity gained per degree beyond the safe range, per 60-tick interval, with a floor under the gain.
-    private const double ThermalPerDegree = 6.45E-05;
-    private const double HypothermiaFloor = 0.00075;
+    // The cold side's literals (growth per degree, the hypothermia floor, the safe margin and the recovery clamp) are
+    // DashEstimateRules.PublishedHypothermiaTuning's, the one copy the native probe environment/hypothermia validates
+    // (#4048). The heat giver shares the per-degree growth, the safe margin and the recovery clamp; only its floor and
+    // its overage curve are its own.
+    private static readonly HypothermiaTuning Tuning = DashEstimateRules.PublishedHypothermiaTuning;
+    private static readonly double ThermalPerDegree = Tuning.GrowthPerDegreeUnder;
+    private static readonly double HypothermiaFloor = Tuning.MinProgress;
     private const double HeatstrokeFloor = 0.000375;
 
-    // Both givers: inside the comfort range the severity falls by Clamp(severity * 0.027, 0.0015, 0.015) per interval.
-    private const double RecoveryFraction = 0.027;
-    private const double RecoveryMin = 0.0015;
-    private const double RecoveryMax = 0.015;
+    private static readonly double RecoveryFraction = Tuning.RecoveryFraction;
+    private static readonly double RecoveryMin = Tuning.RecoveryMin;
+    private static readonly double RecoveryMax = Tuning.RecoveryMax;
 
     // GenTemperature.SafeTemperatureRange: the comfortable range widened by this on each side.
-    private const double SafeMargin = 10;
+    private static readonly double SafeMargin = Tuning.HarmfulOffsetC;
 
     // HediffGiver_Heat.TemperatureOverageAdjustmentCurve: (degrees over the safe maximum, adjusted overage).
     private static readonly (double X, double Y)[] OverageCurve = [(0, 0), (25, 25), (50, 40), (100, 60), (200, 80), (400, 100)];
@@ -55,8 +58,8 @@ public static partial class ForecastValue
     /// <summary>The severity left after <paramref name="ticks"/> of recovery at Clamp(severity * 0.027, 0.0015, 0.015) per interval (the closed form <see cref="Recover"/> walks).</summary>
     internal static double RecoveredSeverity(double severity, double ticks)
     {
-        const double upper = RecoveryMax / RecoveryFraction;
-        const double lower = RecoveryMin / RecoveryFraction;
+        var upper = RecoveryMax / RecoveryFraction;
+        var lower = RecoveryMin / RecoveryFraction;
         while (ticks > 0 && severity > 0)
         {
             var regime = severity > upper ? Clock.FallingFast : severity > lower ? Clock.FallingExponential : Clock.FallingSlow;
@@ -265,8 +268,8 @@ public static partial class ForecastValue
     /// </summary>
     private static double? Recover(ref Course course, double ticks)
     {
-        const double upper = RecoveryMax / RecoveryFraction;
-        const double lower = RecoveryMin / RecoveryFraction;
+        var upper = RecoveryMax / RecoveryFraction;
+        var lower = RecoveryMin / RecoveryFraction;
         double used = 0;
         while (used < ticks && course.Severity > 0)
         {
@@ -297,7 +300,7 @@ public static partial class ForecastValue
     private readonly record struct Clock(int Regime, double Severity, double Rate, double Slope)
     {
         public const int Rising = 0, FallingFast = 1, FallingExponential = 2, FallingSlow = 3;
-        private const double Decay = RecoveryFraction / IntervalTicks;
+        private static readonly double Decay = RecoveryFraction / IntervalTicks;
 
         public double Level(double t) => Regime switch
         {

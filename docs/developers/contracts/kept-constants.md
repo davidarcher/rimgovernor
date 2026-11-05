@@ -126,7 +126,9 @@ constants whose comment cites the member below; the other rows document the
 mechanics the thermal and rest pricing read (`ForecastValueThermal.cs`, #3521: the giver steps every 60 ticks, the ledger integrates its continuous limit over each span). All 1.7 members, read with
 ilspycmd. The hypothermia gain and safe-range rows are also probed natively: `environment/hypothermia` (#2797)
 reads `Verse.HealthTuning` and the pawn's safe range, and measures the severity a colonist gains 40 C under its
-comfortable minimum against `DashEstimateRules.PublishedHypothermiaTuning`.
+comfortable minimum against `DashEstimateRules.PublishedHypothermiaTuning`. That tuning is the one copy of the cold side's
+growth, floor, safe margin and recovery clamp (#4048): the thermal ledger, the herd shelter walk and the hospital exposure
+read it rather than keeping literals of their own; the heat giver's floor and overage curve stay in `ForecastValueThermal.cs`.
 
 | Literal | Value | 1.7 member |
 | --- | --- | --- |

@@ -14,6 +14,17 @@ public sealed record HypothermiaTuning
 
     public double HarmfulOffsetC { get; init; }
 
+    // Recovery while not harmed (both givers, HediffGiver_Hypothermia and HediffGiver_Heat): the severity shed per step is
+    // Clamp(severity x RecoveryFraction, RecoveryMin, RecoveryMax).
+    public double RecoveryFraction { get; init; }
+
+    public double RecoveryMin { get; init; }
+
+    public double RecoveryMax { get; init; }
+
+    /// <summary>The severity shed per step while not harmed: max(RecoveryMin, min(RecoveryMax, RecoveryFraction x severity)).</summary>
+    public double Recovery(double severity) => Math.Max(RecoveryMin, Math.Min(RecoveryMax, RecoveryFraction * severity));
+
     /// <summary>The severity added per step at <paramref name="tempC"/>, 0 when the temperature is not harmful for a pawn comfortable down to <paramref name="comfortMinC"/>.</summary>
     public double Growth(double tempC, double comfortMinC)
     {
@@ -39,13 +50,18 @@ public static class DashEstimateRules
 {
     /// <summary>
     /// The published formula: onset below comfortable minimum minus 10 C, growth max(0.00075, (degrees below
-    /// comfortable - 10) x 0.0000645) per step.
+    /// comfortable - 10) x 0.0000645) per step, recovery max(0.0015, min(0.015, 0.027 x severity)) per step. The one
+    /// copy of these literals: the capability-days thermal ledger (ForecastValueThermal) and the herd and hospital
+    /// exposure walks read it too.
     /// </summary>
     public static readonly HypothermiaTuning PublishedHypothermiaTuning = new()
     {
         GrowthPerDegreeUnder = 0.0000645,
         MinProgress = 0.00075,
         HarmfulOffsetC = 10,
+        RecoveryFraction = 0.027,
+        RecoveryMin = 0.0015,
+        RecoveryMax = 0.015,
     };
 
     /// <summary>The ticks between severity updates.</summary>
@@ -59,10 +75,10 @@ public static class DashEstimateRules
     public const double HypothermiaDeath = 1.0;
 
     /// <summary>
-    /// The severity shed per step while not harmed: max(0.0015, min(0.015, 0.027 x severity)). Recovery is
-    /// slow, so a trip starts from the severity the previous one left.
+    /// The severity shed per step while not harmed, from the published tuning. Recovery is slow, so a trip starts
+    /// from the severity the previous one left.
     /// </summary>
-    public static double HypothermiaRecovery(double severity) => Math.Max(0.0015, Math.Min(0.015, 0.027 * severity));
+    public static double HypothermiaRecovery(double severity) => PublishedHypothermiaTuning.Recovery(severity);
 
     /// <summary>
     /// The ticks a pawn can stay outdoors before its hypothermia reaches target (a stage floor), starting at
