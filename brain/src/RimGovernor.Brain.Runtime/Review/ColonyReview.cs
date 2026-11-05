@@ -689,6 +689,10 @@ public sealed partial class ColonyReview
         }
         // Warmth windows read the clearance census (salvage trips) and the layout plan (the reference cell), so they are planned after both.
         reading = reading.WithFacts(rf => rf with { Warmth = WarmthPlanRules.ReviewWarmth(previous.Latches.Warmth, reading.Reading.Facts, Policy, reading.Reading.Facts.ForecastObserved.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) });
+        if (reading.Reading.Facts.Warmth.Count > 0 || previous.Latches.Warmth.Count > 0)
+        {
+            Tel.Decide(WarmthWindowDecision(reading.Reading.Facts.Warmth, expected.Tick));
+        }
         Lap("d_clear");
         fine.Mark();
         reading = reading.WithFacts(rf => rf with { AvailableNeeds = AvailableNeeds });
@@ -919,6 +923,30 @@ partial class ColonyReview
         Target = skip.Quest.Value,
         Attrs = new Dictionary<string, object?> { ["quest"] = skip.Quest.Value, ["script"] = skip.ScriptDef, ["detail"] = skip.Detail },
     };
+
+    /// <summary>
+    /// <summary>
+    /// The warmth_window row of a review that planned or closed warmth windows (#4051): open while some window is
+    /// open at the tick, closed otherwise; attrs the pawns, the trips each names as kind/id and the latest bound.
+    /// </summary>
+    internal static Decision WarmthWindowDecision(EquatableArray<WarmthWindow> windows, Tick now)
+    {
+        var open = windows.Where(w => w.OpenAt(now)).ToList();
+        return new Decision
+        {
+            Kind = TelemetryKinds.WarmthWindowKind,
+            Component = "rounds",
+            Target = "warmth",
+            Verdict = open.Count > 0 ? "open" : "closed",
+            Reason = open.Count > 0 ? "budget" : "spent",
+            Attrs = new Dictionary<string, object?>
+            {
+                ["pawns"] = open.Select(w => w.Pawn.Value).ToArray(),
+                ["trips"] = open.SelectMany(w => w.Trips.Select(t => $"{Wire.Name(t.Kind)}/{t.Id}")).ToArray(),
+                ["until"] = open.Count > 0 ? open.Max(w => w.Until.Value) : now.Value,
+            },
+        };
+    }
 
     /// <summary>
     /// The one planner_step row of a ColonyReview step: ok when the review ran, failed with the error as an attr

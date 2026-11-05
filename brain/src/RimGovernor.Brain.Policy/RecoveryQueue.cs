@@ -103,8 +103,10 @@ public sealed record RecoveryRequest
 
     public EquatableArray<OutdoorHazard> Hazard { get; init; }
 
-    /// <summary>A warmth window is open for some pawn, which lifts the extreme cold hold (and only that hazard).</summary>
-    public bool DashOpen { get; init; }
+    /// <summary>The warmth windows and the tick they are read at: one naming a thing as a loot or salvage trip lifts extreme cold for that thing only (#4051).</summary>
+    public EquatableArray<WarmthWindow> Warmth { get; init; }
+
+    public Tick Now { get; init; }
 
     public bool Urgent { get; init; }
 }
@@ -182,9 +184,10 @@ public static partial class RecoveryRules
         {
             return RemoteRules.RemoteHoldThreat;
         }
-        if (OutdoorHazardRules.OutdoorHazardHeldDash(r.Hazard, r.DashOpen))
+        var hazard = OutdoorHazardRules.TripHold(r.Hazard, OutdoorHazardRules.TripNamed(r.Warmth, r.Now, t.Kind == RemoteWorkKind.Salvage ? WarmthTripKind.Salvage : WarmthTripKind.Loot, t.ID));
+        if (hazard.Length != 0)
         {
-            return OutdoorHazardRules.RemoteHoldHazard;
+            return hazard;
         }
         if (t.Hold.Length != 0)
         {
@@ -481,7 +484,8 @@ public static partial class RecoveryRules
             Urgent = RemoteRules.UrgentWorkCompeting(f),
             Threat = threat,
             Hazard = OutdoorHazardRules.OutdoorHazardsOf(f),
-            DashOpen = f.WarmthOpen(),
+            Warmth = f.Warmth,
+            Now = f.Tick,
             Origins = origins,
             Center = center,
             Things = things,

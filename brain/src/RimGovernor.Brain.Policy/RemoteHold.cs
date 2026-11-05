@@ -126,11 +126,25 @@ public static partial class RemoteRules
         {
             return RemoteHoldThreat;
         }
-        if (OutdoorHazardRules.OutdoorHazardHeldDash(r.Hazard, r.DashOpen))
+        if (OutdoorHazardRules.OutdoorHazardHeld(r.Hazard))
         {
             return OutdoorHazardRules.RemoteHoldHazard;
         }
         return "";
+    }
+
+    /// <summary>
+    /// The hold on one remote trip (loot or salvage, #4051): the threat first, then the hazard as
+    /// <see cref="OutdoorHazardRules.TripHold(EquatableArray{OutdoorHazard}, bool)"/> reads it, lifted under cold alone
+    /// when some open warmth window names the trip.
+    /// </summary>
+    internal static string RemoteTripHold(RemoteSafety r, WarmthTripKind kind, string id)
+    {
+        if (r.Threat.ThreatCount > 0)
+        {
+            return RemoteHoldThreat;
+        }
+        return OutdoorHazardRules.TripHold(r.Hazard, OutdoorHazardRules.TripNamed(r.Warmth, r.Now, kind, id));
     }
 }
 
@@ -142,8 +156,8 @@ public enum RemoteWorkKind
 
 /// <summary>
 /// The observed outdoor safety every remote selection holds on: a hostile on the map (the census is required) and
-/// the outdoor hazard, which an open dash window lifts for extreme cold only. Distance is not a hold; the
-/// supply planner prices it.
+/// the outdoor hazard, which an open warmth window naming the trip lifts for extreme cold only (RemoteTripHold;
+/// mining reads the all-hazards RemoteThreatHold). Distance is not a hold; the supply planner prices it.
 /// </summary>
 public sealed record RemoteSafety
 {
@@ -151,8 +165,10 @@ public sealed record RemoteSafety
 
     public EquatableArray<OutdoorHazard> Hazard { get; init; }
 
-    /// <summary>A warmth window is open for some pawn (WarmthWindow.OpenAt).</summary>
-    public bool DashOpen { get; init; }
+    /// <summary>The warmth windows (ReviewFacts.Warmth) and the tick they are read at.</summary>
+    public EquatableArray<WarmthWindow> Warmth { get; init; }
+
+    public Tick Now { get; init; }
 }
 
 /// <summary>

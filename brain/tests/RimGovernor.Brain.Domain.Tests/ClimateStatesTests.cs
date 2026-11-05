@@ -169,11 +169,10 @@ public sealed class ClimateStatesTests
         Assert.False(OutdoorHazardRules.OutdoorAcquisitionHeld(calm));
         var cold = calm with { Census = calm.Census with { OutdoorTemperatureC = -25.0 } };
         Assert.Equal([new OutdoorHazard(HazardKind.ExtremeCold)], OutdoorHazardRules.OutdoorHazardsOf(cold).ToList());
-        Assert.False(OutdoorHazardRules.OutdoorHazardHeldDash(OutdoorHazardRules.OutdoorHazardsOf(cold), true));
-        Assert.True(OutdoorHazardRules.OutdoorHazardHeldDash(OutdoorHazardRules.OutdoorHazardsOf(cold), false));
+        Assert.Equal("", OutdoorHazardRules.TripHold(OutdoorHazardRules.OutdoorHazardsOf(cold), true));
+        Assert.Equal(OutdoorHazardRules.WarmthHoldBudget, OutdoorHazardRules.TripHold(OutdoorHazardRules.OutdoorHazardsOf(cold), false));
         var hot = calm with { Census = calm.Census with { OutdoorTemperatureC = 50.0 } };
-        Assert.True(OutdoorHazardRules.OutdoorHazardHeldDash(OutdoorHazardRules.OutdoorHazardsOf(hot), true));
-
+        Assert.Equal(OutdoorHazardRules.RemoteHoldHazard, OutdoorHazardRules.TripHold(OutdoorHazardRules.OutdoorHazardsOf(hot), true));
     }
 
     [Fact]

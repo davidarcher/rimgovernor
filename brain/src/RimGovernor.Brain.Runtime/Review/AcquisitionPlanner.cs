@@ -60,11 +60,6 @@ public sealed partial class AcquisitionPlanner
         }
 
         var (expected, projection) = await _reviewer.AcquisitionReadingAsync(state, review, call).ConfigureAwait(false);
-        // An outdoor hazard holds chop, hunt and forage like it holds remote work.
-        if (OutdoorHazardRules.OutdoorAcquisitionHeld(projection.Facts))
-        {
-            return new AcquisitionResult { Verdict = WaitFor(Cause.RoomTemperature, OutdoorHazardRules.RemoteHoldHazard) };
-        }
         var stockGoal = !food;
         var huntOnly = false;
         var stalledSources = new HashSet<string>(StringComparer.Ordinal);
@@ -125,6 +120,13 @@ public sealed partial class AcquisitionPlanner
             }
         }
         var held = CooledSources(projection.Facts.Acquisition, _reviewer.ChopMinGrowth(projection), id => cooled.Contains(id) || AcquisitionCooled(progress, _reviewer.Policy, id, expected.Tick));
+        // An outdoor hazard holds every chop, and each hunt or forage no open warmth window names for its pawn (#4051);
+        // the step waits only while no source is free.
+        var hazardHold = OutdoorHazardRules.AcquisitionTripHolds(projection.Facts, projection.Facts.Acquisition, held);
+        if (hazardHold.Length != 0)
+        {
+            return new AcquisitionResult { Verdict = WaitFor(Cause.RoomTemperature, hazardHold) };
+        }
         // Blocking reads the census, not the journal: a designated row the goal would plan is its ExistingWork. A
         // source this step cancelled or cooled still reads designated until native withdraws it, and never
         // blocks.

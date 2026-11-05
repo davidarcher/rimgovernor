@@ -184,14 +184,16 @@ public sealed class MilitaryReview
             stale.AddRange(AcquisitionPlanner.GonePestHunts(plan.Progress, wild).Select(action => new StaleHunt(method.Plan, action)));
             undispatched.UnionWith(AcquisitionPlanner.UndispatchedAcquisitions(plan.Progress));
         }
-        facts = facts with { Pests = pests, StaleHunts = [.. stale], HuntingHeld = OutdoorHazardRules.OutdoorAcquisitionHeld(projection.Facts) };
+        // A designated or undispatched pest row is held: it is not planned again. An outdoor hazard holds each
+        // pest hunt no open warmth window names for its pawn (#4051); the step waits only while every one is held.
+        var held = new Dictionary<string, bool>(StringComparer.Ordinal);
+        _ = AcquisitionPlanner.HoldWorked(projection.Facts.Acquisition, undispatched, held);
+        var huntingHold = OutdoorHazardRules.AcquisitionTripHolds(projection.Facts, projection.Facts.Acquisition.Where(s => s.Hunt && s.Pest), held);
+        facts = facts with { Pests = pests, StaleHunts = [.. stale], HuntingHold = huntingHold };
         if (pests == 0)
         {
             return facts;
         }
-        // A designated or undispatched pest row is held: it is not planned again.
-        var held = new Dictionary<string, bool>(StringComparer.Ordinal);
-        _ = AcquisitionPlanner.HoldWorked(projection.Facts.Acquisition, undispatched, held);
         var (slots, noHunter) = ResourcePlanner.HuntSlots(projection);
         IReadOnlyList<AcquisitionSource> selected;
         try
@@ -298,10 +300,10 @@ public sealed class MilitaryReview
         {
             _reviewer.Player.Journal.Cancel(hunt.Plan, hunt.Action, call);
         }
-        if (facts.HuntingHeld)
+        if (facts.HuntingHold.Length != 0)
         {
-            // An outdoor hazard holds chop, hunt and forage like it holds remote work.
-            return WaitFor(Cause.RoomTemperature, OutdoorHazardRules.RemoteHoldHazard);
+            // An outdoor hazard holds every pest hunt (or the warmth budget does, under cold alone).
+            return WaitFor(Cause.RoomTemperature, facts.HuntingHold);
         }
         if (facts.HuntsUnread)
         {

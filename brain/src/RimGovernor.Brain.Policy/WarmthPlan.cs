@@ -460,7 +460,8 @@ public static class WarmthPlanRules
             var path = Math.Sqrt(Math.Pow(at.Cell.X - home.X, 2) + Math.Pow(at.Cell.Z - home.Z, 2));
             if (s.Hunt)
             {
-                if (!s.Food || s.Retaliates() || s.Observed.Kind is not RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt { MeatAmount: var meat } || meat <= 0)
+                // Food prey and pests (the pest step hunts them under the same window, #4051); a predator or vengeful animal is no lone hunt.
+                if (!(s.Food || s.Pest) || s.Retaliates() || s.Observed.Kind is not RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt { MeatAmount: var meat } || meat <= 0)
                 {
                     continue;
                 }

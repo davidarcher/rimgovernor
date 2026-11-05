@@ -57,8 +57,8 @@ public sealed record MilitaryFacts
     /// <summary>The acquisition census could not be read for a selection.</summary>
     public bool HuntsUnread { get; init; }
 
-    /// <summary>An outdoor hazard holds chop, hunt and forage like it holds remote work.</summary>
-    public bool HuntingHeld { get; init; }
+    /// <summary>The hold on every pest hunt ("" when some pest may be hunted): the outdoor hazard, or the warmth budget under cold alone (#4051).</summary>
+    public string HuntingHold { get; init; } = "";
 
     /// <summary>The training review; null while the family read none, which raises <see cref="RequiredFactException"/> when the Need derives.</summary>
     public TrainingReview? Training { get; init; }
@@ -198,7 +198,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
                 output.Add(NeedMethod.Held(Defense, UnsupportedEquipment,
                     "Observed equipment demand requires shared forecast worker, timing and outcome alternatives."));
             }
-            else if (need.Id == Pests && !facts.HuntingHeld && facts.Hunt is { Rows.Count: > 0 } hunt)
+            else if (need.Id == Pests && facts.HuntingHold.Length == 0 && facts.Hunt is { Rows.Count: > 0 } hunt)
             {
                 output.Add(new NeedMethod(Pests, hunt.Method, "pest " + hunt.Rows[0].Definition, id => HuntPlan(id, hunt)));
             }

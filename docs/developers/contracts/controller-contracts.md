@@ -221,9 +221,14 @@ This is coordination within existing concerns, not an executor.
   work destinations; they do not make paths safe. The brain never assigns an unroofed area or
   clears a restriction while fallout lasts; native reports no hazard veto. No refuge produces a blocker.
   Outdoor hazards (extreme cold at or below -20 C, extreme heat at or above 45 C, toxic fallout) are a typed
-  fact (`OutdoorHazardsOf`); any active hazard holds remote loot, salvage and
-  mining, recovery, and chop, hunt and forage acquisition with reason `outdoor_hazard` (acquisition reports it as a `waiting_for_native_temperature` wait
-  with that subject). An unread condition census or outdoor temperature raises `RequiredFactException`
+  fact (`OutdoorHazardsOf`); any active hazard holds mining, chopping and formation hunts with reason
+  `outdoor_hazard` (`OutdoorAcquisitionHeld`, `RemoteThreatHold`). Remote loot and salvage, recovery, lone hunts,
+  forages and coupled harvests are held per trip (`TripHold`, `AcquisitionTripHolds`, #4051): heat or fallout
+  holds every trip with `outdoor_hazard`; extreme cold alone holds a trip with `warmth_budget` unless an open
+  warmth window names it (`WarmthWindow.Names`, kind and id): the pawn's own window for a hunt, forage or harvest,
+  any pawn's for loot and salvage, which native staffs. The acquisition and pest steps hold each source into the
+  `held` map and wait only while no source is free, with the budget's reason when some source waits for a window,
+  else the hazard's; acquisition reports the wait as `waiting_for_native_temperature` with that subject. An unread condition census or outdoor temperature raises `RequiredFactException`
   in the planner that asks (a map without the reads is not known to be free of hazards); the warmth review
   alone publishes no window instead. Field expansion is not gated.
   Warmth windows (#2765, #4049 and #4050 of epic #3578): while extreme cold is the only hazard and no hostile is
@@ -249,9 +254,11 @@ This is coordination within existing concerns, not an executor.
   `WarmthRefillSeverity` (the shivering floor): the refill is read from `WorkPawn.Body`, never modelled, and
   `WarmthRefillTicks` predicts the tick it is reached by the published recovery only for the hold reason.
   `WarmthWindow.OpenAt(tick)` is the only close rule: open before `Until`, closed from it.
-  `WarmthMarginIntervals` of growth stay under the cap. An open window lifts the extreme-cold hold (and only that) in
-  `recoveryHold` and `remoteThreatHold`, and `PlanSheltering` lets its pawn out of Safe; at the bound
-  it shelters the pawn again. Heat, fallout and unrecognised kinds stay held. The per-colonist inputs
+  `WarmthMarginIntervals` of growth stay under the cap. An open window lifts the extreme-cold hold (and only that)
+  for the trips it names, in `RecoveryHold`, `RemoteTripHold` and `AcquisitionTripHolds` (#4051), and
+  `PlanSheltering` lets its pawn out of Safe; at the bound it shelters the pawn again. Heat, fallout and
+  unrecognised kinds stay held. Each colony review that plans or closes windows writes one `warmth_window`
+  decision row (the open pawns, their trips as `kind/id`, the latest bound). The per-colonist inputs
   (comfortable temperature range, move speed, hypothermia and other severities, capacities) are the native
   `PawnSettings.body` block, read with work detail (`WorkPawn.Body`).
 

@@ -52,8 +52,15 @@ public sealed partial record ForecastCoupledCandidates
                 && !resources.Claims.Targets.Contains(o.Source) && !resources.Claims.Targets.Contains(o.Bench)
                 && !resources.Claims.Targets.Contains(o.Bill)))
         };
-        if (!NeedEnabled(FoodRules.FoodSupplyNeed) || OutdoorHazardRules.OutdoorAcquisitionHeld(facts))
+        if (!NeedEnabled(FoodRules.FoodSupplyNeed))
             read = read with { Food = read.Food with { Options = [] }, FoodConversions = [] };
+        else if (OutdoorHazardRules.OutdoorAcquisitionHeld(facts))
+            // Under a hazard a harvest stays only as the forage its pawn's open warmth window names (#4051).
+            read = read with
+            {
+                Food = read.Food with { Options = EquatableArray.From(read.Food.Options.Where(o => !OutdoorHazardRules.TripHeld(facts, new PawnId(o.Pawn), WarmthTripKind.Forage, o.Target))) },
+                FoodConversions = [],
+            };
         // An unplaced planned shelter's cells and planned heater come from the round's planned thermal read (#3323).
         read = read with { Thermal = PlannedRules.WithPlannedThermal(read.Thermal, facts.PlannedThermal) };
         var shelterEnabled = NeedEnabled(ShelterFamily.Sleeping)

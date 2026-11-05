@@ -278,7 +278,7 @@ public sealed class MilitaryFamilyTests
     public void AnOutdoorHazardProposesNoHuntAndARunWithoutOneWaitsOnItsOpenWork()
     {
         using var colony = Open();
-        colony.Facts = Unmet(Hunt("pest-hunt-a", Pest("rat-a", 5))) with { HuntingHeld = true };
+        colony.Facts = Unmet(Hunt("pest-hunt-a", Pest("rat-a", 5))) with { HuntingHold = OutdoorHazardRules.RemoteHoldHazard };
         var held = colony.Run();
         Assert.Empty(held.Methods);
 

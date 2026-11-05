@@ -40,7 +40,7 @@ public static partial class RemoteRules
             {
                 continue;
             }
-            reasons[i] = RemoteLootReachHold(r);
+            reasons[i] = RemoteLootReachHold(r, row);
         }
         var kept = new List<LootItem>();
         var holds = new List<LootHold>();
@@ -79,9 +79,10 @@ public static partial class RemoteRules
     /// <summary>
     /// Returns the empty string when no safety hold applies. The native safety verdict is this candidate's
     /// eligibility and route evidence: the census only reports a Safe haul after walking a colonist's route.
-    /// Distance is the supply planner's price, not a hold.
+    /// Distance is the supply planner's price, not a hold. Under extreme cold alone the hold lifts for the item an
+    /// open warmth window names as a loot trip (#4051).
     /// </summary>
-    internal static string RemoteLootReachHold(RemoteWorkRequest r) => RemoteThreatHold(r.Safety);
+    internal static string RemoteLootReachHold(RemoteWorkRequest r, LootItem row) => RemoteTripHold(r.Safety, WarmthTripKind.Loot, row.Supply.Thing);
 
     /// <summary>
     /// The remote request the loot filter runs against: safety and the derived extent from the review facts,
@@ -96,6 +97,6 @@ public static partial class RemoteRules
     /// <summary>Assembles outdoor safety from the required hostile census.</summary>
     public static RemoteSafety LootSafety(ReviewFacts f)
     {
-        return new RemoteSafety { Threat = f.Hostiles, Hazard = OutdoorHazardRules.OutdoorHazardsOf(f), DashOpen = f.WarmthOpen() };
+        return new RemoteSafety { Threat = f.Hostiles, Hazard = OutdoorHazardRules.OutdoorHazardsOf(f), Warmth = f.Warmth, Now = f.Tick };
     }
 }

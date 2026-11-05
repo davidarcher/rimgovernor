@@ -150,6 +150,43 @@ public sealed class WarmthWindowTests
     }
 
     [Fact]
+    public void AWindowNamingOnePawnsHuntAdmitsThatPreyAndHoldsTheRestForTheBudget()
+    {
+        var p = Source("p", "Meat_Deer", 1, new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(80, 1, false, false, false, false), 30);
+        var q = Source("q", "Meat_Deer", 1, new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Hunt(80, 1, false, false, false, false), 40);
+        var oak = Source("oak", "WoodLog", 30, new RimGovernor.Brain.GameFacts.Observations.AcquisitionKind.Plant(false, 1, false), 5) with { Tree = true };
+        var cold = new ReviewFacts
+        {
+            Tick = new Tick(5),
+            DisasterConditions = [],
+            Census = ColonyFactsCoreTests.Snapshot() with { OutdoorTemperatureC = -25.0 },
+            Acquisition = [p, q, oak],
+            Warmth = [new WarmthWindow { Pawn = new PawnId("a"), Until = new Tick(10), Trips = [new WarmthTrip { Id = "p", Kind = WarmthTripKind.LoneHunt }] }],
+        };
+        var held = new Dictionary<string, bool>();
+        Assert.Equal("", OutdoorHazardRules.AcquisitionTripHolds(cold, cold.Acquisition, held));
+        Assert.Equal(["oak", "q"], held.Keys.OrderBy(k => k, StringComparer.Ordinal).ToList());
+        Assert.Equal(p, Assert.Single(AcquisitionRules.SelectAcquisition([p, q], 2, 0, held, 1)));
+        Assert.Equal(OutdoorHazardRules.WarmthHoldBudget, OutdoorHazardRules.TripHold(cold, new PawnId("a"), WarmthTripKind.LoneHunt, "q"));
+        Assert.Equal(OutdoorHazardRules.WarmthHoldBudget, OutdoorHazardRules.TripHold(cold, new PawnId("b"), WarmthTripKind.LoneHunt, "p"));
+        Assert.False(OutdoorHazardRules.TripHeld(cold, new PawnId("a"), WarmthTripKind.LoneHunt, "p"));
+        Assert.Equal("", OutdoorHazardRules.TripHold(cold, WarmthTripKind.LoneHunt, "p"));
+        // No window: every hunt waits for the budget; a tree waits for the hazard under cold too.
+        var none = new Dictionary<string, bool>();
+        Assert.Equal(OutdoorHazardRules.WarmthHoldBudget, OutdoorHazardRules.AcquisitionTripHolds(cold with { Warmth = [] }, [p, q], none));
+        Assert.Equal(2, none.Count);
+        Assert.Equal(OutdoorHazardRules.RemoteHoldHazard, OutdoorHazardRules.AcquisitionTripHolds(cold with { Warmth = [] }, [oak], new Dictionary<string, bool>()));
+        // Under toxic fallout the named trip is still held, with the hazard's reason.
+        var fallout = cold with { DisasterConditions = [new DisasterCondition { Observed = new RimGovernor.Brain.GameFacts.Observations.EnvironmentCondition { Id = "fallout", DefName = DisasterRules.ConditionToxicFallout, Duration = new RimGovernor.Brain.GameFacts.Observations.ConditionDuration.Permanent() } }] };
+        Assert.Equal(OutdoorHazardRules.RemoteHoldHazard, OutdoorHazardRules.AcquisitionTripHolds(fallout, [p], new Dictionary<string, bool>()));
+        Assert.Equal(OutdoorHazardRules.RemoteHoldHazard, OutdoorHazardRules.TripHold(fallout, WarmthTripKind.LoneHunt, "p"));
+        // A calm map holds nothing and writes nothing.
+        var calm = new Dictionary<string, bool>();
+        Assert.Equal("", OutdoorHazardRules.AcquisitionTripHolds(cold with { Census = cold.Census with { OutdoorTemperatureC = 10 } }, [p, oak], calm));
+        Assert.Empty(calm);
+    }
+
+    [Fact]
     public void TheFactsReadTheWindowOfOnePawn()
     {
         var f = new ReviewFacts { Tick = new Tick(5), Warmth = [new WarmthWindow { Pawn = new PawnId("a"), Until = new Tick(10) }] };

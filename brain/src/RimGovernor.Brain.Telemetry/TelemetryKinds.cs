@@ -160,4 +160,10 @@ public static class TelemetryKinds
 
     /// <summary>A combat ended (<see cref="CombatSummaryKind"/>).</summary>
     public static readonly TelemetryKind CombatSummary = new(CombatSummaryKind);
+
+    /// <summary>The warmth window plan row's kind: one per colony review while some window is open or just closed (#4051).</summary>
+    public const string WarmthWindowKind = "warmth_window";
+
+    /// <summary>The warmth windows a review planned (<see cref="WarmthWindowKind"/>).</summary>
+    public static readonly TelemetryKind WarmthWindow = new(WarmthWindowKind);
 }
