@@ -2,21 +2,29 @@
 
 [Collection](README.md) · [Review queue](review-queue.md)
 
-New people and quests bring continuing obligations. The governor should account
-for those obligations when deciding what the colony can support. Acquiring and
-keeping animals is decided in the [herd management specification](../../openspec/specs/herd-management/spec.md).
+## Intent and evidence ownership
 
-## RG-COMMIT-001 — Match commitments to available capacity
+New people, prisoners, quests and colony practices bring continuing obligations.
+The [commitments specification](../../openspec/specs/colony-commitments/spec.md) is the standing
+owner of RG-COMMIT-001 and RG-COMMIT-003 and their scenarios; the maintainer-confirmed
+policy and its provenance are in the [decision record](../../openspec/changes/archive/2026-11-08-define-equipment-and-commitments/proposal.md#decision-provenance-and-review-boundary). RG-COMMIT-002 lives
+in the [herd management specification](../../openspec/specs/herd-management/spec.md) since
+2026-11-03. This page owns implementation inspection, executed results and proof
+limits, not requirements. Its inspection history (K1–K6) is preserved as recorded.
 
-The governor should account for food, workers, shelter and relevant safety limits
-when taking on supported people and quests. It should retain those demands
-while the obligation remains active. This protects the colony from accepting work
-whose cost appears only after the decision.
+## Requirement map
 
-A prospective joiner should count toward food demand before arrival. An accepted
-quest should retain its required people and supplies through completion or
-failure. An unsupported or unread objective should have a specific blocker.
-Changed colony capacity should trigger reassessment of the work that remains.
+Each requirement is stated once, in the specification.
+
+- RG-COMMIT-001: [Take on people and quests by priced contribution](../../openspec/specs/colony-commitments/spec.md#requirement-rg-commit-001--take-on-people-and-quests-by-priced-contribution)
+- RG-COMMIT-002: [Carry out and observe animal care](../../openspec/specs/herd-management/spec.md#requirement-rg-commit-002--carry-out-and-observe-animal-care) (herd management)
+- RG-COMMIT-003: [Advance supported colony practices and abilities](../../openspec/specs/colony-commitments/spec.md#requirement-rg-commit-003--advance-supported-colony-practices-and-abilities)
+
+## Implementation status of the original requirements
+
+The status below was recorded before the specification owned the requirement text and stays with the evidence it cites. The holds it names (K4–K5) are defects to remove under the 2026-11-08 decision, not known gaps.
+
+### Status of RG-COMMIT-001 (match commitments to available capacity)
 
 **Intent:** Documented in [population](../developers/contracts/population-contracts.md),
 [husbandry](../developers/contracts/husbandry-contracts.md) and
@@ -24,30 +32,9 @@ Changed colony capacity should trigger reassessment of the work that remains.
 decisions and supported quest objectives are connected. Autonomous population
 capture and bestowing are explicitly held (K4–K5).
 
-## RG-COMMIT-002 — Moved to herd management
+### Status of RG-COMMIT-003 (advance supported colony practices and abilities)
 
-On 2026-11-03 the maintainer moved this requirement, identity preserved, into the
-[herd management specification](../../openspec/specs/herd-management/spec.md),
-where herd size, feeding and animal care have one owner. The
-[reconciliation record](../../openspec/changes/archive/2026-11-03-reconcile-supply-and-commitments/proposal.md#decision-provenance-and-review-boundary)
-holds the decision. Evidence K3–K4 below stands as inspected and is cited from
-that specification.
-
-## RG-COMMIT-003 — Advance supported colony practices and abilities
-
-When the colony has the people, facilities and resources for a useful practice
-or ability, the governor should weigh its benefit and obligations against other
-work. It should observe the actual result before treating that benefit as gained.
-This includes supported ideology roles and conversions, ceremonies and DLC
-progression. It prevents a legal native action being mistaken for a useful plan.
-
-A legal role assignment should be read back on its participant. A ritual without
-accounted participant time should remain blocked with a specific reason. Changed
-participants or conditions should trigger a fresh review. Ritual completion and
-its benefit are separate observable claims.
-
-**Intent:** Inferred candidate from the reachable ideology, Royalty and Anomaly
-families and their contracts; the breadth and admission policy need human review.
+**Intent:** Formerly an inferred candidate; confirmed by the maintainer on 2026-11-08.
 **Implementation:** Partial. Role and conversion paths exist. Rituals, bestowing,
 neuroformer use and monolith interaction have confirmed holds. Evidence K5.
 

@@ -31,6 +31,10 @@ RG-PROTECT-002 was retired there into RG-HABITAT-003. The [combat specification]
 owns RG-COMBAT-001–004, confirmed on 2026-11-05 in the
 [combat record](changes/archive/2026-11-05-define-combat-requirements/proposal.md#decision-provenance-and-review-boundary),
 with its design direction (the game's Lord framework with governor-authored toils) recorded there.
+The [equipment management](specs/equipment-management/spec.md) and
+[colony commitments](specs/colony-commitments/spec.md) specifications own RG-EQUIP-001–003
+and RG-COMMIT-001 and 003, confirmed on 2026-11-08 in the
+[equipment and commitments record](changes/archive/2026-11-08-define-equipment-and-commitments/proposal.md#decision-provenance-and-review-boundary).
 Every mapped capability now has a standing specification; the docs/requirements pages own evidence. Design and implementation tasks are outside that requirements
 capture; the [food change](changes/archive/2026-11-03-redefine-food-requirements/proposal.md)
 was archived on 2026-11-03 once its specs were synchronized, and later behavior

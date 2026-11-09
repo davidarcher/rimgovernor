@@ -3,8 +3,8 @@ schema: spec-driven
 context: |
   Every mapped capability has a standing specification under openspec/specs:
   food security, colony labor, habitat, resource acquisition, growing, hunting,
-  herd management, protection, combat, colonist wellbeing, control and continuity
-  and explanations. Read openspec/README.md and the owning evidence page under
+  herd management, protection, combat, equipment management, colony commitments,
+  colonist wellbeing, control and continuity and explanations. Read openspec/README.md and the owning evidence page under
   docs/requirements (named in each spec's purpose) before planning changes.
   Player-specified research goals are excluded. AGENTS.md governs work and landing.
 
