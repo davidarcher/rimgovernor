@@ -83,10 +83,10 @@ counter restarts with the process; it is not a product promise about retention a
 The native [SaveHandshake](../../integrations/rimgovernor-native/src/Runtime/Persistence/SaveHandshake.cs)
 suppresses vanilla autosaves and signals manual saves to flush state. It waits a
 bounded time and then saves even without acknowledgement. Therefore a successful
-manual game save alone cannot certify fresh governor intent. The persistence
-contract describes flushing but omits the connected timeout; strict freshness
-needs a product decision ([Q4](review-queue.md#q4--manual-save-freshness)).
-The checkpoint path requires a completed reply, unlike that manual-save fallback.
+manual game save alone cannot certify fresh governor intent; RG-CONTINUITY-001
+accepts this as bounded best effort ([Q4](review-queue.md#q4--manual-save-freshness-decided-2026-11-08),
+decided 2026-11-08). The checkpoint path requires a completed reply, unlike that
+manual-save fallback. The timeout path has no boundary assertion yet.
 
 Corrupted-save recovery and process death during arbitrary native writes have no
 executed claim in this collection. Existing load/checkpoint cases should be reused

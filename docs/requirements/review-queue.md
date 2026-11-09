@@ -50,7 +50,7 @@ rules remain design decisions; today's holds are not permanent product limits.
 | Usable facilities, RG-HABITAT-002 | Ordinary repairs [#4006](https://github.com/davidarcher/rimgovernor/issues/4006); door-to-wall replacement [#4007](https://github.com/davidarcher/rimgovernor/issues/4007) | Damage and blocked enclosure changes can undermine essential rooms. |
 | Safe workers, RG-PROTECT-001 | Defensive equipping [#4008](https://github.com/davidarcher/rimgovernor/issues/4008); precautionary disarming [#4010](https://github.com/davidarcher/rimgovernor/issues/4010) | Exposure to injury; immediate combat has a separate path. |
 | Everyday wellbeing, RG-HEALTH-002 | Residual apparel replacement [#4009](https://github.com/davidarcher/rimgovernor/issues/4009); gatherings [#4001](https://github.com/davidarcher/rimgovernor/issues/4001) | Clothing production exists, but complete gear recovery and social gatherings are narrower. |
-| Capacity and progression, RG-COMMIT-001/003 | Population capture/lance use [#4003](https://github.com/davidarcher/rimgovernor/issues/4003); rituals [#3580](https://github.com/davidarcher/rimgovernor/issues/3580); bestowing [#4002](https://github.com/davidarcher/rimgovernor/issues/4002); neuroformers [#4004](https://github.com/davidarcher/rimgovernor/issues/4004); monolith [#4005](https://github.com/davidarcher/rimgovernor/issues/4005) | Promised opportunities stop at explicit planner holds. DLC and colony conditions limit breadth. |
+| Capacity and progression, RG-COMMIT-001/003 (spec promotion [#4056](https://github.com/davidarcher/rimgovernor/issues/4056)) | Population capture/lance use [#4003](https://github.com/davidarcher/rimgovernor/issues/4003); rituals [#3580](https://github.com/davidarcher/rimgovernor/issues/3580); bestowing [#4002](https://github.com/davidarcher/rimgovernor/issues/4002); neuroformers [#4004](https://github.com/davidarcher/rimgovernor/issues/4004); monolith [#4005](https://github.com/davidarcher/rimgovernor/issues/4005) | Promised opportunities stop at explicit planner holds. DLC and colony conditions limit breadth. |
 | Useful supply, RG-ACQUIRE-001/002 (formerly RG-SUPPLY-001/002) | Zero-stock bootstrap [#3641](https://github.com/davidarcher/rimgovernor/issues/3641) | Prepared production and native deal tests do not establish the wider zero-stock bootstrap. |
 
 The capability pages give code/test evidence for the holds. Existing bootstrap
@@ -66,7 +66,7 @@ makes it urgent. Diagnose an observed feeding failure before choosing a food fix
 The issue links own implementation details; this collection does not duplicate
 their backlog.
 
-## Q4 — Manual-save freshness
+## Q4 — Manual-save freshness (decided 2026-11-08)
 
 SaveHandshake allows a manual game save after its flush acknowledgement times
 out; it also proceeds when no waiter exists. The persistence contract describes
@@ -74,11 +74,13 @@ flushing at save time and warns about disconnection, but omits the connected
 timeout limit. RG-CONTINUITY-001 therefore cannot promise fresh governor intent
 for every manual save.
 
-[#4011](https://github.com/davidarcher/rimgovernor/issues/4011) tracks the decision:
-document bounded best-effort freshness, or require a visible failure when fresh
-intent cannot be saved. A completed governed checkpoint has a stricter boundary.
-This is a concrete source discrepancy and intent question, not an observed
-corrupted-save incident.
+The maintainer chose bounded best-effort freshness: a player's save is never
+blocked by the governor; after the bounded wait it saves with the last flushed
+intent and logs a warning, and the governed checkpoint keeps its stricter
+completed-reply rule. RG-CONTINUITY-001 now carries the scenario (see the
+[decision record](../../openspec/changes/archive/2026-11-08-decide-manual-save-freshness/proposal.md)).
+[#4011](https://github.com/davidarcher/rimgovernor/issues/4011) keeps the
+remaining native boundary assertion for the timeout path.
 
 ## Q5 — Player-facing explanations (decided 2026-11-05)
 

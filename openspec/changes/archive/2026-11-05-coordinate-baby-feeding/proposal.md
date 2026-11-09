@@ -1,8 +1,10 @@
 # Proposal
 
+**Archived 2026-11-05 as superseded, not completed.** The native-led labor change replaced this execution design; [#4040](https://github.com/davidarcher/rimgovernor/issues/4040) stays open as implementation work under RG-FOOD-008.
+
 ## Superseded execution design
 
-The maintainer's 2026-10-26 direction and [native-led labor change](../native-led-labor-execution/proposal.md) supersede advance caregiver selection/release in this proposal. Its implementation checkpoint `ff5cfc77b` is local and unlanded; native feeding acceptance remains unproved and #4040 remains open. Preserve the confirmed food requirements and useful observations. Continue implementation through the labor change, not this obsolete execution plan.
+The maintainer's 2026-10-26 direction and [native-led labor change](../2026-10-31-native-led-labor-execution/proposal.md) supersede advance caregiver selection/release in this proposal. Its implementation checkpoint `ff5cfc77b` is local and unlanded; native feeding acceptance remains unproved and #4040 remains open. Preserve the confirmed food requirements and useful observations. Continue implementation through the labor change, not this obsolete execution plan.
 
 ## Why
 

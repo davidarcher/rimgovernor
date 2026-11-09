@@ -339,7 +339,10 @@ The blobs reach the save only when it is made: every vanilla save, whether the p
 vanilla's or the brain's own, parks in native's `pre_save` handshake while the brain flushes all blobs in one batched
 put, and every brain-made save (the lifecycle save route, the brain autosave) flushes first through the same path.
 There is no continuous mirror. A save made while no the brain is connected keeps the last flush, so it can lack
-intent written since. the brain's own autosave (`Autosave-1..5`, game-time interval) needs the brain holding the clock,
+intent written since. With the brain connected, the handshake waits `SaveHandshake.AckWaitMs` (3 s) for the flush
+acknowledgement, then saves anyway with the last flushed intent and logs a lifecycle warning: a player's save is never
+blocked by the brain (RG-CONTINUITY-001, decided 2026-11-08). Only the governed checkpoint route requires a completed
+reply before it reports a checkpoint. the brain's own autosave (`Autosave-1..5`, game-time interval) needs the brain holding the clock,
 so manual mode gets none; only a save the player makes there flushes. A brain crash loses intent back to the
 last save. On a world change (load token, not a native generation bump) the brain reads the save's blobs once
 and rebuilds its views before the first review: the clock worker's step gate, the read poll and the

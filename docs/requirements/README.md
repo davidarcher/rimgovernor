@@ -6,8 +6,9 @@ This collection describes the outcomes RimGovernor should deliver, what the code
 supports and what existing tests actually check. Use it to prioritize useful
 changes and preserve intended behavior as the implementation evolves.
 
-The governor has full autonomy. Player-specified research goals are excluded by
-the user's direction; research is a prerequisite costed into the option that needs it. Detailed behavior inferred from code remains a candidate until reviewed.
+The governor has full autonomy. Player-specified goals of every kind are excluded by
+the user's direction (research goals on 2026-10-24, the whole player-goals feature on 2026-11-08, [#3999](https://github.com/davidarcher/rimgovernor/issues/3999));
+research is a prerequisite costed into the option that needs it. Detailed behavior inferred from code remains a candidate until reviewed.
 
 Food is the [OpenSpec pilot](../../openspec/README.md). Its
 [standing specification](../../openspec/specs/food-security/spec.md) owns
@@ -58,7 +59,7 @@ of that trace are exercised and whether the fixture bypasses autonomous choice.
 | Protect people and restore disrupted services | [Protection](../../openspec/specs/protection/spec.md) RG-PROTECT-001; RG-PROTECT-002 retired into [habitat](../../openspec/specs/habitat/spec.md) RG-HABITAT-003 on 2026-11-05; [evidence](protection-and-recovery.md) | Fire/shelter response, civilian empirical exposure, service recovery | Unconfirmed exposure stability, survival/episode outcomes; the equipping hold is a defect to remove (2026-11-05) |
 | Fight the threats the colony must answer | [Combat](../../openspec/specs/combat/spec.md) RG-COMBAT-001–004; evidence stays on the [protection page](protection-and-recovery.md) P4–P6 | Combat batch/readback, tactic selection, loadouts, post-fight step | Confirmed intent only (2026-11-05); current tactics use named heuristics and an unpriced post-fight default |
 | Sustain people and accepted work | [Commitments](colony-commitments.md), RG-COMMIT-001 and 003; RG-COMMIT-002 moved to [herd management](../../openspec/specs/herd-management/spec.md) | Capacity, quests, custody/herds, classroom, nursery and prison-room effects, ideology/DLC | Bounded/approximate dependent forecasts, separate prisoner mortality; population/ritual/progression holds |
-| Resume safely after interruptions | [Control and continuity](../../openspec/specs/control-and-continuity/spec.md) RG-CONTINUITY-001–002; [evidence](continuity.md) | Checkpoint, state blobs, native load/replay, world reconstruction, continuation, autosave and manual-save handshake | Arbitrary mid-write crash recovery; manual-save freshness decision |
+| Resume safely after interruptions | [Control and continuity](../../openspec/specs/control-and-continuity/spec.md) RG-CONTINUITY-001–002; [evidence](continuity.md) | Checkpoint, state blobs, native load/replay, world reconstruction, continuation, autosave and manual-save handshake | Arbitrary mid-write crash recovery; manual-save timeout boundary assertion |
 | Explain actions and blockers | [Explanations](../../openspec/specs/explanations/spec.md) RG-EXPLAIN-001–003; [evidence](explanations.md) | Cause transitions, journal/API projection, launcher reader/render functions, forecast/observed distinction | Executed visual transition/readability evidence; RG-EXPLAIN-003 has no inspected implementation |
 
 ## Shared concerns

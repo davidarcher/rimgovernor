@@ -31,6 +31,8 @@ to take manual control.
 records a running session; otherwise the launcher selects a fresh journal.
 This setting does not select a colony timeline: the loaded RimWorld save does.
 
-The brain flushes its intent when the game saves. After a crash, the last
-flushed intent is kept and unsaved brain intent can be lost. On load, the brain rechecks the world before issuing work.
+The brain flushes its intent when the game saves. If the brain takes more than
+a few seconds to answer, the game saves anyway with the brain's last flushed
+intent and notes a warning in the log; your save is never held up by the brain.
+After a crash, the last flushed intent is kept and unsaved brain intent can be lost. On load, the brain rechecks the world before issuing work.
 
