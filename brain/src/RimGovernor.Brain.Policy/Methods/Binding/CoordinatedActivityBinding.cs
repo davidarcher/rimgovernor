@@ -33,13 +33,13 @@ internal static class CoordinatedActivityBinding
     }
 
     /// <summary>Only work before the participant's native boundary is installed in PawnActivities. Routine native work
-    /// is a conditional forecast, not an order. External comms/formation has its own executor. Neither can hold later
+    /// is a conditional forecast, not an order. External comms/formation and a ritual's attendance have their own executors. Neither can hold later
     /// work through unobserved progress; a fresh review must establish that work's prerequisites again. A
     /// <paramref name="readmitted"/> activity (<see cref="InterventionRules.Readmitted"/>, a justified verdict's
     /// <see cref="InterventionJustification.Readmitted"/>) is not withheld; its dependents and later work still stop at the boundary.</summary>
     internal static ForecastActivityPlan ForDispatch(ForecastActivityPlan plan, ForecastCoupledContext context, IReadOnlySet<string>? readmitted = null)
     {
-        var external = context.TradeWork.Select(w => (w.Task, w.Pawn)).ToHashSet();
+        var external = context.TradeWork.Select(w => (w.Task, w.Pawn)).Concat(context.RitualWork.Select(w => (w.Task, w.Pawn))).ToHashSet();
         var services = plan.Allocations.Where(a => NativeNeedServices.RoutineTask(a.Activity, a.Pawn, context))
             .Select(a => a.Activity).ToHashSet(StringComparer.Ordinal);
         var servicing = context.Needs.Pawns.Where(p => p.CurrentService is not null).Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal);
@@ -69,7 +69,7 @@ internal static class CoordinatedActivityBinding
     /// executor runs it.</summary>
     internal static IReadOnlySet<string> Withheld(ForecastActivityPlan plan, ForecastCoupledContext context)
     {
-        var external = context.TradeWork.Select(w => (w.Task, w.Pawn)).ToHashSet();
+        var external = context.TradeWork.Select(w => (w.Task, w.Pawn)).Concat(context.RitualWork.Select(w => (w.Task, w.Pawn))).ToHashSet();
         var native = context.Activities.Activities.Where(a => a.NativeExecution).Select(a => a.Id).ToHashSet(StringComparer.Ordinal);
         return plan.Allocations.Where(a => !external.Contains((a.Activity, a.Pawn))
                 && (native.Contains(a.Activity) || NativeNeedServices.RoutineTask(a.Activity, a.Pawn, context)))

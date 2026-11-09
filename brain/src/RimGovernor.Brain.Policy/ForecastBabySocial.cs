@@ -166,7 +166,7 @@ internal static class ForecastBabySocial
                     {
                         var raw = ForecastPrison.Opinion.ObservedRaw(pair.Opinion, canonical[pawn], pair.Baby, at, excluded) + social[pawn].Offset(pair.Baby, at, true);
                         var opinion = ForecastPrison.Opinion.Finish(pair.Opinion, raw);
-                        var factor = LayoutFilthRules.EvaluateCurve([.. read.OpinionFactor.Select(p => new CurvePoint(p.X, p.Y))], opinion);
+                        var factor = Methods.Generation.Curves.Evaluate([.. read.OpinionFactor.Select(p => new CurvePoint(p.X, p.Y))], opinion);
                         var weights = pair.Interactions.Select(p => p.Weight * (p.NegativeOpinionWeight ? factor : 1)).ToArray();
                         var total = weights.Sum();
                         if (total <= 0) throw new RequiredFactException("social recipient positive selection weight:" + pawn + "/" + pair.Baby);

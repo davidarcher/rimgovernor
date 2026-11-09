@@ -65,32 +65,6 @@ public static partial class LayoutFilthRules
 
     internal static FilthGame FilthGameJudgment => FilthGameValue;
 
-    /// <summary>SimpleCurve.Evaluate: linear between points, the end values outside them.</summary>
-    internal static double EvaluateCurve(IReadOnlyList<CurvePoint> points, double x)
-    {
-        if (points.Count == 0)
-        {
-            return 0;
-        }
-        if (x <= points[0].X)
-        {
-            return points[0].Y;
-        }
-        if (x >= points[^1].X)
-        {
-            return points[^1].Y;
-        }
-        for (var i = 1; i < points.Count; i++)
-        {
-            if (x <= points[i].X)
-            {
-                CurvePoint a = points[i - 1], b = points[i];
-                return a.Y + ((b.Y - a.Y) * (x - a.X) / (b.X - a.X));
-            }
-        }
-        return 0;
-    }
-
     /// <summary>
     /// The units of a node's filth that stand at once and the share of the day some stands, for runs (a day's
     /// runs, one batch, runTicks apart) and the stand ticks no one may clean before. A unit made stands for

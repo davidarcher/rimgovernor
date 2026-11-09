@@ -115,8 +115,8 @@ public sealed class PlannedRoomCleanlinessTests
         // 2 runs of 1500 ticks a day, one batch: the filth stands from the first run to the second's stand, 2100 ticks of the day (Residual's exposure 0.035). Clean at
         // -1 the curve gives 0.012, dirty at -1 - 10/9 it gives 0.01422.
         var filth = BedStationPriceTests.Filth with { FoodPoisonRoomless = .02 };
-        var clean = LayoutFilthRules.EvaluateCurve(filth.FoodPoison, -1);
-        var dirty = LayoutFilthRules.EvaluateCurve(filth.FoodPoison, -1 - (10 / 9d));
+        var clean = RimGovernor.Brain.Policy.Methods.Generation.Curves.Evaluate(filth.FoodPoison, -1);
+        var dirty = RimGovernor.Brain.Policy.Methods.Generation.Curves.Evaluate(filth.FoodPoison, -1 - (10 / 9d));
         const double exposure = 2100d / GameTime.TicksPerDay;
         Assert.Equal(((1 - exposure) * clean) + (exposure * dirty),
             PlannedRoomCleanlinessRules.FoodPoisonChance(Predicted(-1), Kitchen.FilthRuns.Values, filth), 9);

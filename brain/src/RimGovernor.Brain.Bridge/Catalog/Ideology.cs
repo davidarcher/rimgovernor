@@ -105,7 +105,8 @@ public sealed partial class DefinitionCatalog
                 Decimal32(outcome.chance),
                 outcome.Positive,
                 memory?.stages.Seq().FirstOrDefault() is { } stage ? Decimal32(stage.baseMoodEffect) : 0,
-                memory is null ? 0 : Decimal32(memory.durationDays)));
+                memory is null ? 0 : Decimal32(memory.durationDays))
+            { Memory = memory?.defName ?? string.Empty, StackLimit = memory?.stackLimit ?? 0, Fades = memory?.lerpMoodToZero ?? false });
         }
         return new P.RitualOutcomeModel
         {
@@ -195,8 +196,9 @@ public sealed partial class DefinitionCatalog
                     .Where(t => t != P.WorkType.None).Distinct().Order()],
         };
 
-    // A ritual pattern: its cadence, whether it may start freely, the buildings its obligation target filter accepts and
-    // its behavior's role slots.
+    // A ritual pattern: its cadence, whether it may start freely, the buildings its obligation target filter accepts, its
+    // behavior's role slots and its behavior's length. The game instances every pattern's behavior (RitualPatternDef.Fill), so
+    // a pattern without one is a catalog error, not a ritual of unknown length.
     private P.RitualDef RitualDef(RitualPatternDef row)
     {
         var buildings = new List<string>();
@@ -208,18 +210,17 @@ public sealed partial class DefinitionCatalog
         }
 
         var slots = new List<P.RitualRoleSlot>();
-        if (row.ritualBehavior is { } behavior)
+        var behavior = row.ritualBehavior ?? throw new CatalogException($"ritual {row.defName}: pattern has no behavior");
+        var rows = DefRow<RitualBehaviorDef>(behavior.defName)
+            ?? throw new CatalogException($"ritual {row.defName}: catalog has no behavior {behavior.defName}");
+        foreach (var role in rows.roles.Seq())
         {
-            var rows = DefRow<RitualBehaviorDef>(behavior.defName)
-                ?? throw new CatalogException($"ritual {row.defName}: catalog has no behavior {behavior.defName}");
-            foreach (var role in rows.roles.Seq())
-            {
-                _ = role ?? throw new CatalogException($"ritual {row.defName} behavior {behavior.defName}: null role");
-                slots.Add(new P.RitualRoleSlot(
-                    role.precept?.defName ?? string.Empty,
-                    role.maxCount,
-                    role.required));
-            }
+            _ = role ?? throw new CatalogException($"ritual {row.defName} behavior {behavior.defName}: null role");
+            slots.Add(new P.RitualRoleSlot(
+                role.id ?? throw new CatalogException($"ritual {row.defName} behavior {behavior.defName}: role without an id"),
+                role.precept?.defName ?? string.Empty,
+                role.maxCount,
+                role.required));
         }
 
         return new P.RitualDef
@@ -229,6 +230,7 @@ public sealed partial class DefinitionCatalog
             AlwaysStartAnytime = row.alwaysStartAnytime,
             RequiredBuildings = buildings,
             Roles = slots,
+            DurationTicks = rows.durationTicks.max,
             Outcome = RitualOutcome(row),
         };
     }

@@ -139,7 +139,7 @@ public static class RaidCompositionRules
             return 0;
         }
 
-        double? cap = faction.CostCurve.Count == 0 ? null : LayoutFilthRules.EvaluateCurve(faction.CostCurve, points);
+        double? cap = faction.CostCurve.Count == 0 ? null : Methods.Generation.Curves.Evaluate(faction.CostCurve, points);
         var commonality = groups.Sum(g => g.Commonality);
         var expected = 0.0;
         foreach (var group in groups)

@@ -1111,6 +1111,15 @@ carry no priority. The legacy activity-only `CompareActivityOutcomes` overload, 
 estimates against an alternative labor budget, was deleted in #3894 with its unread benefit, deadline and
 choice-identity members: the coupled trajectory was its only consumer and never read them.
 
+## Ritual roots
+
+A due Ideology ritual competes in the same ordering as a root of external attendee tasks (#4058): one per due
+held ritual per site the game accepts, at full attendance of the pawns the game accepts there, started together
+when the last attendee arrives and lasting the behavior's length, granting each attendee the pattern's outcome
+memories weighted by their probability at the site's predicted quality. The attendee tasks are
+`ForecastCoupledContext.RitualWork`, withheld from pawn dispatch like trade work; the selected root's begin
+action is admitted by the review. See [ritual roots](../contracts/forecast-contracts.md#ritual-roots).
+
 ## Shelter and food selection
 
 The coupled trajectory owns food and shelter selection, including the planned-room thermal envelope,

@@ -1,5 +1,6 @@
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
+using RimGovernor.Brain.Policy.Methods.Generation;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -12,12 +13,12 @@ namespace RimGovernor.Brain.Policy;
 /// requirement, none otherwise) is replaced by none when the planned room is predicted to meet every requirement
 /// (<see cref="Meets"/>) or a standing one already does, by Disrespected otherwise.</item>
 /// <item>Each ritual the room lets the colony hold (<see cref="WorshipFacts.Rituals"/>): the whole expected outcome memory
-/// at the room's quality (<see cref="Quality"/>), held every IntervalDaysMin days (RitualRules.RitualDue's free start), so
+/// at the room's quality (<see cref="RitualPricing.Quality"/>), held every IntervalDaysMin days (<see cref="RitualPricing.Due"/>'s free start), so
 /// a day earns the expected mood × min(duration, interval) / interval.</item>
 /// </list>
 /// No ideoligion or no believer earns nothing. A demand whose requirement the plan cannot predict, and a ritual whose outcome
 /// effect is not drawn from quality, are mechanics the credit leaves out (#3835): they add nothing, and are named
-/// (<see cref="Unmodelled"/>).
+/// (<see cref="Unmodelled"/>). The ritual arithmetic is <see cref="RitualPricing"/>, shared with the ritual roots (#4058).
 /// </summary>
 internal static class ForecastWorship
 {
@@ -25,9 +26,6 @@ internal static class ForecastWorship
 
     /// <summary>The finding of an applying demand's requirement the plan cannot predict: <c>worship_requirement_unmodelled:{requirement}</c>.</summary>
     public const string RequirementUnmodelled = "worship_requirement_unmodelled:";
-
-    /// <summary>The finding of a ritual whose outcome effect is not drawn from quality: <c>ritual_outcome_unmodelled:{worker}</c>.</summary>
-    public const string RitualUnmodelled = "ritual_outcome_unmodelled:";
 
     /// <summary>
     /// The worship room's gains per believer (<see cref="RoomCredit"/>), in the prediction the room is served in
@@ -50,7 +48,7 @@ internal static class ForecastWorship
         var worship = context.Worship;
         if (worship.Believers.Count == 0 || worship.Need is null) return [];
         return worship.Demands.Where(d => d.Applies).SelectMany(d => d.Unread).Select(r => RequirementUnmodelled + r)
-            .Concat(worship.Rituals.Select(r => r.Outcome?.Unread ?? "").Where(u => u.Length != 0).Select(u => RitualUnmodelled + u))
+            .Concat(worship.Rituals.Select(r => r.Outcome?.Unread ?? "").Where(u => u.Length != 0).Select(u => RitualPricing.RitualUnmodelled + u))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
     }
 
@@ -105,8 +103,8 @@ internal static class ForecastWorship
             foreach (var ritual in rituals)
             {
                 var model = ritual.Outcome!;
-                var quality = Quality(model, worship.Believers.Count, prediction.Impressiveness, cleanliness);
-                delta += ExpectedMood(model, quality, ritual.IntervalDaysMin);
+                var quality = RitualPricing.Quality(model, worship.Believers.Count, prediction.Impressiveness, cleanliness);
+                delta += RitualPricing.ExpectedMood(model, quality, ritual.IntervalDaysMin);
             }
         }
         return delta;
@@ -128,34 +126,4 @@ internal static class ForecastWorship
             && !furniture.Any(f => demand.ForbiddenDefs.Contains(f.Def));
     }
 
-    /// <summary>
-    /// The ritual's quality held in the room with every believer attending, at full progress
-    /// (RitualOutcomeEffectWorker_FromQuality.GetQuality): startingQuality plus each comp's curve at its input (the
-    /// participant count capped at the curve's last x; the room stat capped there and rounded to 0.1), clamped.
-    /// </summary>
-    internal static double Quality(RitualOutcomeModel model, int participants, double impressiveness, double cleanliness)
-    {
-        var quality = model.StartingQuality;
-        foreach (var comp in model.Comps)
-        {
-            if (comp.Curve.Count == 0) continue;
-            var last = comp.Curve[^1].X;
-            var x = comp.Input == RitualQualityInput.Participants ? Math.Floor(Math.Min(participants, last))
-                : Math.Round(Math.Min(comp.Input == RitualQualityInput.Impressiveness ? impressiveness : cleanliness, last) * 10) / 10;
-            quality += LayoutFilthRules.EvaluateCurve(comp.Curve, x);
-        }
-        return Math.Clamp(quality, model.MinQuality, Math.Max(model.MinQuality, model.MaxQuality));
-    }
-
-    /// <summary>
-    /// The expected memory mood a day of a ritual held every <paramref name="intervalDays"/> at <paramref name="quality"/>: each
-    /// outcome drawn with weight chance × quality (positive) or chance, its memory's mood over min(duration, interval) / interval.
-    /// </summary>
-    internal static double ExpectedMood(RitualOutcomeModel model, double quality, double intervalDays)
-    {
-        var weights = model.Chances.Select(o => o.Positive ? Math.Max(o.Chance * quality, 0) : o.Chance).ToArray();
-        var total = weights.Sum();
-        if (!(total > 0) || !(intervalDays > 0)) return 0;
-        return model.Chances.Select((o, i) => weights[i] / total * o.Mood * Math.Min(o.DurationDays, intervalDays) / intervalDays).Sum();
-    }
 }

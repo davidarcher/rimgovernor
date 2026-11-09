@@ -185,7 +185,7 @@ public static class ForecastNursery
     private static double Binomial(int n, int k) => Enumerable.Range(1, k).Aggregate(1d, (c, i) => c * (n - k + i) / i);
 
     private static double Curve(EquatableArray<CurvePointRead> points, double x, string fit) => points.Count != 0
-        ? LayoutFilthRules.EvaluateCurve([.. points.Select(p => new CurvePoint(p.X, p.Y))], x) : throw new RequiredFactException("baby fit mood curve:" + fit);
+        ? Methods.Generation.Curves.Evaluate([.. points.Select(p => new CurvePoint(p.X, p.Y))], x) : throw new RequiredFactException("baby fit mood curve:" + fit);
 
     /// <summary>The planned priced nursery that takes the babies: the lowest id; 0 for none.</summary>
     private static int Taker(ForecastCoupledContext context) =>

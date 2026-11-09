@@ -120,7 +120,7 @@ public static partial class ForecastPrison
         warden.NegotiationAbility * Curve(read.MoodCurve, mood ?? 1, "recruit mood curve") * Curve(read.OpinionCurve, opinion, "recruit opinion curve");
 
     private static double Curve(EquatableArray<CurvePointRead> points, double x, string what) => points.Count != 0
-        ? LayoutFilthRules.EvaluateCurve([.. points.Select(p => new CurvePoint(p.X, p.Y))], x) : throw new RequiredFactException(what);
+        ? Methods.Generation.Curves.Evaluate([.. points.Select(p => new CurvePoint(p.X, p.Y))], x) : throw new RequiredFactException(what);
 
     /// <summary>
     /// A prisoner's expected recruitment days within service, with canonical recruiter and converter work costs and

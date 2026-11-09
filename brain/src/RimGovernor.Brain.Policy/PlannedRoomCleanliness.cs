@@ -82,8 +82,8 @@ public static class PlannedRoomCleanlinessRules
         {
             throw new RequiredFactException(unread);
         }
-        return ((1 - steady.Exposure) * LayoutFilthRules.EvaluateCurve(curve, steady.Clean))
-            + (steady.Exposure * LayoutFilthRules.EvaluateCurve(curve, steady.Dirty));
+        return ((1 - steady.Exposure) * Methods.Generation.Curves.Evaluate(curve, steady.Clean))
+            + (steady.Exposure * Methods.Generation.Curves.Evaluate(curve, steady.Dirty));
     }
 
     /// <summary>Whether <paramref name="filth"/> was read: its filth def, its positive stand ticks and its poisoning curve.</summary>

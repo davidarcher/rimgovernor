@@ -438,7 +438,7 @@ Each demanded kind's alternatives are:
 
 - attendance, from reach and standable cells;
 - the `AttendedParty` and `AttendedWedding` memories;
-- the ritual's surroundings, through `ForecastWorship`'s impressiveness and cleanliness.
+- the ritual's surroundings, through `RitualPricing.Quality`'s impressiveness and cleanliness.
   It credits nothing while a planned worship room's credit already prices the rituals there.
 
 It charges each existing room's competing users the gathering's hours, as an upper bound,

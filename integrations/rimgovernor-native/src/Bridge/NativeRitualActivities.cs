@@ -15,7 +15,8 @@ internal static class NativeRitualActivities
     /// behavior role (RitualRoleAssignments.PawnNotAssignableReason) and on spectating (CanEverSpectate), over the
     /// candidate set the begin dialog would build (Dialog_BeginRitual.CreateRitualRoleAssignments, no filter, nothing
     /// forced). The site cells join the coupled route locations, so each attendee's walk is priced by the shared leg
-    /// cache; the catalog reads the length from the behavior def (#4058). None without Ideology.
+    /// cache; the catalog reads the length from the behavior def. Each site carries its room's Impressiveness and Cleanliness,
+    /// the quality model's inputs (#4058). None without Ideology.
     /// </summary>
     internal static RimGovernor.Brain.GameFacts.Observations.RitualActivityRead Read(Map map)
     {
@@ -49,9 +50,14 @@ internal static class NativeRitualActivities
                     var spectate = assignments.CanEverSpectate(pawn) ? null : assignments.PawnNotAssignableReason(pawn, null) ?? "spectator_filter";
                     candidates.Add(new(pawn.GetUniqueLoadID()) { Roles = EquatableArray.From(roles), Spectate = new("", spectate == null, spectate ?? "") });
                 }
+                // The quality comps read the spot's room (RitualOutcomeComp_RoomStat: Spot.GetRoom, 0 and not applying without one).
+                var room = building.Position.GetRoom(map);
                 sites.Add(new(ritual.GetUniqueLoadID(), pattern.defName, building.GetUniqueLoadID(), new(building.Position.x, building.Position.z))
                 {
                     Usable = use.canUse, Refusal = use.canUse ? "" : use.failReason ?? "", Candidates = EquatableArray.From(candidates),
+                    Indoors = room != null,
+                    Impressiveness = room?.GetStat(RoomStatDefOf.Impressiveness) ?? 0f,
+                    Cleanliness = room?.GetStat(RoomStatDefOf.Cleanliness) ?? 0f,
                 });
             }
         }

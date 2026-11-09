@@ -16,14 +16,14 @@ public sealed class RitualActivityReadTests
         [
             new("Precept_3", "Gathering", "RitualSpot1", new(4, 5))
             {
-                Usable = true, Refusal = "",
+                Usable = true, Refusal = "", Indoors = true, Impressiveness = 42.5, Cleanliness = -1.5,
                 Candidates =
                 [
                     new("pawn-a") { Roles = [new("leader", true, "")], Spectate = new("", true, "") },
                     new("pawn-b") { Roles = [new("leader", false, "Busy")], Spectate = new("", false, "Downed") },
                 ],
             },
-            new("Precept_3", "Gathering", "RitualSpot2", new(9, 1)) { Usable = false, Refusal = "Another ritual is active here.", Candidates = [] },
+            new("Precept_3", "Gathering", "RitualSpot2", new(9, 1)) { Usable = false, Refusal = "Another ritual is active here.", Indoors = false, Impressiveness = 0, Cleanliness = 0, Candidates = [] },
         ],
     };
 

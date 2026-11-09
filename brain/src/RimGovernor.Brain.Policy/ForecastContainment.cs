@@ -161,8 +161,8 @@ public static class ForecastContainment
     {
         var e = entity.Escape;
         if ((!captured && !e.CanEscape) || !(e.BaseMtbDays > 0)) return 0;
-        var mtb = e.BaseMtbDays * (captured ? 1 : e.MovingFactor) * LayoutFilthRules.EvaluateCurve(curves.Captivity, captured ? 0 : e.DaysInCaptivity)
-            * LayoutFilthRules.EvaluateCurve(curves.Escape, strength - entity.Need) * (captured ? 1 : e.ColdFactor);
+        var mtb = e.BaseMtbDays * (captured ? 1 : e.MovingFactor) * Methods.Generation.Curves.Evaluate(curves.Captivity, captured ? 0 : e.DaysInCaptivity)
+            * Methods.Generation.Curves.Evaluate(curves.Escape, strength - entity.Need) * (captured ? 1 : e.ColdFactor);
         return mtb > 0 ? 1 / mtb : throw new DomainException(FormattableString.Invariant($"entity {entity.Id} has an escape MTB of {mtb} days"));
     }
 
@@ -175,7 +175,7 @@ public static class ForecastContainment
     {
         if (entity.Study is not { Knowledge: > 0, FrequencyTicks: > 0, Category.Length: > 0 } study
             || !context.Investment.TryGetValue(ProjectGraph.KnowledgeKey(study.Category), out var price)) return 0;
-        var perStudy = study.Knowledge * LayoutFilthRules.EvaluateCurve(curves.Study, strength - entity.Need) / StudiesPerKnowledge;
+        var perStudy = study.Knowledge * Methods.Generation.Curves.Evaluate(curves.Study, strength - entity.Need) / StudiesPerKnowledge;
         return perStudy * GameTime.TicksPerDay / study.FrequencyTicks * price;
     }
 

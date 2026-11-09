@@ -300,10 +300,16 @@ in the brain.
   nobody can fill means no plan. One pawn attends one ritual per review.
   Whether the game accepts a pawn in a slot is its check when the begin
   applies (`PawnNotAssignableReason`).
-- **Facts for the forecast** (#4057): `CoupledForecastRead.Rituals` (`RitualActivityRead`,
+- **Facts for the forecast** (#4057, #4058): `RitualDef.DurationTicks` is the behavior def's
+  `durationTicks` maximum (a pattern without a behavior is a catalog error), each
+  `RitualRoleSlot.Id` is the behavior role's id, the slot the begin verb names, and each
+  `RitualOutcomeChance` carries its memory's thought def, stack limit and fade.
+  `CoupledForecastRead.Rituals` (`RitualActivityRead`,
   [forecast contracts](forecast-contracts.md#coherent-coupled-observation-frame))
   carries, per held ritual and finished accepting site, the game's verdict on the
-  site and on every free colonist per role and as a spectator.
+  site, the site room's stats and on every free colonist per role and as a spectator.
+  The coupled forecast prices each due ritual from it as a root of external attendee
+  tasks ([ritual roots](forecast-contracts.md#ritual-roots), #4058).
 - **Calm**: nothing is planned unless the emergency census reads no hostile
   threat and no critical patient (`policy.RitualCalm`); an unread census plans
   nothing. A fight therefore holds the ritual and releases its attendees.

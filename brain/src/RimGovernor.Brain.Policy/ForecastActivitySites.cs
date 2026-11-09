@@ -271,7 +271,7 @@ internal static class ForecastActivitySites
                         {
                             continue;
                         }
-                        var mood = ForecastWorship.ExpectedMood(model, ForecastWorship.Quality(model, attending.Count, stats.Impressiveness, stats.Cleanliness), ritual.IntervalDaysMin);
+                        var mood = Methods.Generation.RitualPricing.ExpectedMood(model, Methods.Generation.RitualPricing.Quality(model, attending.Count, stats.Impressiveness, stats.Cleanliness), ritual.IntervalDaysMin);
                         if (best is null || mood * attending.Count > best.Value.Mood * best.Value.Attending.Count)
                         {
                             best = (site, attending, mood);

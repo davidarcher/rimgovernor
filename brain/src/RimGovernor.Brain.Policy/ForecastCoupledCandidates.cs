@@ -212,6 +212,12 @@ public sealed partial record ForecastCoupledCandidates
         foreach (var binding in practice.Bindings) bindings.Add(binding.Key, binding.Value);
         foreach (var route in practice.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         findings.UnionWith(practice.Findings);
+        // Due rituals as priced roots (#4058): external attendee tasks the begin action runs, at the sites the game accepts, when
+        // the colony is known calm.
+        var rituals = NeedEnabled(IdeologyFamily.Rituals)
+            ? Methods.Generation.RitualMethodCandidates.Generate(facts, read.Rituals, routes, facts.Hostiles is HostileCensus.Quiet && facts.CriticalPatients == 0)
+            : Methods.Generation.RitualMethodCandidates.None;
+        tasks.AddRange(rituals.Tasks); options.AddRange(rituals.Options); alternatives.AddRange(rituals.Roots); findings.UnionWith(rituals.Findings);
         // The research Concern owns which project is current; a disabled Concern gets no research block (#3527).
         if (NeedEnabled(EconomyFamily.Research))
         {
@@ -434,6 +440,7 @@ public sealed partial record ForecastCoupledCandidates
             HospitalBed = LayoutHospitalBedRules.PlannedBed(facts.LayoutPlan, facts.MedicalBeds, facts.HospitalMonitor),
             Stock = facts.StockArrival,
             TradeWork = tradeWork,
+            RitualWork = rituals.Work,
             NonproductiveOccupancy = EquatableArray.From(tradeWork.Where(w => w.Mission is not null).Select(w => w.Task)),
             Worship = facts.Worship,
             PenHerds = facts.PlannedPens,

@@ -44,30 +44,7 @@ public static partial class RitualRules
     public static bool RitualCalm(HostileCensus hostiles, long patients) => hostiles.ThreatCount == 0 && patients == 0;
 
     /// <summary>
-    /// Whether the held ritual is due at tick. A running ritual is not. An active obligation (the game's own,
-    /// raised by the pattern's triggers) is due. Otherwise the pattern must allow a free start, the repeat
-    /// penalty must be off and the pattern's own cooldown (the minimum of its free start interval, in days)
-    /// must have passed since the raw lastFinishedTick.
-    /// </summary>
-    internal static bool RitualDue(RitualDef def, RimGovernor.Brain.GameFacts.Observations.IdeoRitual held, Tick tick)
-    {
-        if (held.Running)
-        {
-            return false;
-        }
-        if (held.ActiveObligations > 0)
-        {
-            return true;
-        }
-        if ((!def.CanStartAnytime && !def.AlwaysStartAnytime) || held.RepeatPenaltyActive)
-        {
-            return false;
-        }
-        return (double)(tick.Value - held.LastFinishedTick) >= def.IntervalDaysMin * GameTime.TicksPerDay;
-    }
-
-    /// <summary>
-    /// The rituals to begin now: each due held ritual (RitualDue) that has a finished building site and pawns
+    /// The rituals to begin now: each due held ritual (RitualPricing.Due) that has a finished building site and pawns
     /// to fill its required slots, sorted by precept id. Nothing is planned while the colony is not known calm
     /// (RitualCalm). A pawn attends one ritual per call: a pawn a ritual takes is not offered to a later one.
     /// Attendees are available believers of the ideoligion: a slot bound to a role precept takes that role's
@@ -99,7 +76,7 @@ public static partial class RitualRules
         var taken = new HashSet<PawnId>();
         foreach (var held in rituals)
         {
-            if (!ideo.Defs.Rituals.TryGetValue(held.Pattern, out var def) || def.RequiredBuildings.Count == 0 || !RitualDue(def, held, tick))
+            if (!ideo.Defs.Rituals.TryGetValue(held.Pattern, out var def) || def.RequiredBuildings.Count == 0 || !Methods.Generation.RitualPricing.Due(def, held, tick))
             {
                 continue;
             }

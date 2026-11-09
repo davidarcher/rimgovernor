@@ -76,7 +76,9 @@ public sealed record RoleDef(int MaxCount, IReadOnlyList<RoleRequirement> Requir
 }
 
 /// <summary>A ritual behavior's role slot.</summary>
-public sealed record RitualRoleSlot(string Precept, int MaxCount, bool Required);
+/// <summary>One role slot of a ritual behavior: the role's id (the slot the begin verb names, #4058), the precept it is bound to ("" for none),
+/// its maximum count and whether the ritual needs it filled.</summary>
+public sealed record RitualRoleSlot(string Id, string Precept, int MaxCount, bool Required);
 
 /// <summary>
 /// One ritual pattern: its cadence in days, whether it may start freely, the buildings its obligation target
@@ -93,6 +95,9 @@ public sealed record RitualDef
     public bool CanStartAnytime { get; init; }
 
     public bool AlwaysStartAnytime { get; init; }
+
+    /// <summary>How long the ritual runs once begun: the behavior def's <c>durationTicks</c> maximum (#4058).</summary>
+    public double DurationTicks { get; init; }
 
     /// <summary>The pattern's outcome effect (#3808); null when it has none.</summary>
     public RitualOutcomeModel? Outcome { get; init; }
@@ -113,7 +118,17 @@ public sealed record RitualQualityComp(RitualQualityInput Input, IReadOnlyList<C
 /// One RitualOutcomePossibility: its base chance, whether it is positive (positivityIndex &gt;= 0, the chance scaled by
 /// quality) and the memory each attendee gains, as its stage-0 mood over its duration (0 without a memory).
 /// </summary>
-public sealed record RitualOutcomeChance(double Chance, bool Positive, double Mood, double DurationDays);
+public sealed record RitualOutcomeChance(double Chance, bool Positive, double Mood, double DurationDays)
+{
+    /// <summary>The memory's thought def name (#4058); "" when the outcome gives none.</summary>
+    public string Memory { get; init; } = "";
+
+    /// <summary>The memory thought's stackLimit; 0 without a memory.</summary>
+    public int StackLimit { get; init; }
+
+    /// <summary>Whether the memory's mood lerps to zero over its life (ThoughtDef.lerpMoodToZero).</summary>
+    public bool Fades { get; init; }
+}
 
 /// <summary>
 /// A RitualOutcomeEffectDef whose worker is RitualOutcomeEffectWorker_FromQuality (#3808): the quality is

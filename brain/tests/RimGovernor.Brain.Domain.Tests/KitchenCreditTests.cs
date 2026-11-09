@@ -45,7 +45,7 @@ public sealed class KitchenCreditTests
         }, [])
         { ServedRooms = [new(room, "WoodLog", 0)], Support = new() { FoodPoisonExposure = poisonCases } };
 
-    private static double Curve(double cleanliness) => LayoutFilthRules.EvaluateCurve(Filth.FoodPoison, cleanliness);
+    private static double Curve(double cleanliness) => RimGovernor.Brain.Policy.Methods.Generation.Curves.Evaluate(Filth.FoodPoison, cleanliness);
 
     /// <summary>The price of one poisoning: the ledger's poisoning term for one expected case.</summary>
     private static double Price(ForecastCoupledContext context, int room)

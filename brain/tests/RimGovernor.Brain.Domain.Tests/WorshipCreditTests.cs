@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.Runtime;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods.Generation;
 using RimGovernor.Brain.GameFacts.Observations;
 using RimGovernor.Brain.GameOrders.Observations;
 using RimWorld;
@@ -150,7 +151,7 @@ public sealed class WorshipCreditTests
         var context = Context(WorshipOf(Ideo(Missing(), Gathering)));
         // One participant (0.1) and impressiveness 30 (0.12) on a starting quality of 0.2.
         var quality = 0.2 + 0.1 + 0.12;
-        Assert.Equal(quality, ForecastWorship.Quality(Gathering.Outcome!, 1, 30, 0), 12);
+        Assert.Equal(quality, RitualPricing.Quality(Gathering.Outcome!, 1, 30, 0), 12);
         double[] weights = [0.3, 0.5 * quality, 0.2 * quality];
         var expected = ((weights[0] * -5) + (weights[1] * 4) + (weights[2] * 8)) / weights.Sum() * 6 / 15;
         var delta = ForecastWorship.Deltas(context)[(1, "WoodLog")];
@@ -195,7 +196,7 @@ public sealed class WorshipCreditTests
         var ritual = Context(WorshipOf(Ideo(Missing(), worker)));
         Assert.Equal(4, ForecastWorship.Deltas(ritual)[(1, "WoodLog")]);
         ledger = Ledger(ritual);
-        Assert.Contains(ForecastWorship.RitualUnmodelled + "RitualOutcomeEffectWorker_Modded", ledger.Findings);
+        Assert.Contains(RitualPricing.RitualUnmodelled + "RitualOutcomeEffectWorker_Modded", ledger.Findings);
         Assert.Equal(-PerDay(ritual, 4) * Horizon, Assert.Single(Credits(ledger)).Value, 12);
     }
 
@@ -265,12 +266,16 @@ public sealed class WorshipCreditTests
             ],
             outcomeChances = [new RitualOutcomePossibility { chance = 0.3f, positivityIndex = -1 }, new RitualOutcomePossibility { chance = 0.2f, positivityIndex = 1, memory = good }],
         };
-        var pattern = new RitualPatternDef { defName = "Gathering", canStartAnytime = true, ritualFreeStartIntervalDaysRange = new FloatRange(15, 30), ritualOutcomeEffect = effect };
+        // #4058: the behavior gives the ritual its length (durationTicks maximum) and its role slots by the role id the begin verb names.
+        var behavior = new RitualBehaviorDef { defName = "GatheringBehavior", durationTicks = new IntRange(4000, 6000), roles = [new RitualRoleColonist { id = "leader", required = true, maxCount = 1 }] };
+        var plain = new RitualBehaviorDef { defName = "FuneralBehavior" };
+        var pattern = new RitualPatternDef { defName = "Gathering", canStartAnytime = true, ritualFreeStartIntervalDaysRange = new FloatRange(15, 30), ritualOutcomeEffect = effect, ritualBehavior = behavior };
+        var funeral = new RitualPatternDef { defName = "Funeral", ritualBehavior = plain };
         var catalog = new DefinitionCatalog(
             [
                 new ThingDef { defName = "Silver" }, new TerrainDef { defName = "Soil" },
                 new ThingDef { defName = "Bed", building = new BuildingProperties { buildingTags = ["Bed"] } },
-                pattern, effect, good, impressiveness,
+                pattern, funeral, behavior, plain, effect, good, impressiveness,
                 Thought(nameof(ThoughtDefOf.IdeoBuildingMissing), -4), Thought(nameof(ThoughtDefOf.IdeoBuildingDisrespected), -3),
             ],
             DefStatTable.Empty,
@@ -280,8 +285,12 @@ public sealed class WorshipCreditTests
         var model = defs.Rituals["Gathering"].Outcome!;
         Assert.Equal(("", 0.2, 0d, 1d), (model.Unread, model.StartingQuality, model.MinQuality, model.MaxQuality));
         Assert.Equal([RitualQualityInput.Participants, RitualQualityInput.Impressiveness], model.Comps.Select(c => c.Input));
-        Assert.Equal([new(0.3, false, 0, 0), new(0.2, true, 8, 6)], model.Chances);
+        Assert.Equal([new(0.3, false, 0, 0), new(0.2, true, 8, 6) { Memory = "GoodGathering", StackLimit = 1, Fades = false }], model.Chances);
         Assert.Equal(15, defs.Rituals["Gathering"].IntervalDaysMin);
+        Assert.Equal(6000, defs.Rituals["Gathering"].DurationTicks);
+        Assert.Equal([new RitualRoleSlot("leader", "", 1, true)], defs.Rituals["Gathering"].Roles);
+        Assert.Equal(7500, defs.Rituals["Funeral"].DurationTicks);
+        Assert.Null(defs.Rituals["Funeral"].Outcome);
 
         // The ideology section's presence demand decodes over the same catalog, its forbidden building tags to the defs carrying them.
         var ideo = IdeologyDecoder.Decode(IdeologyReadsTests.NoPrecepts with

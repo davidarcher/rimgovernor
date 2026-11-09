@@ -41,6 +41,8 @@ public sealed record ForecastPlannedRoomOutcome(int Room, EquatableArray<string>
 public sealed record ForecastCoupledContext
 {
     public EquatableArray<ForecastTradeWork> TradeWork { get; init; }
+    /// <summary>The attendee tasks of the ritual roots (#4058): external work the begin action runs, excluded from dispatch like <see cref="TradeWork"/>.</summary>
+    public EquatableArray<ForecastRitualWork> RitualWork { get; init; }
     public required ForecastActivityProblem Activities { get; init; }
     public ForecastModelBasis? ModelBasis { get; init; }
     /// <summary>Each skill stock's next level and the days a raise lasts (<see cref="ProjectMarginals.SkillRaises"/>, #3912); what <see cref="SkillValue"/> prices work speed by.</summary>

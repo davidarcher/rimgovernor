@@ -43,7 +43,7 @@ public sealed record BenchRoomRolePart(RoomRole Role, double NotInRole) : BenchS
 /// </summary>
 public sealed record BenchCleanlinessPart(EquatableArray<CurvePoint> Curve, double Roomless) : BenchStatPart
 {
-    public override double Factor(BenchRoom room) => room.Role == RoomRole.None ? Roomless : LayoutFilthRules.EvaluateCurve(Curve, room.Cleanliness);
+    public override double Factor(BenchRoom room) => room.Role == RoomRole.None ? Roomless : Methods.Generation.Curves.Evaluate(Curve, room.Cleanliness);
 }
 
 /// <summary>
