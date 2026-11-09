@@ -238,8 +238,12 @@ This is coordination within existing concerns, not an executor.
   counted from home with no rest between). A trip is any outdoor task the cold hold blocks (`WarmthTripKind`):
   a loot pickup (the loot census, `WarmthPickupTicks` of work), a salvage (the clearance census's safe salvage
   evidence, its native path and labor), a lone hunt (acquisition food prey that does not retaliate, worked for
-  the fixed `WarmthHuntEngagementTicks` estimate) or a forage (acquisition plants that are not trees,
-  `WarmthForageWorkTicks`); hunts and forages are priced by the straight line from the colony's reference cell
+  the fixed `WarmthHuntEngagementTicks` estimate), a forage (acquisition plants that are not trees,
+  `WarmthForageWorkTicks`) or a build (#4060: a placed site's or standing removal's row of the coupled construction
+  read at a cell the coupled thermal read samples at the outdoor temperature, `WarmthOutdoorCells`; offered to that
+  row's pawn alone, `WarmthCandidate.Pawn`; its approach ticks at the pawn's speed, its finish plus the carried
+  delivery as work, valued at what the site still owes plus what its frame holds, in the shelter-materials tier when
+  the site is within a planned shelter's walls); hunts and forages are priced by the straight line from the colony's reference cell
   (the layout plan's centre, else the home area's middle), as the acquisition catalog prices them. Trips rank
   by `WarmthTier`, strict (`WarmthNeedsOf`: shelter materials the planned construction owes beyond stock, fuels
   the fuel runway is short of, food while the food runway misses its foothold or target days, then other), and

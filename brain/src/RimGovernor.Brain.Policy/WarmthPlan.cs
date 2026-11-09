@@ -29,6 +29,7 @@ public enum WarmthTripKind
     Salvage,
     LoneHunt,
     Forage,
+    Build,
 }
 
 /// <summary>
@@ -53,6 +54,9 @@ public sealed record WarmthCandidate
     public string Id { get; init; } = "";
 
     public WarmthTripKind Kind { get; init; }
+
+    /// <summary>The one pawn the trip is offered to (a build row is one pawn's); empty for any pawn.</summary>
+    public PawnId Pawn { get; init; }
 
     public WarmthTier Tier { get; init; } = WarmthTier.Other;
 
@@ -380,7 +384,8 @@ public static class WarmthPlanRules
     /// its meat; its work is WarmthHuntEngagementTicks. Forage: untaken plants that are not trees, valued at their
     /// yield, worked for WarmthForageWorkTicks. The acquisition census carries no path, so hunts and forages are
     /// priced by the straight line from the colony's reference cell (the layout plan's center, else the home
-    /// area's middle), as the acquisition catalog prices them; without one, none is offered.
+    /// area's middle), as the acquisition catalog prices them; without one, none is offered. Build: BuildCandidates's,
+    /// from the coupled construction read.
     /// </summary>
     public static IReadOnlyList<WarmthCandidate> WarmthCandidates(ReviewFacts f, WarmthNeeds needs)
     {
@@ -442,6 +447,7 @@ public static class WarmthPlanRules
                 });
             }
         }
+        BuildCandidates(f, result);
         if (WarmthReferenceCell(f) is not { } home)
         {
             return result;
@@ -493,6 +499,135 @@ public static class WarmthPlanRules
         return result;
     }
 
+    /// <summary>The band, in degrees, within which a sampled cell's temperature reads as the outdoors.</summary>
+    public const double WarmthOutdoorCellBandC = 1.0;
+
+    /// <summary>
+    /// The cells the coupled thermal read sampled at the outdoor temperature (within WarmthOutdoorCellBandC): the
+    /// outdoor work sites the budget prices and the coupled hold reads (#4053). Empty without the read; an unsampled
+    /// cell is not known outdoors.
+    /// </summary>
+    public static HashSet<Cell> WarmthOutdoorCells(ReviewFacts f)
+    {
+        var cells = new HashSet<Cell>();
+        if (f.ForecastObserved.Coupled?.Thermal is { } thermal)
+        {
+            foreach (var c in thermal.Cells)
+            {
+                if (Math.Abs(c.Temperature - thermal.Outdoors) <= WarmthOutdoorCellBandC)
+                {
+                    cells.Add(c.Cell);
+                }
+            }
+        }
+        return cells;
+    }
+
+    /// <summary>Whether <paramref name="cell"/> is within a planned shelter's walls (a planned room's bounds grown by its ring).</summary>
+    public static bool WithinPlannedShelter(ReviewFacts f, Cell cell)
+    {
+        foreach (var room in f.PlannedShelters)
+        {
+            var b = room.Region.Bounds();
+            if (b.Width > 0 && cell.X >= b.X - 1 && cell.X <= b.X + b.Width && cell.Z >= b.Z - 1 && cell.Z <= b.Z + b.Height)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Build trips (#4060): one per (site, pawn) of the coupled construction read's placed-site rows and standing
+    /// removal ops at an outdoor cell (WarmthOutdoorCells), offered to that pawn alone. Of a pawn's rows for a site
+    /// the cheapest carries: the path is its SiteApproachTicks at the pawn's read speed, the work its finish plus
+    /// the carried delivery. The value is the market value of what the site still owes (each resource's largest row
+    /// count) plus what its frame already holds (Progress.Delivered, at the rows' resource); the tier
+    /// ShelterMaterials when the site is within a planned shelter's walls, else Other. A row that cannot finish or
+    /// whose carry has no route is no trip; a pawn without a readable speed offers none; a site owing nothing
+    /// the market prices has no value and is skipped by PlanTrips.
+    /// </summary>
+    public static void BuildCandidates(ReviewFacts f, List<WarmthCandidate> result)
+    {
+        if (f.ForecastObserved.Coupled?.Construction is not { } construction)
+        {
+            return;
+        }
+        var outdoors = WarmthOutdoorCells(f);
+        if (outdoors.Count == 0)
+        {
+            return;
+        }
+        var speeds = new Dictionary<PawnId, double>();
+        foreach (var w in f.ForecastObserved.WorkPawns.Pawns)
+        {
+            speeds[w.Id] = w.Body.MoveSpeed;
+        }
+        var delivered = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var p in construction.Progress)
+        {
+            delivered[p.Site] = p.Delivered;
+        }
+        var market = f.Items.Market;
+        var rows = construction.Options.Concat(construction.Removals.SelectMany(r => r.Options));
+        foreach (var group in rows.GroupBy(r => (r.Site, r.Pawn)).OrderBy(g => g.Key.Site, StringComparer.Ordinal).ThenBy(g => g.Key.Pawn, StringComparer.Ordinal))
+        {
+            RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption? best = null;
+            var work = 0.0;
+            var cheapest = 0.0;
+            var owed = new Dictionary<Resource, int>();
+            foreach (var row in group)
+            {
+                if (!outdoors.Contains(row.Location)
+                    || row.Finish is not RimGovernor.Brain.GameFacts.Observations.ConstructionFinish.Finishes finish
+                    || row.Delivery is RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.CannotCarry
+                        or RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Unreachable)
+                {
+                    continue;
+                }
+                if (row.Count > 0 && row.Resource.Length != 0)
+                {
+                    var resource = new Resource(row.Resource);
+                    owed[resource] = Math.Max(owed.GetValueOrDefault(resource), row.Count);
+                }
+                var carry = row.Delivery is RimGovernor.Brain.GameFacts.Observations.ConstructionDelivery.Carried c ? c.ApproachTicks + c.DeliveryTicks : 0;
+                var total = row.SiteApproachTicks + carry + finish.Ticks;
+                if (best is null || total < cheapest)
+                {
+                    cheapest = total;
+                    best = row;
+                    work = carry + finish.Ticks;
+                }
+            }
+            if (best is null || !speeds.TryGetValue(new PawnId(best.Pawn), out var speed) || double.IsNaN(speed) || speed <= 0)
+            {
+                continue;
+            }
+            var value = 0.0;
+            foreach (var (resource, count) in owed)
+            {
+                if (market.TryGetValue(resource, out var unit))
+                {
+                    value += unit * count;
+                }
+            }
+            if (best.Resource.Length != 0 && delivered.TryGetValue(best.Site, out var held) && held > 0 && market.TryGetValue(new Resource(best.Resource), out var unitHeld))
+            {
+                value += unitHeld * held;
+            }
+            result.Add(new WarmthCandidate
+            {
+                Id = best.Site,
+                Kind = WarmthTripKind.Build,
+                Pawn = new PawnId(best.Pawn),
+                Tier = WithinPlannedShelter(f, best.Location) ? WarmthTier.ShelterMaterials : WarmthTier.Other,
+                Value = value,
+                PathCells = best.SiteApproachTicks * speed / 60,
+                WorkTicks = work,
+            });
+        }
+    }
+
     /// <summary>The colony's reference cell for a straight-line distance: the layout plan's center, else the middle of the home area; null with neither.</summary>
     public static Cell? WarmthReferenceCell(ReviewFacts f)
     {
@@ -540,7 +675,8 @@ public static class WarmthPlanRules
     /// closes and plans nothing for that pawn in this review, so the pawn is recalled before another window can
     /// open under it. A pawn with no open window is planned only once its observed severity is refilled
     /// (WarmthRefilled). A trip already in an earlier pawn's window (held or planned this review) is not offered
-    /// again. A window whose pawn is no longer available is dropped.
+    /// again. A candidate restricted to a pawn (WarmthCandidate.Pawn) is offered to that pawn alone. A window whose
+    /// pawn is no longer available is dropped.
     /// </summary>
     public static EquatableArray<WarmthWindow> PlanWarmth(EquatableArray<WarmthWindow> held, IReadOnlyList<WarmthCandidate> candidates,
         WorkPawnsRead pawns, double temperature, Tick now, HypothermiaTuning tuning)
@@ -586,7 +722,7 @@ public static class WarmthPlanRules
                 ComfortMin = body.ComfortableMinC,
                 Severity = body.Hypothermia,
                 Speed = body.MoveSpeed,
-                Candidates = EquatableArray.From(candidates.Where(c => !taken.Contains((c.Kind, c.Id)))),
+                Candidates = EquatableArray.From(candidates.Where(c => !taken.Contains((c.Kind, c.Id)) && (c.Pawn.IsEmpty || c.Pawn == w.Id))),
                 Tuning = tuning,
             });
             if (plan.Trips.Count == 0)

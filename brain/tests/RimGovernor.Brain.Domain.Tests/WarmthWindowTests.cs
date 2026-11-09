@@ -195,4 +195,72 @@ public sealed class WarmthWindowTests
         Assert.True(f.WarmthOpen());
         Assert.False((f with { Tick = new Tick(10) }).WarmthOpen());
     }
+
+    private static RimGovernor.Brain.GameFacts.Observations.ThermalCell Sample(int x, int z, double temperature) =>
+        new(new Cell(x, z), temperature, "none", false, false, "", false, false, 0, false);
+
+    [Fact]
+    public void OutdoorConstructionRowsBecomeBuildTripsForTheirOwnPawn()
+    {
+        // Two stacks feed the wall for pawn a (the cheaper carries), b cannot finish it; a site inside is not a trip; a
+        // supplied shed outside a planned shelter has no value to rank by.
+        Row Wall(string pawn, string stack, double approach, double delivery, double? finish) =>
+            new("wall", "Wall", new Cell(5, 5), pawn, "Steel", stack, new Cell(1, 1), 5, 50, "giver", approach, delivery, finish) { SiteApproachTicks = 120 };
+        var rows = new RimGovernor.Brain.GameFacts.Observations.ConstructionActivityOption[]
+        {
+            Wall("a", "stack1", 30, 90, 200),
+            Wall("a", "stack2", 100, 150, 200),
+            Wall("b", "stack1", 30, 90, null),
+            new Row("inside", "Wall", new Cell(2, 2), "a", "Steel", "stack1", new Cell(1, 1), 5, 50, "giver", 30, 90, 200) { SiteApproachTicks = 60 },
+            new Row("shed", "Wall", new Cell(8, 8), "b", "", "", new Cell(8, 8), 0, 0, "giver", null, null, 100) { SiteApproachTicks = 60 },
+        };
+        var coupled = CoupledFixtures.Empty with
+        {
+            Thermal = CoupledThermalTests.NoThermal with { Outdoors = -20, Cells = [Sample(5, 5, -20), Sample(2, 2, 15), Sample(8, 8, -19.5)] },
+            Construction = ConstructionFixtures.NoConstruction() with
+            {
+                Options = EquatableArray.From(rows),
+                Progress = [new RimGovernor.Brain.GameFacts.Observations.ConstructionSiteProgress("wall", 3, 10, 0, false)],
+            },
+        };
+        var f = new ReviewFacts
+        {
+            ForecastObserved = new ColonyForecastObserved { Coupled = coupled, WorkPawns = Pawns(Colonist("a", 0), Colonist("b", 0)) },
+            Items = new ItemFacts { Market = new Dictionary<Resource, double> { [new Resource("Steel")] = 2 } },
+            PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle(4, 4, 3, 3)) }],
+        };
+        var builds = WarmthPlanRules.WarmthCandidates(f, new WarmthNeeds()).Where(c => c.Kind == WarmthTripKind.Build).ToList();
+        Assert.Equal([("shed", "b"), ("wall", "a")], builds.Select(c => (c.Id, c.Pawn.Value)).ToList());
+        var wall = builds.Single(c => c.Id == "wall");
+        Assert.Equal(120 * 4.6 / 60, wall.PathCells, 9);
+        Assert.Equal(320, wall.WorkTicks);
+        Assert.Equal(16, wall.Value);
+        Assert.Equal(WarmthTier.ShelterMaterials, wall.Tier);
+        var shed = builds.Single(c => c.Id == "shed");
+        Assert.Equal(WarmthTier.Other, shed.Tier);
+        Assert.Equal(0, shed.Value);
+        Assert.Equal(100, shed.WorkTicks);
+        // Without the thermal read no cell is known outdoors and no build is offered.
+        var unread = f with { ForecastObserved = f.ForecastObserved with { Coupled = coupled with { Thermal = CoupledThermalTests.NoThermal } } };
+        Assert.DoesNotContain(WarmthPlanRules.WarmthCandidates(unread, new WarmthNeeds()), c => c.Kind == WarmthTripKind.Build);
+    }
+
+    [Fact]
+    public void ARestrictedCandidateIsOfferedToItsPawnAloneAndASiteIsNamedOnce()
+    {
+        WarmthCandidate Build(string pawn, string site) => new() { Id = site, Kind = WarmthTripKind.Build, Pawn = new PawnId(pawn), PathCells = 10, Value = 10, WorkTicks = 100 };
+        var windows = WarmthPlanRules.PlanWarmth([], [Build("b", "wall"), Build("a", "shed"), Build("b", "shed")], Pawns(Colonist("a", 0), Colonist("b", 0)), -30, new Tick(100), Tuning);
+        Assert.Equal(["shed"], windows.Single(w => w.Pawn.Value == "a").Trips.Select(t => t.Id).ToList());
+        Assert.Equal(["wall"], windows.Single(w => w.Pawn.Value == "b").Trips.Select(t => t.Id).ToList());
+        Assert.True(windows.Single(w => w.Pawn.Value == "b").Names(WarmthTripKind.Build, "wall"));
+    }
+
+    [Fact]
+    public void APlannedSheltersBuildOutranksARicherLootInTheOtherTier()
+    {
+        var plan = WarmthPlanRules.PlanTrips(Request(
+            new() { Id = "steel", Kind = WarmthTripKind.Loot, Tier = WarmthTier.Other, PathCells = 10, Value = 1000 },
+            new() { Id = "wall", Kind = WarmthTripKind.Build, Tier = WarmthTier.ShelterMaterials, PathCells = 10, Value = 1, WorkTicks = 100 }));
+        Assert.Equal(["wall", "steel"], plan.Trips.Select(t => t.Id).ToList());
+    }
 }
