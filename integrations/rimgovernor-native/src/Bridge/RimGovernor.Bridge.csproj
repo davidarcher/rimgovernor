@@ -85,6 +85,7 @@
     <Compile Include="../../../../scripts/fixtures/LegInvalidationFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ClothingActivityFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EnvironmentTemperatureFixture.cs" Condition="'$(EnvironmentTemperatureFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/WallLayersFixture.cs" Condition="'$(WallLayersFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuestAcceptFixture.cs" Condition="'$(QuestAcceptFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuestShuttleFixture.cs" Condition="'$(QuestAcceptFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FirstRitualFixture.cs" Condition="'$(FirstRitualFixture)' == 'true'" />

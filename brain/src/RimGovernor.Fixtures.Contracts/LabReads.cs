@@ -284,6 +284,45 @@ public sealed record HypothermiaTuningRead
     public int IntervalTicks { get; init; }
 }
 
+/// <summary>
+/// <c>test/wall_layers</c> (#4043): the tracker's own equalization deltas for a single-walled and a double-walled room
+/// set to <see cref="TargetC"/> on a map pinned at <see cref="OutdoorC"/>, and the constants the climate model keeps.
+/// </summary>
+public sealed record WallLayersRead
+{
+    public double OutdoorC { get; init; }
+
+    public double TargetC { get; init; }
+
+    /// <summary>RoomTempTracker.WallEqualizeFactor: the per-tick conductance of one equalize cell per degree.</summary>
+    public double WallEqualizeFactor { get; init; }
+
+    /// <summary>TemperatureTuning.RoomTempEqualizeInterval: the ticks between equalization steps.</summary>
+    public int IntervalTicks { get; init; }
+
+    public WallLayersRoom SingleWalled { get; init; } = new();
+
+    public WallLayersRoom DoubleWalled { get; init; } = new();
+}
+
+/// <summary>One room of <see cref="WallLayersRead"/>: its size, its equalize cells and the per-interval deltas the tracker computes.</summary>
+public sealed record WallLayersRoom
+{
+    public int Cells { get; init; }
+
+    public int OpenRoofCells { get; init; }
+
+    /// <summary>RoomTempTracker.EqualizeCellsForReading.Count: the cells two out through a wall the sampler cycles.</summary>
+    public int EqualizeCells { get; init; }
+
+    /// <summary>The mean of WallEqualizationTempChangePerInterval over five calls, degrees per interval.</summary>
+    public double WallDeltaPerInterval { get; init; }
+
+    public double ThinRoofDeltaPerInterval { get; init; }
+
+    public double NoRoofDeltaPerInterval { get; init; }
+}
+
 /// <summary><c>test/deadmans_wear</c>: the redressed colonist, its worn and corpse-worn garment counts and its traits.</summary>
 public sealed record DeadMansWorn
 {

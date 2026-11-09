@@ -129,6 +129,11 @@ reads `Verse.HealthTuning` and the pawn's safe range, and measures the severity 
 comfortable minimum against `DashEstimateRules.PublishedHypothermiaTuning`. That tuning is the one copy of the cold side's
 growth, floor, safe margin and recovery clamp (#4048): the thermal ledger, the herd shelter walk and the hospital exposure
 read it rather than keeping literals of their own; the heat giver's floor and overage curve stay in `ForecastValueThermal.cs`.
+The room equalization constants are probed by `environment/wall-layers` (#4043): on a map pinned at -30 C, a roofed 3x3
+room set to 21 C loses `WallEqualizeFactor` (0.00017) cell-degrees per tick per degree through each equalize cell
+(`RoomTempTracker.EqualizeCellsForReading`, the cells two out through its walls, corners never sampled), half that when a
+second wall stands on the equalize cell, and `ThinRoofEqualizeRate` (0.00005) per floor cell through a thin roof; the
+sample fraction and the 120-tick interval cancel. The climate model's leakage terms (#4045) read those figures.
 
 | Literal | Value | 1.7 member |
 | --- | --- | --- |
