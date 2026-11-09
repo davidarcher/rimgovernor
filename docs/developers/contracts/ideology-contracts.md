@@ -300,6 +300,10 @@ in the brain.
   nobody can fill means no plan. One pawn attends one ritual per review.
   Whether the game accepts a pawn in a slot is its check when the begin
   applies (`PawnNotAssignableReason`).
+- **Facts for the forecast** (#4057): `CoupledForecastRead.Rituals` (`RitualActivityRead`,
+  [forecast contracts](forecast-contracts.md#coherent-coupled-observation-frame))
+  carries, per held ritual and finished accepting site, the game's verdict on the
+  site and on every free colonist per role and as a spectator.
 - **Calm**: nothing is planned unless the emergency census reads no hostile
   threat and no critical patient (`policy.RitualCalm`); an unread census plans
   nothing. A fight therefore holds the ritual and releases its attendees.

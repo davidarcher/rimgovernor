@@ -9,6 +9,7 @@ public sealed record CoupledForecastRead
 {
     public required long Tick { get; init; }
     public required PracticeActivityRead Practice { get; init; }
+    public required RitualActivityRead Rituals { get; init; }
     public required ResearchActivityRead Research { get; init; }
     public required HuntActivityRead Hunt { get; init; }
     public required SowingActivityRead Sowing { get; init; }

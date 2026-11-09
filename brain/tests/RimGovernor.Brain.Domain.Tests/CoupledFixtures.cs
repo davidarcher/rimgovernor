@@ -7,6 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 internal static class CoupledFixtures
 {
     internal static PracticeActivityRead NoPractice => new() { Workers = [] };
+    internal static RitualActivityRead NoRituals => new() { Sites = [] };
     internal static SowingActivityRead NoSowing => new() { Workers = [], Findings = [] };
     internal static SupportActivityRead NoSupport => new() { Demands = [], Workers = [], Deliveries = [], Findings = [], Patients = [] };
     internal static FoodActivityRead NoFood => new() { Options = [] };
@@ -57,7 +58,7 @@ internal static class CoupledFixtures
     /// <summary>A coupled capture at tick 0 with no activity of any family, no food and no route, over an empty thermal read.</summary>
     internal static CoupledForecastRead Empty => new()
     {
-        Tick = 0, Practice = NoPractice, Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt,
+        Tick = 0, Practice = NoPractice, Rituals = NoRituals, Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt,
         Sowing = NoSowing, Support = NoSupport, Servicing = NoServicing, Thermal = CoupledThermalTests.NoThermal, Food = NoFood,
         Construction = ConstructionFixtures.NoConstruction(), Clothing = ClothingFixtures.NoClothing,
         FoodConversions = [], FoodUses = [], FoodSources = [], Routes = [],

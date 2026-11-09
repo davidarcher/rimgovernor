@@ -1567,6 +1567,14 @@ for the investment credit (#3531: the tier-2 marginal value per research point, 
 points, written to the ledger's `Investment` term). It values nothing itself and never picks the project. Sowing tasks (#3528) carry the
 same metadata in cells per tick, keyed `sow:<zone>`.
 
+`RitualActivityRead` is the ritual part of that frame (#4057): every ritual precept of the primary ideoligion at every
+finished colony building its obligation target filter names, with the game's own verdict on the site now
+(`RitualObligationTargetFilter.CanUseTarget` against the first active obligation: `Usable`, else its `Refusal`) and, for
+every free colonist, on each behavior role (`RitualRoleAssignments.PawnNotAssignableReason`, by the role's id) and on
+spectating (`CanEverSpectate`, slot ""), over the candidate set the begin dialog builds
+(`Dialog_BeginRitual.CreateRitualRoleAssignments`). The site cell joins the coupled route locations, so an attendee's walk
+is priced by the shared leg cache. The ritual's length is the behavior def's `durationTicks` (the catalog reads it in #4058). It holds no plan, attendance or price; the coupled ritual candidates (#4058) are built from it.
+
 Research and sowing tasks carry `ForecastActivity.NativeExecution`: these are
 conditional investment scenarios over already available native work, not direct
 pawn-order proposals. The shared dispatch projection removes those tasks, later

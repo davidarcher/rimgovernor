@@ -46,12 +46,14 @@ internal static class NativeCoupledForecast
         var support = NativeSupportActivities.Read(map, legs); Lap("support");
         var servicing = NativeServicingActivities.Read(map, legs); Lap("servicing");
         var practice = NativePracticeActivities.Read(map, legs); Lap("practice");
+        var rituals = NativeRitualActivities.Read(map); Lap("rituals");
         var research = NativeResearchActivities.Read(map); Lap("research");
         var hunt = NativeHuntActivity.Read(map); Lap("hunt");
         var sowing = NativeSowingActivities.Read(map, legs); Lap("sowing");
         needs ??= NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.ToList(), legs);
         var families = new[] {
             practice.Workers.Select(w => w.Location),
+            rituals.Sites.Select(s => s.Location),
             research.Workers.Select(w => w.Location),
             map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().Where(c => c.CanUseCommsNow).Select(c => new Cell(c.InteractionCell.x, c.InteractionCell.z)),
             map.mapPawns.AllPawnsSpawned.Where(p => p.trader?.traderKind is not null && p.CanTradeNow).Select(p => new Cell(p.Position.x, p.Position.z)),
@@ -138,7 +140,7 @@ internal static class NativeCoupledForecast
             return rows;
         });
         Lap("routes");
-        return new() { Tick = context.Tick, Practice = practice, Research = research, Hunt = hunt, Sowing = sowing, Support = support, Servicing = servicing, Thermal = thermal, Food = food, Construction = construction, Clothing = clothing,
+        return new() { Tick = context.Tick, Practice = practice, Rituals = rituals, Research = research, Hunt = hunt, Sowing = sowing, Support = support, Servicing = servicing, Thermal = thermal, Food = food, Construction = construction, Clothing = clothing,
             FoodSources = EquatableArray.From(future.Sources), FoodConversions = EquatableArray.From(future.Conversions), FoodUses = EquatableArray.From(future.Uses),
             Routes = EquatableArray.From(routes) };
     }
