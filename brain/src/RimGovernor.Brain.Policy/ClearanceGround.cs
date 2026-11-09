@@ -140,15 +140,20 @@ public static class ClearanceGroundRules
         return g;
     }
 
-    /// <summary>The plan's retired ground with its kept rooms' walls.</summary>
+    /// <summary>The plan's retired ground with its kept rooms' walls and second wall layers.</summary>
     public static RetiredGround RetiredGroundOf(LayoutPlan plan)
     {
         var kept = new List<Region>();
         var planned = new List<Region>();
         foreach (var r in plan.Rooms)
         {
-            // Only the ring: an old wall that now stands inside a reshaped room is not its wall.
+            // Only the ring: an old wall that now stands inside a reshaped room is not its wall. The room's second wall
+            // layer is its too (#4047).
             kept.Add(r.WallRing());
+            if (plan.OuterWallCells(r) is { Count: > 0 } layer)
+            {
+                kept.Add(RegionRules.RegionOf(layer));
+            }
             planned.Add(RegionRules.RectRegion(RoomGround(r.Region.Bounds())));
         }
 

@@ -327,6 +327,9 @@ public static partial class ReconcileRules
         // The cells the plan builds on: every wanted piece, the ring and the airlocks.
         var planned = new HashSet<Cell>(ring.Cells());
         planned.UnionWith(input.Plan.AirlockCells(r));
+        // The second wall layer's cells (#4047): built by this room, never a condition of its ring.
+        var layer = new HashSet<Cell>(input.Plan.OuterWallCells(r));
+        planned.UnionWith(layer);
         foreach (var p in input.Furniture)
         {
             planned.UnionWith(p.Cells());
@@ -444,7 +447,7 @@ public static partial class ReconcileRules
                 Cover(row);
             }
         }
-        var foreign = ForeignThings(input, ring, wallDef, doorWanted);
+        var foreign = ForeignThings(input, ring, layer, wallDef, doorWanted);
         foreach (var it in foreign.Items)
         {
             removals.Add(Add(it));
@@ -502,7 +505,7 @@ public static partial class ReconcileRules
         if (input.WallUpgrade is not null && !r.Outdoor && items.Count == ringStart)
         {
             var first = true;
-            foreach (var c in ring.Cells())
+            foreach (var c in ring.Cells().Concat(layer.OrderBy(k => k.X).ThenBy(k => k.Z)))
             {
                 var have = input.Ground.Stuff.GetValueOrDefault(c) ?? "";
                 if (!covered.Contains(c) && !doorWanted.Contains(c) && !vents.ContainsKey(c) && input.Ground.Walls.Contains(c) && have.Length != 0 && input.WallUpgrade(have))
@@ -596,6 +599,17 @@ public static partial class ReconcileRules
             }
         }
 
+        // The second wall layer (#4047): a wall on each layer cell with none, in the ring's def and stuff, ready only
+        // once the ring stands (below); the ring, the roof and the furniture never wait on it, and GroundMatches
+        // never asks for it. A thing standing on a layer cell is foreign work like one on the ring (ForeignThings).
+        foreach (var c in layer.OrderBy(k => k.X).ThenBy(k => k.Z))
+        {
+            if (!walls.Contains(c) && !doors.Contains(c))
+            {
+                Add(new ReconcileItem { Kind = OpKind.WallIn, Cell = c });
+            }
+        }
+
         // Floors.
         var actual = new Dictionary<Cell, string>();
         foreach (var f in input.Floors)
@@ -680,7 +694,7 @@ public static partial class ReconcileRules
         var packOwed = Owed(OpKind.Pack, OpKind.PackInUse);
         // Ring first, every role: furniture waits while the room still owes a wall or a door, so a piece never
         // stands in an unenclosed room (#3743). A piece already standing is matched above and never removed.
-        var ringOwed = Owed(OpKind.WallIn, OpKind.DoorIn);
+        var ringOwed = items.Any(it => it.Kind == OpKind.DoorIn || (it.Kind == OpKind.WallIn && !layer.Contains(it.Cell)));
         var floorOutCells = new HashSet<Cell>(floorOut.Select(it => it.Cell));
         var floorInCells = new HashSet<Cell>(floorIn.Select(it => it.Cell));
         foreach (var it in items)
@@ -691,7 +705,7 @@ public static partial class ReconcileRules
                     it.Ready = true;
                     break;
                 case OpKind.WallIn:
-                    it.Ready = !removalCells.Contains(it.Cell);
+                    it.Ready = !removalCells.Contains(it.Cell) && (ringStands || !layer.Contains(it.Cell));
                     break;
                 case OpKind.DoorIn:
                     it.Ready = !walls.Contains(it.Cell) && !removalCells.Contains(it.Cell);

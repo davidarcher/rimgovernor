@@ -134,7 +134,7 @@ public static partial class LayoutDeriveRules
     /// The retired ground prev holds that clearance has not cleared, and the ground (ring and attached
     /// children) of each started room of prev (<paramref name="started"/>: built, or anything of ours on its
     /// walls, growth.Fixed) the plan next no longer holds: planned-ground clearance cancels its blueprints and
-    /// takes its frames and building down (#3742).
+    /// takes its frames and building down (#3742). A dropped room's second wall layer is retired with its ring (#4047).
     /// </summary>
     internal static List<Region> RetiredGround(LayoutPlan prev, LayoutPlan next, IReadOnlySet<int> started)
     {
@@ -150,6 +150,10 @@ public static partial class LayoutDeriveRules
             foreach (var c in prev.ChildrenOf(r.Id))
             {
                 output.Add(RegionRules.RectRegion(c.AttachedGround()));
+            }
+            if (prev.OuterWallCells(r) is { Count: > 0 } layer)
+            {
+                output.Add(RegionRules.RegionOf(layer));
             }
         }
         return output;
@@ -306,7 +310,7 @@ partial record LayoutPlan
         // The survey's zones less its field patches, then the fields the tiler placed.
         plan = plan with { Zones = [.. LayoutFieldReplanRules.WithFieldZones(LayoutZoningRules.Zone(s), null), .. plan.Zones.Skip(f.Plan.Zones.Count)], Cold = s.Cold, Hot = s.Hot };
         var tiled = plan;
-        plan = KeepHeld(prev, plan, growth);
+        plan = LayoutPlan.WithShellOf(prev, KeepHeld(prev, plan, growth));
         var (conduits, joined) = RejoinHeld(prev, tiled, plan, s);
         plan = plan with { Conduits = EquatableArray.From(conduits) };
         advice.Tiled!.ConduitDecisions.AddRange(joined);

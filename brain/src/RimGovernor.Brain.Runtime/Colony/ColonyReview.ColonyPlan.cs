@@ -270,7 +270,21 @@ public sealed partial class ColonyReview
             {
                 var topology = projection.Facts.EssentialInputs.Power;
                 var colonists = (int)pawns;
-                var (inputs, growth, facts) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
+                LayoutInputs inputs;
+                RoomGrowth growth;
+                StationFacts facts;
+                try
+                {
+                    (inputs, growth, facts) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
+                }
+                catch (RequiredFactException unread)
+                {
+                    // The station facts read the demand the review derives after this check: the first review of a world
+                    // with a plan in hand (a load, an injected plan) has none yet. The check is skipped, not the step; the
+                    // next hourly review reads it from the review before.
+                    Tel.Decide(RequiredFactTelemetry.Skipped("layout", TelemetryKinds.LayoutPlanKind, unread.Fact, unread.Site));
+                    return await WithLayoutAsync(snapshot, projection, layout, haveLayout, ct).ConfigureAwait(false);
+                }
                 var drift = LayoutPlanning.ReplanDrift(inputs, PlanInputs, tick, PlanReplanned);
                 if (drift.Count > 0)
                 {
@@ -285,6 +299,12 @@ public sealed partial class ColonyReview
                 }
             }
         }
+        return await WithLayoutAsync(snapshot, projection, layout, haveLayout, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>The projection with the held plan on its facts, and the plan's overlay drawn.</summary>
+    private async Task<ColonyReading> WithLayoutAsync(GenerationSnapshot snapshot, ColonyReading projection, HeldLayout layout, bool haveLayout, CancellationToken ct)
+    {
         if (haveLayout)
         {
             projection = projection with { Facts = projection.Facts with { LayoutPlan = layout.Plan } };

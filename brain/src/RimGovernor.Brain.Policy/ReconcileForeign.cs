@@ -36,10 +36,12 @@ internal sealed class ForeignWork
 
 public static partial class ReconcileRules
 {
-    private static ForeignWork ForeignThings(ReconcileInput input, Region ring, string wallDef, HashSet<Cell> doorWanted)
+    private static ForeignWork ForeignThings(ReconcileInput input, Region ring, HashSet<Cell> layer, string wallDef, HashSet<Cell> doorWanted)
     {
         var w = new ForeignWork();
         var ground = input.Room.GroundRegion();
+        // The second wall layer's cells are the room's ground for this purpose (#4047): what stands on one is cleared
+        // for the layer's wall. A wall of the colony's there is no foreign thing and stands as the layer.
         var index = new Dictionary<(ulong Id, string Def, Cell Cell), ReconcileItem>();
 
         // Place records t on c as an item of kind, widening the target of a thing that spans cells.
@@ -89,7 +91,7 @@ public static partial class ReconcileRules
         foreach (var sc in input.Cells ?? [])
         {
             var c = sc.Cell;
-            if (!ground.Contains(c))
+            if (!ground.Contains(c) && !layer.Contains(c))
             {
                 continue;
             }

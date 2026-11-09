@@ -132,7 +132,18 @@ the decisions `tile_shell`, `tile_shell_not_paid`, `tile_shell_no_ground`,
 `tile_shell_unpriced` and `tile_shell_temperate` say why a room has or lacks one.
 Conduits and pawn routes treat the layer as solid; `Valid()` rejects a layer cell
 on a room, an airlock or a site. At today's site rate the layer rarely pays
-(#4044 reprices power). The layer is not yet built or retired (#4047).
+(#4044 reprices power). The layer's lifecycle (#4047): a room's layer cells are
+`LayoutPlan.OuterWallCells`; the room's reconcile owes a wall on each (`WallIn`,
+the ring's def and stuff, `WallUpgrade` swapping it like a ring wall), ready only
+once the ring stands, and the ring, roof and furniture never wait on it;
+`GroundMatches` never asks for it, so a room is built without its layer. The
+climate envelope (`ClimateEnvelopeRules.EnvelopeOps`) builds the layer with the
+vents and roofs, a refused layer cell is reported rather than the ring's
+`no_space`, and a thing on a layer cell is foreign work cleared first while a
+wall of the colony's there stands as the layer. A replan keeps a standing room's
+layer where the room stays (`LayoutPlan.WithShellOf`), a dropped room's layer is
+retired with its ring (`LayoutDeriveRules.RetiredGround`) and a kept room's is
+kept ground (`RetiredGroundOf`); `layout/shell-layer` exercises the build.
 
 ### Station catalog
 

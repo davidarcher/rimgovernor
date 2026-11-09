@@ -13,6 +13,7 @@ public static class LayoutCases
         registry.Register(LayoutFirstPlanHeld.Case());
         registry.Register(LayoutFirstRoomTemperate.Case());
         registry.Register(LayoutFirstRoomIce.Case());
+        registry.Register(LayoutShellLayer.Case());
         registry.Register(LayoutBarracksSplits.Case());
         registry.Register(LayoutFirstBedroomCloses.Case());
     }

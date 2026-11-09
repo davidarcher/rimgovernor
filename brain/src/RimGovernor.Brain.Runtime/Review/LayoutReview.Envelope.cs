@@ -48,7 +48,7 @@ public sealed partial class LayoutReview
 
 partial class LayoutReview
 {
-    /// <summary>The planned rooms whose ring or roof the envelope still has to build; not known without a layout plan or colony ground.</summary>
+    /// <summary>The planned rooms whose vents, roof or second wall layer the envelope still has to build; not known without a layout plan or colony ground.</summary>
     internal static (List<PlannedRoom> Rooms, bool Known) EnvelopeWork(ColonyReading facts)
     {
         if (facts.Facts.LayoutPlan is not { } plan)
@@ -63,7 +63,7 @@ partial class LayoutReview
                 continue; // an airlock rides its parent's ring and roof
             }
             var input = BuildingPlanner.RoomRingInput(facts, plan, room);
-            if (ClimateEnvelopeRules.EnvelopeOps(ReconcileRules.ReconcileRoom(input)).Count > 0)
+            if (ClimateEnvelopeRules.EnvelopeOps(ReconcileRules.ReconcileRoom(input), plan).Count > 0)
             {
                 rooms.Add(room);
             }

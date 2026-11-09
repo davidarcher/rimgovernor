@@ -279,3 +279,69 @@ internal sealed partial class Tiler
     internal void NoteShell(int group, string reason, string verdict) =>
         Out.Decisions.Add(new TileDecision { Group = group, Verdict = verdict, Reason = reason });
 }
+
+// The layer's lifecycle (#4047): a room's layer cells are the OuterWalls cells two out from its floor through its ring
+// (OuterWallCells). The room's reconcile owes a wall on each (OpKind.WallIn, the ring's def and stuff), ready only once
+// the ring stands; the ring, the roof and the furniture never wait on the layer, and GroundMatches never asks for it,
+// so a room is built without its layer. The climate envelope (EnvelopeOps) builds the layer as it builds the vents and
+// roofs. A replan keeps a standing room's layer where the room stays (WithShellOf) and retires a dropped room's layer
+// with its ring (LayoutDeriveRules.RetiredGround); a kept room's layer is kept ground (RetiredGroundOf).
+
+partial record LayoutPlan
+{
+    /// <summary>
+    /// The second wall layer's cells for room: its sampled cells (OutdoorWallCells) the plan's OuterWalls hold, in
+    /// cell order. Empty while the plan has no layer or the room's walls are all shared.
+    /// </summary>
+    public IReadOnlyList<Cell> OuterWallCells(PlannedRoom room)
+    {
+        ArgumentNullException.ThrowIfNull(room);
+        if (OuterWalls.Empty())
+        {
+            return [];
+        }
+        return OutdoorWallCells(room).Where(OuterWalls.Contains).SortedBy(CombatManhunterRules.CellLess);
+    }
+
+    /// <summary>
+    /// next with the layer prev placed on every room that stands where it stood (same region and door): a layer a
+    /// standing room already has is not dropped by a replan that merely reprices it, the way the room itself is held;
+    /// a moved room's layer is the tiler's again. A kept cell is dropped where next's rooms, airlocks, sites,
+    /// entrances or trips (TripCellMovements) now stand, so the carried layer leaves next valid.
+    /// </summary>
+    internal static LayoutPlan WithShellOf(LayoutPlan prev, LayoutPlan next)
+    {
+        if (prev.OuterWalls.Empty())
+        {
+            return next;
+        }
+        var layer = new HashSet<Cell>(next.OuterWalls.Cells());
+        var before = layer.Count;
+        var blocked = new HashSet<Cell>(next.Entrances);
+        blocked.UnionWith(LayoutPlan.TripCellMovements(next).Keys);
+        foreach (var r in next.Rooms)
+        {
+            blocked.UnionWith(PlannedRules.RectCells(r.Unfenced() ? r.Region.Bounds() : PlannedRoom.RoomWalls(r)));
+            blocked.UnionWith(r.AirlockCells());
+        }
+        foreach (var s in next.Sites)
+        {
+            blocked.UnionWith(s.Footprint.Cells());
+        }
+        foreach (var old in prev.Rooms)
+        {
+            if (old.Unfenced() || !next.Rooms.Any(r => !r.Unfenced() && r.Region.Equal(old.Region) && r.Door == old.Door))
+            {
+                continue;
+            }
+            foreach (var c in prev.OuterWallCells(old))
+            {
+                if (!blocked.Contains(c))
+                {
+                    layer.Add(c);
+                }
+            }
+        }
+        return layer.Count == before ? next : next with { OuterWalls = RegionRules.RegionOf(layer.SortedBy(CombatManhunterRules.CellLess)) };
+    }
+}

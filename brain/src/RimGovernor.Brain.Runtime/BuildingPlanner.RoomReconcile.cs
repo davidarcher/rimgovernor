@@ -38,7 +38,7 @@ internal sealed record RoomReconcile
     public bool RingOnly { get; init; }
 
     /// <summary>
-    /// Narrows a RingOnly reconcile to the room's planned vents and roofs (EnvelopeOps): the plan-wide
+    /// Narrows a RingOnly reconcile to the room's planned vents, roofs and second wall layer (EnvelopeOps): the plan-wide
     /// climate envelope's call, which owns nothing else of the room (#2962).
     /// </summary>
     public bool ClimateOnly { get; init; }
@@ -82,6 +82,9 @@ internal sealed record RoomBuild
 
     /// <summary>Marks a planned vent standing in a ring wall: the ring's optional piece, so a refusal never stops the room's owner (#2962).</summary>
     public bool Vent { get; init; }
+
+    /// <summary>Marks a wall of the room's second wall layer (#4047): the ring's optional piece too, so a refused cell is reported, never the ring's no_space.</summary>
+    public bool Layer { get; init; }
 }
 
 partial class BuildingPlanner
@@ -92,13 +95,13 @@ partial class BuildingPlanner
 
     /// <summary>
     /// The ring-only diff input for room: the plan, the colony's walls and doors with natural rock counted as
-    /// wall, and obstructions on the ring alone. Stored goods
+    /// wall, and obstructions on the ring and the second wall layer alone. Stored goods
     /// and furniture inside the room do not obstruct its shell.
     /// </summary>
     internal static Pol.ReconcileInput RoomRingInput(RimGovernor.Brain.GameAccess.ColonyReading facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
     {
         var buildings = ColonyGround(facts);
-        var cells = CellsOn(facts.PlanningWindow.Cells, room.RoomGround());
+        var cells = RoomCells(facts, plan, room);
         // The cells open to the sky: the room's ground and its airlocks' vestibules.
         var unroofed = new HashSet<Cell>();
         var vestibules = new HashSet<Cell>();
@@ -222,13 +225,25 @@ partial class BuildingPlanner
     internal static List<Pol.SiteCell> CellsOn(IEnumerable<Pol.SiteCell> cells, Pol.Rectangle ground) =>
         [.. cells.Where(c => c.Cell.X >= ground.X && c.Cell.X < ground.X + ground.Width && c.Cell.Z >= ground.Z && c.Cell.Z < ground.Z + ground.Height)];
 
-    /// <summary>True while room's ring has a wall or door still to raise.</summary>
+    /// <summary>The planning window's cells on the room's ground (interior and ring) and on its second wall layer (#4047).</summary>
+    internal static List<Pol.SiteCell> RoomCells(RimGovernor.Brain.GameAccess.ColonyReading facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
+    {
+        var cells = CellsOn(facts.PlanningWindow.Cells, room.RoomGround());
+        var layer = new HashSet<Cell>(plan.OuterWallCells(room));
+        if (layer.Count > 0)
+        {
+            cells.AddRange(facts.PlanningWindow.Cells.Where(c => layer.Contains(c.Cell)));
+        }
+        return cells;
+    }
+
+    /// <summary>True while room's ring has a wall or door still to raise; its second wall layer is not the ring's.</summary>
     internal static bool RoomRingOwed(RimGovernor.Brain.GameAccess.ColonyReading facts, Pol.LayoutPlan plan, Pol.PlannedRoom room)
     {
         var input = RoomRingInput(facts, plan, room);
         foreach (var op in ReconcileRules.Reconcile(input).Owed)
         {
-            if (op.Kind == Pol.OpKind.WallIn || op.Kind == Pol.OpKind.DoorIn)
+            if (op.Kind == Pol.OpKind.DoorIn || (op.Kind == Pol.OpKind.WallIn && op.Cells.Any(c => !plan.OuterWalls.Contains(c))))
             {
                 return true;
             }
@@ -465,7 +480,7 @@ public sealed partial class BuildingPlanner
         }
         if (!rr.RingOnly)
         {
-            input = input with { Cells = CellsOn(facts.PlanningWindow.Cells, rr.Room.RoomGround()) };
+            input = input with { Cells = RoomCells(facts, plan, rr.Room) };
             if (Native is not IClearanceSource source)
             {
                 return new BuildingResult { Verdict = FieldUnavailable("room_ground") };
@@ -526,7 +541,7 @@ public sealed partial class BuildingPlanner
         ops = PlannedRules.SelectedPieceStuff(ops, record, rr.Room.Id);
         if (rr.ClimateOnly)
         {
-            ops = ClimateEnvelopeRules.EnvelopeOps(ops);
+            ops = ClimateEnvelopeRules.EnvelopeOps(ops, plan);
             holds = [];
         }
         // A standing host the plan replaces is removed only as its replacement serves and no pawn works its bills (RG-HABITAT-005).
@@ -846,7 +861,7 @@ public sealed partial class BuildingPlanner
                     case Pol.OpKind.WallIn or Pol.OpKind.WallUp:
                         foreach (var c in op.Cells)
                         {
-                            builds.Add(new RoomBuild { Def = wallDef, Stuff = wallStuff, Cell = c, Rot = Rotation.North, Ring = true });
+                            builds.Add(new RoomBuild { Def = wallDef, Stuff = wallStuff, Cell = c, Rot = Rotation.North, Ring = true, Layer = plan.OuterWalls.Contains(c) });
                         }
                         break;
                     case Pol.OpKind.FloorIn:
@@ -928,7 +943,7 @@ public sealed partial class BuildingPlanner
                         blockers = rest;
                     }
                 }
-                if (build.Ring && !build.Vent && (rr.Room.Outdoor || rr.RingOnly))
+                if (build.Ring && !build.Vent && !build.Layer && (rr.Room.Outdoor || rr.RingOnly))
                 {
                     // The planner sited this ring: a cell the native refuses is reported and left to the plan's replan, never moved to another site.
                     return new BuildingResult { Verdict = NoSpace("pen_enclosure") };
@@ -947,9 +962,9 @@ public sealed partial class BuildingPlanner
         }
         if (selected.Count == 0)
         {
-            if (rr.RingOnly && !builds.Any(b => !b.Vent))
+            if (rr.RingOnly && !builds.Any(b => !b.Vent && !b.Layer))
             {
-                // Only vents are owed and the native refused them: the owner goes on to its own placement.
+                // Only vents or layer walls are owed and the native refused them: the owner goes on to its own placement.
                 return new BuildingResult { Verdict = NoSpace("room_ring") };
             }
             return WaitingHeld(rr.Name, w, [.. refused], call);
