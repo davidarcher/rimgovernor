@@ -124,6 +124,8 @@ does not remove the planner hold or assert a lasting mood benefit.
 holds remaining apparel deficits after workshop work has no useful next step
 ([#4009](https://github.com/davidarcher/rimgovernor/issues/4009)). Clothing production
 is supported (W6), but the broad promise of recovered worn equipment is partial.
+Both holds were lifted on 2026-11-08 (RG-HEALTH-002, RG-EQUIP-002); the two issues
+are closed and the assessment re-files the work under the owning specifications.
 
 ### W8 — Clothing and care-facility value
 

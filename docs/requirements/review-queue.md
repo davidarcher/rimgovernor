@@ -44,6 +44,10 @@ priority. [#3998](https://github.com/davidarcher/rimgovernor/issues/3998), P1.
 These paths explicitly report unsupported work. Native tools or fixture-driven
 tests beneath them do not establish autonomous support. The desired admission
 rules remain design decisions; today's holds are not permanent product limits.
+On 2026-11-08 the maintainer lifted every hold below except ordinary repairs and
+rituals into the priced comparison; the placeholder issues #4001–#4005 and
+#4008–#4010 were closed and the claim-by-claim assessment files scoped children
+under the owning specification. #4056 closed as done.
 
 | Affected outcome | Confirmed limit and issue | Why it matters |
 | --- | --- | --- |

@@ -96,7 +96,9 @@ population capture/lance use [#4003](https://github.com/davidarcher/rimgovernor/
 neuroformers [#4004](https://github.com/davidarcher/rimgovernor/issues/4004) and
 monolith interaction [#4005](https://github.com/davidarcher/rimgovernor/issues/4005).
 Medical rescue and tending use their own care path. Royalty permits have a
-selection method; that does not lift the neuroformer hold. These are current
+selection method; that does not lift the neuroformer hold. Those four issues were
+closed on 2026-11-08 when RG-COMMIT-003 lifted the holds; the assessment re-files
+the work under that specification. These are current
 implementation limits, with desired admission policy still to decide.
 
 Remaining proof limits are sustained population/herd support, autonomous remote

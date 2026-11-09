@@ -118,7 +118,8 @@ asserts that hold while admitting an independent pest hunt.
 [AdminFamily.Propose](../../brain/src/RimGovernor.Brain.Policy/ColonyAdmin.cs)
 holds precautionary creepjoiner weapon drops. These gaps are tracked in
 [#4008](https://github.com/davidarcher/rimgovernor/issues/4008) and
-[#4010](https://github.com/davidarcher/rimgovernor/issues/4010). Immediate combat
+[#4010](https://github.com/davidarcher/rimgovernor/issues/4010), both closed on
+2026-11-08 when the holds were lifted (RG-PROTECT-001, RG-EQUIP-001). Immediate combat
 and food-specific hunting prerequisites have separate supported paths.
 Ordinary repairs were held by HomeUpkeepFamily
 ([#4006](https://github.com/davidarcher/rimgovernor/issues/4006)); milestone 5 compares
