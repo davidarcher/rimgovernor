@@ -6462,8 +6462,9 @@ public sealed record ThreatSection
 }
 
 /// <summary>
-/// Whether a colonist can haul a stack safely: <see cref="Safe"/> when some colonist who can reach it has a hazard-free
-/// route there and back (with that route's length in cells), <see cref="Unsafe"/> when colonists reach it but every
+/// Whether a colonist can haul a stack safely: <see cref="Safe"/> when some colonist who can reach it has a route
+/// there and back clear of fire, traps, hostiles, fog and deadly cells (with that route's length in cells; cold or
+/// heat short of deadly is the brain's hazard, held per trip by the warmth budget), <see cref="Unsafe"/> when colonists reach it but every
 /// route is exposed, <see cref="Unreached"/> when no colonist reaches it.
 /// </summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]

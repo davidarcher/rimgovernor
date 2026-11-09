@@ -108,6 +108,8 @@ public static class HazardCases
             Ops = [InjectTool, PauseModeTool],
             Run = (s, cancellationToken) => RunAsync(s, RunColonyLostAsync, cancellationToken),
         });
+
+        registry.Register(HazardWarmthBudget.Case());
     }
 
     // The settle and the hooked detection with room to spare: the kill's own hook lands the hold at the next tick.

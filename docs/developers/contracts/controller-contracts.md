@@ -615,7 +615,9 @@ batch through journaled Hands is tracked in
 The `admin/supply-safety` Need (#3304) owns both directions of the forbid flag for visible, player-owned or
 unowned haulable items, including later event drops. The `event_loot` list is a plain required
 colony-facts field (a read that cannot list the stacks fails) reporting each item's identity, cell, forbid flag, native hauling
-verdict (safe with its route length, exposed to a hazard, or unreached) and storage
+verdict (safe with its route length, exposed to a hazard, or unreached; reach is judged at RimWorld's
+Danger.Some, so a cold or hot route short of deadly is safe to native and held, per trip, by the
+warmth budget) and storage
 headroom; a zero-headroom unforbidden row also names the storage groups that accept it
 ([stranded stock](../architecture/storage.md#stranded-stock)). There is no
 first-seen or player-forbid exemption; an unreached stack is released nowhere.

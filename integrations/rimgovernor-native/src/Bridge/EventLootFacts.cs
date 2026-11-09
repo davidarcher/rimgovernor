@@ -156,18 +156,23 @@ namespace RimGovernor.Native
                 return result;
             }
 
+            // Reach and routes are judged at Danger.Some, vanilla's own allowance for work: a
+            // cell merely colder or hotter than the pawn's safe range is the brain's
+            // hazard (the warmth budget holds each trip, #4051), not native's; Deadly
+            // cells and the hazards above still make a route exposed.
             private bool Route(Pawn pawn, IntVec3 from, LocalTargetInfo target, PathEndMode end, bool measure = false)
             {
-                if (hazards.Count == 0 && !measure) return pawn.CanReach(target, end, Danger.None);
-                using (var path = map.pathFinder.FindPathNow(from, target, TraverseParms.For(pawn, Danger.None), peMode: end, customizer: TrapAvoid())) {
+                if (hazards.Count == 0 && !measure) return pawn.CanReach(target, end, Danger.Some);
+                using (var path = map.pathFinder.FindPathNow(from, target, TraverseParms.For(pawn, Danger.Some), peMode: end, customizer: TrapAvoid())) {
                     if (!path.Found) return false;
                     if (measure) PathLength = Math.Min(PathLength < 0 ? path.NodesReversed.Count : PathLength, path.NodesReversed.Count);
-                    return hazards.Count == 0 || path.NodesReversed.All(c => !Exposed(c) && c.GetDangerFor(pawn, map) == Danger.None);
+                    return hazards.Count == 0 || path.NodesReversed.All(c => !Exposed(c) && c.GetDangerFor(pawn, map) != Danger.Deadly);
                 }
             }
 
             // Safe when some colonist who can reach the item has a route
-            // there and back that meets no hazard; false when colonists reach
+            // there and back that meets no hazard (fire, traps, hostiles, fog, deadly
+            // cells); false when colonists reach
             // it but every route is exposed; unknown when nobody reaches it.
             // One colonist's exposed route (standing in the trap lane at the
             // moment of the census) does not veto the item for the rest
@@ -181,7 +186,7 @@ namespace RimGovernor.Native
                 {
                     var area = pawn.playerSettings?.AreaRestrictionInPawnCurrentMap;
                     if (area != null && !area[item.Position]) continue;
-                    if (!pawn.CanReach(item, PathEndMode.Touch, Danger.None)) continue;
+                    if (!pawn.CanReach(item, PathEndMode.Touch, Danger.Some)) continue;
                     reachable = true;
                     var measured = PathLength;
                     PathLength = -1;
@@ -207,7 +212,7 @@ namespace RimGovernor.Native
                 var stored = false;
                 var reached = false;
                 foreach (var pawn in people.Where(p => !p.Drafted && !p.WorkTypeIsDisabled(WorkTypeDefOf.Hauling))) {
-                    if (!pawn.CanReach(source, PathEndMode.Touch, Danger.None)) continue;
+                    if (!pawn.CanReach(source, PathEndMode.Touch, Danger.Some)) continue;
                     reached = true;
                     if (!StoreUtility.TryFindBestBetterStoreCellFor(output, pawn, map, StoragePriority.Unstored, Faction.OfPlayer, out var destination)) continue;
                     stored = true;
