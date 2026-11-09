@@ -44,7 +44,8 @@ public sealed partial class ColonyReview
         { Capture(ForecastAdmission.Continued); RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return; }
         selection = dispatch;
         var traded = AdmitSelectedTrade(selection, candidates, facts, snapshot, call, epoch);
-        external = (external.Admitted || traded.Admitted, external.Failure ?? traded.Failure);
+        var ritual = AdmitSelectedRitual(selection, candidates, snapshot, call, epoch);
+        external = (external.Admitted || traded.Admitted || ritual.Admitted, external.Failure ?? traded.Failure ?? ritual.Failure);
         if (selection.Selection.Selected.Length == 0)
         {
             Capture(ForecastAdmission.Continued);

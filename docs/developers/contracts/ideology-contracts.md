@@ -273,10 +273,13 @@ per pawn and role ([action contracts](action-contracts.md)). Composed by the `id
 
 ## Ritual scheduling
 
-The `ideology/rituals` Need (`policy.PlanRituals`) plans each due ritual precept
-through the Ritual `begin` verb ([action contracts](action-contracts.md)).
-Every value is read from the game; no ritual, building or role name is listed
-in the brain.
+The `ideology/rituals` Need is derived from `policy.PlanRituals`: unmet while a
+due ritual precept has a finished site and attendees. The family proposes nothing
+for it (#4059): the coupled forecast prices each due ritual as a root of attendee
+tasks ([ritual roots](forecast-contracts.md#ritual-roots)) and the review admits
+the selected root as the Need's Method, one Ritual `begin`
+([action contracts](action-contracts.md)). Every value is read from the game; no
+ritual, building or role name is listed in the brain.
 
 - **Due** (`IdeoRitual` against its `RitualDef`): not running
   (`IdeoRitual.running`: a `LordJob_Ritual` of the precept exists). An active
@@ -313,17 +316,24 @@ in the brain.
 - **Calm**: nothing is planned unless the emergency census reads no hostile
   threat and no critical patient (`policy.RitualCalm`); an unread census plans
   nothing. A fight therefore holds the ritual and releases its attendees.
-- **Attendance**: the native ritual validates attendance when begin applies.
-  The retired timetable writer does not keep participants awake. Planner-owned
-  ritual attendance and its needs obligations are outside the supported voluntary scope.
+- **Attendance**: the forecast's attendance is every free colonist the game
+  accepts at the site (#4058); the native ritual validates it again when the begin
+  applies. The retired timetable writer does not keep participants awake.
 
-The planner commits one Ritual `begin` per step: the plan's organizer, the
-site, the slot fills and the spectators. A refused begin follows the shared refusal budget
-per ritual and site (tried at the next site meanwhile); the
-method's reason records the organizer, ritual, site and attendance.
-Postcondition: a `LordJob_Ritual` of the precept is running
-(`RitualEffect.started`), read back as `running`. Composed by the `rituals`
-routine family.
+**Admission** (#4059, `ColonyReview.AdmitSelectedRitual`, beside the trade
+admission): for each selected ritual root whose every attendee task is that pawn's
+first and departs now (`ForecastRitualExecution.Ready`), the review commits one
+Method on the Need: its id is the root (`ritual/<precept>/<site>`), its reason the
+root's premise (the pattern, its due state as the game's obligation or the days
+since the last performance, the site, the attendance and the predicted quality),
+its plan one Ritual `begin` with the root's organizer (the first pawn of the first
+filled slot), the site, the slot fills and the spectators. The Method claims
+`ritual/<precept>` and every attendee pawn while the begin is open
+(`MethodClaimsRules.MethodClaimsOf`), so no review dispatches them elsewhere
+meanwhile; once the begin applies the native lord owns the attendees and the
+running ritual is not due. A refused begin follows the shared refusal budget.
+Postcondition: a `LordJob_Ritual` of the precept is running (`RitualEffect`),
+read back as `running`.
 
 ## Conversion
 

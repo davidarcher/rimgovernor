@@ -87,6 +87,4 @@ public sealed record FirstRitualRead
     public int Participants { get; init; }
 
     public int LastFinishedTick { get; init; }
-
-    public string ExplicitIntent { get; init; } = "";
 }

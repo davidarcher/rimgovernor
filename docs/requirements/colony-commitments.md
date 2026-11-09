@@ -81,11 +81,12 @@ checks containment, ward and sterilization conditions and unread herd facts.
 ### K5 — Native operations with missing autonomous selection
 
 [IdeologyFamily.Propose](../../brain/src/RimGovernor.Brain.Policy/IdeologyFamily.cs)
-supports role/conversion proposals and holds rituals; its reader retains pending
-reform intent. [ideology/first-ritual](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Ideology/IdeologyRitual.cs)
-explicitly starts a native ritual and requires a later completion tick.
-That fixture bypasses the autonomous hold tracked in
-[#3580](https://github.com/davidarcher/rimgovernor/issues/3580).
+supports role/conversion proposals; its reader retains pending reform intent. Rituals
+are the coupled forecast's: a due ritual is priced as a root of attendee tasks and the
+review admits the selected root's begin on `ideology/rituals`
+([#3580](https://github.com/davidarcher/rimgovernor/issues/3580)).
+[ideology/first-ritual](../../brain/src/RimGovernor.Brain.Acceptance.Cases/Ideology/IdeologyRitual.cs)
+runs that path against the game and requires a later completion tick.
 
 [JoinersFamily](../../brain/src/RimGovernor.Brain.Policy/Joiners.cs),
 [PrisonersFamily](../../brain/src/RimGovernor.Brain.Policy/Prisoners.cs),

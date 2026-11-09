@@ -38,7 +38,8 @@ public static partial class MethodClaimsRules
     /// move its <c>allowed-area/&lt;animal&gt;</c>;</item>
     /// <item>recovery services (breakdown, refuel and the quest services) and repairs: the serviced thing, and a repair's,
     /// breakdown fix's or refuel's pawn (its worker slot);</item>
-    /// <item>rituals: the ritual precept or bestowing kind (<c>ritual/&lt;kind&gt;</c>);</item>
+    /// <item>rituals: the ritual precept or bestowing kind (<c>ritual/&lt;kind&gt;</c>); a begin also claims every attendee (the
+    /// organizer, the slot fills and the spectators) while it is open, so no review dispatches them elsewhere meanwhile (#4059);</item>
     /// <item>ideoligion reforms: the ideoligion (<c>ideoligion/&lt;id&gt;</c>);</item>
     /// <item>surgery bills: <c>surgery/&lt;patient&gt;/&lt;recipe&gt;/&lt;part&gt;</c>;</item>
     /// <item>research selection: the project (<c>research/&lt;project&gt;</c>);</item>
@@ -67,6 +68,8 @@ public static partial class MethodClaimsRules
             if (row.Action.Repair is { } repair) pawns.Add(repair.Pawn.Value);
             if (row.Action.RecoveryService is { Method: RecoveryMethod.Breakdown or RecoveryMethod.Refuel } service) pawns.Add(service.Pawn.Value);
             if (row.Action.CaravanDeparture is { } departure) pawns.UnionWith(departure.Crew.Select(p => p.Value));
+            if (row.Action.Ritual is { Verb: RitualVerb.Begin } begun)
+                pawns.UnionWith(begun.Slots.SelectMany(s => s.Pawns).Concat(begun.Spectators).Append(begun.Pawn).Select(p => p.Value));
             if (row.Action.Trade is { Kind: TradeOperationKind.Open } trade && trade.Participant.Kind != TradeParticipantKind.Settlement) pawns.Add(trade.Negotiator.Value);
         }
         return new(EquatableArray.From(pawns.Order(StringComparer.Ordinal)), EquatableArray.From(targets.Order(StringComparer.Ordinal)), work.Shared);

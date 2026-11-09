@@ -41,8 +41,9 @@ public sealed record IdeologyFacts
 /// <list type="bullet">
 /// <item><c>ideology/roles</c> (Development): no active role has a free place and a fitting believer. One Method
 /// per owed role, <c>ideorole-&lt;pawn&gt;-&lt;role&gt;</c>, assigns it; the role is its claim.</item>
-/// <item><c>ideology/rituals</c> (Development): no due ritual can begin now. Rituals are not yet a supported
-/// forecast outcome, so an unmet Need is held as <c>unsupported_forecast_ritual</c>.</item>
+/// <item><c>ideology/rituals</c> (Development): no due ritual can begin now. The family proposes nothing for it: the coupled
+/// forecast prices each due ritual as a root of attendee tasks and the review admits the selected root as the Need's Method,
+/// one Ritual begin (#4058, #4059).</item>
 /// <item><c>ideology/reform</c> (Development): the ideoligion holds the design the policy chooses. Its Method,
 /// <c>ideoligion-&lt;reform count&gt;</c>, reforms toward it; the intent is kept in the <c>family/ideology/reform</c>
 /// record until the reform is observed or the ideoligion moves on.</item>
@@ -61,9 +62,6 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
     public static readonly NeedId Rituals = NeedId.Of(FamilyId, "rituals");
 
     public static readonly NeedId Reform = NeedId.Of(FamilyId, "reform");
-
-    /// <summary>The stable refusal subject of an unmet rituals Need.</summary>
-    public const string UnsupportedRitual = "unsupported_forecast_ritual";
 
     /// <summary>The hold of an owed reform that has no intent to commit.</summary>
     public const string NoReformIntent = "no_reform_intent";
@@ -120,10 +118,6 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
             if (need.Id == Roles)
             {
                 output.AddRange(facts.Roles.Select(RoleMethod));
-            }
-            else if (need.Id == Rituals)
-            {
-                output.Add(NeedMethod.Held(Rituals, UnsupportedRitual, "Ritual participants, duration and outcome require shared forecast admission."));
             }
             else if (need.Id == Reform)
             {

@@ -1,14 +1,13 @@
-using System.Text.Json;
-using RimGovernor.Brain.GameFacts;
-using RimGovernor.Brain.GameOrders;
+using System.Globalization;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>ideology/first-ritual</c> (#1665): an explicit Ritual intent carrying the native begin dialog's legal roles and
-/// spectators is applied, and the game's ritual lord runs it to its end: the precept's last finished tick advances past the
-/// staged baseline. This is mechanics coverage; automatic participant planning stays held unsupported by design.
+/// <c>ideology/first-ritual</c> (#1665, rewritten in #4059): a staged due free-start ritual of the colony ideoligion with its
+/// finished required building is priced by the served normal review as a coupled ritual root, admitted as the
+/// <c>ideology/rituals</c> Need's Method and begun through the Ritual begin order; the game's ritual lord runs it to its end:
+/// the precept's last finished tick advances past the staged baseline. No explicit intent is applied.
 /// </summary>
 internal static class IdeologyRitual
 {
@@ -28,8 +27,9 @@ internal static class IdeologyRitual
     internal static TypedCase Case() => new()
     {
         Name = "ideology/first-ritual",
-        Scope = "An explicit Ritual intent with the native begin dialog's roles and spectators is applied to a staged free-start ritual "
-            + "of the colony ideoligion, and the native ritual lord completes it: the precept's last finished tick advances.",
+        Scope = "A staged due free-start ritual of the colony ideoligion with its finished required building: the served normal review "
+            + "prices it as a coupled ritual root, admits the Method on ideology/rituals and issues the Ritual begin, and the native "
+            + "ritual lord completes it: the precept's last finished tick advances. A unit test cannot prove the native begin or the lord.",
         Ticks = 30_000,
         Tier = CaseTier.OnDemand,
         Start = new LabStart(),
@@ -37,6 +37,7 @@ internal static class IdeologyRitual
         NoKeep = true,
         QuietWorld = true,
         Ops = [PrepareTool, InspectTool],
+        Serve = new ServeSpec { Prefix = "first-ritual" },
         Run = RunAsync,
     };
 
@@ -45,30 +46,20 @@ internal static class IdeologyRitual
         var prepared = await s.FixtureAsync("prepare-ritual", Prepare, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         s.Record("fixture", ServedOps.Json(prepared));
 
-        var dialog = await s.FixtureAsync("ritual-explicit-assignment", Inspect, prepared.RitualId, cancellationToken).ConfigureAwait(false);
-        RimGovernor.Brain.GameOrders.Operations.RitualIntent intent;
-        try
-        {
-            intent = JsonSerializer.Deserialize(dialog.ExplicitIntent, OrdersJsonContext.Default.OperationsRitualIntent)
-                ?? throw new AcceptanceException("ritual-explicit-assignment: the intent is empty");
-        }
-        catch (JsonException e)
-        {
-            throw new AcceptanceException($"ritual-explicit-assignment: the native begin dialog supplied no legal explicit assignment: {ServedOps.Json(dialog)}", e);
-        }
-
-        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        var result = await TradeKit.ApplyAsync(s, "explicit-ritual", intent, cancellationToken).ConfigureAwait(false);
-        if (TradeKit.Applied("explicit-ritual", result).Ritual?.Ritual != prepared.RitualId)
-        {
-            throw new AcceptanceException($"explicit-ritual: expected {prepared.RitualId} begun, got {result}");
-        }
-
-        // The ritual lord walks the attendees to the building and runs the ritual to its end.
-        _ = await s.RunUntilAsync("ritual-finished", s.TicksLeft, async ct =>
+        // The served review admits the begin and the lord walks the attendees to the building and runs the ritual to its end.
+        var begun = false;
+        _ = await s.ServeUntilAsync("ritual-finished", s.TicksLeft, async ct =>
         {
             var read = await s.FixtureAsync("ritual-inspect", Inspect, prepared.RitualId, ct).ConfigureAwait(false);
-            return ($"{read.Running} {read.Participants} {read.LastFinishedTick}", read.LastFinishedTick > prepared.LastFinishedTick);
+            begun |= read.Running;
+            return (string.Create(CultureInfo.InvariantCulture, $"running={read.Running} participants={read.Participants} finished={read.LastFinishedTick}"),
+                read.LastFinishedTick > prepared.LastFinishedTick);
         }, cancellationToken).ConfigureAwait(false);
+        var final = await s.FixtureAsync("ritual-final", Inspect, prepared.RitualId, cancellationToken).ConfigureAwait(false);
+        s.Record("ritual", ServedOps.Json(final));
+        if (!begun && final.LastFinishedTick <= prepared.LastFinishedTick)
+        {
+            throw new AcceptanceException($"the served review never began ritual {prepared.RitualId}: {ServedOps.Json(final)}");
+        }
     }
 }

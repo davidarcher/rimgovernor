@@ -253,7 +253,7 @@ committing orders. Their Concerns remain unmet:
 | Corpse storage delivery | unsupported_forecast_corpse_delivery |
 | Quest monument delivery | unsupported_forecast_monument_delivery |
 | Empty throne-room light | unsupported_forecast_throne_refuel |
-| Ideology ritual / bestowing | unsupported_forecast_ritual / unsupported_forecast_bestowing |
+| Ideology bestowing | unsupported_forecast_bestowing |
 | Monolith interaction | unsupported_forecast_monolith |
 | Quest grav inspection / site help | unsupported_forecast_grav_inspection / unsupported_forecast_site_help |
 
@@ -297,7 +297,7 @@ Additional affected-case disposition:
 | combatlab/repair | Keep: explicit native combat mechanics, outside ordinary Standard selection. |
 | recovery/service, recovery/area | Keep: separately owned emergency recovery and protection. |
 | control/pawn-activities, control/activity-* | Keep: exact native mechanics, continuation stops, physiology and player takeover. |
-| ideology/first-ritual | Rewrite: normal review must report unsupported ritual labor with no admitted Ritual action. A separate explicit intent carries native dialog assignments; after authority release the native lord completes and advances the ritual's finished tick. No automatic participant-selection claim. |
+| ideology/first-ritual | Rewritten (#4059): the served normal review prices the staged due ritual as a coupled root, admits its Method on `ideology/rituals` and issues the Ritual begin; the native lord completes the ritual and advances its finished tick. No explicit intent. |
 | mood/gathering | Rewrite: normal review must report unsupported gathering labor with no admitted Gathering action. Explicit native Party intent uses an observed legal organizer; assert exactly one native lord at the prepared spot. |
 
 These registered cases require their stated native outcomes; source migration alone

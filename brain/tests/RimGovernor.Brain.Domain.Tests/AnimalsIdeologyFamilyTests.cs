@@ -116,7 +116,8 @@ public sealed class AnimalsIdeologyFamilyTests
         Assert.Equal(Satisfaction.Met, Ideology(new IdeologyFacts { Roles = [] }, IdeologyFamily.Roles).Satisfaction);
         Assert.Equal(Satisfaction.Met, Ideology(new IdeologyFacts { Rituals = [] }, IdeologyFamily.Rituals).Satisfaction);
         var rituals = new Need { Id = IdeologyFamily.Rituals, Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet };
-        Assert.Equal(IdeologyFamily.UnsupportedRitual, Assert.Single(new IdeologyFamily().Propose([rituals], new IdeologyFacts())).Hold!.Subject);
+        // #4059: the coupled review admits the selected ritual root as the Need's Method; the family proposes nothing for it.
+        Assert.Empty(new IdeologyFamily().Propose([rituals], new IdeologyFacts()));
     }
 
     private static readonly IdeoligionDesign Current = new(["MemeA"], ["PreceptA"], true);
@@ -234,11 +235,17 @@ public sealed class AnimalsIdeologyFamilyTests
             DomainAction.NewHusbandryAction(new("p-0"), new Husbandry(new("cow"), HusbandryMethod.Slaughter, "")),
             DomainAction.NewRitualAction(new("p-1"), new Ritual(new("a"), RitualKind.Bestowing, RitualVerb.Start)),
             DomainAction.NewIdeoligionReformAction(new("p-2"), new IdeoligionReform("ideo-1", Current, Target, 0)),
+            DomainAction.NewRitualAction(new("p-3"), Ritual.NewRitualBegin(new("o"), "Precept_9", new(1, 1),
+                [new RitualSlot("leader", EquatableArray.From(new[] { new PawnId("o") }))], [new PawnId("s")])),
         ];
         var claims = MethodClaimsRules.MethodClaimsOf(new WorkAdmissionEvidence(), [.. actions.Select(a => new WorkAction(plan, a, new ProgressView { Action = a.Id, Stage = Stage.Pending }))]);
         Assert.Contains("cow", claims.Targets);
         Assert.Contains("ritual/bestowing", claims.Targets);
         Assert.Contains("ideoligion/ideo-1", claims.Targets);
+        // A begin claims the precept and every attendee while open (#4059).
+        Assert.Contains("ritual/Precept_9", claims.Targets);
+        Assert.Contains("o", claims.Pawns);
+        Assert.Contains("s", claims.Pawns);
     }
 
     [Fact]

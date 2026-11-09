@@ -382,10 +382,6 @@ public abstract record EffectEvidenceEffect
 
     public sealed record AreaPlantCutCase : EffectEvidenceEffect;
 
-    /// <summary>The <c>Ritual</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public RitualEffect? Ritual => (this as RitualCase)?.Value;
-
     public sealed record RitualCase(RitualEffect Value) : EffectEvidenceEffect;
 
     public static implicit operator EffectEvidenceEffect(RitualEffect value) => new RitualCase(value);

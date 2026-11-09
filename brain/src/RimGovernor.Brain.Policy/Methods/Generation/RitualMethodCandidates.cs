@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Policy.Methods.Generation;
 /// <see cref="RitualPricing.OutcomeWeights"/>), negative outcomes included. The roots of one ritual exclude each other: the
 /// forecast picks the site. Nothing is planned while the colony is not known calm, for a ritual whose outcome the catalog does not
 /// model, at a site the game refuses, or where a required role finds no accepted pawn or an attendee has no route; each is a named
-/// finding. The begin action (#4059) is built from the same rows.
+/// finding. Each row carries the root's begin action and premise, what the review commits (#4059).
 /// </summary>
 internal sealed record RitualMethodCandidates(ForecastActivity[] Tasks, ForecastActivityOption[] Options, ForecastCommitment[] Roots,
     EquatableArray<ForecastRitualWork> Work, EquatableArray<string> Findings)
@@ -63,6 +63,7 @@ internal sealed record RitualMethodCandidates(ForecastActivity[] Tasks, Forecast
             var root = Exclusive(held.Id) + "/" + site.Site;
             var used = new HashSet<string>(StringComparer.Ordinal);
             var filled = new List<string>();
+            var fills = new List<RitualSlot>();
             foreach (var slot in def.Roles)
             {
                 var holders = ideo.Facts.Roles.Where(r => r.Active && r.DefName == slot.Precept).SelectMany(r => r.Pawns).Select(p => p.Value).ToHashSet(StringComparer.Ordinal);
@@ -76,6 +77,7 @@ internal sealed record RitualMethodCandidates(ForecastActivity[] Tasks, Forecast
                 }
                 used.UnionWith(fill);
                 filled.AddRange(fill);
+                fills.Add(new RitualSlot(slot.Id, EquatableArray.From(fill.Select(p => new PawnId(p)))));
             }
             var spectators = new List<string>();
             foreach (var candidate in site.Candidates.Where(c => !used.Contains(c.Pawn)).OrderBy(c => c.Pawn, StringComparer.Ordinal))
@@ -102,6 +104,11 @@ internal sealed record RitualMethodCandidates(ForecastActivity[] Tasks, Forecast
                 var memory = new NeedMemory(chance.Memory, chance.Mood * weights[i], new MemoryLife.Expires(chance.DurationDays * GameTime.TicksPerDay), chance.Fades) { StackLimit = chance.StackLimit };
                 memories.AddRange(attendees.Select(pawn => new ForecastMoodMemory(pawn, memory)));
             }
+            // The begin the review commits (#4059): the organizer is the first pawn of the first filled slot, as the planner's begin was.
+            var begin = Ritual.NewRitualBegin(new PawnId(filled.Count != 0 ? filled[0] : attendees[0]), held.Id, site.Location, fills, spectators.Select(p => new PawnId(p)));
+            var due = held.ActiveObligations > 0 ? "obligation"
+                : FormattableString.Invariant($"{(facts.Tick.Value - held.LastFinishedTick) / GameTime.TicksPerDay:0.#} days since last");
+            var premise = FormattableString.Invariant($"{held.Pattern} due ({due}) at {site.Site}, {attendees.Count} attending, quality {quality:0.00}");
             var ids = new List<string>();
             foreach (var pawn in attendees)
             {
@@ -109,7 +116,7 @@ internal sealed record RitualMethodCandidates(ForecastActivity[] Tasks, Forecast
                 ids.Add(id);
                 tasks.Add(new(id, location, location, []) { ChoiceIdentity = Exclusive(held.Id) + "/" + pawn, NotBefore = start, LatestStart = start });
                 options.Add(new(id, pawn, def.DurationTicks, 0) { ServicePosition = new ServicePositionRead.Located(site.Location) });
-                work.Add(new(root, id, pawn));
+                work.Add(new(root, id, pawn) { Begin = begin, Premise = premise });
             }
             roots.Add(new(root, []) { ActivityCompletions = EquatableArray.From(ids), ExclusiveOutcome = Exclusive(held.Id), MoodMemories = EquatableArray.From(memories) });
         }

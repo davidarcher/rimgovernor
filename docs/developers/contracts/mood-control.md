@@ -478,8 +478,8 @@ The independent native operation still checks the exact `GatheringDef`, organize
 `GatheringWorker.TryExecute`. Applied means a lord was created, not that guests attended. Repeating the
 operation while that gathering already runs reports the existing lord. Native
 participation outside Governor control remains game-owned; this is not evidence
-of planner-owned coordination. Ideology rituals use their distinct native operation
-and have the same unsupported ordinary participation boundary.
+of planner-owned coordination. Ideology rituals use their distinct native operation;
+their attendance is the coupled forecast's selection ([ritual roots](forecast-contracts.md#ritual-roots), #4059).
 
 ### Where the margins, ledger and party are proven
 

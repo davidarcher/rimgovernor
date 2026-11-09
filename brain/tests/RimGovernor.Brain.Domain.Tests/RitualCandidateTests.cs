@@ -78,8 +78,15 @@ public sealed class RitualCandidateTests
         Assert.All(options, o => Assert.Equal((6000d, 0d), (o.WorkTicks, o.AbsenceTicks)));
         Assert.Equal(4, made.Context.RitualWork.Count);
         Assert.Equal(["helper", "pawn"], made.Context.RitualWork.Where(w => w.Root == SpotRoot).Select(w => w.Pawn).Order(StringComparer.Ordinal));
-        // Every outcome with a memory is granted to every attendee, its mood weighted by the draw probability at the site's quality.
         var quality = RitualPricing.Quality(Model, 2, 50, 0);
+        // Every row of the root carries the begin the review commits (#4059): the leader organizes, the helper spectates, at the site.
+        var begin = made.Context.RitualWork.First(w => w.Root == SpotRoot).Begin;
+        Assert.Equal((RitualVerb.Begin, "pawn", Precept, Spot), (begin.Verb, begin.Pawn.Value, begin.Kind.Value, begin.Spot));
+        Assert.Equal([new RitualSlot("leader", EquatableArray.From(new[] { new PawnId("pawn") }))], begin.Slots);
+        Assert.Equal([new PawnId("helper")], begin.Spectators);
+        Assert.All(made.Context.RitualWork.Where(w => w.Root == SpotRoot), w => Assert.Equal(begin, w.Begin));
+        Assert.Equal(FormattableString.Invariant($"Gathering due (0 days since last) at spot, 2 attending, quality {quality:0.00}"), made.Context.RitualWork.First(w => w.Root == SpotRoot).Premise);
+        // Every outcome with a memory is granted to every attendee, its mood weighted by the draw probability at the site's quality.
         var weights = RitualPricing.OutcomeWeights(Model, quality);
         var expected = weights[0] * 6 + weights[1] * -4;
         Assert.True(quality > .2 && weights[0] > 0 && weights[1] > 0);

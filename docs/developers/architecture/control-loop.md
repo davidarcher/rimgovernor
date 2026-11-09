@@ -629,7 +629,7 @@ Method) and `animals/sterilize`, whose precondition is `animals/ward`. The
 containment latch (`Latches.Animals`) is deleted. `MaintainIdeoRoles`,
 `MaintainRituals` and `ImproveIdeoligion` are the `ideology` family
 (`IdeologyFamily.cs`, `Ideology.cs`): one `ideorole-<pawn>-<role>` Method per
-owed role, rituals held as `unsupported_forecast_ritual`, and the reform Method
+owed role, the rituals Need (its Method is the coupled review's admitted begin, #4059), and the reform Method
 `ideoligion-<reform count>`. The pending reform moved from the ImproveIdeoligion
 Standard's `Record` to the `family/ideology/reform` record: the work step saves the
 intent once its Method is open, the read clears it once the reform is observed or
