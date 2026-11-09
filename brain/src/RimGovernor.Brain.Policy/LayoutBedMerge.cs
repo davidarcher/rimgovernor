@@ -468,6 +468,7 @@ internal sealed partial class Clusterer
             {
                 Cells = area,
                 Band = m.Living,
+                OutdoorWalls = ClimateRules.SquarestPerimeter(area),
                 Links = EquatableArray.From(new[] { new ClimateLink { Opening = Opening.DoorClosed, Side = new ClimateSide { Outdoors = true } } }),
             };
             return ClimateRules.ClimateLoad(m, curve, room, 0).MeanW / workDay;

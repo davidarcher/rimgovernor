@@ -25,7 +25,7 @@ public sealed class ObservedShelterTests
                 Construction = facts.ForecastObserved.Coupled!.Construction with { Options = [] },
                 Thermal = CoupledThermalTests.NoThermal with
                 {
-                    Outdoors = -10d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+                    Outdoors = -10d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .00017,
                     Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10d,
                         Interior.Contains(c) && c.Z == 1 ? "none" : "thin", !Interior.Contains(c), false,
                         "", false, false, 0, Interior.Contains(c) && c.Z == 1))),

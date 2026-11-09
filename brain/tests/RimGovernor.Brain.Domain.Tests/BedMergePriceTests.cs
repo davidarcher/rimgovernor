@@ -54,6 +54,8 @@ public sealed class BedMergePriceTests
             StepTicks = 250,
             TicksPerSecond = 60,
             SwingC = 7,
+            WallFactor = .00017,
+            ThinRoofRate = .00005,
             Living = new Band(16, 26),
             HeldC = 21,
         },

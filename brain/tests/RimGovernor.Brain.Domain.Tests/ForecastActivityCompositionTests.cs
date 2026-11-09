@@ -313,7 +313,7 @@ public sealed class ForecastActivityCompositionTests
                 Construction = ConstructionFixtures.NoConstruction() with { Context = context, Options = [Option("a"), Option("b")] },
                 Thermal = CoupledThermalTests.NoThermal with
                 {
-                    Outdoors = -10d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+                    Outdoors = -10d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .00017,
                     Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10d, c == inside ? "none" : "thin",
                         c != inside && c != wall, false, c == wall ? "wall" : "",
                         c == wall, false, 0, c == inside))),

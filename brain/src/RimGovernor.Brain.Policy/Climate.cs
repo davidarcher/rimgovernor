@@ -16,10 +16,13 @@ namespace RimGovernor.Brain.Policy;
 // (Building_Cooler pushes 1.25 times its output) stands on the far side of the wall, so it loads the
 // neighbour, not the room it cools.
 //
-// Left out, because every option pays it alike: heat leaking through walls and roofs, weather offsets and
-// drift inside a twelfth of the year. The room has no thermal inertia: at each step of a day resolved year it
-// is held where the openings and the heat inside would float it, clamped into the band, and the power is the
-// heat that holding it costs.
+// The static leakage every roofed room pays is in (#4045): its outdoor-facing walls at RoomTempTracker's
+// WallEqualizeFactor per equalize cell (the cell two out through the wall; half when a second wall stands there,
+// ClimateRoom.Shell) and its thin roof at ThinRoofEqualizeRate per floor cell, both toward the outdoor curve, as
+// the environment/wall-layers probe (#4043) measured them. That is what lets a doubled shell be priced against
+// the heat it saves. Left out: weather offsets and drift inside a twelfth of the year. The room has no thermal
+// inertia: at each step of a day resolved year it is held where the openings, the leakage and the heat inside
+// would float it, clamped into the band, and the power is the heat that holding it costs.
 
 /// <summary>A model, room or curve the model cannot price.</summary>
 public sealed class ClimateException(string message) : DomainException("climate model: " + message);
@@ -180,6 +183,16 @@ public sealed record ClimateModel
     /// <summary>The sun cycle's amplitude, TemperatureTuning.DailyTempVariationAmplitude.</summary>
     public double SwingC { get; init; }
 
+    /// <summary>
+    /// RoomTempTracker.WallEqualizeFactor: the heat (cell-degrees) one tick moves per degree of difference through
+    /// one equalize cell, the cell two out from the floor through an outdoor-facing wall. The sample fraction and
+    /// the equalize interval cancel; a solid cell there counts half (ShellLayers.Doubled).
+    /// </summary>
+    public double WallFactor { get; init; }
+
+    /// <summary>RoomTempTracker.ThinRoofEqualizeRate: the heat one tick moves per degree per thin-roofed floor cell.</summary>
+    public double ThinRoofRate { get; init; }
+
     public ClimateBuildValue Build { get; init; } = new();
 
     /// <summary>
@@ -210,8 +223,18 @@ public sealed record ClimateModel
         && Cooler.Valid()
         && StepTicks > 0
         && QuestCapacityForecast.FinitePositive(TicksPerSecond)
+        && QuestCapacityForecast.FinitePositive(WallFactor)
+        && QuestCapacityForecast.FinitePositive(ThinRoofRate)
         && !double.IsNaN(SwingC)
         && !double.IsInfinity(SwingC);
+
+    /// <summary>
+    /// The heat the room's shell leaks toward the outdoors per tick per degree: its outdoor-facing walls at
+    /// <see cref="WallFactor"/> each, halved by a second layer, and its thin roof at <see cref="ThinRoofRate"/> a
+    /// floor cell.
+    /// </summary>
+    internal double LeakConductance(ClimateRoom room) =>
+        (WallFactor * room.OutdoorWalls * (room.Shell == ShellLayers.Doubled ? 0.5 : 1)) + (ThinRoofRate * room.Cells);
 
     /// <summary>
     /// The heat one opening moves per tick per degree of difference. <paramref name="passages"/> is the pawn
@@ -347,12 +370,31 @@ public sealed record ClimateLink
     public ClimateSide Side { get; init; } = new();
 }
 
-/// <summary>A roofed room: its floor cells, band and openings.</summary>
+/// <summary>How many walls stand between a room's floor and the outdoors on its outdoor-facing sides.</summary>
+public enum ShellLayers
+{
+    /// <summary>The ring alone: the cell two out through the wall is outdoors.</summary>
+    Lone,
+
+    /// <summary>A second wall stands on the cell two out, so the equalize cell is solid and counts half.</summary>
+    Doubled,
+}
+
+/// <summary>A roofed room: its floor cells, band, shell and openings.</summary>
 public sealed record ClimateRoom
 {
     public int Cells { get; init; }
 
     public Band Band { get; init; }
+
+    /// <summary>
+    /// The room's equalize cells toward the outdoors: its ring wall cells with a floor cell inside and no room's
+    /// floor two out, doors excluded (LayoutPlan.OutdoorWallCells; corners never count). Zero prices a room with
+    /// no wall leakage.
+    /// </summary>
+    public int OutdoorWalls { get; init; }
+
+    public ShellLayers Shell { get; init; }
 
     public EquatableArray<ClimateLink> Links { get; init; }
 
@@ -455,6 +497,23 @@ public static class ClimateRules
     internal static double Series(double a, double b) => a * b / (a + b);
 
     /// <summary>
+    /// The outdoor-facing wall count of a room known only by its area: the perimeter of the squarest rectangle
+    /// holding it (width the square root rounded up, height what that needs), every side open to the outdoors.
+    /// The callers with no geometry (a cold group, a bedroom being priced) use it; the tiler passes the real count.
+    /// </summary>
+    public static int SquarestPerimeter(int area)
+    {
+        if (area <= 0)
+        {
+            return 0;
+        }
+
+        var width = (int)Math.Ceiling(Math.Sqrt(area) - 1e-9);
+        var height = (int)Math.Ceiling((double)area / width - 1e-9);
+        return 2 * (width + height);
+    }
+
+    /// <summary>
     /// Prices a room over one day-resolved year of the outdoor curve (twelve means, C): at each step the room
     /// floats to the conductance-weighted mean of what is beyond its openings, is held at the band edge it
     /// floats past, and the heat that costs is turned into heater or cooler watts.
@@ -484,20 +543,18 @@ public static class ClimateRules
         }
 
         var inside = InsideHeat.Create(room.Heat.Items, m.TicksPerSecond);
+        var leak = m.LeakConductance(room);
         double heatingSum = 0, coolingSum = 0, peak = 0, heatingPeak = 0, coolingPeak = 0;
         var steps = 0;
         for (var tick = 0; tick < GameTime.TicksPerYear; tick += m.StepTicks)
         {
             steps++;
-            double flow = 0, total = 0;
+            var outdoor = OutdoorAt(curve, m.SwingC, tick);
+            var flow = leak * outdoor;
+            var total = leak;
             for (var i = 0; i < links.Length; i++)
             {
-                var side = links[i].Side.HeldC;
-                if (links[i].Side.Outdoors)
-                {
-                    side = OutdoorAt(curve, m.SwingC, tick);
-                }
-
+                var side = links[i].Side.Outdoors ? outdoor : links[i].Side.HeldC;
                 flow += g[i] * side;
                 total += g[i];
             }
@@ -667,7 +724,8 @@ public static class ClimateRules
     /// <summary>
     /// The climate answer beside a cold group's cooling station: null for a group that does not require
     /// cold, or while the full-rot temperature, the model or steel's value cannot be priced. The observed curve is required. The band is
-    /// everything under the full-rot temperature (slows rot; it does not stop it).
+    /// everything under the full-rot temperature (slows rot; it does not stop it). The group has no geometry
+    /// yet, so its walls are the squarest rectangle's perimeter (SquarestPerimeter).
     /// </summary>
     internal static GroupClimate? GroupClimateOf(StationFacts f, RoomGroup g)
     {
@@ -697,6 +755,7 @@ public static class ClimateRules
                 {
                     Cells = g.Area,
                     Band = band,
+                    OutdoorWalls = SquarestPerimeter(g.Area),
                     Heat = EquatableArray.From(f.Catalog.GroupHeat(g)),
                 },
                 new ClimateSide { Outdoors = true },

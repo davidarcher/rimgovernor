@@ -426,9 +426,18 @@ max temperatures between which it pushes) enters the room's balance, modelled by
 pieces with a hover at a limit when the pusher cycles; the climate reads each
 station's heat from the defs (the station catalog in `Brain.Bridge/Catalog`). A room with its own
 band (`ClimateModel.Living`, the human's comfortable range) is held in it, and
-a neighbour room is held at the heater's default target (`HeldC`). The room has
-no thermal inertia, and wall and roof leakage, weather offsets and drift inside
-a twelfth are left out: every option pays them alike. The only judgment, the sun
+a neighbour room is held at the heater's default target (`HeldC`). The shell's
+own leakage is in (#4045, from the `environment/wall-layers` probe, #4043): each
+outdoor-facing wall (`ClimateRoom.OutdoorWalls`, the ring cells with a floor cell
+inside and no room's floor two out, doors excluded; `LayoutPlan.OutdoorWallCells`
+counts them, callers without geometry take `SquarestPerimeter`) conducts
+`RoomTempTracker.WallEqualizeFactor` (0.00017) per tick per degree, half when a
+second wall stands two out (`ShellLayers.Doubled`), and each thin-roofed floor cell
+`ThinRoofEqualizeRate` (0.00005); the sample fraction and the 120-tick interval
+cancel. A doubled shell is priced by calling `ClimateOptions` twice, `Lone` and
+`Doubled`, its walls charged by the caller through `BuildW`. The room has no
+thermal inertia, and weather offsets and drift inside a twelfth are left out:
+every option pays them alike. The only judgment, the sun
 cycle's phase (a literal in the game's code), is in the
 climate judgment table (`ClimateRules.ClimateDefs`) with the vent, door and wall defs. A build's cost is turned into watts at the site pricing's own rate
 (`SiteTypeWeights`: construction per 100 steel a day, amortised over one 60-day

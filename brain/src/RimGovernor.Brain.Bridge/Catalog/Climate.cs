@@ -7,7 +7,8 @@ namespace RimGovernor.Brain.Bridge;
 
 // The heat the climate options move (P.ClimateModel), read from the defs and the game's constants:
 // the vent's equalize interval (GenTicks.TickRareInterval, Building_Vent.TickRare) and rate
-// (TemperatureTuning.Vent_TempEqualizeRate), the door's intervals and rate from its BuildingProperties, the cheapest
+// (TemperatureTuning.Vent_TempEqualizeRate), the door's intervals and rate from its BuildingProperties, the wall and
+// thin-roof leakage rates (RoomTempTracker.WallEqualizeFactor and its private ThinRoofEqualizeRate, #4045), the cheapest
 // heater's and the most efficient cooler's heat per second and power draw from their temperature control and power comps,
 // and the cheapest cost list of the vent, door and wall.
 
@@ -103,6 +104,17 @@ public sealed partial class DefinitionCatalog
             return new P.ClimateModel();
         }
 
+        // The thin-roof rate is a private const of RoomTempTracker; a game that lacks it has an unknown model.
+        float thinRoof;
+        try
+        {
+            thinRoof = GameConstants.Read<float>(typeof(RoomTempTracker), "ThinRoofEqualizeRate");
+        }
+        catch (CatalogException)
+        {
+            return new P.ClimateModel();
+        }
+
         var rare = GenTicks.TickRareInterval;
         var model = new P.ClimateModel
         {
@@ -120,6 +132,8 @@ public sealed partial class DefinitionCatalog
             StepTicks = rare,
             TicksPerSecond = GenTicks.TicksPerRealSecond,
             SwingC = TemperatureTuning.DailyTempVariationAmplitude,
+            WallFactor = RoomTempTracker.WallEqualizeFactor,
+            ThinRoofRate = thinRoof,
         };
 
         string heater;

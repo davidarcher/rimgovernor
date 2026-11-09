@@ -18,7 +18,7 @@ public sealed class ForecastThermalPortfolioTests
         var bed = occupiedInside ? inside : new Cell(3, 1);
         var thermal = CoupledThermalTests.NoThermal with
         {
-            Outdoors = ambient, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+            Outdoors = ambient, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .00017,
             Cells = EquatableArray.From(cells.Append(new Cell(3, 1)).Select(c => new ThermalCell(c, ambient, "none",
                 c != inside && c != wall.Location && c != new Cell(3, 1), false,
                 c == wall.Location ? wall.Site : "", c == wall.Location,
@@ -147,7 +147,7 @@ public sealed class ForecastThermalPortfolioTests
         var frame = facts.ForecastObserved.Coupled!.Construction.Options.Single() with { Location = heater };
         var thermal = CoupledThermalTests.NoThermal with
         {
-            Outdoors = ambient, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+            Outdoors = ambient, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .00017,
             Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, ambient, interior.Contains(c) ? "thin" : "none",
                 !interior.Contains(c), c == door && doorHeldOpen, c == heater ? frame.Site : "", false, false,
                 c == door ? .00267 : 0, false))),

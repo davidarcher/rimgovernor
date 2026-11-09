@@ -74,7 +74,7 @@ public sealed class ForecastRoofConsequencesTests
         var open = new[] { Inside, WallCell, DoorCell };
         var thermal = CoupledThermalTests.NoThermal with
         {
-            Outdoors = 20d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+            Outdoors = 20d, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .00017,
             Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, 20d, "none", !open.Contains(c), false, "", false, false, 0, false))),
             Workers = [new("pawn", 5d)], RoofRoutes = [new("pawn", Inside, new RoofApproach.Path(1d))],
         };

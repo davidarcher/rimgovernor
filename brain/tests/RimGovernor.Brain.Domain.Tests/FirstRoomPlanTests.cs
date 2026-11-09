@@ -97,14 +97,15 @@ public sealed class FirstRoomPlanTests
     }
 
     [Fact]
-    public void AnIceSheetFirstPlanHousesThreeCalmColonistsInBedrooms()
+    public void AnIceSheetFirstPlanHousesThreeCalmColonistsInOneBarracks()
     {
-        // With one sleep slot a colonist (#3749) a saved room's shell and heat (about 0.3 capability-days on wood) do not
-        // outweigh a calm sleeper's 0.24 over the horizon until the colony is larger.
+        // Each bedroom's walls and roof leak to -40 C at the game's rates (#4045): two saved rooms' shells and heat now
+        // outweigh three calm sleepers' bedroom gain over the horizon, where before the leakage was priced they did not.
         var plan = Derive(Facts(BedMergePriceTests.IceSheet, "cold"));
 
-        Assert.Empty(plan.RoomsOf(PlannedRole.Barracks));
-        Assert.True(plan.RoomsOf(PlannedRole.Bedroom).Count >= 3, $"bedrooms {plan.RoomsOf(PlannedRole.Bedroom).Count}");
+        var barracks = Assert.Single(plan.RoomsOf(PlannedRole.Barracks));
+        Assert.Empty(plan.RoomsOf(PlannedRole.Bedroom));
+        Assert.Equal(3, plan.Pieces[barracks.Id].Count(p => p.Def == "Bed"));
     }
 
     [Fact]

@@ -206,14 +206,16 @@ internal static class NativeCoupledThermal
                 { SkillWork = NativeProductiveSkill.ReadWork(p, SkillDefOf.Construction, StatDefOf.ConstructionSpeed,
                     65, 1.7, 0, false, false, "JobDriver_AffectRoof: construction speed, no learning") }).ToArray();
         // The roof rates are private consts, so no typed route reaches them: they are read by name, and a game whose
-        // RoomTempTracker lacks one fails the read.
+        // RoomTempTracker lacks one fails the read. The wall term is the factor alone: the tracker samples a fifth of
+        // the equalize cells and scales the mean back up by their count, and a cell with a room beyond it counts in full
+        // (environment/wall-layers, #4043); the filled-cell power applies only to a solid cell two out.
         return new()
         {
             Cells = cells, Sources = sources, RoofRoutes = roofRoutes, Workers = EquatableArray.From(workers),
             Outdoors = map.mapTemperature.OutdoorTemp,
             ThinRoofExchangePerTick = RoofRate("ThinRoofEqualizeRate"),
             NoRoofExchangePerTick = RoofRate("NoRoofEqualizeRate"),
-            WallExchangePerTick = (double)RoomTempTracker.WallEqualizeFactor * RoomTempTracker.FractionWallEqualizeCells * RoomTempTracker.EqualizationPowerOfFilledCells,
+            WallExchangePerTick = RoomTempTracker.WallEqualizeFactor,
         };
     }
 

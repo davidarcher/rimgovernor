@@ -53,7 +53,7 @@ public sealed class PlannedShelterTests
         var open = new[] { Inside, WallCell, DoorCell };
         var thermal = CoupledThermalTests.NoThermal with
         {
-            Outdoors = ambient, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .000017,
+            Outdoors = ambient, ThinRoofExchangePerTick = .00005, WallExchangePerTick = .00017,
             Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, ambient, "none",
                 !open.Contains(c), false, "", false, false, 0, buildRoof && c == Inside))),
             Workers = [new("pawn", 5d)], RoofRoutes = [new("pawn", Inside, new RoofApproach.Path(1d))],

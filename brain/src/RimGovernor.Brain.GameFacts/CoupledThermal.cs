@@ -10,7 +10,8 @@ namespace RimGovernor.Brain.GameFacts.Observations;
 /// the colonists who can roof and every colonist's route to every open cell marked to roof, and the map's exchange
 /// constants. Outdoors is the map's current outdoor temperature; the roof rates are RoomTempTracker's private constants
 /// (ThinRoofEqualizeRate; NoRoofEqualizeRate, an unroofed cell's share of the room's exchange with outdoors a tick, #3534)
-/// and WallExchangePerTick its wall term. The native read throws when a constant cannot be read.
+/// and WallExchangePerTick its wall term per equalize cell (RoomTempTracker.WallEqualizeFactor, 0.00017, as environment/wall-layers
+/// measured it, #4043). The native read throws when a constant cannot be read.
 /// </summary>
 public sealed record CoupledThermalRead
 {

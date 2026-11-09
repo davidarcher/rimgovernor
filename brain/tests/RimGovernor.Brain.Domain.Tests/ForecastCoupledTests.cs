@@ -302,7 +302,7 @@ public sealed class ForecastCoupledTests
         {
             Outdoors = -10.0,
             ThinRoofExchangePerTick = .00005,
-            WallExchangePerTick = .000017,
+            WallExchangePerTick = .00017,
             Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10.0, "none", !inside.Contains(c) && c != wall.Location, false,
                 c == wall.Location ? wall.Site : "", c == wall.Location, false, 0, inside.Contains(c)))),
             Workers = [new("pawn", 5.0)],

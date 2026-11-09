@@ -59,7 +59,7 @@ internal sealed class VentPricer(Tiler t, ClimateModel m, IReadOnlyList<double> 
             return cached;
         }
         var links = new List<ClimateLink>();
-        var room = new ClimateRoom { Cells = t.RoomCells(r), Band = BandOf(r), Heat = EquatableArray.From(t.In.Catalog.GroupHeat(t.In.Groups[t.Rooms[r].Group])) };
+        var room = new ClimateRoom { Cells = t.RoomCells(r), Band = BandOf(r), OutdoorWalls = t.OutdoorWalls(r), Heat = EquatableArray.From(t.In.Catalog.GroupHeat(t.In.Groups[t.Rooms[r].Group])) };
         ClimateLink Door(int who, ClimateSide side) => new() { Opening = who == open ? Opening.DoorOpen : Opening.DoorClosed, Side = side };
         var outdoors = new ClimateSide { Outdoors = true };
         if (t.ExtDoor[r] is not null)
@@ -130,6 +130,9 @@ internal sealed partial class Tiler
     internal double HeldAt(Band b) => double.IsNegativeInfinity(b.MinC) ? b.MaxC : In.Catalog.Climate.HeldC;
 
     internal int RoomCells(int i) => Rooms[i].Rect.Width * Rooms[i].Rect.Height;
+
+    /// <summary>Room i's outdoor-facing wall count in the plan as placed so far (LayoutPlan.OutdoorWallCells).</summary>
+    internal int OutdoorWalls(int i) => Out.Plan.OutdoorWallCells(Out.Plan.Rooms[i]).Count;
 
     /// <summary>The wall stations the room's group will set into its ring.</summary>
     internal int WallDemand(RoomGroup g)
