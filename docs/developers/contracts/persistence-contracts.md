@@ -269,10 +269,10 @@ one row per world (colony, map) and tick, and `LayoutPlan` reads the newest row 
 the tick. A row that does not decode or is not `Valid()` reads as none (the record comes back
 `Invalid`), so the review derives a fresh plan (`DeriveLayoutPlan`) rather than adopting it. The
 stored JSON is the `LayoutPlan` fields (Rooms, Links, Entrances, Owed, Trips, OutsideTrips, Zones,
-Reservations, Sites, RetiredGround, Roofed, Lamps, Pieces, Conduits, Cold, Hot, ActivitySites, Transitions, NextRoomID; each
+Reservations, Sites, RetiredGround, Roofed, OuterWalls, Lamps, Pieces, Conduits, Cold, Hot, ActivitySites, Transitions, NextRoomID; each
 room's `Production` row carries its `Step`, `host`, `bridge` or `share`, from store schema 71, and each room its
 `Activity` key from schema 72, RG-HABITAT-005 and habitat 3.3; `Transitions` from schema 77, below) and decoding
-rejects an unknown field and requires every field, Pieces, ActivitySites and Transitions included from schema 78, so a plan written with a field since removed or before one was added reads as none. In
+rejects an unknown field and requires every field, Pieces, ActivitySites and Transitions included from schema 78, so a plan written with a field since removed or before one was added reads as none; the one exception is `OuterWalls` (#4046), which a blob written before it reads as empty, since a replan derives it afresh. In
 the save it is the blob `family/layout_plan` (`GovernorState.cs`,
 `GovernorLayoutPlanKey`), which follows the save's timeline; a blob that does not decode or is not `Valid()`
 restores as no plan the same way. The runtime records a plan only

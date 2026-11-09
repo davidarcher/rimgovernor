@@ -85,8 +85,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 79 carries an issued refuel's fuel def and items on its recovery payload (RecoveryService.Fuel, Items, the servicing ledger's hold; habitat review item 13): an older refuel payload loads holding no fuel; older journals are replaced.
     /// Version 80 replaces the review latches' single loot dash with one warmth window per pawn (<c>Latches.Warmth</c>, #4049 of epic #3578): an older journal is replaced.
     /// Version 81 names each warmth trip's kind (loot, salvage, lone hunt, forage; WarmthTrip.Kind, #4050 of epic #3578): an older journal is replaced.
+    /// Version 82 keeps the layout plan's second wall layer (LayoutPlan.OuterWalls, #4046 of epic #2795): an older plan blob decodes with none; older journals are replaced.
     /// </summary>
-    public const int SchemaVersion = 81;
+    public const int SchemaVersion = 82;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

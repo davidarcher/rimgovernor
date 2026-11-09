@@ -247,6 +247,7 @@ partial record LayoutPlan
     private static ConduitNet NewConduitNet(LayoutPlan plan, IEnumerable<ConduitNode> nodes, MapSurvey survey, IReadOnlyDictionary<ConduitRef, ConduitLink> held)
     {
         var allowed = new HashSet<Cell>(ConduitRouterRules.ConduitCells(survey, plan.Rooms));
+        allowed.ExceptWith(plan.OuterWalls.Cells()); // the second wall layer (#4046) is solid
         foreach (var n in nodes)
         {
             foreach (var c in n.Cells)

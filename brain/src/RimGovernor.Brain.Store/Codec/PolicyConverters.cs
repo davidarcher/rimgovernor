@@ -966,6 +966,7 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
             Sites = e.Get<IReadOnlyList<PlannedSite>>("Sites", o),
             RetiredGround = e.Get<IReadOnlyList<Region>>("RetiredGround", o),
             Roofed = e.Get<Region>("Roofed", o),
+            OuterWalls = e.GetOr<Region>("OuterWalls", new(), o), // a plan saved before #4046 has none
             Lamps = e.Get<IReadOnlyDictionary<int, IReadOnlyList<PlannedLamp>>>("Lamps", o),
             Pieces = e.Get<IReadOnlyDictionary<int, IReadOnlyList<InteriorPiece>>>("Pieces", o),
             ActivitySites = e.Get<IReadOnlyList<PlannedActivitySite>>("ActivitySites", o),
@@ -990,6 +991,7 @@ internal sealed class LayoutPlanConverter : ObjectCodec<LayoutPlan>
         w.Put("Sites", v.Sites, o);
         w.Put("RetiredGround", v.RetiredGround, o);
         w.Put("Roofed", v.Roofed, o);
+        w.Put("OuterWalls", v.OuterWalls, o);
         w.Put("Lamps", v.Lamps, o);
         w.Put("Pieces", v.Pieces, o);
         w.Put("ActivitySites", v.ActivitySites, o);

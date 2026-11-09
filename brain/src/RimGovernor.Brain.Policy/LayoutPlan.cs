@@ -171,6 +171,9 @@ public sealed partial record LayoutPlan
     /// <summary>The cells the plan roofs on a map whose outdoor temperature is not good for pawns: every room except the outdoor roles. Only a tiled plan holds it.</summary>
     public Region Roofed { get; init; } = new();
 
+    /// <summary>The second wall layer the tiler places against the roofed rooms' outdoor-facing rings where it beats heating (#4046, Tiler.PlaceShell): the sampled cells one out from the ring, corners never. Derived afresh at each tiling; only a tiled plan holds it.</summary>
+    public Region OuterWalls { get; init; } = new();
+
     /// <summary>The lamps the plan places in each lit room by room id: standing or wall, priced against the dark they light. The lighting round builds them where a bench reads dark; a room the plan found darkness cheaper for has none. Only a tiled plan holds them.</summary>
     public IReadOnlyDictionary<int, IReadOnlyList<PlannedLamp>> Lamps { get; init; } = new Dictionary<int, IReadOnlyList<PlannedLamp>>();
 
@@ -341,7 +344,7 @@ public sealed partial record LayoutPlan
             }
             seen.Add(l);
         }
-        if (RoofedOutdoors())
+        if (RoofedOutdoors() || !ValidOuterWalls())
         {
             return false;
         }

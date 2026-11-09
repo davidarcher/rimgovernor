@@ -469,6 +469,7 @@ partial record LayoutPlan
                 }
                 walled.UnionWith(PlannedRules.RectCells(block));
             }
+            walled.UnionWith(p.OuterWalls.Cells()); // the second wall layer (#4046)
             foreach (var c in PlannedRules.RectCells(LayoutPerimeterRules.Pad(fp, 1)))
             {
                 if (!walk.ContainsKey(c) && !walled.Contains(c))

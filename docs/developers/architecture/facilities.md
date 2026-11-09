@@ -122,7 +122,17 @@ ring reconcile, `GroundMatches`, clearance ground and
 retirement treat those cells as part of the parent's ring; the vanilla
 auto-roof roofs the enclosed vestibule. It is sited where the ground has room
 for it and omitted otherwise (a room with no free ground for a vestibule has none).
-A second wall layer is not built.
+The second wall layer (#4046, epic #2795) is the plan-level derived region
+`LayoutPlan.OuterWalls`, placed after the airlocks (`Tiler.PlaceShell`): each
+roofed room's sampled cells (`OutdoorWallCells`) that are open ground no door,
+vent, cooler, airlock, kept route or other layer holds, priced as the room stands
+with the ring alone and with the layer (`ShellLayers.Doubled`, the cells at the
+catalog's wall through `BuildW`), and placed when the layer is the cheaper total;
+the decisions `tile_shell`, `tile_shell_not_paid`, `tile_shell_no_ground`,
+`tile_shell_unpriced` and `tile_shell_temperate` say why a room has or lacks one.
+Conduits and pawn routes treat the layer as solid; `Valid()` rejects a layer cell
+on a room, an airlock or a site. At today's site rate the layer rarely pays
+(#4044 reprices power). The layer is not yet built or retired (#4047).
 
 ### Station catalog
 

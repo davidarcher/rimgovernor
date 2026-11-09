@@ -491,6 +491,7 @@ internal sealed partial class Tiler(TileInput input)
             roof = LayoutPlan.PlanRoofed(Out.Plan, RoofInputOf());
             Out.Plan = Out.Plan with { Roofed = roof.Roofed };
         }
+        PlaceShell();
         this.PlaceLamps();
         Out.Plan = Out.Plan with
         {
