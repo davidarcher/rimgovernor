@@ -444,4 +444,42 @@ public sealed class CoordinatedConstructionTests
         Assert.True(learned.WorkTicks < learned.ObservedWorkTicks);
         Assert.True(learned.After.AppliedGain > 0);
     }
+
+    /// <summary>
+    /// #4061: under extreme cold alone an outdoor construction row stays only as the build its pawn's open warmth
+    /// window names; indoor rows are kept, and without the hazard nothing is dropped.
+    /// </summary>
+    [Fact]
+    public void ColdHoldsOutdoorConstructionRowsTheirPawnsWarmthWindowDoesNotName()
+    {
+        var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
+        var template = facts.ForecastObserved.Needs!.Pawns[0];
+        Row Site(string site, Cell at, string pawn) => Option(pawn, 0, 20, 20) with { Site = site, Location = at };
+        ThermalCell Sample(Cell at, double t) => new(at, t, "none", false, false, "", false, false, 0, false);
+        ConstructionActivityOption[] rows = [Site("a", new(30, 30), "producer"), Site("a", new(30, 30), "helper"), Site("b", new(40, 40), "producer"), Site("c", new(2, 2), "producer")];
+        facts = facts with
+        {
+            WorkView = Resources(),
+            Census = facts.Census with { OutdoorTemperatureC = -25 },
+            Warmth = [new WarmthWindow { Pawn = new PawnId("producer"), Until = new Tick(1000), Trips = [new WarmthTrip { Kind = WarmthTripKind.Build, Id = "a" }] }],
+            ForecastObserved = facts.ForecastObserved with
+            {
+                Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
+                Coupled = CoupledFixtures.Empty with
+                {
+                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100,
+                    Thermal = CoupledThermalTests.NoThermal with { Outdoors = -25, Cells = [Sample(new(30, 30), -25), Sample(new(40, 40), -25), Sample(new(2, 2), 15)] },
+                    Construction = ConstructionFixtures.NoConstruction() with
+                    {
+                        Context = new() { NativeGeneration = new RimGovernor.Brain.GameFacts.Common.ObservedGeneration.UnclaimedCase(), Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+                        Options = EquatableArray.From(rows),
+                    },
+                },
+            },
+        };
+        static List<(string Pawn, string Site)> Bound(ReviewFacts f) => ForecastCoupledCandidates.GenerateCoupledActivities(f, 1900)!.Context.Bindings.Values
+            .Where(b => b.Target is "a" or "b" or "c").Select(b => (b.Pawn, b.Target)).Distinct().OrderBy(p => p.Pawn, StringComparer.Ordinal).ThenBy(p => p.Target, StringComparer.Ordinal).ToList();
+        Assert.Equal([("producer", "a"), ("producer", "c")], Bound(facts));
+        Assert.Equal([("helper", "a"), ("producer", "a"), ("producer", "b"), ("producer", "c")], Bound(facts with { Census = facts.Census with { OutdoorTemperatureC = 15 } }));
+    }
 }

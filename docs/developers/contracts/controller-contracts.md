@@ -223,9 +223,9 @@ This is coordination within existing concerns, not an executor.
   Outdoor hazards (extreme cold at or below -20 C, extreme heat at or above 45 C, toxic fallout) are a typed
   fact (`OutdoorHazardsOf`); any active hazard holds mining, chopping and formation hunts with reason
   `outdoor_hazard` (`OutdoorAcquisitionHeld`, `RemoteThreatHold`). Remote loot and salvage, recovery, lone hunts,
-  forages and coupled harvests are held per trip (`TripHold`, `AcquisitionTripHolds`, #4051): heat or fallout
+  forages, coupled harvests and coupled outdoor builds are held per trip (`TripHold`, `AcquisitionTripHolds`, #4051, #4061): heat or fallout
   holds every trip with `outdoor_hazard`; extreme cold alone holds a trip with `warmth_budget` unless an open
-  warmth window names it (`WarmthWindow.Names`, kind and id): the pawn's own window for a hunt, forage or harvest,
+  warmth window names it (`WarmthWindow.Names`, kind and id): the pawn's own window for a hunt, forage, harvest or build (a coupled construction row at a cell the thermal read samples at the outdoor temperature, `WarmthOutdoorCells`; indoor rows are not held, and other hazards leave the construction unchanged),
   any pawn's for loot and salvage, which native staffs. The acquisition and pest steps hold each source into the
   `held` map and wait only while no source is free, with the budget's reason when some source waits for a window,
   else the hazard's; acquisition reports the wait as `waiting_for_native_temperature` with that subject. An unread condition census or outdoor temperature raises `RequiredFactException`

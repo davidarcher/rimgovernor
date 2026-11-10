@@ -68,6 +68,19 @@ public sealed partial record ForecastCoupledCandidates
         if (!shelterEnabled)
             read = read with { Construction = read.Construction with { Options = [] },
                 Thermal = read.Thermal with { Cells = EquatableArray.From(read.Thermal.Cells.Select(c => c with { BuildRoof = false })) } };
+        // Under extreme cold alone an outdoor construction row (a cell the coupled thermal read samples at the outdoor
+        // temperature, WarmthOutdoorCells) stays only as the build its pawn's open warmth window names (#4061), as a
+        // forage does; indoor rows are not held, and other hazards leave the construction unchanged.
+        var hazards = OutdoorHazardRules.OutdoorHazardsOf(facts);
+        if (hazards.Count != 0 && hazards.All(h => h.Kind == HazardKind.ExtremeCold))
+        {
+            var outdoors = WarmthPlanRules.WarmthOutdoorCells(facts);
+            bool Kept(ConstructionActivityOption o) => !outdoors.Contains(o.Location)
+                || !OutdoorHazardRules.TripHeld(facts, new PawnId(o.Pawn), WarmthTripKind.Build, o.Site);
+            read = read with { Construction = read.Construction with {
+                Options = EquatableArray.From(read.Construction.Options.Where(Kept)),
+                Removals = EquatableArray.From(read.Construction.Removals.Select(r => r with { Options = EquatableArray.From(r.Options.Where(Kept)) })) } };
+        }
         // An urgent build's review (#3537) compares its placed sites alone of the construction: the planned sites, every other
         // placed site and the standing removals are routine, vanilla's. Its shelters are the planned rooms it rings, and all
         // of its sites are compared, so a shell's whole ring can close.
