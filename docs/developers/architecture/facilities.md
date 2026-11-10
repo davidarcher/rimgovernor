@@ -458,7 +458,14 @@ second wall stands two out (`ShellLayers.Doubled`), and each thin-roofed floor c
 cancel. A doubled shell is priced by calling `ClimateOptions` twice, `Lone` and
 `Doubled`, its walls charged by the caller through `BuildW`. The room has no
 thermal inertia, and weather offsets and drift inside a twelfth are left out:
-every option pays them alike. The only judgment, the sun
+every option pays them alike. The outage margin (#4062,
+`ClimateRules.OutageMarginTicks`) is the one place the room's air has a capacity,
+one cell-degree a floor cell: the ticks a room held at `HeldC` stays at or above
+`Living.MinC` with its heaters unpowered, an exponential fall toward the coldest
+outdoor step at the leak plus the openings to the outdoors over the cells. Held
+neighbours fall with the room and carry nothing, station heat is not counted, and
+nothing prices the margin yet: the power utility prices an outage as unserved
+watt-days, not as a cold room. The only judgment, the sun
 cycle's phase (a literal in the game's code), is in the
 climate judgment table (`ClimateRules.ClimateDefs`) with the vent, door and wall defs. A build's cost is turned into watts at the site pricing's own rate
 (`SiteTypeWeights`: construction per 100 steel a day, amortised over one 60-day

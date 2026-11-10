@@ -600,6 +600,56 @@ public static class ClimateRules
     }
 
     /// <summary>
+    /// The ticks a room held at <see cref="ClimateModel.HeldC"/> stays at or above the living band's floor once its
+    /// heaters lose power (#4062, RG-HABITAT-008), at the coldest step of the outdoor curve held throughout. The room's
+    /// air holds one cell-degree a floor cell a degree (RoomTempTracker divides every exchange by the cell count), so
+    /// it falls toward the outdoors as an exponential at its conductance over its cells: the shell's leak
+    /// (<see cref="ClimateModel.LeakConductance"/>) and its openings to the outdoors. An opening to a held neighbour
+    /// carries nothing: the neighbour's heaters stop with the room's and the two fall together. The room's own
+    /// stations' heat is not counted (HeatSource does not say which draw power), so the margin is the shell's alone
+    /// and a fuelled fire only lengthens it. Infinite when the coldest step is no colder than the floor or nothing
+    /// conducts; zero when the room is held at or below the floor.
+    /// </summary>
+    public static double OutageMarginTicks(ClimateModel m, IReadOnlyList<double> curve, ClimateRoom room, double passages)
+    {
+        if (!m.Valid() || !m.HasLiving())
+        {
+            throw new ClimateException("model has unknown numbers");
+        }
+
+        if (curve.Count != 12 || curve.Any(v => double.IsNaN(v) || double.IsInfinity(v)))
+        {
+            throw new ClimateException("outdoor curve is not twelve finite means");
+        }
+
+        if (room.Cells <= 0)
+        {
+            throw new ClimateException($"room has {room.Cells} cells");
+        }
+
+        var coldest = double.PositiveInfinity;
+        for (var tick = 0; tick < GameTime.TicksPerYear; tick += m.StepTicks)
+        {
+            coldest = Math.Min(coldest, OutdoorAt(curve, m.SwingC, tick));
+        }
+
+        var floor = m.Living.MinC;
+        if (m.HeldC <= floor)
+        {
+            return 0;
+        }
+
+        var total = m.LeakConductance(room)
+            + room.Links.Items.Where(l => l.Side.Outdoors).Sum(l => m.Conductance(l, room.Cells, passages));
+        if (coldest >= floor || total <= 0)
+        {
+            return double.PositiveInfinity;
+        }
+
+        return room.Cells / total * Math.Log((m.HeldC - coldest) / (floor - coldest));
+    }
+
+    /// <summary>
     /// The outdoor temperature at a tick: the twelfths' means interpolated linearly between their midpoints
     /// (around the year), plus the diurnal swing.
     /// </summary>

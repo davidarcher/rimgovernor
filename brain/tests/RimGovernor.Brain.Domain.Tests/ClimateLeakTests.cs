@@ -140,4 +140,34 @@ public sealed class ClimateLeakTests
         var doorless = room with { DoorSide = new DoorSide.Doorless() };
         Assert.Equal(12, (plan with { Rooms = [doorless] }).OutdoorWallCells(doorless).Count);
     }
+
+    /// <summary>
+    /// The outage margin (#4062): a held room falls from HeldC toward the coldest outdoor step at its conductance over
+    /// its cells; a second wall layer lengthens the margin, an opening to the outdoors shortens it, a held neighbour changes
+    /// nothing, and a map never colder than the floor has no end to it.
+    /// </summary>
+    [Fact]
+    public void AHeldRoomsOutageMarginFollowsItsLeakAndTheColdestOutdoorStep()
+    {
+        var lone = ClimateRules.OutageMarginTicks(Model, IceSheet, Room(9, 11), 0);
+
+        // 9 cells over 11 walls and 9 roof cells, from 21 to 16 against the coldest step (-30 less the 7 C swing).
+        var conductance = (WallFactor * 11) + (ThinRoofRate * 9);
+        var expected = 9 / conductance * Math.Log((21 - -37.0) / (16 - -37.0));
+        Assert.InRange(lone, expected * 0.999, expected * 1.001);
+
+        var doubled = ClimateRules.OutageMarginTicks(Model, IceSheet, Room(9, 11, ShellLayers.Doubled), 0);
+        Assert.True(doubled > lone, "a second wall layer lengthens the margin");
+
+        ClimateLink Link(Opening opening, ClimateSide side) => new() { Opening = opening, Side = side };
+        var open = Room(9, 11) with { Links = [Link(Opening.DoorOpen, new ClimateSide { Outdoors = true })] };
+        Assert.True(ClimateRules.OutageMarginTicks(Model, IceSheet, open, 0) < lone, "an open door to the outdoors shortens the margin");
+
+        var neighbour = Room(9, 11) with { Links = [Link(Opening.DoorClosed, new ClimateSide { HeldC = 21, Cells = 20 })] };
+        Assert.Equal(lone, ClimateRules.OutageMarginTicks(Model, IceSheet, neighbour, 0));
+
+        double[] mild = [.. Enumerable.Repeat(25.0, 12)];
+        Assert.Equal(double.PositiveInfinity, ClimateRules.OutageMarginTicks(Model, mild, Room(9, 11), 0));
+        Assert.Throws<ClimateException>(() => ClimateRules.OutageMarginTicks(Model with { HeldC = double.NaN }, IceSheet, Room(9, 11), 0));
+    }
 }
