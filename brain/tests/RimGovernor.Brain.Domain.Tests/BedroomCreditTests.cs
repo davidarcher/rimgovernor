@@ -123,6 +123,15 @@ public sealed class BedroomCreditTests
         Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Closing(0, 0.06), context, Day));
     }
 
+    // #4063: a planned bedroom with no planned bed moves its occupant nowhere: no credit, and no thrown fact stops the review.
+    [Fact]
+    public void ARoomThatPlansNoBedForItsOccupantIsNoMoveOfIts()
+    {
+        var context = Context(Pawn(ascetic: false, barracksStage: 2), bedroomStage: 2) with { PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>>() };
+        Assert.DoesNotContain(ForecastValue.Of(Closing(0, 0.06), context, Day).InvestmentContributions, r => r.Key.StartsWith("bedroom/", StringComparison.Ordinal));
+        Assert.Empty(ForecastHousing.BreakShifts(context));
+    }
+
     // ----- #3840: the layout/first-bedroom-closes case, every bed term ApplyBedThoughts, the rest tick and the comfort need apply.
 
     /// <summary>Need_Rest.BaseRestGainPerTick and the Rested category's RestFallPerTick (Need_Rest, ilspycmd).</summary>

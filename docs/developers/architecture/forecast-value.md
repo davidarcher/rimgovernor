@@ -291,6 +291,7 @@ break threshold. A stat the game has not loaded makes the read throw.
     ingredient fetch (`JobDriver_DoBill`) carries a run's ingredients, one carry at a time, with no floor.
   - The eater's own walk to its food and on to the table is its meal's time (the eating hours), not hauling.
   - A plan with no field hauls no harvest and names `food_field_unplanned`.
+  - A plan with no bench for the colony's meal hauls nothing to or from one and names `food_bench_unplanned` (#4063).
 - Breaks: `MoodBreakModel.DaysLost` of a day held at its observed mood target under its minor break threshold.
 - Bed: nothing while a colonist bed stands vacant (`SleepingRules.VacantColonistBed`). Otherwise it is the primary
   bed's build (`LayoutClusterRules.PiecePrice`, cheapest common stuff) over tier 2's horizon.

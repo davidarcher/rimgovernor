@@ -34,6 +34,15 @@ internal sealed class ReviewMemory<T>(T empty)
         }
     }
 
+    /// <summary>Whether a review of <paramref name="snapshot"/>'s world has derived the value: what <see cref="Require"/> asks.</summary>
+    public bool Known(GenerationSnapshot snapshot)
+    {
+        lock (_mu)
+        {
+            return _set && _snapshot == snapshot;
+        }
+    }
+
     /// <summary>The value the review of <paramref name="snapshot"/>'s world derived; empty for another world.</summary>
     public T Get(GenerationSnapshot snapshot)
     {

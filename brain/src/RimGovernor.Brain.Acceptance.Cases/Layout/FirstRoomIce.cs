@@ -90,7 +90,9 @@ internal static class LayoutFirstRoomIce
         RimGovernor.Brain.GameFacts.Observations.RoomState? closed = null;
         _ = await s.ServeUntilAsync("barracks-closed", s.TicksLeft, async ct =>
         {
-            first ??= CoupledSelections.Of(s, before).FirstOrDefault(r => r.SelectedIds.Any(id => id.StartsWith("planned/room", StringComparison.Ordinal)));
+            // A selection whose vectors passed the payload cap keeps its ids on the planned_room_selection companion (#3828).
+            first ??= CoupledSelections.Of(s, before).Concat(CoupledSelections.PlannedRoomsOf(s, before))
+                .FirstOrDefault(r => r.SelectedIds.Any(id => id.StartsWith("planned/room", StringComparison.Ordinal)));
             foreach (var (pawn, severity) in await FirstRoomReads.HypothermiaAsync(s, "pawns", ct).ConfigureAwait(false))
             {
                 if (severity > worst.Severity)

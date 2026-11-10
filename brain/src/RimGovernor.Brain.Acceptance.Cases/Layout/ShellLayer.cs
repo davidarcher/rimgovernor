@@ -11,8 +11,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// (LayoutPlan.OuterWalls: the eleven cells one out from its ring, the cell beyond the door and the corners excepted).
 /// The hut counts as built before the layer (it stands roofed and closed at the start), and under the served brain a
 /// wall of the colony's is placed on every layer cell and then built. Owing the layer is policy (ShellBuildTests); this
-/// case owns the native placement and build of walls off the ring. Until #4063 is fixed the review faults on the
-/// injected plan's required facts at the first review and the clock never runs, so the case fails at layer-placed.
+/// case owns the native placement and build of walls off the ring.
 /// </summary>
 internal static class LayoutShellLayer
 {

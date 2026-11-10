@@ -411,7 +411,10 @@ public static class ForecastHousing
                 : barracks ? owners : owners is [var owner] ? [owner] : [];
             if (occupants.Length == 0) continue;
             var beds = c.PlannedBeds.GetValueOrDefault(closure.Room) ?? [];
-            deltas[(closure.Room, closure.Stuff)] = [.. occupants.Select((occupant, i) => SleeperOf(PawnOf(pawns, occupant), i < beds.Count ? beds[i] : null, closure, barracks, c))];
+            // An occupant past the room's planned beds that does not sleep in the room now has no bed there: the room moves it nowhere (#4063).
+            var sleepers = occupants.Select((occupant, i) => SleeperOf(PawnOf(pawns, occupant), i < beds.Count ? beds[i] : null, i < beds.Count, closure, barracks, c)).OfType<Sleeper>().ToArray();
+            if (sleepers.Length == 0) continue;
+            deltas[(closure.Room, closure.Stuff)] = sleepers;
         }
         var royal = RoyalDeltasOf(c, pawns);
         var gains = new List<(string Pawn, double Delta)>(royal.Values);
@@ -429,16 +432,20 @@ public static class ForecastHousing
     /// <paramref name="pawn"/>'s move into <paramref name="closure"/>'s room (#3840), sleeping in <paramref name="planned"/> (its
     /// planned bed in occupant order), else in the bed it sleeps in now when that is in the room (a standing room's upgrade:
     /// its bed terms are 0). A pawn without a rest need never lies down: none of its bed thoughts change. Throws when where it
-    /// sleeps now (<see cref="SleepNow"/>), its room delta (<see cref="BedroomMoodDelta"/>) or a bed term's fact is unread (#3835).
+    /// sleeps now (<see cref="SleepNow"/>), its room delta (<see cref="BedroomMoodDelta"/>) or a bed term's fact is unread (#3835):
+    /// a planned bed (<paramref name="bedPlanned"/>) whose stuff has no row is one. Null when the room plans no bed for the pawn
+    /// and it does not sleep there now (#4063): the room is no move of its.
     /// </summary>
-    private static Sleeper SleeperOf(NeedsForecastPawn pawn, SleepingBedFacts? planned, ForecastPlannedClosure closure, bool barracks, ForecastCoupledContext c)
+    private static Sleeper? SleeperOf(NeedsForecastPawn pawn, SleepingBedFacts? planned, bool bedPlanned, ForecastPlannedClosure closure, bool barracks, ForecastCoupledContext c)
     {
         if (RestRate(pawn) is not { } rate) return new(pawn, 0, 0, null, null) { Sleeps = false };
         var now = SleepNow(pawn) ?? throw new RequiredFactException("sleep place:" + pawn.Pawn);
+        var sleepsThere = now.Read.Bed.Length != 0 && closure.Prediction.Beds.Contains(now.Read.Bed);
+        if (planned is null && !sleepsThere && !bedPlanned) return null;
         if (BedroomMoodDelta(pawn, closure.Prediction.Stage, c.ColonistThoughts, barracks) is not RoomMoodDelta.Priced { Delta: var room })
             throw new RequiredFactException("bedroom mood delta:" + pawn.Pawn);
         var (ground, comfort, gain) = planned is not null ? (planned.Ground, planned.Comfort, rate.GainPerTickPerEffectiveness * planned.RestEffectiveness)
-            : now.Read.Bed.Length != 0 && closure.Prediction.Beds.Contains(now.Read.Bed) ? (now.Read.Ground, now.Read.Comfort, now.Read.GainPerTick)
+            : sleepsThere ? (now.Read.Ground, now.Read.Comfort, now.Read.GainPerTick)
             : throw new RequiredFactException("planned bed of room " + closure.Room.ToString(System.Globalization.CultureInfo.InvariantCulture));
         var mood = room + BedMoodDelta(pawn, now, ground, comfort, c.ComfortCurve) - SleepTemperatureThought(pawn, now.Read.Temperature)
             - c.RoomSleepDisturbance.GetValueOrDefault(closure.Room);

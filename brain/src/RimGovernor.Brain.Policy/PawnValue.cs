@@ -132,8 +132,9 @@ public static class PawnValueRules
     /// <item>bed (V6): nothing while a colonist bed stands vacant, else the bed's build over the horizon.</item>
     /// </list>
     /// A stat the shortfall needs that the pawn's speeds lack, an unpriced break curve, the colony's bed unread, a horizon of no days,
-    /// a meal with no planned bench to cook it, a planned walk no route joins, or the pawn's move or carry stat unread
+    /// a planned walk no route joins, or the pawn's move or carry stat unread
     /// throws <see cref="RequiredFactException"/>. A crop with no planned field names <c>food_field_unplanned</c>: its harvest is not hauled.
+    /// A meal with no planned bench to cook it names <c>food_bench_unplanned</c> (#4063): its walks to and from the bench are not hauled.
     /// </summary>
     public static PawnValue Of(PawnValueFacts pawn, PawnValueColony colony)
     {
@@ -148,12 +149,12 @@ public static class PawnValueRules
             : food.GrowTicksPerNutrition;
         var legs = colony.Haul;
         DomainException.Require(food.MoveStat.Length > 0 && food.CarryStat.Length > 0, "food haul stats");
-        if (food.Dish is not null && !legs.Bench) throw new RequiredFactException("planned bench of " + food.Meal);
         if (!double.IsFinite(legs.FieldToStore) || !double.IsFinite(legs.SourceToBench) || !double.IsFinite(legs.BenchToDish))
             throw new RequiredFactException("planned route of the food's hauls");
         var haul = FoodHaulRules.TicksPerNutrition(food, legs, FoodHaulRules.TicksPerCell(Speed(food.MoveStat)), Speed(food.CarryStat));
         var notModelled = food.Crop.Length == 0 ? [.. NotModelled, "food_source_not_crop"]
             : !legs.Field ? [.. NotModelled, "food_field_unplanned"] : NotModelled;
+        if (food.Dish is not null && !legs.Bench) notModelled = [.. notModelled, "food_bench_unplanned"];
         var bed = colony.Bed ?? throw new RequiredFactException("colony bed");
         if (!bed.Vacant && !(colony.HorizonDays > 0)) throw new RequiredFactException("bed horizon");
         return new PawnValue(pawn.Pawn, shares.Sum(s => s.TicksPerDay) / GameTime.TicksPerDay, pawn.FoodPerDay * (perNutrition + haul) / GameTime.TicksPerDay,

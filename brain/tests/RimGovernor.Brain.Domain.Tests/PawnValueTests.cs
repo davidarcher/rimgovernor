@@ -123,14 +123,17 @@ public sealed class PawnValueTests
         Assert.Equal(1, FoodHaulRules.TicksPerCell(1000));
     }
 
-    // #3849: a plan with no field hauls no harvest and names it; a meal with no planned bench, or a leg no route joins, throws.
+    // #3849: a plan with no field hauls no harvest and names it; a meal with no planned bench is named too (#4063: a thrown
+    // fact stopped the review of a plan without a kitchen); a leg no route joins throws.
     [Fact]
-    public void AnUnplannedFieldIsNamedAndAnUnplannedBenchThrows()
+    public void AnUnplannedFieldAndAnUnplannedBenchAreNamedAndAnUnjoinedLegThrows()
     {
         var fieldless = PawnValueRules.Of(Pawn("Anna", 1), Colony(0) with { Haul = Legs with { Field = false, FieldToStore = 0 } });
         Assert.Contains("food_field_unplanned", fieldless.NotModelled);
         Assert.True(fieldless.FoodHaul > 0);
-        Assert.Throws<RequiredFactException>(() => PawnValueRules.Of(Pawn("Anna", 1), Colony(0) with { Haul = Legs with { Bench = false } }));
+        var benchless = PawnValueRules.Of(Pawn("Anna", 1), Colony(0) with { Haul = Legs with { Bench = false, SourceToBench = 0, BenchToDish = 0 } });
+        Assert.Contains("food_bench_unplanned", benchless.NotModelled);
+        Assert.DoesNotContain("food_bench_unplanned", PawnValueRules.Of(Pawn("Anna", 1), Colony(0)).NotModelled);
         Assert.Throws<RequiredFactException>(() => PawnValueRules.Of(Pawn("Anna", 1), Colony(0) with { Haul = Legs with { FieldToStore = double.PositiveInfinity } }));
         Assert.Throws<RequiredFactException>(() => PawnValueRules.Of(Pawn("Anna", 1) with { Speeds = new Dictionary<string, double> { ["ConstructionSpeed"] = 1 } }, Colony(0)));
     }
